@@ -1,0 +1,62 @@
+==83681== Memcheck, a memory error detector
+==83681== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+==83681== Using Valgrind-3.18.1 and LibVEX; rerun with -h for copyright info
+==83681== Command: /usr/lib/R/bin/exec/R --vanilla -f dev/test_center_variables.r
+==83681== 
+
+R version 4.3.2 (2023-10-31) -- "Eye Holes"
+Copyright (C) 2023 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> devtools::load_all()
+ℹ Loading capybara
+> 
+> # from alpaca
+> inp <- readRDS("dev/centerVariables_inputs.rds")
+> 
+> names(inp)
+[1] "MX"          "w"           "k.list"      "center.tol"  "MX.centered"
+> 
+> MX.centered <- capybara:::center_variables_(
++   as.matrix(inp$MX), as.double(inp$w),
++   as.list(inp$k.list), as.double(inp$center.tol)
++ )
+> 
+> class(MX.centered)
+[1] "matrix" "array" 
+> class(inp$MX.centered)
+[1] "matrix" "array" 
+> 
+> all.equal(MX.centered, inp$MX.centered)
+[1] TRUE
+> 
+==83681== 
+==83681== HEAP SUMMARY:
+==83681==     in use at exit: 83,009,480 bytes in 17,707 blocks
+==83681==   total heap usage: 113,213 allocs, 95,506 frees, 198,663,759 bytes allocated
+==83681== 
+==83681== LEAK SUMMARY:
+==83681==    definitely lost: 0 bytes in 0 blocks
+==83681==    indirectly lost: 0 bytes in 0 blocks
+==83681==      possibly lost: 336 bytes in 1 blocks
+==83681==    still reachable: 83,009,144 bytes in 17,706 blocks
+==83681==                       of which reachable via heuristic:
+==83681==                         newarray           : 4,264 bytes in 1 blocks
+==83681==         suppressed: 0 bytes in 0 blocks
+==83681== Rerun with --leak-check=full to see details of leaked memory
+==83681== 
+==83681== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)

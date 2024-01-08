@@ -1,0 +1,64 @@
+==81962== Memcheck, a memory error detector
+==81962== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+==81962== Using Valgrind-3.18.1 and LibVEX; rerun with -h for copyright info
+==81962== Command: /usr/lib/R/bin/exec/R --vanilla -f dev/test_get_alpha.r
+==81962== 
+
+R version 4.3.2 (2023-10-31) -- "Eye Holes"
+Copyright (C) 2023 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> devtools::load_all()
+ℹ Loading capybara
+> 
+> # from alpaca
+> inp <- readRDS("dev/getAlpha_inputs.rds")
+> 
+> names(inp)
+[1] "pi"        "k.list"    "alpha.tol" "fe.list"  
+> 
+> fe.list <- capybara:::get_alpha_(as.double(inp$pi), as.list(inp$k.list), as.double(inp$alpha.tol))
+> 
+> class(fe.list)
+[1] "list"
+> class(inp$fe.list)
+[1] "list"
+> 
+> class(fe.list[[1]])
+[1] "matrix" "array" 
+> class(inp$fe.list[[1]])
+[1] "matrix" "array" 
+> 
+> all.equal(fe.list, inp$fe.list)
+[1] TRUE
+> 
+==81962== 
+==81962== HEAP SUMMARY:
+==81962==     in use at exit: 79,642,857 bytes in 17,727 blocks
+==81962==   total heap usage: 113,240 allocs, 95,513 frees, 194,207,756 bytes allocated
+==81962== 
+==81962== LEAK SUMMARY:
+==81962==    definitely lost: 0 bytes in 0 blocks
+==81962==    indirectly lost: 0 bytes in 0 blocks
+==81962==      possibly lost: 0 bytes in 0 blocks
+==81962==    still reachable: 79,642,857 bytes in 17,727 blocks
+==81962==                       of which reachable via heuristic:
+==81962==                         newarray           : 4,264 bytes in 1 blocks
+==81962==         suppressed: 0 bytes in 0 blocks
+==81962== Rerun with --leak-check=full to see details of leaked memory
+==81962== 
+==81962== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
