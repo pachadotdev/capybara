@@ -1,3 +1,7 @@
+# the data comes from running this after saving the intermediate outputs in alpaca
+# data <- simGLM(1000L, 20L, 1805L, model = "logit")
+# mod <- feglm(y ~ x1 + x2 + x3 | i + t, data)
+
 devtools::load_all()
 
 # from alpaca
@@ -14,3 +18,8 @@ class(fe.list[[1]])
 class(inp$fe.list[[1]])
 
 all.equal(fe.list, inp$fe.list)
+
+# base R
+# same but there is something weird with the tolerance
+source("dev/get_alpha.R")
+get_alpha_r_(inp$pi, inp$k.list, as.double(inp$alpha.tol) * 5000)

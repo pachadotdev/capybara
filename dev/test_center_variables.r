@@ -1,3 +1,7 @@
+# the data comes from running this after saving the intermediate outputs in alpaca
+# data <- simGLM(1000L, 20L, 1805L, model = "logit")
+# mod <- feglm(y ~ x1 + x2 + x3 | i + t, data)
+
 devtools::load_all()
 
 # from alpaca
