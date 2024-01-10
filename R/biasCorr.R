@@ -131,32 +131,32 @@ biasCorr <- function(
   if (control[["keep.mx"]]) {
     MX <- object[["MX"]]
   } else {
-    MX <- centerVariables(X, w, k.list, control[["center.tol"]])
+    MX <- center_variables_(X, w, k.list, control[["center.tol"]])
   }
 
   # Compute bias terms for requested bias correction
   if (panel.structure == "classic") {
     # Compute \hat{B} and \hat{D}
-    b <- as.vector(groupSums(MX * z, w, k.list[[1L]])) / 2.0 / nt
+    b <- as.vector(group_sums_(MX * z, w, k.list[[1L]])) / 2.0 / nt
     if (k > 1L) {
-      b <- b + as.vector(groupSums(MX * z, w, k.list[[2L]])) / 2.0 / nt
+      b <- b + as.vector(group_sums_(MX * z, w, k.list[[2L]])) / 2.0 / nt
     }
 
     # Compute spectral density part of \hat{B}
     if (L > 0L) {
-      b <- b + as.vector(groupSumsSpectral(MX * w, v, w, L, k.list[[1L]])) / nt
+      b <- b + as.vector(group_sums_spectral_(MX * w, v, w, L, k.list[[1L]])) / nt
     }
   } else {
     # Compute \hat{D}_{1}, \hat{D}_{2}, and \hat{B}
-    b <- as.vector(groupSums(MX * z, w, k.list[[1L]])) / 2.0 / nt
-    b <- b + as.vector(groupSums(MX * z, w, k.list[[2L]])) / 2.0 / nt
+    b <- as.vector(group_sums_(MX * z, w, k.list[[1L]])) / 2.0 / nt
+    b <- b + as.vector(group_sums_(MX * z, w, k.list[[2L]])) / 2.0 / nt
     if (k > 2L) {
-      b <- b + as.vector(groupSums(MX * z, w, k.list[[3L]])) / 2.0 / nt
+      b <- b + as.vector(group_sums_(MX * z, w, k.list[[3L]])) / 2.0 / nt
     }
 
     # Compute spectral density part of \hat{B}
     if (k > 2L && L > 0L) {
-      b <- b + as.vector(groupSumsSpectral(MX * w, v, w, L, k.list[[3L]])) / nt
+      b <- b + as.vector(group_sums_spectral_(MX * w, v, w, L, k.list[[3L]])) / nt
     }
   }
 
@@ -179,7 +179,7 @@ biasCorr <- function(
   }
 
   # Update centered regressor matrix
-  MX <- centerVariables(X, w, k.list, control[["center.tol"]])
+  MX <- center_variables_(X, w, k.list, control[["center.tol"]])
   colnames(MX) <- nms.sp
 
   # Update Hessian

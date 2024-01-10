@@ -195,7 +195,7 @@ getAPEs <- function(
   if (control[["keep.mx"]]) {
     MX <- object[["MX"]]
   } else {
-    MX <- centerVariables(X, w, k.list, control[["center.tol"]])
+    MX <- center_variables_(X, w, k.list, control[["center.tol"]])
   }
 
   # Compute average partial effects, derivatives, and Jacobian
@@ -229,7 +229,7 @@ getAPEs <- function(
 
   # Compute projection and residual projection of \Psi
   Psi <- -Delta1 / w
-  MPsi <- centerVariables(Psi, w, k.list, control[["center.tol"]])
+  MPsi <- center_variables_(Psi, w, k.list, control[["center.tol"]])
   print(MPsi)
   PPsi <- Psi - MPsi
   rm(Delta1, Psi)
@@ -253,26 +253,26 @@ getAPEs <- function(
     # Compute bias terms for requested bias correction
     if (panel.structure == "classic") {
       # Compute \hat{B} and \hat{D}
-      b <- as.vector(groupSums(Delta2 + PPsi * z, w, k.list[[1L]])) / 2.0 / nt
+      b <- as.vector(group_sums_(Delta2 + PPsi * z, w, k.list[[1L]])) / 2.0 / nt
       if (k > 1L) {
-        b <- b + as.vector(groupSums(Delta2 + PPsi * z, w, k.list[[2L]])) / 2.0 / nt
+        b <- b + as.vector(group_sums_(Delta2 + PPsi * z, w, k.list[[2L]])) / 2.0 / nt
       }
 
       # Compute spectral density part of \hat{B}
       if (L > 0L) {
-        b <- b - as.vector(groupSumsSpectral(MPsi * w, v, w, L, k.list[[1L]])) / nt
+        b <- b - as.vector(group_sums_spectral_(MPsi * w, v, w, L, k.list[[1L]])) / nt
       }
     } else {
       # Compute \hat{D}_{1}, \hat{D}_{2}, and \hat{B}
-      b <- as.vector(groupSums(Delta2 + PPsi * z, w, k.list[[1L]])) / 2.0 / nt
-      b <- b + as.vector(groupSums(Delta2 + PPsi * z, w, k.list[[2L]])) / 2.0 / nt
+      b <- as.vector(group_sums_(Delta2 + PPsi * z, w, k.list[[1L]])) / 2.0 / nt
+      b <- b + as.vector(group_sums_(Delta2 + PPsi * z, w, k.list[[2L]])) / 2.0 / nt
       if (k > 2L) {
-        b <- b + as.vector(groupSums(Delta2 + PPsi * z, w, k.list[[3L]])) / 2.0 / nt
+        b <- b + as.vector(group_sums_(Delta2 + PPsi * z, w, k.list[[3L]])) / 2.0 / nt
       }
 
       # Compute spectral density part of \hat{B}
       if (k > 2L && L > 0L) {
-        b <- b - as.vector(groupSumsSpectral(MPsi * w, v, w, L, k.list[[3L]])) / nt
+        b <- b - as.vector(group_sums_spectral_(MPsi * w, v, w, L, k.list[[3L]])) / nt
       }
     }
     rm(Delta2)
@@ -289,13 +289,13 @@ getAPEs <- function(
   if (adj > 0.0) {
     # Simplify covariance if sampling assumptions are imposed
     if (sampling.fe == "independence") {
-      V <- V + adj * groupSumsVar(Delta, k.list[[1L]])
+      V <- V + adj * group_sums_var_(Delta, k.list[[1L]])
       if (k > 1L) {
-        V <- V + adj * (groupSumsVar(Delta, k.list[[2L]]) - crossprod(Delta))
+        V <- V + adj * (group_sums_var_(Delta, k.list[[2L]]) - crossprod(Delta))
       }
       if (panel.structure == "network") {
         if (k > 2L) {
-          V <- V + adj * (groupSumsVar(Delta, k.list[[3L]]) - crossprod(Delta))
+          V <- V + adj * (group_sums_var_(Delta, k.list[[3L]]) - crossprod(Delta))
         }
       }
     }
@@ -303,12 +303,12 @@ getAPEs <- function(
     # Add covariance in case of weak exogeneity
     if (weak.exo) {
       if (panel.structure == "classic") {
-        C <- groupSumsCov(Delta, Gamma, k.list[[1L]])
+        C <- group_sums_cov_(Delta, Gamma, k.list[[1L]])
         V <- V + adj * (C + t(C))
         rm(C)
       } else {
         if (k > 2L) {
-          C <- groupSumsCov(Delta, Gamma, k.list[[3L]])
+          C <- group_sums_cov_(Delta, Gamma, k.list[[3L]])
           V <- V + adj * (C + t(C))
           rm(C)
         }

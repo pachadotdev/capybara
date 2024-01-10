@@ -55,7 +55,7 @@ getFEs <- function(object = NULL, alpha.tol = 1.0e-08) {
 
   # Recover fixed effects by alternating between the solutions of normal equations
   pie <- eta - as.vector(X %*% beta)
-  fe.list <- as.list(getAlpha(pie, k.list, alpha.tol))
+  fe.list <- as.list(get_alpha_(pie, k.list, alpha.tol))
 
   # Assign names to the different fixed effects categories
   for (i in seq.int(k)) {

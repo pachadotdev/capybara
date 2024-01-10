@@ -7,3 +7,19 @@ center_variables_ <- function(V0, w0, klist, tol) {
 get_alpha_ <- function(pi0, klist, tol) {
   .Call(`_capybara_get_alpha_`, pi0, klist, tol)
 }
+
+group_sums_ <- function(M0, w0, jlist) {
+  .Call(`_capybara_group_sums_`, M0, w0, jlist)
+}
+
+group_sums_spectral_ <- function(M0, v0, w0, L, jlist) {
+  .Call(`_capybara_group_sums_spectral_`, M0, v0, w0, L, jlist)
+}
+
+group_sums_var_ <- function(M0, jlist) {
+  .Call(`_capybara_group_sums_var_`, M0, jlist)
+}
+
+group_sums_cov_ <- function(M0, N0, jlist) {
+  .Call(`_capybara_group_sums_cov_`, M0, N0, jlist)
+}

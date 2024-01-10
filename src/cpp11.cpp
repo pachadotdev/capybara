@@ -19,11 +19,43 @@ extern "C" SEXP _capybara_get_alpha_(SEXP pi0, SEXP klist, SEXP tol) {
     return cpp11::as_sexp(get_alpha_(cpp11::as_cpp<cpp11::decay_t<const doubles&>>(pi0), cpp11::as_cpp<cpp11::decay_t<const list&>>(klist), cpp11::as_cpp<cpp11::decay_t<const double>>(tol)));
   END_CPP11
 }
+// 05_group_sums.cpp
+doubles_matrix<> group_sums_(const doubles_matrix<>& M0, const doubles& w0, const list& jlist);
+extern "C" SEXP _capybara_group_sums_(SEXP M0, SEXP w0, SEXP jlist) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(group_sums_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(M0), cpp11::as_cpp<cpp11::decay_t<const doubles&>>(w0), cpp11::as_cpp<cpp11::decay_t<const list&>>(jlist)));
+  END_CPP11
+}
+// 05_group_sums.cpp
+doubles_matrix<> group_sums_spectral_(const doubles_matrix<>& M0, const doubles& v0, const doubles& w0, const int L, const list& jlist);
+extern "C" SEXP _capybara_group_sums_spectral_(SEXP M0, SEXP v0, SEXP w0, SEXP L, SEXP jlist) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(group_sums_spectral_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(M0), cpp11::as_cpp<cpp11::decay_t<const doubles&>>(v0), cpp11::as_cpp<cpp11::decay_t<const doubles&>>(w0), cpp11::as_cpp<cpp11::decay_t<const int>>(L), cpp11::as_cpp<cpp11::decay_t<const list&>>(jlist)));
+  END_CPP11
+}
+// 05_group_sums.cpp
+doubles_matrix<> group_sums_var_(const doubles_matrix<>& M0, const list& jlist);
+extern "C" SEXP _capybara_group_sums_var_(SEXP M0, SEXP jlist) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(group_sums_var_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(M0), cpp11::as_cpp<cpp11::decay_t<const list&>>(jlist)));
+  END_CPP11
+}
+// 05_group_sums.cpp
+doubles_matrix<> group_sums_cov_(const doubles_matrix<>& M0, const doubles_matrix<>& N0, const list& jlist);
+extern "C" SEXP _capybara_group_sums_cov_(SEXP M0, SEXP N0, SEXP jlist) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(group_sums_cov_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(M0), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(N0), cpp11::as_cpp<cpp11::decay_t<const list&>>(jlist)));
+  END_CPP11
+}
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
-    {"_capybara_center_variables_", (DL_FUNC) &_capybara_center_variables_, 4},
-    {"_capybara_get_alpha_",        (DL_FUNC) &_capybara_get_alpha_,        3},
+    {"_capybara_center_variables_",    (DL_FUNC) &_capybara_center_variables_,    4},
+    {"_capybara_get_alpha_",           (DL_FUNC) &_capybara_get_alpha_,           3},
+    {"_capybara_group_sums_",          (DL_FUNC) &_capybara_group_sums_,          3},
+    {"_capybara_group_sums_cov_",      (DL_FUNC) &_capybara_group_sums_cov_,      3},
+    {"_capybara_group_sums_spectral_", (DL_FUNC) &_capybara_group_sums_spectral_, 5},
+    {"_capybara_group_sums_var_",      (DL_FUNC) &_capybara_group_sums_var_,      2},
     {NULL, NULL, 0}
 };
 }
