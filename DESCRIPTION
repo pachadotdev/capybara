@@ -20,3 +20,4 @@ RoxygenNote: 7.2.3
 Encoding: UTF-8
 SystemRequirements: C++11
 NeedsCompilation: yes
+VignetteBuilder: knitr
