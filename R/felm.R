@@ -1,31 +1,31 @@
 felm <- function(formula = NULL, data = NULL, weights = NULL) {
   # Use 'feglm' to estimate the model
   reslist <- feglm(formula = formula, data = data, weights = weights, family = gaussian())
-  # reslist[["deviance"]] <- NULL
-  # reslist[["null.deviance"]] <- NULL
-  # reslist[["eta"]] <- NULL
-  # reslist[["weights"]] <- NULL
-  # reslist[["conv"]] <- NULL
-  # reslist[["iter"]] <- NULL
-  # reslist[["control"]] <- NULL
 
-  f <- fitted.values(reslist)
-  r <- reslist$data[, 1] - f
+  yhat <- fitted.values(reslist)
+  y <- unlist(reslist$data[, 1], use.names = FALSE)
+  ybar <- mean(y)
+
   w <- reslist$weights
 
-  quantile(unlist(r))
+  ydemeaned_sq <- (y - ybar)^2
+  e_sq <- (y - yhat)^2
 
   if (is.null(w)) {
-    mss <- sum(f^2)
-    rss <- sum(r^2)
+    tss <- sum(ydemeaned_sq)
+    rss <- sum(e_sq)
   } else {
-    mss <- sum(w * f^2)
-    rss <- sum(w * r^2)
-    r <- sqrt(w) * r
+    tss <- sum(w * ydemeaned_sq)
+    rss <- sum(w * e_sq)
   }
 
-  reslist$r.squared <- mss / (mss + rss)
-  reslist$adj.r.squared <- 1 - (1 - reslist$r.squared) * ((n - df.int) / rdf)
+  n <- length(yhat)
+  k <- length(reslist$coefficients) + sum(vapply(reslist$nms.fe, length, integer(1)))
+  
+  reslist$r.squared <- 1 - (rss / tss)
+
+  # no -1 in the denominator because the FE estimation does not include the "grand mean"
+  reslist$adj.r.squared <- 1 - (1 - reslist$r.squared) * ((n - 1) / (n - k))
 
   # Return result list
   structure(reslist, class = "felm")
