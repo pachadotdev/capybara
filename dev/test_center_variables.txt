@@ -1,8 +1,8 @@
-==83681== Memcheck, a memory error detector
-==83681== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
-==83681== Using Valgrind-3.18.1 and LibVEX; rerun with -h for copyright info
-==83681== Command: /usr/lib/R/bin/exec/R --vanilla -f dev/test_center_variables.r
-==83681== 
+==94626== Memcheck, a memory error detector
+==94626== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+==94626== Using Valgrind-3.18.1 and LibVEX; rerun with -h for copyright info
+==94626== Command: /usr/lib/R/bin/exec/R --vanilla -f dev/test_center_variables.r
+==94626== 
 
 R version 4.3.2 (2023-10-31) -- "Eye Holes"
 Copyright (C) 2023 The R Foundation for Statistical Computing
@@ -22,6 +22,10 @@ Type 'demo()' for some demos, 'help()' for on-line help, or
 'help.start()' for an HTML browser interface to help.
 Type 'q()' to quit R.
 
+> # the data comes from running this after saving the intermediate outputs in alpaca
+> # data <- simGLM(1000L, 20L, 1805L, model = "logit")
+> # mod <- feglm(y ~ x1 + x2 + x3 | i + t, data)
+> 
 > devtools::load_all()
 ℹ Loading capybara
 > 
@@ -44,19 +48,19 @@ Type 'q()' to quit R.
 > all.equal(MX.centered, inp$MX.centered)
 [1] TRUE
 > 
-==83681== 
-==83681== HEAP SUMMARY:
-==83681==     in use at exit: 83,009,480 bytes in 17,707 blocks
-==83681==   total heap usage: 113,213 allocs, 95,506 frees, 198,663,759 bytes allocated
-==83681== 
-==83681== LEAK SUMMARY:
-==83681==    definitely lost: 0 bytes in 0 blocks
-==83681==    indirectly lost: 0 bytes in 0 blocks
-==83681==      possibly lost: 336 bytes in 1 blocks
-==83681==    still reachable: 83,009,144 bytes in 17,706 blocks
-==83681==                       of which reachable via heuristic:
-==83681==                         newarray           : 4,264 bytes in 1 blocks
-==83681==         suppressed: 0 bytes in 0 blocks
-==83681== Rerun with --leak-check=full to see details of leaked memory
-==83681== 
-==83681== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
+==94626== 
+==94626== HEAP SUMMARY:
+==94626==     in use at exit: 102,304,059 bytes in 19,838 blocks
+==94626==   total heap usage: 122,101 allocs, 102,263 frees, 225,417,256 bytes allocated
+==94626== 
+==94626== LEAK SUMMARY:
+==94626==    definitely lost: 0 bytes in 0 blocks
+==94626==    indirectly lost: 0 bytes in 0 blocks
+==94626==      possibly lost: 0 bytes in 0 blocks
+==94626==    still reachable: 102,304,059 bytes in 19,838 blocks
+==94626==                       of which reachable via heuristic:
+==94626==                         newarray           : 4,264 bytes in 1 blocks
+==94626==         suppressed: 0 bytes in 0 blocks
+==94626== Rerun with --leak-check=full to see details of leaked memory
+==94626== 
+==94626== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)

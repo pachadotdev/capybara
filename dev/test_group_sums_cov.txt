@@ -1,0 +1,65 @@
+==67705== Memcheck, a memory error detector
+==67705== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+==67705== Using Valgrind-3.18.1 and LibVEX; rerun with -h for copyright info
+==67705== Command: /usr/lib/R/bin/exec/R --vanilla -f dev/test_group_sums_cov.r
+==67705== 
+
+R version 4.3.2 (2023-10-31) -- "Eye Holes"
+Copyright (C) 2023 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> # the data comes from running this after saving the intermediate outputs in alpaca
+> # data <- simGLM(1000L, 20L, 1805L, model = "logit")
+> # mod <- feglm(y ~ x1 + x2 + x3 | i + t, data)
+> # mod.bc <- biasCorr(mod)
+> # mod.ape <- getAPEs(mod.bc)
+> 
+> devtools::load_all()
+ℹ Loading capybara
+> 
+> # from alpaca
+> inp <- readRDS("dev/groupSumsCov_inputs.rds")
+> 
+> names(inp)
+[1] "Delta"    "Gamma"    "k.list.1" "b"       
+> 
+> b <- capybara:::group_sums_cov_(inp$Delta, inp$Gamma, inp$k.list.1)
+> 
+> class(b)
+[1] "matrix" "array" 
+> class(inp$b)
+[1] "matrix" "array" 
+> 
+> all.equal(b, inp$b)
+[1] TRUE
+> 
+==67705== 
+==67705== HEAP SUMMARY:
+==67705==     in use at exit: 99,312,249 bytes in 19,737 blocks
+==67705==   total heap usage: 121,308 allocs, 101,571 frees, 221,335,042 bytes allocated
+==67705== 
+==67705== LEAK SUMMARY:
+==67705==    definitely lost: 0 bytes in 0 blocks
+==67705==    indirectly lost: 0 bytes in 0 blocks
+==67705==      possibly lost: 0 bytes in 0 blocks
+==67705==    still reachable: 99,312,249 bytes in 19,737 blocks
+==67705==                       of which reachable via heuristic:
+==67705==                         newarray           : 4,264 bytes in 1 blocks
+==67705==         suppressed: 0 bytes in 0 blocks
+==67705== Rerun with --leak-check=full to see details of leaked memory
+==67705== 
+==67705== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)

@@ -1,0 +1,65 @@
+==68358== Memcheck, a memory error detector
+==68358== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+==68358== Using Valgrind-3.18.1 and LibVEX; rerun with -h for copyright info
+==68358== Command: /usr/lib/R/bin/exec/R --vanilla -f dev/test_group_sums_spectral.r
+==68358== 
+
+R version 4.3.2 (2023-10-31) -- "Eye Holes"
+Copyright (C) 2023 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> # the data comes from running this after saving the intermediate outputs in alpaca
+> # data <- simGLM(1000L, 20L, 1805L, model = "logit")
+> # mod <- feglm(y ~ x1 + x2 + x3 | i + t, data)
+> # mod.bc <- biasCorr(mod)
+> # mod.ape <- getAPEs(mod.bc)
+> 
+> devtools::load_all()
+ℹ Loading capybara
+> 
+> # from alpaca
+> inp <- readRDS("dev/groupSumsSpectral_inputs.rds")
+> 
+> names(inp)
+[1] "MPsi"     "w"        "v"        "L"        "k.list.1" "b"       
+> 
+> b <- capybara:::group_sums_spectral_(inp$MPsi * inp$w, inp$v, inp$w, inp$L, inp$k.list.1)
+> 
+> class(b)
+[1] "matrix" "array" 
+> class(inp$b)
+[1] "matrix" "array" 
+> 
+> all.equal(b, inp$b)
+[1] TRUE
+> 
+==68358== 
+==68358== HEAP SUMMARY:
+==68358==     in use at exit: 99,631,390 bytes in 19,739 blocks
+==68358==   total heap usage: 121,310 allocs, 101,571 frees, 221,654,198 bytes allocated
+==68358== 
+==68358== LEAK SUMMARY:
+==68358==    definitely lost: 0 bytes in 0 blocks
+==68358==    indirectly lost: 0 bytes in 0 blocks
+==68358==      possibly lost: 0 bytes in 0 blocks
+==68358==    still reachable: 99,631,390 bytes in 19,739 blocks
+==68358==                       of which reachable via heuristic:
+==68358==                         newarray           : 4,264 bytes in 1 blocks
+==68358==         suppressed: 0 bytes in 0 blocks
+==68358== Rerun with --leak-check=full to see details of leaked memory
+==68358== 
+==68358== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
