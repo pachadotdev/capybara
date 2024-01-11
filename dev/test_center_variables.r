@@ -9,7 +9,7 @@ inp <- readRDS("dev/centerVariables_inputs.rds")
 
 names(inp)
 
-MX.centered <- capybara:::center_variables_(
+MX.centered <- center_variables_(
   as.matrix(inp$MX), as.double(inp$w),
   as.list(inp$k.list), as.double(inp$center.tol)
 )

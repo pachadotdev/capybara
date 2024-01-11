@@ -11,7 +11,7 @@ inp <- readRDS("dev/groupSumsVar_inputs.rds")
 
 names(inp)
 
-b <- capybara:::group_sums_var_(inp$Delta, inp$k.list.2)
+b <- group_sums_var_(inp$Delta, inp$k.list.2)
 
 class(b)
 class(inp$b)
