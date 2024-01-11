@@ -39,184 +39,96 @@ feglm.nb <- function(
     init.theta = NULL,
     link = c("log", "identity", "sqrt"),
     control = NULL) {
-  # Check validity of formula
-  if (is.null(formula)) {
-    stop("'formula' has to be specified.", call. = FALSE)
-  } else if (!inherits(formula, "formula")) {
-    stop("'formula' has to be of class formula.", call. = FALSE)
-  }
+  # Check validity of formula ----
+  check_formula(formula)
 
-  # Check validity of data
-  if (is.null(data)) {
-    stop("'data' has to be specified.", call. = FALSE)
-  } else if (!inherits(data, "data.frame")) {
-    stop("'data' has to be of class data.frame.", call. = FALSE)
-  }
+  # Check validity of data ----
+  check_data(data)
 
-  # Check validity of link
+  # Check validity of link ----
   link <- match.arg(link)
 
-  # Check validity of control
-  if (is.null(control)) {
-    control <- list()
-  } else if (!inherits(control, "list")) {
-    stop("'control' has to be a list.", call. = FALSE)
-  }
+  # Check validity of control + Extract control list ----
+  control <- check_control(control)
 
-  # Extract control list
-  control <- do.call(feglmControl, control)
-
-  # Update formula and do further validity check
-  formula <- Formula(formula)
-  if (length(formula)[[2L]] < 2L || length(formula)[[1L]] > 1L) {
-    stop("'formula' uncorrectly specified.", call. = FALSE)
-  }
+  # Update formula and do further validity check ----
+  formula <- update_formula(formula)
 
   # Generate model.frame
-  setDT(data)
-  data <- data[, c(all.vars(formula), weights), with = FALSE]
-  lhs <- names(data)[[1L]]
-  nobs.full <- nrow(data)
-  data <- na.omit(data)
-  nobs.na <- nobs.full - nrow(data)
-  nobs.full <- nrow(data)
+  model_frame <- generate_model_frame(data, formula, weights)
+  rm(data)
 
-  # Ensure that model response is in line with the chosen model
-  if (data[, any(get(lhs) < 0.0)]) {
-    stop("Model response has to be positive.", call. = FALSE)
-  }
+  # Check starting guess of theta ----
+  family <- generate_family_init_theta(init.theta, link)
+  rm(init.theta)
 
-  # Get names of the fixed effects variables and sort
+  # Ensure that model response is in line with the chosen model ----
+  check_response(model_frame$data, model_frame$lhs, family)
+
+  # Get names of the fixed effects variables and sort ----
   k.vars <- attr(terms(formula, rhs = 2L), "term.labels")
   k <- length(k.vars)
-  setkeyv(data, k.vars)
+  setkeyv(model_frame$data, k.vars)
 
-  # Generate temporary variable
-  tmp.var <- tempVar(data)
+  # Generate temporary variable ----
+  tmp.var <- tempVar(model_frame$data)
 
-  # Drop observations that do not contribute to the loglikelihood
-  if (control[["drop.pc"]]) {
-    for (j in k.vars) {
-      data[, (tmp.var) := mean(get(lhs)), by = eval(j)]
-      data <- data[get(tmp.var) > 0.0]
-      data[, (tmp.var) := NULL]
-    }
-  }
+  # Drop observations that do not contribute to the log likelihood ----
+  model_frame$data <- drop_by_link_type(model_frame$data, model_frame$lhs, family, tmp.var, k.vars, control)
 
-  # Transform fixed effects variables and potential cluster variables to factors
-  data[, (k.vars) := lapply(.SD, checkFactor), .SDcols = k.vars]
-  if (length(formula)[[2L]] > 2L) {
-    add.vars <- attr(terms(formula, rhs = 3L), "term.labels")
-    data[, (add.vars) := lapply(.SD, checkFactor), .SDcols = add.vars]
-  }
+  # Transform fixed effects variables and potential cluster variables to factors ----
+  model_frame$data <- transform_fe(model_frame$data, formula, k.vars)
 
-  # Determine number of dropped observations
-  nt <- nrow(data)
-  nobs <- c(
-    nobs.full = nobs.full,
-    nobs.na   = nobs.na,
-    nobs.pc   = nobs.full - nt,
-    nobs      = nt
-  )
+  # Determine the number of dropped observations ----
+  nt <- nrow(model_frame$data)
+  nobs <- generate_nobs(model_frame$nobs.full, model_frame$nobs.na, nt)
 
-  # Extract model response and regressor matrix
-  y <- data[[1L]]
-  X <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
-  nms.sp <- attr(X, "dimnames")[[2L]]
-  attr(X, "dimnames") <- NULL
-  p <- ncol(X)
+  # Extract model response and regressor matrix ----
+  model_response <- generate_model_response(model_frame$data, formula)
 
-  # Check for linear dependence in 'X'
-  if (qr(X)[["rank"]] < p) {
-    stop("Linear dependent terms detected.", call. = FALSE)
-  }
+  # Check for linear dependence in 'X' ----
+  check_linear_dependence(model_response$X, model_response$p)
 
-  # Extract weights if required
+  # Extract weights if required ----
   if (is.null(weights)) {
     wt <- rep(1.0, nt)
   } else {
-    wt <- data[[weights]]
+    wt <- model_frame$data[[weights]]
   }
 
-  # Check validity of weights
-  if (!is.numeric(wt)) {
-    stop("weights must be numeric.", call. = FALSE)
-  }
-  if (any(wt < 0.0)) {
-    stop("negative weights are not allowed.", call. = FALSE)
-  }
+  # Check validity of weights ----
+  check_weights(wt)
 
-  # Check starting guess of \theta
-  if (is.null(init.theta)) {
-    family <- poisson(link)
-  } else {
-    # Validity of input argument (beta.start)
-    if (length(init.theta) != 1L) {
-      stop("'init.theta' has to be a scalar.", call. = FALSE)
-    } else if (init.theta <= 0.0) {
-      stop("'init.theta' has to be strictly positive.", call. = FALSE)
-    }
-    family <- negative.binomial(init.theta, link)
-  }
-  rm(init.theta)
-
-  # Compute and check starting guesses
-  if (!is.null(beta.start) || !is.null(eta.start)) {
-    # If both are specified, ignore eta.start
-    if (!is.null(beta.start) && !is.null(eta.start)) {
-      warning("'beta.start' and 'eta.start' are specified. Ignoring 'eta.start'.", call. = FALSE)
-    }
-
-    # Compute and check starting guesses
-    if (!is.null(beta.start)) {
-      # Validity of input argument (beta.start)
-      if (length(beta.start) != p) {
-        stop("Length of 'beta.start' has to be equal to the number of structural parameters.",
-          call. = FALSE
-        )
-      }
-
-      # Set starting guesses
-      beta <- beta.start
-      eta <- as.vector(X %*% beta)
-    } else {
-      # Validity of input argument (eta.start)
-      if (length(eta.start) != nt) {
-        stop("Length of 'eta.start' has to be equal to the number of observations.", call. = FALSE)
-      }
-
-      # Set starting guesses
-      beta <- numeric(p)
-      eta <- eta.start
-    }
-  } else {
-    # Compute starting guesses if not user specified
-    beta <- numeric(p)
-    eta <- rep(family[["linkfun"]](sum(wt * (y + 0.1)) / sum(wt)), nt)
-  }
+  # Compute and check starting guesses ----
+  start_guesses <- generate_start_guesses(
+    beta.start, eta.start, model_response$y, model_response$X, beta, nt, wt, model_response$p, family
+  )
   rm(beta.start, eta.start)
 
-  # Get names and number of levels in each fixed effects category
-  nms.fe <- lapply(data[, k.vars, with = FALSE], levels)
-  lvls.k <- sapply(nms.fe, length)
+  # Get names and number of levels in each fixed effects category ----
+  nms.fe <- lapply(model_frame$data[, k.vars, with = FALSE], levels)
+  lvls.k <- vapply(nms.fe, length, integer(1))
 
-  # Generate auxiliary list of indexes for different sub panels
-  k.list <- getIndexList(k.vars, data)
+  # Generate auxiliary list of indexes for different sub panels ----
+  k.list <- getIndexList(k.vars, model_frame$data)
 
-  # Extract control arguments
+  # Extract control arguments ----
   tol <- control[["dev.tol"]]
   limit <- control[["limit"]]
   iter.max <- control[["iter.max"]]
   trace <- control[["trace"]]
 
-  # Initial negative binomial fit
-  fit <- feglmFit(beta, eta, y, X, wt, k.list, family, control)
+  # Initial negative binomial fit ----
+  fit <- feglmFit(
+    start_guesses$beta, start_guesses$eta, model_response$y, model_response$X, wt, k.list, family, control
+  )
+
   beta <- fit[["coefficients"]]
   eta <- fit[["eta"]]
   dev <- fit[["deviance"]]
   theta <- suppressWarnings(
     theta.ml(
-      y     = y,
+      y     = model_response$y,
       mu    = family[["linkinv"]](eta),
       n     = nt,
       limit = limit,
@@ -224,20 +136,20 @@ feglm.nb <- function(
     )
   )
 
-  # Alternate between fitting glm and \theta
+  # Alternate between fitting glm and \theta ----
   conv <- FALSE
   for (iter in seq.int(iter.max)) {
     # Fit negative binomial model
     dev.old <- dev
     theta.old <- theta
     family <- negative.binomial(theta, link)
-    fit <- feglmFit(beta, eta, y, X, wt, k.list, family, control)
+    fit <- feglmFit(beta, eta, model_response$y, model_response$X, wt, k.list, family, control)
     beta <- fit[["coefficients"]]
     eta <- fit[["eta"]]
     dev <- fit[["deviance"]]
     theta <- suppressWarnings(
       theta.ml(
-        y     = y,
+        y     = model_response$y,
         mu    = family[["linkinv"]](eta),
         n     = nt,
         limit = limit,
@@ -264,29 +176,36 @@ feglm.nb <- function(
       break
     }
   }
-  rm(y, X, eta)
+  model_response$y <- NULL
+  model_response$X <- NULL
+  start_guesses$eta <- NULL
 
-  # Information if convergence failed
+  # Information if convergence failed ----
   if (!conv && trace) cat("Algorithm did not converge.\n")
 
-  # Add names to \beta, Hessian, and MX (if provided)
-  names(fit[["coefficients"]]) <- nms.sp
+  # Add names to beta, Hessian, and MX (if provided) ----
+  names(fit[["coefficients"]]) <- model_response$nms.sp
   if (control[["keep.mx"]]) {
-    colnames(fit[["MX"]]) <- nms.sp
+    colnames(fit[["MX"]]) <- model_response$nms.sp
   }
-  dimnames(fit[["Hessian"]]) <- list(nms.sp, nms.sp)
+  dimnames(fit[["Hessian"]]) <- list(model_response$nms.sp, model_response$nms.sp)
 
-  # Return result list
-  structure(c(fit, list(
-    theta      = theta,
-    iter.outer = iter,
-    conv.outer = conv,
-    nobs       = nobs,
-    lvls.k     = lvls.k,
-    nms.fe     = nms.fe,
-    formula    = formula,
-    data       = data,
-    family     = family,
-    control    = control
-  )), class = c("feglm", "feglm.nb"))
+  # Generate result list ----
+  reslist <- c(
+    fit, list(
+      theta      = theta,
+      iter.outer = iter,
+      conv.outer = conv,
+      nobs       = nobs,
+      lvls.k     = lvls.k,
+      nms.fe     = nms.fe,
+      formula    = formula,
+      data       = data,
+      family     = family,
+      control    = control
+    )
+  )
+
+  # Return result list ----
+  structure(reslist, class = c("feglm", "feglm.nb"))
 }

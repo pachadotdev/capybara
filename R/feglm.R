@@ -69,231 +69,104 @@ feglm <- function(
     beta.start = NULL,
     eta.start = NULL,
     control = NULL) {
-  # Check validity of formula
-  if (is.null(formula)) {
-    stop("'formula' has to be specified.", call. = FALSE)
-  } else if (!inherits(formula, "formula")) {
-    stop("'formula' has to be of class formula.", call. = FALSE)
-  }
+  # Check validity of formula ----
+  check_formula(formula)
 
-  # Check validity of data
-  if (is.null(data)) {
-    stop("'data' has to be specified.", call. = FALSE)
-  } else if (!inherits(data, "data.frame")) {
-    stop("'data' has to be of class data.frame.", call. = FALSE)
-  }
+  # Check validity of data ----
+  check_data(data)
 
-  # Check validity of family
-  # NOTE: Quasi families not supported yet
-  if (!inherits(family, "family")) {
-    stop("'family' has to be of class family", call. = FALSE)
-  } else if (family[["family"]] %in% c("quasi", "quasipoisson", "quasibinomial")) {
-    stop("Quasi-variants of 'family' are not supported.", call. = FALSE)
-  } else if (startsWith(family[["family"]], "Negative Binomial")) {
-    stop("Please use 'feglm.nb' instead.", call. = FALSE)
-  }
+  # Check validity of family ----
+  # TODO: Add quasi families later
+  check_family(family)
 
-  # Check validity of control
-  if (is.null(control)) {
-    control <- list()
-  } else if (!inherits(control, "list")) {
-    stop("'control' has to be a list.", call. = FALSE)
-  }
+  # Check validity of control + Extract control list ----
+  control <- check_control(control)
 
-  # Extract control list
-  control <- do.call(feglmControl, control)
-
-  # Update formula and do further validity check
-  formula <- Formula(formula)
-  if (length(formula)[[2L]] < 2L || length(formula)[[1L]] > 1L) {
-    stop("'formula' uncorrectly specified.", call. = FALSE)
-  }
+  # Update formula and do further validity check ----
+  formula <- update_formula(formula)
 
   # Generate model.frame
-  setDT(data)
-  data <- data[, c(all.vars(formula), weights), with = FALSE]
-  lhs <- names(data)[[1L]]
-  nobs.full <- nrow(data)
-  data <- na.omit(data)
-  nobs.na <- nobs.full - nrow(data)
-  nobs.full <- nrow(data)
+  model_frame <- generate_model_frame(data, formula, weights)
+  rm(data)
 
-  # Ensure that model response is in line with the chosen model
-  if (family[["family"]] == "binomial") {
-    # Check if 'y' is numeric
-    if (data[, is.numeric(get(lhs))]) {
-      # Check if 'y' is in [0, 1]
-      if (data[, any(get(lhs) < 0.0 | get(lhs) > 1.0)]) {
-        stop("Model response has to be within the unit interval.", call. = FALSE)
-      }
-    } else {
-      # Check if 'y' is factor and transform otherwise
-      data[, (1L) := checkFactor(get(lhs))]
+  # Ensure that model response is in line with the chosen model ----
+  check_response(model_frame$data, model_frame$lhs, family)
 
-      # Check if the number of levels equals two
-      if (data[, length(levels(get(lhs)))] != 2L) {
-        stop("Model response has to be binary.", call. = FALSE)
-      }
-
-      # Ensure 'y' is 0-1 encoded
-      data[, (1L) := as.numeric(get(lhs)) - 1.0]
-    }
-  } else if (family[["family"]] %in% c("Gamma", "inverse.gaussian")) {
-    # Check if 'y' is strictly positive
-    if (data[, any(get(lhs) <= 0.0)]) {
-      stop("Model response has to be strictly positive.", call. = FALSE)
-    }
-  } else {
-    # Check if 'y' is positive
-    if (data[, any(get(lhs) < 0.0)]) {
-      stop("Model response has to be positive.", call. = FALSE)
-    }
-  }
-
-  # Get names of the fixed effects variables and sort
+  # Get names of the fixed effects variables and sort ----
   k.vars <- attr(terms(formula, rhs = 2L), "term.labels")
   k <- length(k.vars)
-  setkeyv(data, k.vars)
+  setkeyv(model_frame$data, k.vars)
 
-  # Generate temporary variable for operations on the data.table
-  tmp.var <- tempVar(data)
+  # Generate temporary variable ----
+  tmp.var <- tempVar(model_frame$data)
 
-  # Drop observations that do not contribute to the log likelihood if requested
-  if (family[["family"]] %in% c("binomial", "poisson")) {
-    if (control[["drop.pc"]]) {
-      repeat {
-        # Drop observations that do not contribute to the log-likelihood
-        ncheck <- nrow(data)
-        for (j in k.vars) {
-          data[, (tmp.var) := mean(get(lhs)), by = eval(j)]
-          if (family[["family"]] == "binomial") {
-            data <- data[get(tmp.var) > 0.0 & get(tmp.var) < 1.0]
-          } else {
-            data <- data[get(tmp.var) > 0.0]
-          }
-          data[, (tmp.var) := NULL]
-        }
+  # Drop observations that do not contribute to the log likelihood ----
+  model_frame$data <- drop_by_link_type(model_frame$data, model_frame$lhs, family, tmp.var, k.vars, control)
 
-        # Check termination
-        if (ncheck == nrow(data)) break
-      }
-    }
-  }
+  # Transform fixed effects variables and potential cluster variables to factors ----
+  model_frame$data <- transform_fe(model_frame$data, formula, k.vars)
 
-  # Transform fixed effects variables and potential cluster variables to factors
-  data[, (k.vars) := lapply(.SD, checkFactor), .SDcols = k.vars]
-  if (length(formula)[[2L]] > 2L) {
-    add.vars <- attr(terms(formula, rhs = 3L), "term.labels")
-    data[, (add.vars) := lapply(.SD, checkFactor), .SDcols = add.vars]
-  }
+  # Determine the number of dropped observations ----
+  nt <- nrow(model_frame$data)
+  nobs <- generate_nobs(model_frame$nobs.full, model_frame$nobs.na, nt)
 
-  # Determine number of dropped observations
-  nt <- nrow(data)
-  nobs <- c(
-    nobs.full = nobs.full,
-    nobs.na   = nobs.na,
-    nobs.pc   = nobs.full - nt,
-    nobs      = nt
-  )
+  # Extract model response and regressor matrix ----
+  model_response <- generate_model_response(model_frame$data, formula)
 
-  # Extract model response and regressor matrix
-  y <- data[[1L]]
-  X <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
-  nms.sp <- attr(X, "dimnames")[[2L]]
-  attr(X, "dimnames") <- NULL
-  p <- ncol(X)
+  # Check for linear dependence in 'X' ----
+  check_linear_dependence(model_response$X, model_response$p)
 
-  # Check for linear dependence in 'X'
-  if (qr(X)[["rank"]] < p) {
-    stop("Linear dependent terms detected.", call. = FALSE)
-  }
-
-  # Extract weights if required
+  # Extract weights if required ----
   if (is.null(weights)) {
     wt <- rep(1.0, nt)
   } else {
-    wt <- data[[weights]]
+    wt <- model_frame$data[[weights]]
   }
 
-  # Check validity of weights
-  if (!is.numeric(wt)) {
-    stop("weights must be numeric.", call. = FALSE)
-  }
-  if (any(wt < 0.0)) {
-    stop("negative weights are not allowed.", call. = FALSE)
-  }
+  # Check validity of weights ----
+  check_weights(wt)
 
-  # Compute and check starting guesses
-  if (!is.null(beta.start) || !is.null(eta.start)) {
-    # If both are specified, ignore eta.start
-    if (!is.null(beta.start) && !is.null(eta.start)) {
-      warning("'beta.start' and 'eta.start' are specified. Ignoring 'eta.start'.", call. = FALSE)
-    }
-
-    # Compute and check starting guesses
-    if (!is.null(beta.start)) {
-      # Validity of input argument (beta.start)
-      if (length(beta.start) != p) {
-        stop("Length of 'beta.start' has to be equal to the number of structural parameters.", call. = FALSE)
-      }
-
-      # Set starting guesses
-      beta <- beta.start
-      eta <- as.vector(X %*% beta)
-    } else {
-      # Validity of input argument (eta.start)
-      if (length(eta.start) != nt) {
-        stop("Length of 'eta.start' has to be equal to the number of observations.", call. = FALSE)
-      }
-
-      # Set starting guesses
-      beta <- numeric(p)
-      eta <- eta.start
-    }
-  } else {
-    # Compute starting guesses if not user specified
-    beta <- numeric(p)
-    if (family[["family"]] == "binomial") {
-      eta <- rep(family[["linkfun"]](sum(wt * (y + 0.5) / 2.0) / sum(wt)), nt)
-    } else if (family[["family"]] %in% c("Gamma", "inverse.gaussian")) {
-      eta <- rep(family[["linkfun"]](sum(wt * y) / sum(wt)), nt)
-    } else {
-      eta <- rep(family[["linkfun"]](sum(wt * (y + 0.1)) / sum(wt)), nt)
-    }
-  }
+  # Compute and check starting guesses ----
+  start_guesses <- generate_start_guesses(
+    beta.start, eta.start, model_response$y, model_response$X, beta, nt, wt, model_response$p, family
+  )
   rm(beta.start, eta.start)
 
-  # Get names and number of levels in each fixed effects category
-  nms.fe <- lapply(data[, k.vars, with = FALSE], levels)
-  lvls.k <- sapply(nms.fe, length)
+  # Get names and number of levels in each fixed effects category ----
+  nms.fe <- lapply(model_frame$data[, k.vars, with = FALSE], levels)
+  lvls.k <- vapply(nms.fe, length, integer(1))
 
-  # Generate auxiliary list of indexes for different sub panels
-  k.list <- getIndexList(k.vars, data)
+  # Generate auxiliary list of indexes for different sub panels ----
+  k.list <- getIndexList(k.vars, model_frame$data)
 
-  # Fit generalized linear model
-  fit <- feglmFit(beta, eta, y, X, wt, k.list, family, control)
-  rm(y, X, eta)
+  # Fit generalized linear model ----
+  fit <- feglmFit(
+    start_guesses$beta, start_guesses$eta, model_response$y, model_response$X, wt, k.list, family, control
+  )
+  model_response$y <- NULL
+  model_response$X <- NULL
+  start_guesses$eta <- NULL
 
-  # Add names to \beta, Hessian, and MX (if provided)
-  names(fit[["coefficients"]]) <- nms.sp
+  # Add names to beta, Hessian, and MX (if provided) ----
+  names(fit[["coefficients"]]) <- model_response$nms.sp
   if (control[["keep.mx"]]) {
-    colnames(fit[["MX"]]) <- nms.sp
+    colnames(fit[["MX"]]) <- model_response$nms.sp
   }
-  dimnames(fit[["Hessian"]]) <- list(nms.sp, nms.sp)
+  dimnames(fit[["Hessian"]]) <- list(model_response$nms.sp, model_response$nms.sp)
 
-  # Generate result list
+  # Generate result list ----
   reslist <- c(
     fit, list(
       nobs    = nobs,
       lvls.k  = lvls.k,
       nms.fe  = nms.fe,
       formula = formula,
-      data    = data,
+      data    = model_frame$data,
       family  = family,
       control = control
     )
   )
 
-  # Return result list
+  # Return result list ----
   structure(reslist, class = "feglm")
 }
