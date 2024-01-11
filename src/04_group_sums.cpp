@@ -1,5 +1,5 @@
 #include "00_main.hpp"
-#include "02_cpp11_to_from_arma.hpp"
+#include "01_cpp11_to_from_arma.hpp"
 
 Col<double> group_sums_vec_(const Mat<double>& M, const Col<double>& w,
                             const list& jlist) {
