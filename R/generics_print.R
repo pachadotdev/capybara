@@ -1,0 +1,319 @@
+#' @title Print \code{apes}
+#' @description \code{\link{print.apes}} is a generic function which displays
+#'  some minimal information from objects returned by \code{\link{apes}}.
+#' @param x an object of class \code{"apes"}.
+#' @param digits unsigned integer indicating the number of decimal places.
+#'  Default is \code{max(3L, getOption("digits") - 3L)}.
+#' @param ... other arguments.
+#' @seealso \code{\link{apes}}
+#' @export
+print.apes <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
+  print(x[["delta"]], digits = digits)
+}
+
+#' @title Print \code{feglm}
+#' @description \code{\link{print.feglm}} is a generic function which displays
+#'  some minimal information from objects returned by \code{\link{feglm}}.
+#' @param x an object of class \code{"feglm"}.
+#' @param digits unsigned integer indicating the number of decimal places.
+#'  Default is \code{max(3L, getOption("digits") - 3L)}.
+#' @param ... other arguments.
+#' @seealso \code{\link{feglm}}
+#' @export
+print.feglm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
+  cat(
+    sub("\\(.*\\)", "", x[["family"]][["family"]]), " - ",
+    x[["family"]][["link"]], " link",
+    ", l= [", paste0(x[["lvls.k"]], collapse = ", "), "]\n\n",
+    sep = ""
+  )
+  print(x[["coefficients"]], digits = digits)
+}
+
+#' @title Print \code{felm}
+#' @description \code{\link{print.felm}} is a generic function which displays
+#'  some minimal information from objects returned by \code{\link{felm}}.
+#' @param x an object of class \code{"felm"}.
+#' @param digits unsigned integer indicating the number of decimal places.
+#'  Default is \code{max(3L, getOption("digits") - 3L)}.
+#' @param ... other arguments.
+#' @seealso \code{\link{felm}}
+#' @export
+print.felm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
+  print(x[["coefficients"]], digits = digits)
+}
+
+#' @title Print \code{summary.apes}
+#' @description \code{\link{print.summary.apes}} is a generic function which
+#'  displays summary statistics from objects returned by
+#'  \code{\link{summary.apes}}.
+#' @param x an object of class \code{"summary.apes"}.
+#' @param digits unsigned integer indicating the number of decimal places.
+#'  Default is \code{max(3L, getOption("digits") - 3L)}.
+#' @param ... other arguments.
+#' @seealso \code{\link{apes}}
+#' @export
+print.summary.apes <- function(
+    x, digits = max(3L, getOption("digits") - 3L), ...) {
+  cat("Estimates:\n")
+  printCoefmat(x[["cm"]], P.values = TRUE, has.Pvalue = TRUE, digits = digits)
+}
+
+#' @title Print \code{summary.feglm}
+#' @description \code{\link{print.summary.feglm}} is a generic function which
+#'  displays summary statistics from objects returned by
+#'  \code{\link{summary.feglm}}.
+#' @param x an object of class \code{"summary.feglm"}.
+#' @param digits unsigned integer indicating the number of decimal places.
+#'  Default is \code{max(3L, getOption("digits") - 3L)}.
+#' @param ... other arguments.
+#' @seealso \code{\link{feglm}}
+#' @export
+print.summary.feglm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
+  cat(
+    sub("\\(.*\\)", "", x[["family"]][["family"]]), " - ",
+    x[["family"]][["link"]], " link\n\n",
+    sep = ""
+  )
+  print(x[["formula"]])
+  cat("\nEstimates:\n")
+  printCoefmat(x[["cm"]], P.values = TRUE, has.Pvalue = TRUE, digits = digits)
+  cat(
+    "\nresidual deviance= ",
+    format(x[["deviance"]], digits = max(5L, digits + 1L), nsmall = 2L),
+    ",\n",
+    sep = ""
+  )
+  cat(
+    "null deviance= ",
+    format(x[["null.deviance"]], digits = max(5L, digits + 1L), nsmall = 2L),
+    ",\n",
+    sep = ""
+  )
+  cat(
+    "n= ", x[["nobs"]][["nobs"]],
+    ", l= [", paste0(x[["lvls.k"]], collapse = ", "), "]\n",
+    sep = ""
+  )
+  if (x[["nobs"]][["nobs.na"]] > 0L | x[["nobs"]][["nobs.pc"]] > 0L) {
+    cat("\n")
+    if (x[["nobs"]][["nobs.na"]] > 0L) {
+      cat("(", x[["nobs"]][["nobs.na"]], "observation(s) deleted due to missingness )\n")
+    }
+    if (x[["nobs"]][["nobs.pc"]] > 0L) {
+      cat("(", x[["nobs"]][["nobs.pc"]], "observation(s) deleted due to perfect classification )\n")
+    }
+  }
+  if (is.null(x[["theta"]])) {
+    cat("\nNumber of Fisher Scoring Iterations:", x[["iter"]], "\n")
+  } else {
+    cat("\nNumber of Fisher Scoring Iterations:", x[["iter"]])
+    cat("\nNumber of Outer Iterations:", x[["iter.outer"]])
+    cat(
+      "\ntheta= ",
+      format(x[["theta"]], digits = digits, nsmall = 2L),
+      ", std. error= ",
+      format(attr(x[["theta"]], "SE"), digits = digits, nsmall = 2L),
+      "\n",
+      sep = ""
+    )
+  }
+}
+
+#' @title Print \code{summary.felm}
+#' @description \code{\link{print.summary.felm}} is a generic function which
+#'  displays summary statistics from objects returned by
+#'  \code{\link{summary.felm}}.
+#' @param x an object of class \code{"summary.felm"}.
+#' @param digits unsigned integer indicating the number of decimal places.
+#'  Default is \code{max(3L, getOption("digits") - 3L)}.
+#' @param ... other arguments.
+#' @seealso \code{\link{felm}}
+#' @export
+print.summary.felm <- function(
+    x, digits = max(3L, getOption("digits") - 3L), ...) {
+  print(x[["formula"]])
+  cat("\nEstimates:\n")
+  printCoefmat(x[["cm"]], P.values = TRUE, has.Pvalue = TRUE, digits = digits)
+
+  f <- x$fitted.values
+  w <- x$weights
+
+  x$cm
+
+  if (p != attr(x$terms, "intercept")) {
+    df.int <- if (attr(z$terms, "intercept")) 1L else 0L
+    ans$r.squared <- mss / (mss + rss)
+    ans$adj.r.squared <- 1 - (1 - ans$r.squared) * ((n - df.int) / rdf)
+    ans$fstatistic <- c(
+      value = (mss / (p - df.int)) / resvar,
+      numdf = p - df.int, dendf = rdf
+    )
+  } else {
+    ans$r.squared <- ans$adj.r.squared <- 0
+  }
+}
+#' @title Print \code{apes}
+#' @description \code{\link{print.apes}} is a generic function which displays
+#'  some minimal information from objects returned by \code{\link{apes}}.
+#' @param x an object of class \code{"apes"}.
+#' @param digits unsigned integer indicating the number of decimal places.
+#'  Default is \code{max(3L, getOption("digits") - 3L)}.
+#' @param ... other arguments.
+#' @seealso \code{\link{apes}}
+#' @export
+print.apes <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
+  print(x[["delta"]], digits = digits)
+}
+
+#' @title Print \code{feglm}
+#' @description \code{\link{print.feglm}} is a generic function which displays
+#'  some minimal information from objects returned by \code{\link{feglm}}.
+#' @param x an object of class \code{"feglm"}.
+#' @param digits unsigned integer indicating the number of decimal places.
+#'  Default is \code{max(3L, getOption("digits") - 3L)}.
+#' @param ... other arguments.
+#' @seealso \code{\link{feglm}}
+#' @export
+print.feglm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
+  cat(
+    sub("\\(.*\\)", "", x[["family"]][["family"]]), " - ",
+    x[["family"]][["link"]], " link",
+    ", l= [", paste0(x[["lvls.k"]], collapse = ", "), "]\n\n",
+    sep = ""
+  )
+  print(x[["coefficients"]], digits = digits)
+}
+
+#' @title Print \code{felm}
+#' @description \code{\link{print.felm}} is a generic function which displays
+#'  some minimal information from objects returned by \code{\link{felm}}.
+#' @param x an object of class \code{"felm"}.
+#' @param digits unsigned integer indicating the number of decimal places.
+#'  Default is \code{max(3L, getOption("digits") - 3L)}.
+#' @param ... other arguments.
+#' @seealso \code{\link{felm}}
+#' @export
+print.felm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
+  print(x[["coefficients"]], digits = digits)
+}
+
+#' @title Print \code{summary.apes}
+#' @description \code{\link{print.summary.apes}} is a generic function which
+#'  displays summary statistics from objects returned by
+#'  \code{\link{summary.apes}}.
+#' @param x an object of class \code{"summary.apes"}.
+#' @param digits unsigned integer indicating the number of decimal places.
+#'  Default is \code{max(3L, getOption("digits") - 3L)}.
+#' @param ... other arguments.
+#' @seealso \code{\link{apes}}
+#' @export
+print.summary.apes <- function(
+    x, digits = max(3L, getOption("digits") - 3L), ...) {
+  cat("Estimates:\n")
+  printCoefmat(x[["cm"]], P.values = TRUE, has.Pvalue = TRUE, digits = digits)
+}
+
+#' @title Print \code{summary.feglm}
+#' @description \code{\link{print.summary.feglm}} is a generic function which
+#'  displays summary statistics from objects returned by
+#'  \code{\link{summary.feglm}}.
+#' @param x an object of class \code{"summary.feglm"}.
+#' @param digits unsigned integer indicating the number of decimal places.
+#'  Default is \code{max(3L, getOption("digits") - 3L)}.
+#' @param ... other arguments.
+#' @seealso \code{\link{feglm}}
+#' @export
+print.summary.feglm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
+  cat(
+    sub("\\(.*\\)", "", x[["family"]][["family"]]), " - ",
+    x[["family"]][["link"]], " link\n\n",
+    sep = ""
+  )
+  print(x[["formula"]])
+  cat("\nEstimates:\n")
+  printCoefmat(x[["cm"]], P.values = TRUE, has.Pvalue = TRUE, digits = digits)
+  cat(
+    "\nresidual deviance= ",
+    format(x[["deviance"]], digits = max(5L, digits + 1L), nsmall = 2L),
+    ",\n",
+    sep = ""
+  )
+  cat(
+    "null deviance= ",
+    format(x[["null.deviance"]], digits = max(5L, digits + 1L), nsmall = 2L),
+    ",\n",
+    sep = ""
+  )
+  cat(
+    "n= ", x[["nobs"]][["nobs"]],
+    ", l= [", paste0(x[["lvls.k"]], collapse = ", "), "]\n",
+    sep = ""
+  )
+  if (x[["nobs"]][["nobs.na"]] > 0L | x[["nobs"]][["nobs.pc"]] > 0L) {
+    cat("\n")
+    if (x[["nobs"]][["nobs.na"]] > 0L) {
+      cat("(", x[["nobs"]][["nobs.na"]], "observation(s) deleted due to missingness )\n")
+    }
+    if (x[["nobs"]][["nobs.pc"]] > 0L) {
+      cat("(", x[["nobs"]][["nobs.pc"]], "observation(s) deleted due to perfect classification )\n")
+    }
+  }
+  if (is.null(x[["theta"]])) {
+    cat("\nNumber of Fisher Scoring Iterations:", x[["iter"]], "\n")
+  } else {
+    cat("\nNumber of Fisher Scoring Iterations:", x[["iter"]])
+    cat("\nNumber of Outer Iterations:", x[["iter.outer"]])
+    cat(
+      "\ntheta= ",
+      format(x[["theta"]], digits = digits, nsmall = 2L),
+      ", std. error= ",
+      format(attr(x[["theta"]], "SE"), digits = digits, nsmall = 2L),
+      "\n",
+      sep = ""
+    )
+  }
+}
+
+#' @title Print \code{summary.felm}
+#' @description \code{\link{print.summary.felm}} is a generic function which
+#'  displays summary statistics from objects returned by
+#'  \code{\link{summary.felm}}.
+#' @param x an object of class \code{"summary.felm"}.
+#' @param digits unsigned integer indicating the number of decimal places.
+#'  Default is \code{max(3L, getOption("digits") - 3L)}.
+#' @param ... other arguments.
+#' @seealso \code{\link{felm}}
+#' @export
+print.summary.felm <- function(
+    x, digits = max(3L, getOption("digits") - 3L), ...) {
+  print(x[["formula"]])
+  cat("\nEstimates:\n")
+  printCoefmat(x[["cm"]], P.values = TRUE, has.Pvalue = TRUE, digits = digits)
+  cat(
+    "\nMultiple R-squared= ",
+    format(x[["r.squared"]], digits = max(5L, digits + 1L), nsmall = 2L),
+    ",\n",
+    sep = ""
+  )
+  cat(
+    "Adjusted R-squared adjusted= ",
+    format(x[["adj.r.squared"]], digits = max(5L, digits + 1L), nsmall = 2L),
+    ",\n",
+    sep = ""
+  )
+  cat(
+    "n= ", x[["nobs"]][["nobs"]],
+    ", l= [", paste0(x[["lvls.k"]], collapse = ", "), "]\n",
+    sep = ""
+  )
+  if (x[["nobs"]][["nobs.na"]] > 0L | x[["nobs"]][["nobs.pc"]] > 0L) {
+    cat("\n")
+    if (x[["nobs"]][["nobs.na"]] > 0L) {
+      cat("(", x[["nobs"]][["nobs.na"]], "observation(s) deleted due to missingness )\n")
+    }
+    if (x[["nobs"]][["nobs.pc"]] > 0L) {
+      cat("(", x[["nobs"]][["nobs.pc"]], "observation(s) deleted due to perfect classification )\n")
+    }
+  }
+}
