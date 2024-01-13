@@ -1,8 +1,6 @@
-### Internal functions (not exported)
+# Transform factor ----
 
-
-# Checks if variable is a factor and transforms if necessary
-checkFactor <- function(x) {
+check_factor_ <- function(x) {
   if (is.factor(x)) {
     droplevels(x)
   } else {
@@ -10,11 +8,12 @@ checkFactor <- function(x) {
   }
 }
 
-# Fitting algorithm (similar to lm.fit)
-felmFit <- function(y, X, wt, k.list, control) {
+# Fitting algorithm (similar to lm.fit) ----
+
+felm_fit_ <- function(y, X, wt, k.list, control) {
   # Extract control arguments
   center.tol <- control[["center.tol"]]
-  epsilon <- max(min(1.0e-07, .Machine[["double.eps"]]))
+  epsilon <- max(1.0e-07, .Machine[["double.eps"]])
   keep.mx <- control[["keep.mx"]]
 
   # Generate temporary variables
@@ -43,8 +42,9 @@ felmFit <- function(y, X, wt, k.list, control) {
   reslist
 }
 
-# Fitting algorithm (similar to glm.fit)
-feglmFit <- function(beta, eta, y, X, wt, k.list, family, control) {
+# Fitting algorithm (similar to glm.fit) ----
+
+feglm_fit_ <- function(beta, eta, y, X, wt, k.list, family, control) {
   # Extract control arguments
   center.tol <- control[["center.tol"]]
   dev.tol <- control[["dev.tol"]]
@@ -79,9 +79,7 @@ feglmFit <- function(beta, eta, y, X, wt, k.list, family, control) {
 
     # Centering variables
     Mnu <- center_variables_((Mnu + nu), w, k.list, center.tol)
-    print(Mnu)
     MX <- center_variables_(MX, w, k.list, center.tol)
-
     # Compute update step and update \eta
     beta.upd <- as.vector(qr.solve(MX * w.tilde, Mnu * w.tilde, epsilon))
     eta.upd <- nu - as.vector(Mnu - MX %*% beta.upd)
@@ -144,7 +142,6 @@ feglmFit <- function(beta, eta, y, X, wt, k.list, family, control) {
 
   # Center variables
   MX <- center_variables_(X, w, k.list, center.tol)
-
   # Recompute Hessian
   H <- crossprod(MX * sqrt(w))
 
@@ -164,15 +161,15 @@ feglmFit <- function(beta, eta, y, X, wt, k.list, family, control) {
   if (keep.mx) reslist[["MX"]] <- MX
 
   # Return result list
-  reslist
+  return(reslist)
 }
 
+# Efficient offset algorithm to update the linear predictor ----
 
-# Efficient offset algorithm to update the linear predictor
-feglmOffset <- function(object, offset) {
+feglm_offset_ <- function(object, offset) {
   # Check validity of 'object'
   if (!inherits(object, "feglm")) {
-    stop("'feglmOffset' called on a non-'feglm' object.")
+    stop("'feglm_offset_' called on a non-'feglm' object.")
   }
 
   # Extract required quantities from result list
@@ -194,7 +191,7 @@ feglmOffset <- function(object, offset) {
   iter.max <- control[["iter.max"]]
 
   # Generate auxiliary list of indexes to project out the fixed effects
-  k.list <- getIndexList(k.vars, data)
+  k.list <- get_index_list_(k.vars, data)
 
   # Compute starting guess for \eta
   if (family[["family"]] == "binomial") {
@@ -257,17 +254,17 @@ feglmOffset <- function(object, offset) {
   eta
 }
 
+# Generate auxiliary list of indexes for different sub panels ----
 
-# Generate auxiliary list of indexes for different sub panels
-getIndexList <- function(k.vars, data) {
+get_index_list_ <- function(k.vars, data) {
   indexes <- seq.int(0L, nrow(data) - 1L)
   lapply(k.vars, function(x, indexes, data) {
     split(indexes, data[[x]])
   }, indexes = indexes, data = data)
 }
 
+# Compute score matrix ----
 
-# Compute score matrix
 getScoreMatrix <- function(object) {
   # Extract required quantities from result list
   control <- object[["control"]]
@@ -292,7 +289,7 @@ getScoreMatrix <- function(object) {
     k.vars <- names(object[["lvls.k"]])
 
     # Generate auxiliary list of indexes to project out the fixed effects
-    k.list <- getIndexList(k.vars, data)
+    k.list <- get_index_list_(k.vars, data)
 
     # Extract regressor matrix
     X <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
@@ -310,7 +307,7 @@ getScoreMatrix <- function(object) {
 
 
 # Higher-order partial derivatives for 'binomial()'
-partialMuEta <- function(eta, family, order) {
+partial_mu_eta_ <- function(eta, family, order) {
   # Safeguard \eta if necessary
   if (family[["link"]] != "logit") {
     eta <- family[["linkfun"]](family[["linkinv"]](eta))
@@ -345,7 +342,7 @@ partialMuEta <- function(eta, family, order) {
 
 
 # Returns suitable name for a temporary variable
-tempVar <- function(data) {
+temp_var_ <- function(data) {
   repeat {
     tmp.var <- paste0(sample(letters, 5L, replace = TRUE), collapse = "")
     if (!(tmp.var %in% colnames(data))) {

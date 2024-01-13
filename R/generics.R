@@ -1,19 +1,19 @@
 #' @title
 #' Extract estimates of average partial effects
 #' @description
-#' \code{\link{coef.APEs}} is a generic function which extracts estimates of the average partial
-#' effects from objects returned by \code{\link{getAPEs}}.
+#' \code{\link{coef.apes}} is a generic function which extracts estimates of the average partial
+#' effects from objects returned by \code{\link{apes}}.
 #' @param
-#' object an object of class \code{"APEs"}.
+#' object an object of class \code{"apes"}.
 #' @param
 #' ... other arguments.
 #' @return
-#' The function \code{\link{coef.APEs}} returns a named vector of estimates of the average partial
+#' The function \code{\link{coef.apes}} returns a named vector of estimates of the average partial
 #' effects.
 #' @seealso
-#' \code{\link{getAPEs}}
+#' \code{\link{apes}}
 #' @export
-coef.APEs <- function(object, ...) {
+coef.apes <- function(object, ...) {
   object[["delta"]]
 }
 
@@ -59,19 +59,19 @@ coef.feglm <- function(object, ...) {
 #' @title
 #' Extract coefficient matrix for average partial effects
 #' @description
-#' \code{\link{coef.summary.APEs}} is a generic function which extracts a coefficient matrix for
-#' average partial effects from objects returned by \code{\link{getAPEs}}.
+#' \code{\link{coef.summary.apes}} is a generic function which extracts a coefficient matrix for
+#' average partial effects from objects returned by \code{\link{apes}}.
 #' @param
-#' object an object of class \code{"summary.APEs"}.
+#' object an object of class \code{"summary.apes"}.
 #' @param
 #' ... other arguments.
 #' @return
-#' The function \code{\link{coef.summary.APEs}} returns a named matrix of estimates related to the
+#' The function \code{\link{coef.summary.apes}} returns a named matrix of estimates related to the
 #' average partial effects.
 #' @seealso
-#' \code{\link{getAPEs}}
+#' \code{\link{apes}}
 #' @export
-coef.summary.APEs <- function(object, ...) {
+coef.summary.apes <- function(object, ...) {
   object[["cm"]]
 }
 
@@ -165,21 +165,21 @@ predict.feglm <- function(object, type = c("link", "response"), ...) {
 
 
 #' @title
-#' Print \code{APEs}
+#' Print \code{apes}
 #' @description
-#' \code{\link{print.APEs}} is a generic function which displays some minimal information from
-#' objects returned by \code{\link{getAPEs}}.
+#' \code{\link{print.apes}} is a generic function which displays some minimal information from
+#' objects returned by \code{\link{apes}}.
 #' @param
-#' x an object of class \code{"APEs"}.
+#' x an object of class \code{"apes"}.
 #' @param
 #' digits unsigned integer indicating the number of decimal places. Default is
 #' \code{max(3L, getOption("digits") - 3L)}.
 #' @param
 #' ... other arguments.
 #' @seealso
-#' \code{\link{getAPEs}}
+#' \code{\link{apes}}
 #' @export
-print.APEs <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
+print.apes <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
   print(x[["delta"]], digits = digits)
 }
 
@@ -229,21 +229,21 @@ print.feglm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
 
 
 #' @title
-#' Print \code{summary.APEs}
+#' Print \code{summary.apes}
 #' @description
-#' \code{\link{print.summary.APEs}} is a generic function which displays summary statistics from
-#' objects returned by \code{\link{summary.APEs}}.
+#' \code{\link{print.summary.apes}} is a generic function which displays summary statistics from
+#' objects returned by \code{\link{summary.apes}}.
 #' @param
-#' x an object of class \code{"summary.APEs"}.
+#' x an object of class \code{"summary.apes"}.
 #' @param
 #' digits unsigned integer indicating the number of decimal places. Default is
 #' \code{max(3L, getOption("digits") - 3L)}.
 #' @param
 #' ... other arguments.
 #' @seealso
-#' \code{\link{getAPEs}}
+#' \code{\link{apes}}
 #' @export
-print.summary.APEs <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
+print.summary.apes <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
   cat("Estimates:\n")
   printCoefmat(x[["cm"]], P.values = TRUE, has.Pvalue = TRUE, digits = digits)
 }
@@ -354,20 +354,20 @@ print.summary.feglm <- function(x, digits = max(3L, getOption("digits") - 3L), .
 
 
 #' @title
-#' Summarizing models of class \code{APEs}
+#' Summarizing models of class \code{apes}
 #' @description
-#' Summary statistics for objects of class \code{"APEs"}.
+#' Summary statistics for objects of class \code{"apes"}.
 #' @param
-#' object an object of class \code{"APEs"}.
+#' object an object of class \code{"apes"}.
 #' @param
 #' ... other arguments.
 #' @return
-#' Returns an object of class \code{"summary.APEs"} which is a list of summary statistics of
+#' Returns an object of class \code{"summary.apes"} which is a list of summary statistics of
 #' \code{object}.
 #' @seealso
-#' \code{\link{getAPEs}}
+#' \code{\link{apes}}
 #' @export
-summary.APEs <- function(object, ...) {
+summary.apes <- function(object, ...) {
   # Compute coefficent matrix
   est <- object[["delta"]]
   se <- sqrt(diag(object[["vcov"]]))
@@ -378,7 +378,7 @@ summary.APEs <- function(object, ...) {
   colnames(cm) <- c("Estimate", "Std. error", "z value", "Pr(> |z|)")
 
   # Return coefficient matrix
-  structure(list(cm = cm), class = "summary.APEs")
+  structure(list(cm = cm), class = "summary.apes")
 }
 
 #' @title
@@ -523,20 +523,20 @@ summary.feglm <- function(
 
 
 #' @title
-#' Compute covariance matrix after estimating \code{APEs}
+#' Compute covariance matrix after estimating \code{apes}
 #' @description
-#' \code{\link{vcov.APEs}} estimates the covariance matrix for the estimator of the
-#' average partial effects from objects returned by \code{\link{getAPEs}}.
+#' \code{\link{vcov.apes}} estimates the covariance matrix for the estimator of the
+#' average partial effects from objects returned by \code{\link{apes}}.
 #' @param
-#' object an object of class \code{"APEs"}.
+#' object an object of class \code{"apes"}.
 #' @param
 #' ... other arguments.
 #' @return
-#' The function \code{\link{vcov.APEs}} returns a named matrix of covariance estimates.
+#' The function \code{\link{vcov.apes}} returns a named matrix of covariance estimates.
 #' @seealso
-#' \code{\link{getAPEs}}
+#' \code{\link{apes}}
 #' @export
-vcov.APEs <- function(object, ...) {
+vcov.apes <- function(object, ...) {
   object[["vcov"]]
 }
 
@@ -651,7 +651,7 @@ vcov.feglm <- function(
 
           # Ensure cluster variables are factors
           cl.vars <- names(D)
-          D[, (cl.vars) := lapply(.SD, checkFactor)]
+          D[cl.vars] <- as.data.frame(lapply(D[cl.vars], check_factor_))
 
           # Join cluster variables and scores
           sp.vars <- colnames(G)
@@ -669,7 +669,10 @@ vcov.feglm <- function(
               cl <- cl.combn[, j]
               B.r <- B.r + crossprod(
                 as.matrix(
-                  G[, lapply(.SD, sum), by = cl, .SDcols = sp.vars][, sp.vars, with = FALSE]
+                  do.call(
+                    rbind,
+                    lapply(split(G, G$cl), function(df) colSums(df[sp.vars]))
+                  )
                 )
               )
             }

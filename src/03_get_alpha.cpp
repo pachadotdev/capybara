@@ -1,5 +1,5 @@
-#include "00_main.hpp"
-#include "01_cpp11_to_from_arma.hpp"
+#include "00_main.h"
+#include "01_cpp11_to_from_arma.h"
 
 field<Col<double>> get_alpha_field_(const Col<double>& pi, const list& klist,
                                     const double tol) {

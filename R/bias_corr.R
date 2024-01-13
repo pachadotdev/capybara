@@ -1,5 +1,5 @@
 #' @title
-#' Asymptotic bias correction after fitting binary choice models with a one-/two-/three-way error
+#' Asymptotic bias correction after fitting binary choice models with a 1,2,3-way error
 #' component
 #' @description
 #' \code{\link{biasCorr}} is a post-estimation routine that can be used to substantially reduce the
@@ -49,18 +49,19 @@
 #' @examples
 #' \donttest{
 #' # Generate an artificial data set for logit models
-#' library(alpaca)
-#' data <- simGLM(1000L, 20L, 1805L, model = "logit")
+#' library(capybara)
+#'
+#' trade_short <- cudata[cudata$year %in% 2000L:2001L, ]
 #'
 #' # Fit 'feglm()'
-#' mod <- feglm(y ~ x1 + x2 + x3 | i + t, data)
+#' mod <- feglm(trade ~ comlang | year, trade_short, family = binomial())
 #'
 #' # Apply analytical bias correction
 #' mod.bc <- biasCorr(mod)
 #' summary(mod.bc)
 #' }
 #' @export
-biasCorr <- function(
+bias_corr <- function(
     object = NULL,
     L = 0L,
     panel.structure = c("classic", "network")) {
@@ -110,7 +111,7 @@ biasCorr <- function(
   wt <- object[["weights"]]
 
   # Generate auxiliary list of indexes for different sub panels
-  k.list <- getIndexList(k.vars, data)
+  k.list <- get_index_list_(k.vars, data)
 
   # Compute derivatives and weights
   eta <- object[["eta"]]
@@ -118,7 +119,7 @@ biasCorr <- function(
   mu.eta <- family[["mu.eta"]](eta)
   v <- wt * (y - mu)
   w <- wt * mu.eta
-  z <- wt * partialMuEta(eta, family, 2L)
+  z <- wt * partial_mu_eta_(eta, family, 2L)
   if (family[["link"]] != "logit") {
     h <- mu.eta / family[["variance"]](mu)
     v <- h * v
@@ -166,7 +167,7 @@ biasCorr <- function(
   names(beta) <- nms.sp
 
   # Update \eta and first- and second-order derivatives
-  eta <- feglmOffset(object, as.vector(X %*% beta))
+  eta <- feglm_offset_(object, as.vector(X %*% beta))
   mu <- family[["linkinv"]](eta)
   mu.eta <- family[["mu.eta"]](eta)
   v <- wt * (y - mu)

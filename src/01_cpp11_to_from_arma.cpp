@@ -1,4 +1,4 @@
-#include "00_main.hpp"
+#include "00_main.h"
 
 Mat<double> doubles_matrix_to_Mat_(const doubles_matrix<>& A) {
   int n = A.nrow();
@@ -6,7 +6,7 @@ Mat<double> doubles_matrix_to_Mat_(const doubles_matrix<>& A) {
 
   // Before ECE244: Expensive copy
   // Mat<double> B(n, m);
-  // 
+  //
   // for (int i = 0; i < n; ++i) {
   //   for (int j = 0; j < m; ++j) {
   //     double a_ij = A(i, j);
@@ -25,7 +25,7 @@ doubles_matrix<> Mat_to_doubles_matrix(const Mat<double>& A) {
   int m = A.n_cols;
 
   writable::doubles_matrix<> B(n, m);
-  
+
   for (int i = 0; i < n; ++i) {
     for (int j = 0; j < m; ++j) {
       double a_ij = A(i, j);
@@ -38,9 +38,9 @@ doubles_matrix<> Mat_to_doubles_matrix(const Mat<double>& A) {
 
 Col<double> doubles_to_Vec_(const doubles& x) {
   int n = x.size();
-  
+
   // Col<double> y(n);
-  // 
+  //
   // for (int i = 0; i < n; ++i) {
   //   // double x_i = x[i];
   //   y(i) = x[i];
@@ -71,11 +71,11 @@ doubles_matrix<> Vec_to_doubles_matrix_(const Col<double>& x) {
   // confusing: the dimension is counted as (n, 1) instead of (n, 0) for a
   // column vector
   writable::doubles_matrix<> Y(n, m);
-  
+
   for (int i = 0; i < n; ++i) {
     double x_i = x[i];
     Y(i, 0) = x_i;
   }
- 
+
   return Y;
 }

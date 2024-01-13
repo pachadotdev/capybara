@@ -1,65 +1,62 @@
-#' @title
-#' Efficiently fit glm's with high-dimensional \eqn{k}-way fixed effects
-#' @description
-#' \code{\link{feglm}} can be used to fit generalized linear models with many high-dimensional fixed
-#' effects. The estimation procedure is based on unconditional maximum likelihood and can be
-#' interpreted as a \dQuote{weighted demeaning} approach that combines the work of Gaure (2013) and
-#' Stammann et. al. (2016). For technical details see Stammann (2018). The routine is well suited
-#' for large data sets that would be otherwise infeasible to use due to memory limitations.
+#' @title GLM fitting with high-dimensional k-way fixed effects
 #'
-#' \strong{Remark:} The term fixed effect is used in econometrician's sense of having intercepts for
-#' each level in each category.
-#' @param
-#' formula an object of class \code{"formula"}: a symbolic description of the model to be fitted.
-#' \code{formula} must be of type \code{y ~ x | k}, where the second part of the formula refers to
-#' factors to be concentrated out. It is also possible to pass additional variables to
-#' \code{\link{feglm}} (e.g. to cluster standard errors). This can be done by specifying the third
-#' part of the formula: \code{y ~ x | k | add}.
-#' @param
-#' data an object of class \code{"data.frame"} containing the variables in the model.
-#' @param
-#' family a description of the error distribution and link function to be used in the model.
-#' Similar to \code{\link[stats]{glm.fit}} this has to be the result of a call to a family
-#' function. Default is \code{binomial()}. See \code{\link[stats]{family}} for details of family
-#' functions.
-#' @param
-#' weights an optional string with the name of the 'prior weights' variable in \code{data}.
-#' @param
-#' beta.start an optional vector of starting values for the structural parameters in the linear
-#' predictor. Default is \eqn{\boldsymbol{\beta} = \mathbf{0}}{\beta = 0}.
-#' @param
-#' eta.start an optional vector of starting values for the linear predictor.
-#' @param
-#' control a named list of parameters for controlling the fitting process. See
-#' \code{\link{feglmControl}} for details.
-#' @details
-#' If \code{\link{feglm}} does not converge this is often a sign of linear dependence between
-#' one or more regressors and a fixed effects category. In this case, you should carefully inspect
-#' your model specification.
-#' @return
-#' The function \code{\link{feglm}} returns a named list of class \code{"feglm"}.
-#' @references
-#' Gaure, S. (2013). "OLS with Multiple High Dimensional Category Variables". Computational
-#' Statistics and Data Analysis, 66.
-#' @references
-#' Marschner, I. (2011). "glm2: Fitting generalized linear models with convergence problems".
-#' The R Journal, 3(2).
-#' @references
-#' Stammann, A., F. Heiss, and D. McFadden (2016). "Estimating Fixed Effects Logit Models with
-#' Large Panel Data". Working paper.
-#' @references
-#' Stammann, A. (2018). "Fast and Feasible Estimation of Generalized Linear Models with
-#' High-Dimensional k-Way Fixed Effects". ArXiv e-prints.
+#' @description \code{\link{feglm}} can be used to fit generalized linear models
+#'  with many high-dimensional fixed effects. The estimation procedure is based
+#'  on unconditional maximum likelihood and can be interpreted as a
+#'  \dQuote{weighted demeaning} approach that combines the work of Gaure (2013)
+#'  and Stammann et. al. (2016). For technical details see Stammann (2018). The
+#'  routine is well suited for large data sets that would be otherwise
+#'  infeasible to use due to memory limitations.
+#'
+#' \strong{Remark:} The term fixed effect is used in econometrician's sense of
+#'  having intercepts for each level in each category.
+#'
+#' @param formula an object of class \code{"formula"}: a symbolic description of
+#'  the model to be fitted. \code{formula} must be of type \code{y ~ x | k},
+#'  where the second part of the formula refers to factors to be concentrated
+#'  out. It is also possible to pass additional variables to \code{\link{feglm}}
+#'  (e.g. to cluster standard errors). This can be done by specifying the third
+#'  part of the formula: \code{y ~ x | k | add}.
+#' @param data an object of class \code{"data.frame"} containing the variables
+#'  in the model.
+#' @param family a description of the error distribution and link function to be
+#'  used in the model. Similar to \code{\link[stats]{glm.fit}} this has to be
+#'  the result of a call to a family function. Default is \code{binomial()}. See
+#'  \code{\link[stats]{family}} for details of family functions.
+#' @param weights an optional string with the name of the 'prior weights'
+#'  variable in \code{data}.
+#' @param beta.start an optional vector of starting values for the structural
+#'  parameters in the linear predictor. Default is
+#'  \eqn{\boldsymbol{\beta} = \mathbf{0}}{\beta = 0}.
+#' @param eta.start an optional vector of starting values for the linear
+#'  predictor.
+#' @param control a named list of parameters for controlling the fitting
+#'  process. See \code{\link{feglm_control}} for details.
+#'
+#' @details If \code{\link{feglm}} does not converge this is often a sign of
+#'  linear dependence between one or more regressors and a fixed effects
+#'  category. In this case, you should carefully inspect your model
+#'  specification.
+#'
+#' @return The function \code{\link{feglm}} returns a named list of class
+#'  \code{"feglm"}.
+#'
+#' @references Gaure, S. (2013). "OLS with Multiple High Dimensional Category
+#'  Variables". Computational Statistics and Data Analysis, 66.
+#' @references Marschner, I. (2011). "glm2: Fitting generalized linear models
+#'  with convergence problems". The R Journal, 3(2).
+#' @references Stammann, A., F. Heiss, and D. McFadden (2016). "Estimating Fixed
+#'  Effects Logit Models with Large Panel Data". Working paper.
+#' @references Stammann, A. (2018). "Fast and Feasible Estimation of Generalized
+#'  Linear Models with High-Dimensional k-Way Fixed Effects". ArXiv e-prints.
 #' @examples
-#' \donttest{
-#' # Generate an artificial data set for logit models
-#' library(alpaca)
-#' data <- simGLM(1000L, 20L, 1805L, model = "logit")
+#' mod <- feglm(
+#'   trade ~ dist + lang + contig + colony | exp_year + imp_year,
+#'   trade_panel,
+#'   family = poisson(link = "log")
+#' )
 #'
-#' # Fit 'feglm()'
-#' mod <- feglm(y ~ x1 + x2 + x3 | i + t, data)
 #' summary(mod)
-#' }
 #' @export
 feglm <- function(
     formula = NULL,
@@ -70,89 +67,85 @@ feglm <- function(
     eta.start = NULL,
     control = NULL) {
   # Check validity of formula ----
-  check_formula(formula)
+  check_formula_(formula)
 
   # Check validity of data ----
-  check_data(data)
+  check_data_(data)
 
   # Check validity of family ----
   # TODO: Add quasi families later
-  check_family(family)
+  check_family_(family)
 
   # Check validity of control + Extract control list ----
-  control <- check_control(control)
+  control <- check_control_(control)
 
   # Update formula and do further validity check ----
-  formula <- update_formula(formula)
+  formula <- update_formula_(formula)
 
   # Generate model.frame
-  model_frame <- generate_model_frame(data, formula, weights)
-  rm(data)
+  model_frame_(data, formula, weights)
 
   # Ensure that model response is in line with the chosen model ----
-  check_response(model_frame$data, model_frame$lhs, family)
+  check_response_(data, lhs, family)
 
   # Get names of the fixed effects variables and sort ----
   k.vars <- attr(terms(formula, rhs = 2L), "term.labels")
   k <- length(k.vars)
-  setkeyv(model_frame$data, k.vars)
+  setkeyv(data, k.vars)
 
   # Generate temporary variable ----
-  tmp.var <- tempVar(model_frame$data)
+  tmp.var <- temp_var_(data)
 
   # Drop observations that do not contribute to the log likelihood ----
-  model_frame$data <- drop_by_link_type(model_frame$data, model_frame$lhs, family, tmp.var, k.vars, control)
+  data <- drop_by_link_type_(data, lhs, family, tmp.var, k.vars, control)
 
   # Transform fixed effects variables and potential cluster variables to factors ----
-  model_frame$data <- transform_fe(model_frame$data, formula, k.vars)
+  data <- transform_fe_(data, formula, k.vars)
 
   # Determine the number of dropped observations ----
-  nt <- nrow(model_frame$data)
-  nobs <- generate_nobs(model_frame$nobs.full, model_frame$nobs.na, nt)
+  nt <- nrow(data)
+  nobs <- nobs_(nobs.full, nobs.na, nt)
 
   # Extract model response and regressor matrix ----
-  model_response <- generate_model_response(model_frame$data, formula)
+  model_response_(data, formula)
 
   # Check for linear dependence in 'X' ----
-  check_linear_dependence(model_response$X, model_response$p)
+  check_linear_dependence_(X, p)
 
   # Extract weights if required ----
   if (is.null(weights)) {
     wt <- rep(1.0, nt)
   } else {
-    wt <- model_frame$data[[weights]]
+    wt <- data[[weights]]
   }
 
   # Check validity of weights ----
-  check_weights(wt)
+  check_weights_(wt)
 
   # Compute and check starting guesses ----
-  start_guesses <- generate_start_guesses(
-    beta.start, eta.start, model_response$y, model_response$X, beta, nt, wt, model_response$p, family
-  )
-  rm(beta.start, eta.start)
+  start_guesses_(beta.start, eta.start, y, X, beta, nt, wt, p, family)
 
   # Get names and number of levels in each fixed effects category ----
-  nms.fe <- lapply(model_frame$data[, k.vars, with = FALSE], levels)
+  nms.fe <- lapply(data[, k.vars, with = FALSE], levels)
   lvls.k <- vapply(nms.fe, length, integer(1))
 
   # Generate auxiliary list of indexes for different sub panels ----
-  k.list <- getIndexList(k.vars, model_frame$data)
+  k.list <- get_index_list_(k.vars, data)
 
   # Fit generalized linear model ----
-  fit <- feglmFit(
-    start_guesses$beta, start_guesses$eta, model_response$y, model_response$X, wt, k.list, family, control
+  fit <- feglm_fit_(
+    beta, eta, y, X, wt, k.list, family, control
   )
-  model_response$y <- NULL
-  model_response$X <- NULL
-  start_guesses$eta <- NULL
+  y <- NULL
+  X <- NULL
+  eta <- NULL
 
   # Add names to beta, Hessian, and MX (if provided) ----
-  names(fit[["coefficients"]]) <- model_response$nms.sp
+  names(fit[["coefficients"]]) <- nms.sp
   if (control[["keep.mx"]]) {
-    colnames(fit[["MX"]]) <- model_response$nms.sp
+    colnames(fit[["MX"]]) <- nms.sp
   }
-  dimnames(fit[["Hessian"]]) <- list(model_response$nms.sp, model_response$nms.sp)
+  dimnames(fit[["Hessian"]]) <- list(nms.sp, nms.sp)
 
   # Generate result list ----
   reslist <- c(
@@ -161,12 +154,13 @@ feglm <- function(
       lvls.k  = lvls.k,
       nms.fe  = nms.fe,
       formula = formula,
-      data    = model_frame$data,
+      data    = data,
       family  = family,
       control = control
     )
   )
 
   # Return result list ----
-  structure(reslist, class = "feglm")
+  reslist <- structure(reslist, class = "feglm")
+  return(reslist)
 }

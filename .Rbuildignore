@@ -3,8 +3,8 @@
 ^\.Renviron$
 ^docs$
 ^vignettes/images$
-^.github$
-^.vscode
+^\.github$
+^\.vscode$
 ^dev$
 ^LICENSE\.md$
 ^README\.Rmd$

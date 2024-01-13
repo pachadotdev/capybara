@@ -1,77 +1,78 @@
-#' @title
-#' Compute average partial effects after fitting binary choice models with a one-/two-/three-way error
-#' component
-#' @description
-#' \code{\link{getAPEs}} is a post-estimation routine that can be used to estimate average partial
-#' effects with respect to all covariates in the model and the corresponding covariance matrix. The
-#' estimation of the covariance is based on a linear approximation (delta method) plus an optional
-#' finite population correction. Note that the command automatically determines which of the regressors
-#' are binary or non-binary.
+#' @title Compute average partial effects after fitting binary choice models
+#'  with a 1,2,3-way error component
 #'
-#' \strong{Remark:} The routine currently does not allow to compute average partial effects based
-#' on functional forms like interactions and polynomials.
-#' @param
-#' object an object of class \code{"biasCorr"} or \code{"feglm"}; currently restricted to
-#' \code{\link[stats]{binomial}}.
-#' @param
-#' n.pop unsigned integer indicating a finite population correction for the estimation of the
-#' covariance matrix of the average partial effects proposed by
-#' Cruz-Gonzalez, Fernández-Val, and Weidner (2017). The correction factor is computed as follows:
-#' \eqn{(n^{\ast} - n) / (n^{\ast} - 1)}{(n.pop - n) / (n.pop - 1)},
-#' where \eqn{n^{\ast}}{n.pop} and \eqn{n}{n} are the sizes of the entire
-#' population and the full sample size. Default is \code{NULL}, which refers to a factor of zero and
-#' a covariance obtained by the delta method.
-#' @param
-#' panel.structure a string equal to \code{"classic"} or \code{"network"} which determines the
-#' structure of the panel used. \code{"classic"} denotes panel structures where for example the same
-#' cross-sectional units are observed several times (this includes pseudo panels).
-#' \code{"network"} denotes panel structures where for example bilateral trade flows are observed
-#' for several time periods. Default is \code{"classic"}.
-#' @param
-#' sampling.fe a string equal to \code{"independence"} or \code{"unrestricted"} which imposes
-#' sampling assumptions about the unobserved effects. \code{"independence"} imposes that all
-#' unobserved effects are independent sequences. \code{"unrestricted"} does not impose any
-#' sampling assumptions. Note that this option only affects the optional finite population correction.
-#' Default is \code{"independence"}.
-#' @param
-#' weak.exo logical indicating if some of the regressors are assumed to be weakly exogenous (e. g.
-#' predetermined). If object is of class \code{"biasCorr"}, the option will be automatically set to
-#' \code{TRUE} if the chosen bandwidth parameter is larger than zero. Note that this option only
-#' affects the estimation of the covariance matrix. Default is \code{FALSE}, which assumes that all
-#' regressors are strictly exogenous.
-#' @return
-#' The function \code{\link{getAPEs}} returns a named list of class \code{"APEs"}.
-#' @references
-#' Cruz-Gonzalez, M., I. Fernández-Val, and M. Weidner (2017). "Bias corrections for probit and
-#' logit models with two-way fixed effects". The Stata Journal, 17(3), 517-545.
-#' @references
-#' Czarnowske, D. and A. Stammann (2020). "Fixed Effects Binary Choice Models: Estimation and Inference
-#' with Long Panels". ArXiv e-prints.
-#' @references
-#' Fernández-Val, I. and M. Weidner (2016). "Individual and time effects in nonlinear panel models
-#' with large N, T". Journal of Econometrics, 192(1), 291-312.
-#' @references
-#' Fernández-Val, I. and M. Weidner (2018). "Fixed effects estimation of large-t panel data
-#' models". Annual Review of Economics, 10, 109-138.
-#' @references
-#' Hinz, J., A. Stammann, and J. Wanner (2020). "State Dependence and Unobserved Heterogeneity
-#' in the Extensive Margin of Trade". ArXiv e-prints.
-#' @references
-#' Neyman, J. and E. L. Scott (1948). "Consistent estimates based on partially consistent
-#' observations". Econometrica, 16(1), 1-32.
-#' @seealso
-#' \code{\link{biasCorr}}, \code{\link{feglm}}
+#' @description \code{\link{apes}} is a post-estimation routine that can be used
+#'  to estimate average partial effects with respect to all covariates in the
+#'  model and the corresponding covariance matrix. The estimation of the
+#'  covariance is based on a linear approximation (delta method) plus an
+#'  optional finite population correction. Note that the command automatically
+#'  determines which of the regressors are binary or non-binary.
+#'
+#'  \strong{Remark:} The routine currently does not allow to compute average
+#'  partial effects based on functional forms like interactions and polynomials.
+#'
+#' @param object an object of class \code{"bias_corr"} or \code{"feglm"};
+#'  currently restricted to \code{\link[stats]{binomial}}.
+#' @param n.pop unsigned integer indicating a finite population correction for
+#'  the estimation of the covariance matrix of the average partial effects
+#'  proposed by Cruz-Gonzalez, Fernández-Val, and Weidner (2017). The correction
+#'  factor is computed as follows:
+#'  \eqn{(n^{\ast} - n) / (n^{\ast} - 1)}{(n.pop - n) / (n.pop - 1)},
+#'  where \eqn{n^{\ast}}{n.pop} and \eqn{n}{n} are the sizes of the entire
+#'  population and the full sample size. Default is \code{NULL}, which refers to
+#'  a factor of zero and a covariance obtained by the delta method.
+#' @param panel.structure a string equal to \code{"classic"} or \code{"network"}
+#'  which determines the structure of the panel used. \code{"classic"} denotes
+#'  panel structures where for example the same cross-sectional units are
+#'  observed several times (this includes pseudo panels). \code{"network"}
+#'  denotes panel structures where for example bilateral trade flows are
+#'  observed for several time periods. Default is \code{"classic"}.
+#' @param sampling.fe a string equal to \code{"independence"} or
+#'  \code{"unrestricted"} which imposes sampling assumptions about the
+#'  unobserved effects. \code{"independence"} imposes that all unobserved
+#'  effects are independent sequences. \code{"unrestricted"} does not impose any
+#'  sampling assumptions. Note that this option only affects the optional finite
+#'  population correction. Default is \code{"independence"}.
+#' @param weak.exo logical indicating if some of the regressors are assumed to
+#'  be weakly exogenous (e.g. predetermined). If object is of class
+#'  \code{"bias_corr"}, the option will be automatically set to \code{TRUE} if
+#'  the chosen bandwidth parameter is larger than zero. Note that this option
+#'  only affects the estimation of the covariance matrix. Default is
+#'  \code{FALSE}, which assumes that all regressors are strictly exogenous.
+#'
+#' @return The function \code{\link{apes}} returns a named list of class
+#'  \code{"apes"}.
+#'
+#' @references Cruz-Gonzalez, M., I. Fernández-Val, and M. Weidner (2017). "Bias
+#'  corrections for probit and logit models with two-way fixed effects". The
+#'  Stata Journal, 17(3), 517-545.
+#' @references Czarnowske, D. and A. Stammann (2020). "Fixed Effects Binary
+#'  Choice Models: Estimation and Inference with Long Panels". ArXiv e-prints.
+#' @references Fernández-Val, I. and M. Weidner (2016). "Individual and time
+#'  effects in nonlinear panel models with large N, T". Journal of Econometrics,
+#'  192(1), 291-312.
+#' @references Fernández-Val, I. and M. Weidner (2018). "Fixed effects
+#'  estimation of large-t panel data models". Annual Review of Economics, 10,
+#'  109-138.
+#' @references Hinz, J., A. Stammann, and J. Wanner (2020). "State Dependence
+#'  and Unobserved Heterogeneity in the Extensive Margin of Trade". ArXiv
+#'  e-prints.
+#' @references Neyman, J. and E. L. Scott (1948). "Consistent estimates based on
+#'  partially consistent observations". Econometrica, 16(1), 1-32.
+#'
+#' @seealso \code{\link{bias_corr}}, \code{\link{feglm}}
+#'
 #' @examples
 #' \donttest{
 #' # Generate an artificial data set for logit models
-#' library(alpaca)
+#' library(capybara)
 #' data <- simGLM(1000L, 20L, 1805L, model = "logit")
 #'
 #' # Fit 'feglm()'
 #' mod <- feglm(y ~ x1 + x2 + x3 | i + t, data)
 #'
 #' # Compute average partial effects
-#' mod.ape <- getAPEs(mod)
+#' mod.ape <- apes(mod)
 #' summary(mod.ape)
 #'
 #' # Apply analytical bias correction
@@ -79,11 +80,11 @@
 #' summary(mod.bc)
 #'
 #' # Compute bias-corrected average partial effects
-#' mod.ape.bc <- getAPEs(mod.bc)
+#' mod.ape.bc <- apes(mod.bc)
 #' summary(mod.ape.bc)
 #' }
 #' @export
-getAPEs <- function(
+apes <- function(
     object = NULL,
     n.pop = NULL,
     panel.structure = c("classic", "network"),
@@ -93,7 +94,7 @@ getAPEs <- function(
   if (is.null(object)) {
     stop("'object' has to be specified.", call. = FALSE)
   } else if (!inherits(object, "feglm")) {
-    stop("'getAPEs' called on a non-'feglm' object.", call. = FALSE)
+    stop("'apes' called on a non-'feglm' object.", call. = FALSE)
   }
 
   # Extract prior information if available or check validity of 'panel.structure'
@@ -129,7 +130,9 @@ getAPEs <- function(
 
   # Check if binary choice model
   if (family[["family"]] != "binomial") {
-    stop("'biasCorr' currently only supports binary choice models.", call. = FALSE)
+    stop("'biasCorr' currently only supports binary choice models.",
+      call. = FALSE
+    )
   }
 
   # Check if provided object matches requested panel structure
@@ -174,7 +177,7 @@ getAPEs <- function(
   binary <- apply(X, 2L, function(x) all(x %in% c(0.0, 1.0)))
 
   # Generate auxiliary list of indexes for different sub panels
-  k.list <- getIndexList(k.vars, data)
+  k.list <- get_index_list_(k.vars, data)
 
   # Compute derivatives and weights
   eta <- object[["eta"]]
@@ -182,7 +185,7 @@ getAPEs <- function(
   mu.eta <- family[["mu.eta"]](eta)
   v <- wt * (y - mu)
   w <- wt * mu.eta
-  z <- wt * partialMuEta(eta, family, 2L)
+  z <- wt * partial_mu_eta_(eta, family, 2L)
   if (family[["link"]] != "logit") {
     h <- mu.eta / family[["variance"]](mu)
     v <- h * v
@@ -204,7 +207,7 @@ getAPEs <- function(
   Delta1 <- matrix(NA_real_, nt, p)
   J <- matrix(NA_real_, p, p)
   Delta[, !binary] <- mu.eta
-  Delta1[, !binary] <- partialMuEta(eta, family, 2L)
+  Delta1[, !binary] <- partial_mu_eta_(eta, family, 2L)
   for (j in seq.int(p)) {
     if (binary[[j]]) {
       eta0 <- eta - X[, j] * beta[[j]]
@@ -214,7 +217,8 @@ getAPEs <- function(
       Delta1[, j] <- f1 - family[["mu.eta"]](eta0)
       J[, j] <- -colSums(PX * Delta1[, j]) / nt.full
       J[j, j] <- sum(f1) / nt.full + J[j, j]
-      J[-j, j] <- colSums(X[, -j, drop = FALSE] * Delta1[, j]) / nt.full + J[-j, j]
+      J[-j, j] <- colSums(X[, -j, drop = FALSE] * Delta1[, j]) /
+        nt.full + J[-j, j]
       rm(eta0, f1)
     } else {
       Delta[, j] <- beta[[j]] * Delta[, j]
@@ -230,7 +234,6 @@ getAPEs <- function(
   # Compute projection and residual projection of \Psi
   Psi <- -Delta1 / w
   MPsi <- center_variables_(Psi, w, k.list, control[["center.tol"]])
-  print(MPsi)
   PPsi <- Psi - MPsi
   rm(Delta1, Psi)
 
@@ -238,12 +241,12 @@ getAPEs <- function(
   if (biascorr) {
     # Compute second-order partial derivatives
     Delta2 <- matrix(NA_real_, nt, p)
-    Delta2[, !binary] <- partialMuEta(eta, family, 3L)
+    Delta2[, !binary] <- partial_mu_eta_(eta, family, 3L)
     for (j in seq.int(p)) {
       if (binary[[j]]) {
         eta0 <- eta - X[, j] * beta[[j]]
-        Delta2[, j] <- partialMuEta(eta0 + beta[[j]], family, 2L) -
-          partialMuEta(eta0, family, 2L)
+        Delta2[, j] <- partial_mu_eta_(eta0 + beta[[j]], family, 2L) -
+          partial_mu_eta_(eta0, family, 2L)
         rm(eta0)
       } else {
         Delta2[, j] <- beta[[j]] * Delta2[, j]
@@ -255,24 +258,29 @@ getAPEs <- function(
       # Compute \hat{B} and \hat{D}
       b <- as.vector(group_sums_(Delta2 + PPsi * z, w, k.list[[1L]])) / 2.0 / nt
       if (k > 1L) {
-        b <- b + as.vector(group_sums_(Delta2 + PPsi * z, w, k.list[[2L]])) / 2.0 / nt
+        b <- b + as.vector(group_sums_(Delta2 + PPsi * z, w, k.list[[2L]])) /
+          2.0 / nt
       }
 
       # Compute spectral density part of \hat{B}
       if (L > 0L) {
-        b <- b - as.vector(group_sums_spectral_(MPsi * w, v, w, L, k.list[[1L]])) / nt
+        b <- b -
+          as.vector(group_sums_spectral_(MPsi * w, v, w, L, k.list[[1L]])) / nt
       }
     } else {
       # Compute \hat{D}_{1}, \hat{D}_{2}, and \hat{B}
       b <- as.vector(group_sums_(Delta2 + PPsi * z, w, k.list[[1L]])) / 2.0 / nt
-      b <- b + as.vector(group_sums_(Delta2 + PPsi * z, w, k.list[[2L]])) / 2.0 / nt
+      b <- b + as.vector(group_sums_(Delta2 + PPsi * z, w, k.list[[2L]])) /
+        2.0 / nt
       if (k > 2L) {
-        b <- b + as.vector(group_sums_(Delta2 + PPsi * z, w, k.list[[3L]])) / 2.0 / nt
+        b <- b + as.vector(group_sums_(Delta2 + PPsi * z, w, k.list[[3L]])) /
+          2.0 / nt
       }
 
       # Compute spectral density part of \hat{B}
       if (k > 2L && L > 0L) {
-        b <- b - as.vector(group_sums_spectral_(MPsi * w, v, w, L, k.list[[3L]])) / nt
+        b <- b -
+          as.vector(group_sums_spectral_(MPsi * w, v, w, L, k.list[[3L]])) / nt
       }
     }
     rm(Delta2)
@@ -295,7 +303,8 @@ getAPEs <- function(
       }
       if (panel.structure == "network") {
         if (k > 2L) {
-          V <- V + adj * (group_sums_var_(Delta, k.list[[3L]]) - crossprod(Delta))
+          V <- V + adj * (group_sums_var_(Delta, k.list[[3L]]) -
+            crossprod(Delta))
         }
       }
     }
@@ -337,5 +346,5 @@ getAPEs <- function(
   }
 
   # Return result list
-  structure(reslist, class = "APEs")
+  structure(reslist, class = "apes")
 }

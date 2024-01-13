@@ -16,7 +16,7 @@
 #' tol ||\boldsymbol{\alpha}_{i - 1}||_{2}}{||\Delta \alpha|| < tol ||\alpha_old||}.
 #' Default is \code{1.0e-08}.
 #' @return
-#' The function \code{\link{getFEs}} returns a named list containing named vectors of estimated
+#' The function \code{\link{fixed_effects}} returns a named list containing named vectors of estimated
 #' fixed effects.
 #' @references
 #' Gaure, S. (n. d.). "Multicollinearity, identification, and estimable
@@ -27,12 +27,12 @@
 #' @seealso
 #' \code{\link{felm}}, \code{\link{feglm}}
 #' @export
-getFEs <- function(object = NULL, alpha.tol = 1.0e-08) {
+fixed_effects <- function(object = NULL, alpha.tol = 1.0e-08) {
   # Check validity of 'object'
   if (is.null(object)) {
     stop("'object' has to be specified.", call. = FALSE)
   } else if (isFALSE(inherits(object, "felm")) && isFALSE(inherits(object, "feglm"))) {
-    stop("'getFEs' called on a non-'felm' or non-'feglm' object.", call. = FALSE)
+    stop("'fixed_effects' called on a non-'felm' or non-'feglm' object.", call. = FALSE)
   }
 
   # Extract required quantities from result list
@@ -51,7 +51,7 @@ getFEs <- function(object = NULL, alpha.tol = 1.0e-08) {
   attr(X, "dimnames") <- NULL
 
   # Generate auxiliary list of indexes for different sub panels
-  k.list <- getIndexList(k.vars, data)
+  k.list <- get_index_list_(k.vars, data)
 
   # Recover fixed effects by alternating between the solutions of normal equations
   pie <- eta - as.vector(X %*% beta)

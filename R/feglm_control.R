@@ -40,12 +40,12 @@
 #' @param
 #' ... arguments passed to the deprecated function \code{\link{feglm.control}}.
 #' @return
-#' The function \code{\link{feglmControl}} returns a named list of control
+#' The function \code{\link{feglm_control}} returns a named list of control
 #' parameters.
 #' @seealso
 #' \code{\link{feglm}}
 #' @export
-feglmControl <- function(
+feglm_control <- function(
     dev.tol = 1.0e-08,
     center.tol = 1.0e-08,
     iter.max = 25L,
@@ -105,15 +105,4 @@ feglmControl <- function(
     drop.pc    = as.logical(drop.pc),
     keep.mx    = as.logical(keep.mx)
   )
-}
-
-
-### Deprecated functions
-
-#' @rdname feglmControl
-#' @aliases feglmControl
-#' @export
-feglm.control <- function(...) {
-  .Deprecated("feglmControl")
-  do.call(feglmControl, list(...))
 }

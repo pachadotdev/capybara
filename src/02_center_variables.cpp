@@ -1,5 +1,5 @@
-#include "00_main.hpp"
-#include "01_cpp11_to_from_arma.hpp"
+#include "00_main.h"
+#include "01_cpp11_to_from_arma.h"
 
 // Method of alternating projections (Halperin)
 [[cpp11::register]] doubles_matrix<> center_variables_(
