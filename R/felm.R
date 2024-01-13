@@ -1,31 +1,43 @@
+#' @title LM fitting with high-dimensional k-way fixed effects
+#'
+#' @description A wrapper for \code{\link{feglm}} with
+#'  \code{family = gaussian()}.
+#'
+#' @inheritParams feglm
+#'
+#' @return The function \code{\link{felm}} returns a named list of class
+#'  \code{"felm"}.
+#'
+#' @references Gaure, S. (2013). "OLS with Multiple High Dimensional Category
+#'  Variables". Computational Statistics and Data Analysis, 66.
+#' @references Marschner, I. (2011). "glm2: Fitting generalized linear models
+#'  with convergence problems". The R Journal, 3(2).
+#' @references Stammann, A., F. Heiss, and D. McFadden (2016). "Estimating Fixed
+#'  Effects Logit Models with Large Panel Data". Working paper.
+#' @references Stammann, A. (2018). "Fast and Feasible Estimation of Generalized
+#'  Linear Models with High-Dimensional k-Way Fixed Effects". ArXiv e-prints.
+#'
+#' @examples
+#' mod <- felm(
+#'   log(trade) ~ dist + lang + cntg + clny | exp_year + imp_year,
+#'   trade_panel
+#' )
+#'
+#' summary(mod)
+#' @export
 felm <- function(formula = NULL, data = NULL, weights = NULL) {
   # Use 'feglm' to estimate the model
-  reslist <- feglm(formula = formula, data = data, weights = weights, family = gaussian())
+  # Using felm_fit_ directly leads to the incorrect yhat = Xb
+  # we need iteratively reweighted least squares
+  reslist <- feglm(
+    formula = formula, data = data, weights = weights, family = gaussian()
+  )
 
-  yhat <- fitted.values(reslist)
-  y <- unlist(reslist$data[, 1], use.names = FALSE)
-  ybar <- mean(y)
+  names(reslist)[which(names(reslist) == "eta")] <- "fitted.values"
 
-  w <- reslist$weights
-
-  ydemeaned_sq <- (y - ybar)^2
-  e_sq <- (y - yhat)^2
-
-  if (is.null(w)) {
-    tss <- sum(ydemeaned_sq)
-    rss <- sum(e_sq)
-  } else {
-    tss <- sum(w * ydemeaned_sq)
-    rss <- sum(w * e_sq)
-  }
-
-  n <- length(yhat)
-  k <- length(reslist$coefficients) + sum(vapply(reslist$nms.fe, length, integer(1)))
-  
-  reslist$r.squared <- 1 - (rss / tss)
-
-  # no -1 in the denominator because the FE estimation does not include the "grand mean"
-  reslist$adj.r.squared <- 1 - (1 - reslist$r.squared) * ((n - 1) / (n - k))
+  # reslist[["Hessian"]] <- NULL
+  reslist[["family"]] <- NULL
+  reslist[["deviance"]] <- NULL
 
   # Return result list
   structure(reslist, class = "felm")
