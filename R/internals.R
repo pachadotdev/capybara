@@ -26,13 +26,9 @@ felm_fit_ <- function(y, X, wt, k.list, control) {
   # Compute the OLS estimate
   beta <- as.vector(qr.solve(MX, y, epsilon))
 
-  # Compute the residuals
-  # res <- y - MX %*% beta
-
   # Generate result list
   reslist <- list(
     coefficients = beta
-    # residuals    = res
   )
 
   # Update result list

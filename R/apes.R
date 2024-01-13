@@ -97,7 +97,8 @@ apes <- function(
     stop("'apes' called on a non-'feglm' object.", call. = FALSE)
   }
 
-  # Extract prior information if available or check validity of 'panel.structure'
+  # Extract prior information if available or check validity of
+  # 'panel.structure'
   biascorr <- inherits(object, "biasCorr")
   if (biascorr) {
     panel.structure <- object[["panel.structure"]]
