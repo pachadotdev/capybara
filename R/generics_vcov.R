@@ -1,70 +1,41 @@
-#' @title
-#' Compute covariance matrix after estimating \code{apes}
-#' @description
-#' \code{\link{vcov.apes}} estimates the covariance matrix for the estimator of the
-#' average partial effects from objects returned by \code{\link{apes}}.
-#' @param
-#' object an object of class \code{"apes"}.
-#' @param
-#' ... other arguments.
-#' @return
-#' The function \code{\link{vcov.apes}} returns a named matrix of covariance estimates.
-#' @seealso
-#' \code{\link{apes}}
+#' @title Covariance matrix for APEs
+#' @description Covariance matrix for the estimator of the
+#'  average partial effects from objects returned by \code{\link{apes}}.
+#' @param object an object of class \code{"apes"}.
+#' @param ... other arguments.
+#' @return A named matrix of covariance estimates.
+#' @seealso \code{\link{apes}}
 #' @export
 vcov.apes <- function(object, ...) {
   object[["vcov"]]
 }
 
-
-#' @title
-#' Compute covariance matrix after fitting \code{feglm}
-#' @description
-#' \code{\link{vcov.feglm}} estimates the covariance matrix for the estimator of the
-#' structural parameters from objects returned by \code{\link{feglm}}. The covariance is computed
+#' @title Covariance matrix for GLMs
+#' @description Covariance matrix for the estimator of the structural parameters
+#'  from objects returned by \code{\link{feglm}}. The covariance is computed
 #' from the Hessian, the scores, or a combination of both after convergence.
-#' @param
-#' object an object of class \code{"feglm"}.
-#' @param
-#' type the type of covariance estimate required. \code{"hessian"} refers to the inverse
-#' of the negative expected Hessian after convergence and is the default option.
-#' \code{"outer.product"} is the outer-product-of-the-gradient estimator,
-#' \code{"sandwich"} is the sandwich estimator (sometimes also referred as robust estimator),
-#' and \code{"clustered"} computes a clustered covariance matrix given some cluster variables.
-#' @param
-#' cluster a symbolic description indicating the clustering of observations.
-#' @param
-#' cluster.vars deprecated; use \code{cluster} instead.
-#' @param
-#' ... other arguments.
-#' @details
-#' Multi-way clustering is done using the algorithm of Cameron, Gelbach, and Miller (2011). An
-#' example is provided in the vignette "Replicating an Empirical Example of International Trade".
-#' @return
-#' The function \code{\link{vcov.feglm}} returns a named matrix of covariance estimates.
-#' @references
-#' Cameron, C., J. Gelbach, and D. Miller (2011). "Robust Inference With Multiway Clustering".
-#' Journal of Business & Economic Statistics 29(2).
-#' @seealso
-#' \code{\link{feglm}}
+#' @param object an object of class \code{"feglm"}.
+#' @param type the type of covariance estimate required. \code{"hessian"} refers
+#'  to the inverse of the negative expected Hessian after convergence and is the
+#'  default option. \code{"outer.product"} is the outer-product-of-the-gradient
+#'  estimator. \code{"sandwich"} is the sandwich estimator (sometimes also
+#'  referred as robust estimator), and \code{"clustered"} computes a clustered
+#'  covariance matrix given some cluster variables.
+#' @param cluster a symbolic description indicating the clustering of
+#'  observations.
+#' @param ... other arguments.
+#' @return A named matrix of covariance estimates.
+#' @references Cameron, C., J. Gelbach, and D. Miller (2011). "Robust Inference
+#'  With Multiway Clustering". Journal of Business & Economic Statistics 29(2).
+#' @seealso \code{\link{feglm}}
 #' @export
 vcov.feglm <- function(
     object,
     type = c("hessian", "outer.product", "sandwich", "clustered"),
     cluster = NULL,
-    cluster.vars = NULL,
     ...) {
   # Check validity of input argument 'type'
   type <- match.arg(type)
-
-  # 'cluster.vars' is deprecated
-  if (!is.null(cluster.vars)) {
-    warning("'cluster.vars' is deprecated; please use 'cluster' instead.", call. = FALSE)
-    if (!is.character(cluster.vars)) {
-      stop("'cluster.vars' has to be a character.", call. = FALSE)
-    }
-    cluster <- as.formula(paste0("~", paste0(cluster.vars, collapse = "+")))
-  }
 
   # Compute requested type of covariance matrix
   H <- object[["Hessian"]]
@@ -172,36 +143,9 @@ vcov.feglm <- function(
   V
 }
 
-#' @title
-#' Compute covariance matrix after fitting \code{felm}
-#' @description
-#' \code{\link{vcov.feglm}} estimates the covariance matrix for the estimator of the
-#' structural parameters from objects returned by \code{\link{felm}}. The covariance is computed
-#' from the Hessian, the scores, or a combination of both after convergence.
-#' @param
-#' object an object of class \code{"feglm"}.
-#' @param
-#' type the type of covariance estimate required. \code{"hessian"} refers to the inverse
-#' of the negative expected Hessian after convergence and is the default option.
-#' \code{"outer.product"} is the outer-product-of-the-gradient estimator,
-#' \code{"sandwich"} is the sandwich estimator (sometimes also referred as robust estimator),
-#' and \code{"clustered"} computes a clustered covariance matrix given some cluster variables.
-#' @param
-#' cluster a symbolic description indicating the clustering of observations.
-#' @param
-#' cluster.vars deprecated; use \code{cluster} instead.
-#' @param
-#' ... other arguments.
-#' @details
-#' Multi-way clustering is done using the algorithm of Cameron, Gelbach, and Miller (2011). An
-#' example is provided in the vignette "Replicating an Empirical Example of International Trade".
-#' @return
-#' The function \code{\link{vcov.feglm}} returns a named matrix of covariance estimates.
-#' @references
-#' Cameron, C., J. Gelbach, and D. Miller (2011). "Robust Inference With Multiway Clustering".
-#' Journal of Business & Economic Statistics 29(2).
-#' @seealso
-#' \code{\link{felm}}
+#' @title Covariance matrix for GLMs
+#' @inherit vcov.feglm
+#' @seealso \code{\link{felm}}
 #' @export
 vcov.felm <- function(
     object,

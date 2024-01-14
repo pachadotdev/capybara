@@ -1,31 +1,19 @@
-#' @title
-#' Efficiently recover estimates of the fixed effects after fitting \code{feglm}
-#' @description
-#' Recover estimates of the fixed effects by alternating between the normal equations of the fixed
-#' effects as shown by Stammann (2018).
-#'
-#' \strong{Remark}: The system might not have a unique solution since we do not take collinearity
-#' into account. If the solution is not unique, an estimable function has to be applied to our
-#' solution to get meaningful estimates of the fixed effects. See Gaure (n. d.) for an extensive
-#' treatment of this issue.
-#' @param
-#' object an object of class \code{"feglm"}.
-#' @param
-#' alpha.tol tolerance level for the stopping condition. The algorithm is stopped in iteration
-#' \eqn{i} if \eqn{||\boldsymbol{\alpha}_{i} - \boldsymbol{\alpha}_{i - 1}||_{2} <
-#' tol ||\boldsymbol{\alpha}_{i - 1}||_{2}}{||\Delta \alpha|| < tol ||\alpha_old||}.
-#' Default is \code{1.0e-08}.
-#' @return
-#' The function \code{\link{fixed_effects}} returns a named list containing named vectors of estimated
-#' fixed effects.
-#' @references
-#' Gaure, S. (n. d.). "Multicollinearity, identification, and estimable
-#' functions". Unpublished.
-#' @references
-#' Stammann, A. (2018). "Fast and Feasible Estimation of Generalized Linear Models with
-#' High-Dimensional k-way Fixed Effects". ArXiv e-prints.
-#' @seealso
-#' \code{\link{felm}}, \code{\link{feglm}}
+#' @title Recover the estimates of the fixed effects after fitting GLMs
+#' @description The system might not have a unique solution since we do not take
+#'  collinearity into account. If the solution is not unique, an estimable
+#'  function has to be applied to our solution to get meaningful estimates of
+#'  the fixed effects.
+#' @param object an object of class \code{"feglm"}.
+#' @param alpha.tol tolerance level for the stopping condition. The algorithm is
+#'  stopped at iteration \eqn{i} if \eqn{||\boldsymbol{\alpha}_{i} -
+#'  \boldsymbol{\alpha}_{i - 1}||_{2} < tol ||\boldsymbol{\alpha}_{i - 1}||
+#'  {2}}{||\Delta \alpha|| < tol ||\alpha_old||}. Default is \code{1.0e-08}.
+#' @return A named list containing named vectors of estimated fixed effects.
+#' @references Stammann, A. (2018). "Fast and Feasible Estimation of Generalized
+#'  Linear Models with High-Dimensional k-way Fixed Effects". ArXiv e-prints.
+#' @references Gaure, S. (n. d.). "Multicollinearity, identification, and
+#'  estimable functions". Unpublished.
+#' @seealso \code{\link{felm}}, \code{\link{feglm}}
 #' @export
 fixed_effects <- function(object = NULL, alpha.tol = 1.0e-08) {
   # Check validity of 'object'

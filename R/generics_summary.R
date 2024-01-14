@@ -1,11 +1,5 @@
-#' @title Summarizing models of class \code{apes}
-#' @description Summary statistics for objects of class \code{"apes"}.
-#' @param object an object of class \code{"apes"}.
-#' @param ... other arguments.
-#' @return Returns an object of class \code{"summary.apes"} which is a list of
-#'  summary statistics of \code{object}.
-#' @seealso \code{\link{apes}}
 #' @export
+#' @noRd
 summary.apes <- function(object, ...) {
   # Compute coefficent matrix
   est <- object[["delta"]]
@@ -20,27 +14,8 @@ summary.apes <- function(object, ...) {
   structure(list(cm = cm), class = "summary.apes")
 }
 
-#' @title Summarizing models of class \code{feglm}
-#' @description Summary statistics for objects of class \code{"feglm"}.
-#' @param object an object of class \code{"feglm"}.
-#' @param type the type of covariance estimate required. \code{"hessian"} refers
-#'  to the inverse of the negative expected Hessian after convergence and is the
-#'  default option. \code{"outer.product"} is the outer-product-of-the-gradient
-#'  estimator, \code{"sandwich"} is the sandwich estimator (sometimes also
-#'  refered as robust estimator), and \code{"clustered"} computes a clustered
-#'  covariance matrix given some cluster variables.
-#' @param cluster a symbolic description indicating the clustering of
-#'  observations.
-#' @param ... other arguments.
-#' @details Multi-way clustering is done using the algorithm of Cameron,
-#'  Gelbach, and Miller (2011). An example is provided in the vignette
-#'  "Replicating an Empirical Example of International Trade".
-#' @return Returns an object of class \code{"summary.feglm"} which is a list of
-#'  summary statistics of \code{object}.
-#' @references Cameron, C., J. Gelbach, and D. Miller (2011). "Robust Inference
-#'  With Multiway Clustering". Journal of Business & Economic Statistics 29(2).
-#' @seealso \code{\link{feglm}}
 #' @export
+#' @noRd
 summary.feglm <- function(
     object,
     type = c("hessian", "outer.product", "sandwich", "clustered"),
@@ -75,11 +50,8 @@ summary.feglm <- function(
   structure(res, class = "summary.feglm")
 }
 
-#' @title Summarizing models of class \code{felm}
-#' @description Summary statistics for objects of class \code{"felm"}.
-#' @inherit summary.lm
-#' @seealso \code{\link{felm}}
 #' @export
+#' @noRd
 summary.felm <- function(
     object,
     type = c("hessian", "outer.product", "sandwich", "clustered"),
