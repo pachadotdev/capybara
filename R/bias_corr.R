@@ -1,65 +1,60 @@
-#' @title
-#' Asymptotic bias correction after fitting binary choice models with a 1,2,3-way error
-#' component
-#' @description
-#' \code{\link{biasCorr}} is a post-estimation routine that can be used to substantially reduce the
-#' incidental parameter bias problem (Neyman and Scott (1948)) present in nonlinear fixed effects
-#' models (see Fernández-Val and Weidner (2018) for an overview). The command applies the analytical
-#' bias correction derived by Fernández-Val and Weidner (2016) and Hinz, Stammann, and Wanner (2020)
-#' to obtain bias-corrected estimates of the structural parameters and is currently restricted to
-#' \code{\link[stats]{binomial}} with one-, two-, and three-way fixed effects.
-#' @param
-#' object an object of class \code{"feglm"}; currently restricted to \code{\link[stats]{binomial}}.
-#' @param
-#' L unsigned integer indicating a bandwidth for the estimation of spectral densities proposed by
-#' Hahn and Kuersteiner (2011). Default is zero, which should be used if all regressors are
-#' assumed to be strictly exogenous with respect to the idiosyncratic error term. In the presence of
-#' weakly exogenous regressors, e.g. lagged outcome variables, Fernández-Val and Weidner (2016, 2018)
-#' suggest to choose a bandwidth between one and four. Note that the order of factors to be partialed
-#' out is important for bandwidths larger than zero (see vignette for details).
-#' @param
-#' panel.structure a string equal to \code{"classic"} or \code{"network"} which determines the
-#' structure of the panel used. \code{"classic"} denotes panel structures where for example the same
-#' cross-sectional units are observed several times (this includes pseudo panels).
-#' \code{"network"} denotes panel structures where for example bilateral trade flows are observed
-#' for several time periods. Default is \code{"classic"}.
-#' @return
-#' The function \code{\link{biasCorr}} returns a named list of classes \code{"biasCorr"} and
-#' \code{"feglm"}.
-#' @references
-#' Czarnowske, D. and A. Stammann (2020). "Fixed Effects Binary Choice Models: Estimation and Inference
-#' with Long Panels". ArXiv e-prints.
-#' @references
-#' Fernández-Val, I. and M. Weidner (2016). "Individual and time effects in nonlinear panel models
-#' with large N, T". Journal of Econometrics, 192(1), 291-312.
-#' @references
-#' Fernández-Val, I. and M. Weidner (2018). "Fixed effects estimation of large-t panel data
-#' models". Annual Review of Economics, 10, 109-138.
-#' @references
-#' Hahn, J. and G. Kuersteiner (2011). "Bias reduction for dynamic nonlinear panel models with
-#' fixed effects". Econometric Theory, 27(6), 1152-1191.
-#' @references
-#' Hinz, J., A. Stammann, and J. Wanner (2020). "State Dependence and Unobserved Heterogeneity
-#' in the Extensive Margin of Trade". ArXiv e-prints.
-#' @references
-#' Neyman, J. and E. L. Scott (1948). "Consistent estimates based on partially consistent
-#' observations". Econometrica, 16(1), 1-32.
-#' @seealso
-#' \code{\link{feglm}}
-#' @examples
-#' \donttest{
-#' # Generate an artificial data set for logit models
-#' library(capybara)
+#' @title Asymptotic bias correction after fitting binary choice models with a
+#'  1,2,3-way error component
 #'
-#' trade_short <- cudata[cudata$year %in% 2000L:2001L, ]
+#' @description Post-estimation routine to substantially reduce the incidental
+#'  parameter bias problem. Applies the analytical bias correction derived by
+#'  Fernández-Val and Weidner (2016) and Hinz, Stammann, and Wanner (2020) to
+#'  obtain bias-corrected estimates of the structural parameters and is
+#'  currently restricted to \code{\link[stats]{binomial}} with 1,2,3-way fixed
+#'  effects.
+#'
+#' @param object an object of class \code{"feglm"}.
+#' @param L unsigned integer indicating a bandwidth for the estimation of
+#'  spectral densities proposed by Hahn and Kuersteiner (2011). The default is
+#'  zero, which should be used if all regressors are assumed to be strictly
+#'  exogenous with respect to the idiosyncratic error term. In the presence of
+#'  weakly exogenous regressors, e.g. lagged outcome variables, we suggest to
+#'  choose a bandwidth between one and four. Note that the order of factors to
+#'  be partialed out is important for bandwidths larger than zero.
+#' @param panel.structure a string equal to \code{"classic"} or \code{"network"}
+#'  which determines the structure of the panel used. \code{"classic"} denotes
+#'  panel structures where for example the same cross-sectional units are
+#'  observed several times (this includes pseudo panels). \code{"network"}
+#'  denotes panel structures where for example bilateral trade flows are
+#'  observed for several time periods. Default is \code{"classic"}.
+#'
+#' @return A named list of classes \code{"bias_corr"} and \code{"feglm"}.
+#'
+#' @references Czarnowske, D. and A. Stammann (2020). "Fixed Effects Binary
+#'  Choice Models: Estimation and Inference with Long Panels". ArXiv e-prints.
+#' @references Fernández-Val, I. and M. Weidner (2016). "Individual and time
+#'  effects in nonlinear panel models with large N, T". Journal of Econometrics,
+#'  192(1), 291-312.
+#' @references Fernández-Val, I. and M. Weidner (2018). "Fixed effects
+#'  estimation of large-t panel data models". Annual Review of Economics, 10,
+#'  109-138.
+#' @references Hahn, J. and G. Kuersteiner (2011). "Bias reduction for dynamic
+#'  nonlinear panel models with fixed effects". Econometric Theory, 27(6),
+#'  1152-1191.
+#' @references Hinz, J., A. Stammann, and J. Wanner (2020). "State Dependence
+#'  and Unobserved Heterogeneity in the Extensive Margin of Trade". ArXiv
+#'  e-prints.
+#' @references Neyman, J. and E. L. Scott (1948). "Consistent estimates based on
+#'  partially consistent observations". Econometrica, 16(1), 1-32.
+#'
+#' @seealso \code{\link{feglm}}
+#'
+#' @examples
+#' trade_short <- trade_panel[trade_panel$year %in% 2002L:2006L, ]
+#' trade_short$trade <- ifelse(trade_short$trade > 100, 1L, 0L)
 #'
 #' # Fit 'feglm()'
-#' mod <- feglm(trade ~ comlang | year, trade_short, family = binomial())
+#' mod <- feglm(trade ~ lang | year, trade_short, family = binomial())
 #'
 #' # Apply analytical bias correction
-#' mod.bc <- biasCorr(mod)
+#' mod.bc <- bias_corr(mod)
 #' summary(mod.bc)
-#' }
+#'
 #' @export
 bias_corr <- function(
     object = NULL,
@@ -69,7 +64,7 @@ bias_corr <- function(
   if (is.null(object)) {
     stop("'object' has to be specified.", call. = FALSE)
   } else if (!inherits(object, "feglm")) {
-    stop("'biasCorr' called on a non-'feglm' object.", call. = FALSE)
+    stop("'bias_corr' called on a non-'feglm' object.", call. = FALSE)
   }
 
   # Check validity of 'panel.structure'
@@ -90,7 +85,7 @@ bias_corr <- function(
 
   # Check if binary choice model
   if (family[["family"]] != "binomial") {
-    stop("'biasCorr' currently only supports binary choice models.", call. = FALSE)
+    stop("'bias_corr' currently only supports binary choice models.", call. = FALSE)
   }
 
   # Check if provided object matches requested panel structure
@@ -198,7 +193,7 @@ bias_corr <- function(
   object[["bandwidth"]] <- L
 
   # Add additional class to result list
-  attr(object, "class") <- c("feglm", "biasCorr")
+  attr(object, "class") <- c("feglm", "bias_corr")
 
   # Return updated list
   object

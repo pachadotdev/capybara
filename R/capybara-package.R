@@ -16,8 +16,8 @@
 #' @importFrom data.table setDT setkeyv := .SD
 #' @importFrom Formula Formula
 #' @importFrom MASS negative.binomial theta.ml
-#' @importFrom stats as.formula binomial model.matrix na.omit poisson pnorm
-#'  printCoefmat rgamma rlogis rnorm rpois terms vcov
+#' @importFrom stats as.formula binomial model.matrix na.omit gaussian poisson
+#'  pnorm printCoefmat rgamma rlogis rnorm rpois terms vcov
 #' @importFrom utils combn
 #' @useDynLib capybara, .registration = TRUE
 NULL
@@ -34,6 +34,7 @@ NULL
 #'   \item{cntg}{Indicator. Equal to 1 if country 'i' and 'j' share a common border}
 #'   \item{lang}{Indicator. Equal to 1 if country 'i' and 'j' speak the same official language}
 #'   \item{clny}{Indicator. Equal to 1 if country 'i' and 'j' share a colonial relationship}
+#'   \item{year}{Year of observation}
 #'   \item{exp_year}{Exporter ISO country code and year}
 #'   \item{imp_year}{Importer ISO country code and year}
 #' }

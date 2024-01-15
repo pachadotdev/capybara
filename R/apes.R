@@ -63,26 +63,23 @@
 #' @seealso \code{\link{bias_corr}}, \code{\link{feglm}}
 #'
 #' @examples
-#' \donttest{
-#' # Generate an artificial data set for logit models
-#' library(capybara)
-#' data <- simGLM(1000L, 20L, 1805L, model = "logit")
+#' trade_short <- trade_panel[trade_panel$year %in% 2002L:2006L, ]
+#' trade_short$trade <- ifelse(trade_short$trade > 100, 1L, 0L)
 #'
 #' # Fit 'feglm()'
-#' mod <- feglm(y ~ x1 + x2 + x3 | i + t, data)
+#' mod <- feglm(trade ~ lang | year, trade_short, family = binomial())
 #'
 #' # Compute average partial effects
 #' mod.ape <- apes(mod)
 #' summary(mod.ape)
 #'
 #' # Apply analytical bias correction
-#' mod.bc <- biasCorr(mod)
+#' mod.bc <- bias_corr(mod)
 #' summary(mod.bc)
 #'
 #' # Compute bias-corrected average partial effects
 #' mod.ape.bc <- apes(mod.bc)
 #' summary(mod.ape.bc)
-#' }
 #' @export
 apes <- function(
     object = NULL,
@@ -99,8 +96,8 @@ apes <- function(
 
   # Extract prior information if available or check validity of
   # 'panel.structure'
-  biascorr <- inherits(object, "biasCorr")
-  if (biascorr) {
+  bias_corr <- inherits(object, "bias_corr")
+  if (bias_corr) {
     panel.structure <- object[["panel.structure"]]
     L <- object[["bandwidth"]]
     if (L > 0L) {
@@ -131,7 +128,7 @@ apes <- function(
 
   # Check if binary choice model
   if (family[["family"]] != "binomial") {
-    stop("'biasCorr' currently only supports binary choice models.",
+    stop("'bias_corr' currently only supports binary choice models.",
       call. = FALSE
     )
   }
@@ -239,7 +236,7 @@ apes <- function(
   rm(Delta1, Psi)
 
   # Compute analytical bias correction of average partial effects
-  if (biascorr) {
+  if (bias_corr) {
     # Compute second-order partial derivatives
     Delta2 <- matrix(NA_real_, nt, p)
     Delta2[, !binary] <- partial_mu_eta_(eta, family, 3L)
@@ -340,7 +337,7 @@ apes <- function(
   )
 
   # Update result list
-  if (biascorr) {
+  if (bias_corr) {
     names(b) <- nms.sp
     reslist[["bias.term"]] <- b
     reslist[["bandwidth"]] <- L

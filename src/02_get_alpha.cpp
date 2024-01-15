@@ -1,7 +1,7 @@
 #include "00_main.h"
 
-list get_alpha_(const doubles_matrix<>& p, const list& klist,
-                const double tol) {
+[[cpp11::register]] list get_alpha_(const doubles_matrix<>& p,
+                                    const list& klist, const double tol) {
   // Auxiliary variables (fixed)
   const int N = p.nrow();
   const int K = klist.size();

@@ -3,4 +3,6 @@ PKG_LIBS = $(SHLIB_OPENMP_CXXFLAGS)
 # PKG_CPPFLAGS = -UDEBUG -g -I vendor/
 PKG_CPPFLAGS = -I vendor/
 CXX_STD = CXX11
-# CXXFLAGS=-Wall -O3 -pedantic
+# CXXFLAGS = -Wall -O0 -pedantic
+CXXFLAGS = -Wall -O3 -pedantic
+

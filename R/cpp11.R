@@ -4,6 +4,10 @@ center_variables_ <- function(V, w, klist, tol, maxiter) {
   .Call(`_capybara_center_variables_`, V, w, klist, tol, maxiter)
 }
 
+get_alpha_ <- function(p, klist, tol) {
+  .Call(`_capybara_get_alpha_`, p, klist, tol)
+}
+
 group_sums_ <- function(M, w, jlist) {
   .Call(`_capybara_group_sums_`, M, w, jlist)
 }
