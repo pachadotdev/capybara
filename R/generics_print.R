@@ -91,20 +91,27 @@ print.summary.felm <- function(
   cat("\nEstimates:\n")
   printCoefmat(x[["cm"]], P.values = TRUE, has.Pvalue = TRUE, digits = digits)
 
-  f <- x$fitted.values
-  w <- x$weights
+  cat("\nR-square: ", format(x[["r.squared"]], digits = digits, nsmall = 2L), "\n")
+  cat(
+    "Adj. R-square: ",
+    format(x[["adj.r.squared"]], digits = digits, nsmall = 2L),
+    "\n"
+  )
 
-  x$cm
+  # f <- x$fitted.values
+  # w <- x$weights
 
-  if (p != attr(x$terms, "intercept")) {
-    df.int <- if (attr(z$terms, "intercept")) 1L else 0L
-    ans$r.squared <- mss / (mss + rss)
-    ans$adj.r.squared <- 1 - (1 - ans$r.squared) * ((n - df.int) / rdf)
-    ans$fstatistic <- c(
-      value = (mss / (p - df.int)) / resvar,
-      numdf = p - df.int, dendf = rdf
-    )
-  } else {
-    ans$r.squared <- ans$adj.r.squared <- 0
-  }
+  # x$cm
+
+  # if (p != attr(x$terms, "intercept")) {
+  #   df.int <- if (attr(z$terms, "intercept")) 1L else 0L
+  #   ans$r.squared <- mss / (mss + rss)
+  #   ans$adj.r.squared <- 1 - (1 - ans$r.squared) * ((n - df.int) / rdf)
+  #   ans$fstatistic <- c(
+  #     value = (mss / (p - df.int)) / resvar,
+  #     numdf = p - df.int, dendf = rdf
+  #   )
+  # } else {
+  #   ans$r.squared <- ans$adj.r.squared <- 0
+  # }
 }
