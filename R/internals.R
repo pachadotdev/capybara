@@ -21,7 +21,7 @@ felm_fit_ <- function(y, X, wt, k.list, control) {
   MX <- X
 
   # Centering variables
-  MX <- center_variables_(MX, wt, k.list, center.tol)
+  MX <- center_variables_(MX, wt, k.list, center.tol, 100000L)
 
   # Compute the OLS estimate
   beta <- as.vector(qr.solve(MX, y, epsilon))
@@ -74,8 +74,8 @@ feglm_fit_ <- function(beta, eta, y, X, wt, k.list, family, control) {
     nu <- (y - mu) / mu.eta
 
     # Centering variables
-    Mnu <- center_variables_((Mnu + nu), w, k.list, center.tol)
-    MX <- center_variables_(MX, w, k.list, center.tol)
+    Mnu <- center_variables_((Mnu + nu), w, k.list, center.tol, 100000L)
+    MX <- center_variables_(MX, w, k.list, center.tol, 100000L)
     # Compute update step and update \eta
     beta.upd <- as.vector(qr.solve(MX * w.tilde, Mnu * w.tilde, epsilon))
     eta.upd <- nu - as.vector(Mnu - MX %*% beta.upd)
@@ -137,7 +137,7 @@ feglm_fit_ <- function(beta, eta, y, X, wt, k.list, family, control) {
   w <- (wt * mu.eta^2) / family[["variance"]](mu)
 
   # Center variables
-  MX <- center_variables_(X, w, k.list, center.tol)
+  MX <- center_variables_(X, w, k.list, center.tol, 100000L)
   # Recompute Hessian
   H <- crossprod(MX * sqrt(w))
 
@@ -215,7 +215,7 @@ feglm_offset_ <- function(object, offset) {
     yadj <- (y - mu) / mu.eta + eta - offset
 
     # Centering dependent variable and compute \eta update
-    Myadj <- center_variables_((Myadj + yadj), w, k.list, center.tol)
+    Myadj <- center_variables_((Myadj + yadj), w, k.list, center.tol, 100000L)
     eta.upd <- yadj - as.vector(Myadj) + offset - eta
 
     # Step-halving with three checks
@@ -293,7 +293,7 @@ getScoreMatrix <- function(object) {
     attr(X, "dimnames") <- NULL
 
     # Center variables
-    MX <- center_variables_(X, w, k.list, control[["center.tol"]])
+    MX <- center_variables_(X, w, k.list, control[["center.tol"]], 100000L)
     colnames(MX) <- nms.sp
   }
 

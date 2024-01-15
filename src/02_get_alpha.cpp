@@ -25,8 +25,14 @@ list get_alpha_(const doubles_matrix<>& p, const list& klist,
 
   // Start alternating between normal equations
   writable::list Alpha0(Alpha.size());
+
+  int interruptCheckCounter = 0;
+
   for (iter = 0; iter < 10000; iter++) {
-    check_user_interrupt();
+    if (++interruptCheckCounter == 1000) {
+      check_user_interrupt();
+      interruptCheckCounter = 0;
+    }
 
     // Store \alpha_{0} of the previous iteration
     Alpha0 = Alpha;

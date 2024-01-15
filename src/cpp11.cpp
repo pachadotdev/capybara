@@ -6,17 +6,10 @@
 #include <R_ext/Visibility.h>
 
 // 01_center_variables.cpp
-doubles_matrix<> center_variables_(const doubles_matrix<>& V, const doubles& w, const list& klist, const double tol);
-extern "C" SEXP _capybara_center_variables_(SEXP V, SEXP w, SEXP klist, SEXP tol) {
+doubles_matrix<> center_variables_(const doubles_matrix<>& V, const doubles& w, const list& klist, const double tol, const int maxiter);
+extern "C" SEXP _capybara_center_variables_(SEXP V, SEXP w, SEXP klist, SEXP tol, SEXP maxiter) {
   BEGIN_CPP11
-    return cpp11::as_sexp(center_variables_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(V), cpp11::as_cpp<cpp11::decay_t<const doubles&>>(w), cpp11::as_cpp<cpp11::decay_t<const list&>>(klist), cpp11::as_cpp<cpp11::decay_t<const double>>(tol)));
-  END_CPP11
-}
-// 02_get_alpha.cpp
-list get_alpha_(const doubles_matrix<>& p, const list& klist, const double tol);
-extern "C" SEXP _capybara_get_alpha_(SEXP p, SEXP klist, SEXP tol) {
-  BEGIN_CPP11
-    return cpp11::as_sexp(get_alpha_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(p), cpp11::as_cpp<cpp11::decay_t<const list&>>(klist), cpp11::as_cpp<cpp11::decay_t<const double>>(tol)));
+    return cpp11::as_sexp(center_variables_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(V), cpp11::as_cpp<cpp11::decay_t<const doubles&>>(w), cpp11::as_cpp<cpp11::decay_t<const list&>>(klist), cpp11::as_cpp<cpp11::decay_t<const double>>(tol), cpp11::as_cpp<cpp11::decay_t<const int>>(maxiter)));
   END_CPP11
 }
 // 03_group_sums.cpp
@@ -27,10 +20,10 @@ extern "C" SEXP _capybara_group_sums_(SEXP M, SEXP w, SEXP jlist) {
   END_CPP11
 }
 // 03_group_sums.cpp
-doubles_matrix<> group_sums_spectral_(const doubles_matrix<>& M, const doubles_matrix<>& v, const doubles_matrix<>& w, const int L, const list& jlist);
-extern "C" SEXP _capybara_group_sums_spectral_(SEXP M, SEXP v, SEXP w, SEXP L, SEXP jlist) {
+doubles_matrix<> group_sums_spectral_(const doubles_matrix<>& M, const doubles_matrix<>& v, const doubles_matrix<>& w, const int K, const list& jlist);
+extern "C" SEXP _capybara_group_sums_spectral_(SEXP M, SEXP v, SEXP w, SEXP K, SEXP jlist) {
   BEGIN_CPP11
-    return cpp11::as_sexp(group_sums_spectral_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(M), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(v), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(w), cpp11::as_cpp<cpp11::decay_t<const int>>(L), cpp11::as_cpp<cpp11::decay_t<const list&>>(jlist)));
+    return cpp11::as_sexp(group_sums_spectral_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(M), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(v), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(w), cpp11::as_cpp<cpp11::decay_t<const int>>(K), cpp11::as_cpp<cpp11::decay_t<const list&>>(jlist)));
   END_CPP11
 }
 // 03_group_sums.cpp
@@ -50,8 +43,7 @@ extern "C" SEXP _capybara_group_sums_cov_(SEXP M, SEXP N, SEXP jlist) {
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
-    {"_capybara_center_variables_",    (DL_FUNC) &_capybara_center_variables_,    4},
-    {"_capybara_get_alpha_",           (DL_FUNC) &_capybara_get_alpha_,           3},
+    {"_capybara_center_variables_",    (DL_FUNC) &_capybara_center_variables_,    5},
     {"_capybara_group_sums_",          (DL_FUNC) &_capybara_group_sums_,          3},
     {"_capybara_group_sums_cov_",      (DL_FUNC) &_capybara_group_sums_cov_,      3},
     {"_capybara_group_sums_spectral_", (DL_FUNC) &_capybara_group_sums_spectral_, 5},

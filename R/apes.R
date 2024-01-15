@@ -199,7 +199,7 @@ apes <- function(
   if (control[["keep.mx"]]) {
     MX <- object[["MX"]]
   } else {
-    MX <- center_variables_(X, w, k.list, control[["center.tol"]])
+    MX <- center_variables_(X, w, k.list, control[["center.tol"]], 100000)
   }
 
   # Compute average partial effects, derivatives, and Jacobian
@@ -234,7 +234,7 @@ apes <- function(
 
   # Compute projection and residual projection of \Psi
   Psi <- -Delta1 / w
-  MPsi <- center_variables_(Psi, w, k.list, control[["center.tol"]])
+  MPsi <- center_variables_(Psi, w, k.list, control[["center.tol"]], 100000L)
   PPsi <- Psi - MPsi
   rm(Delta1, Psi)
 
