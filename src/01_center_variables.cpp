@@ -22,6 +22,7 @@
   writable::doubles_matrix<> y(N, 1);
 
   // Halperin projections
+  // #pragma omp parallel for
   for (p = 0; p < P; p++) {
     // Center each variable
     for (n = 0; n < N; n++) {

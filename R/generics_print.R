@@ -1,121 +1,46 @@
-#' @export
-#' @noRd
-print.apes <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
-  print(x[["delta"]], digits = digits)
-}
-
-#' @export
-#' @noRd
-print.feglm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
-  cat(
-    sub("\\(.*\\)", "", x[["family"]][["family"]]), " - ",
-    x[["family"]][["link"]], " link",
-    ", l= [", paste0(x[["lvls.k"]], collapse = ", "), "]\n\n",
-    sep = ""
-  )
-  print(x[["coefficients"]], digits = digits)
-}
-
-#' @export
-#' @noRd
-print.felm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
-  print(x[["coefficients"]], digits = digits)
-}
-
-#' @export
-#' @noRd
-print.summary.apes <- function(
-    x, digits = max(3L, getOption("digits") - 3L), ...) {
-  cat("Estimates:\n")
-  printCoefmat(x[["cm"]], P.values = TRUE, has.Pvalue = TRUE, digits = digits)
-}
-
-#' @export
-#' @noRd
-print.summary.feglm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
-  cat(
-    sub("\\(.*\\)", "", x[["family"]][["family"]]), " - ",
-    x[["family"]][["link"]], " link\n\n",
-    sep = ""
-  )
+summary_formula_ <- function(x) {
+  cat("Formula: ")
   print(x[["formula"]])
-  cat("\nEstimates:\n")
-  printCoefmat(x[["cm"]], P.values = TRUE, has.Pvalue = TRUE, digits = digits)
-  cat(
-    "\nresidual deviance= ",
-    format(x[["deviance"]], digits = max(5L, digits + 1L), nsmall = 2L),
-    ",\n",
-    sep = ""
-  )
-  cat(
-    "null deviance= ",
-    format(x[["null.deviance"]], digits = max(5L, digits + 1L), nsmall = 2L),
-    ",\n",
-    sep = ""
-  )
-  cat(
-    "n= ", x[["nobs"]][["nobs"]],
-    ", l= [", paste0(x[["lvls.k"]], collapse = ", "), "]\n",
-    sep = ""
-  )
-  if (x[["nobs"]][["nobs.na"]] > 0L | x[["nobs"]][["nobs.pc"]] > 0L) {
-    cat("\n")
-    if (x[["nobs"]][["nobs.na"]] > 0L) {
-      cat("(", x[["nobs"]][["nobs.na"]], "observation(s) deleted due to missingness )\n")
-    }
-    if (x[["nobs"]][["nobs.pc"]] > 0L) {
-      cat("(", x[["nobs"]][["nobs.pc"]], "observation(s) deleted due to perfect classification )\n")
-    }
-  }
-  if (is.null(x[["theta"]])) {
-    cat("\nNumber of Fisher Scoring Iterations:", x[["iter"]], "\n")
-  } else {
-    cat("\nNumber of Fisher Scoring Iterations:", x[["iter"]])
-    cat("\nNumber of Outer Iterations:", x[["iter.outer"]])
-    cat(
-      "\ntheta= ",
-      format(x[["theta"]], digits = digits, nsmall = 2L),
-      ", std. error= ",
-      format(attr(x[["theta"]], "SE"), digits = digits, nsmall = 2L),
-      "\n",
-      sep = ""
-    )
-  }
 }
 
-#' @export
-#' @noRd
-print.summary.felm <- function(
-    x, digits = max(3L, getOption("digits") - 3L), ...) {
-  cat("Formula:\n")
-  print(x[["formula"]])
-  cat("\nEstimates:\n")
+summary_family_ <- function(x) {
+  cat(
+    "\nFamily: ", gsub("^([a-z])", "\\U\\1", x[["family"]][["family"]],
+      perl = TRUE
+    ), "\n",
+    sep = ""
+  )
+}
+
+summary_estimates_ <- function(x, digits) {
+  cat("\nEstimates:\n\n")
   coefmat <- as.data.frame(x[["cm"]])
 
   coefmat[, max(ncol(coefmat))] <- sapply(coefmat[, max(nrow(coefmat))], function(x) {
-    # significance codes for Pr(>|t|):
-    # 0.1%: (***)
-    # 1%: (**)
-    # 5%: (*)
-    # 10%: (.)
     if (x <= 0.001) {
-      paste(formatC(x, format = "f", digits = digits), "(***)")
+      paste(formatC(x, format = "f", digits = digits), "***")
     } else if (x <= 0.01) {
-      paste(formatC(x, format = "f", digits = digits), "(**)")
+      paste(formatC(x, format = "f", digits = digits), "** ")
     } else if (x <= 0.05) {
-      paste(formatC(x, format = "f", digits = digits), "(*)")
+      paste(formatC(x, format = "f", digits = digits), "*  ")
     } else if (x <= 0.1) {
-      paste(formatC(x, format = "f", digits = digits), "(.)")
+      paste(formatC(x, format = "f", digits = digits), ".  ")
     } else {
       formatC(x, format = "f", digits = digits)
     }
   })
 
+  # get rid of extra spaces (i.e., no number with ***)
+  coefmat[, max(ncol(coefmat))] <- gsub("\\*\\s+$", "*", coefmat[, max(ncol(coefmat))])
+  coefmat[, max(ncol(coefmat))] <- gsub("\\.\\s+$", ".", coefmat[, max(ncol(coefmat))])
+
+  # fill coefmat[, max(ncol(coefmat))] with spaces to the right
+  signif_width <- max(nchar(coefmat[, max(ncol(coefmat))]))
+  coefmat[, max(ncol(coefmat))] <- sprintf("%-*s", signif_width, coefmat[, max(ncol(coefmat))])
+
   # format the other columns as formatC(x, format = "f", digits = digits)
   for (i in 1:(ncol(coefmat) - 1)) {
-    coefmat[, i] <- sapply(coefmat[, i], function(x) {
-      formatC(as.double(x), format = "f", digits = digits)
-    })
+    coefmat[, i] <- formatC(as.double(coefmat[, i]), format = "f", digits = digits)
   }
 
   coef_width <- max(nchar(rownames(coefmat))) + 2L
@@ -159,8 +84,10 @@ print.summary.felm <- function(
   }
 
   # significance message
-  cat("\nSignificance codes:  (***) 0.1%; (**) 1%; (*) 5%; (.) 10%\n")
+  cat("\nSignificance codes: *** 99.9%; ** 99%; * 95%; . 90%\n")
+}
 
+summary_r2_ <- function(x, digits) {
   cat(
     sprintf("\nR-squared%*s:", nchar("Adj. "), " "),
     format(x[["r.squared"]], digits = digits, nsmall = 2L), "\n"
@@ -169,4 +96,89 @@ print.summary.felm <- function(
     "Adj. R-squared:",
     format(x[["adj.r.squared"]], digits = digits, nsmall = 2L), "\n"
   )
+}
+
+summary_nobs_ <- function(x) {
+  cat(
+    "\nNumber of observations:",
+    paste0("Full ", x[["nobs"]][["nobs"]], ";"),
+    paste0("Missing ", x[["nobs"]][["nobs.na"]], ";"),
+    paste0("Perfect classification ", x[["nobs"]][["nobs.pc"]]), "\n"
+  )
+}
+
+summary_fisher_ <- function(x) {
+  if (is.null(x[["theta"]])) {
+    cat("\nNumber of Fisher Scoring iterations:", x[["iter"]], "\n")
+  } else {
+    cat("\nNumber of Fisher Scoring iterations:", x[["iter"]])
+    cat("\nNumber of outer iterations:", x[["iter.outer"]])
+    cat(
+      "\ntheta= ",
+      format(x[["theta"]], digits = digits, nsmall = 2L),
+      ", std. error= ",
+      format(attr(x[["theta"]], "SE"), digits = digits, nsmall = 2L),
+      "\n",
+      sep = ""
+    )
+  }
+}
+
+#' @export
+#' @noRd
+print.apes <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
+  print(x[["delta"]], digits = digits)
+}
+
+#' @export
+#' @noRd
+print.feglm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
+  cat(
+    sub("\\(.*\\)", "", x[["family"]][["family"]]), " - ",
+    x[["family"]][["link"]], " link",
+    ", l= [", paste0(x[["lvls.k"]], collapse = ", "), "]\n\n",
+    sep = ""
+  )
+  print(x[["coefficients"]], digits = digits)
+}
+
+#' @export
+#' @noRd
+print.felm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
+  print(x[["coefficients"]], digits = digits)
+}
+
+#' @export
+#' @noRd
+print.summary.apes <- function(
+    x, digits = max(3L, getOption("digits") - 3L), ...) {
+  cat("Estimates:\n")
+  printCoefmat(x[["cm"]], P.values = TRUE, has.Pvalue = TRUE, digits = digits)
+}
+
+#' @export
+#' @noRd
+print.summary.feglm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
+  summary_formula_(x)
+
+  summary_family_(x)
+
+  summary_estimates_(x, digits)
+
+  summary_nobs_(x)
+
+  summary_fisher_(x)
+}
+
+#' @export
+#' @noRd
+print.summary.felm <- function(
+    x, digits = max(3L, getOption("digits") - 3L), ...) {
+  summary_formula_(x)
+
+  summary_estimates_(x, digits)
+
+  summary_r2_(x, digits)
+
+  summary_nobs_(x)
 }
