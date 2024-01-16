@@ -136,6 +136,7 @@ feglm <- function(
   fit <- feglm_fit_(
     beta, eta, y, X, wt, k.list, family, control
   )
+
   y <- NULL
   X <- NULL
   eta <- NULL

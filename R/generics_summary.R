@@ -21,7 +21,7 @@ summary.feglm <- function(
     type = c("hessian", "outer.product", "sandwich", "clustered"),
     cluster = NULL,
     ...) {
-  # Compute coefficent matrix
+  # Compute coefficients matrix
   est <- object[["coefficients"]]
   se <- sqrt(diag(vcov(object, type, cluster)))
   z <- est / se
@@ -57,7 +57,7 @@ summary.felm <- function(
     type = c("hessian", "outer.product", "sandwich", "clustered"),
     cluster = NULL,
     ...) {
-  # Compute coefficent matrix
+  # Compute coefficients matrix
   est <- object[["coefficients"]]
   se <- sqrt(diag(vcov(object, type, cluster)))
   z <- est / se

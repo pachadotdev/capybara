@@ -23,7 +23,7 @@
 #'   trade_panel
 #' )
 #'
-#' # summary(mod)
+#' summary(mod)
 #' @export
 felm <- function(formula = NULL, data = NULL, weights = NULL) {
   # Use 'feglm' to estimate the model

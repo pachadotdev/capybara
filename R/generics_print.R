@@ -87,31 +87,86 @@ print.summary.feglm <- function(x, digits = max(3L, getOption("digits") - 3L), .
 #' @noRd
 print.summary.felm <- function(
     x, digits = max(3L, getOption("digits") - 3L), ...) {
+  cat("Formula:\n")
   print(x[["formula"]])
   cat("\nEstimates:\n")
-  printCoefmat(x[["cm"]], P.values = TRUE, has.Pvalue = TRUE, digits = digits)
+  coefmat <- as.data.frame(x[["cm"]])
 
-  cat("\nR-square: ", format(x[["r.squared"]], digits = digits, nsmall = 2L), "\n")
+  coefmat[, max(ncol(coefmat))] <- sapply(coefmat[, max(nrow(coefmat))], function(x) {
+    # significance codes for Pr(>|t|):
+    # 0.1%: (***)
+    # 1%: (**)
+    # 5%: (*)
+    # 10%: (.)
+    if (x <= 0.001) {
+      paste(formatC(x, format = "f", digits = digits), "(***)")
+    } else if (x <= 0.01) {
+      paste(formatC(x, format = "f", digits = digits), "(**)")
+    } else if (x <= 0.05) {
+      paste(formatC(x, format = "f", digits = digits), "(*)")
+    } else if (x <= 0.1) {
+      paste(formatC(x, format = "f", digits = digits), "(.)")
+    } else {
+      formatC(x, format = "f", digits = digits)
+    }
+  })
+
+  # format the other columns as formatC(x, format = "f", digits = digits)
+  for (i in 1:(ncol(coefmat) - 1)) {
+    coefmat[, i] <- sapply(coefmat[, i], function(x) {
+      formatC(as.double(x), format = "f", digits = digits)
+    })
+  }
+
+  coef_width <- max(nchar(rownames(coefmat))) + 2L
+  max_widths <- c(nchar("Estimate"), nchar("Std. Error"), nchar("t value"), nchar("Pr(>|t|)"))
+
+  # get the maximum number of digits (with sign and decimal point) for each column
+  for (i in 1:nrow(coefmat)) {
+    row_values <- coefmat[i, ]
+    max_widths <- mapply(function(value, width) {
+      max(width, nchar(value))
+    }, value = row_values, width = max_widths)
+  }
+
+  # create a header such as "| Estimate | Std. Error | t value | Pr(>|t|) |\n"
+  # but adding spaces between the bars and the column names to make sure the numbers will fit
+  header <- mapply(function(name, width) {
+    sprintf("| %-*s", width, name)
+  }, name = colnames(coefmat), width = max_widths + 1L)
+
+  cat("|", paste(rep(" ", coef_width), collapse = ""), paste(header, collapse = ""), "|\n", sep = "")
+
+  # now the same for "|----|----|----|----|\n"
+  dashes <- mapply(function(width) {
+    sprintf("|%s", paste(rep("-", width), collapse = ""))
+  }, width = max_widths + 2L)
+
+  cat("|", paste(rep("-", coef_width), collapse = ""), paste(dashes, collapse = ""), "|\n", sep = "")
+
+  for (i in 1:nrow(coefmat)) {
+    cat("| ", sprintf("%-*s", coef_width - 1L, rownames(coefmat)[i]), sep = "")
+    row_values <- coefmat[i, ]
+    formatted_values <- mapply(function(value, width) {
+      sprintf("| %*s ", width, value)
+    }, value = row_values, width = max_widths)
+
+    if (i == max(nrow(coefmat))) {
+      cat(formatted_values, "|\n", sep = "")
+    } else {
+      cat(formatted_values, "|\n", sep = "")
+    }
+  }
+
+  # significance message
+  cat("\nSignificance codes:  (***) 0.1%; (**) 1%; (*) 5%; (.) 10%\n")
+
   cat(
-    "Adj. R-square: ",
-    format(x[["adj.r.squared"]], digits = digits, nsmall = 2L),
-    "\n"
+    sprintf("\nR-squared%*s:", nchar("Adj. "), " "),
+    format(x[["r.squared"]], digits = digits, nsmall = 2L), "\n"
   )
-
-  # f <- x$fitted.values
-  # w <- x$weights
-
-  # x$cm
-
-  # if (p != attr(x$terms, "intercept")) {
-  #   df.int <- if (attr(z$terms, "intercept")) 1L else 0L
-  #   ans$r.squared <- mss / (mss + rss)
-  #   ans$adj.r.squared <- 1 - (1 - ans$r.squared) * ((n - df.int) / rdf)
-  #   ans$fstatistic <- c(
-  #     value = (mss / (p - df.int)) / resvar,
-  #     numdf = p - df.int, dendf = rdf
-  #   )
-  # } else {
-  #   ans$r.squared <- ans$adj.r.squared <- 0
-  # }
+  cat(
+    "Adj. R-squared:",
+    format(x[["adj.r.squared"]], digits = digits, nsmall = 2L), "\n"
+  )
 }
