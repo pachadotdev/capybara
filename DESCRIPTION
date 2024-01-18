@@ -1,9 +1,10 @@
 Package: capybara
 Type: Package
-Title: Capybaras are cool
-Version: 2022.03.21
+Title: Fast and Memory Efficient Fitting of Linear Models With High-Dimensional
+    Fixed Effects
+Version: 2024.01.15
 Authors@R: c(
-    person("Mauricio", "Vargas",
+    person("Mauricio", "Vargas Sepulveda",
         role = c("aut", "cre"),
         email = "m.sepulveda@mail.utoronto.ca",
         c(ORCID = "0000-0003-1017-7574"))
@@ -17,7 +18,11 @@ Suggests:
     knitr,
     rmarkdown
 Depends: R(>= 3.5.0)
-Description: Add some description later. This is about linear algebra.
+Description: Fast and user-friendly estimation of generalized linear models with
+    multiple fixed effects and cluster the standard errors. The method to obtain
+    the estimated fixed-effects coefficients is based on Stammann (2018) 
+    <https://arxiv.org/abs/1707.01815> and Gaure (2013)
+    <https://dx.doi.org/10.1016/j.csda.2013.03.024>.
 License: MIT + file LICENSE
 BugReports: https://github.com/pachadotdev/capybara/issues
 URL: https://pacha.dev/capybara/, https://github.com/pachadotdev/capybara
