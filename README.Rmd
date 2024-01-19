@@ -19,7 +19,33 @@ knitr::opts_chunk$set(
 [![R-CMD-check](https://github.com/pachadotdev/capybara/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/pachadotdev/capybara/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
-The goal of capybara is to ...
+## About
+
+Capybara is a fast and small footprint software that provides efficient
+functions for demeaning variables before conducting a GLM estimation via
+Iteratively Weighted Least Squares (IWLS). This technique is particularly useful
+when estimating linear models with multiple group fixed effects.
+
+The software can estimate GLMs from the Exponential Family and also Negative
+Binomial models but the focus will be the Poisson estimator because it is the
+one used for structural counterfactual analysis in International Trade. It is
+relevant to add that the IWLS estimator is equivalent with the PPML estimator
+from Santos-Silva et al. 2006
+
+Tradition QR estimation can be unfeasible due to additional memory requirements.
+The method, which is based on Halperin 1962 article on vector projections offers
+important time and memory savings without compromising numerical stability in
+the estimation process.
+
+The software heavily borrows from Gaure 20213 and Stammann 2018 works on the
+OLS and IWLS estimator with large k-way fixed effects (i.e., the Lfe and Alpaca
+packages). The differences are that Capybara uses an elementary approach and
+uses a minimal C++ code without parallelization, which achieves very good
+results considering its simplicity. I hope it is east to maintain.
+
+The summary tables are nothing like R's default and borrow from the Broom
+package and Stata outputs. The default summary from this package is a Markdown
+table that you can insert in RMarkdown/Quarto or copy and paste to Jupyter.
 
 ## Installation
 
@@ -31,7 +57,7 @@ remotes::install_github("pachadotdev/capybara")
 
 ## Examples
 
-See the documentation in progress: https://pacha.dev/capybara
+See the documentation in progress: https://pacha.dev/capybara.
 
 ## Benchmarks
 
@@ -57,20 +83,16 @@ Memory allocation for the same models
 
 *This debugging is about code quality, not about statistical quality.*
 *There is a full set of numerical tests for testthat to check the math.*
-*In this section of the test, I can write pi = 3 and if there are no memory leaks, it will pass the test.*
+*In this section of the test, I can write pi = 3 and if there are no memory
+leaks, it will pass the test.*
 
-I run `r_valgrind "dev/test_get_alpha.r" "dev/test_get_alpha.txt"` or the
-corresponding test from the project's root in a new terminal (bash).
+I run `r_valgrind "dev/test_get_alpha.r"` or the corresponding test from the
+project's root in a new terminal (bash).
 
 This works because I previously defined this in `.bashrc`, to make it work you
 need to run `source ~/.bashrc` or reboot:
 
 ```
-# create an alias for R
-alias r="R"
-
-alias rvalgrind="R --vanilla -d 'valgrind -s --track-origins=yes'"
-
 function r_debug_symbols () {
     # if src/Makevars does not exist, exit
     if [ ! -f src/Makevars ]; then
@@ -103,9 +125,9 @@ function r_valgrind () {
         script=$1
     fi
 
-    # if no output file is provided, use dev/valgrind.txt
+    # if no output file is provided, use the same filename but ended in txt
     if [ -z "$2" ]; then
-        output="dev/valgrind.txt"
+        output="${script%.*}.txt"
     else
         output=$2
     fi
@@ -129,6 +151,10 @@ function r_valgrind () {
     # R -d 'valgrind -s --leak-check=full --show-leak-kinds=all --track-origins=yes' -f $script 2>&1 | tee valgrind.txt
     R --vanilla -d 'valgrind -s --track-origins=yes' -f $script 2>&1 | tee $output
 }
+
+# create an alias for R
+alias r="R"
+alias rvalgrind="R --vanilla -d 'valgrind -s --track-origins=yes'"
 ```
 
 `r_debug_symbols()` makes everything slower, but makes sure that all compiler

@@ -18,7 +18,7 @@
 #'  in the model.
 #' @param family the link function to be used in the model. Similar to
 #'  \code{\link[stats]{glm.fit}} this has to be the result of a call to a family
-#'  function. Default is \code{binomial()}. See \code{\link[stats]{family}} for
+#'  function. Default is \code{gaussian()}. See \code{\link[stats]{family}} for
 #'  details of family functions.
 #' @param weights an optional string with the name of the 'prior weights'
 #'  variable in \code{data}.
@@ -57,7 +57,7 @@
 feglm <- function(
     formula = NULL,
     data = NULL,
-    family = binomial(),
+    family = gaussian(),
     weights = NULL,
     beta.start = NULL,
     eta.start = NULL,

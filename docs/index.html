@@ -80,7 +80,15 @@
 <div class="page-header"><h1 id="capybara-">capybara <img src="reference/figures/logo.svg" align="right" height="139" alt=""><a class="anchor" aria-label="anchor" href="#capybara-"></a>
 </h1></div>
 <!-- badges: start -->
-<p>The goal of capybara is to …</p>
+<div class="section level2">
+<h2 id="about">About<a class="anchor" aria-label="anchor" href="#about"></a>
+</h2>
+<p>Capybara is a fast and small footprint software that provides efficient functions for demeaning variables before conducting a GLM estimation via Iteratively Weighted Least Squares (IWLS). This technique is particularly useful when estimating linear models with multiple group fixed effects.</p>
+<p>The software can estimate GLMs from the Exponential Family and also Negative Binomial models but the focus will be the Poisson estimator because it is the one used for structural counterfactual analysis in International Trade. It is relevant to add that the IWLS estimator is equivalent with the PPML estimator from Santos-Silva et al. 2006</p>
+<p>Tradition QR estimation can be unfeasible due to additional memory requirements. The method, which is based on Halperin 1962 article on vector projections offers important time and memory savings without compromising numerical stability in the estimation process.</p>
+<p>The software heavily borrows from Gaure 20213 and Stammann 2018 works on the OLS and IWLS estimator with large k-way fixed effects (i.e., the Lfe and Alpaca packages). The differences are that Capybara uses an elementary approach and uses a minimal C++ code without parallelization, which achieves very good results considering its simplicity. I hope it is east to maintain.</p>
+<p>The summary tables are nothing like R’s default and borrow from the Broom package and Stata outputs. The default summary from this package is a Markdown table that you can insert in RMarkdown/Quarto or copy and paste to Jupyter.</p>
+</div>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
@@ -91,7 +99,7 @@
 <div class="section level2">
 <h2 id="examples">Examples<a class="anchor" aria-label="anchor" href="#examples"></a>
 </h2>
-<p>See the documentation in progress: <a href="https://pacha.dev/capybara" class="external-link uri">https://pacha.dev/capybara</a></p>
+<p>See the documentation in progress: <a href="https://pacha.dev/capybara" class="external-link uri">https://pacha.dev/capybara</a>.</p>
 </div>
 <div class="section level2">
 <h2 id="benchmarks">Benchmarks<a class="anchor" aria-label="anchor" href="#benchmarks"></a>
@@ -220,71 +228,70 @@
 <h1 id="debugging">Debugging<a class="anchor" aria-label="anchor" href="#debugging"></a>
 </h1>
 <p><em>This debugging is about code quality, not about statistical quality.</em> <em>There is a full set of numerical tests for testthat to check the math.</em> <em>In this section of the test, I can write pi = 3 and if there are no memory leaks, it will pass the test.</em></p>
-<p>I run <code>r_valgrind "dev/test_get_alpha.r" "dev/test_get_alpha.txt"</code> or the corresponding test from the project’s root in a new terminal (bash).</p>
+<p>I run <code>r_valgrind "dev/test_get_alpha.r"</code> or the corresponding test from the project’s root in a new terminal (bash).</p>
 <p>This works because I previously defined this in <code>.bashrc</code>, to make it work you need to run <code>source ~/.bashrc</code> or reboot:</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true"></a><span class="co"># create an alias for R</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true"></a>alias r=<span class="st">"R"</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true"></a></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true"></a>alias rvalgrind=<span class="st">"R --vanilla -d 'valgrind -s --track-origins=yes'"</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true"></a></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true"></a><span class="cf">function</span> <span class="kw">r_debug_symbols</span> () {</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true"></a>    <span class="co"># if src/Makevars does not exist, exit</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true"></a>    <span class="cf">if</span> [ <span class="op">!</span><span class="st"> </span><span class="op">-</span>f src<span class="op">/</span>Makevars ]; then</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true"></a>        echo <span class="st">"File src/Makevars does not exist"</span></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true"></a>        return <span class="dv">1</span></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true"></a>    fi</span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true"></a></span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true"></a>    <span class="co"># if src/Makevars contains a line that says "PKG_CPPFLAGS"</span></span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true"></a>    <span class="co"># but there is no "-UDEBUG -g" on it</span></span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true"></a>    <span class="co"># then add "PKG_CPPFLAGS += -UDEBUG -g" at the end</span></span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true"></a>    <span class="cf">if</span> grep <span class="op">-</span>q <span class="st">"PKG_CPPFLAGS"</span> src<span class="op">/</span>Makevars; then</span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true"></a>        <span class="cf">if</span> <span class="op">!</span><span class="st"> </span>grep <span class="op">-</span>q <span class="st">"PKG_CPPFLAGS.*-UDEBUG.*-g"</span> src<span class="op">/</span>Makevars; then</span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true"></a>            echo <span class="st">"PKG_CPPFLAGS += -UDEBUG -g"</span> <span class="op">&gt;</span><span class="er">&gt;</span><span class="st"> </span>src<span class="op">/</span>Makevars</span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true"></a>        fi</span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true"></a>    fi</span>
-<span id="cb2-21"><a href="#cb2-21" aria-hidden="true"></a></span>
-<span id="cb2-22"><a href="#cb2-22" aria-hidden="true"></a>    <span class="co"># if src/Makevars does not contain a line that reads</span></span>
-<span id="cb2-23"><a href="#cb2-23" aria-hidden="true"></a>    <span class="co"># PKG_CPPFLAGS ...something... -UDEBUG -g ...something...</span></span>
-<span id="cb2-24"><a href="#cb2-24" aria-hidden="true"></a>    <span class="co"># then add PKG_CPPFLAGS = -UDEBUG -g to it</span></span>
-<span id="cb2-25"><a href="#cb2-25" aria-hidden="true"></a>    <span class="cf">if</span> <span class="op">!</span><span class="st"> </span>grep <span class="op">-</span>q <span class="st">"PKG_CPPFLAGS.*-UDEBUG.*-g"</span> src<span class="op">/</span>Makevars; then</span>
-<span id="cb2-26"><a href="#cb2-26" aria-hidden="true"></a>        echo <span class="st">"PKG_CPPFLAGS = -UDEBUG -g"</span> <span class="op">&gt;</span><span class="er">&gt;</span><span class="st"> </span>src<span class="op">/</span>Makevars</span>
-<span id="cb2-27"><a href="#cb2-27" aria-hidden="true"></a>    fi</span>
-<span id="cb2-28"><a href="#cb2-28" aria-hidden="true"></a>}</span>
-<span id="cb2-29"><a href="#cb2-29" aria-hidden="true"></a></span>
-<span id="cb2-30"><a href="#cb2-30" aria-hidden="true"></a><span class="cf">function</span> <span class="kw">r_valgrind</span> () {</span>
-<span id="cb2-31"><a href="#cb2-31" aria-hidden="true"></a>    <span class="co"># if no argument is provided, ask for a file</span></span>
-<span id="cb2-32"><a href="#cb2-32" aria-hidden="true"></a>    <span class="cf">if</span> [ <span class="op">-</span>z <span class="st">"$1"</span> ]; then</span>
-<span id="cb2-33"><a href="#cb2-33" aria-hidden="true"></a>        read <span class="op">-</span>p <span class="st">"Enter the script to debug: "</span> script</span>
-<span id="cb2-34"><a href="#cb2-34" aria-hidden="true"></a>    <span class="cf">else</span></span>
-<span id="cb2-35"><a href="#cb2-35" aria-hidden="true"></a>        script=<span class="er">$</span><span class="dv">1</span></span>
-<span id="cb2-36"><a href="#cb2-36" aria-hidden="true"></a>    fi</span>
-<span id="cb2-37"><a href="#cb2-37" aria-hidden="true"></a></span>
-<span id="cb2-38"><a href="#cb2-38" aria-hidden="true"></a>    <span class="co"># if no output file is provided, use dev/valgrind.txt</span></span>
-<span id="cb2-39"><a href="#cb2-39" aria-hidden="true"></a>    <span class="cf">if</span> [ <span class="op">-</span>z <span class="st">"$2"</span> ]; then</span>
-<span id="cb2-40"><a href="#cb2-40" aria-hidden="true"></a>        output=<span class="st">"dev/valgrind.txt"</span></span>
-<span id="cb2-41"><a href="#cb2-41" aria-hidden="true"></a>    <span class="cf">else</span></span>
-<span id="cb2-42"><a href="#cb2-42" aria-hidden="true"></a>        output=<span class="er">$</span><span class="dv">2</span></span>
-<span id="cb2-43"><a href="#cb2-43" aria-hidden="true"></a>    fi</span>
-<span id="cb2-44"><a href="#cb2-44" aria-hidden="true"></a></span>
-<span id="cb2-45"><a href="#cb2-45" aria-hidden="true"></a>    <span class="co"># if the file does not exist, exit</span></span>
-<span id="cb2-46"><a href="#cb2-46" aria-hidden="true"></a>    <span class="cf">if</span> [ <span class="op">!</span><span class="st"> </span><span class="op">-</span>f <span class="st">"$script"</span> ]; then</span>
-<span id="cb2-47"><a href="#cb2-47" aria-hidden="true"></a>        echo <span class="st">"File $script does not exist"</span></span>
-<span id="cb2-48"><a href="#cb2-48" aria-hidden="true"></a>        return <span class="dv">1</span></span>
-<span id="cb2-49"><a href="#cb2-49" aria-hidden="true"></a>    fi</span>
-<span id="cb2-50"><a href="#cb2-50" aria-hidden="true"></a></span>
-<span id="cb2-51"><a href="#cb2-51" aria-hidden="true"></a>    <span class="co"># if the file does not end in .R/.r, exit</span></span>
-<span id="cb2-52"><a href="#cb2-52" aria-hidden="true"></a>    shopt <span class="op">-</span>s nocasematch</span>
-<span id="cb2-53"><a href="#cb2-53" aria-hidden="true"></a>    <span class="cf">if</span> [[ <span class="st">"$script"</span> <span class="op">!=</span><span class="st"> </span><span class="er">*</span>.R ]]; then</span>
-<span id="cb2-54"><a href="#cb2-54" aria-hidden="true"></a>        echo <span class="st">"File $script does not end in .R or .r"</span></span>
-<span id="cb2-55"><a href="#cb2-55" aria-hidden="true"></a>        return <span class="dv">1</span></span>
-<span id="cb2-56"><a href="#cb2-56" aria-hidden="true"></a>    fi</span>
-<span id="cb2-57"><a href="#cb2-57" aria-hidden="true"></a>    shopt <span class="op">-</span>u nocasematch</span>
-<span id="cb2-58"><a href="#cb2-58" aria-hidden="true"></a></span>
-<span id="cb2-59"><a href="#cb2-59" aria-hidden="true"></a>    <span class="co"># run R in debug mode, but after that we compiled with debug symbols</span></span>
-<span id="cb2-60"><a href="#cb2-60" aria-hidden="true"></a>    <span class="co"># see https://reside-ic.github.io/blog/debugging-memory-errors-with-valgrind-and-gdb/</span></span>
-<span id="cb2-61"><a href="#cb2-61" aria-hidden="true"></a>    <span class="co"># R -d 'valgrind -s --leak-check=full --show-leak-kinds=all --track-origins=yes' -f $script 2&gt;&amp;1 | tee valgrind.txt</span></span>
-<span id="cb2-62"><a href="#cb2-62" aria-hidden="true"></a>    R <span class="op">--</span>vanilla <span class="op">-</span>d <span class="st">'valgrind -s --track-origins=yes'</span> <span class="op">-</span>f <span class="op">$</span>script <span class="dv">2</span><span class="op">&gt;</span><span class="er">&amp;</span><span class="dv">1</span> <span class="op">|</span><span class="st"> </span>tee <span class="op">$</span>output</span>
-<span id="cb2-63"><a href="#cb2-63" aria-hidden="true"></a>}</span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true"></a><span class="cf">function</span> <span class="kw">r_debug_symbols</span> () {</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true"></a>    <span class="co"># if src/Makevars does not exist, exit</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true"></a>    <span class="cf">if</span> [ <span class="op">!</span><span class="st"> </span><span class="op">-</span>f src<span class="op">/</span>Makevars ]; then</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true"></a>        echo <span class="st">"File src/Makevars does not exist"</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true"></a>        return <span class="dv">1</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true"></a>    fi</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true"></a></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true"></a>    <span class="co"># if src/Makevars contains a line that says "PKG_CPPFLAGS"</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true"></a>    <span class="co"># but there is no "-UDEBUG -g" on it</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true"></a>    <span class="co"># then add "PKG_CPPFLAGS += -UDEBUG -g" at the end</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true"></a>    <span class="cf">if</span> grep <span class="op">-</span>q <span class="st">"PKG_CPPFLAGS"</span> src<span class="op">/</span>Makevars; then</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true"></a>        <span class="cf">if</span> <span class="op">!</span><span class="st"> </span>grep <span class="op">-</span>q <span class="st">"PKG_CPPFLAGS.*-UDEBUG.*-g"</span> src<span class="op">/</span>Makevars; then</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true"></a>            echo <span class="st">"PKG_CPPFLAGS += -UDEBUG -g"</span> <span class="op">&gt;</span><span class="er">&gt;</span><span class="st"> </span>src<span class="op">/</span>Makevars</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true"></a>        fi</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true"></a>    fi</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true"></a></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true"></a>    <span class="co"># if src/Makevars does not contain a line that reads</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true"></a>    <span class="co"># PKG_CPPFLAGS ...something... -UDEBUG -g ...something...</span></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true"></a>    <span class="co"># then add PKG_CPPFLAGS = -UDEBUG -g to it</span></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true"></a>    <span class="cf">if</span> <span class="op">!</span><span class="st"> </span>grep <span class="op">-</span>q <span class="st">"PKG_CPPFLAGS.*-UDEBUG.*-g"</span> src<span class="op">/</span>Makevars; then</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true"></a>        echo <span class="st">"PKG_CPPFLAGS = -UDEBUG -g"</span> <span class="op">&gt;</span><span class="er">&gt;</span><span class="st"> </span>src<span class="op">/</span>Makevars</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true"></a>    fi</span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true"></a>}</span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true"></a></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true"></a><span class="cf">function</span> <span class="kw">r_valgrind</span> () {</span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true"></a>    <span class="co"># if no argument is provided, ask for a file</span></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true"></a>    <span class="cf">if</span> [ <span class="op">-</span>z <span class="st">"$1"</span> ]; then</span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true"></a>        read <span class="op">-</span>p <span class="st">"Enter the script to debug: "</span> script</span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true"></a>    <span class="cf">else</span></span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true"></a>        script=<span class="er">$</span><span class="dv">1</span></span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true"></a>    fi</span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true"></a></span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true"></a>    <span class="co"># if no output file is provided, use the same filename but ended in txt</span></span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true"></a>    <span class="cf">if</span> [ <span class="op">-</span>z <span class="st">"$2"</span> ]; then</span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true"></a>        output=<span class="st">"${script%.*}.txt"</span></span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true"></a>    <span class="cf">else</span></span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true"></a>        output=<span class="er">$</span><span class="dv">2</span></span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true"></a>    fi</span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true"></a></span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true"></a>    <span class="co"># if the file does not exist, exit</span></span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true"></a>    <span class="cf">if</span> [ <span class="op">!</span><span class="st"> </span><span class="op">-</span>f <span class="st">"$script"</span> ]; then</span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true"></a>        echo <span class="st">"File $script does not exist"</span></span>
+<span id="cb2-43"><a href="#cb2-43" aria-hidden="true"></a>        return <span class="dv">1</span></span>
+<span id="cb2-44"><a href="#cb2-44" aria-hidden="true"></a>    fi</span>
+<span id="cb2-45"><a href="#cb2-45" aria-hidden="true"></a></span>
+<span id="cb2-46"><a href="#cb2-46" aria-hidden="true"></a>    <span class="co"># if the file does not end in .R/.r, exit</span></span>
+<span id="cb2-47"><a href="#cb2-47" aria-hidden="true"></a>    shopt <span class="op">-</span>s nocasematch</span>
+<span id="cb2-48"><a href="#cb2-48" aria-hidden="true"></a>    <span class="cf">if</span> [[ <span class="st">"$script"</span> <span class="op">!=</span><span class="st"> </span><span class="er">*</span>.R ]]; then</span>
+<span id="cb2-49"><a href="#cb2-49" aria-hidden="true"></a>        echo <span class="st">"File $script does not end in .R or .r"</span></span>
+<span id="cb2-50"><a href="#cb2-50" aria-hidden="true"></a>        return <span class="dv">1</span></span>
+<span id="cb2-51"><a href="#cb2-51" aria-hidden="true"></a>    fi</span>
+<span id="cb2-52"><a href="#cb2-52" aria-hidden="true"></a>    shopt <span class="op">-</span>u nocasematch</span>
+<span id="cb2-53"><a href="#cb2-53" aria-hidden="true"></a></span>
+<span id="cb2-54"><a href="#cb2-54" aria-hidden="true"></a>    <span class="co"># run R in debug mode, but after that we compiled with debug symbols</span></span>
+<span id="cb2-55"><a href="#cb2-55" aria-hidden="true"></a>    <span class="co"># see https://reside-ic.github.io/blog/debugging-memory-errors-with-valgrind-and-gdb/</span></span>
+<span id="cb2-56"><a href="#cb2-56" aria-hidden="true"></a>    <span class="co"># R -d 'valgrind -s --leak-check=full --show-leak-kinds=all --track-origins=yes' -f $script 2&gt;&amp;1 | tee valgrind.txt</span></span>
+<span id="cb2-57"><a href="#cb2-57" aria-hidden="true"></a>    R <span class="op">--</span>vanilla <span class="op">-</span>d <span class="st">'valgrind -s --track-origins=yes'</span> <span class="op">-</span>f <span class="op">$</span>script <span class="dv">2</span><span class="op">&gt;</span><span class="er">&amp;</span><span class="dv">1</span> <span class="op">|</span><span class="st"> </span>tee <span class="op">$</span>output</span>
+<span id="cb2-58"><a href="#cb2-58" aria-hidden="true"></a>}</span>
+<span id="cb2-59"><a href="#cb2-59" aria-hidden="true"></a></span>
+<span id="cb2-60"><a href="#cb2-60" aria-hidden="true"></a><span class="co"># create an alias for R</span></span>
+<span id="cb2-61"><a href="#cb2-61" aria-hidden="true"></a>alias r=<span class="st">"R"</span></span>
+<span id="cb2-62"><a href="#cb2-62" aria-hidden="true"></a>alias rvalgrind=<span class="st">"R --vanilla -d 'valgrind -s --track-origins=yes'"</span></span></code></pre></div>
 <p><code>r_debug_symbols()</code> makes everything slower, but makes sure that all compiler optimizations are disabled and then valgrind will point us to the lines that create memory leaks.</p>
 <p><code>r_valgrind()</code> will run an R script and use Linux system tools to test for initialized values and all kinds of problems that result in memory leaks.</p>
 <p>When you are ready testing, you need to remove <code>-UDEGUG</code> from <code>src/Makevars</code>.</p>

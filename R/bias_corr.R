@@ -88,6 +88,11 @@ bias_corr <- function(
     stop("'bias_corr' currently only supports binary choice models.", call. = FALSE)
   }
 
+  # Check if the number of FEs is > 3
+  if (length(lvls.k) > 3) {
+    stop("bias_corr() only supports models with up to three-way fixed effects.", call. = FALSE)
+  }
+
   # Check if provided object matches requested panel structure
   if (panel.structure == "classic") {
     if (!(k %in% c(1L, 2L))) {
@@ -97,11 +102,6 @@ bias_corr <- function(
     if (!(k %in% c(2L, 3L))) {
       stop("panel.structure == 'network' expects a two- or three-way fixed effects model.", call. = FALSE)
     }
-  }
-
-  # Check if the number of FEs is > 3
-  if (!(k > 3)) {
-    stop("bias_corr() currently only supports models with up to three-way fixed effects.", call. = FALSE)
   }
 
   # Extract model response, regressor matrix, and weights

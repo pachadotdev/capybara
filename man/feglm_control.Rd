@@ -23,7 +23,7 @@ of the deviance in iteration \eqn{r} and can be expressed as follows:
 
 \item{center.tol}{tolerance level for the stopping condition of the centering
 algorithm. The stopping condition is based on the relative change of the
-centered variable similar to \link[lfe]{felm}. The default is
+centered variable similar to the \code{'lfe'} package. The default is
 \code{1.0e-08}.}
 
 \item{iter.max}{unsigned integer indicating the maximum number of iterations

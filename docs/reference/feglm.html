@@ -63,7 +63,7 @@ Remark: The term fixed effect is used in econometrician's sense of
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">feglm</span><span class="op">(</span></span>
 <span>  formula <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  data <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  weights <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  beta.start <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  eta.start <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -90,7 +90,7 @@ in the model.</p></dd>
 <dt>family</dt>
 <dd><p>the link function to be used in the model. Similar to
 <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm.fit</a></code> this has to be the result of a call to a family
-function. Default is <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code>. See <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">family</a></code> for
+function. Default is <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code>. See <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">family</a></code> for
 details of family functions.</p></dd>
 
 
@@ -150,7 +150,7 @@ process. See <code><a href="feglm_control.html">feglm_control</a></code> for det
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Formula: trade ~ dist + lang + cntg + clny | exp_year + imp_year</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x613b859201c0&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x5d337df6cbd8&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Family: Poisson</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>

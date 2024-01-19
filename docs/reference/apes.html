@@ -172,15 +172,30 @@ only affects the estimation of the covariance matrix. Default is
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Apply analytical bias correction</span></span></span>
 <span class="r-in"><span><span class="va">mod.bc</span> <span class="op">&lt;-</span> <span class="fu"><a href="bias_corr.html">bias_corr</a></span><span class="op">(</span><span class="va">mod</span><span class="op">)</span></span></span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error:</span> bias_corr() currently only supports models with up to three-way fixed effects.</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod.bc</span><span class="op">)</span></span></span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in eval(expr, envir, enclos):</span> object 'mod.bc' not found</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Formula: trade ~ lang | year</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x5d337ca4a410&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Family: Binomial</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Estimates:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |      | Estimate | Std. error | z value | Pr(&gt; |z|)|</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |------|----------|------------|---------|----------|</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | lang |   0.1922 |     0.0633 |  3.0359 |   0.1922 |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Significance codes: *** 99.9%; ** 99%; * 95%; . 90%</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Number of observations: Full 9522; Missing 0; Perfect classification 0 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Number of Fisher Scoring iterations: 3 </span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Compute bias-corrected average partial effects</span></span></span>
 <span class="r-in"><span><span class="va">mod.ape.bc</span> <span class="op">&lt;-</span> <span class="fu">apes</span><span class="op">(</span><span class="va">mod.bc</span><span class="op">)</span></span></span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in eval(expr, envir, enclos):</span> object 'mod.bc' not found</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod.ape.bc</span><span class="op">)</span></span></span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in eval(expr, envir, enclos):</span> object 'mod.ape.bc' not found</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Estimates:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      Estimate Std. error z value Pr(&gt; |z|)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> lang      NaN    0.01512     NaN       NaN</span>
 </code></pre></div>
     </div>
   </div>
