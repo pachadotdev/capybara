@@ -40,6 +40,9 @@ fenegbin <- function(
   formula <- update_formula_(formula)
 
   # Generate model.frame
+  lhs <- NA # just to avoid global variable warning
+  nobs.na <- NA
+  nobs.full <- NA
   model_frame_(data, formula, weights)
 
   # Check starting guess of theta ----
@@ -68,6 +71,8 @@ fenegbin <- function(
   nobs <- nobs_(nobs.full, nobs.na, nt)
 
   # Extract model response and regressor matrix ----
+  nms.sp <- NA
+  p <- NA
   model_response_(data, formula)
 
   # Check for linear dependence in 'X' ----

@@ -2,12 +2,14 @@ Package: capybara
 Type: Package
 Title: Fast and Memory Efficient Fitting of Linear Models With High-Dimensional
     Fixed Effects
-Version: 2024.01.15
+Version: 0.1
 Authors@R: c(
-    person("Mauricio", "Vargas Sepulveda",
+    person(
+        given = "Mauricio",
+        family = "Vargas Sepulveda",
         role = c("aut", "cre"),
         email = "m.sepulveda@mail.utoronto.ca",
-        c(ORCID = "0000-0003-1017-7574"))
+        comment = c(ORCID = "0000-0003-1017-7574"))
     )
 Imports:
     data.table,

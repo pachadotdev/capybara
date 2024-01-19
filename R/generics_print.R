@@ -107,7 +107,7 @@ summary_nobs_ <- function(x) {
   )
 }
 
-summary_fisher_ <- function(x) {
+summary_fisher_ <- function(x, digits) {
   if (is.null(x[["theta"]])) {
     cat("\nNumber of Fisher Scoring iterations:", x[["iter"]], "\n")
   } else {
@@ -167,7 +167,7 @@ print.summary.feglm <- function(x, digits = max(3L, getOption("digits") - 3L), .
 
   summary_nobs_(x)
 
-  summary_fisher_(x)
+  summary_fisher_(x, digits)
 }
 
 #' @export

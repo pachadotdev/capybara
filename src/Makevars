@@ -4,5 +4,5 @@
 PKG_CPPFLAGS = -I vendor/
 CXX_STD = CXX11
 # CXXFLAGS = -Wall -O0 -pedantic
-CXXFLAGS = -Wall -O3 -pedantic
+CXXFLAGS = -O3 -pedantic
 

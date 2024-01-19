@@ -3,3 +3,5 @@ devtools::clean_dll()
 cpp11::cpp_register()
 devtools::document()
 devtools::install()
+
+pkgdown::build_site()

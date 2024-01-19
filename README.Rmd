@@ -13,9 +13,10 @@ knitr::opts_chunk$set(
 )
 ```
 
-# capybara
+# capybara <img src="man/figures/logo.svg" align="right" height="139" alt="" />
 
 <!-- badges: start -->
+[![R-CMD-check](https://github.com/pachadotdev/capybara/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/pachadotdev/capybara/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 The goal of capybara is to ...
@@ -31,6 +32,26 @@ remotes::install_github("pachadotdev/capybara")
 ## Examples
 
 See the documentation in progress: https://pacha.dev/capybara
+
+## Benchmarks
+
+Median time for the different models in the book [An Advanced Guide to Trade Policy Analysis](https://www.wto.org/english/res_e/publications_e/advancedguide2016_e.htm).
+
+|package  |    PPML| Trade Diversion| Endogeneity| Reverse Causality| Non-linear/Phasing Effects| Globalization|
+|:--------|-------:|---------------:|-----------:|-----------------:|--------------------------:|-------------:|
+|Alpaca   |   282ms|           1.78s|        1.1s|             1.34s|                      2.18s|         4.48s|
+|Base R   |   36.2s|          36.87s|       9.81m|            10.03m|                     10.41m|         10.4m|
+|Capybara | 159.2ms|         97.96ms|     81.38ms|           86.77ms|                   104.69ms|      130.22ms|
+|Fixest   |  33.6ms|        191.04ms|     64.38ms|            75.2ms|                   102.18ms|      162.28ms|
+
+Memory allocation for the same models
+
+|package  |     PPML| Trade Diversion| Endogeneity| Reverse Causality| Non-linear/Phasing Effects| Globalization|
+|:--------|--------:|---------------:|-----------:|-----------------:|--------------------------:|-------------:|
+|Alpaca   | 282.78MB|         321.5MB|     270.4MB|             308MB|                    366.5MB|       512.1MB|
+|Base R   |   2.73GB|           2.6GB|      11.9GB|            11.9GB|                     11.9GB|          12GB|
+|Capybara | 339.13MB|         196.3MB|     162.6MB|           169.1MB|                    181.1MB|       239.9MB|
+|Fixest   |  44.79MB|          36.6MB|      28.1MB|            32.4MB|                     41.1MB|        62.9MB|
 
 # Debugging
 

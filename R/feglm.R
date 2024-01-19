@@ -3,10 +3,7 @@
 #' @description \code{\link{feglm}} can be used to fit generalized linear models
 #'  with many high-dimensional fixed effects. The estimation procedure is based
 #'  on unconditional maximum likelihood and can be interpreted as a
-#'  \dQuote{weighted demeaning} approach that combines the work of Gaure (2013)
-#'  and Stammann et. al. (2016). For technical details see Stammann (2018). The
-#'  routine is well suited for large data sets that would be otherwise
-#'  infeasible to use due to memory limitations.
+#'  \dQuote{weighted demeaning} approach.
 #'
 #' \strong{Remark:} The term fixed effect is used in econometrician's sense of
 #'  having intercepts for each level in each category.
@@ -19,10 +16,10 @@
 #'  part of the formula: \code{y ~ x | k | add}.
 #' @param data an object of class \code{"data.frame"} containing the variables
 #'  in the model.
-#' @param family a description of the error distribution and link function to be
-#'  used in the model. Similar to \code{\link[stats]{glm.fit}} this has to be
-#'  the result of a call to a family function. Default is \code{binomial()}. See
-#'  \code{\link[stats]{family}} for details of family functions.
+#' @param family the link function to be used in the model. Similar to
+#'  \code{\link[stats]{glm.fit}} this has to be the result of a call to a family
+#'  function. Default is \code{binomial()}. See \code{\link[stats]{family}} for
+#'  details of family functions.
 #' @param weights an optional string with the name of the 'prior weights'
 #'  variable in \code{data}.
 #' @param beta.start an optional vector of starting values for the structural
@@ -38,8 +35,7 @@
 #'  category. In this case, you should carefully inspect your model
 #'  specification.
 #'
-#' @return The function \code{\link{feglm}} returns a named list of class
-#'  \code{"feglm"}.
+#' @return A named list of class \code{"feglm"}.
 #'
 #' @references Gaure, S. (2013). "OLS with Multiple High Dimensional Category
 #'  Variables". Computational Statistics and Data Analysis, 66.
@@ -83,6 +79,9 @@ feglm <- function(
   formula <- update_formula_(formula)
 
   # Generate model.frame
+  lhs <- NA # just to avoid global variable warning
+  nobs.na <- NA
+  nobs.full <- NA
   model_frame_(data, formula, weights)
 
   # Ensure that model response is in line with the chosen model ----
@@ -107,6 +106,8 @@ feglm <- function(
   nobs <- nobs_(nobs.full, nobs.na, nt)
 
   # Extract model response and regressor matrix ----
+  nms.sp <- NA
+  p <- NA
   model_response_(data, formula)
 
   # Check for linear dependence in 'X' ----

@@ -25,10 +25,10 @@ part of the formula: \code{y ~ x | k | add}.}
 \item{data}{an object of class \code{"data.frame"} containing the variables
 in the model.}
 
-\item{family}{a description of the error distribution and link function to be
-used in the model. Similar to \code{\link[stats]{glm.fit}} this has to be
-the result of a call to a family function. Default is \code{binomial()}. See
-\code{\link[stats]{family}} for details of family functions.}
+\item{family}{the link function to be used in the model. Similar to
+\code{\link[stats]{glm.fit}} this has to be the result of a call to a family
+function. Default is \code{binomial()}. See \code{\link[stats]{family}} for
+details of family functions.}
 
 \item{weights}{an optional string with the name of the 'prior weights'
 variable in \code{data}.}
@@ -44,17 +44,13 @@ predictor.}
 process. See \code{\link{feglm_control}} for details.}
 }
 \value{
-The function \code{\link{feglm}} returns a named list of class
- \code{"feglm"}.
+A named list of class \code{"feglm"}.
 }
 \description{
 \code{\link{feglm}} can be used to fit generalized linear models
  with many high-dimensional fixed effects. The estimation procedure is based
  on unconditional maximum likelihood and can be interpreted as a
- \dQuote{weighted demeaning} approach that combines the work of Gaure (2013)
- and Stammann et. al. (2016). For technical details see Stammann (2018). The
- routine is well suited for large data sets that would be otherwise
- infeasible to use due to memory limitations.
+ \dQuote{weighted demeaning} approach.
 
 \strong{Remark:} The term fixed effect is used in econometrician's sense of
  having intercepts for each level in each category.

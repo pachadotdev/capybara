@@ -99,6 +99,11 @@ bias_corr <- function(
     }
   }
 
+  # Check if the number of FEs is > 3
+  if (!(k > 3)) {
+    stop("bias_corr() currently only supports models with up to three-way fixed effects.", call. = FALSE)
+  }
+
   # Extract model response, regressor matrix, and weights
   y <- data[[1L]]
   X <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]

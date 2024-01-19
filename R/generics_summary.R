@@ -54,7 +54,7 @@ summary.feglm <- function(
 #' @noRd
 summary.felm <- function(
     object,
-    type = c("hessian", "outer.product", "sandwich", "clustered"),
+    type = "hessian",
     cluster = NULL,
     ...) {
   # Compute coefficients matrix
