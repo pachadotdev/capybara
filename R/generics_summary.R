@@ -41,6 +41,15 @@ summary.feglm <- function(
     formula       = object[["formula"]],
     family        = object[["family"]]
   )
+
+  if (object[["family"]][["family"]] == "poisson") {
+    # Compute pseudo R-squared
+    # http://personal.lse.ac.uk/tenreyro/r2.do
+    y <- unlist(object$data[, 1], use.names = FALSE)
+    yhat <- predict(object, type = "response")
+    res[["pseudo_rsq"]] <- (pairwise_cor_(y, yhat))^2
+  }
+
   if (inherits(object, "feglm.nb")) {
     res[["theta"]] <- object[["theta"]]
     res[["iter.outer"]] <- object[["iter.outer"]]

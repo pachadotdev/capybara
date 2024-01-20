@@ -47,6 +47,13 @@ extern "C" SEXP _capybara_group_sums_cov_(SEXP M, SEXP N, SEXP jlist) {
     return cpp11::as_sexp(group_sums_cov_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(M), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(N), cpp11::as_cpp<cpp11::decay_t<const list&>>(jlist)));
   END_CPP11
 }
+// 04_pairwise_correlation.cpp
+double pairwise_cor_(const doubles& y, const doubles& yhat);
+extern "C" SEXP _capybara_pairwise_cor_(SEXP y, SEXP yhat) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(pairwise_cor_(cpp11::as_cpp<cpp11::decay_t<const doubles&>>(y), cpp11::as_cpp<cpp11::decay_t<const doubles&>>(yhat)));
+  END_CPP11
+}
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
@@ -56,6 +63,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_capybara_group_sums_cov_",      (DL_FUNC) &_capybara_group_sums_cov_,      3},
     {"_capybara_group_sums_spectral_", (DL_FUNC) &_capybara_group_sums_spectral_, 5},
     {"_capybara_group_sums_var_",      (DL_FUNC) &_capybara_group_sums_var_,      2},
+    {"_capybara_pairwise_cor_",        (DL_FUNC) &_capybara_pairwise_cor_,        2},
     {NULL, NULL, 0}
 };
 }

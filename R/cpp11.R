@@ -23,3 +23,7 @@ group_sums_var_ <- function(M, jlist) {
 group_sums_cov_ <- function(M, N, jlist) {
   .Call(`_capybara_group_sums_cov_`, M, N, jlist)
 }
+
+pairwise_cor_ <- function(y, yhat) {
+  .Call(`_capybara_pairwise_cor_`, y, yhat)
+}
