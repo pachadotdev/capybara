@@ -91,7 +91,7 @@ update_formula_ <- function(formula) {
   formula <- Formula(formula)
 
   if (length(formula)[[2L]] < 2L || length(formula)[[1L]] > 1L) {
-    stop("'formula' uncorrectly specified.", call. = FALSE)
+    stop("'formula' uncorrectly specified. Perhaps you forgot to add the fixed effects as 'mpg ~ wt | cyl' or similar.", call. = FALSE)
   }
 
   return(formula)
