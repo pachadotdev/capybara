@@ -86,10 +86,11 @@
 <div class="section level2">
 <h2 id="about">About<a class="anchor" aria-label="anchor" href="#about"></a>
 </h2>
+<p>tldr; If you have a 2-4GB dataset and you need to estimate a (generalized) linear model with a large number of fixed effects, this package is for you.</p>
 <p>Capybara is a fast and small footprint software that provides efficient functions for demeaning variables before conducting a GLM estimation via Iteratively Weighted Least Squares (IWLS). This technique is particularly useful when estimating linear models with multiple group fixed effects.</p>
 <p>The software can estimate GLMs from the Exponential Family and also Negative Binomial models but the focus will be the Poisson estimator because it is the one used for structural counterfactual analysis in International Trade. It is relevant to add that the IWLS estimator is equivalent with the PPML estimator from Santos-Silva et al. 2006</p>
 <p>Tradition QR estimation can be unfeasible due to additional memory requirements. The method, which is based on Halperin 1962 article on vector projections offers important time and memory savings without compromising numerical stability in the estimation process.</p>
-<p>The software heavily borrows from Gaure 20213 and Stammann 2018 works on the OLS and IWLS estimator with large k-way fixed effects (i.e., the Lfe and Alpaca packages). The differences are that Capybara uses an elementary approach and uses a minimal C++ code without parallelization, which achieves very good results considering its simplicity. I hope it is east to maintain.</p>
+<p>The software heavily borrows from Gaure 20213 and Stammann 2018 works on the OLS and IWLS estimator with large k-way fixed effects (i.e., the Lfe and Alpaca packages). The differences are that Capybara uses an elementary approach and uses a very naive code without parallelization, which achieves very good results considering its simplicity. I hope it is easy to maintain.</p>
 <p>The summary tables are nothing like R’s default and borrow from the Broom package and Stata outputs. The default summary from this package is a Markdown table that you can insert in RMarkdown/Quarto or copy and paste to Jupyter.</p>
 </div>
 <div class="section level2">
@@ -105,18 +106,36 @@
 <p>See the documentation in progress: <a href="https://pacha.dev/capybara" class="external-link uri">https://pacha.dev/capybara</a>.</p>
 </div>
 <div class="section level2">
+<h2 id="design-choices">Design choices<a class="anchor" aria-label="anchor" href="#design-choices"></a>
+</h2>
+<p>Capybara uses C++ to address some bottlenecks. It also uses dplyr because it allows me to use an expressive syntax.</p>
+<p>For v0.1, the benchmark showed that Capybara was much faster, but then I realized it provided correct estimates for 2 fixed effects. Since v0.2, the memory footprint is bigger, but at the same time I made the code more explicit and comments, such that it should be much easier to address issues.</p>
+<p>I tried to implement an important lesson between v0.1 and v0.2: “He who gives up [code] safety for [code] speed deserves neither.” (Wickham, 2014).</p>
+<p>I know some parts of the code are not particularly easy to understand. For example, I initially wrote an implementation for Kendall’s Tau (or Kendall’s correlation) with a time complexity of O(n^2). Posterior work on it, allowed me to solve the bottleneck that computation created, and I was able to reduce it to a time complexity of O(n * log(n)) at the expense of making the code harder to understand, but I still did my best to write a straightforward code.</p>
+<p>Capybara is full of trade-offs. Using dplyr means there is no way to use in-place modification of data. This is something intentional in dplyr, and I prefer to have a slightly bigger memory footprint than do have side effects (like changing the input data).</p>
+<p>With data.table you get faster computation and a slightly reduced use of memory. The problem is to understand the code when you are familiar with data.table (I am not). data.table uses in-place modification, which gives me the heebie-jeebies. I think data.table is great from what I heard from its users, but I think with my design choices I accomplished my goal of making model estimation feasible, and now I can run models on my laptop without relying on UofT’s servers a bit less.</p>
+<p>Finally, I am not using parallelization on purpose. I might add this feature later, but I have colleagues who use Macs, and OMP is very hard to install when you use the M1/M2 processor.</p>
+</div>
+<div class="section level2">
+<h2 id="future-plans">Future plans<a class="anchor" aria-label="anchor" href="#future-plans"></a>
+</h2>
+<p>The other nice thing about dplyr is directly connecting to SQL databases, something that I shall implement for v0.3 to move the data filtering to server-side, as I am already using SQL to organize the around 200 GB of trade datasets that I use.</p>
+<p>I will also work on adding a RESET test to summaries as default and make clustered standard errors computation a bit easier.</p>
+<p>This also needs lots of tests. There are a few in the dev folder, but I need to test with testthat.</p>
+</div>
+<div class="section level2">
 <h2 id="benchmarks">Benchmarks<a class="anchor" aria-label="anchor" href="#benchmarks"></a>
 </h2>
 <p>Median time for the different models in the book <a href="https://www.wto.org/english/res_e/publications_e/advancedguide2016_e.htm" class="external-link">An Advanced Guide to Trade Policy Analysis</a>.</p>
 <table class="table">
 <colgroup>
-<col width="8%">
-<col width="7%">
-<col width="15%">
 <col width="11%">
-<col width="17%">
-<col width="26%">
-<col width="13%">
+<col width="6%">
+<col width="14%">
+<col width="10%">
+<col width="16%">
+<col width="25%">
+<col width="12%">
 </colgroup>
 <thead><tr class="header">
 <th align="left">package</th>
@@ -130,52 +149,52 @@
 <tbody>
 <tr class="odd">
 <td align="left">Alpaca</td>
-<td align="right">282ms</td>
-<td align="right">1.78s</td>
-<td align="right">1.1s</td>
-<td align="right">1.34s</td>
-<td align="right">2.18s</td>
-<td align="right">4.48s</td>
+<td align="right">213.4ms</td>
+<td align="right">2.3s</td>
+<td align="right">1.35s</td>
+<td align="right">1.86s</td>
+<td align="right">2.59s</td>
+<td align="right">4.96s</td>
 </tr>
 <tr class="even">
 <td align="left">Base R</td>
-<td align="right">36.2s</td>
-<td align="right">36.87s</td>
-<td align="right">9.81m</td>
-<td align="right">10.03m</td>
-<td align="right">10.41m</td>
-<td align="right">10.4m</td>
+<td align="right">1.5m</td>
+<td align="right">1.53m</td>
+<td align="right">23.43m</td>
+<td align="right">23.52m</td>
+<td align="right">23.16m</td>
+<td align="right">24.85m</td>
 </tr>
 <tr class="odd">
-<td align="left">Capybara</td>
-<td align="right">159.2ms</td>
-<td align="right">97.96ms</td>
-<td align="right">81.38ms</td>
-<td align="right">86.77ms</td>
-<td align="right">104.69ms</td>
-<td align="right">130.22ms</td>
+<td align="left"><strong>Capybara</strong></td>
+<td align="right">400.4ms</td>
+<td align="right">4.23s</td>
+<td align="right">1.87s</td>
+<td align="right">2.46s</td>
+<td align="right">3.33s</td>
+<td align="right">6.25s</td>
 </tr>
 <tr class="even">
 <td align="left">Fixest</td>
-<td align="right">33.6ms</td>
-<td align="right">191.04ms</td>
-<td align="right">64.38ms</td>
-<td align="right">75.2ms</td>
-<td align="right">102.18ms</td>
-<td align="right">162.28ms</td>
+<td align="right">67.4ms</td>
+<td align="right">477.08ms</td>
+<td align="right">95.88ms</td>
+<td align="right">136.21ms</td>
+<td align="right">206.12ms</td>
+<td align="right">415.31ms</td>
 </tr>
 </tbody>
 </table>
 <p>Memory allocation for the same models</p>
 <table class="table">
 <colgroup>
-<col width="8%">
-<col width="8%">
-<col width="15%">
 <col width="11%">
-<col width="17%">
-<col width="26%">
-<col width="13%">
+<col width="7%">
+<col width="14%">
+<col width="10%">
+<col width="16%">
+<col width="25%">
+<col width="12%">
 </colgroup>
 <thead><tr class="header">
 <th align="left">package</th>
@@ -189,39 +208,39 @@
 <tbody>
 <tr class="odd">
 <td align="left">Alpaca</td>
-<td align="right">282.78MB</td>
-<td align="right">321.5MB</td>
-<td align="right">270.4MB</td>
-<td align="right">308MB</td>
-<td align="right">366.5MB</td>
-<td align="right">512.1MB</td>
+<td align="right">304.8MB</td>
+<td align="right">339.8MB</td>
+<td align="right">306.3MB</td>
+<td align="right">335.61MB</td>
+<td align="right">393.86MB</td>
+<td align="right">539.49MB</td>
 </tr>
 <tr class="even">
 <td align="left">Base R</td>
 <td align="right">2.73GB</td>
 <td align="right">2.6GB</td>
 <td align="right">11.9GB</td>
-<td align="right">11.9GB</td>
-<td align="right">11.9GB</td>
-<td align="right">12GB</td>
+<td align="right">11.94GB</td>
+<td align="right">11.95GB</td>
+<td align="right">11.97GB</td>
 </tr>
 <tr class="odd">
-<td align="left">Capybara</td>
-<td align="right">339.13MB</td>
-<td align="right">196.3MB</td>
-<td align="right">162.6MB</td>
-<td align="right">169.1MB</td>
-<td align="right">181.1MB</td>
-<td align="right">239.9MB</td>
+<td align="left"><strong>Capybara</strong></td>
+<td align="right">454.18MB</td>
+<td align="right">2.31GB</td>
+<td align="right">965.1MB</td>
+<td align="right">1.17GB</td>
+<td align="right">1.62GB</td>
+<td align="right">2.88GB</td>
 </tr>
 <tr class="even">
 <td align="left">Fixest</td>
-<td align="right">44.79MB</td>
-<td align="right">36.6MB</td>
+<td align="right">44.59MB</td>
+<td align="right">36.59MB</td>
 <td align="right">28.1MB</td>
-<td align="right">32.4MB</td>
-<td align="right">41.1MB</td>
-<td align="right">62.9MB</td>
+<td align="right">32.43MB</td>
+<td align="right">41.12MB</td>
+<td align="right">62.87MB</td>
 </tr>
 </tbody>
 </table>

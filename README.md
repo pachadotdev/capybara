@@ -10,6 +10,10 @@
 
 ## About
 
+tldr; If you have a 2-4GB dataset and you need to estimate a
+(generalized) linear model with a large number of fixed effects, this
+package is for you.
+
 Capybara is a fast and small footprint software that provides efficient
 functions for demeaning variables before conducting a GLM estimation via
 Iteratively Weighted Least Squares (IWLS). This technique is
@@ -30,9 +34,9 @@ compromising numerical stability in the estimation process.
 The software heavily borrows from Gaure 20213 and Stammann 2018 works on
 the OLS and IWLS estimator with large k-way fixed effects (i.e., the Lfe
 and Alpaca packages). The differences are that Capybara uses an
-elementary approach and uses a minimal C++ code without parallelization,
+elementary approach and uses a very naive code without parallelization,
 which achieves very good results considering its simplicity. I hope it
-is east to maintain.
+is easy to maintain.
 
 The summary tables are nothing like R’s default and borrow from the
 Broom package and Stata outputs. The default summary from this package
@@ -51,27 +55,80 @@ remotes::install_github("pachadotdev/capybara")
 
 See the documentation in progress: <https://pacha.dev/capybara>.
 
+## Design choices
+
+Capybara uses C++ to address some bottlenecks. It also uses dplyr
+because it allows me to use an expressive syntax.
+
+For v0.1, the benchmark showed that Capybara was much faster, but then I
+realized it provided correct estimates for 2 fixed effects. Since v0.2,
+the memory footprint is bigger, but at the same time I made the code
+more explicit and comments, such that it should be much easier to
+address issues.
+
+I tried to implement an important lesson between v0.1 and v0.2: “He who
+gives up \[code\] safety for \[code\] speed deserves neither.” (Wickham,
+2014).
+
+I know some parts of the code are not particularly easy to understand.
+For example, I initially wrote an implementation for Kendall’s Tau (or
+Kendall’s correlation) with a time complexity of O(n^2). Posterior work
+on it, allowed me to solve the bottleneck that computation created, and
+I was able to reduce it to a time complexity of O(n \* log(n)) at the
+expense of making the code harder to understand, but I still did my best
+to write a straightforward code.
+
+Capybara is full of trade-offs. Using dplyr means there is no way to use
+in-place modification of data. This is something intentional in dplyr,
+and I prefer to have a slightly bigger memory footprint than do have
+side effects (like changing the input data).
+
+With data.table you get faster computation and a slightly reduced use of
+memory. The problem is to understand the code when you are familiar with
+data.table (I am not). data.table uses in-place modification, which
+gives me the heebie-jeebies. I think data.table is great from what I
+heard from its users, but I think with my design choices I accomplished
+my goal of making model estimation feasible, and now I can run models on
+my laptop without relying on UofT’s servers a bit less.
+
+Finally, I am not using parallelization on purpose. I might add this
+feature later, but I have colleagues who use Macs, and OMP is very hard
+to install when you use the M1/M2 processor.
+
+## Future plans
+
+The other nice thing about dplyr is directly connecting to SQL
+databases, something that I shall implement for v0.3 to move the data
+filtering to server-side, as I am already using SQL to organize the
+around 200 GB of trade datasets that I use.
+
+I will also work on adding a RESET test to summaries as default and make
+clustered standard errors computation a bit easier.
+
+This also needs lots of tests. There are a few in the dev folder, but I
+need to test with testthat.
+
 ## Benchmarks
 
 Median time for the different models in the book [An Advanced Guide to
 Trade Policy
 Analysis](https://www.wto.org/english/res_e/publications_e/advancedguide2016_e.htm).
 
-| package  |    PPML | Trade Diversion | Endogeneity | Reverse Causality | Non-linear/Phasing Effects | Globalization |
-| :------- | ------: | --------------: | ----------: | ----------------: | -------------------------: | ------------: |
-| Alpaca   |   282ms |           1.78s |        1.1s |             1.34s |                      2.18s |         4.48s |
-| Base R   |   36.2s |          36.87s |       9.81m |            10.03m |                     10.41m |         10.4m |
-| Capybara | 159.2ms |         97.96ms |     81.38ms |           86.77ms |                   104.69ms |      130.22ms |
-| Fixest   |  33.6ms |        191.04ms |     64.38ms |            75.2ms |                   102.18ms |      162.28ms |
+| package      |    PPML | Trade Diversion | Endogeneity | Reverse Causality | Non-linear/Phasing Effects | Globalization |
+| :----------- | ------: | --------------: | ----------: | ----------------: | -------------------------: | ------------: |
+| Alpaca       | 213.4ms |            2.3s |       1.35s |             1.86s |                      2.59s |         4.96s |
+| Base R       |    1.5m |           1.53m |      23.43m |            23.52m |                     23.16m |        24.85m |
+| **Capybara** | 400.4ms |           4.23s |       1.87s |             2.46s |                      3.33s |         6.25s |
+| Fixest       |  67.4ms |        477.08ms |     95.88ms |          136.21ms |                   206.12ms |      415.31ms |
 
 Memory allocation for the same models
 
-| package  |     PPML | Trade Diversion | Endogeneity | Reverse Causality | Non-linear/Phasing Effects | Globalization |
-| :------- | -------: | --------------: | ----------: | ----------------: | -------------------------: | ------------: |
-| Alpaca   | 282.78MB |         321.5MB |     270.4MB |             308MB |                    366.5MB |       512.1MB |
-| Base R   |   2.73GB |           2.6GB |      11.9GB |            11.9GB |                     11.9GB |          12GB |
-| Capybara | 339.13MB |         196.3MB |     162.6MB |           169.1MB |                    181.1MB |       239.9MB |
-| Fixest   |  44.79MB |          36.6MB |      28.1MB |            32.4MB |                     41.1MB |        62.9MB |
+| package      |     PPML | Trade Diversion | Endogeneity | Reverse Causality | Non-linear/Phasing Effects | Globalization |
+| :----------- | -------: | --------------: | ----------: | ----------------: | -------------------------: | ------------: |
+| Alpaca       |  304.8MB |         339.8MB |     306.3MB |          335.61MB |                   393.86MB |      539.49MB |
+| Base R       |   2.73GB |           2.6GB |      11.9GB |           11.94GB |                    11.95GB |       11.97GB |
+| **Capybara** | 454.18MB |          2.31GB |     965.1MB |            1.17GB |                     1.62GB |        2.88GB |
+| Fixest       |  44.59MB |         36.59MB |      28.1MB |           32.43MB |                    41.12MB |       62.87MB |
 
 # Debugging
 

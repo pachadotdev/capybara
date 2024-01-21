@@ -165,8 +165,8 @@ only affects the estimation of the covariance matrix. Default is
 <span class="r-in"><span><span class="va">mod</span> <span class="op">&lt;-</span> <span class="fu"><a href="feglm.html">feglm</a></span><span class="op">(</span><span class="va">trade</span> <span class="op">~</span> <span class="va">lang</span> <span class="op">|</span> <span class="va">year</span>, <span class="va">trade_short</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Compute average partial effects</span></span></span>
-<span class="r-in"><span><span class="va">mod.ape</span> <span class="op">&lt;-</span> <span class="fu">apes</span><span class="op">(</span><span class="va">mod</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod.ape</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">mod_ape</span> <span class="op">&lt;-</span> <span class="fu">apes</span><span class="op">(</span><span class="va">mod</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod_ape</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Estimates:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>      Estimate Std. error z value Pr(&gt; |z|)   </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> lang  0.04519    0.01512   2.988   0.00281 **</span>
@@ -174,10 +174,10 @@ only affects the estimation of the covariance matrix. Default is
 <span class="r-out co"><span class="r-pr">#&gt;</span> Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Apply analytical bias correction</span></span></span>
-<span class="r-in"><span><span class="va">mod.bc</span> <span class="op">&lt;-</span> <span class="fu"><a href="bias_corr.html">bias_corr</a></span><span class="op">(</span><span class="va">mod</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod.bc</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">mod_bc</span> <span class="op">&lt;-</span> <span class="fu"><a href="bias_corr.html">bias_corr</a></span><span class="op">(</span><span class="va">mod</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod_bc</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Formula: trade ~ lang | year</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x619349600fc0&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x6033c96c9838&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Family: Binomial</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
@@ -194,8 +194,8 @@ only affects the estimation of the covariance matrix. Default is
 <span class="r-out co"><span class="r-pr">#&gt;</span> Number of Fisher Scoring iterations: 3 </span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Compute bias-corrected average partial effects</span></span></span>
-<span class="r-in"><span><span class="va">mod.ape.bc</span> <span class="op">&lt;-</span> <span class="fu">apes</span><span class="op">(</span><span class="va">mod.bc</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod.ape.bc</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">mod_ape_bc</span> <span class="op">&lt;-</span> <span class="fu">apes</span><span class="op">(</span><span class="va">mod_bc</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod_ape_bc</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Estimates:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>      Estimate Std. error z value Pr(&gt; |z|)   </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> lang  0.04519    0.01512   2.988   0.00281 **</span>
