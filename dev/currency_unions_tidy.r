@@ -1,3 +1,6 @@
+# Putting the dataset from 'Currency unions and trade: A post-EMU reassessment'
+# into a tidy format.
+
 library(dplyr)
 library(tidyr)
 library(haven)
