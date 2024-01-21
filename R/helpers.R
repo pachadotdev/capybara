@@ -161,7 +161,8 @@ drop_by_link_type_ <- function(data, lhs, family, tmp.var, k.vars, control) {
         for (j in k.vars) {
           data <- data %>%
             group_by(!!sym(j)) %>%
-            mutate(!!tmp.var := mean(!!sym(lhs)))
+            mutate(!!tmp.var := mean(!!sym(lhs))) %>%
+            ungroup()
           if (family[["family"]] == "binomial") {
             data <- filter(data, !!sym(tmp.var) > 0.0, !!sym(tmp.var) < 1.0)
           } else {

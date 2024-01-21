@@ -14,7 +14,7 @@
 #' @name capybara-package
 #' @docType package
 #' @importFrom dplyr all_of filter group_by mutate mutate_at select summarise
-#'  vars where
+#'  ungroup vars where
 #' @importFrom rlang sym :=
 #' @importFrom Formula Formula
 #' @importFrom MASS negative.binomial theta.ml
