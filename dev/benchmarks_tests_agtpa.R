@@ -1,10 +1,9 @@
+# this is not just about speed/memory, but also about obtaining the same
+# slopes as in base R
+
 library(dplyr)
 library(tidyr)
 library(janitor)
-library(tradepolicy)
-library(capybara)
-library(alpaca)
-library(fixest)
 library(bench)
 
 rm(list = ls())
@@ -12,7 +11,7 @@ gc()
 
 # data ----
 
-ch1_application3 <- agtpa_applications %>%
+ch1_application3 <- tradepolicy::agtpa_applications %>%
   clean_names() %>%
   filter(year %in% seq(1986, 2006, 4)) %>%
   mutate(
@@ -43,9 +42,8 @@ form2 <- trade ~ log_dist + cntg + lang + clny +
 d <- filter(ch1_application3, importer != exporter)
 
 bench_ppml <- mark(
-  iterations = 5,
   round(glm(form, family = stats::quasipoisson(link = "log"), data = d)$coefficients["rta"], 3),
-  round(fepoisson(form2, data = d)$coefficients["rta"], 3),
+  round(capybara::fepoisson(form2, data = d)$coefficients["rta"], 3),
   round(fixest::fepois(form2, data = d)$coefficients["rta"], 3),
   round(alpaca::feglm(form2, data = d, family = poisson())$coefficients["rta"], 3)
 )
@@ -65,9 +63,8 @@ form2 <- trade ~ log_dist + cntg + lang + clny +
 d <- ch1_application3
 
 bench_trade_diversion <- mark(
-  iter = 5,
   round(glm(form, family = stats::quasipoisson(link = "log"), data = d)$coefficients["rta"], 3),
-  round(fepoisson(form2, data = d)$coefficients["rta"], 3),
+  round(capybara::fepoisson(form2, data = d)$coefficients["rta"], 3),
   round(fixest::fepois(form2, data = d)$coefficients["rta"], 3),
   round(alpaca::feglm(form2, data = d, family = poisson())$coefficients["rta"], 3)
 )
@@ -79,15 +76,15 @@ rm(d)
 # endogeneity ----
 
 form <- trade ~ 0 + rta + exp_year + imp_year + pair_id_2
-form2 <- trade ~ 0 + rta | exp_year + imp_year + pair_id_2
+form2 <- trade ~ rta | exp_year + imp_year + pair_id_2
 
 d <- filter(ch1_application3, sum_trade > 0)
 
 bench_endogeneity <- mark(
-  glm(form, family = stats::quasipoisson(link = "log"), data = d)$coefficients["rta"],
-  fepoisson(form2, data = d)$coefficients["rta"],
-  fixest::fepois(form2, data = d)$coefficients["rta"],
-  alpaca::feglm(form2, data = d, family = poisson())$coefficients["rta"]
+  round(glm(form, family = stats::quasipoisson(link = "log"), data = d)$coefficients["rta"], 3),
+  round(capybara::fepoisson(form2, data = d)$coefficients["rta"], 3),
+  round(fixest::fepois(form2, data = d)$coefficients["rta"], 3),
+  round(alpaca::feglm(form2, data = d, family = poisson())$coefficients["rta"], 3)
 )
 
 saveRDS(bench_endogeneity, "dev/bench_endogeneity.rds")
@@ -97,15 +94,15 @@ rm(d)
 # reverse causality ----
 
 form <- trade ~ 0 + rta + rta_lead4 + exp_year + imp_year + pair_id_2
-form2 <- trade ~ 0 + rta + rta_lead4 | exp_year + imp_year + pair_id_2
+form2 <- trade ~ rta + rta_lead4 | exp_year + imp_year + pair_id_2
 
 d <- filter(ch1_application3, sum_trade > 0)
 
 bench_reverse_causality <- mark(
-  glm(form, family = stats::quasipoisson(link = "log"), data = d)$coefficients["rta"],
-  fepoisson(form2, data = d)$coefficients["rta"],
-  fixest::fepois(form2, data = d)$coefficients["rta"],
-  alpaca::feglm(form2, data = d, family = poisson())$coefficients["rta"]
+  round(glm(form, family = stats::quasipoisson(link = "log"), data = d)$coefficients["rta"], 3),
+  round(capybara::fepoisson(form2, data = d)$coefficients["rta"], 3),
+  round(fixest::fepois(form2, data = d)$coefficients["rta"], 3),
+  round(alpaca::feglm(form2, data = d, family = poisson())$coefficients["rta"], 3)
 )
 
 saveRDS(bench_reverse_causality, "dev/bench_reverse_causality.rds")
@@ -117,16 +114,16 @@ rm(d)
 form <- trade ~ 0 + rta + rta_lag4 + rta_lag8 + rta_lag12 +
   exp_year + imp_year + pair_id_2
 
-form2 <- trade ~ 0 + rta + rta_lag4 + rta_lag8 + rta_lag12 |
+form2 <- trade ~ rta + rta_lag4 + rta_lag8 + rta_lag12 |
   exp_year + imp_year + pair_id_2
 
 d <- filter(ch1_application3, sum_trade > 0)
 
 bench_phasing <- mark(
-  glm(form, family = stats::quasipoisson(link = "log"), data = d)$coefficients["rta"],
-  fepoisson(form2, data = d)$coefficients["rta"],
-  fixest::fepois(form2, data = d)$coefficients["rta"],
-  alpaca::feglm(form2, data = d, family = poisson())$coefficients["rta"]
+  round(glm(form, family = stats::quasipoisson(link = "log"), data = d)$coefficients["rta"], 3),
+  round(capybara::fepoisson(form2, data = d)$coefficients["rta"], 3),
+  round(fixest::fepois(form2, data = d)$coefficients["rta"], 3),
+  round(alpaca::feglm(form2, data = d, family = poisson())$coefficients["rta"], 3)
 )
 
 saveRDS(bench_phasing, "dev/bench_phasing.rds")
@@ -140,7 +137,7 @@ form <- trade ~ 0 + rta + rta_lag4 + rta_lag8 + rta_lag12 +
   intl_border_1998 + intl_border_2002 +
   exp_year + imp_year + pair_id_2
 
-form2 <- trade ~ 0 + rta + rta_lag4 + rta_lag8 + rta_lag12 +
+form2 <- trade ~ rta + rta_lag4 + rta_lag8 + rta_lag12 +
   intl_border_1986 + intl_border_1990 + intl_border_1994 +
   intl_border_1998 + intl_border_2002 |
   exp_year + imp_year + pair_id_2
@@ -148,10 +145,10 @@ form2 <- trade ~ 0 + rta + rta_lag4 + rta_lag8 + rta_lag12 +
 d <- filter(ch1_application3, sum_trade > 0)
 
 bench_globalization <- mark(
-  glm(form, family = stats::quasipoisson(link = "log"), data = d)$coefficients["rta"],
-  fepoisson(form2, data = d)$coefficients["rta"],
-  fixest::fepois(form2, data = d)$coefficients["rta"],
-  alpaca::feglm(form2, data = d, family = poisson())$coefficients["rta"]
+  round(glm(form, family = stats::quasipoisson(link = "log"), data = d)$coefficients["rta"], 3),
+  round(capybara::fepoisson(form2, data = d)$coefficients["rta"], 3),
+  round(fixest::fepois(form2, data = d)$coefficients["rta"], 3),
+  round(alpaca::feglm(form2, data = d, family = poisson())$coefficients["rta"], 3)
 )
 
 saveRDS(bench_globalization, "dev/bench_globalization.rds")
