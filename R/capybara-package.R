@@ -13,11 +13,13 @@
 #'
 #' @name capybara-package
 #' @docType package
-#' @importFrom data.table setDT setkeyv := .SD
+#' @importFrom dplyr all_of filter group_by mutate mutate_at select summarise
+#'  vars where
+#' @importFrom rlang sym :=
 #' @importFrom Formula Formula
 #' @importFrom MASS negative.binomial theta.ml
 #' @importFrom stats as.formula binomial model.matrix na.omit gaussian poisson
-#'  pnorm printCoefmat rgamma rlogis rnorm rpois terms vcov
+#'  pnorm printCoefmat rgamma rlogis rnorm rpois terms vcov predict
 #' @importFrom utils combn
 #' @useDynLib capybara, .registration = TRUE
 NULL

@@ -37,16 +37,17 @@ ch1_application3 <- ch1_application3 %>%
 form <- trade ~ 0 + log_dist + cntg + lang + clny +
   rta + exp_year + imp_year
 
-form2 <- trade ~ 0 + log_dist + cntg + lang + clny +
+form2 <- trade ~ log_dist + cntg + lang + clny +
   rta | exp_year + imp_year
 
 d <- filter(ch1_application3, importer != exporter)
 
 bench_ppml <- mark(
-  glm(form, family = stats::quasipoisson(link = "log"), data = d)$coefficients["rta"],
-  fepoisson(form2, data = d)$coefficients["rta"],
-  fixest::fepois(form2, data = d)$coefficients["rta"],
-  alpaca::feglm(form2, data = d, family = poisson())$coefficients["rta"]
+  iterations = 5,
+  round(glm(form, family = stats::quasipoisson(link = "log"), data = d)$coefficients["rta"], 3),
+  round(fepoisson(form2, data = d)$coefficients["rta"], 3),
+  round(fixest::fepois(form2, data = d)$coefficients["rta"], 3),
+  round(alpaca::feglm(form2, data = d, family = poisson())$coefficients["rta"], 3)
 )
 
 saveRDS(bench_ppml, "dev/bench_ppml.rds")
@@ -58,16 +59,17 @@ rm(d)
 form <- trade ~ 0 + log_dist + cntg + lang + clny +
   rta + exp_year + imp_year + intl_brdr
 
-form2 <- trade ~ 0 + log_dist + cntg + lang + clny +
+form2 <- trade ~ log_dist + cntg + lang + clny +
   rta | exp_year + imp_year + intl_brdr
 
 d <- ch1_application3
 
 bench_trade_diversion <- mark(
-  glm(form, family = stats::quasipoisson(link = "log"), data = d)$coefficients["rta"],
-  fepoisson(form2, data = d)$coefficients["rta"],
-  fixest::fepois(form2, data = d)$coefficients["rta"],
-  alpaca::feglm(form2, data = d, family = poisson())$coefficients["rta"]
+  iter = 5,
+  round(glm(form, family = stats::quasipoisson(link = "log"), data = d)$coefficients["rta"], 3),
+  round(fepoisson(form2, data = d)$coefficients["rta"], 3),
+  round(fixest::fepois(form2, data = d)$coefficients["rta"], 3),
+  round(alpaca::feglm(form2, data = d, family = poisson())$coefficients["rta"], 3)
 )
 
 saveRDS(bench_trade_diversion, "dev/bench_trade_diversion.rds")

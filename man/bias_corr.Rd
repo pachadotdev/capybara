@@ -44,8 +44,8 @@ trade_short$trade <- ifelse(trade_short$trade > 100, 1L, 0L)
 mod <- feglm(trade ~ lang | year, trade_short, family = binomial())
 
 # Apply analytical bias correction
-mod.bc <- bias_corr(mod)
-summary(mod.bc)
+mod_bc <- bias_corr(mod)
+summary(mod_bc)
 
 }
 \references{

@@ -70,16 +70,16 @@ trade_short$trade <- ifelse(trade_short$trade > 100, 1L, 0L)
 mod <- feglm(trade ~ lang | year, trade_short, family = binomial())
 
 # Compute average partial effects
-mod.ape <- apes(mod)
-summary(mod.ape)
+mod_ape <- apes(mod)
+summary(mod_ape)
 
 # Apply analytical bias correction
-mod.bc <- bias_corr(mod)
-summary(mod.bc)
+mod_bc <- bias_corr(mod)
+summary(mod_bc)
 
 # Compute bias-corrected average partial effects
-mod.ape.bc <- apes(mod.bc)
-summary(mod.ape.bc)
+mod_ape_bc <- apes(mod_bc)
+summary(mod_ape_bc)
 }
 \references{
 Cruz-Gonzalez, M., I. Fernández-Val, and M. Weidner (2017). "Bias

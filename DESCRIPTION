@@ -12,9 +12,11 @@ Authors@R: c(
         comment = c(ORCID = "0000-0003-1017-7574"))
     )
 Imports:
-    data.table,
+    dplyr,
     Formula,
+    magrittr,
     MASS,
+    rlang,
     stats
 Suggests: 
     knitr,
@@ -31,6 +33,5 @@ URL: https://pacha.dev/capybara/, https://github.com/pachadotdev/capybara
 LazyData: true
 RoxygenNote: 7.2.3
 Encoding: UTF-8
-SystemRequirements: C++11
 NeedsCompilation: yes
 VignetteBuilder: knitr

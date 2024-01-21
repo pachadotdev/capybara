@@ -47,10 +47,10 @@ summary.feglm <- function(
     # http://personal.lse.ac.uk/tenreyro/r2.do
     y <- unlist(object$data[, 1], use.names = FALSE)
     yhat <- predict(object, type = "response")
-    res[["pseudo_rsq"]] <- (pairwise_cor_(y, yhat))^2
+    res[["pseudo.rsq"]] <- (pairwise_cor_(y, yhat))^2
   }
 
-  if (inherits(object, "feglm.nb")) {
+  if (inherits(object, "fenegbin")) {
     res[["theta"]] <- object[["theta"]]
     res[["iter.outer"]] <- object[["iter.outer"]]
   }
@@ -75,22 +75,15 @@ summary.felm <- function(
   rownames(cm) <- names(est)
   colnames(cm) <- c("Estimate", "Std. error", "z value", "Pr(> |z|)")
 
-  y <- unlist(object$data[, 1], use.names = FALSE)
-  # yhat <- object$fitted.values
-  # ybar <- mean(y)
-  w <- object$weights
+  y <- unlist(object[["data"]][, 1], use.names = FALSE)
+  w <- object[["weights"]]
   ydemeaned_sq <- (y - mean(y))^2
-  e_sq <- (y - object$fitted.values)^2
+  e_sq <- (y - object[["fitted.values"]])^2
   tss <- sum(w * ydemeaned_sq)
   rss <- sum(w * e_sq)
   n <- unname(object[["nobs"]]["nobs.full"])
-  k <- length(object$coefficients) +
-    sum(vapply(object$nms.fe, length, integer(1)))
-
-  # r.squared <- 1 - (rss / tss)
-  # no -1 in the denominator because the FE estimation does not include the
-  # "grand mean"
-  # adj.r.squared <- 1 - (1 - object$r.squared) * ((n - 1) / (n - k))
+  k <- length(object[["coefficients"]]) +
+    sum(vapply(object[["nms.fe"]], length, integer(1)))
 
   # Generate result list
   res <- list(
