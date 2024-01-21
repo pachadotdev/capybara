@@ -10,23 +10,23 @@
   const int K = klist.size();
 
   double sw = 0.0;
-  for (double val : w) {
-    sw += val;
+  for (int i = 0; i < w.size(); i++) {
+    sw += w[i];
   }
 
   // Auxiliary variables (storage)
   double delta, denom, meanj, num, wt;
   int index, iter, i, j, k, n, p, I, J;
   writable::doubles_matrix<> C(N, P);
-  writable::doubles_matrix<> x(N, 1);
-  writable::doubles_matrix<> y(N, 1);
+  writable::doubles x(N);
+  writable::doubles x0(N);
 
   // Halperin projections
   // #pragma omp parallel for
   for (p = 0; p < P; p++) {
     // Center each variable
     for (n = 0; n < N; n++) {
-      x(n, 0) = V(n, p);
+      x[n] = V(n, p);
     }
 
     int interruptCheckCounter = 0;
@@ -39,7 +39,10 @@
       }
 
       // Store centered vector from the last iteration
-      doubles_matrix<> y = x;
+      writable::doubles x0(N);
+      for (n = 0; n < N; n++) {
+        x0[n] = static_cast<double>(x[n]);
+      }
 
       // Alternate between categories
       for (k = 0; k < K; k++) {
@@ -62,7 +65,7 @@
           for (i = 0; i < I; i++) {
             index = indexes[i];
             wt = w[index];
-            num += wt * x(index, 0);
+            num += wt * x[index];
             denom += wt;
           }
 
@@ -70,7 +73,7 @@
           meanj = num / denom;
           for (i = 0; i < I; i++) {
             index = indexes[i];
-            x(index, 0) -= meanj;
+            x[index] -= meanj;
           }
         }
       }
@@ -78,7 +81,7 @@
       // Check convergence
       delta = 0.0;
       for (n = 0; n < N; n++) {
-        delta += abs(x(n, 0) - y(n, 0)) / (1.0 + abs(y(n, 0))) * w[n];
+        delta += abs(x[n] - x0[n]) / (1.0 + abs(x0[n])) * w[n];
       }
       delta /= sw;
 
@@ -88,7 +91,7 @@
     }
 
     for (n = 0; n < N; n++) {
-      C(n, p) = static_cast<double>(x(n, 0));
+      C(n, p) = static_cast<double>(x[n]);
     }
   }
 

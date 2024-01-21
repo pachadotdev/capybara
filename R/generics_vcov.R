@@ -83,7 +83,7 @@ vcov.feglm <- function(
 
           # Extract cluster variables
           cluster <- Formula(cluster)
-          D <- try(data[, all.vars(cluster), with = FALSE], silent = TRUE)
+          D <- try(select(data, all_of(cluster)), silent = TRUE)
           if (inherits(D, "try-error")) {
             stop(
               paste(
@@ -106,7 +106,6 @@ vcov.feglm <- function(
           rm(D)
 
           # Multiway clustering by Cameron, Gelbach, and Miller (2011)
-          setkeyv(G, cl.vars)
           B <- matrix(0.0, p, p)
           for (i in seq.int(length(cl.vars))) {
             # Compute outer product for all possible combinations

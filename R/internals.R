@@ -76,6 +76,7 @@ feglm_fit_ <- function(beta, eta, y, X, wt, k.list, family, control) {
     # Centering variables
     Mnu <- center_variables_((Mnu + nu), w, k.list, center.tol, 100000L)
     MX <- center_variables_(MX, w, k.list, center.tol, 100000L)
+
     # Compute update step and update \eta
     beta.upd <- as.vector(qr.solve(MX * w.tilde, Mnu * w.tilde, epsilon))
     eta.upd <- nu - as.vector(Mnu - MX %*% beta.upd)

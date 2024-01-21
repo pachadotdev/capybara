@@ -102,7 +102,7 @@ summary_pseudo_rsq_ <- function(x, digits) {
   if (x[["family"]][["family"]] == "poisson") {
     cat(
       "\nPseudo R-squared:",
-      format(x[["pseudo_rsq"]], digits = digits, nsmall = 2L), "\n"
+      format(x[["pseudo.rsq"]], digits = digits, nsmall = 2L), "\n"
     )
   }
 }
