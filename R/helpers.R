@@ -78,7 +78,8 @@ check_control_ <- function(control) {
 check_family_ <- function(family) {
   if (!inherits(family, "family")) {
     stop("'family' has to be of class family", call. = FALSE)
-  } else if (family[["family"]] %in% c("quasi", "quasipoisson", "quasibinomial")) {
+  } else if (family[["family"]] %in%
+    c("quasi", "quasipoisson", "quasibinomial")) {
     stop("Quasi-variants of 'family' are not supported.", call. = FALSE)
   } else if (startsWith(family[["family"]], "Negative Binomial")) {
     stop("Please use 'feglm.nb' instead.", call. = FALSE)
@@ -91,7 +92,10 @@ update_formula_ <- function(formula) {
   formula <- Formula(formula)
 
   if (length(formula)[[2L]] < 2L || length(formula)[[1L]] > 1L) {
-    stop("'formula' uncorrectly specified. Perhaps you forgot to add the fixed effects as 'mpg ~ wt | cyl' or similar.", call. = FALSE)
+    stop(paste(
+      "'formula' uncorrectly specified. Perhaps you forgot to add the",
+      "fixed effects as 'mpg ~ wt | cyl' or similar."
+    ), call. = FALSE)
   }
 
   return(formula)
@@ -123,7 +127,9 @@ check_response_ <- function(data, lhs, family) {
     if (is.numeric(select(data, !!sym(lhs)))) {
       # Check if 'y' is in [0, 1]
       if (nrow(filter(data, !!sym(lhs) < 0.0 | !!sym(lhs) > 1.0)) > 0L) {
-        stop("Model response has to be within the unit interval.", call. = FALSE)
+        stop("Model response has to be within the unit interval.",
+          call. = FALSE
+        )
       }
     } else {
       # Check if 'y' is factor and transform otherwise
@@ -256,18 +262,28 @@ init_theta_ <- function(init.theta, link) {
   return(family)
 }
 
-start_guesses_ <- function(beta.start, eta.start, y, X, beta, nt, wt, p, family) {
+start_guesses_ <- function(
+    beta.start, eta.start, y, X, beta, nt, wt, p, family) {
   if (!is.null(beta.start) || !is.null(eta.start)) {
     # If both are specified, ignore eta.start
     if (!is.null(beta.start) && !is.null(eta.start)) {
-      warning("'beta.start' and 'eta.start' are specified. Ignoring 'eta.start'.", call. = FALSE)
+      warning(
+        "'beta.start' and 'eta.start' are specified. Ignoring 'eta.start'.",
+        call. = FALSE
+      )
     }
 
     # Compute and check starting guesses
     if (!is.null(beta.start)) {
       # Validity of input argument (beta.start)
       if (length(beta.start) != p) {
-        stop("Length of 'beta.start' has to be equal to the number of structural parameters.", call. = FALSE)
+        stop(
+          paste(
+            "Length of 'beta.start' has to be equal to the number of",
+            "structural parameters."
+          ),
+          call. = FALSE
+        )
       }
 
       # Set starting guesses
@@ -276,7 +292,13 @@ start_guesses_ <- function(beta.start, eta.start, y, X, beta, nt, wt, p, family)
     } else {
       # Validity of input argument (eta.start)
       if (length(eta.start) != nt) {
-        stop("Length of 'eta.start' has to be equal to the number of observations.", call. = FALSE)
+        stop(
+          paste(
+            "Length of 'eta.start' has to be equal to the number of",
+            "observations."
+          ),
+          call. = FALSE
+        )
       }
 
       # Set starting guesses

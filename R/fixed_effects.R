@@ -19,8 +19,12 @@ fixed_effects <- function(object = NULL, alpha.tol = 1.0e-08) {
   # Check validity of 'object'
   if (is.null(object)) {
     stop("'object' has to be specified.", call. = FALSE)
-  } else if (isFALSE(inherits(object, "felm")) && isFALSE(inherits(object, "feglm"))) {
-    stop("'fixed_effects' called on a non-'felm' or non-'feglm' object.", call. = FALSE)
+  } else if (isFALSE(inherits(object, "felm")) &&
+    isFALSE(inherits(object, "feglm"))) {
+    stop(
+      "'fixed_effects' called on a non-'felm' or non-'feglm' object.",
+      call. = FALSE
+    )
   }
 
   # Extract required quantities from result list
@@ -41,7 +45,7 @@ fixed_effects <- function(object = NULL, alpha.tol = 1.0e-08) {
   # Generate auxiliary list of indexes for different sub panels
   k.list <- get_index_list_(k.vars, data)
 
-  # Recover fixed effects by alternating between the solutions of normal equations
+  # Recover fixed effects by alternating the solutions of normal equations
   pie <- eta - as.vector(X %*% beta)
   fe.list <- as.list(get_alpha_(pie, k.list, alpha.tol))
 

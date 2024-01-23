@@ -113,7 +113,10 @@ feglm_fit_ <- function(beta, eta, y, X, wt, k.list, family, control) {
 
     # Progress information
     if (trace) {
-      cat("Deviance=", format(dev, digits = 5L, nsmall = 2L), "Iterations -", iter, "\n")
+      cat(
+        "Deviance=", format(dev, digits = 5L, nsmall = 2L), "Iterations -",
+        iter, "\n"
+      )
       cat("Estimates=", format(beta, digits = 3L, nsmall = 2L), "\n")
     }
 

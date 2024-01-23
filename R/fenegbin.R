@@ -62,7 +62,7 @@ fenegbin <- function(
   # Drop observations that do not contribute to the log likelihood ----
   data <- drop_by_link_type_(data, lhs, family, tmp.var, k.vars, control)
 
-  # Transform fixed effects variables and potential cluster variables to factors ----
+  # Transform fixed effects and clusters to factors ----
   data <- transform_fe_(data, formula, k.vars)
 
   # Determine the number of dropped observations ----

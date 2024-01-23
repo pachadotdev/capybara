@@ -85,22 +85,40 @@ bias_corr <- function(
 
   # Check if binary choice model
   if (family[["family"]] != "binomial") {
-    stop("'bias_corr' currently only supports binary choice models.", call. = FALSE)
+    stop(
+      "'bias_corr' currently only supports binary choice models.",
+      call. = FALSE
+    )
   }
 
   # Check if the number of FEs is > 3
   if (length(lvls.k) > 3) {
-    stop("bias_corr() only supports models with up to three-way fixed effects.", call. = FALSE)
+    stop(
+      "bias_corr() only supports models with up to three-way fixed effects.",
+      call. = FALSE
+    )
   }
 
   # Check if provided object matches requested panel structure
   if (panel.structure == "classic") {
     if (!(k %in% c(1L, 2L))) {
-      stop("panel.structure == 'classic' expects a one- or two-way fixed effects model.", call. = FALSE)
+      stop(
+        paste(
+          "panel.structure == 'classic' expects a one- or two-way fixed",
+          "effect model."
+        ),
+        call. = FALSE
+      )
     }
   } else {
     if (!(k %in% c(2L, 3L))) {
-      stop("panel.structure == 'network' expects a two- or three-way fixed effects model.", call. = FALSE)
+      stop(
+        paste(
+          "panel.structure == 'network' expects a two- or three-way fixed",
+          "effects model."
+        ),
+        call. = FALSE
+      )
     }
   }
 
@@ -145,7 +163,8 @@ bias_corr <- function(
 
     # Compute spectral density part of \hat{B}
     if (L > 0L) {
-      b <- b + as.vector(group_sums_spectral_(MX * w, v, w, L, k.list[[1L]])) / nt
+      b <- b + as.vector(group_sums_spectral_(MX * w, v, w, L, k.list[[1L]])) /
+        nt
     }
   } else {
     # Compute \hat{D}_{1}, \hat{D}_{2}, and \hat{B}
@@ -157,7 +176,8 @@ bias_corr <- function(
 
     # Compute spectral density part of \hat{B}
     if (k > 2L && L > 0L) {
-      b <- b + as.vector(group_sums_spectral_(MX * w, v, w, L, k.list[[3L]])) / nt
+      b <- b + as.vector(group_sums_spectral_(MX * w, v, w, L, k.list[[3L]])) /
+        nt
     }
   }
 

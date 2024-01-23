@@ -88,9 +88,10 @@ vcov.feglm <- function(
             stop(
               paste(
                 "At least one cluster variable was not found.",
-                "Ensure to pass variables that are not part of the model itself, but are",
-                "required to compute clustered standard errors, to 'feglm'.",
-                "This can be done via 'formula'. See documentation for details."
+                "Ensure to pass variables that are not part of the model",
+                "itself, but are required to compute clustered standard errors",
+                "to 'feglm'. This can be done via 'formula'. See documentation",
+                "for details."
               ),
               call. = FALSE
             )

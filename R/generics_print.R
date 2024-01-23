@@ -16,38 +16,57 @@ summary_estimates_ <- function(x, digits) {
   cat("\nEstimates:\n\n")
   coefmat <- as.data.frame(x[["cm"]])
 
-  coefmat[, max(ncol(coefmat))] <- sapply(coefmat[, max(nrow(coefmat))], function(x) {
-    if (x <= 0.001) {
-      paste(formatC(x, format = "f", digits = digits), "***")
-    } else if (x <= 0.01) {
-      paste(formatC(x, format = "f", digits = digits), "** ")
-    } else if (x <= 0.05) {
-      paste(formatC(x, format = "f", digits = digits), "*  ")
-    } else if (x <= 0.1) {
-      paste(formatC(x, format = "f", digits = digits), ".  ")
-    } else {
-      formatC(x, format = "f", digits = digits)
-    }
-  })
+  coefmat[, max(ncol(coefmat))] <- vapply(
+    coefmat[, max(nrow(coefmat))],
+    function(x) {
+      if (x <= 0.001) {
+        paste(formatC(x, format = "f", digits = digits), "***")
+      } else if (x <= 0.01) {
+        paste(formatC(x, format = "f", digits = digits), "** ")
+      } else if (x <= 0.05) {
+        paste(formatC(x, format = "f", digits = digits), "*  ")
+      } else if (x <= 0.1) {
+        paste(formatC(x, format = "f", digits = digits), ".  ")
+      } else {
+        formatC(x, format = "f", digits = digits)
+      }
+    }, character(1)
+  )
 
   # get rid of extra spaces (i.e., no number with ***)
-  coefmat[, max(ncol(coefmat))] <- gsub("\\*\\s+$", "*", coefmat[, max(ncol(coefmat))])
-  coefmat[, max(ncol(coefmat))] <- gsub("\\.\\s+$", ".", coefmat[, max(ncol(coefmat))])
+  coefmat[, max(ncol(coefmat))] <- gsub(
+    "\\*\\s+$", "*",
+    coefmat[, max(ncol(coefmat))]
+  )
+  coefmat[, max(ncol(coefmat))] <- gsub(
+    "\\.\\s+$", ".",
+    coefmat[, max(ncol(coefmat))]
+  )
 
   # fill coefmat[, max(ncol(coefmat))] with spaces to the right
   signif_width <- max(nchar(coefmat[, max(ncol(coefmat))]))
-  coefmat[, max(ncol(coefmat))] <- sprintf("%-*s", signif_width, coefmat[, max(ncol(coefmat))])
+  coefmat[, max(ncol(coefmat))] <- sprintf(
+    "%-*s", signif_width,
+    coefmat[, max(ncol(coefmat))]
+  )
 
   # format the other columns as formatC(x, format = "f", digits = digits)
   for (i in 1:(ncol(coefmat) - 1)) {
-    coefmat[, i] <- formatC(as.double(coefmat[, i]), format = "f", digits = digits)
+    coefmat[, i] <- formatC(as.double(coefmat[, i]),
+      format = "f",
+      digits = digits
+    )
   }
 
   coef_width <- max(nchar(rownames(coefmat))) + 2L
-  max_widths <- c(nchar("Estimate"), nchar("Std. Error"), nchar("t value"), nchar("Pr(>|t|)"))
+  max_widths <- c(
+    nchar("Estimate"), nchar("Std. Error"), nchar("t value"),
+    nchar("Pr(>|t|)")
+  )
 
-  # get the maximum number of digits (with sign and decimal point) for each column
-  for (i in 1:nrow(coefmat)) {
+  # get the maximum number of digits (with sign and decimal point)
+  # for each column
+  for (i in seq_len(nrow(coefmat))) {
     row_values <- coefmat[i, ]
     max_widths <- mapply(function(value, width) {
       max(width, nchar(value))
@@ -55,21 +74,28 @@ summary_estimates_ <- function(x, digits) {
   }
 
   # create a header such as "| Estimate | Std. Error | t value | Pr(>|t|) |\n"
-  # but adding spaces between the bars and the column names to make sure the numbers will fit
+  # but adding spaces between the bars and the column names to make sure the
+  # numbers will fit
   header <- mapply(function(name, width) {
     sprintf("| %-*s", width, name)
   }, name = colnames(coefmat), width = max_widths + 1L)
 
-  cat("|", paste(rep(" ", coef_width), collapse = ""), paste(header, collapse = ""), "|\n", sep = "")
+  cat("|", paste(rep(" ", coef_width), collapse = ""),
+    paste(header, collapse = ""), "|\n",
+    sep = ""
+  )
 
   # now the same for "|----|----|----|----|\n"
   dashes <- mapply(function(width) {
     sprintf("|%s", paste(rep("-", width), collapse = ""))
   }, width = max_widths + 2L)
 
-  cat("|", paste(rep("-", coef_width), collapse = ""), paste(dashes, collapse = ""), "|\n", sep = "")
+  cat("|", paste(rep("-", coef_width), collapse = ""),
+    paste(dashes, collapse = ""), "|\n",
+    sep = ""
+  )
 
-  for (i in 1:nrow(coefmat)) {
+  for (i in seq_len(nrow(coefmat))) {
     cat("| ", sprintf("%-*s", coef_width - 1L, rownames(coefmat)[i]), sep = "")
     row_values <- coefmat[i, ]
     formatted_values <- mapply(function(value, width) {
@@ -167,7 +193,9 @@ print.summary.apes <- function(
 
 #' @export
 #' @noRd
-print.summary.feglm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
+print.summary.feglm <- function(
+    x, digits = max(3L, getOption("digits") - 3L),
+    ...) {
   summary_formula_(x)
 
   summary_family_(x)

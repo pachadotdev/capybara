@@ -44,13 +44,19 @@ feglm_control <- function(
     keep.mx = TRUE) {
   # Check validity of tolerance parameters
   if (dev.tol <= 0.0 || center.tol <= 0.0) {
-    stop("All tolerance paramerters should be greater than zero.", call. = FALSE)
+    stop(
+      "All tolerance paramerters should be greater than zero.",
+      call. = FALSE
+    )
   }
 
   # Check validity of 'iter.max'
   iter.max <- as.integer(iter.max)
   if (iter.max < 1L) {
-    stop("Maximum number of iterations should be at least one.", call. = FALSE)
+    stop(
+      "Maximum number of iterations should be at least one.",
+      call. = FALSE
+    )
   }
 
   # Check validity of 'limit'

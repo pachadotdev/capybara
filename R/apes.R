@@ -136,11 +136,23 @@ apes <- function(
   # Check if provided object matches requested panel structure
   if (panel.structure == "classic") {
     if (!(k %in% c(1L, 2L))) {
-      stop("panel.structure == 'classic' expects a one- or two-way fixed effects model.", call. = FALSE)
+      stop(
+        paste(
+          "panel.structure == 'classic' expects a one- or two-way fixed",
+          "effects model."
+        ),
+        call. = FALSE
+      )
     }
   } else {
     if (!(k %in% c(2L, 3L))) {
-      stop("panel.structure == 'network' expects a two- or three-way fixed effects model.", call. = FALSE)
+      stop(
+        paste(
+          "panel.structure == 'network' expects a two- or three-way fixed",
+          "effects model."
+        ),
+        call. = FALSE
+      )
     }
   }
 
