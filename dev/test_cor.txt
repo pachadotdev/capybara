@@ -1,0 +1,45 @@
+==52863== Memcheck, a memory error detector
+==52863== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+==52863== Using Valgrind-3.18.1 and LibVEX; rerun with -h for copyright info
+==52863== Command: /usr/lib/R/bin/exec/R --vanilla -f dev/test_cor.r
+==52863== 
+
+R version 4.3.2 (2023-10-31) -- "Eye Holes"
+Copyright (C) 2023 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> devtools::load_all()
+ℹ Loading capybara
+> pairwise_cor_(c(1, 2, 3), c(3, 2, 2))
+[1] -0.8164966
+> 
+==52863== 
+==52863== HEAP SUMMARY:
+==52863==     in use at exit: 109,244,600 bytes in 20,158 blocks
+==52863==   total heap usage: 147,311 allocs, 127,153 frees, 259,127,710 bytes allocated
+==52863== 
+==52863== LEAK SUMMARY:
+==52863==    definitely lost: 0 bytes in 0 blocks
+==52863==    indirectly lost: 0 bytes in 0 blocks
+==52863==      possibly lost: 336 bytes in 1 blocks
+==52863==    still reachable: 109,244,264 bytes in 20,157 blocks
+==52863==                       of which reachable via heuristic:
+==52863==                         newarray           : 4,264 bytes in 1 blocks
+==52863==         suppressed: 0 bytes in 0 blocks
+==52863== Rerun with --leak-check=full to see details of leaked memory
+==52863== 
+==52863== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
