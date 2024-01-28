@@ -216,3 +216,9 @@ leaks.
 
 When you are ready testing, you need to remove `-UDEGUG` from
 `src/Makevars`.
+
+## Donating
+
+If this software is useful to you, please consider donating on [Buy Me A
+Coffee](https://buymeacoffee.com/pacha). All donations will be used to
+continue improving `capybara`.
