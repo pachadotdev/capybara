@@ -32,6 +32,16 @@
       <ul class="nav navbar-nav"><li>
   <a href="../reference/index.html">Reference</a>
 </li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    Articles
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu"><li>
+      <a href="../articles/intro.html">Poisson Pseudo-Maximum Likelihood (PPML) model with cluster-robust standard errors</a>
+    </li>
+  </ul></li>
 <li>
   <a href="../news/index.html">Changelog</a>
 </li>
@@ -135,8 +145,9 @@ observed for several time periods. Default is <code>"classic"</code>.</p></dd>
 <span class="r-in"><span><span class="co"># Apply analytical bias correction</span></span></span>
 <span class="r-in"><span><span class="va">mod_bc</span> <span class="op">&lt;-</span> <span class="fu">bias_corr</span><span class="op">(</span><span class="va">mod</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod_bc</span><span class="op">)</span></span></span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>subscript out of bounds, not all 'rhs' available</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Formula: trade ~ lang | year</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x57b17a21a390&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x595d914308f0&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Family: Binomial</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
@@ -144,7 +155,7 @@ observed for several time periods. Default is <code>"classic"</code>.</p></dd>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> |      | Estimate | Std. error | z value | Pr(&gt; |z|)|</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> |------|----------|------------|---------|----------|</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> | lang |   0.1922 |     0.0633 |  3.0359 |   0.1922 |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | lang |   0.1982 |     0.0633 |  3.1321 |   0.1982 |</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Significance codes: *** 99.9%; ** 99%; * 95%; . 90%</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>

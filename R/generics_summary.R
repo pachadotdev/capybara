@@ -47,8 +47,8 @@ summary.feglm <- function(
     # http://personal.lse.ac.uk/tenreyro/r2.do
     y <- unlist(object$data[, 1], use.names = FALSE)
     yhat <- predict(object, type = "response")
-    # res[["pseudo.rsq"]] <- (pairwise_cor_(y, yhat))^2
-    res[["pseudo.rsq"]] <- 0
+    res[["pseudo.rsq"]] <- (pairwise_cor_(y, yhat))^2
+    # res[["pseudo.rsq"]] <- 0
   }
 
   if (inherits(object, "fenegbin")) {

@@ -12,7 +12,6 @@
 #' and Wanner (2020).
 #'
 #' @name capybara-package
-#' @docType package
 #' @importFrom dplyr all_of filter group_by mutate mutate_at select summarise
 #'  ungroup vars where
 #' @importFrom rlang sym :=
@@ -22,7 +21,7 @@
 #'  pnorm printCoefmat rgamma rlogis rnorm rpois terms vcov predict
 #' @importFrom utils combn
 #' @useDynLib capybara, .registration = TRUE
-NULL
+"_PACKAGE"
 
 #' Trade Panel 1986-2006
 #'

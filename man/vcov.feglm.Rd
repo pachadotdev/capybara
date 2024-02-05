@@ -7,7 +7,6 @@
 \method{vcov}{feglm}(
   object,
   type = c("hessian", "outer.product", "sandwich", "clustered"),
-  cluster = NULL,
   ...
 )
 }
@@ -20,9 +19,6 @@ default option. \code{"outer.product"} is the outer-product-of-the-gradient
 estimator. \code{"sandwich"} is the sandwich estimator (sometimes also
 referred as robust estimator), and \code{"clustered"} computes a clustered
 covariance matrix given some cluster variables.}
-
-\item{cluster}{a symbolic description indicating the clustering of
-observations.}
 
 \item{...}{other arguments.}
 }

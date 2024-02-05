@@ -27,6 +27,16 @@ from the Hessian, the scores, or a combination of both after convergence."><meta
       <ul class="nav navbar-nav"><li>
   <a href="../reference/index.html">Reference</a>
 </li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    Articles
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu"><li>
+      <a href="../articles/intro.html">Poisson Pseudo-Maximum Likelihood (PPML) model with cluster-robust standard errors</a>
+    </li>
+  </ul></li>
 <li>
   <a href="../news/index.html">Changelog</a>
 </li>
@@ -61,7 +71,6 @@ from the Hessian, the scores, or a combination of both after convergence.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov</a></span><span class="op">(</span></span>
 <span>  <span class="va">object</span>,</span>
 <span>  type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"hessian"</span>, <span class="st">"outer.product"</span>, <span class="st">"sandwich"</span>, <span class="st">"clustered"</span><span class="op">)</span>,</span>
-<span>  cluster <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -79,11 +88,6 @@ default option. <code>"outer.product"</code> is the outer-product-of-the-gradien
 estimator. <code>"sandwich"</code> is the sandwich estimator (sometimes also
 referred as robust estimator), and <code>"clustered"</code> computes a clustered
 covariance matrix given some cluster variables.</p></dd>
-
-
-<dt>cluster</dt>
-<dd><p>a symbolic description indicating the clustering of
-observations.</p></dd>
 
 
 <dt>...</dt>

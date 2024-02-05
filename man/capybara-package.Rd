@@ -2,6 +2,7 @@
 % Please edit documentation in R/capybara-package.R
 \docType{package}
 \name{capybara-package}
+\alias{capybara}
 \alias{capybara-package}
 \title{Generalized Linear Models (GLMs) with high-dimensional k-way fixed
  effects}
@@ -14,4 +15,17 @@ post-estimation routine and includes robust and multi-way clustered standard
 errors. Further the package provides analytical bias corrections for binary
 choice models derived by Fernández-Val and Weidner (2016) and Hinz, Stammann,
 and Wanner (2020).
+}
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://pacha.dev/capybara/}
+  \item \url{https://github.com/pachadotdev/capybara}
+  \item Report bugs at \url{https://github.com/pachadotdev/capybara/issues}
+}
+
+}
+\author{
+\strong{Maintainer}: Mauricio Vargas Sepulveda \email{m.sepulveda@mail.utoronto.ca} (\href{https://orcid.org/0000-0003-1017-7574}{ORCID})
+
 }

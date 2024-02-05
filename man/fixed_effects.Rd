@@ -2,7 +2,7 @@
 % Please edit documentation in R/fixed_effects.R
 \name{fixed_effects}
 \alias{fixed_effects}
-\title{Recover the estimates of the fixed effects after fitting GLMs}
+\title{Recover the estimates of the fixed effects after fitting (G)LMs}
 \usage{
 fixed_effects(object = NULL, alpha.tol = 1e-08)
 }

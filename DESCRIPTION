@@ -21,7 +21,8 @@ Imports:
 Suggests: 
     knitr,
     rmarkdown,
-    testthat (>= 3.0.0)
+    testthat (>= 3.0.0),
+    tidyr
 Depends: R(>= 3.5.0)
 Description: Fast and user-friendly estimation of generalized linear models with
     multiple fixed effects and cluster the standard errors. The method to obtain
@@ -32,7 +33,7 @@ License: Apache License (>= 2)
 BugReports: https://github.com/pachadotdev/capybara/issues
 URL: https://pacha.dev/capybara/, https://github.com/pachadotdev/capybara
 LazyData: true
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.1
 Encoding: UTF-8
 NeedsCompilation: yes
 VignetteBuilder: knitr

@@ -21,8 +21,6 @@ vcov.apes <- function(object, ...) {
 #'  estimator. \code{"sandwich"} is the sandwich estimator (sometimes also
 #'  referred as robust estimator), and \code{"clustered"} computes a clustered
 #'  covariance matrix given some cluster variables.
-#' @param cluster a symbolic description indicating the clustering of
-#'  observations.
 #' @param ... other arguments.
 #' @return A named matrix of covariance estimates.
 #' @references Cameron, C., J. Gelbach, and D. Miller (2011). "Robust Inference
@@ -32,10 +30,23 @@ vcov.apes <- function(object, ...) {
 vcov.feglm <- function(
     object,
     type = c("hessian", "outer.product", "sandwich", "clustered"),
-    cluster = NULL,
     ...) {
   # Check validity of input argument 'type'
   type <- match.arg(type)
+
+  # Extract cluster from formula
+  cl.vars <- attr(terms(object[["formula"]], rhs = 3L), "term.labels")
+  k <- length(cl.vars)
+  if (isTRUE(k >= 1L) && type != "clustered") {
+    type <- "clustered"
+    # add overwrite warning msg
+    message(
+      paste(
+        "There are clustering variables in the model formula.",
+        "The 'type' argument will be overwritten to 'clustered'."
+      )
+    )
+  }
 
   # Compute requested type of covariance matrix
   H <- object[["Hessian"]]
@@ -74,16 +85,19 @@ vcov.feglm <- function(
         if (type == "sandwich") {
           B <- crossprod(G)
         } else {
-          # Check validity of input argument 'cluster'
-          if (is.null(cluster)) {
-            stop("'cluster' has to be specified.", call. = FALSE)
-          } else if (!inherits(cluster, "formula")) {
-            stop("'cluster' has to be of class formula.", call. = FALSE)
+          if (isFALSE(k >= 1L)) {
+            stop(
+              paste(
+                "No cluster variable was found.",
+                "Please specify a cluster variable",
+                "in the model formula."
+              ),
+              call. = FALSE
+            )
           }
 
-          # Extract cluster variables
-          cluster <- Formula(cluster)
-          D <- try(select(data, all_of(cluster)), silent = TRUE)
+          D <- try(select(data, all_of(cl.vars)), silent = TRUE)
+          # print(D)
           if (inherits(D, "try-error")) {
             stop(
               paste(
@@ -98,8 +112,7 @@ vcov.feglm <- function(
           }
 
           # Ensure cluster variables are factors
-          cl.vars <- names(D)
-          D[cl.vars] <- as.data.frame(lapply(D[cl.vars], check_factor_))
+          D[cl.vars] <- lapply(D[cl.vars], check_factor_)
 
           # Join cluster variables and scores
           sp.vars <- colnames(G)
@@ -118,7 +131,7 @@ vcov.feglm <- function(
                 as.matrix(
                   do.call(
                     rbind,
-                    lapply(split(G, G$cl), function(df) colSums(df[sp.vars]))
+                    lapply(split(G, G[, cl]), function(df) colSums(df[sp.vars]))
                   )
                 )
               )
@@ -150,7 +163,6 @@ vcov.feglm <- function(
 vcov.felm <- function(
     object,
     type = c("hessian", "outer.product", "sandwich", "clustered"),
-    cluster = NULL,
     ...) {
-  vcov.feglm(object, type, cluster, ...)
+  vcov.feglm(object, type, ...)
 }

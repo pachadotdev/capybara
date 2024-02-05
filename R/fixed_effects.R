@@ -1,4 +1,4 @@
-#' @title Recover the estimates of the fixed effects after fitting GLMs
+#' @title Recover the estimates of the fixed effects after fitting (G)LMs
 #' @description The system might not have a unique solution since we do not take
 #'  collinearity into account. If the solution is not unique, an estimable
 #'  function has to be applied to our solution to get meaningful estimates of

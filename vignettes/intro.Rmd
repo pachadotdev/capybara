@@ -1,0 +1,86 @@
+---
+title: "Poisson Pseudo-Maximum Likelihood (PPML) model with cluster-robust standard errors"
+output: rmarkdown::html_vignette
+bibliography: "references.bib"
+vignette: >
+  %\VignetteIndexEntry{intro}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+We will estimate a Poisson Pseudo-Maximum Likelihood (PPML) model using the
+data available in this package with the idea of replicating the PPML results
+from Table 3 in @yotov2016advanced.
+
+This requires to include exporter-time and importer-time fixed effects, and to
+cluster the standard errors by exporter-importer pairs.
+
+The PPML especification corresponds to:
+\begin{align}
+X_{ij,t} =& \:\exp\left[\beta_1 \log(DIST)_{i,j} + \beta_2 CNTG_{i,j} +\right.\\
+\text{ }& \:\left.\beta_3 LANG_{i,j} + \beta_4 CLNY_{i,j} + \pi_{i,t} + \chi_{i,t}\right] \times \varepsilon_{ij,t}.
+\end{align}
+
+We use `dplyr` to obtain the log of the distance. This model excludes
+domestic flows, therefore we need to subset the data also with `dplyr`.
+
+Required packages:
+
+```{r}
+library(capybara)
+library(dplyr)
+```
+
+Data wrangling:
+
+```{r}
+dppml <- trade_panel %>%
+  mutate(
+    log_dist = log(dist),
+    exporter = substr(exp_year, 1, 3),
+    importer = substr(imp_year, 1, 3)
+  ) %>%
+  filter(importer != exporter)
+```
+
+We can use the `fepoisson()` function to obtain the estimated coefficients
+and we add the fixed effects as `| exp_year + imp_year` in the formula.
+
+Model estimation:
+
+```{r}
+summary(fepoisson(
+  trade ~ log_dist + cntg + lang + clny | exp_year + imp_year,
+  data = dppml
+))
+```
+
+The coefficients are almost idential to those in Table 3 from @Yotov2016 that
+were obtained with Stata.
+
+To cluster the standard errors, we need to crete a pair variable and modify
+the model formula to add a cluster term. The result is similar and the
+difference is explained by the different algorithms used to estimate the
+variance-covariance matrix, which is based on @cameron2011robust.
+
+```{r}
+dppml <- dppml %>%
+  mutate(pair = paste(exporter, importer, sep = "-"))
+
+summary(
+  fepoisson(
+    trade ~ log_dist + cntg + lang + clny | exp_year + imp_year | pair,
+    data = dppml
+  ),
+  type = "cluster"
+)
+```
+
+# References
