@@ -152,8 +152,8 @@ X_{ij,t} =&amp; \:\exp\left[\beta_1 \log(DIST)_{i,j} + \beta_2 CNTG_{i,j} +\righ
 <span><span class="co">#&gt; Number of observations: Full 28152; Missing 0; Perfect classification 0 </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Number of Fisher Scoring iterations: 12</span></span></code></pre></div>
-<p>The coefficients are almost idential to those in Table 3 from <span class="citation">(<span class="citeproc-not-found" data-reference-id="Yotov2016"><strong>???</strong></span>)</span> that were obtained with Stata.</p>
-<p>To cluster the standard errors, we need to crete a pair variable and modify the model formula to add a cluster term. The result is similar and the difference is explained by the different algorithms used to estimate the variance-covariance matrix, which is based on <span class="citation">Cameron, Gelbach, and Miller (2011)</span>.</p>
+<p>The coefficients are almost identical to those in Table 3 from <span class="citation">Yotov et al. (2016)</span> that were obtained with Stata. The difference is attributed to the different fitting algorithms used by the two software.</p>
+<p>To cluster the standard errors, we need to crete a pair variable and modify the model formula to add a cluster term.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">dppml</span> <span class="op">&lt;-</span> <span class="va">dppml</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>pair <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="va">exporter</span>, <span class="va">importer</span>, sep <span class="op">=</span> <span class="st">"-"</span><span class="op">)</span><span class="op">)</span></span>
@@ -186,6 +186,7 @@ X_{ij,t} =&amp; \:\exp\left[\beta_1 \log(DIST)_{i,j} + \beta_2 CNTG_{i,j} +\righ
 <span><span class="co">#&gt; Number of observations: Full 28152; Missing 0; Perfect classification 0 </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Number of Fisher Scoring iterations: 12</span></span></code></pre></div>
+<p>The result is similar and the difference is explained by the different algorithms used to estimate the variance-covariance matrix. Capybara clustering algorithm is based on <span class="citation">Cameron, Gelbach, and Miller (2011)</span> while Stata uses a sandwich-type estimator.</p>
 <div class="section level2">
 <h2 class="unnumbered" id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
 </h2>

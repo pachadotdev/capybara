@@ -129,10 +129,9 @@ vcov.feglm <- function(
               cl <- cl.combn[, j]
               B.r <- B.r + crossprod(
                 as.matrix(
-                  do.call(
-                    rbind,
-                    lapply(split(G, G[, cl]), function(df) colSums(df[sp.vars]))
-                  )
+                  G %>%
+                    split(.[, cl]) %>%
+                    map_dfr(~ colSums(.x[sp.vars]))
                 )
               )
             }

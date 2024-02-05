@@ -62,13 +62,12 @@ summary(fepoisson(
 ))
 ```
 
-The coefficients are almost idential to those in Table 3 from @Yotov2016 that
-were obtained with Stata.
+The coefficients are almost identical to those in Table 3 from
+@yotov2016advanced that were obtained with Stata. The difference is attributed
+to the different fitting algorithms used by the two software.
 
 To cluster the standard errors, we need to crete a pair variable and modify
-the model formula to add a cluster term. The result is similar and the
-difference is explained by the different algorithms used to estimate the
-variance-covariance matrix, which is based on @cameron2011robust.
+the model formula to add a cluster term.
 
 ```{r}
 dppml <- dppml %>%
@@ -82,5 +81,10 @@ summary(
   type = "cluster"
 )
 ```
+
+The result is similar and the difference is explained by the different
+algorithms used to estimate the variance-covariance matrix. Capybara clustering
+algorithm is based on @cameron2011robust while Stata uses a sandwich-type 
+estimator.
 
 # References
