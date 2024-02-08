@@ -4,12 +4,10 @@
 \alias{vcov.apes}
 \title{Covariance matrix for APEs}
 \usage{
-\method{vcov}{apes}(object, ...)
+\method{vcov}{apes}(object)
 }
 \arguments{
 \item{object}{an object of class \code{"apes"}.}
-
-\item{...}{other arguments.}
 }
 \value{
 A named matrix of covariance estimates.

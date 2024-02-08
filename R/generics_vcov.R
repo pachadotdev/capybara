@@ -2,11 +2,10 @@
 #' @description Covariance matrix for the estimator of the
 #'  average partial effects from objects returned by \code{\link{apes}}.
 #' @param object an object of class \code{"apes"}.
-#' @param ... other arguments.
 #' @return A named matrix of covariance estimates.
 #' @seealso \code{\link{apes}}
 #' @export
-vcov.apes <- function(object, ...) {
+vcov.apes <- function(object) {
   object[["vcov"]]
 }
 
@@ -21,7 +20,6 @@ vcov.apes <- function(object, ...) {
 #'  estimator. \code{"sandwich"} is the sandwich estimator (sometimes also
 #'  referred as robust estimator), and \code{"clustered"} computes a clustered
 #'  covariance matrix given some cluster variables.
-#' @param ... other arguments.
 #' @return A named matrix of covariance estimates.
 #' @references Cameron, C., J. Gelbach, and D. Miller (2011). "Robust Inference
 #'  With Multiway Clustering". Journal of Business & Economic Statistics 29(2).
@@ -29,8 +27,7 @@ vcov.apes <- function(object, ...) {
 #' @export
 vcov.feglm <- function(
     object,
-    type = c("hessian", "outer.product", "sandwich", "clustered"),
-    ...) {
+    type = c("hessian", "outer.product", "sandwich", "clustered")) {
   # Check validity of input argument 'type'
   type <- match.arg(type)
 
@@ -130,8 +127,9 @@ vcov.feglm <- function(
               B.r <- B.r + crossprod(
                 as.matrix(
                   G %>%
-                    split(.[, cl]) %>%
-                    map_dfr(~ colSums(.x[sp.vars]))
+                    group_by(!!sym(cl)) %>%
+                    summarise(across(sp.vars, sum), .groups = "drop") %>%
+                    select(-!!sym(cl))
                 )
               )
             }
@@ -161,7 +159,6 @@ vcov.feglm <- function(
 #' @export
 vcov.felm <- function(
     object,
-    type = c("hessian", "outer.product", "sandwich", "clustered"),
-    ...) {
-  vcov.feglm(object, type, ...)
+    type = c("hessian", "outer.product", "sandwich", "clustered")) {
+  vcov.feglm(object, type)
 }

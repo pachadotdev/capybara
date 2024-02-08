@@ -10,9 +10,8 @@ felm(formula = NULL, data = NULL, weights = NULL)
 \item{formula}{an object of class \code{"formula"}: a symbolic description of
 the model to be fitted. \code{formula} must be of type \code{y ~ x | k},
 where the second part of the formula refers to factors to be concentrated
-out. It is also possible to pass additional variables to \code{\link{feglm}}
-(e.g. to cluster standard errors). This can be done by specifying the third
-part of the formula: \code{y ~ x | k | add}.}
+out. It is also possible to pass clustering variables to \code{\link{feglm}}
+as \code{y ~ x | k | c}.}
 
 \item{data}{an object of class \code{"data.frame"} containing the variables
 in the model.}

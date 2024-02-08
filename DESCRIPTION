@@ -16,7 +16,6 @@ Imports:
     Formula,
     magrittr,
     MASS,
-    purrr,
     rlang,
     stats
 Suggests: 

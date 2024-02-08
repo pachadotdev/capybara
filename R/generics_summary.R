@@ -1,6 +1,6 @@
 #' @export
 #' @noRd
-summary.apes <- function(object, ...) {
+summary.apes <- function(object) {
   # Compute coefficent matrix
   est <- object[["delta"]]
   se <- sqrt(diag(object[["vcov"]]))
@@ -18,12 +18,10 @@ summary.apes <- function(object, ...) {
 #' @noRd
 summary.feglm <- function(
     object,
-    type = c("hessian", "outer.product", "sandwich", "clustered"),
-    cluster = NULL,
-    ...) {
+    type = c("hessian", "outer.product", "sandwich", "clustered")) {
   # Compute coefficients matrix
   est <- object[["coefficients"]]
-  se <- sqrt(diag(vcov(object, type, cluster)))
+  se <- sqrt(diag(vcov(object, type)))
   z <- est / se
   p <- 2.0 * pnorm(-abs(z))
   cm <- cbind(est, se, z, p)
@@ -64,12 +62,10 @@ summary.feglm <- function(
 #' @noRd
 summary.felm <- function(
     object,
-    type = "hessian",
-    cluster = NULL,
-    ...) {
+    type = "hessian") {
   # Compute coefficients matrix
   est <- object[["coefficients"]]
-  se <- sqrt(diag(vcov(object, type, cluster)))
+  se <- sqrt(diag(vcov(object, type)))
   z <- est / se
   p <- 2.0 * pnorm(-abs(z))
   cm <- cbind(est, se, z, p)

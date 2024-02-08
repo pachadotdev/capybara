@@ -12,9 +12,8 @@
 #' and Wanner (2020).
 #'
 #' @name capybara-package
-#' @importFrom dplyr all_of filter group_by mutate mutate_at select summarise
-#'  ungroup vars where
-#' @importFrom purrr map_dfr
+#' @importFrom dplyr across filter group_by mutate mutate_at select
+#'  summarise ungroup vars where
 #' @importFrom rlang sym :=
 #' @importFrom Formula Formula
 #' @importFrom MASS negative.binomial theta.ml

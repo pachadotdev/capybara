@@ -81,9 +81,8 @@
 <dd><p>an object of class <code>"formula"</code>: a symbolic description of
 the model to be fitted. <code>formula</code> must be of type <code>y ~ x | k</code>,
 where the second part of the formula refers to factors to be concentrated
-out. It is also possible to pass additional variables to <code><a href="feglm.html">feglm</a></code>
-(e.g. to cluster standard errors). This can be done by specifying the third
-part of the formula: <code>y ~ x | k | add</code>.</p></dd>
+out. It is also possible to pass clustering variables to <code><a href="feglm.html">feglm</a></code>
+as <code>y ~ x | k | c</code>.</p></dd>
 
 
 <dt>data</dt>
@@ -124,7 +123,7 @@ process. See <code><a href="feglm_control.html">feglm_control</a></code> for det
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod</span><span class="op">)</span></span></span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>subscript out of bounds, not all 'rhs' available</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Formula: trade ~ dist + lang + cntg + clny | exp_year + imp_year</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x60d2be2b8c98&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x5ec3dd9bf780&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Family: Poisson</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
