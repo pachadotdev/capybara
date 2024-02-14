@@ -1,5 +1,5 @@
 PKG_CPPFLAGS = -I vendor/
-# PKG_CPPFLAGS = -UDEBUG - g - I vendor/
+# PKG_CPPFLAGS = -UDEBUG -g -I vendor/
 
 # USE -O0 for debugging
 # USE -O3 for production code

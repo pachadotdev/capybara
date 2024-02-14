@@ -4,7 +4,11 @@
 \alias{vcov.feglm}
 \title{Covariance matrix for GLMs}
 \usage{
-\method{vcov}{feglm}(object, type = c("hessian", "outer.product", "sandwich", "clustered"))
+\method{vcov}{feglm}(
+  object,
+  type = c("hessian", "outer.product", "sandwich", "clustered"),
+  ...
+)
 }
 \arguments{
 \item{object}{an object of class \code{"feglm"}.}
@@ -15,6 +19,8 @@ default option. \code{"outer.product"} is the outer-product-of-the-gradient
 estimator. \code{"sandwich"} is the sandwich estimator (sometimes also
 referred as robust estimator), and \code{"clustered"} computes a clustered
 covariance matrix given some cluster variables.}
+
+\item{...}{additional arguments.}
 }
 \value{
 A named matrix of covariance estimates.

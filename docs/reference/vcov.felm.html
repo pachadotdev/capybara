@@ -68,7 +68,11 @@ from the Hessian, the scores, or a combination of both after convergence.</p>
 
     <div id="ref-usage">
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="co"># S3 method for felm</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov</a></span><span class="op">(</span><span class="va">object</span>, type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"hessian"</span>, <span class="st">"outer.product"</span>, <span class="st">"sandwich"</span>, <span class="st">"clustered"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov</a></span><span class="op">(</span></span>
+<span>  <span class="va">object</span>,</span>
+<span>  type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"hessian"</span>, <span class="st">"outer.product"</span>, <span class="st">"sandwich"</span>, <span class="st">"clustered"</span><span class="op">)</span>,</span>
+<span>  <span class="va">...</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div id="arguments">
@@ -84,6 +88,10 @@ default option. <code>"outer.product"</code> is the outer-product-of-the-gradien
 estimator. <code>"sandwich"</code> is the sandwich estimator (sometimes also
 referred as robust estimator), and <code>"clustered"</code> computes a clustered
 covariance matrix given some cluster variables.</p></dd>
+
+
+<dt>...</dt>
+<dd><p>additional arguments.</p></dd>
 
 </dl></div>
     <div id="value">

@@ -1,6 +1,7 @@
+#' @title Summary method for fixed effects APEs
+#' @inherit vcov.apes
 #' @export
-#' @noRd
-summary.apes <- function(object) {
+summary.apes <- function(object, ...) {
   # Compute coefficent matrix
   est <- object[["delta"]]
   se <- sqrt(diag(object[["vcov"]]))
@@ -14,11 +15,13 @@ summary.apes <- function(object) {
   structure(list(cm = cm), class = "summary.apes")
 }
 
+#' @title Summary method for fixed effects GLMs
+#' @inherit vcov.feglm
 #' @export
-#' @noRd
 summary.feglm <- function(
     object,
-    type = c("hessian", "outer.product", "sandwich", "clustered")) {
+    type = c("hessian", "outer.product", "sandwich", "clustered"),
+    ...) {
   # Compute coefficients matrix
   est <- object[["coefficients"]]
   se <- sqrt(diag(vcov(object, type)))
@@ -58,11 +61,13 @@ summary.feglm <- function(
   structure(res, class = "summary.feglm")
 }
 
+#' @title Summary method for fixed effects LMs
+#' @inherit vcov.felm
 #' @export
-#' @noRd
 summary.felm <- function(
     object,
-    type = "hessian") {
+    type = "hessian",
+    ...) {
   # Compute coefficients matrix
   est <- object[["coefficients"]]
   se <- sqrt(diag(vcov(object, type)))

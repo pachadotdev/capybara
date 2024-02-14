@@ -12,7 +12,7 @@
 #' and Wanner (2020).
 #'
 #' @name capybara-package
-#' @importFrom dplyr across filter group_by mutate mutate_at select
+#' @importFrom dplyr across all_of filter group_by mutate mutate_at select
 #'  summarise ungroup vars where
 #' @importFrom rlang sym :=
 #' @importFrom Formula Formula
