@@ -2,24 +2,23 @@
 // vendored on: 2024-01-01
 #pragma once
 
-#include <algorithm>         // for min, tranform
-#include <array>             // for array
-#include <initializer_list>  // for initializer_list
+#include <algorithm>        // for min, tranform
+#include <array>            // for array
+#include <initializer_list> // for initializer_list
 
-#include "R_ext/Arith.h"        // for ISNA
-#include "cpp11/R.hpp"          // for SEXP, SEXPREC, Rf_allocVector, REAL
-#include "cpp11/as.hpp"         // for as_sexp
-#include "cpp11/named_arg.hpp"  // for named_arg
-#include "cpp11/protect.hpp"    // for SEXP, SEXPREC, REAL_ELT, R_Preserve...
-#include "cpp11/r_vector.hpp"   // for vector, vector<>::proxy, vector<>::...
-#include "cpp11/sexp.hpp"       // for sexp
+#include "R_ext/Arith.h"       // for ISNA
+#include "cpp11/R.hpp"         // for SEXP, SEXPREC, Rf_allocVector, REAL
+#include "cpp11/as.hpp"        // for as_sexp
+#include "cpp11/named_arg.hpp" // for named_arg
+#include "cpp11/protect.hpp"   // for SEXP, SEXPREC, REAL_ELT, R_Preserve...
+#include "cpp11/r_vector.hpp"  // for vector, vector<>::proxy, vector<>::...
+#include "cpp11/sexp.hpp"      // for sexp
 
 // Specializations for doubles
 
 namespace cpp11 {
 
-template <>
-inline SEXP r_vector<double>::valid_type(SEXP data) {
+template <> inline SEXP r_vector<double>::valid_type(SEXP data) {
   if (data == nullptr) {
     throw type_error(REALSXP, NILSXP);
   }
@@ -36,8 +35,8 @@ inline double r_vector<double>::operator[](const R_xlen_t pos) const {
 }
 
 template <>
-inline typename r_vector<double>::underlying_type* r_vector<double>::get_p(bool is_altrep,
-                                                                           SEXP data) {
+inline typename r_vector<double>::underlying_type *
+r_vector<double>::get_p(bool is_altrep, SEXP data) {
   if (is_altrep) {
     return nullptr;
   } else {
@@ -57,8 +56,8 @@ typedef r_vector<double> doubles;
 namespace writable {
 
 template <>
-inline typename r_vector<double>::proxy& r_vector<double>::proxy::operator=(
-    const double& rhs) {
+inline typename r_vector<double>::proxy &
+r_vector<double>::proxy::operator=(const double &rhs) {
   if (is_altrep_) {
     // NOPROTECT: likely too costly to unwind protect every set elt
     SET_REAL_ELT(data_, index_, rhs);
@@ -68,8 +67,7 @@ inline typename r_vector<double>::proxy& r_vector<double>::proxy::operator=(
   return *this;
 }
 
-template <>
-inline r_vector<double>::proxy::operator double() const {
+template <> inline r_vector<double>::proxy::operator double() const {
   if (p_ == nullptr) {
     // NOPROTECT: likely too costly to unwind protect every elt
     return REAL_ELT(data_, index_);
@@ -101,15 +99,14 @@ inline r_vector<double>::r_vector(std::initializer_list<named_arg> il)
       }
       UNPROTECT(n_protected);
     });
-  } catch (const unwind_exception& e) {
+  } catch (const unwind_exception &e) {
     preserved.release(protect_);
     UNPROTECT(n_protected);
     throw e;
   }
 }
 
-template <>
-inline void r_vector<double>::reserve(R_xlen_t new_capacity) {
+template <> inline void r_vector<double>::reserve(R_xlen_t new_capacity) {
   data_ = data_ == R_NilValue ? safe[Rf_allocVector](REALSXP, new_capacity)
                               : safe[Rf_xlengthgets](data_, new_capacity);
   SEXP old_protect = protect_;
@@ -120,8 +117,7 @@ inline void r_vector<double>::reserve(R_xlen_t new_capacity) {
   capacity_ = new_capacity;
 }
 
-template <>
-inline void r_vector<double>::push_back(double value) {
+template <> inline void r_vector<double>::push_back(double value) {
   while (length_ >= capacity_) {
     reserve(capacity_ == 0 ? 1 : capacity_ *= 2);
   }
@@ -135,7 +131,7 @@ inline void r_vector<double>::push_back(double value) {
 
 typedef r_vector<double> doubles;
 
-}  // namespace writable
+} // namespace writable
 
 typedef r_vector<int> integers;
 
@@ -157,9 +153,6 @@ inline doubles as_doubles(SEXP x) {
   throw type_error(REALSXP, TYPEOF(x));
 }
 
-template <>
-inline double na() {
-  return NA_REAL;
-}
+template <> inline double na() { return NA_REAL; }
 
-}  // namespace cpp11
+} // namespace cpp11

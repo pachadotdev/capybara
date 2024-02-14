@@ -2,23 +2,23 @@
 // vendored on: 2024-01-01
 #pragma once
 
-#include <stddef.h>  // for size_t
+#include <stddef.h> // for size_t
 
-#include <string>  // for string, basic_string
+#include <string> // for string, basic_string
 
-#include "cpp11/R.hpp"                // for SEXP, SEXPREC, REAL_ELT, R_NilV...
-#include "cpp11/attribute_proxy.hpp"  // for attribute_proxy
-#include "cpp11/protect.hpp"          // for preserved
+#include "cpp11/R.hpp"               // for SEXP, SEXPREC, REAL_ELT, R_NilV...
+#include "cpp11/attribute_proxy.hpp" // for attribute_proxy
+#include "cpp11/protect.hpp"         // for preserved
 
 namespace cpp11 {
 
 /// Converting to SEXP
 class sexp {
- private:
+private:
   SEXP data_ = R_NilValue;
   SEXP preserve_token_ = R_NilValue;
 
- public:
+public:
   sexp() = default;
 
   sexp(SEXP data) : data_(data), preserve_token_(preserved.insert(data_)) {
@@ -26,14 +26,15 @@ class sexp {
     //          reinterpret_cast<void*>(preserve_token_));
   }
 
-  sexp(const sexp& rhs) {
+  sexp(const sexp &rhs) {
     data_ = rhs.data_;
     preserve_token_ = preserved.insert(data_);
-    // REprintf("copied %p new protect %p\n", reinterpret_cast<void*>(rhs.data_),
+    // REprintf("copied %p new protect %p\n",
+    // reinterpret_cast<void*>(rhs.data_),
     //          reinterpret_cast<void*>(preserve_token_));
   }
 
-  sexp(sexp&& rhs) {
+  sexp(sexp &&rhs) {
     data_ = rhs.data_;
     preserve_token_ = rhs.preserve_token_;
 
@@ -43,7 +44,7 @@ class sexp {
     // REprintf("moved %p\n", reinterpret_cast<void*>(rhs.data_));
   }
 
-  sexp& operator=(const sexp& rhs) {
+  sexp &operator=(const sexp &rhs) {
     preserved.release(preserve_token_);
 
     data_ = rhs.data_;
@@ -60,11 +61,11 @@ class sexp {
 
   ~sexp() { preserved.release(preserve_token_); }
 
-  attribute_proxy<sexp> attr(const char* name) const {
+  attribute_proxy<sexp> attr(const char *name) const {
     return attribute_proxy<sexp>(*this, name);
   }
 
-  attribute_proxy<sexp> attr(const std::string& name) const {
+  attribute_proxy<sexp> attr(const std::string &name) const {
     return attribute_proxy<sexp>(*this, name.c_str());
   }
 
@@ -83,4 +84,4 @@ class sexp {
   SEXP data() const { return data_; }
 };
 
-}  // namespace cpp11
+} // namespace cpp11

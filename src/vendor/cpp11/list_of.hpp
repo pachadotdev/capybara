@@ -2,17 +2,16 @@
 // vendored on: 2024-01-01
 #pragma once
 
-#include <string>  // for string, basic_string
+#include <string> // for string, basic_string
 
-#include "cpp11/R.hpp"     // for R_xlen_t, SEXP, SEXPREC, LONG_VECTOR_SUPPORT
-#include "cpp11/list.hpp"  // for list
+#include "cpp11/R.hpp"    // for R_xlen_t, SEXP, SEXPREC, LONG_VECTOR_SUPPORT
+#include "cpp11/list.hpp" // for list
 
 namespace cpp11 {
 
-template <typename T>
-class list_of : public list {
- public:
-  list_of(const list& data) : list(data) {}
+template <typename T> class list_of : public list {
+public:
+  list_of(const list &data) : list(data) {}
 
 #ifdef LONG_VECTOR_SUPPORT
   T operator[](int pos) const { return operator[](static_cast<R_xlen_t>(pos)); }
@@ -20,34 +19,39 @@ class list_of : public list {
 
   T operator[](R_xlen_t pos) const { return list::operator[](pos); }
 
-  T operator[](const char* pos) const { return list::operator[](pos); }
+  T operator[](const char *pos) const { return list::operator[](pos); }
 
-  T operator[](const std::string& pos) const { return list::operator[](pos.c_str()); }
+  T operator[](const std::string &pos) const {
+    return list::operator[](pos.c_str());
+  }
 };
 
 namespace writable {
-template <typename T>
-class list_of : public writable::list {
- public:
-  list_of(const list& data) : writable::list(data) {}
+template <typename T> class list_of : public writable::list {
+public:
+  list_of(const list &data) : writable::list(data) {}
   list_of(R_xlen_t n) : writable::list(n) {}
 
   class proxy {
-   private:
+  private:
     writable::list::proxy data_;
 
-   public:
-    proxy(const writable::list::proxy& data) : data_(data) {}
+  public:
+    proxy(const writable::list::proxy &data) : data_(data) {}
 
     operator T() const { return static_cast<SEXP>(*this); }
     operator SEXP() const { return static_cast<SEXP>(data_); }
 #ifdef LONG_VECTOR_SUPPORT
     typename T::proxy operator[](int pos) { return static_cast<T>(data_)[pos]; }
 #endif
-    typename T::proxy operator[](R_xlen_t pos) { return static_cast<T>(data_)[pos]; }
-    proxy operator[](const char* pos) { static_cast<T>(data_)[pos]; }
-    proxy operator[](const std::string& pos) { return static_cast<T>(data_)[pos]; }
-    proxy& operator=(const T& rhs) {
+    typename T::proxy operator[](R_xlen_t pos) {
+      return static_cast<T>(data_)[pos];
+    }
+    proxy operator[](const char *pos) { static_cast<T>(data_)[pos]; }
+    proxy operator[](const std::string &pos) {
+      return static_cast<T>(data_)[pos];
+    }
+    proxy &operator=(const T &rhs) {
       data_ = rhs;
 
       return *this;
@@ -62,12 +66,14 @@ class list_of : public writable::list {
 
   proxy operator[](R_xlen_t pos) { return writable::list::operator[](pos); }
 
-  proxy operator[](const char* pos) { return {writable::list::operator[](pos)}; }
+  proxy operator[](const char *pos) {
+    return {writable::list::operator[](pos)};
+  }
 
-  proxy operator[](const std::string& pos) {
+  proxy operator[](const std::string &pos) {
     return writable::list::operator[](pos.c_str());
   }
 };
-}  // namespace writable
+} // namespace writable
 
-}  // namespace cpp11
+} // namespace cpp11

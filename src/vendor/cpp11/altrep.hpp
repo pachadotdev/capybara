@@ -22,23 +22,24 @@
 #define SET_LOGICAL_ELT(x, i, val) LOGICAL(x)[i] = val
 #define SET_RAW_ELT(x, i, val) RAW(x)[i] = val
 
-#define REAL_GET_REGION(...) \
-  do {                       \
+#define REAL_GET_REGION(...)                                                   \
+  do {                                                                         \
   } while (false)
 
-#define INTEGER_GET_REGION(...) \
-  do {                          \
+#define INTEGER_GET_REGION(...)                                                \
+  do {                                                                         \
   } while (false)
 #endif
 
-#if !defined HAS_ALTREP || (defined(R_VERSION) && R_VERSION < R_Version(3, 6, 0))
+#if !defined HAS_ALTREP ||                                                     \
+    (defined(R_VERSION) && R_VERSION < R_Version(3, 6, 0))
 
-#define LOGICAL_GET_REGION(...) \
-  do {                          \
+#define LOGICAL_GET_REGION(...)                                                \
+  do {                                                                         \
   } while (false)
 
-#define RAW_GET_REGION(...) \
-  do {                      \
+#define RAW_GET_REGION(...)                                                    \
+  do {                                                                         \
   } while (false)
 
 #endif

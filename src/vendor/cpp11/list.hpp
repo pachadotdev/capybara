@@ -2,22 +2,21 @@
 // vendored on: 2024-01-01
 #pragma once
 
-#include <initializer_list>  // for initializer_list
+#include <initializer_list> // for initializer_list
 
-#include "cpp11/R.hpp"                // for SEXP, SEXPREC, SET_VECTOR_ELT
-#include "cpp11/attribute_proxy.hpp"  // for attribute_proxy
-#include "cpp11/named_arg.hpp"        // for named_arg
-#include "cpp11/protect.hpp"          // for preserved
-#include "cpp11/r_string.hpp"         // for r_string
-#include "cpp11/r_vector.hpp"         // for r_vector, r_vector<>::proxy
-#include "cpp11/sexp.hpp"             // for sexp
+#include "cpp11/R.hpp"               // for SEXP, SEXPREC, SET_VECTOR_ELT
+#include "cpp11/attribute_proxy.hpp" // for attribute_proxy
+#include "cpp11/named_arg.hpp"       // for named_arg
+#include "cpp11/protect.hpp"         // for preserved
+#include "cpp11/r_string.hpp"        // for r_string
+#include "cpp11/r_vector.hpp"        // for r_vector, r_vector<>::proxy
+#include "cpp11/sexp.hpp"            // for sexp
 
 // Specializations for list
 
 namespace cpp11 {
 
-template <>
-inline SEXP r_vector<SEXP>::valid_type(SEXP data) {
+template <> inline SEXP r_vector<SEXP>::valid_type(SEXP data) {
   if (data == nullptr) {
     throw type_error(VECSXP, NILSXP);
   }
@@ -27,13 +26,11 @@ inline SEXP r_vector<SEXP>::valid_type(SEXP data) {
   return data;
 }
 
-template <>
-inline SEXP r_vector<SEXP>::operator[](const R_xlen_t pos) const {
+template <> inline SEXP r_vector<SEXP>::operator[](const R_xlen_t pos) const {
   return VECTOR_ELT(data_, pos);
 }
 
-template <>
-inline SEXP r_vector<SEXP>::operator[](const r_string& name) const {
+template <> inline SEXP r_vector<SEXP>::operator[](const r_string &name) const {
   SEXP names = this->names();
   R_xlen_t size = Rf_xlength(names);
 
@@ -47,17 +44,16 @@ inline SEXP r_vector<SEXP>::operator[](const r_string& name) const {
 }
 
 template <>
-inline typename r_vector<SEXP>::underlying_type* r_vector<SEXP>::get_p(bool, SEXP) {
+inline typename r_vector<SEXP>::underlying_type *r_vector<SEXP>::get_p(bool,
+                                                                       SEXP) {
   return nullptr;
 }
 
-template <>
-inline void r_vector<SEXP>::const_iterator::fill_buf(R_xlen_t) {
+template <> inline void r_vector<SEXP>::const_iterator::fill_buf(R_xlen_t) {
   return;
 }
 
-template <>
-inline SEXP r_vector<SEXP>::const_iterator::operator*() const {
+template <> inline SEXP r_vector<SEXP>::const_iterator::operator*() const {
   return VECTOR_ELT(data_->data(), pos_);
 }
 
@@ -66,13 +62,13 @@ typedef r_vector<SEXP> list;
 namespace writable {
 
 template <>
-inline typename r_vector<SEXP>::proxy& r_vector<SEXP>::proxy::operator=(const SEXP& rhs) {
+inline typename r_vector<SEXP>::proxy &
+r_vector<SEXP>::proxy::operator=(const SEXP &rhs) {
   SET_VECTOR_ELT(data_, index_, rhs);
   return *this;
 }
 
-template <>
-inline r_vector<SEXP>::proxy::operator SEXP() const {
+template <> inline r_vector<SEXP>::proxy::operator SEXP() const {
   return VECTOR_ELT(data_, index_);
 }
 
@@ -106,15 +102,14 @@ inline r_vector<SEXP>::r_vector(std::initializer_list<named_arg> il)
       }
       UNPROTECT(n_protected);
     });
-  } catch (const unwind_exception& e) {
+  } catch (const unwind_exception &e) {
     preserved.release(protect_);
     UNPROTECT(n_protected);
     throw e;
   }
 }
 
-template <>
-inline void r_vector<SEXP>::reserve(R_xlen_t new_capacity) {
+template <> inline void r_vector<SEXP>::reserve(R_xlen_t new_capacity) {
   data_ = data_ == R_NilValue ? safe[Rf_allocVector](VECSXP, new_capacity)
                               : safe[Rf_xlengthgets](data_, new_capacity);
 
@@ -125,8 +120,7 @@ inline void r_vector<SEXP>::reserve(R_xlen_t new_capacity) {
   capacity_ = new_capacity;
 }
 
-template <>
-inline void r_vector<SEXP>::push_back(SEXP value) {
+template <> inline void r_vector<SEXP>::push_back(SEXP value) {
   while (length_ >= capacity_) {
     reserve(capacity_ == 0 ? 1 : capacity_ *= 2);
   }
@@ -136,6 +130,6 @@ inline void r_vector<SEXP>::push_back(SEXP value) {
 
 typedef r_vector<SEXP> list;
 
-}  // namespace writable
+} // namespace writable
 
-}  // namespace cpp11
+} // namespace cpp11

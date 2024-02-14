@@ -15,7 +15,7 @@ class fenwick_tree_ {
   vector<int> BIT;
   int N;
 
- public:
+public:
   fenwick_tree_(int n) : BIT(n + 1, 0), N(n) {}
 
   void update(int idx, int val) {
@@ -35,8 +35,8 @@ class fenwick_tree_ {
   int query(int l, int r) { return query(r) - query(l - 1); }
 };
 
-[[cpp11::register]] double pairwise_cor_(const doubles& y,
-                                         const doubles& yhat) {
+[[cpp11::register]] double pairwise_cor_(const doubles &y,
+                                         const doubles &yhat) {
   int n = y.size();
   vector<pair<double, double>> vec(n);
   for (int i = 0; i < n; ++i) {

@@ -2,31 +2,27 @@
 // vendored on: 2024-01-01
 #pragma once
 
-#include <algorithm>         // for min
-#include <array>             // for array
-#include <cstdint>           // for uint8_t
-#include <initializer_list>  // for initializer_list
+#include <algorithm>        // for min
+#include <array>            // for array
+#include <cstdint>          // for uint8_t
+#include <initializer_list> // for initializer_list
 
-#include "cpp11/R.hpp"                // for RAW, SEXP, SEXPREC, Rf_allocVector
-#include "cpp11/attribute_proxy.hpp"  // for attribute_proxy
-#include "cpp11/named_arg.hpp"        // for named_arg
-#include "cpp11/protect.hpp"          // for preserved
-#include "cpp11/r_vector.hpp"         // for r_vector, r_vector<>::proxy
-#include "cpp11/sexp.hpp"             // for sexp
+#include "cpp11/R.hpp"               // for RAW, SEXP, SEXPREC, Rf_allocVector
+#include "cpp11/attribute_proxy.hpp" // for attribute_proxy
+#include "cpp11/named_arg.hpp"       // for named_arg
+#include "cpp11/protect.hpp"         // for preserved
+#include "cpp11/r_vector.hpp"        // for r_vector, r_vector<>::proxy
+#include "cpp11/sexp.hpp"            // for sexp
 
 // Specializations for raws
 
 namespace cpp11 {
 
 namespace traits {
-template <>
-struct get_underlying_type<uint8_t> {
-  using type = Rbyte;
-};
-}  // namespace traits
+template <> struct get_underlying_type<uint8_t> { using type = Rbyte; };
+} // namespace traits
 
-template <>
-inline SEXP r_vector<uint8_t>::valid_type(SEXP data) {
+template <> inline SEXP r_vector<uint8_t>::valid_type(SEXP data) {
   if (data == nullptr) {
     throw type_error(RAWSXP, NILSXP);
   }
@@ -43,8 +39,8 @@ inline uint8_t r_vector<uint8_t>::operator[](const R_xlen_t pos) const {
 }
 
 template <>
-inline typename r_vector<uint8_t>::underlying_type* r_vector<uint8_t>::get_p(
-    bool is_altrep, SEXP data) {
+inline typename r_vector<uint8_t>::underlying_type *
+r_vector<uint8_t>::get_p(bool is_altrep, SEXP data) {
   if (is_altrep) {
     return nullptr;
   } else {
@@ -56,7 +52,8 @@ template <>
 inline void r_vector<uint8_t>::const_iterator::fill_buf(R_xlen_t pos) {
   using namespace cpp11::literals;
   length_ = std::min(64_xl, data_->size() - pos);
-  unwind_protect([&] { RAW_GET_REGION(data_->data_, pos, length_, buf_.data()); });
+  unwind_protect(
+      [&] { RAW_GET_REGION(data_->data_, pos, length_, buf_.data()); });
   block_start_ = pos;
 }
 
@@ -65,8 +62,8 @@ typedef r_vector<uint8_t> raws;
 namespace writable {
 
 template <>
-inline typename r_vector<uint8_t>::proxy& r_vector<uint8_t>::proxy::operator=(
-    const uint8_t& rhs) {
+inline typename r_vector<uint8_t>::proxy &
+r_vector<uint8_t>::proxy::operator=(const uint8_t &rhs) {
   if (is_altrep_) {
     // NOPROTECT: likely too costly to unwind protect every set elt
     RAW(data_)[index_] = rhs;
@@ -76,8 +73,7 @@ inline typename r_vector<uint8_t>::proxy& r_vector<uint8_t>::proxy::operator=(
   return *this;
 }
 
-template <>
-inline r_vector<uint8_t>::proxy::operator uint8_t() const {
+template <> inline r_vector<uint8_t>::proxy::operator uint8_t() const {
   if (p_ == nullptr) {
     // NOPROTECT: likely too costly to unwind protect every elt
     return RAW(data_)[index_];
@@ -117,15 +113,14 @@ inline r_vector<uint8_t>::r_vector(std::initializer_list<named_arg> il)
       }
       UNPROTECT(n_protected);
     });
-  } catch (const unwind_exception& e) {
+  } catch (const unwind_exception &e) {
     preserved.release(protect_);
     UNPROTECT(n_protected);
     throw e;
   }
 }
 
-template <>
-inline void r_vector<uint8_t>::reserve(R_xlen_t new_capacity) {
+template <> inline void r_vector<uint8_t>::reserve(R_xlen_t new_capacity) {
   data_ = data_ == R_NilValue ? safe[Rf_allocVector](RAWSXP, new_capacity)
                               : safe[Rf_xlengthgets](data_, new_capacity);
 
@@ -137,8 +132,7 @@ inline void r_vector<uint8_t>::reserve(R_xlen_t new_capacity) {
   capacity_ = new_capacity;
 }
 
-template <>
-inline void r_vector<uint8_t>::push_back(uint8_t value) {
+template <> inline void r_vector<uint8_t>::push_back(uint8_t value) {
   while (length_ >= capacity_) {
     reserve(capacity_ == 0 ? 1 : capacity_ *= 2);
   }
@@ -153,6 +147,6 @@ inline void r_vector<uint8_t>::push_back(uint8_t value) {
 
 typedef r_vector<uint8_t> raws;
 
-}  // namespace writable
+} // namespace writable
 
-}  // namespace cpp11
+} // namespace cpp11

@@ -2,24 +2,23 @@
 // vendored on: 2024-01-01
 #pragma once
 
-#include <algorithm>         // for min
-#include <array>             // for array
-#include <initializer_list>  // for initializer_list
+#include <algorithm>        // for min
+#include <array>            // for array
+#include <initializer_list> // for initializer_list
 
-#include "cpp11/R.hpp"                // for SEXP, SEXPREC, Rf_all...
-#include "cpp11/attribute_proxy.hpp"  // for attribute_proxy
-#include "cpp11/named_arg.hpp"        // for named_arg
-#include "cpp11/protect.hpp"          // for preserved
-#include "cpp11/r_bool.hpp"           // for r_bool
-#include "cpp11/r_vector.hpp"         // for r_vector, r_vector<>::proxy
-#include "cpp11/sexp.hpp"             // for sexp
+#include "cpp11/R.hpp"               // for SEXP, SEXPREC, Rf_all...
+#include "cpp11/attribute_proxy.hpp" // for attribute_proxy
+#include "cpp11/named_arg.hpp"       // for named_arg
+#include "cpp11/protect.hpp"         // for preserved
+#include "cpp11/r_bool.hpp"          // for r_bool
+#include "cpp11/r_vector.hpp"        // for r_vector, r_vector<>::proxy
+#include "cpp11/sexp.hpp"            // for sexp
 
 // Specializations for logicals
 
 namespace cpp11 {
 
-template <>
-inline SEXP r_vector<r_bool>::valid_type(SEXP data) {
+template <> inline SEXP r_vector<r_bool>::valid_type(SEXP data) {
   if (data == nullptr) {
     throw type_error(LGLSXP, NILSXP);
   }
@@ -35,8 +34,8 @@ inline r_bool r_vector<r_bool>::operator[](const R_xlen_t pos) const {
 }
 
 template <>
-inline typename r_vector<r_bool>::underlying_type* r_vector<r_bool>::get_p(bool is_altrep,
-                                                                           SEXP data) {
+inline typename r_vector<r_bool>::underlying_type *
+r_vector<r_bool>::get_p(bool is_altrep, SEXP data) {
   if (is_altrep) {
     return nullptr;
   } else {
@@ -56,8 +55,8 @@ typedef r_vector<r_bool> logicals;
 namespace writable {
 
 template <>
-inline typename r_vector<r_bool>::proxy& r_vector<r_bool>::proxy::operator=(
-    const r_bool& rhs) {
+inline typename r_vector<r_bool>::proxy &
+r_vector<r_bool>::proxy::operator=(const r_bool &rhs) {
   if (is_altrep_) {
     SET_LOGICAL_ELT(data_, index_, rhs);
   } else {
@@ -66,8 +65,7 @@ inline typename r_vector<r_bool>::proxy& r_vector<r_bool>::proxy::operator=(
   return *this;
 }
 
-template <>
-inline r_vector<r_bool>::proxy::operator r_bool() const {
+template <> inline r_vector<r_bool>::proxy::operator r_bool() const {
   if (p_ == nullptr) {
     return LOGICAL_ELT(data_, index_);
   } else {
@@ -75,13 +73,14 @@ inline r_vector<r_bool>::proxy::operator r_bool() const {
   }
 }
 
-inline bool operator==(const r_vector<r_bool>::proxy& lhs, r_bool rhs) {
+inline bool operator==(const r_vector<r_bool>::proxy &lhs, r_bool rhs) {
   return static_cast<r_bool>(lhs).operator==(rhs);
 }
 
 template <>
 inline r_vector<r_bool>::r_vector(std::initializer_list<r_bool> il)
-    : cpp11::r_vector<r_bool>(Rf_allocVector(LGLSXP, il.size())), capacity_(il.size()) {
+    : cpp11::r_vector<r_bool>(Rf_allocVector(LGLSXP, il.size())),
+      capacity_(il.size()) {
   protect_ = preserved.insert(data_);
   auto it = il.begin();
   for (R_xlen_t i = 0; i < capacity_; ++i, ++it) {
@@ -108,15 +107,14 @@ inline r_vector<r_bool>::r_vector(std::initializer_list<named_arg> il)
       }
       UNPROTECT(n_protected);
     });
-  } catch (const unwind_exception& e) {
+  } catch (const unwind_exception &e) {
     preserved.release(protect_);
     UNPROTECT(n_protected);
     throw e;
   }
 }
 
-template <>
-inline void r_vector<r_bool>::reserve(R_xlen_t new_capacity) {
+template <> inline void r_vector<r_bool>::reserve(R_xlen_t new_capacity) {
   data_ = data_ == R_NilValue ? safe[Rf_allocVector](LGLSXP, new_capacity)
                               : safe[Rf_xlengthgets](data_, new_capacity);
   SEXP old_protect = protect_;
@@ -128,8 +126,7 @@ inline void r_vector<r_bool>::reserve(R_xlen_t new_capacity) {
   capacity_ = new_capacity;
 }
 
-template <>
-inline void r_vector<r_bool>::push_back(r_bool value) {
+template <> inline void r_vector<r_bool>::push_back(r_bool value) {
   while (length_ >= capacity_) {
     reserve(capacity_ == 0 ? 1 : capacity_ *= 2);
   }
@@ -143,6 +140,6 @@ inline void r_vector<r_bool>::push_back(r_bool value) {
 
 typedef r_vector<r_bool> logicals;
 
-}  // namespace writable
+} // namespace writable
 
-}  // namespace cpp11
+} // namespace cpp11

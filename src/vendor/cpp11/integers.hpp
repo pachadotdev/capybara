@@ -2,25 +2,24 @@
 // vendored on: 2024-01-01
 #pragma once
 
-#include <algorithm>         // for min
-#include <array>             // for array
-#include <initializer_list>  // for initializer_list
+#include <algorithm>        // for min
+#include <array>            // for array
+#include <initializer_list> // for initializer_list
 
-#include "R_ext/Arith.h"              // for NA_INTEGER
-#include "cpp11/R.hpp"                // for SEXP, SEXPREC, Rf_allocVector
-#include "cpp11/as.hpp"               // for as_sexp
-#include "cpp11/attribute_proxy.hpp"  // for attribute_proxy
-#include "cpp11/named_arg.hpp"        // for named_arg
-#include "cpp11/protect.hpp"          // for preserved
-#include "cpp11/r_vector.hpp"         // for r_vector, r_vector<>::proxy
-#include "cpp11/sexp.hpp"             // for sexp
+#include "R_ext/Arith.h"             // for NA_INTEGER
+#include "cpp11/R.hpp"               // for SEXP, SEXPREC, Rf_allocVector
+#include "cpp11/as.hpp"              // for as_sexp
+#include "cpp11/attribute_proxy.hpp" // for attribute_proxy
+#include "cpp11/named_arg.hpp"       // for named_arg
+#include "cpp11/protect.hpp"         // for preserved
+#include "cpp11/r_vector.hpp"        // for r_vector, r_vector<>::proxy
+#include "cpp11/sexp.hpp"            // for sexp
 
 // Specializations for integers
 
 namespace cpp11 {
 
-template <>
-inline SEXP r_vector<int>::valid_type(SEXP data) {
+template <> inline SEXP r_vector<int>::valid_type(SEXP data) {
   if (data == nullptr) {
     throw type_error(INTSXP, NILSXP);
   }
@@ -30,15 +29,14 @@ inline SEXP r_vector<int>::valid_type(SEXP data) {
   return data;
 }
 
-template <>
-inline int r_vector<int>::operator[](const R_xlen_t pos) const {
+template <> inline int r_vector<int>::operator[](const R_xlen_t pos) const {
   // NOPROTECT: likely too costly to unwind protect every elt
   return is_altrep_ ? INTEGER_ELT(data_, pos) : data_p_[pos];
 }
 
 template <>
-inline typename r_vector<int>::underlying_type* r_vector<int>::get_p(bool is_altrep,
-                                                                     SEXP data) {
+inline typename r_vector<int>::underlying_type *
+r_vector<int>::get_p(bool is_altrep, SEXP data) {
   if (is_altrep) {
     return nullptr;
   } else {
@@ -46,8 +44,7 @@ inline typename r_vector<int>::underlying_type* r_vector<int>::get_p(bool is_alt
   }
 }
 
-template <>
-inline void r_vector<int>::const_iterator::fill_buf(R_xlen_t pos) {
+template <> inline void r_vector<int>::const_iterator::fill_buf(R_xlen_t pos) {
   length_ = std::min(64_xl, data_->size() - pos);
   INTEGER_GET_REGION(data_->data_, pos, length_, buf_.data());
   block_start_ = pos;
@@ -58,7 +55,8 @@ typedef r_vector<int> integers;
 namespace writable {
 
 template <>
-inline typename r_vector<int>::proxy& r_vector<int>::proxy::operator=(const int& rhs) {
+inline typename r_vector<int>::proxy &
+r_vector<int>::proxy::operator=(const int &rhs) {
   if (is_altrep_) {
     // NOPROTECT: likely too costly to unwind protect every set elt
     SET_INTEGER_ELT(data_, index_, rhs);
@@ -68,8 +66,7 @@ inline typename r_vector<int>::proxy& r_vector<int>::proxy::operator=(const int&
   return *this;
 }
 
-template <>
-inline r_vector<int>::proxy::operator int() const {
+template <> inline r_vector<int>::proxy::operator int() const {
   if (p_ == nullptr) {
     // NOPROTECT: likely too costly to unwind protect every elt
     return INTEGER_ELT(data_, index_);
@@ -82,8 +79,7 @@ template <>
 inline r_vector<int>::r_vector(std::initializer_list<int> il)
     : cpp11::r_vector<int>(as_sexp(il)), capacity_(il.size()) {}
 
-template <>
-inline void r_vector<int>::reserve(R_xlen_t new_capacity) {
+template <> inline void r_vector<int>::reserve(R_xlen_t new_capacity) {
   data_ = data_ == R_NilValue ? safe[Rf_allocVector](INTSXP, new_capacity)
                               : safe[Rf_xlengthgets](data_, new_capacity);
   SEXP old_protect = protect_;
@@ -117,15 +113,14 @@ inline r_vector<int>::r_vector(std::initializer_list<named_arg> il)
       }
       UNPROTECT(n_protected);
     });
-  } catch (const unwind_exception& e) {
+  } catch (const unwind_exception &e) {
     preserved.release(protect_);
     UNPROTECT(n_protected);
     throw e;
   }
 }
 
-template <>
-inline void r_vector<int>::push_back(int value) {
+template <> inline void r_vector<int>::push_back(int value) {
   while (length_ >= capacity_) {
     reserve(capacity_ == 0 ? 1 : capacity_ *= 2);
   }
@@ -140,12 +135,9 @@ inline void r_vector<int>::push_back(int value) {
 
 typedef r_vector<int> integers;
 
-}  // namespace writable
+} // namespace writable
 
-template <>
-inline int na() {
-  return NA_INTEGER;
-}
+template <> inline int na() { return NA_INTEGER; }
 
 // forward declaration
 
@@ -172,4 +164,4 @@ inline integers as_integers(SEXP x) {
   throw type_error(INTSXP, TYPEOF(x));
 }
 
-}  // namespace cpp11
+} // namespace cpp11

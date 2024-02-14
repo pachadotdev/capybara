@@ -13,7 +13,7 @@
 
 // Bubble sort distance between the input array and the sorted array
 
-uint64_t insert_sort_(double* arr, size_t len) {
+uint64_t insert_sort_(double *arr, size_t len) {
   size_t max_j, i;
   uint64_t swap_count = 0;
 
@@ -37,11 +37,11 @@ uint64_t insert_sort_(double* arr, size_t len) {
   return swap_count;
 }
 
-static uint64_t merge_(double* from, double* to, size_t middle, size_t len) {
+static uint64_t merge_(double *from, double *to, size_t middle, size_t len) {
   size_t buf_index, left_len, right_len;
   uint64_t swaps;
-  double* left;
-  double* right;
+  double *left;
+  double *right;
 
   buf_index = 0;
   swaps = 0;
@@ -74,7 +74,7 @@ static uint64_t merge_(double* from, double* to, size_t middle, size_t len) {
   return swaps;
 }
 
-uint64_t merge_sort_(double* x, double* buf, size_t len) {
+uint64_t merge_sort_(double *x, double *buf, size_t len) {
   uint64_t swaps;
   size_t half;
 
@@ -99,7 +99,7 @@ uint64_t merge_sort_(double* x, double* buf, size_t len) {
 
 // Count ties
 
-static uint64_t count_ties_(double* data,
+static uint64_t count_ties_(double *data,
                             size_t len) { /* Assumes data is sorted.*/
   uint64_t sum_counts = 0, tie_count = 0;
   size_t i;
@@ -130,7 +130,7 @@ static uint64_t count_ties_(double* data,
 // arr1 <- arr1[perm]
 // arr2 <- arr2[perm]
 
-double kendall_n_log_n_(const double* arr1, const double* arr2, size_t len) {
+double kendall_n_log_n_(const double *arr1, const double *arr2, size_t len) {
   uint64_t m1 = 0, m2 = 0, tie_count, swap_count, n_pair;
   int64_t s;
   size_t i;
@@ -143,7 +143,7 @@ double kendall_n_log_n_(const double* arr1, const double* arr2, size_t len) {
     if (arr1[i - 1] == arr1[i]) {
       tie_count++;
     } else if (tie_count > 0) {
-      double* arr2_copy = new double[tie_count + 1];
+      double *arr2_copy = new double[tie_count + 1];
       copy(arr2 + i - tie_count - 1, arr2 + i, arr2_copy);
       insert_sort_(arr2_copy, tie_count + 1);
       m1 += tie_count * (tie_count + 1) / 2;
@@ -154,7 +154,7 @@ double kendall_n_log_n_(const double* arr1, const double* arr2, size_t len) {
     }
   }
   if (tie_count > 0) {
-    double* arr2_copy = new double[tie_count + 1];
+    double *arr2_copy = new double[tie_count + 1];
     copy(arr2 + i - tie_count - 1, arr2 + i, arr2_copy);
     insert_sort_(arr2_copy, tie_count + 1);
     m1 += tie_count * (tie_count + 1) / 2;
@@ -163,9 +163,9 @@ double kendall_n_log_n_(const double* arr1, const double* arr2, size_t len) {
     tie_count++;
   }
 
-  double* arr2_sorted = new double[len];
+  double *arr2_sorted = new double[len];
   copy(arr2, arr2 + len, arr2_sorted);
-  swap_count = merge_sort_(arr2_sorted, const_cast<double*>(arr1), len);
+  swap_count = merge_sort_(arr2_sorted, const_cast<double *>(arr1), len);
 
   m2 = count_ties_(arr2_sorted, len);
   s -= (m1 + m2) + 2 * swap_count;
@@ -181,8 +181,8 @@ double kendall_n_log_n_(const double* arr1, const double* arr2, size_t len) {
 
 // Wrapper to R
 
-[[cpp11::register]] double pairwise_cor_(const doubles& y,
-                                         const doubles& yhat) {
+[[cpp11::register]] double pairwise_cor_(const doubles &y,
+                                         const doubles &yhat) {
   size_t len_y = y.size();
   size_t len_yhat = yhat.size();
 
@@ -190,8 +190,8 @@ double kendall_n_log_n_(const double* arr1, const double* arr2, size_t len) {
     stop("y and yhat must be the same length");
   }
 
-  const double* y_data = REAL(y);
-  const double* yhat_data = REAL(yhat);
+  const double *y_data = REAL(y);
+  const double *yhat_data = REAL(yhat);
 
   double cor = kendall_n_log_n_(y_data, yhat_data, len_y);
 
