@@ -17,6 +17,7 @@
 #' @importFrom rlang sym :=
 #' @importFrom Formula Formula
 #' @importFrom MASS negative.binomial theta.ml
+#' @importFrom purrr map map_dbl map2_dbl
 #' @importFrom stats as.formula binomial model.matrix na.omit gaussian poisson
 #'  pnorm printCoefmat rgamma rlogis rnorm rpois terms vcov predict
 #' @importFrom utils combn

@@ -56,10 +56,12 @@ and we add the fixed effects as `| exp_year + imp_year` in the formula.
 Model estimation:
 
 ```{r}
-summary(fepoisson(
-  trade ~ log_dist + cntg + lang + clny | exp_year + imp_year,
+fit <- fepoisson(
+  trade ~ log_dist + cntg + lang + clny + rta | exp_year + imp_year,
   data = dppml
-))
+)
+
+summary(fit)
 ```
 
 The coefficients are almost identical to those in Table 3 from
@@ -73,18 +75,16 @@ the model formula to add a cluster term.
 dppml <- dppml %>%
   mutate(pair = paste(exporter, importer, sep = "-"))
 
-summary(
-  fepoisson(
-    trade ~ log_dist + cntg + lang + clny | exp_year + imp_year | pair,
+fit <- fepoisson(
+    trade ~ log_dist + cntg + lang + clny + rta | exp_year + imp_year | pair,
     data = dppml
-  ),
-  type = "cluster"
 )
+
+summary(fit, type = "cluster")
 ```
 
 The result is similar and the difference is explained by the different
 algorithms used to estimate the variance-covariance matrix. Capybara clustering
-algorithm is based on @cameron2011robust while Stata uses a sandwich-type 
-estimator.
+algorithm is based on @cameron2011robust.
 
 # References

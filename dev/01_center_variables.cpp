@@ -1,9 +1,15 @@
-#include "00_main.h"
+#include <algorithm>
+#include <cmath>
+#include <cpp11.hpp>
+#include <iostream>
+#include <vector>
 
-// Method of alternating projections (Halperin)
-[[cpp11::register]] doubles_matrix<>
-center_variables_(const doubles_matrix<>& V, const doubles& w,
-                  const list& klist, const double tol, const int maxiter) {
+using namespace cpp11;
+using namespace std;
+
+[[cpp11::register]] doubles_matrix<> center_variables2_(
+    const doubles_matrix<>& V, const doubles& w, const list& klist,
+    const double tol, const int maxiter) {
   // Auxiliary variables (fixed)
   const int N = V.nrow();
   const int P = V.ncol();
@@ -22,22 +28,13 @@ center_variables_(const doubles_matrix<>& V, const doubles& w,
   writable::doubles x0(N);
 
   // Halperin projections
-  // #pragma omp parallel for
   for (p = 0; p < P; p++) {
     // Center each variable
     for (n = 0; n < N; n++) {
       x[n] = V(n, p);
     }
 
-    int interruptCheckCounter = 0;
-
     for (iter = 0; iter < maxiter; iter++) {
-      // Check user interrupt
-      if (++interruptCheckCounter == 1000) {
-        check_user_interrupt();
-        interruptCheckCounter = 0;
-      }
-
       // Store centered vector from the last iteration
       writable::doubles x0(N);
       for (n = 0; n < N; n++) {

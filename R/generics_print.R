@@ -17,7 +17,7 @@ summary_estimates_ <- function(x, digits) {
   coefmat <- as.data.frame(x[["cm"]])
 
   coefmat[, max(ncol(coefmat))] <- vapply(
-    coefmat[, max(nrow(coefmat))],
+    coefmat[, max(ncol(coefmat))],
     function(x) {
       if (x <= 0.001) {
         paste(formatC(x, format = "f", digits = digits), "***")

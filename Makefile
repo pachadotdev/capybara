@@ -1,5 +1,5 @@
 test:
-	@Rscript -e 'devtools::clean_dll(); devtools::test(".")'
+	@Rscript -e 'devtools::clean_dll(); cpp11::cpp_register(); devtools::test(".")'
 
 clean:
 	@Rscript -e 'devtools::clean_dll()'
