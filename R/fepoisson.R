@@ -5,7 +5,7 @@
 #' @examples
 #' # same as the example in feglm but with less typing
 #' mod <- fepoisson(
-#'   trade ~ dist + lang + cntg + clny | exp_year + imp_year,
+#'   trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
 #'   trade_panel
 #' )
 #'

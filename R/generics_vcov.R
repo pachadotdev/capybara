@@ -35,7 +35,10 @@ vcov.feglm <- function(
   type <- match.arg(type)
 
   # Extract cluster from formula
-  cl.vars <- attr(terms(object[["formula"]], rhs = 3L), "term.labels")
+  # it is totally fine not to have a cluster variable
+  suppressWarnings({
+    cl.vars <- attr(terms(object[["formula"]], rhs = 3L), "term.labels")
+  })
   k <- length(cl.vars)
   if (isTRUE(k >= 1L) && type != "clustered") {
     type <- "clustered"
@@ -43,7 +46,7 @@ vcov.feglm <- function(
     message(
       paste(
         "There are clustering variables in the model formula.",
-        "The 'type' argument will be overwritten to 'clustered'."
+        "The 'type' argument will be overwritten to 'cluster'."
       )
     )
   }

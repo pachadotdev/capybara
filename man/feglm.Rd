@@ -62,7 +62,7 @@ If \code{\link{feglm}} does not converge this is often a sign of
 }
 \examples{
 mod <- feglm(
-  trade ~ dist + lang + cntg + clny | exp_year + imp_year,
+  trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
   trade_panel,
   family = poisson(link = "log")
 )

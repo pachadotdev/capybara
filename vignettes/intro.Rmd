@@ -35,19 +35,6 @@ Required packages:
 
 ```{r}
 library(capybara)
-library(dplyr)
-```
-
-Data wrangling:
-
-```{r}
-dppml <- trade_panel %>%
-  mutate(
-    log_dist = log(dist),
-    exporter = substr(exp_year, 1, 3),
-    importer = substr(imp_year, 1, 3)
-  ) %>%
-  filter(importer != exporter)
 ```
 
 We can use the `fepoisson()` function to obtain the estimated coefficients
@@ -58,7 +45,7 @@ Model estimation:
 ```{r}
 fit <- fepoisson(
   trade ~ log_dist + cntg + lang + clny + rta | exp_year + imp_year,
-  data = dppml
+  data = trade_panel
 )
 
 summary(fit)
@@ -66,25 +53,20 @@ summary(fit)
 
 The coefficients are almost identical to those in Table 3 from
 @yotov2016advanced that were obtained with Stata. The difference is attributed
-to the different fitting algorithms used by the two software.
-
-To cluster the standard errors, we need to crete a pair variable and modify
-the model formula to add a cluster term.
+to the different fitting algorithms used by the software. Capybara
+uses the demeaning algorithm proposed by @stammann2018fast.
 
 ```{r}
-dppml <- dppml %>%
-  mutate(pair = paste(exporter, importer, sep = "-"))
-
 fit <- fepoisson(
-    trade ~ log_dist + cntg + lang + clny + rta | exp_year + imp_year | pair,
-    data = dppml
+  trade ~ log_dist + cntg + lang + clny + rta | exp_year + imp_year | pair,
+  data = trade_panel
 )
 
 summary(fit, type = "cluster")
 ```
 
-The result is similar and the difference is explained by the different
-algorithms used to estimate the variance-covariance matrix. Capybara clustering
+The result is similar and the numerical difference comes fom the 
+variance-covariance matrix estimation method. Capybara clustering
 algorithm is based on @cameron2011robust.
 
 # References

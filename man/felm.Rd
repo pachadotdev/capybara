@@ -29,7 +29,7 @@ A wrapper for \code{\link{feglm}} with
 }
 \examples{
 mod <- felm(
-  log(trade) ~ dist + lang + cntg + clny | exp_year + imp_year,
+  log(trade) ~ log_dist + lang + cntg + clny | exp_year + imp_year,
   trade_panel
 )
 

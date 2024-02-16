@@ -111,30 +111,29 @@ variable in <code>data</code>.</p></dd>
     <div id="ref-examples">
     <h2>Examples</h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">mod</span> <span class="op">&lt;-</span> <span class="fu">felm</span><span class="op">(</span></span></span>
-<span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log</a></span><span class="op">(</span><span class="va">trade</span><span class="op">)</span> <span class="op">~</span> <span class="va">dist</span> <span class="op">+</span> <span class="va">lang</span> <span class="op">+</span> <span class="va">cntg</span> <span class="op">+</span> <span class="va">clny</span> <span class="op">|</span> <span class="va">exp_year</span> <span class="op">+</span> <span class="va">imp_year</span>,</span></span>
+<span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log</a></span><span class="op">(</span><span class="va">trade</span><span class="op">)</span> <span class="op">~</span> <span class="va">log_dist</span> <span class="op">+</span> <span class="va">lang</span> <span class="op">+</span> <span class="va">cntg</span> <span class="op">+</span> <span class="va">clny</span> <span class="op">|</span> <span class="va">exp_year</span> <span class="op">+</span> <span class="va">imp_year</span>,</span></span>
 <span class="r-in"><span>  <span class="va">trade_panel</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod</span><span class="op">)</span></span></span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>subscript out of bounds, not all 'rhs' available</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Formula: log(trade) ~ dist + lang + cntg + clny | exp_year + imp_year</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x64516c361bf0&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Formula: log(trade) ~ log_dist + lang + cntg + clny | exp_year + imp_year</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x5d3e40285cb8&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Estimates:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> |      | Estimate   | Std. error | z value       | Pr(&gt; |z|)  |</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> |------|------------|------------|---------------|------------|</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> | dist |    -2.0691 |     0.0000 | -1129726.3360 | 0.0000 *** |</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> | lang | -7505.0105 |     0.0219 |  -342496.7104 | 0.0000 *** |</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> | cntg | -6995.4844 |     0.0415 |  -168615.9070 | 0.0000 *** |</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> | clny | -3454.6316 |     0.0445 |   -77683.8847 | 0.0000 *** |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |          | Estimate  | Std. error | z value     | Pr(&gt; |z|)  |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |----------|-----------|------------|-------------|------------|</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | log_dist | -723.5816 |     0.0108 | -67305.7879 | 0.0000 *** |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | lang     |  -57.4220 |     0.0223 |  -2579.8225 | 0.0000 *** |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | cntg     | 6949.3930 |     0.0445 | 156240.6350 | 0.0000 *** |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | clny     | -744.1953 |     0.0447 | -16649.5540 | 0.0000 *** |</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Significance codes: *** 99.9%; ** 99%; * 95%; . 90%</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> R-squared     : 0.04916 </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Adj. R-squared: 0.02067 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> R-squared     : 0.2761 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Adj. R-squared: 0.2541 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Number of observations: Full 28566; Missing 0; Perfect classification 0 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Number of observations: Full 28152; Missing 0; Perfect classification 0 </span>
 </code></pre></div>
     </div>
   </div>

@@ -46,7 +46,7 @@
 #'  Linear Models with High-Dimensional k-Way Fixed Effects". ArXiv e-prints.
 #' @examples
 #' mod <- feglm(
-#'   trade ~ dist + lang + cntg + clny | exp_year + imp_year,
+#'   trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
 #'   trade_panel,
 #'   family = poisson(link = "log")
 #' )

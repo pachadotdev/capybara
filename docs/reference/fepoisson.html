@@ -116,31 +116,30 @@ process. See <code><a href="feglm_control.html">feglm_control</a></code> for det
     <h2>Examples</h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># same as the example in feglm but with less typing</span></span></span>
 <span class="r-in"><span><span class="va">mod</span> <span class="op">&lt;-</span> <span class="fu">fepoisson</span><span class="op">(</span></span></span>
-<span class="r-in"><span>  <span class="va">trade</span> <span class="op">~</span> <span class="va">dist</span> <span class="op">+</span> <span class="va">lang</span> <span class="op">+</span> <span class="va">cntg</span> <span class="op">+</span> <span class="va">clny</span> <span class="op">|</span> <span class="va">exp_year</span> <span class="op">+</span> <span class="va">imp_year</span>,</span></span>
+<span class="r-in"><span>  <span class="va">trade</span> <span class="op">~</span> <span class="va">log_dist</span> <span class="op">+</span> <span class="va">lang</span> <span class="op">+</span> <span class="va">cntg</span> <span class="op">+</span> <span class="va">clny</span> <span class="op">|</span> <span class="va">exp_year</span> <span class="op">+</span> <span class="va">imp_year</span>,</span></span>
 <span class="r-in"><span>  <span class="va">trade_panel</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod</span><span class="op">)</span></span></span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>subscript out of bounds, not all 'rhs' available</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Formula: trade ~ dist + lang + cntg + clny | exp_year + imp_year</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x64516f206fe0&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Formula: trade ~ log_dist + lang + cntg + clny | exp_year + imp_year</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x5d3e3f72d390&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Family: Poisson</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Estimates:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> |      | Estimate | Std. error | z value    | Pr(&gt; |z|)  |</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> |------|----------|------------|------------|------------|</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> | dist |  -0.0006 |     0.0000 | -8090.3257 | 0.0000 *** |</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> | lang |  -0.1081 |     0.0006 |  -181.4917 | 0.0000 *** |</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> | cntg |  -1.3474 |     0.0005 | -2584.7078 | 0.0000 *** |</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> | clny |  -1.0101 |     0.0009 | -1127.0449 | 0.0000 *** |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |          | Estimate | Std. error | z value    | Pr(&gt; |z|)  |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |----------|----------|------------|------------|------------|</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | log_dist |  -0.8409 |     0.0004 | -2327.2129 | 0.0000 *** |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | lang     |   0.2475 |     0.0008 |   294.3167 | 0.0000 *** |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | cntg     |   0.4374 |     0.0009 |   505.6839 | 0.0000 *** |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | clny     |  -0.2225 |     0.0010 |  -224.2241 | 0.0000 *** |</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Significance codes: *** 99.9%; ** 99%; * 95%; . 90%</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Pseudo R-squared: 0.3092 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Pseudo R-squared: 0.5932 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Number of observations: Full 28566; Missing 0; Perfect classification 0 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Number of observations: Full 28152; Missing 0; Perfect classification 0 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Number of Fisher Scoring iterations: 12 </span>
 </code></pre></div>

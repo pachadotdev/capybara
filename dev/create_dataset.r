@@ -17,4 +17,29 @@ trade_panel = trade_panel %>%
   select(exp_year, imp_year, trade, dist, cntg, lang, clny, rta) %>%
   mutate(rta = as.integer(rta))
 
+trade_panel = trade_panel %>%
+  mutate(
+    exporter = substr(exp_year, 1, 3),
+    importer = substr(imp_year, 1, 3)
+  ) %>%
+    filter(importer != exporter) %>%
+    select(-exporter, -importer)
+
 use_data(trade_panel, overwrite = T)
+
+load_all()
+
+trade_panel = trade_panel %>%
+    mutate(
+       exporter = substr(exp_year, 1, 3),
+    importer = substr(imp_year, 1, 3),
+      pair = paste(exporter, importer, sep = "-"),
+      log_dist = log(dist)
+      ) %>%
+    select(exp_year, imp_year, pair, trade, log_dist, everything()) %>%
+        select(-exporter, -importer, -dist)
+
+trade_panel$year = as.integer(substr(trade_panel$exp_year, 4, 7))
+
+trade_panel = trade_panel %>%
+  select(year, everything())

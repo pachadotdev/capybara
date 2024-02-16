@@ -9,7 +9,7 @@
 #' @examples
 #' # same as the example in fepoisson but with overdispersion/underdispersion
 #' mod <- fenegbin(
-#'   trade ~ dist + lang + cntg + clny | exp_year + imp_year,
+#'   trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
 #'   trade_panel
 #' )
 #'
