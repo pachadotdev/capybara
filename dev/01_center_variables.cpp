@@ -7,9 +7,9 @@
 using namespace cpp11;
 using namespace std;
 
-[[cpp11::register]] doubles_matrix<> center_variables2_(
-    const doubles_matrix<>& V, const doubles& w, const list& klist,
-    const double tol, const int maxiter) {
+[[cpp11::register]] doubles_matrix<>
+center_variables2_(const doubles_matrix<> &V, const doubles &w,
+                   const list &klist, const double tol, const int maxiter) {
   // Auxiliary variables (fixed)
   const int N = V.nrow();
   const int P = V.ncol();

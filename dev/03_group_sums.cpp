@@ -1,8 +1,8 @@
 #include "00_main.h"
 
-[[cpp11::register]] doubles_matrix<> group_sums_(const doubles_matrix<>& M,
-                                                 const doubles_matrix<>& w,
-                                                 const list& jlist) {
+[[cpp11::register]] doubles_matrix<> group_sums_(const doubles_matrix<> &M,
+                                                 const doubles_matrix<> &w,
+                                                 const list &jlist) {
   // Auxiliary variables (fixed)
   const int J = jlist.size();
   const int P = M.ncol();
@@ -43,9 +43,10 @@
   return num;
 }
 
-[[cpp11::register]] doubles_matrix<> group_sums_spectral_(
-    const doubles_matrix<>& M, const doubles_matrix<>& v,
-    const doubles_matrix<>& w, const int K, const list& jlist) {
+[[cpp11::register]] doubles_matrix<>
+group_sums_spectral_(const doubles_matrix<> &M, const doubles_matrix<> &v,
+                     const doubles_matrix<> &w, const int K,
+                     const list &jlist) {
   // Auxiliary variables (fixed)
   const int J = jlist.size();
   const int P = M.ncol();
@@ -87,8 +88,8 @@
   return num;
 }
 
-[[cpp11::register]] doubles_matrix<> group_sums_var_(const doubles_matrix<>& M,
-                                                     const list& jlist) {
+[[cpp11::register]] doubles_matrix<> group_sums_var_(const doubles_matrix<> &M,
+                                                     const list &jlist) {
   // Auxiliary variables (fixed)
   const int J = jlist.size();
   const int P = M.ncol();
@@ -130,9 +131,9 @@
   return V;
 }
 
-[[cpp11::register]] doubles_matrix<> group_sums_cov_(const doubles_matrix<>& M,
-                                                     const doubles_matrix<>& N,
-                                                     const list& jlist) {
+[[cpp11::register]] doubles_matrix<> group_sums_cov_(const doubles_matrix<> &M,
+                                                     const doubles_matrix<> &N,
+                                                     const list &jlist) {
   // Auxiliary variables (fixed)
   const int J = jlist.size();
   const int P = M.ncol();
