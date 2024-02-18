@@ -9,7 +9,7 @@ summary.apes <- function(object, ...) {
   p <- 2.0 * pnorm(-abs(z))
   cm <- cbind(est, se, z, p)
   rownames(cm) <- names(est)
-  colnames(cm) <- c("Estimate", "Std. error", "z value", "Pr(> |z|)")
+  colnames(cm) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
 
   # Return coefficient matrix
   structure(list(cm = cm), class = "summary.apes")
@@ -29,7 +29,7 @@ summary.feglm <- function(
   p <- 2.0 * pnorm(-abs(z))
   cm <- cbind(est, se, z, p)
   rownames(cm) <- names(est)
-  colnames(cm) <- c("Estimate", "Std. error", "z value", "Pr(> |z|)")
+  colnames(cm) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
 
   # Generate result list
   res <- list(
@@ -75,7 +75,7 @@ summary.felm <- function(
   p <- 2.0 * pnorm(-abs(z))
   cm <- cbind(est, se, z, p)
   rownames(cm) <- names(est)
-  colnames(cm) <- c("Estimate", "Std. error", "z value", "Pr(> |z|)")
+  colnames(cm) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
 
   y <- unlist(object[["data"]][, 1], use.names = FALSE)
   w <- object[["weights"]]
