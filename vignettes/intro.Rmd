@@ -62,7 +62,7 @@ fit <- fepoisson(
   data = trade_panel
 )
 
-summary(fit, type = "cluster")
+summary(fit, type = "clustered")
 ```
 
 The result is similar and the numerical difference comes fom the 
