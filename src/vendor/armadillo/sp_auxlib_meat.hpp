@@ -2189,7 +2189,7 @@ inline void sp_auxlib::run_aupd_plain(
     iparam(0) = 1;       // Exact shifts (not provided by us).
     iparam(2) = maxiter; // Maximum iterations; all the examples use 300, but
                          // they were written in the ancient times.
-    iparam(6) = 1; // Mode 1: A * x = lambda * x.
+    iparam(6) = 1;       // Mode 1: A * x = lambda * x.
 
     // IPNTR: integer array of length 14 (output).
     ipntr.zeros(14);

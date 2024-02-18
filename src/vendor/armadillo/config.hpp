@@ -24,22 +24,22 @@
 //// Must be an integer >= 0. The default value is 2.
 //// 0 = no warnings; generally not recommended
 //// 1 = only critical warnings about arguments and/or data which are likely to
-///lead to
+/// lead to
 /// incorrect results / 2 = as per level 1, and warnings about poorly
 /// conditioned systems
 ///(low rcond) detected by solve(), spsolve(), etc / 3 = as per level 2, and
-///warnings
+/// warnings
 /// about failed decompositions, failed saving/loading, etc
 
 // #define ARMA_USE_WRAPPER
 //// Comment out the above line if you prefer to directly link with BLAS,
-///LAPACK, etc / instead of the Armadillo runtime library. / You will need to
-///link your programs directly with -lopenblas -llapack instead of -larmadillo
+/// LAPACK, etc / instead of the Armadillo runtime library. / You will need to
+/// link your programs directly with -lopenblas -llapack instead of -larmadillo
 
 #if !defined(ARMA_USE_LAPACK)
 #define ARMA_USE_LAPACK
 //// Comment out the above line if you don't have LAPACK or a high-speed
-///replacement for
+/// replacement for
 /// LAPACK, / such as OpenBLAS, Intel MKL, or the Accelerate framework. / LAPACK
 /// is required for matrix decompositions (eg. SVD) and matrix inverse.
 #endif
@@ -47,7 +47,7 @@
 #if !defined(ARMA_USE_BLAS)
 #define ARMA_USE_BLAS
 //// Comment out the above line if you don't have BLAS or a high-speed
-///replacement for
+/// replacement for
 /// BLAS, / such as OpenBLAS, Intel MKL, or the Accelerate framework. / BLAS is
 /// used for matrix multiplication. / Without BLAS, matrix multiplication will
 /// still work, but might be slower.
@@ -56,16 +56,16 @@
 #if !defined(ARMA_USE_NEWARP)
 #define ARMA_USE_NEWARP
 //// Uncomment the above line to enable the built-in partial emulation of
-///ARPACK. / This is used for eigen decompositions of real (non-complex) sparse
-///matrices, eg.
+/// ARPACK. / This is used for eigen decompositions of real (non-complex) sparse
+/// matrices, eg.
 /// eigs_sym(), svds()
 #endif
 
 #if !defined(ARMA_USE_ARPACK)
 // #define ARMA_USE_ARPACK
 //// Uncomment the above line if you have ARPACK or a high-speed replacement for
-///ARPACK. / ARPACK is required for eigen decompositions of complex sparse
-///matrices
+/// ARPACK. / ARPACK is required for eigen decompositions of complex sparse
+/// matrices
 #endif
 
 #if !defined(ARMA_USE_SUPERLU)
@@ -90,7 +90,7 @@
 #if !defined(ARMA_USE_HDF5)
 // #define ARMA_USE_HDF5
 //// Uncomment the above line to allow the ability to save and load matrices
-///stored in
+/// stored in
 /// HDF5 format; / the hdf5.h header file must be available on your system, /
 /// and you will need to link with the hdf5 library (eg. -lhdf5)
 #endif
@@ -98,7 +98,7 @@
 #if !defined(ARMA_USE_FFTW3)
 // #define ARMA_USE_FFTW3
 //// Uncomment the above line to allow the use of the FFTW3 library by fft() and
-///ifft()
+/// ifft()
 /// functions; / you will need to link with the FFTW3 library (eg. -lfftw3)
 #endif
 
@@ -108,22 +108,22 @@
 
 // #define ARMA_BLAS_CAPITALS
 //// Uncomment the above line if your BLAS and LAPACK libraries have capitalised
-///function
+/// function
 /// names
 
 #define ARMA_BLAS_UNDERSCORE
 //// Uncomment the above line if your BLAS and LAPACK libraries have function
-///names with a
+/// names with a
 /// trailing underscore. / Conversely, comment it out if the function names
 /// don't have a trailing underscore.
 
 // #define ARMA_BLAS_LONG
 //// Uncomment the above line if your BLAS and LAPACK libraries use "long"
-///instead of "int"
+/// instead of "int"
 
 // #define ARMA_BLAS_LONG_LONG
 //// Uncomment the above line if your BLAS and LAPACK libraries use "long long"
-///instead of "int"
+/// instead of "int"
 
 // #define ARMA_BLAS_NOEXCEPT
 //// Uncomment the above line if you require BLAS functions to have the
@@ -137,43 +137,43 @@
 
 #define ARMA_USE_FORTRAN_HIDDEN_ARGS
 //// Comment out the above line to call BLAS and LAPACK functions without using
-///so-called "hidden" arguments. / Fortran functions (compiled without a BIND(C)
-///declaration) that
+/// so-called "hidden" arguments. / Fortran functions (compiled without a
+/// BIND(C) declaration) that
 /// have char arguments / (like many BLAS and LAPACK functions) also have
 /// associated
 ///"hidden" arguments. / For each char argument, the corresponding "hidden"
-///argument
+/// argument
 /// specifies the number of characters. / These "hidden" arguments are typically
 /// tacked onto the end of function definitions.
 
 // #define ARMA_USE_TBB_ALLOC
 //// Uncomment the above line to use Intel TBB scalable_malloc() and
-///scalable_free()
+/// scalable_free()
 /// instead of standard malloc() and free()
 
 // #define ARMA_USE_MKL_ALLOC
 //// Uncomment the above line to use Intel MKL mkl_malloc() and mkl_free()
-///instead of
+/// instead of
 /// standard malloc() and free()
 
 // #define ARMA_USE_MKL_TYPES
 //// Uncomment the above line to use Intel MKL types for complex numbers.
 //// You will need to include appropriate MKL headers before the Armadillo
-///header. / You may also need to enable or disable the following options: /
-///ARMA_BLAS_LONG, ARMA_BLAS_LONG_LONG, ARMA_USE_FORTRAN_HIDDEN_ARGS
+/// header. / You may also need to enable or disable the following options: /
+/// ARMA_BLAS_LONG, ARMA_BLAS_LONG_LONG, ARMA_USE_FORTRAN_HIDDEN_ARGS
 
 #if !defined(ARMA_USE_OPENMP)
 // #define ARMA_USE_OPENMP
 //// Uncomment the above line to forcefully enable use of OpenMP for
-///parallelisation. / Note that ARMA_USE_OPENMP is automatically enabled when a
-///compiler supporting
+/// parallelisation. / Note that ARMA_USE_OPENMP is automatically enabled when a
+/// compiler supporting
 /// OpenMP 3.1 is detected.
 #endif
 
 #if !defined(ARMA_64BIT_WORD)
 // #define ARMA_64BIT_WORD
 //// Uncomment the above line if you require matrices/vectors capable of holding
-///more than
+/// more than
 /// 4 billion elements. / Note that ARMA_64BIT_WORD is automatically enabled
 /// when std::size_t has 64 bits and ARMA_32BIT_WORD is not defined.
 #endif
@@ -214,7 +214,7 @@
 #define ARMA_OPENMP_THRESHOLD 320
 #endif
 //// The minimum number of elements in a matrix to allow OpenMP based
-///parallelisation; / it must be an integer that is at least 1.
+/// parallelisation; / it must be an integer that is at least 1.
 
 #if !defined(ARMA_OPENMP_THREADS)
 #define ARMA_OPENMP_THREADS 8
@@ -225,11 +225,11 @@
 // #define ARMA_NO_DEBUG
 //// Uncomment the above line to disable all run-time checks. NOT RECOMMENDED.
 //// It is strongly recommended that run-time checks are enabled during
-///development, / as this greatly aids in finding mistakes in your code.
+/// development, / as this greatly aids in finding mistakes in your code.
 
 // #define ARMA_EXTRA_DEBUG
 //// Uncomment the above line to see the function traces of how Armadillo
-///evaluates
+/// evaluates
 /// expressions. / This is mainly useful for debugging of the library.
 
 #if defined(ARMA_EXTRA_DEBUG)
@@ -376,7 +376,7 @@
 #if !defined(ARMA_DONT_ZERO_INIT)
 // #define ARMA_DONT_ZERO_INIT
 //// Uncomment the above line to disable initialising elements to zero during
-///construction
+/// construction
 /// of dense matrices and cubes
 #endif
 

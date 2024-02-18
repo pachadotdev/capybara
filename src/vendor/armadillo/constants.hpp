@@ -129,7 +129,7 @@ public:
   static const eT R;         //!< molar gas constant (in joules per mole kelvin)
   static const eT G; //!< Newtonian constant of gravitation (in newton square
                      //!< meters per kilogram squared)
-  static const eT h;     //!< Planck constant (in joule seconds)
+  static const eT h; //!< Planck constant (in joule seconds)
   static const eT h_bar; //!< Planck constant over 2 pi, aka reduced Planck
                          //!< constant (in joule seconds)
   static const eT m_p;   //!< proton mass (in kg)

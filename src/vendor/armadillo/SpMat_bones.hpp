@@ -624,7 +624,7 @@ public:
 
     uword internal_row; // hold row internally
     uword actual_pos;   // hold the true position we are at in the matrix, as
-                      // column-major indexing
+                        // column-major indexing
 
     arma_inline eT operator*() const {
       return iterator_base::M->values[actual_pos];

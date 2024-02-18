@@ -29,11 +29,11 @@ public:
       pod_type; //!< if eT is std::complex<T>, pod_type is T; otherwise pod_type
                 //!< is eT
 
-  const uword n_rows;  //!< number of rows               (read-only)
-  const uword n_cols;  //!< number of columns            (read-only)
-  const uword n_elem;  //!< number of elements           (read-only)
-  const uword n_alloc; //!< number of allocated elements (read-only); NOTE:
-                       //!< n_alloc can be 0, even if n_elem > 0
+  const uword n_rows;     //!< number of rows               (read-only)
+  const uword n_cols;     //!< number of columns            (read-only)
+  const uword n_elem;     //!< number of elements           (read-only)
+  const uword n_alloc;    //!< number of allocated elements (read-only); NOTE:
+                          //!< n_alloc can be 0, even if n_elem > 0
   const uhword vec_state; //!< 0: matrix layout; 1: column vector layout; 2: row
                           //!< vector layout
   const uhword mem_state;

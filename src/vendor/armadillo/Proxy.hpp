@@ -89,7 +89,7 @@ template <typename T1> struct Proxy_fixed {
   }
 
   //// this may require T1::n_elem etc to be declared as static constexpr inline
-  ///variables (C++17) / see also the notes in Mat::fixed /
+  /// variables (C++17) / see also the notes in Mat::fixed /
   /// https://en.cppreference.com/w/cpp/language/static /
   /// https://en.cppreference.com/w/cpp/language/inline
   //

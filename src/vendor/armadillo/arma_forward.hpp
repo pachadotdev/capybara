@@ -320,7 +320,7 @@ enum struct file_type : unsigned int {
   raw_binary,  //!< raw binary format (machine dependent), without a header
   arma_binary, //!< Armadillo binary format (machine dependent), with a header
                //!< specifying matrix type and size
-  pgm_binary, //!< Portable Grey Map (greyscale image)
+  pgm_binary,  //!< Portable Grey Map (greyscale image)
   ppm_binary, //!< Portable Pixel Map (colour image), used by the field and cube
               //!< classes
   hdf5_binary, //!< HDF5: open binary format, not specific to Armadillo, which
