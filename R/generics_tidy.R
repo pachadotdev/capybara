@@ -5,24 +5,14 @@ generics::tidy
 #' @export
 #' @noRd
 tidy.feglm <- function(x, conf.int = FALSE, conf.level = 0.95, ...) {
-  result <- summary(x)$cm %>%
-    as_tibble(rownames = "term") %>%
-    rename(
-      estimate = Estimate,
-      std.error = `Std. Error`,
-      statistic = `z value`,
-      p.value = `Pr(>|z|)`
-    )
+  res <- summary(x)$cm
+  colnames(res) <- c("estimate", "std.error", "statistic", "p.value")
 
-  if (conf.int) {
-    result <- result %>%
-      mutate(
-        conf.low = estimate - 1.96 * std.error,
-        conf.high = estimate + 1.96 * std.error
-      )
-  }
+  res[["conf.low"]] <- res[["estimate"]] - 1.96 * res[["std.error"]]
+  res[["conf.high"]] <- res[["estimate"]] + 1.96 * res[["std.error"]]
 
-  result
+  class(res) <- c("tbl_df", "tbl", "data.frame")
+  res
 }
 
 #' @export

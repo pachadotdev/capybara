@@ -78,9 +78,6 @@ vcov.feglm <- function(
       if (inherits(R, "try-error")) {
         V <- matrix(Inf, p, p)
       } else {
-        # Extract data
-        data <- object[["data"]]
-
         # Compute the inverse of the empirical Hessian
         A <- chol2inv(R)
 
@@ -99,8 +96,8 @@ vcov.feglm <- function(
             )
           }
 
-          D <- try(select(data, all_of(cl.vars)), silent = TRUE)
-          # print(D)
+          D <- try(object[["data"]][, get("cl.vars"), with = FALSE], silent = TRUE)
+
           if (inherits(D, "try-error")) {
             stop(
               paste(
@@ -115,7 +112,7 @@ vcov.feglm <- function(
           }
 
           # Ensure cluster variables are factors
-          D[cl.vars] <- lapply(D[cl.vars], check_factor_)
+          D[, (cl.vars) := lapply(.SD, check_factor_), .SDcols = cl.vars]
 
           # Join cluster variables and scores
           sp.vars <- colnames(G)
@@ -123,6 +120,7 @@ vcov.feglm <- function(
           rm(D)
 
           # Multiway clustering by Cameron, Gelbach, and Miller (2011)
+          setkeyv(G, cl.vars)
           B <- matrix(0.0, p, p)
           for (i in seq.int(length(cl.vars))) {
             # Compute outer product for all possible combinations
@@ -132,10 +130,7 @@ vcov.feglm <- function(
               cl <- cl.combn[, j]
               B.r <- B.r + crossprod(
                 as.matrix(
-                  G %>%
-                    group_by(!!sym(cl)) %>%
-                    summarise(across(sp.vars, sum), .groups = "drop") %>%
-                    select(-!!sym(cl))
+                  G[, lapply(.SD, sum), by = mget(cl), .SDcols = sp.vars][, (cl) := NULL]
                 )
               )
             }

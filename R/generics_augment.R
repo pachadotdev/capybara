@@ -6,11 +6,14 @@ generics::augment
 #' @noRd
 augment.feglm <- function(x, data = x$data, newdata = NULL, ...) {
   if (is.null(newdata)) {
-    aug <- as_tibble(data)
+    res <- data
   } else {
-    aug <- as_tibble(newdata)
+    res <- newdata
   }
 
-  aug[[".fitted"]] <- predict(x, type = "response")
-  aug[[".residuals"]] <- aug[[names(x$data)[1]]] - aug[[".fitted"]]
+  res[[".fitted"]] <- predict(x, type = "response")
+  res[[".residuals"]] <- res[[names(x$data)[1]]] - res[[".fitted"]]
+
+  class(res) <- c("tbl_df", "tbl", "data.frame")
+  res
 }

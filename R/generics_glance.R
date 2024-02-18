@@ -5,9 +5,9 @@ generics::glance
 #' @export
 #' @noRd
 glance.feglm <- function(x, ...) {
-  with(
+  res <- with(
     summary(x),
-    tibble(
+    data.frame(
       deviance = deviance,
       null.deviance = null.deviance,
       nobs.full = nobs["nobs.full"],
@@ -16,6 +16,9 @@ glance.feglm <- function(x, ...) {
       nobs = nobs["nobs"]
     )
   )
+
+  class(res) <- c("tbl_df", "tbl", "data.frame")
+  res
 }
 
 #' @export
