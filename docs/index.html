@@ -98,12 +98,14 @@
 <div class="section level2">
 <h2 id="about">About<a class="anchor" aria-label="anchor" href="#about"></a>
 </h2>
-<p>tldr; If you have a 2-4GB dataset and you need to estimate a (generalized) linear model with a large number of fixed effects, this package is for you.</p>
-<p>Capybara is a fast and small footprint software that provides efficient functions for demeaning variables before conducting a GLM estimation via Iteratively Weighted Least Squares (IWLS). This technique is particularly useful when estimating linear models with multiple group fixed effects.</p>
+<p>tldr; If you have a 2-4GB dataset and you need to estimate a (generalized) linear model with a large number of fixed effects, this package is for you. It works with larger datasets as well.</p>
+<p>Capybara is a fast and small footprint software that provides efficient functions for demeaning variables before conducting a GLM estimation via Iteratively Weighted Least Squares (IWLS). This technique is particularly useful when estimating linear models with multiple group fixed effects. It is a fork of the excellent Alpaca package created and maintained by <a href="https://github.com/amrei-stammann" class="external-link">Dr. Amrei Stammann</a>.</p>
 <p>The software can estimate GLMs from the Exponential Family and also Negative Binomial models but the focus will be the Poisson estimator because it is the one used for structural counterfactual analysis in International Trade. It is relevant to add that the IWLS estimator is equivalent with the PPML estimator from Santos-Silva et al. 2006</p>
-<p>Tradition QR estimation can be unfeasible due to additional memory requirements. The method, which is based on Halperin 1962 article on vector projections offers important time and memory savings without compromising numerical stability in the estimation process.</p>
-<p>The software heavily borrows from Gaure 20213 and Stammann 2018 works on the OLS and IWLS estimator with large k-way fixed effects (i.e., the Lfe and Alpaca packages). The differences are that Capybara uses an elementary approach and uses a very naive code without parallelization, which achieves very good results considering its simplicity. I hope it is easy to maintain.</p>
-<p>The summary tables are nothing like R’s default and borrow from the Broom package and Stata outputs. The default summary from this package is a Markdown table that you can insert in RMarkdown/Quarto or copy and paste to Jupyter.</p>
+<p>Traditional QR estimation can be unfeasible due to additional memory requirements. The method, which is based on Halperin 1962 article on vector projections offers important time and memory savings without compromising numerical stability in the estimation process.</p>
+<p>The software heavily borrows from Gaure 20213 and Stammann 2018 works on the OLS and IWLS estimator with large k-way fixed effects (i.e., the lfe and alpaca packages). The differences are that Capybara does not use C nor Rcpp code, all the code is vendored from the cpp11 and <a href="https://github.com/pachadotdev/cpp11armadillo" class="external-link">cpp11armadillo</a> packages.</p>
+<p>Cpp11 nor cpp11armadillo are listed as dependencies, because of the vendoring option. This decision gives you full control over the code, and you can eventually tweak any part of the code to your needs. For example, if you clone this package, you can change the line <code>#define ARMA_OPENMP_THREADS 8</code> line in <code>src/vendor/armadillo/config.hpp</code> to set four, sixteen, or any other number of threads/cores for parallelization.</p>
+<p>The summary tables are nothing like R’s default and borrow from Stata outputs. I have also provided integrations with broom to facilitate the inclusion of statistical tables in Quarto/Jupyter notebooks.</p>
+<p>If this software is useful to you, please consider donating on <a href="https://buymeacoffee.com/pacha" class="external-link">Buy Me A Coffee</a>. All donations will be used to continue improving <code>capybara</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
@@ -120,18 +122,16 @@
 <div class="section level2">
 <h2 id="design-choices">Design choices<a class="anchor" aria-label="anchor" href="#design-choices"></a>
 </h2>
-<p>Capybara uses C++ to address some bottlenecks. It also uses dplyr because it allows me to use an expressive syntax.</p>
-<p>For v0.1, the benchmark showed that Capybara was much faster, but then I realized it provided correct estimates for 2 fixed effects. Since v0.2, the memory footprint is bigger, but at the same time I made the code more explicit and comments, such that it should be much easier to address issues.</p>
+<p>Capybara uses C++ to address some bottlenecks. It also uses data.table because it allows me to use hash tables.</p>
 <p>I tried to implement an important lesson between v0.1 and v0.2: “He who gives up [code] safety for [code] speed deserves neither.” (Wickham, 2014).</p>
 <p>I know some parts of the code are not particularly easy to understand. For example, I initially wrote an implementation for Kendall’s Tau (or Kendall’s correlation) with a time complexity of O(n^2). Posterior work on it, allowed me to solve the bottleneck that computation created, and I was able to reduce it to a time complexity of O(n * log(n)) at the expense of making the code harder to understand, but I still did my best to write a straightforward code.</p>
-<p>Capybara is full of trade-offs. Using dplyr means there is no way to use in-place modification of data. This is something intentional in dplyr, and I prefer to have a slightly bigger memory footprint than do have side effects (like changing the input data).</p>
-<p>With data.table you get faster computation and a slightly reduced use of memory. The problem is to understand the code when you are familiar with data.table (I am not). data.table uses in-place modification, which gives me the heebie-jeebies. I think data.table is great from what I heard from its users, but I think with my design choices I accomplished my goal of making model estimation feasible, and now I can run models on my laptop without relying on UofT’s servers a bit less.</p>
-<p>Finally, I am not using parallelization on purpose. I might add this feature later, but I have colleagues who use Macs, and OMP is very hard to install when you use the M1/M2 processor.</p>
+<p>Capybara is full of trade-offs. I used dplyr and dtplyr to help myself with the data.table syntax, otherwise there is no way to use in-place modification of data. This is something intentional in dplyr to avoid side effects like changing the input data. In my research I use SQL because I have over 200 GB of international trade data, where dplyr helps a lot because it allows me to query SQL directly from R and just using dplyr syntax, something impossible with data.table, which requires me to go to the SQL editor en export my queries in CSV format and then import them in R.</p>
+<p>With data.table you get faster computation and a slightly reduced use of memory. The problem is to understand the code when you are familiar with data.table. data.table uses in-place modification, which gives me the heebie-jeebies, but I am ok with it as I am using in internal package functions that the end user never sees. I think data.table and dplyr are great tools, the problem is the user that uses one in the same way as some people use a plier instead of a wrench.</p>
+<p>I think with my design choices I accomplished my goal of making model estimation feasible, and now I can run models on my laptop relying on UofT’s servers a bit less.</p>
 </div>
 <div class="section level2">
 <h2 id="future-plans">Future plans<a class="anchor" aria-label="anchor" href="#future-plans"></a>
 </h2>
-<p>The other nice thing about dplyr is directly connecting to SQL databases, something that I shall implement for v0.3 to move the data filtering to server-side, as I am already using SQL to organize the around 200 GB of trade datasets that I use.</p>
 <p>I will also work on adding a RESET test to summaries as default and make clustered standard errors computation a bit easier.</p>
 <p>This also needs lots of tests. There are a few in the dev folder, but I need to test with testthat.</p>
 </div>
@@ -179,12 +179,12 @@
 </tr>
 <tr class="odd">
 <td align="left"><strong>Capybara</strong></td>
-<td align="right">400.4ms</td>
-<td align="right">4.23s</td>
-<td align="right">1.87s</td>
+<td align="right">371ms</td>
+<td align="right">3s</td>
+<td align="right">1.34s</td>
+<td align="right">1.71s</td>
 <td align="right">2.46s</td>
-<td align="right">3.33s</td>
-<td align="right">6.25s</td>
+<td align="right">4.64s</td>
 </tr>
 <tr class="even">
 <td align="left">Fixest</td>
@@ -201,7 +201,7 @@
 <table class="table">
 <colgroup>
 <col width="11%">
-<col width="7%">
+<col width="6%">
 <col width="14%">
 <col width="10%">
 <col width="16%">
@@ -238,12 +238,12 @@
 </tr>
 <tr class="odd">
 <td align="left"><strong>Capybara</strong></td>
-<td align="right">454.18MB</td>
-<td align="right">2.31GB</td>
-<td align="right">965.1MB</td>
-<td align="right">1.17GB</td>
-<td align="right">1.62GB</td>
-<td align="right">2.88GB</td>
+<td align="right">307MB</td>
+<td align="right">341MB</td>
+<td align="right">306MB</td>
+<td align="right">336MB</td>
+<td align="right">395MB</td>
+<td align="right">541MB</td>
 </tr>
 <tr class="even">
 <td align="left">Fixest</td>
@@ -329,11 +329,6 @@
 <p><code>r_debug_symbols()</code> makes everything slower, but makes sure that all compiler optimizations are disabled and then valgrind will point us to the lines that create memory leaks.</p>
 <p><code>r_valgrind()</code> will run an R script and use Linux system tools to test for initialized values and all kinds of problems that result in memory leaks.</p>
 <p>When you are ready testing, you need to remove <code>-UDEGUG</code> from <code>src/Makevars</code>.</p>
-<div class="section level2">
-<h2 id="donating">Donating<a class="anchor" aria-label="anchor" href="#donating"></a>
-</h2>
-<p>If this software is useful to you, please consider donating on <a href="https://buymeacoffee.com/pacha" class="external-link">Buy Me A Coffee</a>. All donations will be used to continue improving <code>capybara</code>.</p>
-</div>
 </div>
 
   </div>
@@ -374,6 +369,7 @@
 <h2 data-toc-skip>Dev status</h2>
 <ul class="list-unstyled">
 <li><a href="https://github.com/pachadotdev/capybara/actions/workflows/R-CMD-check.yaml" class="external-link"><img src="https://github.com/pachadotdev/capybara/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a></li>
+<li><a href="https://www.buymeacoffee.com/pacha" target="_blank" class="external-link"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a></li>
 </ul>
 </div>
 

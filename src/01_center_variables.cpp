@@ -2,36 +2,33 @@
 
 // Method of alternating projections (Halperin)
 [[cpp11::register]] doubles_matrix<>
-center_variables_(const doubles_matrix<>& V, const doubles& w,
-                  const list& klist, const double tol, const int maxiter) {
-  // Auxiliary variables (fixed)
-  const int N = V.nrow();
-  const int P = V.ncol();
-  const int K = klist.size();
+center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
+                  const list &klist, const double tol, const int maxiter) {
+  // Types conversion
+  Mat<double> V = as_Mat(V_r);
+  Col<double> w = as_Col(w_r);
 
-  double sw = 0.0;
-  for (int i = 0; i < w.size(); i++) {
-    sw += w[i];
-  }
+  // Auxiliary variables (fixed)
+  const int N = V.n_rows;
+  const int P = V.n_cols;
+  const int K = klist.size();
+  const double sw = arma::accu(w);
 
   // Auxiliary variables (storage)
   double delta, denom, meanj, num, wt;
-  int index, iter, i, j, k, n, p, I, J;
-  writable::doubles_matrix<> C(N, P);
-  writable::doubles x(N);
-  writable::doubles x0(N);
+  int index, iter, i, j, k, p, I, J;
+  Mat<double> C(N, P);
+  Col<double> x(N);
+  Col<double> x0(N);
 
   // Halperin projections
-  // #pragma omp parallel for
   for (p = 0; p < P; p++) {
     // Center each variable
-    for (n = 0; n < N; n++) {
-      x[n] = V(n, p);
-    }
+    x = V.col(p);
 
     int interruptCheckCounter = 0;
 
-    for (iter = 0; iter < maxiter; iter++) {
+    for (iter = 0; iter < 100000; ++iter) {
       // Check user interrupt
       if (++interruptCheckCounter == 1000) {
         check_user_interrupt();
@@ -39,10 +36,7 @@ center_variables_(const doubles_matrix<>& V, const doubles& w,
       }
 
       // Store centered vector from the last iteration
-      writable::doubles x0(N);
-      for (n = 0; n < N; n++) {
-        x0[n] = static_cast<double>(x[n]);
-      }
+      x0 = x;
 
       // Alternate between categories
       for (k = 0; k < K; k++) {
@@ -51,12 +45,9 @@ center_variables_(const doubles_matrix<>& V, const doubles& w,
         J = jlist.size();
         for (j = 0; j < J; j++) {
           // Subset j-th group of category 'k'
-
-          // integers indexes = jlist[j];
           // In cpp11, you can't directly assign a list element to an
           // integers object as you could in `Rcpp`
           integers indexes = as_cpp<integers>(jlist[j]);
-
           I = indexes.size();
 
           // Compute numerator and denominator of the weighted group mean
@@ -64,8 +55,8 @@ center_variables_(const doubles_matrix<>& V, const doubles& w,
           denom = 0.0;
           for (i = 0; i < I; i++) {
             index = indexes[i];
-            wt = w[index];
-            num += wt * x[index];
+            wt = w(index);
+            num += wt * x(index);
             denom += wt;
           }
 
@@ -73,27 +64,20 @@ center_variables_(const doubles_matrix<>& V, const doubles& w,
           meanj = num / denom;
           for (i = 0; i < I; i++) {
             index = indexes[i];
-            x[index] -= meanj;
+            x(index) -= meanj;
           }
         }
       }
 
       // Check convergence
-      delta = 0.0;
-      for (n = 0; n < N; n++) {
-        delta += abs(x[n] - x0[n]) / (1.0 + abs(x0[n])) * w[n];
-      }
-      delta /= sw;
-
+      delta = arma::accu(arma::abs(x - x0) / (1.0 + arma::abs(x0)) % w) / sw;
       if (delta < tol) {
         break;
       }
     }
-
-    for (n = 0; n < N; n++) {
-      C(n, p) = static_cast<double>(x[n]);
-    }
+    C.col(p) = x;
   }
 
-  return C;
+  // Return matrix with centered variables
+  return as_doubles_matrix(C);
 }

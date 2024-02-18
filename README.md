@@ -6,19 +6,21 @@
 <!-- badges: start -->
 
 [![R-CMD-check](https://github.com/pachadotdev/capybara/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/pachadotdev/capybara/actions/workflows/R-CMD-check.yaml)
+<a href="https://www.buymeacoffee.com/pacha" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
 <!-- badges: end -->
 
 ## About
 
 tldr; If you have a 2-4GB dataset and you need to estimate a
 (generalized) linear model with a large number of fixed effects, this
-package is for you.
+package is for you. It works with larger datasets as well.
 
 Capybara is a fast and small footprint software that provides efficient
 functions for demeaning variables before conducting a GLM estimation via
 Iteratively Weighted Least Squares (IWLS). This technique is
 particularly useful when estimating linear models with multiple group
-fixed effects.
+fixed effects. It is a fork of the excellent Alpaca package created and
+maintained by [Dr. Amrei Stammann](https://github.com/amrei-stammann).
 
 The software can estimate GLMs from the Exponential Family and also
 Negative Binomial models but the focus will be the Poisson estimator
@@ -26,22 +28,32 @@ because it is the one used for structural counterfactual analysis in
 International Trade. It is relevant to add that the IWLS estimator is
 equivalent with the PPML estimator from Santos-Silva et al. 2006
 
-Tradition QR estimation can be unfeasible due to additional memory
+Traditional QR estimation can be unfeasible due to additional memory
 requirements. The method, which is based on Halperin 1962 article on
 vector projections offers important time and memory savings without
 compromising numerical stability in the estimation process.
 
 The software heavily borrows from Gaure 20213 and Stammann 2018 works on
-the OLS and IWLS estimator with large k-way fixed effects (i.e., the Lfe
-and Alpaca packages). The differences are that Capybara uses an
-elementary approach and uses a very naive code without parallelization,
-which achieves very good results considering its simplicity. I hope it
-is easy to maintain.
+the OLS and IWLS estimator with large k-way fixed effects (i.e., the lfe
+and alpaca packages). The differences are that Capybara does not use C
+nor Rcpp code, all the code is vendored from the cpp11 and
+[cpp11armadillo](https://github.com/pachadotdev/cpp11armadillo)
+packages.
 
-The summary tables are nothing like R’s default and borrow from the
-Broom package and Stata outputs. The default summary from this package
-is a Markdown table that you can insert in RMarkdown/Quarto or copy and
-paste to Jupyter.
+Cpp11 nor cpp11armadillo are listed as dependencies, because of the
+vendoring option. This decision gives you full control over the code,
+and you can eventually tweak any part of the code to your needs. For
+example, if you clone this package, you can change the line `#define
+ARMA_OPENMP_THREADS 8` line in `src/vendor/armadillo/config.hpp` to set
+four, sixteen, or any other number of threads/cores for parallelization.
+
+The summary tables are nothing like R’s default and borrow from Stata
+outputs. I have also provided integrations with broom to facilitate the
+inclusion of statistical tables in Quarto/Jupyter notebooks.
+
+If this software is useful to you, please consider donating on [Buy Me A
+Coffee](https://buymeacoffee.com/pacha). All donations will be used to
+continue improving `capybara`.
 
 ## Installation
 
@@ -57,14 +69,8 @@ See the documentation in progress: <https://pacha.dev/capybara>.
 
 ## Design choices
 
-Capybara uses C++ to address some bottlenecks. It also uses dplyr
-because it allows me to use an expressive syntax.
-
-For v0.1, the benchmark showed that Capybara was much faster, but then I
-realized it provided correct estimates for 2 fixed effects. Since v0.2,
-the memory footprint is bigger, but at the same time I made the code
-more explicit and comments, such that it should be much easier to
-address issues.
+Capybara uses C++ to address some bottlenecks. It also uses data.table
+because it allows me to use hash tables.
 
 I tried to implement an important lesson between v0.1 and v0.2: “He who
 gives up \[code\] safety for \[code\] speed deserves neither.” (Wickham,
@@ -78,29 +84,29 @@ I was able to reduce it to a time complexity of O(n \* log(n)) at the
 expense of making the code harder to understand, but I still did my best
 to write a straightforward code.
 
-Capybara is full of trade-offs. Using dplyr means there is no way to use
-in-place modification of data. This is something intentional in dplyr,
-and I prefer to have a slightly bigger memory footprint than do have
-side effects (like changing the input data).
+Capybara is full of trade-offs. I used dplyr and dtplyr to help myself
+with the data.table syntax, otherwise there is no way to use in-place
+modification of data. This is something intentional in dplyr to avoid
+side effects like changing the input data. In my research I use SQL
+because I have over 200 GB of international trade data, where dplyr
+helps a lot because it allows me to query SQL directly from R and just
+using dplyr syntax, something impossible with data.table, which requires
+me to go to the SQL editor en export my queries in CSV format and then
+import them in R.
 
 With data.table you get faster computation and a slightly reduced use of
 memory. The problem is to understand the code when you are familiar with
-data.table (I am not). data.table uses in-place modification, which
-gives me the heebie-jeebies. I think data.table is great from what I
-heard from its users, but I think with my design choices I accomplished
-my goal of making model estimation feasible, and now I can run models on
-my laptop without relying on UofT’s servers a bit less.
+data.table. data.table uses in-place modification, which gives me the
+heebie-jeebies, but I am ok with it as I am using in internal package
+functions that the end user never sees. I think data.table and dplyr are
+great tools, the problem is the user that uses one in the same way as
+some people use a plier instead of a wrench.
 
-Finally, I am not using parallelization on purpose. I might add this
-feature later, but I have colleagues who use Macs, and OMP is very hard
-to install when you use the M1/M2 processor.
+I think with my design choices I accomplished my goal of making model
+estimation feasible, and now I can run models on my laptop relying on
+UofT’s servers a bit less.
 
 ## Future plans
-
-The other nice thing about dplyr is directly connecting to SQL
-databases, something that I shall implement for v0.3 to move the data
-filtering to server-side, as I am already using SQL to organize the
-around 200 GB of trade datasets that I use.
 
 I will also work on adding a RESET test to summaries as default and make
 clustered standard errors computation a bit easier.
@@ -118,17 +124,17 @@ Analysis](https://www.wto.org/english/res_e/publications_e/advancedguide2016_e.h
 | :----------- | ------: | --------------: | ----------: | ----------------: | -------------------------: | ------------: |
 | Alpaca       | 213.4ms |            2.3s |       1.35s |             1.86s |                      2.59s |         4.96s |
 | Base R       |    1.5m |           1.53m |      23.43m |            23.52m |                     23.16m |        24.85m |
-| **Capybara** | 400.4ms |           4.23s |       1.87s |             2.46s |                      3.33s |         6.25s |
+| **Capybara** |   371ms |              3s |       1.34s |             1.71s |                      2.46s |         4.64s |
 | Fixest       |  67.4ms |        477.08ms |     95.88ms |          136.21ms |                   206.12ms |      415.31ms |
 
 Memory allocation for the same models
 
-| package      |     PPML | Trade Diversion | Endogeneity | Reverse Causality | Non-linear/Phasing Effects | Globalization |
-| :----------- | -------: | --------------: | ----------: | ----------------: | -------------------------: | ------------: |
-| Alpaca       |  304.8MB |         339.8MB |     306.3MB |          335.61MB |                   393.86MB |      539.49MB |
-| Base R       |   2.73GB |           2.6GB |      11.9GB |           11.94GB |                    11.95GB |       11.97GB |
-| **Capybara** | 454.18MB |          2.31GB |     965.1MB |            1.17GB |                     1.62GB |        2.88GB |
-| Fixest       |  44.59MB |         36.59MB |      28.1MB |           32.43MB |                    41.12MB |       62.87MB |
+| package      |    PPML | Trade Diversion | Endogeneity | Reverse Causality | Non-linear/Phasing Effects | Globalization |
+| :----------- | ------: | --------------: | ----------: | ----------------: | -------------------------: | ------------: |
+| Alpaca       | 304.8MB |         339.8MB |     306.3MB |          335.61MB |                   393.86MB |      539.49MB |
+| Base R       |  2.73GB |           2.6GB |      11.9GB |           11.94GB |                    11.95GB |       11.97GB |
+| **Capybara** |   307MB |           341MB |       306MB |             336MB |                      395MB |         541MB |
+| Fixest       | 44.59MB |         36.59MB |      28.1MB |           32.43MB |                    41.12MB |       62.87MB |
 
 # Debugging
 
@@ -216,9 +222,3 @@ leaks.
 
 When you are ready testing, you need to remove `-UDEGUG` from
 `src/Makevars`.
-
-## Donating
-
-If this software is useful to you, please consider donating on [Buy Me A
-Coffee](https://buymeacoffee.com/pacha). All donations will be used to
-continue improving `capybara`.
