@@ -13,45 +13,45 @@ extern "C" SEXP _capybara_center_variables_(SEXP V, SEXP w, SEXP klist, SEXP tol
   END_CPP11
 }
 // 02_get_alpha.cpp
-list get_alpha_(const doubles_matrix<>& p, const list& klist, const double tol);
+list get_alpha_(const doubles_matrix<> & p, const list & klist, const double tol);
 extern "C" SEXP _capybara_get_alpha_(SEXP p, SEXP klist, SEXP tol) {
   BEGIN_CPP11
-    return cpp11::as_sexp(get_alpha_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(p), cpp11::as_cpp<cpp11::decay_t<const list&>>(klist), cpp11::as_cpp<cpp11::decay_t<const double>>(tol)));
+    return cpp11::as_sexp(get_alpha_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(p), cpp11::as_cpp<cpp11::decay_t<const list &>>(klist), cpp11::as_cpp<cpp11::decay_t<const double>>(tol)));
   END_CPP11
 }
 // 03_group_sums.cpp
-doubles_matrix<> group_sums_(const doubles_matrix<>& M, const doubles_matrix<>& w, const list& jlist);
+doubles_matrix<> group_sums_(const doubles_matrix<> & M, const doubles_matrix<> & w, const list & jlist);
 extern "C" SEXP _capybara_group_sums_(SEXP M, SEXP w, SEXP jlist) {
   BEGIN_CPP11
-    return cpp11::as_sexp(group_sums_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(M), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(w), cpp11::as_cpp<cpp11::decay_t<const list&>>(jlist)));
+    return cpp11::as_sexp(group_sums_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(M), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(w), cpp11::as_cpp<cpp11::decay_t<const list &>>(jlist)));
   END_CPP11
 }
 // 03_group_sums.cpp
-doubles_matrix<> group_sums_spectral_(const doubles_matrix<>& M, const doubles_matrix<>& v, const doubles_matrix<>& w, const int K, const list& jlist);
+doubles_matrix<> group_sums_spectral_(const doubles_matrix<> & M, const doubles_matrix<> & v, const doubles_matrix<> & w, const int K, const list & jlist);
 extern "C" SEXP _capybara_group_sums_spectral_(SEXP M, SEXP v, SEXP w, SEXP K, SEXP jlist) {
   BEGIN_CPP11
-    return cpp11::as_sexp(group_sums_spectral_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(M), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(v), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(w), cpp11::as_cpp<cpp11::decay_t<const int>>(K), cpp11::as_cpp<cpp11::decay_t<const list&>>(jlist)));
+    return cpp11::as_sexp(group_sums_spectral_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(M), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(v), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(w), cpp11::as_cpp<cpp11::decay_t<const int>>(K), cpp11::as_cpp<cpp11::decay_t<const list &>>(jlist)));
   END_CPP11
 }
 // 03_group_sums.cpp
-doubles_matrix<> group_sums_var_(const doubles_matrix<>& M, const list& jlist);
+doubles_matrix<> group_sums_var_(const doubles_matrix<> & M, const list & jlist);
 extern "C" SEXP _capybara_group_sums_var_(SEXP M, SEXP jlist) {
   BEGIN_CPP11
-    return cpp11::as_sexp(group_sums_var_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(M), cpp11::as_cpp<cpp11::decay_t<const list&>>(jlist)));
+    return cpp11::as_sexp(group_sums_var_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(M), cpp11::as_cpp<cpp11::decay_t<const list &>>(jlist)));
   END_CPP11
 }
 // 03_group_sums.cpp
-doubles_matrix<> group_sums_cov_(const doubles_matrix<>& M, const doubles_matrix<>& N, const list& jlist);
+doubles_matrix<> group_sums_cov_(const doubles_matrix<> & M, const doubles_matrix<> & N, const list & jlist);
 extern "C" SEXP _capybara_group_sums_cov_(SEXP M, SEXP N, SEXP jlist) {
   BEGIN_CPP11
-    return cpp11::as_sexp(group_sums_cov_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(M), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(N), cpp11::as_cpp<cpp11::decay_t<const list&>>(jlist)));
+    return cpp11::as_sexp(group_sums_cov_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(M), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(N), cpp11::as_cpp<cpp11::decay_t<const list &>>(jlist)));
   END_CPP11
 }
 // 04_pairwise_correlation.cpp
-double pairwise_cor_(const doubles& y, const doubles& yhat);
+double pairwise_cor_(const doubles & y, const doubles & yhat);
 extern "C" SEXP _capybara_pairwise_cor_(SEXP y, SEXP yhat) {
   BEGIN_CPP11
-    return cpp11::as_sexp(pairwise_cor_(cpp11::as_cpp<cpp11::decay_t<const doubles&>>(y), cpp11::as_cpp<cpp11::decay_t<const doubles&>>(yhat)));
+    return cpp11::as_sexp(pairwise_cor_(cpp11::as_cpp<cpp11::decay_t<const doubles &>>(y), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(yhat)));
   END_CPP11
 }
 

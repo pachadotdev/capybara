@@ -35,8 +35,8 @@ public:
   int query(int l, int r) { return query(r) - query(l - 1); }
 };
 
-[[cpp11::register]] double pairwise_cor_(const doubles& y,
-                                         const doubles& yhat) {
+[[cpp11::register]] double pairwise_cor_(const doubles &y,
+                                         const doubles &yhat) {
   int n = y.size();
   vector<pair<double, double>> vec(n);
   for (int i = 0; i < n; ++i) {
