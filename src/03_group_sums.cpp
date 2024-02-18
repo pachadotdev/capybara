@@ -41,9 +41,10 @@
   return as_doubles_matrix(num);
 }
 
-[[cpp11::register]] doubles_matrix<> group_sums_spectral_(
-    const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
-    const doubles_matrix<> &w_r, const int K, const list &jlist) {
+[[cpp11::register]] doubles_matrix<>
+group_sums_spectral_(const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
+                     const doubles_matrix<> &w_r, const int K,
+                     const list &jlist) {
   // Types conversion
   Mat<double> M = as_Mat(M_r);
   Mat<double> v = as_Mat(v_r);
@@ -85,8 +86,8 @@
   return as_doubles_matrix(num);
 }
 
-[[cpp11::register]] doubles_matrix<> group_sums_var_(
-    const doubles_matrix<> &M_r, const list &jlist) {
+[[cpp11::register]] doubles_matrix<>
+group_sums_var_(const doubles_matrix<> &M_r, const list &jlist) {
   // Types conversion
   Mat<double> M = as_Mat(M_r);
 
@@ -120,9 +121,9 @@
   return as_doubles_matrix(V);
 }
 
-[[cpp11::register]] doubles_matrix<> group_sums_cov_(
-    const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
-    const list &jlist) {
+[[cpp11::register]] doubles_matrix<>
+group_sums_cov_(const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
+                const list &jlist) {
   // Types conversion
   Mat<double> M = as_Mat(M_r);
   Mat<double> N = as_Mat(N_r);
