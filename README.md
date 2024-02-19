@@ -36,16 +36,9 @@ compromising numerical stability in the estimation process.
 The software heavily borrows from Gaure 20213 and Stammann 2018 works on
 the OLS and IWLS estimator with large k-way fixed effects (i.e., the lfe
 and alpaca packages). The differences are that Capybara does not use C
-nor Rcpp code, all the code is vendored from the cpp11 and
+nor Rcpp code, instead it uses the cpp11 and
 [cpp11armadillo](https://github.com/pachadotdev/cpp11armadillo)
 packages.
-
-Cpp11 nor cpp11armadillo are listed as dependencies, because of the
-vendoring option. This decision gives you full control over the code,
-and you can eventually tweak any part of the code to your needs. For
-example, if you clone this package, you can change the line `#define
-ARMA_OPENMP_THREADS 8` line in `src/vendor/armadillo/config.hpp` to set
-four, sixteen, or any other number of threads/cores for parallelization.
 
 The summary tables are nothing like R’s default and borrow from Stata
 outputs. I have also provided integrations with broom to facilitate the
