@@ -82,7 +82,7 @@ check_family_ <- function(family) {
     c("quasi", "quasipoisson", "quasibinomial")) {
     stop("Quasi-variants of 'family' are not supported.", call. = FALSE)
   } else if (startsWith(family[["family"]], "Negative Binomial")) {
-    stop("Please use 'feglm.nb' instead.", call. = FALSE)
+    stop("Please use 'fenegbin' instead.", call. = FALSE)
   }
 
   return(TRUE)
@@ -93,7 +93,7 @@ update_formula_ <- function(formula) {
 
   if (length(formula)[[2L]] < 2L || length(formula)[[1L]] > 1L) {
     stop(paste(
-      "'formula' uncorrectly specified. Perhaps you forgot to add the",
+      "'formula' incorrectly specified. Perhaps you forgot to add the",
       "fixed effects as 'mpg ~ wt | cyl' or similar."
     ), call. = FALSE)
   }

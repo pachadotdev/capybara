@@ -45,7 +45,7 @@ feglm_control <- function(
   # Check validity of tolerance parameters
   if (dev.tol <= 0.0 || center.tol <= 0.0) {
     stop(
-      "All tolerance paramerters should be greater than zero.",
+      "All tolerance parameters should be greater than zero.",
       call. = FALSE
     )
   }
