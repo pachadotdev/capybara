@@ -1,11 +1,19 @@
-test:
-	@Rscript -e 'devtools::clean_dll(); cpp11::cpp_register(); devtools::test(".")'
-
 clean:
 	@Rscript -e 'devtools::clean_dll()'
 
-document:
-  @Rscript -e 'devtools::document()'
+test:
+	@echo "Testing R code"
+	@Rscript -e 'devtools::document()'
+	@Rscript -e 'devtools::load_all(); devtools::test()'
+
+check:
+	@echo "Local"
+	@Rscript -e 'devtools::check()'
+	@echo "RHub"
+	@Rscript -e 'devtools::check_rhub()'
+	@echo "Win Builder"
+	@Rscript -e 'devtools::check_win_release()'
+	@Rscript -e 'devtools::check_win_devel()'
 
 site:
 	@Rscript -e 'pkgdown::build_site()'

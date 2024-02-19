@@ -1,9 +1,9 @@
 ---
-title: "Poisson Pseudo-Maximum Likelihood (PPML) model with cluster-robust standard errors"
+title: "Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors"
 output: rmarkdown::html_vignette
 bibliography: "references.bib"
 vignette: >
-  %\VignetteIndexEntry{intro}
+  %\VignetteIndexEntry{Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
