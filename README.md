@@ -7,7 +7,7 @@
 
 [![R-CMD-check](https://github.com/pachadotdev/capybara/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/pachadotdev/capybara/actions/workflows/R-CMD-check.yaml)
 [![codecov](https://codecov.io/gh/pachadotdev/capybara/graph/badge.svg?token=kDP0pWmfRk)](https://codecov.io/gh/pachadotdev/capybara)
-[![R-CMD-check](man/figures/bmc-donate.svg)](https://www.buymeacoffee.com/pacha)
+[![BuyMeACoffee](https://raw.githubusercontent.com/pachadotdev/buymeacoffee-badges/main/bmc-donate-white.svg)](https://www.buymeacoffee.com/pacha)
 <!-- badges: end -->
 
 ## About
