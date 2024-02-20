@@ -6,7 +6,8 @@
 <!-- badges: start -->
 
 [![R-CMD-check](https://github.com/pachadotdev/capybara/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/pachadotdev/capybara/actions/workflows/R-CMD-check.yaml)
-<a href="https://www.buymeacoffee.com/pacha" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
+[![codecov](https://codecov.io/gh/pachadotdev/capybara/graph/badge.svg?token=kDP0pWmfRk)](https://codecov.io/gh/pachadotdev/capybara)
+[![R-CMD-check](man/figures/bmc-donate.svg)](https://www.buymeacoffee.com/pacha)
 <!-- badges: end -->
 
 ## About
