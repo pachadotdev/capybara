@@ -1,12 +1,17 @@
 #include "00_main.h"
 
 // Method of alternating projections (Halperin)
-[[cpp11::register]] doubles_matrix<>
-center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
-                  const list &klist, const double tol, const int maxiter) {
+[[cpp11::register]] doubles_matrix<> center_variables_(
+    const doubles_matrix<> &V_r, const doubles &v_sum_r, const doubles &w_r,
+    const list &klist, const double tol, const int maxiter, bool sum_v) {
   // Types conversion
   Mat<double> V = as_Mat(V_r);
   Col<double> w = as_Col(w_r);
+
+  if (sum_v) {
+    Col<double> v_sum = as_Col(v_sum_r);
+    V.each_col() += v_sum;
+  }
 
   // Auxiliary variables (fixed)
   const int N = V.n_rows;
@@ -45,8 +50,6 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
         J = jlist.size();
         for (j = 0; j < J; j++) {
           // Subset j-th group of category 'k'
-          // In cpp11, you can't directly assign a list element to an
-          // integers object as you could in `Rcpp`
           integers indexes = as_cpp<integers>(jlist[j]);
           I = indexes.size();
 

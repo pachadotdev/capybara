@@ -24,6 +24,9 @@
   // Start alternating between normal equations
   arma::field<arma::vec> Alpha0(arma::size(Alpha));
 
+  // Create vector for alpha
+  arma::vec alpha(J);
+
   int interruptCheckCounter = 0;
 
   for (iter = 0; iter < 10000; iter++) {
@@ -55,7 +58,6 @@
 
       // Compute group mean
       J = as_cpp<list>(klist[k]).size();
-      arma::vec alpha(J);
       for (j = 0; j < J; j++) {
         // Subset the j-th group of category k
         integers indexes = as_cpp<list>(klist[k])[j];
@@ -88,7 +90,7 @@
     }
   }
 
-  // Return \alpha
+  // Return alpha
   writable::list Alpha_r(K);
   for (k = 0; k < K; k++) {
     Alpha_r[k] = as_doubles_matrix(Alpha(k));
