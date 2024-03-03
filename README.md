@@ -118,7 +118,7 @@ Analysis](https://www.wto.org/english/res_e/publications_e/advancedguide2016_e.h
 | :----------- | ------: | --------------: | ----------: | ----------------: | -------------------------: | ------------: |
 | Alpaca       | 213.4ms |            2.3s |       1.35s |             1.86s |                      2.59s |         4.96s |
 | Base R       |    1.5m |           1.53m |      23.43m |            23.52m |                     23.16m |        24.85m |
-| **Capybara** |   371ms |              3s |       1.34s |             1.71s |                      2.46s |         4.64s |
+| **Capybara** |   263ms |           2.98s |       1.43s |             1.78s |                      2.58s |         4.51s |
 | Fixest       |  67.4ms |        477.08ms |     95.88ms |          136.21ms |                   206.12ms |      415.31ms |
 
 Memory allocation for the same models
@@ -127,7 +127,7 @@ Memory allocation for the same models
 | :----------- | ------: | --------------: | ----------: | ----------------: | -------------------------: | ------------: |
 | Alpaca       | 304.8MB |         339.8MB |     306.3MB |          335.61MB |                   393.86MB |      539.49MB |
 | Base R       |  2.73GB |           2.6GB |      11.9GB |           11.94GB |                    11.95GB |       11.97GB |
-| **Capybara** |   307MB |           341MB |       306MB |             336MB |                      395MB |         541MB |
+| **Capybara** |   207MB |           231MB |       237MB |             244MB |                      258MB |         293MB |
 | Fixest       | 44.59MB |         36.59MB |      28.1MB |           32.43MB |                    41.12MB |       62.87MB |
 
 # Debugging
