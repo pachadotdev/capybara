@@ -66,7 +66,7 @@ vcov.feglm <- function(
     G <- getScoreMatrix(object)
     if (type == "outer.product") {
       # Check if the OPG is invertible and compute its inverse
-      R <- try(chol(crossprod(G)), silent = TRUE)
+      R <- try(chol_crossprod_(G), silent = TRUE)
       if (inherits(R, "try-error")) {
         V <- matrix(Inf, p, p)
       } else {
@@ -83,7 +83,7 @@ vcov.feglm <- function(
 
         # Compute inner part of the sandwich formula
         if (type == "sandwich") {
-          B <- crossprod(G)
+          B <- crossprod_(G, NA_real_, FALSE, FALSE)
         } else {
           if (isFALSE(k >= 1L)) {
             stop(
@@ -128,10 +128,11 @@ vcov.feglm <- function(
             B.r <- matrix(0.0, p, p)
             for (j in seq.int(ncol(cl.combn))) {
               cl <- cl.combn[, j]
-              B.r <- B.r + crossprod(
+              B.r <- B.r + crossprod_(
                 as.matrix(
                   G[, lapply(.SD, sum), by = mget(cl), .SDcols = sp.vars][, (cl) := NULL]
-                )
+                ),
+                NA_real_, FALSE, FALSE
               )
             }
 

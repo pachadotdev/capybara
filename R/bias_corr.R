@@ -150,7 +150,7 @@ bias_corr <- function(
   if (control[["keep.mx"]]) {
     MX <- object[["MX"]]
   } else {
-    MX <- center_variables_(X, w, k.list, control[["center.tol"]], 100000L)
+    MX <- center_variables_(X, NA_real_, w, k.list, control[["center.tol"]], 100000L, FALSE)
   }
 
   # Compute bias terms for requested bias correction
@@ -200,11 +200,11 @@ bias_corr <- function(
   }
 
   # Update centered regressor matrix
-  MX <- center_variables_(X, w, k.list, control[["center.tol"]], 100000L)
+  MX <- center_variables_(X, NA_real_, w, k.list, control[["center.tol"]], 100000L, FALSE)
   colnames(MX) <- nms.sp
 
   # Update Hessian
-  H <- crossprod(MX * sqrt(w))
+  H <- crossprod_(MX, w, TRUE, TRUE)
   dimnames(H) <- list(nms.sp, nms.sp)
 
   # Update result list

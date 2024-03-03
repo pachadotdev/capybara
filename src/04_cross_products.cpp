@@ -3,8 +3,8 @@
 
 #include "00_main.h"
 
-[[cpp11::register]] doubles_matrix<> crossprod_(const doubles_matrix<>& x,
-                                                const doubles& w, bool weighted,
+[[cpp11::register]] doubles_matrix<> crossprod_(const doubles_matrix<> &x,
+                                                const doubles &w, bool weighted,
                                                 bool root_weights) {
   // Types conversion
   Mat<double> X = as_Mat(x);
@@ -28,8 +28,8 @@
 
 // chol(crossprod(X))
 
-[[cpp11::register]] doubles_matrix<> chol_crossprod_(
-    const doubles_matrix<>& x) {
+[[cpp11::register]] doubles_matrix<>
+chol_crossprod_(const doubles_matrix<> &x) {
   // Types conversion
   Mat<double> X = as_Mat(x);
 

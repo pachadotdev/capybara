@@ -1,9 +1,10 @@
 #include "00_main.h"
 
 // Method of alternating projections (Halperin)
-[[cpp11::register]] doubles_matrix<> center_variables_(
-    const doubles_matrix<> &V_r, const doubles &v_sum_r, const doubles &w_r,
-    const list &klist, const double tol, const int maxiter, bool sum_v) {
+[[cpp11::register]] doubles_matrix<>
+center_variables_(const doubles_matrix<> &V_r, const doubles &v_sum_r,
+                  const doubles &w_r, const list &klist, const double tol,
+                  const int maxiter, bool sum_v) {
   // Types conversion
   Mat<double> V = as_Mat(V_r);
   Col<double> w = as_Col(w_r);

@@ -21,10 +21,10 @@ felm_fit_ <- function(y, X, wt, k.list, control) {
   MX <- X
 
   # Centering variables
-  MX <- center_variables_(MX, wt, k.list, center.tol, 10000L)
+  MX <- center_variables_(MX, NA_real_, wt, k.list, center.tol, 10000L, FALSE)
 
   # Compute the OLS estimate
-  beta <- as.vector(qr.solve(MX, y, epsilon))
+  beta <- solve_beta_(MX, y, NA_real_, epsilon, FALSE)
 
   # Generate result list
   reslist <- list(
@@ -74,18 +74,20 @@ feglm_fit_ <- function(beta, eta, y, X, wt, k.list, family, control) {
     nu <- (y - mu) / mu.eta
 
     # Centering variables
-    Mnu <- center_variables_((Mnu + nu), w, k.list, center.tol, 10000L)
-    MX <- center_variables_(MX, w, k.list, center.tol, 10000L)
+    Mnu <- center_variables_(Mnu, nu, w, k.list, center.tol, 10000L, TRUE)
+    MX <- center_variables_(MX, NA_real_, w, k.list, center.tol, 10000L, FALSE)
 
-    # Compute update step and update \eta
-    beta.upd <- as.vector(qr.solve(MX * w.tilde, Mnu * w.tilde, epsilon))
-    eta.upd <- nu - as.vector(Mnu - MX %*% beta.upd)
+    # Compute update step and update eta
+    beta.upd <- solve_beta_(MX, Mnu, w.tilde, epsilon, TRUE)
+
+    eta.upd <- solve_eta_(MX, Mnu, nu, beta.upd)
 
     # Step-halving with three checks
     # 1. finite deviance
     # 2. valid \eta and \mu
     # 3. improvement as in glm2
     rho <- 1.0
+
     for (inner.iter in seq.int(50L)) {
       eta <- eta.old + rho * eta.upd
       beta <- beta.old + rho * beta.upd
@@ -141,9 +143,9 @@ feglm_fit_ <- function(beta, eta, y, X, wt, k.list, family, control) {
   w <- (wt * mu.eta^2) / family[["variance"]](mu)
 
   # Center variables
-  MX <- center_variables_(X, w, k.list, center.tol, 10000L)
+  MX <- center_variables_(X, NA_real_, w, k.list, center.tol, 10000L, FALSE)
   # Recompute Hessian
-  H <- crossprod(MX * sqrt(w))
+  H <- crossprod_(MX, w, TRUE, TRUE)
 
   # Generate result list
   reslist <- list(
@@ -219,8 +221,9 @@ feglm_offset_ <- function(object, offset) {
     yadj <- (y - mu) / mu.eta + eta - offset
 
     # Centering dependent variable and compute \eta update
-    Myadj <- center_variables_((Myadj + yadj), w, k.list, center.tol, 10000L)
-    eta.upd <- yadj - as.vector(Myadj) + offset - eta
+    Myadj <- center_variables_(Myadj, yadj, w, k.list, center.tol, 10000L, TRUE)
+    # eta.upd <- yadj - as.vector(Myadj) + offset - eta
+    eta.upd <- solve_eta2_(yadj, Myadj, offset, eta)
 
     # Step-halving with three checks
     # 1. finite deviance
@@ -297,7 +300,7 @@ getScoreMatrix <- function(object) {
     attr(X, "dimnames") <- NULL
 
     # Center variables
-    MX <- center_variables_(X, w, k.list, control[["center.tol"]], 10000L)
+    MX <- center_variables_(X, NA_real_, w, k.list, control[["center.tol"]], 10000L, FALSE)
     colnames(MX) <- nms.sp
   }
 
@@ -339,7 +342,6 @@ partial_mu_eta_ <- function(eta, family, order) {
     }
   }
 }
-
 
 # Returns suitable name for a temporary variable
 temp_var_ <- function(data) {

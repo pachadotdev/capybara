@@ -1,7 +1,7 @@
 #include "00_main.h"
 
-[[cpp11::register]] doubles solve_beta_(const doubles_matrix<>& mx,
-                                        const doubles_matrix<>& mnu,
+[[cpp11::register]] doubles solve_beta_(const doubles_matrix<> &mx,
+                                        const doubles_matrix<> &mnu,
                                         const doubles wtilde, double epsilon,
                                         bool weighted) {
   // Types conversion

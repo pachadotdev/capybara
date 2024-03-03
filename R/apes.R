@@ -208,7 +208,7 @@ apes <- function(
   if (control[["keep.mx"]]) {
     MX <- object[["MX"]]
   } else {
-    MX <- center_variables_(X, w, k.list, control[["center.tol"]], 100000)
+    MX <- center_variables_(X, NA_real_, w, k.list, control[["center.tol"]], 100000L, FALSE)
   }
 
   # Compute average partial effects, derivatives, and Jacobian
@@ -243,7 +243,7 @@ apes <- function(
 
   # Compute projection and residual projection of \Psi
   Psi <- -Delta1 / w
-  MPsi <- center_variables_(Psi, w, k.list, control[["center.tol"]], 100000L)
+  MPsi <- center_variables_(Psi, NA_real_, w, k.list, control[["center.tol"]], 100000L, FALSE)
   PPsi <- Psi - MPsi
   rm(Delta1, Psi)
 
@@ -303,18 +303,18 @@ apes <- function(
   # Compute covariance matrix
   WinvJ <- solve(object[["Hessian"]] / nt.full, J)
   Gamma <- (MX %*% WinvJ - PPsi) * v / nt.full
-  V <- crossprod(Gamma)
+  V <- crossprod_(Gamma, NA_real_, FALSE, FALSE)
   if (adj > 0.0) {
     # Simplify covariance if sampling assumptions are imposed
     if (sampling.fe == "independence") {
       V <- V + adj * group_sums_var_(Delta, k.list[[1L]])
       if (k > 1L) {
-        V <- V + adj * (group_sums_var_(Delta, k.list[[2L]]) - crossprod(Delta))
+        V <- V + adj * (group_sums_var_(Delta, k.list[[2L]]) - crossprod_(Delta, NA_real_, FALSE, FALSE))
       }
       if (panel.structure == "network") {
         if (k > 2L) {
           V <- V + adj * (group_sums_var_(Delta, k.list[[3L]]) -
-            crossprod(Delta))
+            crossprod_(Delta, NA_real_, FALSE, FALSE))
         }
       }
     }

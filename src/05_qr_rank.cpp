@@ -1,6 +1,6 @@
 #include "00_main.h"
 
-[[cpp11::register]] int qr_rank_(const doubles_matrix<>& x) {
+[[cpp11::register]] int qr_rank_(const doubles_matrix<> &x) {
   Mat<double> X = as_Mat(x);
 
   Mat<double> Q;
