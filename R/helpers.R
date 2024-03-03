@@ -284,7 +284,7 @@ start_guesses_ <- function(
 
       # Set starting guesses
       beta <- beta.start
-      eta <- as.vector(X %*% beta)
+      eta <- solve_y_(X, beta)
     } else {
       # Validity of input argument (eta.start)
       if (length(eta.start) != nt) {

@@ -20,10 +20,6 @@ solve_eta2_ <- function(yadj, myadj, offset, eta) {
   .Call(`_capybara_solve_eta2_`, yadj, myadj, offset, eta)
 }
 
-crossprod_ <- function(x, w, weighted, root_weights) {
-  .Call(`_capybara_crossprod_`, x, w, weighted, root_weights)
-}
-
 group_sums_ <- function(M_r, w_r, jlist) {
   .Call(`_capybara_group_sums_`, M_r, w_r, jlist)
 }
@@ -38,6 +34,14 @@ group_sums_var_ <- function(M_r, jlist) {
 
 group_sums_cov_ <- function(M_r, N_r, jlist) {
   .Call(`_capybara_group_sums_cov_`, M_r, N_r, jlist)
+}
+
+crossprod_ <- function(x, w, weighted, root_weights) {
+  .Call(`_capybara_crossprod_`, x, w, weighted, root_weights)
+}
+
+gamma_ <- function(mx, hessian, j, ppsi, v, nt_full) {
+  .Call(`_capybara_gamma_`, mx, hessian, j, ppsi, v, nt_full)
 }
 
 chol_crossprod_ <- function(x) {
@@ -56,8 +60,16 @@ qr_rank_ <- function(x) {
   .Call(`_capybara_qr_rank_`, x)
 }
 
-solve_ <- function(a, b) {
-  .Call(`_capybara_solve_`, a, b)
+solve_bias_ <- function(beta_uncorr, hessian, nt, b) {
+  .Call(`_capybara_solve_bias_`, beta_uncorr, hessian, nt, b)
+}
+
+solve_y_ <- function(a, x) {
+  .Call(`_capybara_solve_y_`, a, x)
+}
+
+sandwich_ <- function(a, b) {
+  .Call(`_capybara_sandwich_`, a, b)
 }
 
 pairwise_cor_ <- function(y, yhat) {

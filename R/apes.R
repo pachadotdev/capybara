@@ -266,31 +266,26 @@ apes <- function(
     # Compute bias terms for requested bias correction
     if (panel.structure == "classic") {
       # Compute \hat{B} and \hat{D}
-      b <- as.vector(group_sums_(Delta2 + PPsi * z, w, k.list[[1L]])) / 2.0 / nt
+      b <- group_sums_(Delta2 + PPsi * z, w, k.list[[1L]]) / (2.0 * nt)
       if (k > 1L) {
-        b <- b + as.vector(group_sums_(Delta2 + PPsi * z, w, k.list[[2L]])) /
-          2.0 / nt
+        b <- (b + group_sums_(Delta2 + PPsi * z, w, k.list[[2L]])) / (2.0 * nt)
       }
 
       # Compute spectral density part of \hat{B}
       if (L > 0L) {
-        b <- b -
-          as.vector(group_sums_spectral_(MPsi * w, v, w, L, k.list[[1L]])) / nt
+        b <- (b - group_sums_spectral_(MPsi * w, v, w, L, k.list[[1L]])) / nt
       }
     } else {
       # Compute \hat{D}_{1}, \hat{D}_{2}, and \hat{B}
-      b <- as.vector(group_sums_(Delta2 + PPsi * z, w, k.list[[1L]])) / 2.0 / nt
-      b <- b + as.vector(group_sums_(Delta2 + PPsi * z, w, k.list[[2L]])) /
-        2.0 / nt
+      b <- group_sums_(Delta2 + PPsi * z, w, k.list[[1L]]) / (2.0 * nt)
+      b <- (b + group_sums_(Delta2 + PPsi * z, w, k.list[[2L]])) / (2.0 * nt)
       if (k > 2L) {
-        b <- b + as.vector(group_sums_(Delta2 + PPsi * z, w, k.list[[3L]])) /
-          2.0 / nt
+        b <- (b + group_sums_(Delta2 + PPsi * z, w, k.list[[3L]])) / (2.0 * nt)
       }
 
       # Compute spectral density part of \hat{B}
       if (k > 2L && L > 0L) {
-        b <- b -
-          as.vector(group_sums_spectral_(MPsi * w, v, w, L, k.list[[3L]])) / nt
+        b <- (b - group_sums_spectral_(MPsi * w, v, w, L, k.list[[3L]])) / nt
       }
     }
     rm(Delta2)
@@ -301,8 +296,8 @@ apes <- function(
   rm(eta, w, z, MPsi)
 
   # Compute covariance matrix
-  WinvJ <- solve_(object[["Hessian"]] / nt.full, J)
-  Gamma <- (MX %*% WinvJ - PPsi) * v / nt.full
+  # Gamma <- (MX %*% solve(object[["Hessian"]] / nt.full, J) - PPsi) * v / nt.full
+  Gamma <- gamma_(MX, object[["Hessian"]], J, PPsi, v, nt.full)
   V <- crossprod_(Gamma, NA_real_, FALSE, FALSE)
   if (adj > 0.0) {
     # Simplify covariance if sampling assumptions are imposed

@@ -9,8 +9,9 @@ test_that("crossprod works", {
 
 test_that("solve works", {
   A <- matrix(c(1, 0, 0, 1), nrow = 2, ncol = 2)
-  b <- c(2, 2)
-  expect_equal(solve(A, b), solve_(A, b))
+  x <- c(2, 2)
+  expect_equal(as.vector(A %*% x), solve_y_(A, x))
+  expect_equal(x - solve(A, x), solve_bias_(x, A, 1, x))
 })
 
 test_that("chol works", {

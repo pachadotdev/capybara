@@ -56,11 +56,11 @@ vcov.feglm <- function(
   p <- ncol(H)
   if (type == "hessian") {
     # Check if the Hessian is invertible and compute its inverse
-    R <- try(chol(H), silent = TRUE)
+    R <- try(chol_(H), silent = TRUE)
     if (inherits(R, "try-error")) {
       V <- matrix(Inf, p, p)
     } else {
-      V <- chol2inv(R)
+      V <- chol2inv_(R)
     }
   } else {
     G <- getScoreMatrix(object)
@@ -70,7 +70,6 @@ vcov.feglm <- function(
       if (inherits(R, "try-error")) {
         V <- matrix(Inf, p, p)
       } else {
-        saveRDS(R, "dev/R.rds")
         V <- chol2inv_(R)
       }
     } else {
@@ -147,7 +146,7 @@ vcov.feglm <- function(
         }
 
         # Sandwich formula
-        V <- A %*% B %*% A
+        V <- sandwich_(A, B)
       }
     }
   }

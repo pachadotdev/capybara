@@ -163,31 +163,28 @@ bias_corr <- function(
 
     # Compute spectral density part of \hat{B}
     if (L > 0L) {
-      b <- b + as.vector(group_sums_spectral_(MX * w, v, w, L, k.list[[1L]])) /
-        nt
+      b <- (b + group_sums_spectral_(MX * w, v, w, L, k.list[[1L]])) / nt
     }
   } else {
     # Compute \hat{D}_{1}, \hat{D}_{2}, and \hat{B}
-    b <- as.vector(group_sums_(MX * z, w, k.list[[1L]])) / 2.0 / nt
-    b <- b + as.vector(group_sums_(MX * z, w, k.list[[2L]])) / 2.0 / nt
+    b <- group_sums_(MX * z, w, k.list[[1L]]) / (2.0 * nt)
+    b <- (b + group_sums_(MX * z, w, k.list[[2L]])) / (2.0 * nt)
     if (k > 2L) {
-      b <- b + as.vector(group_sums_(MX * z, w, k.list[[3L]])) / 2.0 / nt
+      b <- (b + group_sums_(MX * z, w, k.list[[3L]])) / (2.0 * nt)
     }
 
     # Compute spectral density part of \hat{B}
     if (k > 2L && L > 0L) {
-      b <- b + as.vector(group_sums_spectral_(MX * w, v, w, L, k.list[[3L]])) /
-        nt
+      b <- (b + group_sums_spectral_(MX * w, v, w, L, k.list[[3L]])) / nt
     }
   }
 
   # Compute bias-corrected structural parameters
-  b <- solve_(object[["Hessian"]] / nt, -b)
-  beta <- beta.uncorr - b
+  beta <- solve_bias_(beta.uncorr, object[["Hessian"]], nt, -b)
   names(beta) <- nms.sp
 
   # Update \eta and first- and second-order derivatives
-  eta <- feglm_offset_(object, as.vector(X %*% beta))
+  eta <- feglm_offset_(object, solve_y_(X, beta))
   mu <- family[["linkinv"]](eta)
   mu.eta <- family[["mu.eta"]](eta)
   v <- wt * (y - mu)
