@@ -25,20 +25,3 @@
 
   return as_doubles_matrix(Y);
 }
-
-// chol(crossprod(X))
-
-[[cpp11::register]] doubles_matrix<>
-chol_crossprod_(const doubles_matrix<> &x) {
-  // Types conversion
-  Mat<double> X = as_Mat(x);
-
-  // Crossprod
-  Mat<double> Y = X.t() * X;
-
-  // Cholesky decomposition
-  Mat<double> res;
-  res = chol(Y);
-
-  return as_doubles_matrix(res);
-}

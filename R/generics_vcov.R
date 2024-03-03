@@ -70,16 +70,17 @@ vcov.feglm <- function(
       if (inherits(R, "try-error")) {
         V <- matrix(Inf, p, p)
       } else {
-        V <- chol2inv(R)
+        saveRDS(R, "dev/R.rds")
+        V <- chol2inv_(R)
       }
     } else {
       # Check if the Hessian is invertible and compute its inverse
-      R <- try(chol(H), silent = TRUE)
+      R <- try(chol_(H), silent = TRUE)
       if (inherits(R, "try-error")) {
         V <- matrix(Inf, p, p)
       } else {
         # Compute the inverse of the empirical Hessian
-        A <- chol2inv(R)
+        A <- chol2inv_(R)
 
         # Compute inner part of the sandwich formula
         if (type == "sandwich") {

@@ -182,7 +182,7 @@ bias_corr <- function(
   }
 
   # Compute bias-corrected structural parameters
-  b <- solve(object[["Hessian"]] / nt, -b)
+  b <- solve_(object[["Hessian"]] / nt, -b)
   beta <- beta.uncorr - b
   names(beta) <- nms.sp
 

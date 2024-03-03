@@ -13,10 +13,10 @@ extern "C" SEXP _capybara_center_variables_(SEXP V_r, SEXP v_sum_r, SEXP w_r, SE
   END_CPP11
 }
 // 02_solve_beta.cpp
-doubles solve_beta_(const doubles_matrix<>& mx, const doubles_matrix<>& mnu, const doubles wtilde, double epsilon, bool weighted);
+doubles solve_beta_(const doubles_matrix<> & mx, const doubles_matrix<> & mnu, const doubles wtilde, double epsilon, bool weighted);
 extern "C" SEXP _capybara_solve_beta_(SEXP mx, SEXP mnu, SEXP wtilde, SEXP epsilon, SEXP weighted) {
   BEGIN_CPP11
-    return cpp11::as_sexp(solve_beta_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(mx), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(mnu), cpp11::as_cpp<cpp11::decay_t<const doubles>>(wtilde), cpp11::as_cpp<cpp11::decay_t<double>>(epsilon), cpp11::as_cpp<cpp11::decay_t<bool>>(weighted)));
+    return cpp11::as_sexp(solve_beta_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(mx), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(mnu), cpp11::as_cpp<cpp11::decay_t<const doubles>>(wtilde), cpp11::as_cpp<cpp11::decay_t<double>>(epsilon), cpp11::as_cpp<cpp11::decay_t<bool>>(weighted)));
   END_CPP11
 }
 // 03_get_alpha.cpp
@@ -27,31 +27,24 @@ extern "C" SEXP _capybara_get_alpha_(SEXP p_r, SEXP klist, SEXP tol) {
   END_CPP11
 }
 // 03_solve_eta.cpp
-doubles solve_eta_(const doubles_matrix<>& mx, const doubles_matrix<>& mnu, const doubles& nu, const doubles& beta);
+doubles solve_eta_(const doubles_matrix<> & mx, const doubles_matrix<> & mnu, const doubles & nu, const doubles & beta);
 extern "C" SEXP _capybara_solve_eta_(SEXP mx, SEXP mnu, SEXP nu, SEXP beta) {
   BEGIN_CPP11
-    return cpp11::as_sexp(solve_eta_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(mx), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(mnu), cpp11::as_cpp<cpp11::decay_t<const doubles&>>(nu), cpp11::as_cpp<cpp11::decay_t<const doubles&>>(beta)));
+    return cpp11::as_sexp(solve_eta_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(mx), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(mnu), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(nu), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(beta)));
   END_CPP11
 }
 // 03_solve_eta.cpp
-doubles solve_eta2_(const doubles& yadj, const doubles_matrix<>& myadj, const doubles& offset, const doubles& eta);
+doubles solve_eta2_(const doubles & yadj, const doubles_matrix<> & myadj, const doubles & offset, const doubles & eta);
 extern "C" SEXP _capybara_solve_eta2_(SEXP yadj, SEXP myadj, SEXP offset, SEXP eta) {
   BEGIN_CPP11
-    return cpp11::as_sexp(solve_eta2_(cpp11::as_cpp<cpp11::decay_t<const doubles&>>(yadj), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(myadj), cpp11::as_cpp<cpp11::decay_t<const doubles&>>(offset), cpp11::as_cpp<cpp11::decay_t<const doubles&>>(eta)));
+    return cpp11::as_sexp(solve_eta2_(cpp11::as_cpp<cpp11::decay_t<const doubles &>>(yadj), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(myadj), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(offset), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(eta)));
   END_CPP11
 }
-// 04_cross_products.cpp
-doubles_matrix<> crossprod_(const doubles_matrix<>& x, const doubles& w, bool weighted, bool root_weights);
+// 04_cross_product.cpp
+doubles_matrix<> crossprod_(const doubles_matrix<> & x, const doubles & w, bool weighted, bool root_weights);
 extern "C" SEXP _capybara_crossprod_(SEXP x, SEXP w, SEXP weighted, SEXP root_weights) {
   BEGIN_CPP11
-    return cpp11::as_sexp(crossprod_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(x), cpp11::as_cpp<cpp11::decay_t<const doubles&>>(w), cpp11::as_cpp<cpp11::decay_t<bool>>(weighted), cpp11::as_cpp<cpp11::decay_t<bool>>(root_weights)));
-  END_CPP11
-}
-// 04_cross_products.cpp
-doubles_matrix<> chol_crossprod_(const doubles_matrix<>& x);
-extern "C" SEXP _capybara_chol_crossprod_(SEXP x) {
-  BEGIN_CPP11
-    return cpp11::as_sexp(chol_crossprod_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(x)));
+    return cpp11::as_sexp(crossprod_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(x), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(w), cpp11::as_cpp<cpp11::decay_t<bool>>(weighted), cpp11::as_cpp<cpp11::decay_t<bool>>(root_weights)));
   END_CPP11
 }
 // 04_group_sums.cpp
@@ -82,24 +75,54 @@ extern "C" SEXP _capybara_group_sums_cov_(SEXP M_r, SEXP N_r, SEXP jlist) {
     return cpp11::as_sexp(group_sums_cov_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(M_r), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(N_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(jlist)));
   END_CPP11
 }
-// 05_pairwise_correlation.cpp
+// 05_matrix_decompositions.cpp
+doubles_matrix<> chol_crossprod_(const doubles_matrix<> & x);
+extern "C" SEXP _capybara_chol_crossprod_(SEXP x) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(chol_crossprod_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(x)));
+  END_CPP11
+}
+// 05_matrix_decompositions.cpp
+doubles_matrix<> chol2inv_(const doubles_matrix<> & r);
+extern "C" SEXP _capybara_chol2inv_(SEXP r) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(chol2inv_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(r)));
+  END_CPP11
+}
+// 05_matrix_decompositions.cpp
+doubles_matrix<> chol_(const doubles_matrix<> & x);
+extern "C" SEXP _capybara_chol_(SEXP x) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(chol_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(x)));
+  END_CPP11
+}
+// 06_qr_rank.cpp
+int qr_rank_(const doubles_matrix<> & x);
+extern "C" SEXP _capybara_qr_rank_(SEXP x) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(qr_rank_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(x)));
+  END_CPP11
+}
+// 07_solve_systems.cpp
+doubles solve_(const doubles_matrix<> & a, const doubles & b);
+extern "C" SEXP _capybara_solve_(SEXP a, SEXP b) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(solve_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(a), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(b)));
+  END_CPP11
+}
+// 08_pairwise_correlation.cpp
 double pairwise_cor_(const doubles & y, const doubles & yhat);
 extern "C" SEXP _capybara_pairwise_cor_(SEXP y, SEXP yhat) {
   BEGIN_CPP11
     return cpp11::as_sexp(pairwise_cor_(cpp11::as_cpp<cpp11::decay_t<const doubles &>>(y), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(yhat)));
   END_CPP11
 }
-// 05_qr_rank.cpp
-int qr_rank_(const doubles_matrix<>& x);
-extern "C" SEXP _capybara_qr_rank_(SEXP x) {
-  BEGIN_CPP11
-    return cpp11::as_sexp(qr_rank_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>&>>(x)));
-  END_CPP11
-}
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
     {"_capybara_center_variables_",    (DL_FUNC) &_capybara_center_variables_,    7},
+    {"_capybara_chol2inv_",            (DL_FUNC) &_capybara_chol2inv_,            1},
+    {"_capybara_chol_",                (DL_FUNC) &_capybara_chol_,                1},
     {"_capybara_chol_crossprod_",      (DL_FUNC) &_capybara_chol_crossprod_,      1},
     {"_capybara_crossprod_",           (DL_FUNC) &_capybara_crossprod_,           4},
     {"_capybara_get_alpha_",           (DL_FUNC) &_capybara_get_alpha_,           3},
@@ -109,6 +132,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_capybara_group_sums_var_",      (DL_FUNC) &_capybara_group_sums_var_,      2},
     {"_capybara_pairwise_cor_",        (DL_FUNC) &_capybara_pairwise_cor_,        2},
     {"_capybara_qr_rank_",             (DL_FUNC) &_capybara_qr_rank_,             1},
+    {"_capybara_solve_",               (DL_FUNC) &_capybara_solve_,               2},
     {"_capybara_solve_beta_",          (DL_FUNC) &_capybara_solve_beta_,          5},
     {"_capybara_solve_eta2_",          (DL_FUNC) &_capybara_solve_eta2_,          4},
     {"_capybara_solve_eta_",           (DL_FUNC) &_capybara_solve_eta_,           4},

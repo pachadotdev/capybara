@@ -301,7 +301,7 @@ apes <- function(
   rm(eta, w, z, MPsi)
 
   # Compute covariance matrix
-  WinvJ <- solve(object[["Hessian"]] / nt.full, J)
+  WinvJ <- solve_(object[["Hessian"]] / nt.full, J)
   Gamma <- (MX %*% WinvJ - PPsi) * v / nt.full
   V <- crossprod_(Gamma, NA_real_, FALSE, FALSE)
   if (adj > 0.0) {

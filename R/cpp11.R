@@ -24,10 +24,6 @@ crossprod_ <- function(x, w, weighted, root_weights) {
   .Call(`_capybara_crossprod_`, x, w, weighted, root_weights)
 }
 
-chol_crossprod_ <- function(x) {
-  .Call(`_capybara_chol_crossprod_`, x)
-}
-
 group_sums_ <- function(M_r, w_r, jlist) {
   .Call(`_capybara_group_sums_`, M_r, w_r, jlist)
 }
@@ -44,10 +40,26 @@ group_sums_cov_ <- function(M_r, N_r, jlist) {
   .Call(`_capybara_group_sums_cov_`, M_r, N_r, jlist)
 }
 
-pairwise_cor_ <- function(y, yhat) {
-  .Call(`_capybara_pairwise_cor_`, y, yhat)
+chol_crossprod_ <- function(x) {
+  .Call(`_capybara_chol_crossprod_`, x)
+}
+
+chol2inv_ <- function(r) {
+  .Call(`_capybara_chol2inv_`, r)
+}
+
+chol_ <- function(x) {
+  .Call(`_capybara_chol_`, x)
 }
 
 qr_rank_ <- function(x) {
   .Call(`_capybara_qr_rank_`, x)
+}
+
+solve_ <- function(a, b) {
+  .Call(`_capybara_solve_`, a, b)
+}
+
+pairwise_cor_ <- function(y, yhat) {
+  .Call(`_capybara_pairwise_cor_`, y, yhat)
 }
