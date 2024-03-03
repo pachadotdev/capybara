@@ -296,9 +296,9 @@ apes <- function(
   rm(eta, w, z, MPsi)
 
   # Compute covariance matrix
-  # Gamma <- (MX %*% solve(object[["Hessian"]] / nt.full, J) - PPsi) * v / nt.full
   Gamma <- gamma_(MX, object[["Hessian"]], J, PPsi, v, nt.full)
   V <- crossprod_(Gamma, NA_real_, FALSE, FALSE)
+
   if (adj > 0.0) {
     # Simplify covariance if sampling assumptions are imposed
     if (sampling.fe == "independence") {

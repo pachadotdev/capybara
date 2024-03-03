@@ -8,10 +8,10 @@
   // Types conversion
   Mat<double> MX = as_Mat(mx);
   Mat<double> Mnu = as_Mat(mnu);
-  Col<double> Nu = as_Col(nu);
-  Col<double> Beta = as_Col(beta);
+  Mat<double> Nu = as_Mat(nu);
+  Mat<double> Beta = as_Mat(beta);
 
-  Col<double> res = Nu - (Mnu - (MX * Beta));
+  Mat<double> res = Nu - (Mnu - (MX * Beta));
 
   return as_doubles(res);
 }
@@ -23,12 +23,12 @@
                                         const doubles &offset,
                                         const doubles &eta) {
   // Types conversion
-  Col<double> Yadj = as_Col(yadj);
-  Col<double> Myadj = as_Mat(myadj);
-  Col<double> Offset = as_Col(offset);
-  Col<double> Eta = as_Col(eta);
+  Mat<double> Yadj = as_Mat(yadj);
+  Mat<double> Myadj = as_Mat(myadj);
+  Mat<double> Offset = as_Mat(offset);
+  Mat<double> Eta = as_Mat(eta);
 
-  Col<double> res = Yadj - Myadj + Offset - Eta;
+  Mat<double> res = Yadj - Myadj + Offset - Eta;
 
   return as_doubles(res);
 }

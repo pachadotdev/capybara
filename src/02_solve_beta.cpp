@@ -11,7 +11,7 @@
   // Weight the X and Y matrices
   if (weighted) {
     // Additional type conversion
-    Col<double> W = as_Col(wtilde);
+    Mat<double> W = as_Mat(wtilde);
 
     // Multiply each column of X by W pair-wise
     X = X.each_col() % W;
@@ -32,7 +32,7 @@
     stop("QR decomposition failed");
   } else {
     // backsolve
-    Col<double> beta = solve(R, Q.t() * Y);
+    Mat<double> beta = solve(R, Q.t() * Y);
     return as_doubles(beta);
   }
 }

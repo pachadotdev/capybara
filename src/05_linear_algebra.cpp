@@ -11,7 +11,7 @@
 
   if (weighted) {
     // Additional type conversion
-    Col<double> W = as_Col(w);
+    Mat<double> W = as_Mat(w);
 
     if (root_weights) {
       W = sqrt(W);
@@ -26,31 +26,30 @@
   return as_doubles_matrix(Y);
 }
 
-// WinvJ <- solve_(object[["Hessian"]] / nt.full, J)
-// Gamma <- (MX %*% WinvJ - PPsi) * v / nt.full
-// V <- crossprod((MX %*% WinvJ - PPsi) * v / nt.full)
+// WinvJ < -solve(object[["Hessian"]] / nt.full, J)
+// Gamma < -(MX % * % WinvJ - PPsi) * v / nt.full
+// V < -crossprod(Gamma)
 
-[[cpp11::register]] doubles_matrix<> gamma_(const doubles_matrix<> &mx,
-                                            const doubles_matrix<> &hessian,
-                                            const doubles_matrix<> j,
-                                            const doubles_matrix<> &ppsi,
-                                            const doubles &v,
-                                            const int &nt_full) {
+[[cpp11::register]] doubles_matrix<>
+gamma_(const doubles_matrix<> &mx, const doubles_matrix<> &hessian,
+       const doubles_matrix<> j, const doubles_matrix<> &ppsi, const doubles &v,
+       const int &nt_full) {
   // Types conversion
   Mat<double> MX = as_Mat(mx);
   Mat<double> H = as_Mat(hessian);
   Mat<double> J = as_Mat(j);
   Mat<double> PPsi = as_Mat(ppsi);
-  Mat<double> V = as_Col(v);
+  Mat<double> V = as_Mat(v);
 
   double N = static_cast<double>(nt_full);
-  Mat<double> res = ((MX * solve(H / N, J) - PPsi) % V) / N;
+  Mat<double> res = (MX * solve(H / N, J) - PPsi);
+  res = (res.each_col() % V) / N;
 
   return as_doubles_matrix(res);
 }
 
-[[cpp11::register]] doubles_matrix<> chol_crossprod_(
-    const doubles_matrix<> &x) {
+[[cpp11::register]] doubles_matrix<>
+chol_crossprod_(const doubles_matrix<> &x) {
   // Types conversion
   Mat<double> X = as_Mat(x);
 
@@ -110,12 +109,12 @@
                                         const doubles_matrix<> &hessian,
                                         const double &nt, const doubles &b) {
   // Types conversion
-  Col<double> Beta_uncorr = as_Col(beta_uncorr);
+  Mat<double> Beta_uncorr = as_Mat(beta_uncorr);
   Mat<double> H = as_Mat(hessian);
-  Col<double> B = as_Col(b);
+  Mat<double> B = as_Mat(b);
 
   // Solve
-  Col<double> res = Beta_uncorr - solve(H / nt, B);
+  Mat<double> res = Beta_uncorr - solve(H / nt, B);
 
   return as_doubles(res);
 }
@@ -124,10 +123,10 @@
                                      const doubles &x) {
   // Types conversion
   Mat<double> A = as_Mat(a);
-  Col<double> X = as_Col(x);
+  Mat<double> X = as_Mat(x);
 
   // Solve
-  Col<double> res = A * X;
+  Mat<double> res = A * X;
 
   return as_doubles(res);
 }

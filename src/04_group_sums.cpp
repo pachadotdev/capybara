@@ -97,8 +97,8 @@
   return as_doubles(num);
 }
 
-[[cpp11::register]] doubles_matrix<> group_sums_var_(
-    const doubles_matrix<> &M_r, const list &jlist) {
+[[cpp11::register]] doubles_matrix<>
+group_sums_var_(const doubles_matrix<> &M_r, const list &jlist) {
   // Types conversion
   Mat<double> M = as_Mat(M_r);
 
@@ -141,9 +141,9 @@
   return as_doubles_matrix(V);
 }
 
-[[cpp11::register]] doubles_matrix<> group_sums_cov_(
-    const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
-    const list &jlist) {
+[[cpp11::register]] doubles_matrix<>
+group_sums_cov_(const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
+                const list &jlist) {
   // Types conversion
   Mat<double> M = as_Mat(M_r);
   Mat<double> N = as_Mat(N_r);
@@ -152,7 +152,7 @@
   const int J = jlist.size();
   const int P = M.n_cols;
   const int I = as_cpp<integers>(jlist[0])
-                    .size();  // assuming all groups have the same size
+                    .size(); // assuming all groups have the same size
 
   // Auxiliary variables (storage)
   Mat<double> V(P, P);

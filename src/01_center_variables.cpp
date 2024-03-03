@@ -7,10 +7,10 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &v_sum_r,
                   const int maxiter, bool sum_v) {
   // Types conversion
   Mat<double> V = as_Mat(V_r);
-  Col<double> w = as_Col(w_r);
+  Mat<double> w = as_Mat(w_r);
 
   if (sum_v) {
-    Col<double> v_sum = as_Col(v_sum_r);
+    Mat<double> v_sum = as_Mat(v_sum_r);
     V.each_col() += v_sum;
   }
 
@@ -24,8 +24,8 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &v_sum_r,
   double delta, denom, meanj, num, wt;
   int index, iter, i, j, k, p, I, J;
   Mat<double> C(N, P);
-  Col<double> x(N);
-  Col<double> x0(N);
+  Mat<double> x(N, 1);
+  Mat<double> x0(N, 1);
 
   // Halperin projections
   for (p = 0; p < P; p++) {
