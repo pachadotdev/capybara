@@ -40,3 +40,4 @@ VignetteBuilder: knitr
 Config/testthat/edition: 3
 Remotes: 
     pachadotdev/cpp11armadillo
+Roxygen: list(markdown = TRUE, roclets = c("namespace", "rd", "srr::srr_stats_roclet"))

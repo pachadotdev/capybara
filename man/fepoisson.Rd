@@ -38,7 +38,7 @@ process. See \code{\link{feglm_control}} for details.}
 }
 \description{
 A wrapper for \code{\link{feglm}} with
- \code{family = poisson()}.
+\code{family = poisson()}.
 }
 \examples{
 # same as the example in feglm but with less typing

@@ -21,11 +21,11 @@ variable in \code{data}.}
 }
 \value{
 The function \code{\link{felm}} returns a named list of class
- \code{"felm"}.
+\code{"felm"}.
 }
 \description{
 A wrapper for \code{\link{feglm}} with
- \code{family = gaussian()}.
+\code{family = gaussian()}.
 }
 \examples{
 mod <- felm(
@@ -37,14 +37,14 @@ summary(mod)
 }
 \references{
 Gaure, S. (2013). "OLS with Multiple High Dimensional Category
- Variables". Computational Statistics and Data Analysis, 66.
+Variables". Computational Statistics and Data Analysis, 66.
 
 Marschner, I. (2011). "glm2: Fitting generalized linear models
- with convergence problems". The R Journal, 3(2).
+with convergence problems". The R Journal, 3(2).
 
 Stammann, A., F. Heiss, and D. McFadden (2016). "Estimating Fixed
- Effects Logit Models with Large Panel Data". Working paper.
+Effects Logit Models with Large Panel Data". Working paper.
 
 Stammann, A. (2018). "Fast and Feasible Estimation of Generalized
- Linear Models with High-Dimensional k-Way Fixed Effects". ArXiv e-prints.
+Linear Models with High-Dimensional k-Way Fixed Effects". ArXiv e-prints.
 }

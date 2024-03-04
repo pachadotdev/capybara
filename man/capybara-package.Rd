@@ -5,7 +5,7 @@
 \alias{capybara}
 \alias{capybara-package}
 \title{Generalized Linear Models (GLMs) with high-dimensional k-way fixed
- effects}
+effects}
 \description{
 Provides a routine to partial out factors with many levels during the
 optimization of the log-likelihood function of the corresponding GLM. The

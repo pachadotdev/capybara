@@ -16,7 +16,7 @@ A named matrix of covariance estimates.
 }
 \description{
 Covariance matrix for the estimator of the
- average partial effects from objects returned by \code{\link{apes}}.
+average partial effects from objects returned by \code{\link{apes}}.
 }
 \seealso{
 \code{\link{apes}}

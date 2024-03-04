@@ -23,12 +23,12 @@ A named matrix of covariance estimates.
 }
 \description{
 Covariance matrix for the estimator of the structural parameters
- from objects returned by \code{\link{feglm}}. The covariance is computed
+from objects returned by \code{\link{feglm}}. The covariance is computed
 from the Hessian, the scores, or a combination of both after convergence.
 }
 \references{
 Cameron, C., J. Gelbach, and D. Miller (2011). "Robust Inference
- With Multiway Clustering". Journal of Business & Economic Statistics 29(2).
+With Multiway Clustering". Journal of Business & Economic Statistics 29(2).
 }
 \seealso{
 \code{\link{felm}}

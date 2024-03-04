@@ -3,7 +3,7 @@
 \name{fenegbin}
 \alias{fenegbin}
 \title{Negative Binomial model fitting with high-dimensional k-way fixed
- effects}
+effects}
 \usage{
 fenegbin(
   formula = NULL,
