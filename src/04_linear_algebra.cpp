@@ -29,12 +29,10 @@
 // Gamma < -(MX %*% WinvJ - PPsi) * v / nt.full
 // V < -crossprod(Gamma)
 
-[[cpp11::register]] doubles_matrix<> gamma_(const doubles_matrix<> &mx,
-                                            const doubles_matrix<> &hessian,
-                                            const doubles_matrix<> j,
-                                            const doubles_matrix<> &ppsi,
-                                            const doubles &v,
-                                            const SEXP &nt_full) {
+[[cpp11::register]] doubles_matrix<>
+gamma_(const doubles_matrix<> &mx, const doubles_matrix<> &hessian,
+       const doubles_matrix<> j, const doubles_matrix<> &ppsi, const doubles &v,
+       const SEXP &nt_full) {
   // Types conversion
   Mat<double> MX = as_Mat(mx);
   Mat<double> H = as_Mat(hessian);
@@ -51,8 +49,8 @@
 
 // chol(crossprod(X))
 
-[[cpp11::register]] doubles_matrix<> chol_crossprod_(
-    const doubles_matrix<> &x) {
+[[cpp11::register]] doubles_matrix<>
+chol_crossprod_(const doubles_matrix<> &x) {
   // Types conversion
   Mat<double> X = as_Mat(x);
 
@@ -147,9 +145,8 @@
 
 // eta <- eta.old + rho * eta.upd
 
-[[cpp11::register]] doubles update_beta_eta_(const doubles &old,
-                                             const doubles &upd,
-                                             const double &param) {
+[[cpp11::register]] doubles
+update_beta_eta_(const doubles &old, const doubles &upd, const double &param) {
   int n = old.size();
   writable::doubles res(n);
 
