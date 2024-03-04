@@ -24,6 +24,7 @@ felm_fit_ <- function(y, X, wt, k.list, control) {
   MX <- center_variables_(MX, NA_real_, wt, k.list, center.tol, 10000L, FALSE)
 
   # Compute the OLS estimate
+  # beta <- as.vector(qr.solve(MX, y, epsilon))
   beta <- solve_beta_(MX, y, NA_real_, epsilon, FALSE)
 
   # Generate result list
@@ -70,7 +71,7 @@ feglm_fit_ <- function(beta, eta, y, X, wt, k.list, family, control) {
     # Compute weights and dependent variable
     mu.eta <- family[["mu.eta"]](eta)
     w <- (wt * mu.eta^2) / family[["variance"]](mu)
-    w.tilde <- sqrt(w)
+    w.tilde <- sqrt_(w)
     nu <- (y - mu) / mu.eta
 
     # Centering variables
@@ -78,8 +79,9 @@ feglm_fit_ <- function(beta, eta, y, X, wt, k.list, family, control) {
     MX <- center_variables_(MX, NA_real_, w, k.list, center.tol, 10000L, FALSE)
 
     # Compute update step and update eta
+    # beta.upd <- as.vector(qr.solve(MX * w.tilde, Mnu * w.tilde, epsilon))
+    # eta.upd <- nu - as.vector(Mnu - MX %*% beta.upd)
     beta.upd <- solve_beta_(MX, Mnu, w.tilde, epsilon, TRUE)
-
     eta.upd <- solve_eta_(MX, Mnu, nu, beta.upd)
 
     # Step-halving with three checks
@@ -89,8 +91,10 @@ feglm_fit_ <- function(beta, eta, y, X, wt, k.list, family, control) {
     rho <- 1.0
 
     for (inner.iter in seq.int(50L)) {
-      eta <- eta.old + rho * eta.upd
-      beta <- beta.old + rho * beta.upd
+      # eta <- eta.old + rho * eta.upd
+      # beta <- beta.old + rho * beta.upd
+      eta <- update_beta_eta_(eta.old, eta.upd, rho)
+      beta <- update_beta_eta_(beta.old, beta.upd, rho)
       mu <- family[["linkinv"]](eta)
       dev <- sum(family[["dev.resids"]](y, mu, wt))
       dev.crit <- is.finite(dev)
@@ -231,7 +235,8 @@ feglm_offset_ <- function(object, offset) {
     # 3. improvement as in glm2
     rho <- 1.0
     for (inner.iter in seq.int(50L)) {
-      eta <- eta.old + rho * eta.upd
+      # eta <- eta.old + rho * eta.upd
+      eta <- update_beta_eta_(eta.old, eta.upd, rho)
       mu <- family[["linkinv"]](eta)
       dev <- sum(family[["dev.resids"]](y, mu, wt))
       dev.crit <- is.finite(dev)
@@ -281,7 +286,8 @@ getScoreMatrix <- function(object) {
   mu <- family[["linkinv"]](eta)
   mu.eta <- family[["mu.eta"]](eta)
   w <- (wt * mu.eta^2) / family[["variance"]](mu)
-  nu <- (y - mu) / mu.eta
+  # nu <- (y - mu) / mu.eta
+  nu <- update_nu_(y, mu, mu.eta)
 
   # Center regressor matrix (if required)
   if (control[["keep.mx"]]) {

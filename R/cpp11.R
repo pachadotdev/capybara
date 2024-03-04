@@ -4,20 +4,8 @@ center_variables_ <- function(V_r, v_sum_r, w_r, klist, tol, maxiter, sum_v) {
   .Call(`_capybara_center_variables_`, V_r, v_sum_r, w_r, klist, tol, maxiter, sum_v)
 }
 
-solve_beta_ <- function(mx, mnu, wtilde, epsilon, weighted) {
-  .Call(`_capybara_solve_beta_`, mx, mnu, wtilde, epsilon, weighted)
-}
-
 get_alpha_ <- function(p_r, klist, tol) {
   .Call(`_capybara_get_alpha_`, p_r, klist, tol)
-}
-
-solve_eta_ <- function(mx, mnu, nu, beta) {
-  .Call(`_capybara_solve_eta_`, mx, mnu, nu, beta)
-}
-
-solve_eta2_ <- function(yadj, myadj, offset, eta) {
-  .Call(`_capybara_solve_eta2_`, yadj, myadj, offset, eta)
 }
 
 group_sums_ <- function(M_r, w_r, jlist) {
@@ -70,6 +58,30 @@ solve_y_ <- function(a, x) {
 
 sandwich_ <- function(a, b) {
   .Call(`_capybara_sandwich_`, a, b)
+}
+
+update_beta_eta_ <- function(old, upd, param) {
+  .Call(`_capybara_update_beta_eta_`, old, upd, param)
+}
+
+update_nu_ <- function(y, mu, mu_eta) {
+  .Call(`_capybara_update_nu_`, y, mu, mu_eta)
+}
+
+solve_beta_ <- function(mx, mnu, wtilde, epsilon, weighted) {
+  .Call(`_capybara_solve_beta_`, mx, mnu, wtilde, epsilon, weighted)
+}
+
+solve_eta_ <- function(mx, mnu, nu, beta) {
+  .Call(`_capybara_solve_eta_`, mx, mnu, nu, beta)
+}
+
+solve_eta2_ <- function(yadj, myadj, offset, eta) {
+  .Call(`_capybara_solve_eta2_`, yadj, myadj, offset, eta)
+}
+
+sqrt_ <- function(w) {
+  .Call(`_capybara_sqrt_`, w)
 }
 
 pairwise_cor_ <- function(y, yhat) {

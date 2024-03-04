@@ -157,7 +157,7 @@ bench_phasing <- readRDS("dev/bench_phasing.rds")
 
 bench_globalization <- readRDS("dev/bench_globalization.rds")
 
-bench_ppml %>%
+t1 <- bench_ppml %>%
   mutate(package = "**Capybara**") %>%
   mutate(model = "PPML") %>%
   select(model, package, median) %>%
@@ -200,7 +200,7 @@ bench_ppml %>%
   arrange(package) %>%
   kable()
 
-bench_ppml %>%
+t2 <- bench_ppml %>%
   mutate(package = "**Capybara**") %>%
   mutate(model = "PPML") %>%
   select(model, package, mem_alloc) %>%
@@ -242,3 +242,6 @@ bench_ppml %>%
   ) %>%
   arrange(package) %>%
   kable()
+
+t1
+t2

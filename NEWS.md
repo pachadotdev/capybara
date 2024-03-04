@@ -1,3 +1,7 @@
+# capybara 0.4
+
+* Uses R's C API efficiently to add a bit more of memory optimizations
+
 # capybara 0.3.5
 
 * Uses Mat<T> consistently for all matrix operations (avoids vectors)
