@@ -18,10 +18,8 @@ fepoisson <- function(
     beta.start = NULL,
     eta.start = NULL,
     control = NULL) {
-  return(
-    feglm(
-      formula = formula, data = data, weights = weights, family = poisson(),
-      beta.start = beta.start, eta.start = eta.start, control = control
-    )
+  feglm(
+    formula = formula, data = data, weights = weights, family = poisson(),
+    beta.start = beta.start, eta.start = eta.start, control = control
   )
 }

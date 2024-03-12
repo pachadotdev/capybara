@@ -26,7 +26,9 @@ unique(d$year)
 
 # Fit 'feglm()'
 load_all()
-profvis::profvis(feglm(trade_100 ~ lang + clny + rta | year, d, family = binomial()))
+# profvis::profvis(feglm(trade_100 ~ lang + clny + rta | year, d, family = binomial()))
+mod = feglm(trade_100 ~ lang + clny + rta | year, d, family = binomial())
 
 # Compute average partial effects
 # bench::mark(apes(mod))
+apes(mod)

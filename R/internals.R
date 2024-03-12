@@ -167,7 +167,7 @@ feglm_fit_ <- function(beta, eta, y, X, wt, k.list, family, control) {
   if (keep.mx) reslist[["MX"]] <- MX
 
   # Return result list
-  return(reslist)
+  reslist
 }
 
 # Efficient offset algorithm to update the linear predictor ----
@@ -314,42 +314,7 @@ getScoreMatrix <- function(object) {
   MX * (nu * w)
 }
 
-
-# Higher-order partial derivatives for 'binomial()'
-partial_mu_eta_ <- function(eta, family, order) {
-  # Safeguard \eta if necessary
-  if (family[["link"]] != "logit") {
-    eta <- family[["linkfun"]](family[["linkinv"]](eta))
-  }
-
-  # Second- and third-order derivatives
-  f <- family[["mu.eta"]](eta)
-  if (order == 2L) {
-    # Second-order derivative
-    if (family[["link"]] == "logit") {
-      f * (1.0 - 2.0 * family[["linkinv"]](eta))
-    } else if (family[["link"]] == "probit") {
-      -eta * f
-    } else if (family[["link"]] == "cloglog") {
-      f * (1.0 - exp(eta))
-    } else {
-      -2.0 * eta / (1.0 + eta^2) * f
-    }
-  } else {
-    # Third-order derivative
-    if (family[["link"]] == "logit") {
-      f * ((1.0 - 2.0 * family[["linkinv"]](eta))^2 - 2.0 * f)
-    } else if (family[["link"]] == "probit") {
-      (eta^2 - 1.0) * f
-    } else if (family[["link"]] == "cloglog") {
-      f * (1.0 - exp(eta)) * (2.0 - exp(eta)) - f
-    } else {
-      (6.0 * eta^2 - 2.0) / (1.0 + eta^2)^2 * f
-    }
-  }
-}
-
-# Returns suitable name for a temporary variable
+# Returns suitable name for a tempordrop_by_link_type_ary variable
 temp_var_ <- function(data) {
   repeat {
     tmp.var <- paste0(sample(letters, 5L, replace = TRUE), collapse = "")

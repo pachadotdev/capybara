@@ -95,10 +95,10 @@ feglm <- function(
   tmp.var <- temp_var_(data)
 
   # Drop observations that do not contribute to the log likelihood ----
-  data <- drop_by_link_type_(data, lhs, family, tmp.var, k.vars, control)
+  drop_by_link_type_(data, lhs, family, tmp.var, k.vars, control)
 
   # Transform fixed effects and clusters to factors ----
-  data <- transform_fe_(data, formula, k.vars)
+  transform_fe_(data, formula, k.vars)
 
   # Determine the number of dropped observations ----
   nt <- nrow(data)
@@ -162,6 +162,5 @@ feglm <- function(
   )
 
   # Return result list ----
-  reslist <- structure(reslist, class = "feglm")
-  return(reslist)
+  structure(reslist, class = "feglm")
 }

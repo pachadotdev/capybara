@@ -11,22 +11,34 @@ check_factor_ <- function(x) {
 # Higher-order partial derivatives ----
 
 partial_mu_eta_ <- function(eta, family, order) {
+  # Safeguard eta if necessary
+  if (family[["link"]] != "logit") {
+    eta <- family[["linkfun"]](family[["linkinv"]](eta))
+  }
+
   f <- family[["mu.eta"]](eta)
+
   if (order == 2L) {
+    # Second-order derivative
     if (family[["link"]] == "logit") {
       f * (1.0 - 2.0 * family[["linkinv"]](eta))
     } else if (family[["link"]] == "probit") {
       -eta * f
-    } else {
+    } else if (family[["link"]] == "cloglog") {
       f * (1.0 - exp(eta))
+    } else {
+      -2.0 * eta / (1.0 + eta^2) * f
     }
   } else {
+    # Third-order derivative
     if (family[["link"]] == "logit") {
       f * ((1.0 - 2.0 * family[["linkinv"]](eta))^2 - 2.0 * f)
     } else if (family[["link"]] == "probit") {
       (eta^2 - 1.0) * f
-    } else {
+    } else if (family[["link"]] == "cloglog") {
       f * (1.0 - exp(eta)) * (2.0 - exp(eta)) - f
+    } else {
+      (6.0 * eta^2 - 2.0) / (1.0 + eta^2)^2 * f
     }
   }
 }
@@ -51,8 +63,6 @@ check_formula_ <- function(formula) {
   } else if (!inherits(formula, "formula")) {
     stop("'formula' has to be of class 'formula'.", call. = FALSE)
   }
-
-  return(TRUE)
 }
 
 check_data_ <- function(data) {
@@ -70,9 +80,7 @@ check_control_ <- function(control) {
     stop("'control' has to be a list.", call. = FALSE)
   }
 
-  control <- do.call(feglm_control, control)
-
-  return(control)
+  do.call(feglm_control, control)
 }
 
 check_family_ <- function(family) {
@@ -84,8 +92,6 @@ check_family_ <- function(family) {
   } else if (startsWith(family[["family"]], "Negative Binomial")) {
     stop("Please use 'fenegbin' instead.", call. = FALSE)
   }
-
-  return(TRUE)
 }
 
 update_formula_ <- function(formula) {
@@ -98,7 +104,7 @@ update_formula_ <- function(formula) {
     ), call. = FALSE)
   }
 
-  return(formula)
+  formula
 }
 
 model_frame_ <- function(data, formula, weights) {
@@ -118,8 +124,6 @@ model_frame_ <- function(data, formula, weights) {
   assign("lhs", lhs, envir = parent.frame())
   assign("nobs.na", nobs.na, envir = parent.frame())
   assign("nobs.full", nobs.full, envir = parent.frame())
-
-  return(TRUE)
 }
 
 check_response_ <- function(data, lhs, family) {
@@ -149,14 +153,12 @@ check_response_ <- function(data, lhs, family) {
     if (data[, any(get(lhs) <= 0.0)]) {
       stop("Model response has to be strictly positive.", call. = FALSE)
     }
-  } else {
+  } else if (family[["family"]] != "gaussian") {
     # Check if 'y' is positive
     if (data[, any(get(lhs) < 0.0)]) {
       stop("Model response has to be positive.", call. = FALSE)
     }
   }
-
-  return(TRUE)
 }
 
 drop_by_link_type_ <- function(data, lhs, family, tmp.var, k.vars, control) {
@@ -182,8 +184,6 @@ drop_by_link_type_ <- function(data, lhs, family, tmp.var, k.vars, control) {
       }
     }
   }
-
-  return(data)
 }
 
 transform_fe_ <- function(data, formula, k.vars) {
@@ -193,18 +193,14 @@ transform_fe_ <- function(data, formula, k.vars) {
     add.vars <- attr(terms(formula, rhs = 3L), "term.labels")
     data[, (add.vars) := lapply(.SD, check_factor_), .SDcols = add.vars]
   }
-
-  return(data)
 }
 
 nobs_ <- function(nobs.full, nobs.na, nt) {
-  return(
-    c(
-      nobs.full = nobs.full,
-      nobs.na   = nobs.na,
-      nobs.pc   = nobs.full - nt,
-      nobs      = nt
-    )
+  c(
+    nobs.full = nobs.full,
+    nobs.na   = nobs.na,
+    nobs.pc   = nobs.full - nt,
+    nobs      = nt
   )
 }
 
@@ -219,16 +215,12 @@ model_response_ <- function(data, formula) {
   assign("X", X, envir = parent.frame())
   assign("nms.sp", nms.sp, envir = parent.frame())
   assign("p", p, envir = parent.frame())
-
-  return(TRUE)
 }
 
 check_linear_dependence_ <- function(X, p) {
   if (qr_rank_(X) < p) {
     stop("Linear dependent terms detected.", call. = FALSE)
   }
-
-  return(TRUE)
 }
 
 check_weights_ <- function(wt) {
@@ -238,8 +230,6 @@ check_weights_ <- function(wt) {
   if (any(wt < 0.0)) {
     stop("negative weights are not allowed.", call. = FALSE)
   }
-
-  return(TRUE)
 }
 
 init_theta_ <- function(init.theta, link) {
@@ -255,7 +245,7 @@ init_theta_ <- function(init.theta, link) {
     family <- negative.binomial(init.theta, link)
   }
 
-  return(family)
+  family
 }
 
 start_guesses_ <- function(
@@ -315,6 +305,4 @@ start_guesses_ <- function(
 
   assign("beta", beta, envir = parent.frame())
   assign("eta", eta, envir = parent.frame())
-
-  return(TRUE)
 }
