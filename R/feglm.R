@@ -91,14 +91,13 @@ feglm <- function(
   k <- length(k.vars)
 
   # Generate temporary variable ----
-  setkeyv(data, k.vars)
   tmp.var <- temp_var_(data)
 
   # Drop observations that do not contribute to the log likelihood ----
-  drop_by_link_type_(data, lhs, family, tmp.var, k.vars, control)
+  data <- drop_by_link_type_(data, lhs, family, tmp.var, k.vars, control)
 
   # Transform fixed effects and clusters to factors ----
-  transform_fe_(data, formula, k.vars)
+  data <- transform_fe_(data, formula, k.vars)
 
   # Determine the number of dropped observations ----
   nt <- nrow(data)
@@ -126,7 +125,7 @@ feglm <- function(
   start_guesses_(beta.start, eta.start, y, X, beta, nt, wt, p, family)
 
   # Get names and number of levels in each fixed effects category ----
-  nms.fe <- lapply(data[, k.vars, with = FALSE], levels)
+  nms.fe <- lapply(select(data, all_of(k.vars)), levels)
   lvls.k <- vapply(nms.fe, length, integer(1))
 
   # Generate auxiliary list of indexes for different sub panels ----

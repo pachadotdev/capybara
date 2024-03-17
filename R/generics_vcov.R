@@ -112,7 +112,7 @@ vcov.feglm <- function(
           }
 
           # Ensure cluster variables are factors
-          D[, (cl.vars) := lapply(.SD, check_factor_), .SDcols = cl.vars]
+          D <- mutate(D, across(all_of(cl.vars), check_factor_))
 
           # Join cluster variables and scores
           sp.vars <- colnames(G)
@@ -120,7 +120,6 @@ vcov.feglm <- function(
           rm(D)
 
           # Multiway clustering by Cameron, Gelbach, and Miller (2011)
-          setkeyv(G, cl.vars)
           B <- matrix(0.0, p, p)
           for (i in seq.int(length(cl.vars))) {
             # Compute outer product for all possible combinations
@@ -130,7 +129,10 @@ vcov.feglm <- function(
               cl <- cl.combn[, j]
               B.r <- B.r + crossprod_(
                 as.matrix(
-                  G[, lapply(.SD, sum), by = mget(cl), .SDcols = sp.vars][, (cl) := NULL]
+                  G %>%
+                    group_by(!!sym(cl)) %>%
+                    summarise(across(sp.vars, sum), .groups = "drop") %>%
+                    select(-!!sym(cl))
                 ),
                 NA_real_, FALSE, FALSE
               )

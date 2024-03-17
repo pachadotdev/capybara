@@ -132,10 +132,29 @@ process. See <code><a href="feglm_control.html">feglm_control</a></code> for det
 <span class="r-in"><span>  <span class="va">trade</span> <span class="op">~</span> <span class="va">log_dist</span> <span class="op">+</span> <span class="va">lang</span> <span class="op">+</span> <span class="va">cntg</span> <span class="op">+</span> <span class="va">clny</span> <span class="op">|</span> <span class="va">exp_year</span> <span class="op">+</span> <span class="va">imp_year</span>,</span></span>
 <span class="r-in"><span>  <span class="va">trade_panel</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error:</span> Check that is.data.table(DT) == TRUE. Otherwise, :=, `:=`(...) and let(...) are defined for use in j, once only and in particular ways. See help(":=").</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod</span><span class="op">)</span></span></span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in eval(expr, envir, enclos):</span> object 'mod' not found</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Formula: trade ~ log_dist + lang + cntg + clny | exp_year + imp_year</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x63f079f67dd0&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Family: Negative Binomial(1.1839)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Estimates:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |          | Estimate | Std. Error | z value   | Pr(&gt;|z|)   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |----------|----------|------------|-----------|------------|</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | log_dist |  -1.1172 |     0.0107 | -104.4868 | 0.0000 *** |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | lang     |   0.5103 |     0.0230 |   22.1516 | 0.0000 *** |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | cntg     |   0.6143 |     0.0421 |   14.5781 | 0.0000 *** |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | clny     |   0.7448 |     0.0419 |   17.7741 | 0.0000 *** |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Significance codes: *** 99.9%; ** 99%; * 95%; . 90%</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Number of observations: Full 28152; Missing 0; Perfect classification 0 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Number of Fisher Scoring iterations: 1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Number of outer iterations: 5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> theta= 1.184, std. error= 0.01175</span>
 </code></pre></div>
     </div>
   </div>

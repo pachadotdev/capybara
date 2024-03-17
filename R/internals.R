@@ -314,7 +314,7 @@ getScoreMatrix <- function(object) {
   MX * (nu * w)
 }
 
-# Returns suitable name for a tempordrop_by_link_type_ary variable
+# Returns suitable name for a temporary variable
 temp_var_ <- function(data) {
   repeat {
     tmp.var <- paste0(sample(letters, 5L, replace = TRUE), collapse = "")
