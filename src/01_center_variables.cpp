@@ -18,7 +18,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &v_sum_r,
   const int N = V.n_rows;
   const int P = V.n_cols;
   const int K = klist.size();
-  const double sw = arma::accu(w);
+  const double sw = accu(w);
 
   // Auxiliary variables (storage)
   double delta, denom, meanj, num, wt;
@@ -74,7 +74,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &v_sum_r,
       }
 
       // Check convergence
-      delta = arma::accu(arma::abs(x - x0) / (1.0 + arma::abs(x0)) % w) / sw;
+      delta = accu(abs(x - x0) / (1.0 + abs(x0)) % w) / sw;
       if (delta < tol) {
         break;
       }

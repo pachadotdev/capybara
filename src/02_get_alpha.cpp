@@ -15,17 +15,17 @@
   Mat<double> y(N, 1);
 
   // Generate starting guess
-  arma::field<arma::vec> Alpha(K);
+  field<Col<double>> Alpha(K);
   for (k = 0; k < K; k++) {
     J = as_cpp<list>(klist[k]).size();
-    Alpha(k) = arma::zeros(J);
+    Alpha(k) = zeros(J);
   }
 
   // Start alternating between normal equations
-  arma::field<arma::vec> Alpha0(arma::size(Alpha));
+  field<Col<double>> Alpha0(size(Alpha));
 
   // Create vector for alpha
-  arma::vec alpha(J);
+  Col<double> alpha(J);
 
   int interruptCheckCounter = 0;
 
@@ -81,8 +81,8 @@
     num = 0.0;
     denom = 0.0;
     for (k = 0; k < K; k++) {
-      num += arma::accu(arma::pow(Alpha(k) - Alpha0(k), 2));
-      denom += arma::accu(arma::pow(Alpha0(k), 2));
+      num += accu(pow(Alpha(k) - Alpha0(k), 2));
+      denom += accu(pow(Alpha0(k), 2));
     }
     crit = sqrt(num / denom);
     if (crit < tol) {
@@ -93,7 +93,9 @@
   // Return alpha
   writable::list Alpha_r(K);
   for (k = 0; k < K; k++) {
-    Alpha_r[k] = as_doubles_matrix(Alpha(k));
+    // Alpha_r[k] = as_doubles_matrix(Alpha(k));
+    Alpha_r[k] = as_doubles(Alpha(k));
   }
+
   return Alpha_r;
 }
