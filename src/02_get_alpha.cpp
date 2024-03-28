@@ -18,27 +18,21 @@
   field<Col<double>> Alpha(K);
   for (k = 0; k < K; k++) {
     J = as_cpp<list>(klist[k]).size();
-    Alpha(k) = zeros(J);
+    Alpha(k) = zeros<Col<double>>(J);
   }
 
   // Start alternating between normal equations
   field<Col<double>> Alpha0(size(Alpha));
 
-  // Create vector for alpha
-  Col<double> alpha(J);
-
-  int interruptCheckCounter = 0;
-
   for (iter = 0; iter < 10000; iter++) {
     // Check user interrupt
-    if (++interruptCheckCounter == 1000) {
+    if ((iter % 1000) == 0) {
       check_user_interrupt();
-      interruptCheckCounter = 0;
     }
-    // Store \alpha_{0} of the previous iteration
+
+    // Store alpha_0 of the previous iteration
     Alpha0 = Alpha;
 
-    // Solve normal equations of category k
     for (k = 0; k < K; k++) {
       // Compute adjusted dependent variable
       y = p;
@@ -50,14 +44,15 @@
             integers indexes = as_cpp<list>(klist[l])[j];
             I = indexes.size();
             for (i = 0; i < I; i++) {
-              y(indexes[i]) -= Alpha(j)(j);
+              y(indexes[i]) -= Alpha(l)(j);
             }
           }
         }
       }
 
-      // Compute group mean
       J = as_cpp<list>(klist[k]).size();
+      Col<double> alpha = zeros<Col<double>>(J);
+
       for (j = 0; j < J; j++) {
         // Subset the j-th group of category k
         integers indexes = as_cpp<list>(klist[k])[j];
@@ -73,7 +68,7 @@
         alpha(j) = sum / I;
       }
 
-      // Update \alpha_{k}
+      // Update alpha_k
       Alpha(k) = alpha;
     }
 

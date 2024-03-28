@@ -1,10 +1,9 @@
 #include "00_main.h"
 
 // Method of alternating projections (Halperin)
-[[cpp11::register]] doubles_matrix<>
-center_variables_(const doubles_matrix<> &V_r, const doubles &v_sum_r,
-                  const doubles &w_r, const list &klist, const double tol,
-                  const int maxiter, bool sum_v) {
+[[cpp11::register]] doubles_matrix<> center_variables_(
+    const doubles_matrix<> &V_r, const doubles &v_sum_r, const doubles &w_r,
+    const list &klist, const double tol, const int maxiter, bool sum_v) {
   // Types conversion
   Mat<double> V = as_Mat(V_r);
   Mat<double> w = as_Mat(w_r);
@@ -32,13 +31,10 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &v_sum_r,
     // Center each variable
     x = V.col(p);
 
-    int interruptCheckCounter = 0;
-
     for (iter = 0; iter < 100000; ++iter) {
       // Check user interrupt
-      if (++interruptCheckCounter == 1000) {
+      if ((iter % 1000) == 0) {
         check_user_interrupt();
-        interruptCheckCounter = 0;
       }
 
       // Store centered vector from the last iteration
