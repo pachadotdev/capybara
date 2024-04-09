@@ -15,14 +15,14 @@
   Mat<double> y(N, 1);
 
   // Generate starting guess
-  field<Col<double>> Alpha(K);
+  field<Mat<double>> Alpha(K);
   for (k = 0; k < K; k++) {
     J = as_cpp<list>(klist[k]).size();
-    Alpha(k) = zeros<Col<double>>(J);
+    Alpha(k) = zeros<Mat<double>>(J, 1);
   }
 
   // Start alternating between normal equations
-  field<Col<double>> Alpha0(size(Alpha));
+  field<Mat<double>> Alpha0(size(Alpha));
 
   for (iter = 0; iter < 10000; iter++) {
     // Check user interrupt
@@ -51,7 +51,7 @@
       }
 
       J = as_cpp<list>(klist[k]).size();
-      Col<double> alpha = zeros<Col<double>>(J);
+      Mat<double> alpha = zeros<Mat<double>>(J, 1);
 
       for (j = 0; j < J; j++) {
         // Subset the j-th group of category k
@@ -88,8 +88,7 @@
   // Return alpha
   writable::list Alpha_r(K);
   for (k = 0; k < K; k++) {
-    // Alpha_r[k] = as_doubles_matrix(Alpha(k));
-    Alpha_r[k] = as_doubles(Alpha(k));
+    Alpha_r[k] = as_doubles_matrix(Alpha(k));
   }
 
   return Alpha_r;

@@ -23,6 +23,15 @@ collinearity into account. If the solution is not unique, an estimable
 function has to be applied to our solution to get meaningful estimates of
 the fixed effects.
 }
+\examples{
+# same as the example in feglm but extracting the fixed effects
+mod <- fepoisson(
+  trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
+  trade_panel
+)
+
+fixed_effects(mod)
+}
 \references{
 Stammann, A. (2018). "Fast and Feasible Estimation of Generalized
 Linear Models with High-Dimensional k-way Fixed Effects". ArXiv e-prints.

@@ -14,6 +14,14 @@
 #' @references Gaure, S. (n. d.). "Multicollinearity, identification, and
 #'  estimable functions". Unpublished.
 #' @seealso \code{\link{felm}}, \code{\link{feglm}}
+#' @examples
+#' # same as the example in feglm but extracting the fixed effects
+#' mod <- fepoisson(
+#'   trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
+#'   trade_panel
+#' )
+#'
+#' fixed_effects(mod)
 #' @export
 fixed_effects <- function(object = NULL, alpha.tol = 1.0e-08) {
   # Check validity of 'object'
@@ -51,8 +59,8 @@ fixed_effects <- function(object = NULL, alpha.tol = 1.0e-08) {
 
   # Assign names to the different fixed effects categories
   for (i in seq.int(k)) {
-    fe.list[[i]] <- as.vector(fe.list[[i]])
-    names(fe.list[[i]]) <- nms.fe[[i]]
+    colnames(fe.list[[i]]) <- k.vars[i]
+    rownames(fe.list[[i]]) <- nms.fe[[i]]
   }
   names(fe.list) <- k.vars
 
