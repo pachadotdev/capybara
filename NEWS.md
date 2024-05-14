@@ -1,3 +1,7 @@
+# capybara 0.4.5
+
+* Ungroups the data to avoid issues with the model matrix
+
 # capybara 0.4
 
 * Uses R's C API efficiently to add a bit more of memory optimizations

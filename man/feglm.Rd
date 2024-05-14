@@ -68,6 +68,14 @@ mod <- feglm(
 )
 
 summary(mod)
+
+mod <- feglm(
+  trade ~ log_dist + lang + cntg + clny | exp_year + imp_year | pair,
+  trade_panel,
+  family = poisson(link = "log")
+)
+
+summary(mod, type = "clustered")
 }
 \references{
 Gaure, S. (2013). "OLS with Multiple High Dimensional Category

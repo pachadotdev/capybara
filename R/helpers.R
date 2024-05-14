@@ -108,7 +108,7 @@ update_formula_ <- function(formula) {
 }
 
 model_frame_ <- function(data, formula, weights) {
-  data <- select(data, all_of(c(all.vars(formula), weights)))
+  data <- select(ungroup(data), all_of(c(all.vars(formula), weights)))
 
   lhs <- names(data)[[1L]]
 
