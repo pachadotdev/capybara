@@ -2,7 +2,7 @@ Package: capybara
 Type: Package
 Title: Fast and Memory Efficient Fitting of Linear Models With High-Dimensional
     Fixed Effects
-Version: 0.4.5
+Version: 0.4.6
 Authors@R: c(
     person(
         given = "Mauricio",
@@ -42,5 +42,5 @@ LinkingTo: cpp11, cpp11armadillo
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 Remotes: 
-    pachadotdev/cpp11armadillo
+    ropenscilabs/srr
 Roxygen: list(markdown = TRUE, roclets = c("namespace", "rd", "srr::srr_stats_roclet"))

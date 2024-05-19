@@ -131,7 +131,7 @@ vcov.feglm <- function(
                 as.matrix(
                   G %>%
                     group_by(!!sym(cl)) %>%
-                    summarise(across(sp.vars, sum), .groups = "drop") %>%
+                    summarise(across(all_of(sp.vars), sum), .groups = "drop") %>%
                     select(-!!sym(cl))
                 ),
                 NA_real_, FALSE, FALSE

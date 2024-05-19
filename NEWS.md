@@ -1,3 +1,9 @@
+# capybara 0.4.6
+
+* Fixes notes from tidyselect regarding the use of `all_of()`.
+* The C++ code follows a more consistent style.
+* The GH-Actions do not test gcc 4.8 anymore.
+
 # capybara 0.4.5
 
 * Ungroups the data to avoid issues with the model matrix

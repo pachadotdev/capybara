@@ -3,8 +3,8 @@
 // Method of alternating projections (Halperin)
 [[cpp11::register]] doubles_matrix<>
 center_variables_(const doubles_matrix<> &V_r, const doubles &v_sum_r,
-                  const doubles &w_r, const list &klist, const double tol,
-                  const int maxiter, bool sum_v) {
+                  const doubles &w_r, const list &klist, const double &tol,
+                  const int &maxiter, const bool &sum_v) {
   // Types conversion
   Mat<double> V = as_Mat(V_r);
   Mat<double> w = as_Mat(w_r);
@@ -28,7 +28,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &v_sum_r,
   Mat<double> x0(N, 1);
 
   // Halperin projections
-  for (p = 0; p < P; p++) {
+  for (p = 0; p < P; ++p) {
     // Center each variable
     x = V.col(p);
 
@@ -42,11 +42,11 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &v_sum_r,
       x0 = x;
 
       // Alternate between categories
-      for (k = 0; k < K; k++) {
+      for (k = 0; k < K; ++k) {
         // Compute all weighted group means of category 'k' and subtract them
         writable::list jlist = klist[k];
         J = jlist.size();
-        for (j = 0; j < J; j++) {
+        for (j = 0; j < J; ++j) {
           // Subset j-th group of category 'k'
           integers indexes = as_cpp<integers>(jlist[j]);
           I = indexes.size();
@@ -54,7 +54,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &v_sum_r,
           // Compute numerator and denominator of the weighted group mean
           num = 0.0;
           denom = 0.0;
-          for (i = 0; i < I; i++) {
+          for (i = 0; i < I; ++i) {
             index = indexes[i];
             wt = w(index);
             num += wt * x(index);
@@ -63,7 +63,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &v_sum_r,
 
           // Subtract weighted group mean
           meanj = num / denom;
-          for (i = 0; i < I; i++) {
+          for (i = 0; i < I; ++i) {
             index = indexes[i];
             x(index) -= meanj;
           }

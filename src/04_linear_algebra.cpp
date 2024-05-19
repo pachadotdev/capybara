@@ -4,8 +4,9 @@
 // Y <- t(X) %*% X
 
 [[cpp11::register]] doubles_matrix<> crossprod_(const doubles_matrix<> &x,
-                                                const doubles &w, bool weighted,
-                                                bool root_weights) {
+                                                const doubles &w,
+                                                const bool &weighted,
+                                                const bool &root_weights) {
   // Types conversion
   Mat<double> X = as_Mat(x);
 
@@ -31,8 +32,8 @@
 
 [[cpp11::register]] doubles_matrix<>
 gamma_(const doubles_matrix<> &mx, const doubles_matrix<> &hessian,
-       const doubles_matrix<> j, const doubles_matrix<> &ppsi, const doubles &v,
-       const SEXP &nt_full) {
+       const doubles_matrix<> &j, const doubles_matrix<> &ppsi,
+       const doubles &v, const SEXP &nt_full) {
   // Types conversion
   Mat<double> MX = as_Mat(mx);
   Mat<double> H = as_Mat(hessian);
@@ -153,7 +154,7 @@ update_beta_eta_(const doubles &old, const doubles &upd, const double &param) {
   double *old_data = REAL(old);
   double *upd_data = REAL(upd);
 
-  for (int i = 0; i < n; i++) {
+  for (int i = 0; i < n; ++i) {
     res[i] = old_data[i] + (upd_data[i] * param);
   }
 
@@ -171,7 +172,7 @@ update_beta_eta_(const doubles &old, const doubles &upd, const double &param) {
   double *mu_data = REAL(mu);
   double *mu_eta_data = REAL(mu_eta);
 
-  for (int i = 0; i < n; i++) {
+  for (int i = 0; i < n; ++i) {
     res[i] = (y_data[i] - mu_data[i]) / mu_eta_data[i];
   }
 
@@ -180,8 +181,9 @@ update_beta_eta_(const doubles &old, const doubles &upd, const double &param) {
 
 [[cpp11::register]] doubles solve_beta_(const doubles_matrix<> &mx,
                                         const doubles_matrix<> &mnu,
-                                        const doubles wtilde, double epsilon,
-                                        bool weighted) {
+                                        const doubles &wtilde,
+                                        const double &epsilon,
+                                        const bool &weighted) {
   // Types conversion
   Mat<double> X = as_Mat(mx);
   Mat<double> Y = as_Mat(mnu);
@@ -237,7 +239,7 @@ update_beta_eta_(const doubles &old, const doubles &upd, const double &param) {
   // Types conversion
   int n = yadj.size();
   writable::doubles res(n);
-  for (int i = 0; i < n; i++) {
+  for (int i = 0; i < n; ++i) {
     res[i] = yadj[i] - myadj(i, 0) + offset[i] - eta[i];
   }
   return res;
@@ -249,7 +251,7 @@ update_beta_eta_(const doubles &old, const doubles &upd, const double &param) {
   // Types conversion
   int n = w.size();
   writable::doubles res(n);
-  for (int i = 0; i < n; i++) {
+  for (int i = 0; i < n; ++i) {
     res[i] = sqrt(w[i]);
   }
   return res;

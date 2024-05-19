@@ -18,7 +18,7 @@
   // Compute sum of weighted group sums
   double denom = 0.0;
 
-  for (int j = 0; j < J; j++) {
+  for (int j = 0; j < J; ++j) {
     // Subset j-th group
     indexes = as_cpp<std::vector<int>>(jlist[j]);
     int I = indexes.size();
@@ -26,13 +26,13 @@
     // Compute numerator of the weighted group sum
     num.zeros();
     for (int p = 0; p < P; ++p) {
-      for (int i = 0; i < I; i++) {
+      for (int i = 0; i < I; ++i) {
         num(p, 0) += M(indexes[i], p);
       }
     }
 
     // Compute denominator of the weighted group sum
-    for (int i = 0; i < I; i++) {
+    for (int i = 0; i < I; ++i) {
       denom += w(indexes[i]);
     }
   }
@@ -45,7 +45,7 @@
 [[cpp11::register]] doubles group_sums_spectral_(const doubles_matrix<> &M_r,
                                                  const doubles_matrix<> &v_r,
                                                  const doubles_matrix<> &w_r,
-                                                 const int K,
+                                                 const int &K,
                                                  const list &jlist) {
   // Types conversion
   Mat<double> M = as_Mat(M_r);
@@ -66,14 +66,14 @@
   std::vector<double> weights(J);
   std::vector<std::vector<double>> values(J, std::vector<double>(P));
 
-  for (int j = 0; j < J; j++) {
+  for (int j = 0; j < J; ++j) {
     // Subset j-th group
     integers indexes = as_cpp<integers>(jlist[j]);
     int I = indexes.size();
 
-    for (int i = 0; i < I; i++) {
+    for (int i = 0; i < I; ++i) {
       weights[i] = w[indexes[i]];
-      for (int p = 0; p < P; p++) {
+      for (int p = 0; p < P; ++p) {
         values[i][p] = M(indexes[i], p);
       }
     }
@@ -81,13 +81,13 @@
     // Compute numerator of the weighted group sum
     num.zeros();
     for (int p = 0; p < P; ++p) {
-      for (int i = 0; i < I; i++) {
+      for (int i = 0; i < I; ++i) {
         num(p, 0) += values[i][p];
       }
     }
 
     // Compute denominator of the weighted group sum
-    for (int i = 0; i < I; i++) {
+    for (int i = 0; i < I; ++i) {
       denom += weights[i];
     }
   }
@@ -120,15 +120,15 @@ group_sums_var_(const doubles_matrix<> &M_r, const list &jlist) {
     integers indexes = as_cpp<integers>(jlist[j]);
     int I = indexes.size();
 
-    for (int i = 0; i < I; i++) {
-      for (int p = 0; p < P; p++) {
+    for (int i = 0; i < I; ++i) {
+      for (int p = 0; p < P; ++p) {
         values[j][p] = M(indexes[i], p);
       }
     }
 
     // Compute group sum
     v.zeros();
-    for (int p = 0; p < P; p++) {
+    for (int p = 0; p < P; ++p) {
       for (int i = 0; i < I; ++i) {
         v[p] += values[j][p];
       }
@@ -167,18 +167,18 @@ group_sums_cov_(const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
     // Subset j-th group
     integers indexes = as_cpp<integers>(jlist[j]);
 
-    for (int i = 0; i < I; i++) {
-      for (int p = 0; p < P; p++) {
+    for (int i = 0; i < I; ++i) {
+      for (int p = 0; p < P; ++p) {
         M_values[i][p] = M(indexes[i], p);
         N_values[i][p] = N(indexes[i], p);
       }
     }
 
     // Add to covariance matrix
-    for (int p = 0; p < P; p++) {
-      for (int q = 0; q < P; q++) {
-        for (int i = 0; i < I; i++) {
-          for (int s = i + 1; s < I; s++) {
+    for (int p = 0; p < P; ++p) {
+      for (int q = 0; q < P; ++q) {
+        for (int i = 0; i < I; ++i) {
+          for (int s = i + 1; s < I; ++s) {
             V(q, p) += M_values[i][q] * N_values[s][p];
           }
         }

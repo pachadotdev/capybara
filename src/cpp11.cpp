@@ -6,17 +6,17 @@
 #include <R_ext/Visibility.h>
 
 // 01_center_variables.cpp
-doubles_matrix<> center_variables_(const doubles_matrix<> & V_r, const doubles & v_sum_r, const doubles & w_r, const list & klist, const double tol, const int maxiter, bool sum_v);
+doubles_matrix<> center_variables_(const doubles_matrix<> & V_r, const doubles & v_sum_r, const doubles & w_r, const list & klist, const double & tol, const int & maxiter, const bool & sum_v);
 extern "C" SEXP _capybara_center_variables_(SEXP V_r, SEXP v_sum_r, SEXP w_r, SEXP klist, SEXP tol, SEXP maxiter, SEXP sum_v) {
   BEGIN_CPP11
-    return cpp11::as_sexp(center_variables_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(V_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(v_sum_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(w_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(klist), cpp11::as_cpp<cpp11::decay_t<const double>>(tol), cpp11::as_cpp<cpp11::decay_t<const int>>(maxiter), cpp11::as_cpp<cpp11::decay_t<bool>>(sum_v)));
+    return cpp11::as_sexp(center_variables_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(V_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(v_sum_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(w_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(klist), cpp11::as_cpp<cpp11::decay_t<const double &>>(tol), cpp11::as_cpp<cpp11::decay_t<const int &>>(maxiter), cpp11::as_cpp<cpp11::decay_t<const bool &>>(sum_v)));
   END_CPP11
 }
 // 02_get_alpha.cpp
-list get_alpha_(const doubles_matrix<> & p_r, const list & klist, const double tol);
+list get_alpha_(const doubles_matrix<> & p_r, const list & klist, const double & tol);
 extern "C" SEXP _capybara_get_alpha_(SEXP p_r, SEXP klist, SEXP tol) {
   BEGIN_CPP11
-    return cpp11::as_sexp(get_alpha_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(p_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(klist), cpp11::as_cpp<cpp11::decay_t<const double>>(tol)));
+    return cpp11::as_sexp(get_alpha_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(p_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(klist), cpp11::as_cpp<cpp11::decay_t<const double &>>(tol)));
   END_CPP11
 }
 // 03_group_sums.cpp
@@ -27,10 +27,10 @@ extern "C" SEXP _capybara_group_sums_(SEXP M_r, SEXP w_r, SEXP jlist) {
   END_CPP11
 }
 // 03_group_sums.cpp
-doubles group_sums_spectral_(const doubles_matrix<> & M_r, const doubles_matrix<> & v_r, const doubles_matrix<> & w_r, const int K, const list & jlist);
+doubles group_sums_spectral_(const doubles_matrix<> & M_r, const doubles_matrix<> & v_r, const doubles_matrix<> & w_r, const int & K, const list & jlist);
 extern "C" SEXP _capybara_group_sums_spectral_(SEXP M_r, SEXP v_r, SEXP w_r, SEXP K, SEXP jlist) {
   BEGIN_CPP11
-    return cpp11::as_sexp(group_sums_spectral_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(M_r), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(v_r), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(w_r), cpp11::as_cpp<cpp11::decay_t<const int>>(K), cpp11::as_cpp<cpp11::decay_t<const list &>>(jlist)));
+    return cpp11::as_sexp(group_sums_spectral_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(M_r), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(v_r), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(w_r), cpp11::as_cpp<cpp11::decay_t<const int &>>(K), cpp11::as_cpp<cpp11::decay_t<const list &>>(jlist)));
   END_CPP11
 }
 // 03_group_sums.cpp
@@ -48,17 +48,17 @@ extern "C" SEXP _capybara_group_sums_cov_(SEXP M_r, SEXP N_r, SEXP jlist) {
   END_CPP11
 }
 // 04_linear_algebra.cpp
-doubles_matrix<> crossprod_(const doubles_matrix<> & x, const doubles & w, bool weighted, bool root_weights);
+doubles_matrix<> crossprod_(const doubles_matrix<> & x, const doubles & w, const bool & weighted, const bool & root_weights);
 extern "C" SEXP _capybara_crossprod_(SEXP x, SEXP w, SEXP weighted, SEXP root_weights) {
   BEGIN_CPP11
-    return cpp11::as_sexp(crossprod_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(x), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(w), cpp11::as_cpp<cpp11::decay_t<bool>>(weighted), cpp11::as_cpp<cpp11::decay_t<bool>>(root_weights)));
+    return cpp11::as_sexp(crossprod_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(x), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(w), cpp11::as_cpp<cpp11::decay_t<const bool &>>(weighted), cpp11::as_cpp<cpp11::decay_t<const bool &>>(root_weights)));
   END_CPP11
 }
 // 04_linear_algebra.cpp
-doubles_matrix<> gamma_(const doubles_matrix<> & mx, const doubles_matrix<> & hessian, const doubles_matrix<> j, const doubles_matrix<> & ppsi, const doubles & v, const SEXP & nt_full);
+doubles_matrix<> gamma_(const doubles_matrix<> & mx, const doubles_matrix<> & hessian, const doubles_matrix<> & j, const doubles_matrix<> & ppsi, const doubles & v, const SEXP & nt_full);
 extern "C" SEXP _capybara_gamma_(SEXP mx, SEXP hessian, SEXP j, SEXP ppsi, SEXP v, SEXP nt_full) {
   BEGIN_CPP11
-    return cpp11::as_sexp(gamma_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(mx), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(hessian), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<>>>(j), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(ppsi), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(v), cpp11::as_cpp<cpp11::decay_t<const SEXP &>>(nt_full)));
+    return cpp11::as_sexp(gamma_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(mx), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(hessian), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(j), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(ppsi), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(v), cpp11::as_cpp<cpp11::decay_t<const SEXP &>>(nt_full)));
   END_CPP11
 }
 // 04_linear_algebra.cpp
@@ -125,10 +125,10 @@ extern "C" SEXP _capybara_update_nu_(SEXP y, SEXP mu, SEXP mu_eta) {
   END_CPP11
 }
 // 04_linear_algebra.cpp
-doubles solve_beta_(const doubles_matrix<> & mx, const doubles_matrix<> & mnu, const doubles wtilde, double epsilon, bool weighted);
+doubles solve_beta_(const doubles_matrix<> & mx, const doubles_matrix<> & mnu, const doubles & wtilde, const double & epsilon, const bool & weighted);
 extern "C" SEXP _capybara_solve_beta_(SEXP mx, SEXP mnu, SEXP wtilde, SEXP epsilon, SEXP weighted) {
   BEGIN_CPP11
-    return cpp11::as_sexp(solve_beta_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(mx), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(mnu), cpp11::as_cpp<cpp11::decay_t<const doubles>>(wtilde), cpp11::as_cpp<cpp11::decay_t<double>>(epsilon), cpp11::as_cpp<cpp11::decay_t<bool>>(weighted)));
+    return cpp11::as_sexp(solve_beta_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(mx), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(mnu), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(wtilde), cpp11::as_cpp<cpp11::decay_t<const double &>>(epsilon), cpp11::as_cpp<cpp11::decay_t<const bool &>>(weighted)));
   END_CPP11
 }
 // 04_linear_algebra.cpp
