@@ -65,8 +65,10 @@ See the documentation in progress: <https://pacha.dev/capybara>.
 
 ## Design choices
 
-Capybara uses C++ to address some bottlenecks. It also uses data.table
-because it allows me to use hash tables.
+Capybara uses C++ and vectorized R operations to address bottlenecks.
+Some parts of the code use dplyr, which allows me to write code that is
+easier to understand and it works very well to performed grouped
+operations.
 
 I tried to implement an important lesson between v0.1 and v0.2: “He who
 gives up \[code\] safety for \[code\] speed deserves neither.” (Wickham,
@@ -104,8 +106,7 @@ UofT’s servers a bit less.
 
 ## Future plans
 
-I will also work on adding a RESET test to summaries as default and make
-clustered standard errors computation a bit easier.
+I will also work on adding a RESET test to summaries.
 
 This also needs lots of tests. There are a few in the dev folder, but I
 need to test with testthat.
@@ -118,19 +119,19 @@ Analysis](https://www.wto.org/english/res_e/publications_e/advancedguide2016_e.h
 
 | package      |    PPML | Trade Diversion | Endogeneity | Reverse Causality | Non-linear/Phasing Effects | Globalization |
 | :----------- | ------: | --------------: | ----------: | ----------------: | -------------------------: | ------------: |
-| Alpaca       | 213.4ms |            2.3s |       1.35s |             1.86s |                      2.59s |         4.96s |
+| Alpaca       | 346.4ms |           2.52s |       1.51s |              1.9s |                      2.96s |         5.57s |
 | Base R       |    1.5m |           1.53m |      23.43m |            23.52m |                     23.16m |        24.85m |
-| **Capybara** |   337ms |           3.19s |       1.37s |             1.74s |                      2.66s |         4.65s |
-| Fixest       |  67.4ms |        477.08ms |     95.88ms |          136.21ms |                   206.12ms |      415.31ms |
+| **Capybara** |   440ms |           2.86s |       1.92s |             2.29s |                      2.96s |         4.46s |
+| Fixest       |  64.9ms |           503ms |    106.14ms |          145.04ms |                   243.61ms |       524.7ms |
 
 Memory allocation for the same models
 
-| package      |    PPML | Trade Diversion | Endogeneity | Reverse Causality | Non-linear/Phasing Effects | Globalization |
-| :----------- | ------: | --------------: | ----------: | ----------------: | -------------------------: | ------------: |
-| Alpaca       | 304.8MB |         339.8MB |     306.3MB |          335.61MB |                   393.86MB |      539.49MB |
-| Base R       |  2.73GB |           2.6GB |      11.9GB |           11.94GB |                    11.95GB |       11.97GB |
-| **Capybara** |   210MB |           235MB |       241MB |             249MB |                      263MB |         299MB |
-| Fixest       | 44.59MB |         36.59MB |      28.1MB |           32.43MB |                    41.12MB |       62.87MB |
+| package      |   PPML | Trade Diversion | Endogeneity | Reverse Causality | Non-linear/Phasing Effects | Globalization |
+| :----------- | -----: | --------------: | ----------: | ----------------: | -------------------------: | ------------: |
+| Alpaca       |  306MB |         340.8MB |     306.4MB |           335.9MB |                    394.6MB |       541.3MB |
+| Base R       |  2.7GB |           2.6GB |      11.9GB |           11.92GB |                    11.95GB |       11.97GB |
+| **Capybara** |  210MB |           235MB |       241MB |             249MB |                      263MB |         299MB |
+| Fixest       | 44.4MB |          36.4MB |      27.9MB |            32.2MB |                     40.9MB |        62.7MB |
 
 # Debugging
 

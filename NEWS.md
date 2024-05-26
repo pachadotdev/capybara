@@ -1,3 +1,8 @@
+# capybara 0.5.0
+
+* Avoids for loops in the C++ code, and instead uses Armadillo's functions.
+* O(n) computations in C++ access data directly by using pointers.
+
 # capybara 0.4.6
 
 * Fixes notes from tidyselect regarding the use of `all_of()`.

@@ -41,10 +41,11 @@ gamma_(const doubles_matrix<> &mx, const doubles_matrix<> &hessian,
   Mat<double> PPsi = as_Mat(ppsi);
   Mat<double> V = as_Mat(v);
 
-  double N = as_cpp<double>(nt_full);
+  double inv_N = 1.0 / as_cpp<double>(nt_full);
 
-  Mat<double> res = (MX * solve(H / N, J)) - PPsi;
-  res = (res.each_col() % V) / N;
+  Mat<double> res = (MX * solve(H * inv_N, J)) - PPsi;
+  res = res.each_col() % V;
+  res *= inv_N;
   return as_doubles_matrix(res);
 }
 
@@ -55,8 +56,8 @@ chol_crossprod_(const doubles_matrix<> &x) {
   // Types conversion
   Mat<double> X = as_Mat(x);
 
-  // Crossprod + Cholesky decomposition
-  Mat<double> res = chol(X.t() * X);
+  // Cholesky decomposition of X'X
+  Mat<double> res = chol(X, "upper");
   return as_doubles_matrix(res);
 }
 
@@ -69,7 +70,7 @@ chol_crossprod_(const doubles_matrix<> &x) {
   Mat<double> R = as_Mat(r);
 
   // (X'X)^(-1) from the R part of the Cholesky decomposition
-  Mat<double> res = inv(R.t() * R);
+  Mat<double> res = inv_sympd(R.t() * R);
   return as_doubles_matrix(res);
 }
 
@@ -90,8 +91,7 @@ chol_crossprod_(const doubles_matrix<> &x) {
 [[cpp11::register]] int qr_rank_(const doubles_matrix<> &x) {
   Mat<double> X = as_Mat(x);
 
-  Mat<double> Q;
-  Mat<double> R;
+  Mat<double> Q, R;
 
   bool computable = qr_econ(Q, R, X);
 
@@ -99,8 +99,7 @@ chol_crossprod_(const doubles_matrix<> &x) {
     stop("QR decomposition failed");
   } else {
     // rank = non-zero diagonal elements
-    int rank = sum(R.diag() != 0.0);
-    return rank;
+    return sum(R.diag() != 0.0);
   }
 }
 
@@ -114,8 +113,10 @@ chol_crossprod_(const doubles_matrix<> &x) {
   Mat<double> H = as_Mat(hessian);
   Mat<double> B = as_Mat(b);
 
+  double inv_nt = 1.0 / nt;
+
   // Solve
-  return as_doubles(Beta_uncorr - solve(H / nt, B));
+  return as_doubles(Beta_uncorr - solve(H * inv_nt, B));
 }
 
 // A %*% x
@@ -203,8 +204,7 @@ update_beta_eta_(const doubles &old, const doubles &upd, const double &param) {
   // Now we need to solve the system X * beta = Y
   // We proceed with the Economic QR
 
-  Mat<double> Q;
-  Mat<double> R;
+  Mat<double> Q, R;
 
   bool computable = qr_econ(Q, R, X);
 
@@ -221,38 +221,65 @@ update_beta_eta_(const doubles &old, const doubles &upd, const double &param) {
 [[cpp11::register]] doubles solve_eta_(const doubles_matrix<> &mx,
                                        const doubles_matrix<> &mnu,
                                        const doubles &nu, const doubles &beta) {
-  // Types conversion
-  Mat<double> MX = as_Mat(mx);
-  Mat<double> Mnu = as_Mat(mnu);
-  Mat<double> Nu = as_Mat(nu);
-  Mat<double> Beta = as_Mat(beta);
+  int N = mx.nrow();
+  int P = mx.ncol();
+  int n, p;
 
-  return as_doubles(Nu - (Mnu - (MX * Beta)));
+  writable::doubles product(N);
+  writable::doubles res(N);
+
+  const double *mx_data = REAL(mx.data());
+  const double *mnu_data = REAL(mnu.data());
+  const double *nu_data = REAL(nu);
+  const double *beta_data = REAL(beta);
+
+  // Perform matrix multiplication
+  for (n = 0; n < N; ++n) {
+    double sum = 0.0;
+    for (p = 0; p < P; ++p) {
+      sum += mx_data[n + N * p] * beta_data[p];
+    }
+    product[n] = sum;
+  }
+
+  // Perform the remaining operations
+  for (n = 0; n < N; ++n) {
+    res[n] = nu_data[n] - (mnu_data[n] - product[n]);
+  }
+
+  return res;
 }
 
 // eta.upd <- yadj - as.vector(Myadj) + offset - eta
 
-[[cpp11::register]] doubles solve_eta2_(const doubles &yadj,
-                                        const doubles_matrix<> &myadj,
-                                        const doubles &offset,
-                                        const doubles &eta) {
-  // Types conversion
-  int n = yadj.size();
+[[cpp11::register]] doubles solve_eta2_(const SEXP &yadj, const SEXP &myadj,
+                                        const SEXP &offset, const SEXP &eta) {
+  int n = Rf_length(yadj);
   writable::doubles res(n);
+
+  double *Yadj_data = REAL(yadj);
+  double *Myadj_data = REAL(myadj);
+  double *Offset_data = REAL(offset);
+  double *Eta_data = REAL(eta);
+
   for (int i = 0; i < n; ++i) {
-    res[i] = yadj[i] - myadj(i, 0) + offset[i] - eta[i];
+    res[i] = Yadj_data[i] - Myadj_data[i] + Offset_data[i] - Eta_data[i];
   }
+
   return res;
 }
 
 // w <- sqrt(w)
 
-[[cpp11::register]] doubles sqrt_(const doubles &w) {
-  // Types conversion
-  int n = w.size();
+[[cpp11::register]] doubles sqrt_(const SEXP &w) {
+  int n = Rf_length(w);
   writable::doubles res(n);
+
+  double *w_data = REAL(w);
+
   for (int i = 0; i < n; ++i) {
-    res[i] = sqrt(w[i]);
+    res[i] = sqrt(w_data[i]);
   }
+
   return res;
 }

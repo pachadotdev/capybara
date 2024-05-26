@@ -20,17 +20,17 @@ extern "C" SEXP _capybara_get_alpha_(SEXP p_r, SEXP klist, SEXP tol) {
   END_CPP11
 }
 // 03_group_sums.cpp
-doubles group_sums_(const doubles_matrix<> & M_r, const doubles_matrix<> & w_r, const list & jlist);
+doubles_matrix<> group_sums_(const doubles_matrix<> & M_r, const doubles_matrix<> & w_r, const list & jlist);
 extern "C" SEXP _capybara_group_sums_(SEXP M_r, SEXP w_r, SEXP jlist) {
   BEGIN_CPP11
     return cpp11::as_sexp(group_sums_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(M_r), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(w_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(jlist)));
   END_CPP11
 }
 // 03_group_sums.cpp
-doubles group_sums_spectral_(const doubles_matrix<> & M_r, const doubles_matrix<> & v_r, const doubles_matrix<> & w_r, const int & K, const list & jlist);
+doubles_matrix<> group_sums_spectral_(const doubles_matrix<> & M_r, const doubles_matrix<> & v_r, const doubles_matrix<> & w_r, const int K, const list & jlist);
 extern "C" SEXP _capybara_group_sums_spectral_(SEXP M_r, SEXP v_r, SEXP w_r, SEXP K, SEXP jlist) {
   BEGIN_CPP11
-    return cpp11::as_sexp(group_sums_spectral_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(M_r), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(v_r), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(w_r), cpp11::as_cpp<cpp11::decay_t<const int &>>(K), cpp11::as_cpp<cpp11::decay_t<const list &>>(jlist)));
+    return cpp11::as_sexp(group_sums_spectral_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(M_r), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(v_r), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(w_r), cpp11::as_cpp<cpp11::decay_t<const int>>(K), cpp11::as_cpp<cpp11::decay_t<const list &>>(jlist)));
   END_CPP11
 }
 // 03_group_sums.cpp
@@ -139,17 +139,17 @@ extern "C" SEXP _capybara_solve_eta_(SEXP mx, SEXP mnu, SEXP nu, SEXP beta) {
   END_CPP11
 }
 // 04_linear_algebra.cpp
-doubles solve_eta2_(const doubles & yadj, const doubles_matrix<> & myadj, const doubles & offset, const doubles & eta);
+doubles solve_eta2_(const SEXP & yadj, const SEXP & myadj, const SEXP & offset, const SEXP & eta);
 extern "C" SEXP _capybara_solve_eta2_(SEXP yadj, SEXP myadj, SEXP offset, SEXP eta) {
   BEGIN_CPP11
-    return cpp11::as_sexp(solve_eta2_(cpp11::as_cpp<cpp11::decay_t<const doubles &>>(yadj), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(myadj), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(offset), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(eta)));
+    return cpp11::as_sexp(solve_eta2_(cpp11::as_cpp<cpp11::decay_t<const SEXP &>>(yadj), cpp11::as_cpp<cpp11::decay_t<const SEXP &>>(myadj), cpp11::as_cpp<cpp11::decay_t<const SEXP &>>(offset), cpp11::as_cpp<cpp11::decay_t<const SEXP &>>(eta)));
   END_CPP11
 }
 // 04_linear_algebra.cpp
-doubles sqrt_(const doubles & w);
+doubles sqrt_(const SEXP & w);
 extern "C" SEXP _capybara_sqrt_(SEXP w) {
   BEGIN_CPP11
-    return cpp11::as_sexp(sqrt_(cpp11::as_cpp<cpp11::decay_t<const doubles &>>(w)));
+    return cpp11::as_sexp(sqrt_(cpp11::as_cpp<cpp11::decay_t<const SEXP &>>(w)));
   END_CPP11
 }
 // 05_pairwise_correlation.cpp

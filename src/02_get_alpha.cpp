@@ -10,15 +10,20 @@
   const int K = klist.size();
 
   // Auxiliary variables (storage)
-  double crit, denom, num, sum;
-  int iter, i, j, k, l, I, J;
+  double crit, denom, num;
+  int iter, k, l;
   Mat<double> y(N, 1);
+
+  // Pre-compute list sizes
+  std::vector<int> list_sizes(K);
+  for (k = 0; k < K; ++k) {
+    list_sizes[k] = as_cpp<list>(klist[k]).size();
+  }
 
   // Generate starting guess
   field<Mat<double>> Alpha(K);
   for (k = 0; k < K; ++k) {
-    J = as_cpp<list>(klist[k]).size();
-    Alpha(k) = zeros<Mat<double>>(J, 1);
+    Alpha(k) = zeros<Mat<double>>(list_sizes[k], 1);
   }
 
   // Start alternating between normal equations
@@ -39,33 +44,25 @@
 
       for (l = 0; l < K; ++l) {
         if (l != k) {
-          J = as_cpp<list>(klist[l]).size();
-          for (j = 0; j < J; ++j) {
-            integers indexes = as_cpp<list>(klist[l])[j];
-            I = indexes.size();
-            for (i = 0; i < I; ++i) {
-              y(indexes[i]) -= Alpha(l)(j);
-            }
+          list klist_l = klist[l];
+          for (int j = 0; j < list_sizes[l]; ++j) {
+            uvec indexes =
+                conv_to<uvec>::from(as_cpp<std::vector<int>>(klist_l[j]));
+            y(indexes) -= Alpha(l)(j);
           }
         }
       }
 
-      J = as_cpp<list>(klist[k]).size();
-      Mat<double> alpha = zeros<Mat<double>>(J, 1);
+      list klist_k = as_cpp<list>(klist[k]);
+      Mat<double> alpha(list_sizes[k], 1);
 
-      for (j = 0; j < J; ++j) {
+      for (int j = 0; j < list_sizes[k]; ++j) {
         // Subset the j-th group of category k
-        integers indexes = as_cpp<list>(klist[k])[j];
-        I = indexes.size();
-
-        // Compute group sum
-        sum = 0.0;
-        for (i = 0; i < I; ++i) {
-          sum += y(indexes[i]);
-        }
+        uvec indexes =
+            conv_to<uvec>::from(as_cpp<std::vector<int>>(klist_k[j]));
 
         // Store group mean
-        alpha(j) = sum / I;
+        alpha(j) = mean(y(indexes));
       }
 
       // Update alpha_k
@@ -76,9 +73,12 @@
     num = 0.0;
     denom = 0.0;
     for (k = 0; k < K; ++k) {
-      num += accu(pow(Alpha(k) - Alpha0(k), 2));
-      denom += accu(pow(Alpha0(k), 2));
+      Mat<double> diff = Alpha(k) - Alpha0(k);
+      num += accu(diff % diff);
+      denom += accu(Alpha0(k) % Alpha0(k));
+      Alpha0(k) = Alpha(k);
     }
+
     crit = sqrt(num / denom);
     if (crit < tol) {
       break;

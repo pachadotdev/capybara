@@ -46,7 +46,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="index.html">capybara</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.4.6</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.5.0</span>
       </span>
     </div>
 
@@ -121,7 +121,7 @@
 <div class="section level2">
 <h2 id="design-choices">Design choices<a class="anchor" aria-label="anchor" href="#design-choices"></a>
 </h2>
-<p>Capybara uses C++ to address some bottlenecks. It also uses data.table because it allows me to use hash tables.</p>
+<p>Capybara uses C++ and vectorized R operations to address bottlenecks. Some parts of the code use dplyr, which allows me to write code that is easier to understand and it works very well to performed grouped operations.</p>
 <p>I tried to implement an important lesson between v0.1 and v0.2: “He who gives up [code] safety for [code] speed deserves neither.” (Wickham, 2014).</p>
 <p>I know some parts of the code are not particularly easy to understand. For example, I initially wrote an implementation for Kendall’s Tau (or Kendall’s correlation) with a time complexity of O(n^2). Posterior work on it, allowed me to solve the bottleneck that computation created, and I was able to reduce it to a time complexity of O(n * log(n)) at the expense of making the code harder to understand, but I still did my best to write a straightforward code.</p>
 <p>Capybara is full of trade-offs. I used dplyr and dtplyr to help myself with the data.table syntax, otherwise there is no way to use in-place modification of data. This is something intentional in dplyr to avoid side effects like changing the input data. In my research I use SQL because I have over 200 GB of international trade data, where dplyr helps a lot because it allows me to query SQL directly from R and just using dplyr syntax, something impossible with data.table, which requires me to go to the SQL editor en export my queries in CSV format and then import them in R.</p>
@@ -131,7 +131,7 @@
 <div class="section level2">
 <h2 id="future-plans">Future plans<a class="anchor" aria-label="anchor" href="#future-plans"></a>
 </h2>
-<p>I will also work on adding a RESET test to summaries as default and make clustered standard errors computation a bit easier.</p>
+<p>I will also work on adding a RESET test to summaries.</p>
 <p>This also needs lots of tests. There are a few in the dev folder, but I need to test with testthat.</p>
 </div>
 <div class="section level2">
@@ -160,12 +160,12 @@
 <tbody>
 <tr class="odd">
 <td align="left">Alpaca</td>
-<td align="right">213.4ms</td>
-<td align="right">2.3s</td>
-<td align="right">1.35s</td>
-<td align="right">1.86s</td>
-<td align="right">2.59s</td>
-<td align="right">4.96s</td>
+<td align="right">346.4ms</td>
+<td align="right">2.52s</td>
+<td align="right">1.51s</td>
+<td align="right">1.9s</td>
+<td align="right">2.96s</td>
+<td align="right">5.57s</td>
 </tr>
 <tr class="even">
 <td align="left">Base R</td>
@@ -178,34 +178,34 @@
 </tr>
 <tr class="odd">
 <td align="left"><strong>Capybara</strong></td>
-<td align="right">337ms</td>
-<td align="right">3.19s</td>
-<td align="right">1.37s</td>
-<td align="right">1.74s</td>
-<td align="right">2.66s</td>
-<td align="right">4.65s</td>
+<td align="right">440ms</td>
+<td align="right">2.86s</td>
+<td align="right">1.92s</td>
+<td align="right">2.29s</td>
+<td align="right">2.96s</td>
+<td align="right">4.46s</td>
 </tr>
 <tr class="even">
 <td align="left">Fixest</td>
-<td align="right">67.4ms</td>
-<td align="right">477.08ms</td>
-<td align="right">95.88ms</td>
-<td align="right">136.21ms</td>
-<td align="right">206.12ms</td>
-<td align="right">415.31ms</td>
+<td align="right">64.9ms</td>
+<td align="right">503ms</td>
+<td align="right">106.14ms</td>
+<td align="right">145.04ms</td>
+<td align="right">243.61ms</td>
+<td align="right">524.7ms</td>
 </tr>
 </tbody>
 </table>
 <p>Memory allocation for the same models</p>
 <table class="table">
 <colgroup>
-<col width="11%">
-<col width="6%">
-<col width="14%">
-<col width="10%">
-<col width="16%">
-<col width="25%">
 <col width="12%">
+<col width="6%">
+<col width="15%">
+<col width="11%">
+<col width="17%">
+<col width="26%">
+<col width="13%">
 </colgroup>
 <thead><tr class="header">
 <th align="left">package</th>
@@ -219,19 +219,19 @@
 <tbody>
 <tr class="odd">
 <td align="left">Alpaca</td>
-<td align="right">304.8MB</td>
-<td align="right">339.8MB</td>
-<td align="right">306.3MB</td>
-<td align="right">335.61MB</td>
-<td align="right">393.86MB</td>
-<td align="right">539.49MB</td>
+<td align="right">306MB</td>
+<td align="right">340.8MB</td>
+<td align="right">306.4MB</td>
+<td align="right">335.9MB</td>
+<td align="right">394.6MB</td>
+<td align="right">541.3MB</td>
 </tr>
 <tr class="even">
 <td align="left">Base R</td>
-<td align="right">2.73GB</td>
+<td align="right">2.7GB</td>
 <td align="right">2.6GB</td>
 <td align="right">11.9GB</td>
-<td align="right">11.94GB</td>
+<td align="right">11.92GB</td>
 <td align="right">11.95GB</td>
 <td align="right">11.97GB</td>
 </tr>
@@ -246,12 +246,12 @@
 </tr>
 <tr class="even">
 <td align="left">Fixest</td>
-<td align="right">44.59MB</td>
-<td align="right">36.59MB</td>
-<td align="right">28.1MB</td>
-<td align="right">32.43MB</td>
-<td align="right">41.12MB</td>
-<td align="right">62.87MB</td>
+<td align="right">44.4MB</td>
+<td align="right">36.4MB</td>
+<td align="right">27.9MB</td>
+<td align="right">32.2MB</td>
+<td align="right">40.9MB</td>
+<td align="right">62.7MB</td>
 </tr>
 </tbody>
 </table>
