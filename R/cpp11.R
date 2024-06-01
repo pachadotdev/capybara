@@ -32,20 +32,12 @@ gamma_ <- function(mx, hessian, j, ppsi, v, nt_full) {
   .Call(`_capybara_gamma_`, mx, hessian, j, ppsi, v, nt_full)
 }
 
-chol_crossprod_ <- function(x) {
-  .Call(`_capybara_chol_crossprod_`, x)
+inv_ <- function(h) {
+  .Call(`_capybara_inv_`, h)
 }
 
-chol2inv_ <- function(r) {
-  .Call(`_capybara_chol2inv_`, r)
-}
-
-chol_ <- function(x) {
-  .Call(`_capybara_chol_`, x)
-}
-
-qr_rank_ <- function(x) {
-  .Call(`_capybara_qr_rank_`, x)
+rank_ <- function(x) {
+  .Call(`_capybara_rank_`, x)
 }
 
 solve_bias_ <- function(beta_uncorr, hessian, nt, b) {
@@ -68,8 +60,8 @@ update_nu_ <- function(y, mu, mu_eta) {
   .Call(`_capybara_update_nu_`, y, mu, mu_eta)
 }
 
-solve_beta_ <- function(mx, mnu, wtilde, epsilon, weighted) {
-  .Call(`_capybara_solve_beta_`, mx, mnu, wtilde, epsilon, weighted)
+solve_beta_ <- function(mx, mnu, wtilde, weighted) {
+  .Call(`_capybara_solve_beta_`, mx, mnu, wtilde, weighted)
 }
 
 solve_eta_ <- function(mx, mnu, nu, beta) {

@@ -62,31 +62,17 @@ extern "C" SEXP _capybara_gamma_(SEXP mx, SEXP hessian, SEXP j, SEXP ppsi, SEXP 
   END_CPP11
 }
 // 04_linear_algebra.cpp
-doubles_matrix<> chol_crossprod_(const doubles_matrix<> & x);
-extern "C" SEXP _capybara_chol_crossprod_(SEXP x) {
+doubles_matrix<> inv_(const doubles_matrix<> & h);
+extern "C" SEXP _capybara_inv_(SEXP h) {
   BEGIN_CPP11
-    return cpp11::as_sexp(chol_crossprod_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(x)));
+    return cpp11::as_sexp(inv_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(h)));
   END_CPP11
 }
 // 04_linear_algebra.cpp
-doubles_matrix<> chol2inv_(const doubles_matrix<> & r);
-extern "C" SEXP _capybara_chol2inv_(SEXP r) {
+int rank_(const doubles_matrix<> & x);
+extern "C" SEXP _capybara_rank_(SEXP x) {
   BEGIN_CPP11
-    return cpp11::as_sexp(chol2inv_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(r)));
-  END_CPP11
-}
-// 04_linear_algebra.cpp
-doubles_matrix<> chol_(const doubles_matrix<> & x);
-extern "C" SEXP _capybara_chol_(SEXP x) {
-  BEGIN_CPP11
-    return cpp11::as_sexp(chol_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(x)));
-  END_CPP11
-}
-// 04_linear_algebra.cpp
-int qr_rank_(const doubles_matrix<> & x);
-extern "C" SEXP _capybara_qr_rank_(SEXP x) {
-  BEGIN_CPP11
-    return cpp11::as_sexp(qr_rank_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(x)));
+    return cpp11::as_sexp(rank_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(x)));
   END_CPP11
 }
 // 04_linear_algebra.cpp
@@ -125,10 +111,10 @@ extern "C" SEXP _capybara_update_nu_(SEXP y, SEXP mu, SEXP mu_eta) {
   END_CPP11
 }
 // 04_linear_algebra.cpp
-doubles solve_beta_(const doubles_matrix<> & mx, const doubles_matrix<> & mnu, const doubles & wtilde, const double & epsilon, const bool & weighted);
-extern "C" SEXP _capybara_solve_beta_(SEXP mx, SEXP mnu, SEXP wtilde, SEXP epsilon, SEXP weighted) {
+doubles solve_beta_(const doubles_matrix<> & mx, const doubles_matrix<> & mnu, const doubles & wtilde, const bool & weighted);
+extern "C" SEXP _capybara_solve_beta_(SEXP mx, SEXP mnu, SEXP wtilde, SEXP weighted) {
   BEGIN_CPP11
-    return cpp11::as_sexp(solve_beta_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(mx), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(mnu), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(wtilde), cpp11::as_cpp<cpp11::decay_t<const double &>>(epsilon), cpp11::as_cpp<cpp11::decay_t<const bool &>>(weighted)));
+    return cpp11::as_sexp(solve_beta_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(mx), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(mnu), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(wtilde), cpp11::as_cpp<cpp11::decay_t<const bool &>>(weighted)));
   END_CPP11
 }
 // 04_linear_algebra.cpp
@@ -163,9 +149,6 @@ extern "C" SEXP _capybara_pairwise_cor_(SEXP y, SEXP yhat) {
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
     {"_capybara_center_variables_",    (DL_FUNC) &_capybara_center_variables_,    7},
-    {"_capybara_chol2inv_",            (DL_FUNC) &_capybara_chol2inv_,            1},
-    {"_capybara_chol_",                (DL_FUNC) &_capybara_chol_,                1},
-    {"_capybara_chol_crossprod_",      (DL_FUNC) &_capybara_chol_crossprod_,      1},
     {"_capybara_crossprod_",           (DL_FUNC) &_capybara_crossprod_,           4},
     {"_capybara_gamma_",               (DL_FUNC) &_capybara_gamma_,               6},
     {"_capybara_get_alpha_",           (DL_FUNC) &_capybara_get_alpha_,           3},
@@ -173,10 +156,11 @@ static const R_CallMethodDef CallEntries[] = {
     {"_capybara_group_sums_cov_",      (DL_FUNC) &_capybara_group_sums_cov_,      3},
     {"_capybara_group_sums_spectral_", (DL_FUNC) &_capybara_group_sums_spectral_, 5},
     {"_capybara_group_sums_var_",      (DL_FUNC) &_capybara_group_sums_var_,      2},
+    {"_capybara_inv_",                 (DL_FUNC) &_capybara_inv_,                 1},
     {"_capybara_pairwise_cor_",        (DL_FUNC) &_capybara_pairwise_cor_,        2},
-    {"_capybara_qr_rank_",             (DL_FUNC) &_capybara_qr_rank_,             1},
+    {"_capybara_rank_",                (DL_FUNC) &_capybara_rank_,                1},
     {"_capybara_sandwich_",            (DL_FUNC) &_capybara_sandwich_,            2},
-    {"_capybara_solve_beta_",          (DL_FUNC) &_capybara_solve_beta_,          5},
+    {"_capybara_solve_beta_",          (DL_FUNC) &_capybara_solve_beta_,          4},
     {"_capybara_solve_bias_",          (DL_FUNC) &_capybara_solve_bias_,          4},
     {"_capybara_solve_eta2_",          (DL_FUNC) &_capybara_solve_eta2_,          4},
     {"_capybara_solve_eta_",           (DL_FUNC) &_capybara_solve_eta_,           4},

@@ -42,7 +42,7 @@ form2 <- trade ~ log_dist + cntg + lang + clny +
 d <- filter(ch1_application3, importer != exporter)
 
 bench_ppml <- mark(
-  round(glm(form, family = stats::quasipoisson(link = "log"), data = d)$coefficients["rta"], 3),
+  # round(glm(form, family = stats::quasipoisson(link = "log"), data = d)$coefficients["rta"], 3),
   round(capybara::fepoisson(form2, data = d)$coefficients["rta"], 3),
   round(fixest::fepois(form2, data = d)$coefficients["rta"], 3),
   round(alpaca::feglm(form2, data = d, family = poisson())$coefficients["rta"], 3)
@@ -63,7 +63,7 @@ form2 <- trade ~ log_dist + cntg + lang + clny +
 d <- ch1_application3
 
 bench_trade_diversion <- mark(
-  round(glm(form, family = stats::quasipoisson(link = "log"), data = d)$coefficients["rta"], 3),
+  # round(glm(form, family = stats::quasipoisson(link = "log"), data = d)$coefficients["rta"], 3),
   round(capybara::fepoisson(form2, data = d)$coefficients["rta"], 3),
   round(fixest::fepois(form2, data = d)$coefficients["rta"], 3),
   round(alpaca::feglm(form2, data = d, family = poisson())$coefficients["rta"], 3)
@@ -81,7 +81,7 @@ form2 <- trade ~ rta | exp_year + imp_year + pair_id_2
 d <- filter(ch1_application3, sum_trade > 0)
 
 bench_endogeneity <- mark(
-  round(glm(form, family = stats::quasipoisson(link = "log"), data = d)$coefficients["rta"], 3),
+  # round(glm(form, family = stats::quasipoisson(link = "log"), data = d)$coefficients["rta"], 3),
   round(capybara::fepoisson(form2, data = d)$coefficients["rta"], 3),
   round(fixest::fepois(form2, data = d)$coefficients["rta"], 3),
   round(alpaca::feglm(form2, data = d, family = poisson())$coefficients["rta"], 3)
@@ -99,7 +99,7 @@ form2 <- trade ~ rta + rta_lead4 | exp_year + imp_year + pair_id_2
 d <- filter(ch1_application3, sum_trade > 0)
 
 bench_reverse_causality <- mark(
-  round(glm(form, family = stats::quasipoisson(link = "log"), data = d)$coefficients["rta"], 3),
+  # round(glm(form, family = stats::quasipoisson(link = "log"), data = d)$coefficients["rta"], 3),
   round(capybara::fepoisson(form2, data = d)$coefficients["rta"], 3),
   round(fixest::fepois(form2, data = d)$coefficients["rta"], 3),
   round(alpaca::feglm(form2, data = d, family = poisson())$coefficients["rta"], 3)
@@ -120,7 +120,7 @@ form2 <- trade ~ rta + rta_lag4 + rta_lag8 + rta_lag12 |
 d <- filter(ch1_application3, sum_trade > 0)
 
 bench_phasing <- mark(
-  round(glm(form, family = stats::quasipoisson(link = "log"), data = d)$coefficients["rta"], 3),
+  # round(glm(form, family = stats::quasipoisson(link = "log"), data = d)$coefficients["rta"], 3),
   round(capybara::fepoisson(form2, data = d)$coefficients["rta"], 3),
   round(fixest::fepois(form2, data = d)$coefficients["rta"], 3),
   round(alpaca::feglm(form2, data = d, family = poisson())$coefficients["rta"], 3)
@@ -145,7 +145,7 @@ form2 <- trade ~ rta + rta_lag4 + rta_lag8 + rta_lag12 +
 d <- filter(ch1_application3, sum_trade > 0)
 
 bench_globalization <- mark(
-  round(glm(form, family = stats::quasipoisson(link = "log"), data = d)$coefficients["rta"], 3),
+  # round(glm(form, family = stats::quasipoisson(link = "log"), data = d)$coefficients["rta"], 3),
   round(capybara::fepoisson(form2, data = d)$coefficients["rta"], 3),
   round(fixest::fepois(form2, data = d)$coefficients["rta"], 3),
   round(alpaca::feglm(form2, data = d, family = poisson())$coefficients["rta"], 3)
@@ -175,41 +175,47 @@ bench_phasing <- readRDS("dev/bench_phasing.rds")
 bench_globalization <- readRDS("dev/bench_globalization.rds")
 
 bench_ppml %>%
-  mutate(package = c("Base R", "**Capybara**", "Fixest", "Alpaca")) %>%
+  # mutate(package = c("Base R", "**Capybara**", "Fixest", "Alpaca")) %>%
+  mutate(package = c("**Capybara**", "Fixest", "Alpaca")) %>%
   mutate(model = "PPML") %>%
   select(model, package, median) %>%
   pivot_wider(names_from = model, values_from = median) %>%
   left_join(
     bench_trade_diversion %>%
-      mutate(package = c("Base R", "**Capybara**", "Fixest", "Alpaca")) %>%
+      # mutate(package = c("Base R", "**Capybara**", "Fixest", "Alpaca")) %>%
+      mutate(package = c("**Capybara**", "Fixest", "Alpaca")) %>%
       mutate(model = "Trade Diversion") %>%
       select(model, package, median) %>%
       pivot_wider(names_from = model, values_from = median)
   ) %>%
   left_join(
     bench_endogeneity %>%
-      mutate(package = c("Base R", "**Capybara**", "Fixest", "Alpaca")) %>%
+      # mutate(package = c("Base R", "**Capybara**", "Fixest", "Alpaca")) %>%
+      mutate(package = c("**Capybara**", "Fixest", "Alpaca")) %>%
       mutate(model = "Endogeneity") %>%
       select(model, package, median) %>%
       pivot_wider(names_from = model, values_from = median)
   ) %>%
   left_join(
     bench_reverse_causality %>%
-      mutate(package = c("Base R", "**Capybara**", "Fixest", "Alpaca")) %>%
+      # mutate(package = c("Base R", "**Capybara**", "Fixest", "Alpaca")) %>%
+      mutate(package = c("**Capybara**", "Fixest", "Alpaca")) %>%
       mutate(model = "Reverse Causality") %>%
       select(model, package, median) %>%
       pivot_wider(names_from = model, values_from = median)
   ) %>%
   left_join(
     bench_phasing %>%
-      mutate(package = c("Base R", "**Capybara**", "Fixest", "Alpaca")) %>%
+      # mutate(package = c("Base R", "**Capybara**", "Fixest", "Alpaca")) %>%
+      mutate(package = c("**Capybara**", "Fixest", "Alpaca")) %>%
       mutate(model = "Non-linear/Phasing Effects") %>%
       select(model, package, median) %>%
       pivot_wider(names_from = model, values_from = median)
   ) %>%
   left_join(
     bench_globalization %>%
-      mutate(package = c("Base R", "**Capybara**", "Fixest", "Alpaca")) %>%
+      # mutate(package = c("Base R", "**Capybara**", "Fixest", "Alpaca")) %>%
+      mutate(package = c("**Capybara**", "Fixest", "Alpaca")) %>%
       mutate(model = "Globalization") %>%
       select(model, package, median) %>%
       pivot_wider(names_from = model, values_from = median)
@@ -218,41 +224,47 @@ bench_ppml %>%
   kable()
 
 bench_ppml %>%
-  mutate(package = c("Base R", "**Capybara**", "Fixest", "Alpaca")) %>%
+  # mutate(package = c("Base R", "**Capybara**", "Fixest", "Alpaca")) %>%
+  mutate(package = c("**Capybara**", "Fixest", "Alpaca")) %>%
   mutate(model = "PPML") %>%
   select(model, package, mem_alloc) %>%
   pivot_wider(names_from = model, values_from = mem_alloc) %>%
   left_join(
     bench_trade_diversion %>%
-      mutate(package = c("Base R", "**Capybara**", "Fixest", "Alpaca")) %>%
+      # mutate(package = c("Base R", "**Capybara**", "Fixest", "Alpaca")) %>%
+      mutate(package = c("**Capybara**", "Fixest", "Alpaca")) %>%
       mutate(model = "Trade Diversion") %>%
       select(model, package, mem_alloc) %>%
       pivot_wider(names_from = model, values_from = mem_alloc)
   ) %>%
   left_join(
     bench_endogeneity %>%
-      mutate(package = c("Base R", "**Capybara**", "Fixest", "Alpaca")) %>%
+      # mutate(package = c("Base R", "**Capybara**", "Fixest", "Alpaca")) %>%
+      mutate(package = c("**Capybara**", "Fixest", "Alpaca")) %>%
       mutate(model = "Endogeneity") %>%
       select(model, package, mem_alloc) %>%
       pivot_wider(names_from = model, values_from = mem_alloc)
   ) %>%
   left_join(
     bench_reverse_causality %>%
-      mutate(package = c("Base R", "**Capybara**", "Fixest", "Alpaca")) %>%
+      # mutate(package = c("Base R", "**Capybara**", "Fixest", "Alpaca")) %>%
+      mutate(package = c("**Capybara**", "Fixest", "Alpaca")) %>%
       mutate(model = "Reverse Causality") %>%
       select(model, package, mem_alloc) %>%
       pivot_wider(names_from = model, values_from = mem_alloc)
   ) %>%
   left_join(
     bench_phasing %>%
-      mutate(package = c("Base R", "**Capybara**", "Fixest", "Alpaca")) %>%
+      # mutate(package = c("Base R", "**Capybara**", "Fixest", "Alpaca")) %>%
+      mutate(package = c("**Capybara**", "Fixest", "Alpaca")) %>%
       mutate(model = "Non-linear/Phasing Effects") %>%
       select(model, package, mem_alloc) %>%
       pivot_wider(names_from = model, values_from = mem_alloc)
   ) %>%
   left_join(
     bench_globalization %>%
-      mutate(package = c("Base R", "**Capybara**", "Fixest", "Alpaca")) %>%
+      # mutate(package = c("Base R", "**Capybara**", "Fixest", "Alpaca")) %>%
+      mutate(package = c("**Capybara**", "Fixest", "Alpaca")) %>%
       mutate(model = "Globalization") %>%
       select(model, package, mem_alloc) %>%
       pivot_wider(names_from = model, values_from = mem_alloc)

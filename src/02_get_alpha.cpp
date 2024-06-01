@@ -15,9 +15,9 @@
   Mat<double> y(N, 1);
 
   // Pre-compute list sizes
-  std::vector<int> list_sizes(K);
+  field<int> list_sizes(K);
   for (k = 0; k < K; ++k) {
-    list_sizes[k] = as_cpp<list>(klist[k]).size();
+    list_sizes(k) = as_cpp<list>(klist[k]).size();
   }
 
   // Generate starting guess
@@ -30,11 +30,9 @@
   field<Mat<double>> Alpha0(size(Alpha));
 
   for (iter = 0; iter < 10000; ++iter) {
-    // Check user interrupt
     if ((iter % 1000) == 0) {
       check_user_interrupt();
     }
-
     // Store alpha_0 of the previous iteration
     Alpha0 = Alpha;
 
@@ -46,8 +44,7 @@
         if (l != k) {
           list klist_l = klist[l];
           for (int j = 0; j < list_sizes[l]; ++j) {
-            uvec indexes =
-                conv_to<uvec>::from(as_cpp<std::vector<int>>(klist_l[j]));
+            uvec indexes = as_uvec(as_cpp<integers>(klist_l[j]));
             y(indexes) -= Alpha(l)(j);
           }
         }
@@ -58,8 +55,7 @@
 
       for (int j = 0; j < list_sizes[k]; ++j) {
         // Subset the j-th group of category k
-        uvec indexes =
-            conv_to<uvec>::from(as_cpp<std::vector<int>>(klist_k[j]));
+        uvec indexes = as_uvec(as_cpp<integers>(klist_k[j]));
 
         // Store group mean
         alpha(j) = mean(y(indexes));

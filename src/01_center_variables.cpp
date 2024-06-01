@@ -14,7 +14,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &v_sum_r,
     V.each_col() += v_sum;
     v_sum.reset();
   }
-
+  
   // Auxiliary variables (fixed)
   const int N = V.n_rows;
   const int P = V.n_cols;
@@ -22,67 +22,63 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &v_sum_r,
   const double inv_sw = 1.0 / accu(w);
 
   // Auxiliary variables (storage)
+  int iter, j, k, p, J;
+  double delta, meanj;
   Mat<double> C(N, P);
+  Mat<double> x(N, 1);
+  Mat<double> x0(N, 1);
 
-  // Precompute group weights and values
-  std::vector<std::vector<uvec>> group_indices(K);
-  std::vector<std::vector<double>> denom_groups(K);
+  // Precompute group indices and weights
+  field<field<uvec>> group_indices(K);
+  field<vec> group_weights(K);
 
-  for (int k = 0; k < K; ++k) {
+  // #ifdef _OPENMP
+  // #pragma omp parallel for private(indices, j, J) schedule(static)
+  // #endif
+  for (k = 0; k < K; ++k) {
     list jlist = klist[k];
-    int J = jlist.size();
-    group_indices[k].resize(J);
-    denom_groups[k].resize(J);
-    for (int j = 0; j < J; ++j) {
-      std::vector<int> indices = as_cpp<std::vector<int>>(jlist[j]);
-      group_indices[k][j] = conv_to<uvec>::from(indices);
-      denom_groups[k][j] = accu(w(group_indices[k][j]));
+    J = jlist.size();
+    group_indices(k) = field<uvec>(J);
+    group_weights(k) = vec(J);
+    for (j = 0; j < J; ++j) {
+      group_indices(k)(j) = as_uvec(as_cpp<integers>(jlist[j]));
+      group_weights(k)(j) = accu(w(group_indices(k)(j)));
     }
   }
 
   // Halperin projections
-  for (int p = 0; p < P; ++p) {
-    // Auxiliary variables for each parallel thread
-    Mat<double> x(N, 1), x0(N, 1);
-    double group_mean, delta;
-    int iter, j, k, J;
-
+  // #ifdef _OPENMP 
+  // #pragma omp parallel for private(x, x0, iter, j, k, J, meanj, delta) schedule(static)
+  // #endif
+  for (p = 0; p < P; ++p) {
     // Center each variable
     x = V.col(p);
-
     for (iter = 0; iter < maxiter; ++iter) {
-      // Temporarily remove user interrupt check for debugging
-      // if ((iter % 1000) == 0) {
-      //   check_user_interrupt();
-      // }
-
+      if ((iter % 1000) == 0) {
+        check_user_interrupt();
+      }
       // Store centered vector from the last iteration
       x0 = x;
 
       // Alternate between categories
       for (k = 0; k < K; ++k) {
-        J = group_indices[k].size();
-
+        // Substract the weighted group means of category 'k'
+        J = group_indices(k).size();
         for (j = 0; j < J; ++j) {
           // Subset j-th group of category 'k'
-          const uvec &g_indices = group_indices[k][j];
-          const Col<double> &x_group = x(g_indices);
-          const Col<double> &w_group = w(g_indices);
-
-          // Subtract weighted group mean
-          group_mean = dot(w_group, x_group) / denom_groups[k][j];
-          x(g_indices) -= group_mean;
+          const uvec &coords = group_indices(k)(j);
+          meanj = dot(w(coords), x(coords)) / group_weights(k)(j);
+          x.elem(coords) -= meanj;
         }
       }
 
       // Break loop if convergence is reached
-      delta = accu(abs(x - x0) / (1.0 + abs(x0)) % w) * inv_sw;
-
+      delta =
+          accu(abs(x - x0) / (1.0 + abs(x0)) % w) * inv_sw;
       if (delta < tol) {
         break;
       }
     }
-
     C.col(p) = x;
   }
 

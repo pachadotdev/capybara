@@ -12,28 +12,25 @@
   const int P = M.n_cols;
 
   // Auxiliary variables (storage)
-  Mat<double> num(P, 1);
+  int i, j, p;
+  Mat<double> num(P, 1, fill::zeros);
   integers indexes;
 
   // Compute sum of weighted group sums
   double denom = 0.0;
+  for (j = 0; j < J; j++) {
+    uvec arma_indexes = as_uvec(as_cpp<integers>(jlist[j]));
+    int I = arma_indexes.size();
 
-  for (int j = 0; j < J; j++) {
-    // Subset j-th group
-    indexes = as_cpp<integers>(jlist[j]);
-    int I = indexes.size();
-
-    // Compute numerator of the weighted group sum
     num.zeros();
-    for (int p = 0; p < P; ++p) {
-      for (int i = 0; i < I; i++) {
-        num(p, 0) += M(indexes[i], p);
+    for (p = 0; p < P; ++p) {
+      for (i = 0; i < I; i++) {
+        num(p, 0) += M(arma_indexes[i], p);
       }
     }
 
-    // Compute denominator of the weighted group sum
-    for (int i = 0; i < I; i++) {
-      denom += w(indexes[i]);
+    for (i = 0; i < I; i++) {
+      denom += w(arma_indexes[i]);
     }
   }
 
@@ -56,39 +53,20 @@ group_sums_spectral_(const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
   const int P = M.n_cols;
 
   // Auxiliary variables (storage)
-  Mat<double> num(P, 1);
+  int j;
+  Mat<double> num(P, 1, fill::zeros);
 
   // Compute sum of weighted group sums
   double denom = 0.0;
+  for (j = 0; j < J; j++) {
+    uvec arma_indexes = as_uvec(as_cpp<integers>(jlist[j]));
+    // arma_indexes -= 1;
 
-  // Precompute weights and values
-  std::vector<double> weights(J);
-  std::vector<std::vector<double>> values(J, std::vector<double>(P));
+    Mat<double> M_sub = M.rows(arma_indexes);
+    Mat<double> w_sub = w.rows(arma_indexes);
 
-  for (int j = 0; j < J; j++) {
-    // Subset j-th group
-    integers indexes = as_cpp<integers>(jlist[j]);
-    int I = indexes.size();
-
-    for (int i = 0; i < I; i++) {
-      weights[i] = w[indexes[i]];
-      for (int p = 0; p < P; p++) {
-        values[i][p] = M(indexes[i], p);
-      }
-    }
-
-    // Compute numerator of the weighted group sum
-    num.zeros();
-    for (int p = 0; p < P; ++p) {
-      for (int i = 0; i < I; i++) {
-        num(p, 0) += values[i][p];
-      }
-    }
-
-    // Compute denominator of the weighted group sum
-    for (int i = 0; i < I; i++) {
-      denom += weights[i];
-    }
+    num += sum(M_sub.each_col() % w_sub, 0).t();
+    denom += accu(w_sub);
   }
 
   num = num / denom;
@@ -106,34 +84,16 @@ group_sums_var_(const doubles_matrix<> &M_r, const list &jlist) {
   const int P = M.n_cols;
 
   // Auxiliary variables (storage)
-  Mat<double> v(P, 1);
-  Mat<double> V(P, P);
-
-  // Precompute values
-  std::vector<std::vector<double>> values(J, std::vector<double>(P));
+  int j;
+  Mat<double> V(P, P, fill::zeros);
 
   // Compute covariance matrix
-  V.zeros();
-  for (int j = 0; j < J; ++j) {
-    // Subset j-th group
-    integers indexes = as_cpp<integers>(jlist[j]);
-    int I = indexes.size();
+  for (j = 0; j < J; ++j) {
+    uvec arma_indexes = as_uvec(as_cpp<integers>(jlist[j]));
+    // arma_indexes -= 1;
 
-    for (int i = 0; i < I; i++) {
-      for (int p = 0; p < P; p++) {
-        values[j][p] = M(indexes[i], p);
-      }
-    }
-
-    // Compute group sum
-    v.zeros();
-    for (int p = 0; p < P; p++) {
-      for (int i = 0; i < I; ++i) {
-        v[p] += values[j][p];
-      }
-    }
-
-    // Add to covariance matrix
+    Mat<double> M_sub = M.rows(arma_indexes);
+    vec v = sum(M_sub, 0).t();
     V += v * v.t();
   }
 
@@ -150,37 +110,21 @@ group_sums_cov_(const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
   // Auxiliary variables (fixed)
   const int J = jlist.size();
   const int P = M.n_cols;
-  const int I = as_cpp<integers>(jlist[0])
-                    .size(); // assuming all groups have the same size
 
   // Auxiliary variables (storage)
-  Mat<double> V(P, P);
-
-  // Precompute values
-  std::vector<std::vector<double>> M_values(I, std::vector<double>(P));
-  std::vector<std::vector<double>> N_values(I, std::vector<double>(P));
+  int j, p, q;
+  Mat<double> V(P, P, fill::zeros);
 
   // Compute covariance matrix
-  V.zeros();
-  for (int j = 0; j < J; ++j) {
-    // Subset j-th group
-    integers indexes = as_cpp<integers>(jlist[j]);
+  for (j = 0; j < J; ++j) {
+    uvec arma_indexes = as_uvec(as_cpp<integers>(jlist[j]));
 
-    for (int i = 0; i < I; i++) {
-      for (int p = 0; p < P; p++) {
-        M_values[i][p] = M(indexes[i], p);
-        N_values[i][p] = N(indexes[i], p);
-      }
-    }
+    Mat<double> M_sub = M.rows(arma_indexes);
+    Mat<double> N_sub = N.rows(arma_indexes);
 
-    // Add to covariance matrix
-    for (int p = 0; p < P; p++) {
-      for (int q = 0; q < P; q++) {
-        for (int i = 0; i < I; i++) {
-          for (int s = i + 1; s < I; s++) {
-            V(q, p) += M_values[i][q] * N_values[s][p];
-          }
-        }
+    for (p = 0; p < P; p++) {
+      for (q = 0; q < P; q++) {
+        V(q, p) += accu(M_sub.col(q) * N_sub.col(p).t());
       }
     }
   }

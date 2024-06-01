@@ -1,3 +1,9 @@
+# capybara 0.5.1
+
+* Using `arma::field` consistently instead of `std::vector<std::vector<>>` for indices.
+* Linear algebra changes, such as using `arma::inv` instead of solving `arma::qr` for the inverse.
+* Replaces multiple for loops with dedicated Armadillo functions.
+
 # capybara 0.5.0
 
 * Avoids for loops in the C++ code, and instead uses Armadillo's functions.

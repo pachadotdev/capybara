@@ -10,3 +10,12 @@
 
 using namespace arma;
 using namespace cpp11;
+
+// helpers used across scripts
+
+#ifndef HELPERS_H
+#define HELPERS_H
+
+uvec as_uvec(const cpp11::integers &x);
+
+#endif  // HELPERS_H

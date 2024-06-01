@@ -1,34 +1,61 @@
 load_all()
+library(dplyr)
+library(tidyr)
+library(janitor)
+library(profvis)
 
-# d <- trade_panel
-# d$trade_100 <- ifelse(d$trade > 100, 1L, 0L)
+rm(list = ls())
+gc()
 
-# simulate a data frame with 1,000,000 rows with:
-# trade_100: 0/1
-# lang: 0/1
-# clny: 0/1
-# rta: 0/1
-# year: 2000-2010
-set.seed(200100)
-d <- data.frame(
-  trade_100 = sample(0:1, 1e6, replace = TRUE),
-  lang = sample(0:1, 1e6, replace = TRUE),
-  clny = sample(0:1, 1e6, replace = TRUE),
-  rta = sample(0:1, 1e6, replace = TRUE),
-  year = sample(2000:2010, 1e6, replace = TRUE)
-)
+# data ----
 
-unique(d$trade_100)
-unique(d$lang)
-unique(d$clny)
-unique(d$rta)
-unique(d$year)
+ch1_application3 <- tradepolicy::agtpa_applications %>%
+  clean_names() %>%
+  filter(year %in% seq(1986, 2006, 4)) %>%
+  mutate(
+    exp_year = paste0(exporter, year),
+    imp_year = paste0(importer, year),
+    year = paste0("intl_border_", year),
+    log_trade = log(trade),
+    log_dist = log(dist),
+    intl_brdr = ifelse(exporter == importer, pair_id, "inter"),
+    intl_brdr_2 = ifelse(exporter == importer, 0, 1),
+    pair_id_2 = ifelse(exporter == importer, "0-intra", pair_id)
+  ) %>%
+  spread(year, intl_brdr_2, fill = 0)
 
-# Fit 'feglm()'
+ch1_application3 <- ch1_application3 %>%
+  group_by(pair_id) %>%
+  mutate(sum_trade = sum(trade)) %>%
+  ungroup()
+
+# ppml ----
+
+form <- trade ~ 0 + log_dist + cntg + lang + clny +
+  rta + exp_year + imp_year
+
+form2 <- trade ~ log_dist + cntg + lang + clny +
+  rta | exp_year + imp_year
+
+d <- filter(ch1_application3, importer != exporter)
+
+# profvis(fepoisson(form2, data = d))
+
+fepoisson(form2, data = d)
+
 load_all()
-# profvis::profvis(feglm(trade_100 ~ lang + clny + rta | year, d, family = binomial()))
-mod = feglm(trade_100 ~ lang + clny + rta | year, d, family = binomial())
 
-# Compute average partial effects
-# bench::mark(apes(mod))
-apes(mod)
+foo <- function() {
+  x <- feglm(
+    trade ~ log_dist + lang + cntg + clny | exp_year + imp_year | pair,
+    trade_panel,
+    family = poisson(link = "log")
+  )
+
+  summary(x, "clustered")
+}
+
+m <- bench::mark(foo())
+
+m$median
+m$mem_alloc

@@ -55,32 +55,25 @@ vcov.feglm <- function(
   H <- object[["Hessian"]]
   p <- ncol(H)
   if (type == "hessian") {
-    # Check if the Hessian is invertible and compute its inverse
-    R <- try(chol_(H), silent = TRUE)
-    if (inherits(R, "try-error")) {
+    # If the Hessian is invertible, compute its inverse
+    V <- try(inv_(H), silent = TRUE)
+    if (inherits(V, "try-error")) {
       V <- matrix(Inf, p, p)
-    } else {
-      V <- chol2inv_(R)
     }
   } else {
     G <- getScoreMatrix(object)
     if (type == "outer.product") {
       # Check if the OPG is invertible and compute its inverse
-      R <- try(chol_crossprod_(G), silent = TRUE)
-      if (inherits(R, "try-error")) {
+      V <- try(inv_(G), silent = TRUE)
+      if (inherits(V, "try-error")) {
         V <- matrix(Inf, p, p)
-      } else {
-        V <- chol2inv_(R)
       }
     } else {
       # Check if the Hessian is invertible and compute its inverse
-      R <- try(chol_(H), silent = TRUE)
-      if (inherits(R, "try-error")) {
+      V <- try(inv_(H), silent = TRUE)
+      if (inherits(V, "try-error")) {
         V <- matrix(Inf, p, p)
       } else {
-        # Compute the inverse of the empirical Hessian
-        A <- chol2inv_(R)
-
         # Compute inner part of the sandwich formula
         if (type == "sandwich") {
           B <- crossprod_(G, NA_real_, FALSE, FALSE)
@@ -102,7 +95,7 @@ vcov.feglm <- function(
             stop(
               paste(
                 "At least one cluster variable was not found.",
-                "Ensure to pass variables that are not part of the model",
+                "Ensure to pass vhttps://www.instagram.com/p/C7fss5CCzNL/ariables that are not part of the model",
                 "itself, but are required to compute clustered standard errors",
                 "to 'feglm'. This can be done via 'formula'. See documentation",
                 "for details."
@@ -148,7 +141,7 @@ vcov.feglm <- function(
         }
 
         # Sandwich formula
-        V <- sandwich_(A, B)
+        V <- sandwich_(V, B)
       }
     }
   }

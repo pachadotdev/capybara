@@ -25,7 +25,7 @@ felm_fit_ <- function(y, X, wt, k.list, control) {
 
   # Compute the OLS estimate
   # beta <- as.vector(qr.solve(MX, y, epsilon))
-  beta <- solve_beta_(MX, y, NA_real_, epsilon, FALSE)
+  beta <- solve_beta_(MX, y, NA_real_, FALSE)
 
   # Generate result list
   reslist <- list(
@@ -81,7 +81,7 @@ feglm_fit_ <- function(beta, eta, y, X, wt, k.list, family, control) {
     # Compute update step and update eta
     # beta.upd <- as.vector(qr.solve(MX * w.tilde, Mnu * w.tilde, epsilon))
     # eta.upd <- nu - as.vector(Mnu - MX %*% beta.upd)
-    beta.upd <- solve_beta_(MX, Mnu, w.tilde, epsilon, TRUE)
+    beta.upd <- solve_beta_(MX, Mnu, w.tilde, TRUE)
     eta.upd <- solve_eta_(MX, Mnu, nu, beta.upd)
 
     # Step-halving with three checks

@@ -229,7 +229,7 @@ model_response_ <- function(data, formula) {
 }
 
 check_linear_dependence_ <- function(X, p) {
-  if (qr_rank_(X) < p) {
+  if (rank_(X) < p) {
     stop("Linear dependent terms detected.", call. = FALSE)
   }
 }

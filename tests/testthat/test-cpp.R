@@ -7,20 +7,22 @@ test_that("crossprod works", {
   expect_equal(crossprod(A * sqrt(b)), crossprod_(A, b, TRUE, TRUE))
 })
 
-test_that("solve works", {
+test_that("solve_bias_ works", {
   A <- matrix(c(1, 0, 0, 1), nrow = 2, ncol = 2)
   x <- c(2, 2)
   expect_equal(as.vector(A %*% x), solve_y_(A, x))
   expect_equal(x - solve(A, x), solve_bias_(x, A, 1, x))
 })
 
-test_that("chol works", {
-  set.seed(123)
-  A <- matrix(c(5, 1, 1, 3), 2, 2)
-  expect_equal(chol(A), chol_(A))
-})
+test_that("inv_ works", {
+  A <- matrix(c(1, 0, 0, 1, 1, 0, 0, 1, 1), nrow = 3, ncol = 3, byrow = TRUE)
+  expect_equal(solve(A), inv_(A))
 
-test_that("chol2inv works", {
-  cma <- chol(ma <- cbind(1, 1:3, c(1, 3, 7)))
-  expect_equal(ma %*% chol2inv(cma), ma %*% chol2inv_(cma))
+  # non-invertible matrix
+  A <- matrix(c(1, 0, 0, 1, 0, 0, 0, 1, 1), nrow = 3, ncol = 3, byrow = TRUE)
+  expect_error(inv_(A))
+
+  # non-square matrix
+  A <- matrix(c(1, 0, 0, 1, 1, 0), nrow = 2, ncol = 3, byrow = TRUE)
+  expect_error(inv_(A))
 })

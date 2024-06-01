@@ -76,7 +76,6 @@ feglm <- function(
   check_data_(data)
 
   # Check validity of family ----
-  # TODO: Add quasi families later
   check_family_(family)
 
   # Check validity of control + Extract control list ----
