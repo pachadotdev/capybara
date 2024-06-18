@@ -24,9 +24,19 @@ test_that("fepoisson is similar to fixest", {
 
   expect_equal(length(fes), 2)
 
+  smod <- summary(mod)
+
   expect_gt(length(fitted(mod)), 0)
   expect_gt(length(predict(mod)), 0)
   expect_gt(length(coef(mod)), 0)
-  expect_gt(length(coef(summary(mod))), 0)
+  expect_gt(length(coef(smod)), 0)
+
+  expect_output(summary_formula_(smod))
+  expect_output(summary_family_(smod))
+  expect_output(summary_estimates_(smod, 3))
+  expect_output(summary_r2_(smod, 3))
+  expect_output(summary_nobs_(smod))
+  expect_output(summary_fisher_(smod))
+
 })
 

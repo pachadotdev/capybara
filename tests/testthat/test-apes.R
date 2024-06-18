@@ -4,6 +4,8 @@ test_that("apes works", {
   
   mod <- feglm(trade ~ lang | year, trade_short, family = binomial())
 
+  expect_output(print(mod))
+
   expect_gt(length(coef(apes(mod))), 0)
   expect_gt(length(coef(summary(apes(mod)))), 0)
   expect_gt(length(coef(bias_corr(mod))), 0)
