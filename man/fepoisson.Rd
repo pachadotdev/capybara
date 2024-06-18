@@ -36,6 +36,9 @@ predictor.}
 \item{control}{a named list of parameters for controlling the fitting
 process. See \code{\link{feglm_control}} for details.}
 }
+\value{
+A named list of class \code{"feglm"}.
+}
 \description{
 A wrapper for \code{\link{feglm}} with
 \code{family = poisson()}.
@@ -48,4 +51,5 @@ mod <- fepoisson(
 )
 
 summary(mod)
+
 }

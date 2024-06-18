@@ -223,3 +223,7 @@ create memory leaks.
 initialized values and all kinds of problems that result in memory leaks.
 
 When you are ready testing, you need to remove `-UDEGUG` from `src/Makevars`.
+
+## Code of Conduct
+
+Please note that the capybara project is released with a [Contributor Code of Conduct](https://contributor-covenant.org/version/2/1/CODE_OF_CONDUCT.html). By contributing to this project, you agree to abide by its terms.

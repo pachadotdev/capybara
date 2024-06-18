@@ -124,14 +124,14 @@ summary_r2_ <- function(x, digits) {
   )
 }
 
-summary_pseudo_rsq_ <- function(x, digits) {
-  if (x[["family"]][["family"]] == "poisson") {
-    cat(
-      "\nPseudo R-squared:",
-      format(x[["pseudo.rsq"]], digits = digits, nsmall = 2L), "\n"
-    )
-  }
-}
+# summary_pseudo_rsq_ <- function(x, digits) {
+#   if (x[["family"]][["family"]] == "poisson") {
+#     cat(
+#       "\nPseudo R-squared:",
+#       format(x[["pseudo.rsq"]], digits = digits, nsmall = 2L), "\n"
+#     )
+#   }
+# }
 
 summary_nobs_ <- function(x) {
   cat(
@@ -202,7 +202,7 @@ print.summary.feglm <- function(
 
   summary_estimates_(x, digits)
 
-  summary_pseudo_rsq_(x, digits)
+  # summary_pseudo_rsq_(x, digits)
 
   summary_nobs_(x)
 

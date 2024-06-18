@@ -32,8 +32,6 @@
 #' @return A named list of control parameters.
 #'
 #' @seealso \code{\link{feglm}}
-#'
-#' @export
 feglm_control <- function(
     dev.tol = 1.0e-08,
     center.tol = 1.0e-08,

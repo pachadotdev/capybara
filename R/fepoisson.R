@@ -10,6 +10,9 @@
 #' )
 #'
 #' summary(mod)
+#' 
+#' @return A named list of class \code{"feglm"}.
+#' 
 #' @export
 fepoisson <- function(
     formula = NULL,

@@ -14,6 +14,9 @@
 #' )
 #'
 #' summary(mod)
+#' 
+#' @return A named list of class \code{"feglm"}.
+#' 
 #' @export
 fenegbin <- function(
     formula = NULL,

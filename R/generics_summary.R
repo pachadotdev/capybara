@@ -1,6 +1,7 @@
 #' @title Summary method for fixed effects APEs
 #' @inherit vcov.apes
 #' @export
+#' @noRd
 summary.apes <- function(object, ...) {
   # Compute coefficent matrix
   est <- object[["delta"]]
@@ -18,6 +19,7 @@ summary.apes <- function(object, ...) {
 #' @title Summary method for fixed effects GLMs
 #' @inherit vcov.feglm
 #' @export
+#' @noRd
 summary.feglm <- function(
     object,
     type = c("hessian", "outer.product", "sandwich", "clustered"),
@@ -43,14 +45,13 @@ summary.feglm <- function(
     family        = object[["family"]]
   )
 
-  if (object[["family"]][["family"]] == "poisson") {
-    # Compute pseudo R-squared
-    # http://personal.lse.ac.uk/tenreyro/r2.do
-    y <- unlist(object$data[, 1], use.names = FALSE)
-    yhat <- predict(object, type = "response")
-    res[["pseudo.rsq"]] <- (pairwise_cor_(y, yhat))^2
-    # res[["pseudo.rsq"]] <- 0
-  }
+  # if (object[["family"]][["family"]] == "poisson") {
+  #   # Compute pseudo R-squared
+  #   # http://personal.lse.ac.uk/tenreyro/r2.do
+  #   y <- unlist(object$data[, 1], use.names = FALSE)
+  #   yhat <- predict(object, type = "response")
+  #   # res[["pseudo.rsq"]] <- (pairwise_cor_(y, yhat))^2
+  # }
 
   if (inherits(object, "fenegbin")) {
     res[["theta"]] <- object[["theta"]]
@@ -64,6 +65,7 @@ summary.feglm <- function(
 #' @title Summary method for fixed effects LMs
 #' @inherit vcov.felm
 #' @export
+#' @noRd
 summary.felm <- function(
     object,
     type = "hessian",

@@ -24,11 +24,22 @@ covariance matrix given some cluster variables.}
 }
 \value{
 A named matrix of covariance estimates.
+
+A named matrix of covariance estimates.
 }
 \description{
 Covariance matrix for the estimator of the structural parameters
 from objects returned by \code{\link{feglm}}. The covariance is computed
 from the Hessian, the scores, or a combination of both after convergence.
+}
+\examples{
+mod <- fepoisson(
+ trade ~ log_dist + lang + cntg + clny | exp_year + imp_year | pair,
+ trade_panel
+)
+
+vcov(mod, type = "clustered")
+
 }
 \references{
 Cameron, C., J. Gelbach, and D. Miller (2011). "Robust Inference

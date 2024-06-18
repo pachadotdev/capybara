@@ -75,7 +75,3 @@ solve_eta2_ <- function(yadj, myadj, offset, eta) {
 sqrt_ <- function(w) {
   .Call(`_capybara_sqrt_`, w)
 }
-
-pairwise_cor_ <- function(y, yhat) {
-  .Call(`_capybara_pairwise_cor_`, y, yhat)
-}

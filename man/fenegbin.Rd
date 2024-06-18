@@ -45,6 +45,9 @@ predictor.}
 \item{control}{a named list of parameters for controlling the fitting
 process. See \code{\link{feglm_control}} for details.}
 }
+\value{
+A named list of class \code{"feglm"}.
+}
 \description{
 A routine that uses the same internals as \code{\link{feglm}}.
 }
@@ -56,4 +59,5 @@ mod <- fenegbin(
 )
 
 summary(mod)
+
 }

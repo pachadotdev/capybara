@@ -6,6 +6,7 @@
 #' @return A named matrix of covariance estimates.
 #' @seealso \code{\link{apes}}
 #' @export
+#' @noRd
 vcov.apes <- function(object, ...) {
   object[["vcov"]]
 }
@@ -26,6 +27,16 @@ vcov.apes <- function(object, ...) {
 #' @references Cameron, C., J. Gelbach, and D. Miller (2011). "Robust Inference
 #'  With Multiway Clustering". Journal of Business & Economic Statistics 29(2).
 #' @seealso \code{\link{feglm}}
+#' @examples 
+#' mod <- fepoisson(
+#'  trade ~ log_dist + lang + cntg + clny | exp_year + imp_year | pair,
+#'  trade_panel
+#' )
+#' 
+#' vcov(mod, type = "clustered")
+#' 
+#' @return A named matrix of covariance estimates.
+#' 
 #' @export
 vcov.feglm <- function(
     object,
@@ -150,7 +161,7 @@ vcov.feglm <- function(
   V
 }
 
-#' @title Covariance matrix for GLMs
+#' @title Covariance matrix for LMs
 #' @inherit vcov.feglm
 #' @seealso \code{\link{felm}}
 #' @export

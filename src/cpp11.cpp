@@ -138,13 +138,6 @@ extern "C" SEXP _capybara_sqrt_(SEXP w) {
     return cpp11::as_sexp(sqrt_(cpp11::as_cpp<cpp11::decay_t<const SEXP &>>(w)));
   END_CPP11
 }
-// 05_pairwise_correlation.cpp
-double pairwise_cor_(const doubles & y, const doubles & yhat);
-extern "C" SEXP _capybara_pairwise_cor_(SEXP y, SEXP yhat) {
-  BEGIN_CPP11
-    return cpp11::as_sexp(pairwise_cor_(cpp11::as_cpp<cpp11::decay_t<const doubles &>>(y), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(yhat)));
-  END_CPP11
-}
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
@@ -157,7 +150,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_capybara_group_sums_spectral_", (DL_FUNC) &_capybara_group_sums_spectral_, 5},
     {"_capybara_group_sums_var_",      (DL_FUNC) &_capybara_group_sums_var_,      2},
     {"_capybara_inv_",                 (DL_FUNC) &_capybara_inv_,                 1},
-    {"_capybara_pairwise_cor_",        (DL_FUNC) &_capybara_pairwise_cor_,        2},
     {"_capybara_rank_",                (DL_FUNC) &_capybara_rank_,                1},
     {"_capybara_sandwich_",            (DL_FUNC) &_capybara_sandwich_,            2},
     {"_capybara_solve_beta_",          (DL_FUNC) &_capybara_solve_beta_,          4},
