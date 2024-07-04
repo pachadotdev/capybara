@@ -139,10 +139,10 @@ extern "C" SEXP _capybara_sqrt_(SEXP w) {
   END_CPP11
 }
 // 05_kendall_correlation.cpp
-double kendall_cor_(doubles_matrix<> m);
+double kendall_cor_(const doubles_matrix<> & m);
 extern "C" SEXP _capybara_kendall_cor_(SEXP m) {
   BEGIN_CPP11
-    return cpp11::as_sexp(kendall_cor_(cpp11::as_cpp<cpp11::decay_t<doubles_matrix<>>>(m)));
+    return cpp11::as_sexp(kendall_cor_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(m)));
   END_CPP11
 }
 

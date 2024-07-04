@@ -88,7 +88,7 @@ uint64_t merge_sort_(double *x, double *buf, size_t len) {
   return swaps;
 }
 
-[[cpp11::register]] double kendall_cor_(doubles_matrix<> m) {
+[[cpp11::register]] double kendall_cor_(const doubles_matrix<> &m) {
   size_t len = m.nrow();
   std::vector<double> arr1(len), arr2(len);
   std::vector<double> buf(len);
