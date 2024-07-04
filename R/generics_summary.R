@@ -45,13 +45,15 @@ summary.feglm <- function(
     family        = object[["family"]]
   )
 
-  # if (object[["family"]][["family"]] == "poisson") {
-  #   # Compute pseudo R-squared
-  #   # http://personal.lse.ac.uk/tenreyro/r2.do
-  #   y <- unlist(object$data[, 1], use.names = FALSE)
-  #   yhat <- predict(object, type = "response")
-  #   # res[["pseudo.rsq"]] <- (pairwise_cor_(y, yhat))^2
-  # }
+  if (object[["family"]][["family"]] == "poisson") {
+    # Compute pseudo R-squared
+    # http://personal.lse.ac.uk/tenreyro/r2.do
+    # pass matrix with y and yhat as columns
+    res[["pseudo.rsq"]] <- (kendall_cor(
+      unlist(object$data[, 1], use.names = FALSE),
+      predict(object, type = "response")
+    ))^2
+  }
 
   if (inherits(object, "fenegbin")) {
     res[["theta"]] <- object[["theta"]]

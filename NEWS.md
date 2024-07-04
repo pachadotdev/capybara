@@ -1,3 +1,8 @@
+# capybara 0.5.2
+
+* Uses an O(n log(n)) algorithm to compute the Kendall correlation for the
+  pseudo-R2 in the Poisson model.
+
 # capybara 0.5.1
 
 * Using `arma::field` consistently instead of `std::vector<std::vector<>>` for indices.

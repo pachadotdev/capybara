@@ -4,16 +4,19 @@ test_that("fepoisson is similar to fixest", {
     trade_panel
   )
 
-  mod_fixest <- fixest::fepois(
-    trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
-    trade_panel,
-    cluster = ~pair
-  )
+  # mod_fixest <- fixest::fepois(
+  #   trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
+  #   trade_panel,
+  #   cluster = ~pair
+  # )
 
   summary_mod <- summary(mod, type = "clustered")
-  summary_mod_fixest <- summary(mod_fixest)
+  
+  # summary_mod_fixest <- summary(mod_fixest)
+  # summary_mod_fixest$coeftable[,2]
+  summary_mod_fixest <- c(0.02656441, 0.06322979, 0.06825364, 0.09380935)
 
-  expect_equal(unname(round(summary_mod$cm[,2] - summary_mod_fixest$coeftable[,2], 2)), rep(0, 4))
+  expect_equal(unname(round(summary_mod$cm[, 2] - summary_mod_fixest, 2)), rep(0, 4))
 
   expect_output(print(mod))
 
@@ -37,6 +40,4 @@ test_that("fepoisson is similar to fixest", {
   expect_output(summary_r2_(smod, 3))
   expect_output(summary_nobs_(smod))
   expect_output(summary_fisher_(smod))
-
 })
-

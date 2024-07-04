@@ -19,7 +19,7 @@ from the Hessian, the scores, or a combination of both after convergence."><meta
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">capybara</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.5.1</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.5.2</span>
       </span>
     </div>
 
@@ -99,6 +99,9 @@ covariance matrix given some cluster variables.</p></dd>
     
 
 <p>A named matrix of covariance estimates.</p>
+
+
+<p>A named matrix of covariance estimates.</p>
     </div>
     <div id="references">
     <h2>References</h2>
@@ -110,6 +113,22 @@ With Multiway Clustering". Journal of Business &amp; Economic Statistics 29(2).<
     <div class="dont-index"><p><code><a href="feglm.html">feglm</a></code></p></div>
     </div>
 
+    <div id="ref-examples">
+    <h2>Examples</h2>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">mod</span> <span class="op">&lt;-</span> <span class="fu"><a href="fepoisson.html">fepoisson</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span> <span class="va">trade</span> <span class="op">~</span> <span class="va">log_dist</span> <span class="op">+</span> <span class="va">lang</span> <span class="op">+</span> <span class="va">cntg</span> <span class="op">+</span> <span class="va">clny</span> <span class="op">|</span> <span class="va">exp_year</span> <span class="op">+</span> <span class="va">imp_year</span> <span class="op">|</span> <span class="va">pair</span>,</span></span>
+<span class="r-in"><span> <span class="va">trade_panel</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov</a></span><span class="op">(</span><span class="va">mod</span>, type <span class="op">=</span> <span class="st">"clustered"</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>               [,1]          [,2]          [,3]          [,4]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1,]  0.0006847158  0.0000482318  0.0010614958 -0.0006316697</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [2,]  0.0000482318  0.0038793033 -0.0011847203 -0.0019330635</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [3,]  0.0010614958 -0.0011847203  0.0045202435 -0.0001310871</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [4,] -0.0006316697 -0.0019330635 -0.0001310871  0.0085389097</span>
+<span class="r-in"><span></span></span>
+</code></pre></div>
+    </div>
   </div>
   <div class="col-md-3 hidden-xs hidden-sm" id="pkgdown-sidebar">
     <nav id="toc" data-toggle="toc" class="sticky-top"><h2 data-toc-skip>Contents</h2>
