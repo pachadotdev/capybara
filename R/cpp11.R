@@ -79,3 +79,7 @@ sqrt_ <- function(w) {
 kendall_cor_ <- function(m) {
   .Call(`_capybara_kendall_cor_`, m)
 }
+
+pkendall_ <- function(Q, n) {
+  .Call(`_capybara_pkendall_`, Q, n)
+}

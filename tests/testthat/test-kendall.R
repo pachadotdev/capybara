@@ -6,6 +6,12 @@ test_that("kendall", {
   y <- c(5, 3, 4)
   expect_equal(kendall_cor(x, y), cor(x, y, method = "kendall"))
 
+  k1 <- kendall_cor_test(x, y, alternative = "two.sided")
+  k2 <- cor.test(x, y, method = "kendall", alternative = "two.sided")
+  expect_equal(k1$statistic, unname(k2$estimate))
+  expect_equal(k1$p_value, k2$p.value)
+
+
   x <- 1:3
   y <- 3:1
   expect_equal(kendall_cor(x, y), cor(x, y, method = "kendall"))
@@ -15,6 +21,11 @@ test_that("kendall", {
   y <- rpois(100, 2)
   expect_equal(kendall_cor(x, y), cor(x, y, method = "kendall"))
 
+  k1 <- kendall_cor_test(x, y, alternative = "two.sided")
+  k2 <- cor.test(x, y, method = "kendall", alternative = "two.sided")
+  expect_equal(k1$statistic, unname(k2$estimate))
+  expect_equal(k1$p_value, k2$p.value)
+  
   x <- rnorm(1e3)
   y <- rpois(1e3, 2)
   expect_equal(kendall_cor(x, y), cor(x, y, method = "kendall"))

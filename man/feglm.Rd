@@ -76,6 +76,7 @@ mod <- feglm(
 )
 
 summary(mod, type = "clustered")
+
 }
 \references{
 Gaure, S. (2013). "OLS with Multiple High Dimensional Category

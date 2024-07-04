@@ -44,6 +44,7 @@
 #'  Effects Logit Models with Large Panel Data". Working paper.
 #' @references Stammann, A. (2018). "Fast and Feasible Estimation of Generalized
 #'  Linear Models with High-Dimensional k-Way Fixed Effects". ArXiv e-prints.
+#' 
 #' @examples
 #' mod <- feglm(
 #'   trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
@@ -60,6 +61,7 @@
 #' )
 #'
 #' summary(mod, type = "clustered")
+#' 
 #' @export
 feglm <- function(
     formula = NULL,

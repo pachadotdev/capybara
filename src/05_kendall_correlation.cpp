@@ -8,6 +8,7 @@
 #include <cpp11.hpp>
 #include <numeric>
 #include <vector>
+#include "Rmath.h"
 
 using namespace cpp11;
 
@@ -144,4 +145,40 @@ uint64_t merge_sort_(double *x, double *buf, size_t len) {
   s -= (m1 + m2) + 2 * swapCount;
 
   return (s / std::sqrt(nPair - m1) / std::sqrt(nPair - m2));
+}
+
+double ckendall_(int k, int n, std::vector<std::vector<double>> &w) {
+  int u = n * (n - 1) / 2;
+  if (k < 0 || k > u) return 0;
+  if (w[n][k] < 0) {
+    if (n == 1)
+      w[n][k] = (k == 0) ? 1 : 0;
+    else {
+      double s = 0;
+      for (int i = 0; i <= u; i++) s += ckendall_(k - i, n - 1, w);
+      w[n][k] = s;
+    }
+  }
+  return w[n][k];
+}
+
+[[cpp11::register]] doubles pkendall_(doubles Q, int n) {
+  int len = Q.size();
+  writable::doubles P(len);
+  std::vector<std::vector<double>> w(
+      n + 1, std::vector<double>((n * (n - 1) / 2) + 1, -1));
+
+  for (int i = 0; i < len; i++) {
+    double q = std::floor(Q[i] + 1e-7);
+    if (q < 0)
+      P[i] = 0;
+    else if (q > n * (n - 1) / 2)
+      P[i] = 1;
+    else {
+      double p = 0;
+      for (int j = 0; j <= q; j++) p += ckendall_(j, n, w);
+      P[i] = p / gammafn(n + 1);
+    }
+  }
+  return P;
 }
