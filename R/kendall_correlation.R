@@ -33,6 +33,13 @@ kendall_cor <- function(x, y) {
   arr <- cbind(x, y)
   storage.mode(arr) <- "double"
   arr <- arr[complete.cases(arr), ]
+
+  kw <- kendall_warnings(arr)
+
+  if (isFALSE(kw)) {
+    return(NA_real_)
+  }
+
   kendall_cor_(arr)
 }
 
@@ -70,6 +77,13 @@ kendall_cor_test <- function(x,y,
   arr <- cbind(x, y)
   storage.mode(arr) <- "double"
   arr <- arr[complete.cases(arr), ]
+
+  kw <- kendall_warnings(arr)
+
+  if (isFALSE(kw)) {
+    return(NA)
+  }
+
   r <- kendall_cor_(arr)
   n <- nrow(arr)
 
@@ -129,4 +143,26 @@ kendall_cor_test <- function(x,y,
     p_value = pv,
     alternative = alt
   )
+}
+
+kendall_warnings <- function(arr) {
+  if (ncol(arr) != 2) {
+    stop("x and y must be uni-dimensional vectors")
+  }
+
+  if (nrow(arr) < 2) {
+    stop("x and y must have at least 2 observations")
+  }
+
+  if (sd(arr[, 1]) == 0) {
+    warning("x has zero variance")
+    return(FALSE)
+  }
+
+  if (sd(arr[, 2]) == 0) {
+    warning("y has zero variance")
+    return(FALSE)
+  }
+
+  TRUE
 }

@@ -18,7 +18,7 @@
 #' @importFrom MASS negative.binomial theta.ml
 #' @importFrom rlang sym :=
 #' @importFrom stats as.formula binomial model.matrix na.omit gaussian poisson
-#'  pnorm printCoefmat rgamma rlogis rnorm rpois terms vcov predict
+#'  pnorm printCoefmat rgamma rlogis rnorm rpois terms vcov predict sd
 #'  complete.cases
 #' @importFrom utils combn
 #' @useDynLib capybara, .registration = TRUE

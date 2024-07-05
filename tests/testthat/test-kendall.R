@@ -1,6 +1,12 @@
 test_that("kendall", {
+  x <- 1:2
+  expect_equal(kendall_cor(x, x), cor(x, x, method = "kendall"))
+
   x <- 1:3
   expect_equal(kendall_cor(x, x), 1)
+
+  x <- rep(1, 3)
+  expect_equal(kendall_cor(x, x), cor(x, x, method = "kendall"))
 
   x <- c(1, 0, 2)
   y <- c(5, 3, 4)
@@ -11,10 +17,13 @@ test_that("kendall", {
   expect_equal(k1$statistic, unname(k2$estimate))
   expect_equal(k1$p_value, k2$p.value)
 
-
   x <- 1:3
   y <- 3:1
   expect_equal(kendall_cor(x, y), cor(x, y, method = "kendall"))
+
+  x <- c(1, NA, 2)
+  y <- 3:1
+  expect_equal(kendall_cor(x, y), cor(x, y, method = "kendall", use = "pairwise.complete.obs"))
 
   set.seed(123)
   x <- rnorm(100)
@@ -50,4 +59,12 @@ test_that("kendall", {
   t_cor <- median(t_cor)
 
   expect_lt(t_kendall, t_cor)
+
+  x <- 1:3
+  y <- NA
+  expect_error(kendall_cor(x, y))
+
+  x <- 1:3
+  y <- c(1, NA, NA)
+  expect_error(kendall_cor(x, y))
 })
