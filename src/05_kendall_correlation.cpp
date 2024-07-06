@@ -3,6 +3,9 @@
 // Data)
 // Filzmoser, Fritz, and Kalcher 2023 (pcaPP package)
 
+// note: the len < 2 conditions are commented out because the R function checks
+// for this condition before calling the C++ functions
+
 #include <algorithm>
 #include <cmath>
 #include <cpp11.hpp>
@@ -13,9 +16,9 @@
 using namespace cpp11;
 
 uint64_t insertion_sort_(double *arr, size_t len) {
-  if (len < 2) {
-    return 0;
-  }
+  // if (len < 2) {
+  //   return 0;
+  // }
 
   size_t maxJ = len - 1, i;
   uint64_t swapCount = 0;
@@ -70,9 +73,9 @@ static uint64_t merge_(double *from, double *to, size_t middle, size_t len) {
 }
 
 uint64_t merge_sort_(double *x, double *buf, size_t len) {
-  if (len < 2) {
-    return 0;
-  }
+  // if (len < 2) {
+  //   return 0;
+  // }
 
   if (len < 10) {
     return insertion_sort_(x, len);

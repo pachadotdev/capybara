@@ -4,7 +4,7 @@
 \alias{kendall_cor_test}
 \title{Kendall Correlation Test}
 \usage{
-kendall_cor_test(x, y, alternative = c("two.sided", "greater", "less"))
+kendall_cor_test(x, y, alternative = "two.sided")
 }
 \arguments{
 \item{x}{a numeric vector.}

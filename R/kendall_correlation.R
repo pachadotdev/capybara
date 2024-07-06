@@ -31,14 +31,14 @@
 #' @export
 kendall_cor <- function(x, y) {
   arr <- cbind(x, y)
-  storage.mode(arr) <- "double"
+  if (storage.mode(arr) != "double") { storage.mode(arr) <- "double" }
   arr <- arr[complete.cases(arr), ]
 
-  kw <- kendall_warnings(arr)
+  n <- ncol(arr)
 
-  if (isFALSE(kw)) {
-    return(NA_real_)
-  }
+  kw <- kendall_warnings(arr, n)
+
+  if (isFALSE(kw)) { return(NA) }
 
   kendall_cor_(arr)
 }
@@ -70,29 +70,22 @@ kendall_cor <- function(x, y) {
 #' kendall_cor_test(x, y)
 #' 
 #' @export
-kendall_cor_test <- function(x,y,
+kendall_cor_test <- function(x, y,
   alternative = c("two.sided", "greater", "less")) {
   alternative <- match.arg(alternative)
 
   arr <- cbind(x, y)
-  storage.mode(arr) <- "double"
+  if (storage.mode(arr) != "double") { storage.mode(arr) <- "double" }
   arr <- arr[complete.cases(arr), ]
 
-  kw <- kendall_warnings(arr)
+  n <- nrow(arr)
+  m <- ncol(arr)
 
-  if (isFALSE(kw)) {
-    return(NA)
-  }
+  kw <- kendall_warnings(arr, m)
+
+  if (isFALSE(kw)) { return(NA) }
 
   r <- kendall_cor_(arr)
-  n <- nrow(arr)
-
-  if (n < 2) {
-    stop("not enough finite observations")
-  }
-  
-  # r = correlation
-  # n = number of observations
 
   if (n < 50) {
     q <- round((r + 1) * n * (n - 1) / 4)
@@ -145,21 +138,21 @@ kendall_cor_test <- function(x,y,
   )
 }
 
-kendall_warnings <- function(arr) {
-  if (ncol(arr) != 2) {
+kendall_warnings <- function(arr, n) {
+  if (n != 2) {
     stop("x and y must be uni-dimensional vectors")
   }
 
-  if (nrow(arr) < 2) {
-    stop("x and y must have at least 2 observations")
+  if (n < 2) {
+    stop("x and y must have at least 2 non-null observations")
   }
 
-  if (sd(arr[, 1]) == 0) {
+  if (var(arr[, 1]) == 0) {
     warning("x has zero variance")
     return(FALSE)
   }
 
-  if (sd(arr[, 2]) == 0) {
+  if (var(arr[, 2]) == 0) {
     warning("y has zero variance")
     return(FALSE)
   }

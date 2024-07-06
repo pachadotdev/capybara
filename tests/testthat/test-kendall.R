@@ -6,7 +6,7 @@ test_that("kendall", {
   expect_equal(kendall_cor(x, x), 1)
 
   x <- rep(1, 3)
-  expect_equal(kendall_cor(x, x), cor(x, x, method = "kendall"))
+  expect_warning(kendall_cor(x, x), "zero variance")
 
   x <- c(1, 0, 2)
   y <- c(5, 3, 4)
@@ -34,6 +34,16 @@ test_that("kendall", {
   k2 <- cor.test(x, y, method = "kendall", alternative = "two.sided")
   expect_equal(k1$statistic, unname(k2$estimate))
   expect_equal(k1$p_value, k2$p.value)
+
+  k1 <- kendall_cor_test(x, y, alternative = "greater")
+  k2 <- cor.test(x, y, method = "kendall", alternative = "greater")
+  expect_equal(k1$statistic, unname(k2$estimate))
+  expect_equal(k1$p_value, k2$p.value)
+
+  k1 <- kendall_cor_test(x, y, alternative = "less")
+  k2 <- cor.test(x, y, method = "kendall", alternative = "less")
+  expect_equal(k1$statistic, unname(k2$estimate))
+  expect_equal(k1$p_value, k2$p.value)
   
   x <- rnorm(1e3)
   y <- rpois(1e3, 2)
@@ -47,7 +57,6 @@ test_that("kendall", {
     t_kendall[i] <- t2 - t1
   }
   t_kendall <- median(t_kendall)
-
 
   t_cor <- c()
   for (i in 1:100) {
