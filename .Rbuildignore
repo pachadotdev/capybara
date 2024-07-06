@@ -1,0 +1,15 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^\.Renviron$
+^docs$
+^vignettes/images$
+^\.github$
+^\.vscode$
+^dev$
+^LICENSE\.md$
+^README\.Rmd$
+^README\.html$
+^pkgdown$
+^Makefile$
+^codemeta\.json$
+^CODE_OF_CONDUCT\.md$
