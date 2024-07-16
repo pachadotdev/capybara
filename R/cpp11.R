@@ -72,6 +72,14 @@ solve_eta2_ <- function(yadj, myadj, offset, eta) {
   .Call(`_capybara_solve_eta2_`, yadj, myadj, offset, eta)
 }
 
+linkinv_ <- function(eta_r, family) {
+  .Call(`_capybara_linkinv_`, eta_r, family)
+}
+
+dev_resids_ <- function(y_r, mu_r, theta, wt_r, family) {
+  .Call(`_capybara_dev_resids_`, y_r, mu_r, theta, wt_r, family)
+}
+
 kendall_cor_ <- function(m) {
   .Call(`_capybara_kendall_cor_`, m)
 }

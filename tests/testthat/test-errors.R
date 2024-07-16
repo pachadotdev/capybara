@@ -1,4 +1,4 @@
-test_that("multiplication works", {
+test_that("error conditions", {
   trade_panel_2002 <- trade_panel[trade_panel$year == 2002, ]
   trade_panel_2002$trade_100 <- ifelse(trade_panel_2002$trade >= 100, 1, 0)
   trade_panel_2002$trade_200_100 <- as.factor(ifelse(trade_panel_2002$trade >= 200, 1,

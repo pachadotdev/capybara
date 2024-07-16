@@ -94,8 +94,13 @@ feglm_fit_ <- function(beta, eta, y, X, wt, k.list, family, control) {
       # beta <- beta.old + rho * beta.upd
       eta <- update_beta_eta_(eta.old, eta.upd, rho)
       beta <- update_beta_eta_(beta.old, beta.upd, rho)
-      mu <- family[["linkinv"]](eta)
-      dev <- sum(family[["dev.resids"]](y, mu, wt))
+      # mu <- family[["linkinv"]](eta)
+      mu <- linkinv_(eta, family$family)
+      # dev <- sum(family[["dev.resids"]](y, mu, wt))
+      if (is.integer(y)) { y <- as.double(y) }
+      dev <- dev_resids_(y, mu,
+        ifelse(is.null(family$theta), 0.0, family$theta),
+        wt, family$family)
       dev.crit <- is.finite(dev)
       val.crit <- family[["valideta"]](eta) && family[["validmu"]](mu)
       imp.crit <- (dev - dev.old) / (0.1 + abs(dev)) <= -dev.tol
