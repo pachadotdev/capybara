@@ -292,3 +292,53 @@ std::string tidy_family(const std::string &family) {
 
   return res;
 }
+
+[[cpp11::register]] bool valideta_(const doubles &eta_r,
+                                   const std::string &family) {
+  Col<double> eta = as_Col(eta_r);
+  std::string fam = tidy_family(family);
+  bool res;
+
+  if (fam == "gaussian") {
+    res = true;
+  } else if (fam == "poisson") {
+    res = true;
+  } else if (fam == "binomial") {
+    res = true;
+  } else if (fam == "gamma") {
+    res = is_finite(eta) && all(eta != 0);
+  } else if (fam == "inverse_gaussian") {
+    res = is_finite(eta) && all(eta > 0);
+  } else if (fam == "negative_binomial") {
+    res = true;
+  } else {
+    stop("Unknown family");
+  }
+
+  return res;
+}
+
+[[cpp11::register]] bool validmu_(const doubles &mu_r,
+                                  const std::string &family) {
+  Col<double> mu = as_Col(mu_r);
+  std::string fam = tidy_family(family);
+  bool res;
+
+  if (fam == "gaussian") {
+    res = true;
+  } else if (fam == "poisson") {
+    res = is_finite(mu) && all(mu > 0);
+  } else if (fam == "binomial") {
+    res = is_finite(mu) && all(mu > 0) && all(mu < 1);
+  } else if (fam == "gamma") {
+    res = is_finite(mu) && all(mu > 0);
+  } else if (fam == "inverse_gaussian") {
+    res = true;
+  } else if (fam == "negative_binomial") {
+    return all(mu > 0);
+  } else {
+    stop("Unknown family");
+  }
+
+  return res;
+}
