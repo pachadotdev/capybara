@@ -38,7 +38,7 @@ mod <- fepoisson(
  trade_panel
 )
 
-vcov(mod, type = "clustered")
+round(vcov(mod, type = "clustered"), 5)
 
 }
 \references{

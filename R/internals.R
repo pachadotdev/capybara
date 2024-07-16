@@ -71,7 +71,6 @@ feglm_fit_ <- function(beta, eta, y, X, wt, k.list, family, control) {
     # Compute weights and dependent variable
     mu.eta <- family[["mu.eta"]](eta)
     w <- (wt * mu.eta^2) / family[["variance"]](mu)
-    w.tilde <- sqrt_(w)
     nu <- (y - mu) / mu.eta
 
     # Centering variables
@@ -81,7 +80,7 @@ feglm_fit_ <- function(beta, eta, y, X, wt, k.list, family, control) {
     # Compute update step and update eta
     # beta.upd <- as.vector(qr.solve(MX * w.tilde, Mnu * w.tilde, epsilon))
     # eta.upd <- nu - as.vector(Mnu - MX %*% beta.upd)
-    beta.upd <- solve_beta_(MX, Mnu, w.tilde, TRUE)
+    beta.upd <- solve_beta_(MX, Mnu, w, TRUE)
     eta.upd <- solve_eta_(MX, Mnu, nu, beta.upd)
 
     # Step-halving with three checks
@@ -101,7 +100,7 @@ feglm_fit_ <- function(beta, eta, y, X, wt, k.list, family, control) {
       val.crit <- family[["valideta"]](eta) && family[["validmu"]](mu)
       imp.crit <- (dev - dev.old) / (0.1 + abs(dev)) <= -dev.tol
       if (dev.crit && val.crit && imp.crit) break
-      rho <- rho / 2.0
+      rho <- rho * 0.5
     }
 
     # Check if step-halving failed (deviance and invalid \eta or \mu)
@@ -226,7 +225,7 @@ feglm_offset_ <- function(object, offset) {
 
     # Centering dependent variable and compute \eta update
     Myadj <- center_variables_(Myadj, yadj, w, k.list, center.tol, 10000L, TRUE)
-    # eta.upd <- yadj - as.vector(Myadj) + offset - eta
+    # eta.upd <- yadj - drop(Myadj) + offset - eta
     eta.upd <- solve_eta2_(yadj, Myadj, offset, eta)
 
     # Step-halving with three checks
@@ -273,7 +272,7 @@ get_index_list_ <- function(k.vars, data) {
 
 # Compute score matrix ----
 
-getScoreMatrix <- function(object) {
+get_score_matrix_ <- function(object) {
   # Extract required quantities from result list
   control <- object[["control"]]
   data <- object[["data"]]

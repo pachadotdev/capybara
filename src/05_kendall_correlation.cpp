@@ -6,14 +6,7 @@
 // note: the len < 2 conditions are commented out because the R function checks
 // for this condition before calling the C++ functions
 
-#include <algorithm>
-#include <cmath>
-#include <cpp11.hpp>
-#include <numeric>
-#include <vector>
-#include "Rmath.h"
-
-using namespace cpp11;
+#include "00_main.h"
 
 uint64_t insertion_sort_(double *arr, size_t len) {
   // if (len < 2) {

@@ -27,7 +27,7 @@
   }
 
   // Start alternating between normal equations
-  field<Mat<double>> Alpha0(size(Alpha));
+  field<Mat<double>> Alpha0(K);
 
   for (iter = 0; iter < 10000; ++iter) {
     if ((iter % 1000) == 0) {
@@ -42,7 +42,7 @@
 
       for (l = 0; l < K; ++l) {
         if (l != k) {
-          list klist_l = klist[l];
+          const list &klist_l = klist[l];
           for (int j = 0; j < list_sizes[l]; ++j) {
             uvec indexes = as_uvec(as_cpp<integers>(klist_l[j]));
             y(indexes) -= Alpha(l)(j);
@@ -50,8 +50,8 @@
         }
       }
 
-      list klist_k = as_cpp<list>(klist[k]);
-      Mat<double> alpha(list_sizes[k], 1);
+      const list &klist_k = as_cpp<list>(klist[k]);
+      Mat<double> &alpha = Alpha(k);
 
       for (int j = 0; j < list_sizes[k]; ++j) {
         // Subset the j-th group of category k
@@ -60,19 +60,15 @@
         // Store group mean
         alpha(j) = mean(y(indexes));
       }
-
-      // Update alpha_k
-      Alpha(k) = alpha;
     }
 
     // Compute termination criterion and check convergence
     num = 0.0;
     denom = 0.0;
     for (k = 0; k < K; ++k) {
-      Mat<double> diff = Alpha(k) - Alpha0(k);
+      const Mat<double> &diff = Alpha(k) - Alpha0(k);
       num += accu(diff % diff);
       denom += accu(Alpha0(k) % Alpha0(k));
-      Alpha0(k) = Alpha(k);
     }
 
     crit = sqrt(num / denom);

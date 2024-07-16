@@ -12,31 +12,29 @@
   const int P = M.n_cols;
 
   // Auxiliary variables (storage)
-  int i, j, p;
-  Mat<double> num(P, 1, fill::zeros);
-  integers indexes;
+  int i, j, I;
+  Mat<double> b(P, 1, fill::zeros);
+  Mat<double> num(P, 1);
+  uvec indexes;
+  double denom;
 
   // Compute sum of weighted group sums
-  double denom = 0.0;
-  for (j = 0; j < J; j++) {
-    uvec arma_indexes = as_uvec(as_cpp<integers>(jlist[j]));
-    int I = arma_indexes.size();
+  for (j = 0; j < J; ++j) {
+    denom = 0.0;
+
+    indexes = as_uvec(as_cpp<integers>(jlist[j]));
+    I = indexes.size();
 
     num.zeros();
-    for (p = 0; p < P; ++p) {
-      for (i = 0; i < I; i++) {
-        num(p, 0) += M(arma_indexes[i], p);
-      }
+    for (i = 0; i < I; ++i) {
+      num += M.row(indexes[i]).t();
+      denom += w(indexes[i]);
     }
 
-    for (i = 0; i < I; i++) {
-      denom += w(arma_indexes[i]);
-    }
+    b += num / denom;
   }
 
-  num = num / denom;
-
-  return as_doubles_matrix(num);
+  return as_doubles_matrix(b);
 }
 
 [[cpp11::register]] doubles_matrix<>
@@ -53,25 +51,33 @@ group_sums_spectral_(const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
   const int P = M.n_cols;
 
   // Auxiliary variables (storage)
-  int j;
-  Mat<double> num(P, 1, fill::zeros);
+  int i, j, k, I;
+  Mat<double> b(P, 1, fill::zeros);
+  Mat<double> num(P, 1);
+  double denom;
 
   // Compute sum of weighted group sums
-  double denom = 0.0;
   for (j = 0; j < J; j++) {
-    uvec arma_indexes = as_uvec(as_cpp<integers>(jlist[j]));
-    // arma_indexes -= 1;
+    uvec indexes = as_uvec(as_cpp<integers>(jlist[j]));
+    I = indexes.size();
 
-    Mat<double> M_sub = M.rows(arma_indexes);
-    Mat<double> w_sub = w.rows(arma_indexes);
+    num.zeros();
+    denom = 0.0;
 
-    num += sum(M_sub.each_col() % w_sub, 0).t();
-    denom += accu(w_sub);
+    for (i = 1; i < I; ++i) {
+      for (k = 1; k <= K; ++k) {
+        num += M.row(indexes[i]) * v(indexes[i - k], 0) * I / (I - 1);
+      }
+    }
+
+    for (i = 0; i < I; ++i) {
+      denom += w(indexes[i]);
+    }
+
+    b += num / denom;
   }
 
-  num = num / denom;
-
-  return as_doubles_matrix(num);
+  return as_doubles_matrix(b);
 }
 
 [[cpp11::register]] doubles_matrix<>
@@ -85,15 +91,15 @@ group_sums_var_(const doubles_matrix<> &M_r, const list &jlist) {
 
   // Auxiliary variables (storage)
   int j;
+  Mat<double> v(P, 1);
   Mat<double> V(P, P, fill::zeros);
 
   // Compute covariance matrix
   for (j = 0; j < J; ++j) {
-    uvec arma_indexes = as_uvec(as_cpp<integers>(jlist[j]));
-    // arma_indexes -= 1;
+    uvec indexes = as_uvec(as_cpp<integers>(jlist[j]));
 
-    Mat<double> M_sub = M.rows(arma_indexes);
-    vec v = sum(M_sub, 0).t();
+    Mat<double> M_sub = M.rows(indexes);
+    v = sum(M_sub, 0).t();
     V += v * v.t();
   }
 
@@ -112,19 +118,19 @@ group_sums_cov_(const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
   const int P = M.n_cols;
 
   // Auxiliary variables (storage)
-  int j, p, q;
+  int j;
+  size_t i, k, I;
+  uvec indexes;
   Mat<double> V(P, P, fill::zeros);
 
   // Compute covariance matrix
   for (j = 0; j < J; ++j) {
-    uvec arma_indexes = as_uvec(as_cpp<integers>(jlist[j]));
+    indexes = as_uvec(as_cpp<integers>(jlist[j]));
+    I = indexes.n_elem;
 
-    Mat<double> M_sub = M.rows(arma_indexes);
-    Mat<double> N_sub = N.rows(arma_indexes);
-
-    for (p = 0; p < P; p++) {
-      for (q = 0; q < P; q++) {
-        V(q, p) += accu(M_sub.col(q) * N_sub.col(p).t());
+    for (i = 0; i < I; ++i) {
+      for (k = i + 1; k < I; ++k) {
+        V += M.row(indexes[i]).t() * N.row(indexes[k]);
       }
     }
   }

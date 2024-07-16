@@ -125,17 +125,10 @@ extern "C" SEXP _capybara_solve_eta_(SEXP mx, SEXP mnu, SEXP nu, SEXP beta) {
   END_CPP11
 }
 // 04_linear_algebra.cpp
-doubles solve_eta2_(const SEXP & yadj, const SEXP & myadj, const SEXP & offset, const SEXP & eta);
+doubles solve_eta2_(const doubles & yadj, const doubles_matrix<> & myadj, const doubles & offset, const doubles & eta);
 extern "C" SEXP _capybara_solve_eta2_(SEXP yadj, SEXP myadj, SEXP offset, SEXP eta) {
   BEGIN_CPP11
-    return cpp11::as_sexp(solve_eta2_(cpp11::as_cpp<cpp11::decay_t<const SEXP &>>(yadj), cpp11::as_cpp<cpp11::decay_t<const SEXP &>>(myadj), cpp11::as_cpp<cpp11::decay_t<const SEXP &>>(offset), cpp11::as_cpp<cpp11::decay_t<const SEXP &>>(eta)));
-  END_CPP11
-}
-// 04_linear_algebra.cpp
-doubles sqrt_(const SEXP & w);
-extern "C" SEXP _capybara_sqrt_(SEXP w) {
-  BEGIN_CPP11
-    return cpp11::as_sexp(sqrt_(cpp11::as_cpp<cpp11::decay_t<const SEXP &>>(w)));
+    return cpp11::as_sexp(solve_eta2_(cpp11::as_cpp<cpp11::decay_t<const doubles &>>(yadj), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(myadj), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(offset), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(eta)));
   END_CPP11
 }
 // 05_kendall_correlation.cpp
@@ -173,7 +166,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_capybara_solve_eta2_",          (DL_FUNC) &_capybara_solve_eta2_,          4},
     {"_capybara_solve_eta_",           (DL_FUNC) &_capybara_solve_eta_,           4},
     {"_capybara_solve_y_",             (DL_FUNC) &_capybara_solve_y_,             2},
-    {"_capybara_sqrt_",                (DL_FUNC) &_capybara_sqrt_,                1},
     {"_capybara_update_beta_eta_",     (DL_FUNC) &_capybara_update_beta_eta_,     3},
     {"_capybara_update_nu_",           (DL_FUNC) &_capybara_update_nu_,           3},
     {NULL, NULL, 0}

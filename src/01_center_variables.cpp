@@ -24,7 +24,6 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &v_sum_r,
   // Auxiliary variables (storage)
   int iter, j, k, p, J;
   double delta, meanj;
-  Mat<double> C(N, P);
   Mat<double> x(N, 1);
   Mat<double> x0(N, 1);
 
@@ -79,9 +78,9 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &v_sum_r,
         break;
       }
     }
-    C.col(p) = x;
+    V.col(p) = x;
   }
 
   // Return matrix with centered variables
-  return as_doubles_matrix(C);
+  return as_doubles_matrix(V);
 }
