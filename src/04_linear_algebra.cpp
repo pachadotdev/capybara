@@ -193,3 +193,102 @@ update_beta_eta_(const doubles &old, const doubles &upd, const double &param) {
 
   return as_doubles(Yadj - Myadj + Offset - Eta);
 }
+
+std::string tidy_family(const std::string &family) {
+  // tidy family param
+  std::string fam = family;
+
+  // 1. put all in lowercase
+  std::transform(fam.begin(), fam.end(), fam.begin(),
+                 [](unsigned char c) { return std::tolower(c); });
+
+  // 2. remove numbers
+  fam.erase(std::remove_if(fam.begin(), fam.end(), ::isdigit), fam.end());
+
+  // 3. remove parentheses and everything inside
+  size_t pos = fam.find("(");
+  if (pos != std::string::npos) {
+    fam.erase(pos, fam.size());
+  }
+
+  // 4. replace spaces and dots
+  std::replace(fam.begin(), fam.end(), ' ', '_');
+  std::replace(fam.begin(), fam.end(), '.', '_');
+
+  // 5. trim
+  fam.erase(std::remove_if(fam.begin(), fam.end(), ::isspace), fam.end());
+
+  return fam;
+}
+
+[[cpp11::register]] doubles linkinv_(const doubles &eta_r,
+                                     const std::string &family) {
+  Col<double> eta = as_Col(eta_r);
+  Col<double> res(eta.n_elem);
+  
+  std::string fam = tidy_family(family);
+
+  if (fam == "gaussian") {
+    res = eta;
+  } else if (fam == "poisson") {
+    res = exp(eta);
+  } else if (fam == "binomial") {
+    // res = exp(eta) / (1.0 + exp(eta));
+    res = 1.0 / (1.0 + exp(-eta));
+  } else if (fam == "gamma") {
+    res = 1.0 / eta;
+  } else if (fam == "inverse_gaussian") {
+    res = 1.0 / sqrt(eta);
+  } else if (fam == "negative_binomial") {
+    res = exp(eta);
+  } else {
+    stop("Unknown family");
+  }
+
+  return as_doubles(res);
+}
+
+[[cpp11::register]] double dev_resids_(const doubles &y_r, const doubles &mu_r,
+                                       const double &theta, const doubles &wt_r,
+                                       const std::string &family) {
+  Col<double> y = as_Col(y_r);
+  Col<double> mu = as_Col(mu_r);
+  Col<double> wt = as_Col(wt_r);
+  double res;
+
+  std::string fam = tidy_family(family);
+
+  if (fam == "gaussian") {
+    res = accu(wt % square(y - mu));
+  } else if (fam == "poisson") {
+    uvec p = find(y > 0.0);
+    Col<double> r = mu % wt;
+    r(p) = y(p) % log(y(p) / mu(p)) - (y(p) - mu(p));
+    res = 2.0 * accu(r);
+  } else if (fam == "binomial") {
+    uvec p = find(y != 0.0);
+    uvec q = find(y != 1.0);
+    Col<double> r = y / mu;
+    Col<double> s = (1.0 - y) / (1.0 - mu);
+    r(p) = log(r(p));
+    s(q) = log(s(q));
+    res = 2.0 * accu(wt % (y % r + (1.0 - y) % s));
+  } else if (fam == "gamma") {
+    uvec p = find(y == 0.0);
+    Col<double> r = y / mu;
+    r.elem(p).fill(1.0);
+    res = -2.0 * accu(wt % (log(r) - (y - mu) / mu));
+  } else if (fam == "inverse_gaussian") {
+    res = accu(wt % square(y - mu) / (y % square(mu)));
+  } else if (fam == "negative_binomial") {
+    uvec p = find(y < 1.0);
+    Col<double> r = y;
+    r.elem(p).fill(1.0);
+    res = 2.0 * accu(
+        wt % (y % log(r / mu) - (y + theta) % log((y + theta) / (mu + theta))));
+  } else {
+    stop("Unknown family");
+  }
+
+  return res;
+}

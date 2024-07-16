@@ -131,6 +131,7 @@ fenegbin <- function(
     dev.old <- dev
     theta.old <- theta
     family <- negative.binomial(theta, link)
+    family$theta <- theta
     fit <- feglm_fit_(beta, eta, y, X, wt, k.list, family, control)
     beta <- fit[["coefficients"]]
     eta <- fit[["eta"]]

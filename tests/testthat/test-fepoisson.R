@@ -9,6 +9,10 @@ test_that("fepoisson is similar to fixest", {
   #   trade_panel,
   #   cluster = ~pair
   # )
+  
+  coef_mod_fixest <- c(-0.8409273, 0.2474765, 0.4374432, -0.2224899)
+
+  expect_equal(unname(round(coef(mod) - coef_mod_fixest, 5)), rep(0, 4))
 
   summary_mod <- summary(mod, type = "clustered")
   

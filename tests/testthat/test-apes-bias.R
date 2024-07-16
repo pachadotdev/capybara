@@ -1,4 +1,4 @@
-test_that("apes works", {
+test_that("apes/bias works", {
   trade_short <- trade_panel[trade_panel$year %in% 2002L:2006L, ]
   trade_short$trade <- ifelse(trade_short$trade > 100, 1L, 0L)
   
