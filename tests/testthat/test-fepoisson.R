@@ -40,4 +40,10 @@ test_that("fepoisson is similar to fixest", {
   expect_output(summary_r2_(smod, 3))
   expect_output(summary_nobs_(smod))
   expect_output(summary_fisher_(smod))
+
+  fe <- fixed_effects(mod)
+
+  expect_equal(length(fe), 2)
+  expect_equal(round(fe$exp_year[1:3], 3), c(10.195, 11.081, 11.260))
+  expect_equal(round(fe$imp_year[1:3], 3), c(0.226, -0.254, 1.115))
 })

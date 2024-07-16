@@ -33,7 +33,7 @@ vcov.apes <- function(object, ...) {
 #'  trade_panel
 #' )
 #' 
-#' vcov(mod, type = "clustered")
+#' round(vcov(mod, type = "clustered"), 5)
 #' 
 #' @return A named matrix of covariance estimates.
 #' 
@@ -72,9 +72,9 @@ vcov.feglm <- function(
       V <- matrix(Inf, p, p)
     }
   } else {
-    G <- getScoreMatrix(object)
+    G <- get_score_matrix_(object)
     if (type == "outer.product") {
-      # Check if the OPG is invertible and compute its inverse
+      # Check if the OP is invertible and compute its inverse
       V <- try(inv_(G), silent = TRUE)
       if (inherits(V, "try-error")) {
         V <- matrix(Inf, p, p)
@@ -162,6 +162,10 @@ vcov.feglm <- function(
 }
 
 #' @title Covariance matrix for LMs
+#' @description Covariance matrix for the estimator of the structural parameters
+#'  from objects returned by \code{\link{felm}}. The covariance is computed
+#' from the Hessian, the scores, or a combination of both after convergence.
+#' @param object an object of class \code{"felm"}.
 #' @inherit vcov.feglm
 #' @seealso \code{\link{felm}}
 #' @export

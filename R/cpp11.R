@@ -72,10 +72,6 @@ solve_eta2_ <- function(yadj, myadj, offset, eta) {
   .Call(`_capybara_solve_eta2_`, yadj, myadj, offset, eta)
 }
 
-sqrt_ <- function(w) {
-  .Call(`_capybara_sqrt_`, w)
-}
-
 kendall_cor_ <- function(m) {
   .Call(`_capybara_kendall_cor_`, m)
 }

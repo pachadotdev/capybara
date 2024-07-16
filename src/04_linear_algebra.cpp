@@ -148,6 +148,7 @@ update_beta_eta_(const doubles &old, const doubles &upd, const double &param) {
   // Weight the X and Y matrices
   if (weighted) {
     Mat<double> w = as_Mat(wtilde);
+    w = sqrt(w);
     X = X.each_col() % w; // element-wise multiplication
     Y = Y.each_col() % w;
   }
@@ -183,40 +184,12 @@ update_beta_eta_(const doubles &old, const doubles &upd, const double &param) {
 
 // eta.upd <- yadj - as.vector(Myadj) + offset - eta
 
-[[cpp11::register]] doubles solve_eta2_(const SEXP &yadj, const SEXP &myadj,
-                                        const SEXP &offset, const SEXP &eta) {
-  int N = Rf_length(yadj);
-  writable::doubles res(N);
+[[cpp11::register]] doubles solve_eta2_(const doubles &yadj, const doubles_matrix<> &myadj,
+                                        const doubles &offset, const doubles &eta) {
+  Mat<double> Yadj = as_Mat(yadj);
+  Mat<double> Myadj = as_Mat(myadj);
+  Mat<double> Offset = as_Mat(offset);
+  Mat<double> Eta = as_Mat(eta);
 
-  double *Yadj_data = REAL(yadj);
-  double *Myadj_data = REAL(myadj);
-  double *Offset_data = REAL(offset);
-  double *Eta_data = REAL(eta);
-
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static)
-#endif
-  for (int n = 0; n < N; ++n) {
-    res[n] = Yadj_data[n] - Myadj_data[n] + Offset_data[n] - Eta_data[n];
-  }
-
-  return res;
-}
-
-// w <- sqrt(w)
-
-[[cpp11::register]] doubles sqrt_(const SEXP &w) {
-  int n = Rf_length(w);
-  writable::doubles res(n);
-
-  double *w_data = REAL(w);
-
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static)
-#endif
-  for (int i = 0; i < n; ++i) {
-    res[i] = sqrt(w_data[i]);
-  }
-
-  return res;
+  return as_doubles(Yadj - Myadj + Offset - Eta);
 }
