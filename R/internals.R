@@ -102,7 +102,7 @@ feglm_fit_ <- function(beta, eta, y, X, wt, k.list, family, control) {
         ifelse(is.null(family$theta), 0.0, family$theta),
         wt, family$family)
       dev.crit <- is.finite(dev)
-      val.crit <- family[["valideta"]](eta) && family[["validmu"]](mu)
+      val.crit <- valideta_(eta, family$family) && validmu_(mu, family$family)
       imp.crit <- (dev - dev.old) / (0.1 + abs(dev)) <= -dev.tol
       if (dev.crit && val.crit && imp.crit) break
       rho <- rho * 0.5

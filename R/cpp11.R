@@ -80,6 +80,14 @@ dev_resids_ <- function(y_r, mu_r, theta, wt_r, family) {
   .Call(`_capybara_dev_resids_`, y_r, mu_r, theta, wt_r, family)
 }
 
+valideta_ <- function(eta_r, family) {
+  .Call(`_capybara_valideta_`, eta_r, family)
+}
+
+validmu_ <- function(mu_r, family) {
+  .Call(`_capybara_validmu_`, mu_r, family)
+}
+
 kendall_cor_ <- function(m) {
   .Call(`_capybara_kendall_cor_`, m)
 }

@@ -145,6 +145,20 @@ extern "C" SEXP _capybara_dev_resids_(SEXP y_r, SEXP mu_r, SEXP theta, SEXP wt_r
     return cpp11::as_sexp(dev_resids_(cpp11::as_cpp<cpp11::decay_t<const doubles &>>(y_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(mu_r), cpp11::as_cpp<cpp11::decay_t<const double &>>(theta), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(wt_r), cpp11::as_cpp<cpp11::decay_t<const std::string &>>(family)));
   END_CPP11
 }
+// 04_linear_algebra.cpp
+bool valideta_(const doubles & eta_r, const std::string & family);
+extern "C" SEXP _capybara_valideta_(SEXP eta_r, SEXP family) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(valideta_(cpp11::as_cpp<cpp11::decay_t<const doubles &>>(eta_r), cpp11::as_cpp<cpp11::decay_t<const std::string &>>(family)));
+  END_CPP11
+}
+// 04_linear_algebra.cpp
+bool validmu_(const doubles & mu_r, const std::string & family);
+extern "C" SEXP _capybara_validmu_(SEXP mu_r, SEXP family) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(validmu_(cpp11::as_cpp<cpp11::decay_t<const doubles &>>(mu_r), cpp11::as_cpp<cpp11::decay_t<const std::string &>>(family)));
+  END_CPP11
+}
 // 05_kendall_correlation.cpp
 double kendall_cor_(const doubles_matrix<> & m);
 extern "C" SEXP _capybara_kendall_cor_(SEXP m) {
@@ -184,6 +198,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_capybara_solve_y_",             (DL_FUNC) &_capybara_solve_y_,             2},
     {"_capybara_update_beta_eta_",     (DL_FUNC) &_capybara_update_beta_eta_,     3},
     {"_capybara_update_nu_",           (DL_FUNC) &_capybara_update_nu_,           3},
+    {"_capybara_valideta_",            (DL_FUNC) &_capybara_valideta_,            2},
+    {"_capybara_validmu_",             (DL_FUNC) &_capybara_validmu_,             2},
     {NULL, NULL, 0}
 };
 }
