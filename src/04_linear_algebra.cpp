@@ -3,30 +3,24 @@
 // Y <- crossprod(X)
 // Y <- t(X) %*% X
 
-[[cpp11::register]] doubles_matrix<> crossprod_(const doubles_matrix<> &x,
-                                                const doubles &w,
-                                                const bool &weighted,
-                                                const bool &root_weights) {
-  Mat<double> X = as_Mat(x);
-  int P = X.n_cols;
+Mat<double> crossprod_(const Mat<double> &X, const Col<double> &w, const int &n,
+                       const int &p, const bool &weighted,
+                       const bool &root_weights) {
+  Mat<double> res(p, p);
 
-  Mat<double> res(P, P);
-
-  if (!weighted) {
+  if (weighted == false) {
     res = X.t() * X;
   } else {
-    Mat<double> W = as_Mat(w);
-
-    if (root_weights) {
-      W = sqrt(W);
+    Mat<double> Y(n, p);
+    if (root_weights == false) {
+      Y = X.each_col() % w;
+    } else {
+      Y = X.each_col() % sqrt(w);
     }
-
-    X = X.each_col() % W;
-
-    res = X.t() * X;
+    res = Y.t() * Y;
   }
 
-  return as_doubles_matrix(res);
+  return res;
 }
 
 // WinvJ < -solve(object[["Hessian"]] / nt.full, J)

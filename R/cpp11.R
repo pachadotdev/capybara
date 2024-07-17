@@ -20,10 +20,6 @@ group_sums_cov_ <- function(M_r, N_r, jlist) {
   .Call(`_capybara_group_sums_cov_`, M_r, N_r, jlist)
 }
 
-crossprod_ <- function(x, w, weighted, root_weights) {
-  .Call(`_capybara_crossprod_`, x, w, weighted, root_weights)
-}
-
 gamma_ <- function(mx, hessian, j, ppsi, v, nt_full) {
   .Call(`_capybara_gamma_`, mx, hessian, j, ppsi, v, nt_full)
 }
@@ -60,8 +56,8 @@ solve_eta2_ <- function(yadj, myadj, offset, eta) {
   .Call(`_capybara_solve_eta2_`, yadj, myadj, offset, eta)
 }
 
-feglm_fit_ <- function(beta_r, eta_r, y_r, x_r, nt_r, wt_r, theta, family, control, k_list) {
-  .Call(`_capybara_feglm_fit_`, beta_r, eta_r, y_r, x_r, nt_r, wt_r, theta, family, control, k_list)
+feglm_fit_ <- function(beta_r, eta_r, y_r, x_r, nt, wt_r, theta, family, control, k_list) {
+  .Call(`_capybara_feglm_fit_`, beta_r, eta_r, y_r, x_r, nt, wt_r, theta, family, control, k_list)
 }
 
 kendall_cor_ <- function(m) {

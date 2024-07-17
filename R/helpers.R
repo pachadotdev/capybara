@@ -218,13 +218,13 @@ nobs_ <- function(nobs.full, nobs.na, nt) {
 model_response_ <- function(data, formula) {
   y <- data[[1L]]
   X <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
-  nms.sp <- attr(X, "dimnames")[[2L]]
+  nms_sp <- attr(X, "dimnames")[[2L]]
   attr(X, "dimnames") <- NULL
   p <- ncol(X)
 
   assign("y", y, envir = parent.frame())
   assign("X", X, envir = parent.frame())
-  assign("nms.sp", nms.sp, envir = parent.frame())
+  assign("nms_sp", nms_sp, envir = parent.frame())
   assign("p", p, envir = parent.frame())
 }
 
