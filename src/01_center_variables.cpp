@@ -1,20 +1,9 @@
 #include "00_main.h"
 
 // Method of alternating projections (Halperin)
-[[cpp11::register]] doubles_matrix<>
-center_variables_(const doubles_matrix<> &V_r, const doubles &v_sum_r,
-                  const doubles &w_r, const list &klist, const double &tol,
-                  const int &maxiter, const bool &sum_v) {
-  // Type conversion
-  Mat<double> V = as_Mat(V_r);
-  Mat<double> w = as_Mat(w_r);
-
-  if (sum_v) {
-    Mat<double> v_sum = as_Mat(v_sum_r);
-    V.each_col() += v_sum;
-    v_sum.reset();
-  }
-  
+Mat<double> center_variables_(const Mat<double> &V, const Col<double> &w,
+                              const list &klist, const double &tol,
+                              const int &maxiter) {
   // Auxiliary variables (fixed)
   const int N = V.n_rows;
   const int P = V.n_cols;
@@ -24,6 +13,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &v_sum_r,
   // Auxiliary variables (storage)
   int iter, j, k, p, J;
   double delta, meanj;
+  Mat<double> C(N, P);
   Mat<double> x(N, 1);
   Mat<double> x0(N, 1);
 
@@ -31,9 +21,6 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &v_sum_r,
   field<field<uvec>> group_indices(K);
   field<vec> group_weights(K);
 
-  // #ifdef _OPENMP
-  // #pragma omp parallel for private(indices, j, J) schedule(static)
-  // #endif
   for (k = 0; k < K; ++k) {
     list jlist = klist[k];
     J = jlist.size();
@@ -46,9 +33,6 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &v_sum_r,
   }
 
   // Halperin projections
-  // #ifdef _OPENMP 
-  // #pragma omp parallel for private(x, x0, iter, j, k, J, meanj, delta) schedule(static)
-  // #endif
   for (p = 0; p < P; ++p) {
     // Center each variable
     x = V.col(p);
@@ -56,6 +40,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &v_sum_r,
       if ((iter % 1000) == 0) {
         check_user_interrupt();
       }
+
       // Store centered vector from the last iteration
       x0 = x;
 
@@ -72,15 +57,14 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &v_sum_r,
       }
 
       // Break loop if convergence is reached
-      delta =
-          accu(abs(x - x0) / (1.0 + abs(x0)) % w) * inv_sw;
+      delta = accu(abs(x - x0) / (1.0 + abs(x0)) % w) * inv_sw;
       if (delta < tol) {
         break;
       }
     }
-    V.col(p) = x;
+    C.col(p) = x;
   }
 
   // Return matrix with centered variables
-  return as_doubles_matrix(V);
+  return C;
 }
