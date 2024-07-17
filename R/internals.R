@@ -301,12 +301,12 @@ get_score_matrix_ <- function(object) {
 
     # Extract regressor matrix
     X <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
-    nms.sp <- attr(X, "dimnames")[[2L]]
+    nms_sp <- attr(X, "dimnames")[[2L]]
     attr(X, "dimnames") <- NULL
 
     # Center variables
     MX <- center_variables_(X, NA_real_, w, k.list, control[["center.tol"]], 10000L, FALSE)
-    colnames(MX) <- nms.sp
+    colnames(MX) <- nms_sp
   }
 
   # Return score matrix

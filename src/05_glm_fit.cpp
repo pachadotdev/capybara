@@ -177,11 +177,13 @@ Col<double> variance_(const Col<double> &mu,
   } else {
     stop("Unknown family");
   }
+
+  return res;
 }
 
 [[cpp11::register]] list feglm_fit_(
     const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
-    const doubles_matrix<> &x_r, const doubles &nt_r, const doubles &wt_r,
+    const doubles_matrix<> &x_r, const double &nt, const doubles &wt_r,
     const double &theta, const std::string &family, const list &control,
     const list &k_list) {
   // Type conversion
@@ -190,32 +192,41 @@ Col<double> variance_(const Col<double> &mu,
   Col<double> eta = as_Col(eta_r);
   Col<double> y = as_Col(y_r);
   Mat<double> MX = as_Mat(x_r);
-  Mat<double> MNU = as_Mat(nt_r);
+  Mat<double> MNU(y.n_elem, 1, fill::ones);
+  MNU = nt * MNU;
   Col<double> wt = as_Col(wt_r);
-
-  // Auxiliary variables (storage)
-
-  double dev = 0.0;
 
   // Auxiliary variables (fixed)
 
   std::string fam = tidy_family_(family);
   double center_tol = as_cpp<double>(control["center_tol"]);
-  double dev_tol = as_cpp<double>(control["dev.tol"]);
+  double dev_tol = as_cpp<double>(control["dev_tol"]);
   int iter;
-  int max_iter = as_cpp<int>(control["max.iter"]);
-  int max_center_iter = 10000;
-  bool keep_mx = as_cpp<bool>(control["keep.mx"]);
+  int iter_max = as_cpp<int>(control["iter_max"]);
+  int iter_center_max = 10000;
+  bool keep_mx = as_cpp<bool>(control["keep_mx"]);
+
+  // Auxiliary variables (storage)
+
+  Col<double> mu = link_inv_(eta, fam);
+  Col<double> ymean(y.n_elem, fill::ones);
+  ymean = mean(y) * ymean;
+  double dev = dev_resids_(y, mu, theta, wt, fam);
+  double null_dev = dev_resids_(y, ymean, theta, wt, fam);
+  
+  const int n = y.n_elem;
+  const int p = MX.n_cols;
+  Col<double> mu_eta(n), nu(n);
+  Mat<double> H(p, p), w(n, 1);
 
   // Maximize the log-likelihood
 
   bool conv = false;
 
-  for (iter = 0; iter < max_iter; ++iter) {
+  for (iter = 0; iter < iter_max; ++iter) {
     // Auxiliary variables (fixed)
 
-    int inner_iter, max_inner_iter = 50;
-    const int n = y.n_elem;
+    int iter_inner, iter_inner_max = 50;
     const int k = beta.n_elem;
     bool dev_crit, val_crit, imp_crit;
     double dev_old;
@@ -223,12 +234,11 @@ Col<double> variance_(const Col<double> &mu,
     // Auxiliary variables (storage)
 
     double rho = 1.0;
-    Col<double> mu(n), eta_upd(n), beta_upd(k), eta_old(n), beta_old(k);
-    Col<double> mu_eta(n), w(n), nu(n);
+    Col<double> eta_upd(n), beta_upd(k), eta_old(n), beta_old(k);
 
-        // Store eta, beta, and deviance of the previous iteration
+    // Store eta, beta, and deviance of the previous iteration
 
-        eta_old = eta;
+    eta_old = eta;
     beta_old = beta;
     dev_old = dev;
 
@@ -240,9 +250,9 @@ Col<double> variance_(const Col<double> &mu,
     
     // Center variables
 
-    Mnu = center_variables_(Mnu.each_col() + nu, w, k_list, center_tol,
-      max_center_iter);
-    MX = center_variables_(MX, w, k_list, center_tol, max_center_iter);
+    MNU = center_variables_(MNU.each_col() + nu, w, k_list, center_tol,
+      iter_center_max);
+    MX = center_variables_(MX, w, k_list, center_tol, iter_center_max);
 
     // Compute update step and update eta
 
@@ -254,11 +264,11 @@ Col<double> variance_(const Col<double> &mu,
     beta_upd = solve_beta_(MX, MNU, w);
     eta_upd = solve_eta_(MX, MNU, nu, beta_upd);
 
-    for (inner_iter = 0; inner_iter < max_inner_iter; ++inner_iter) {
+    for (iter_inner = 0; iter_inner < iter_inner_max; ++iter_inner) {
       eta = eta_old + (rho * eta_upd);
       beta = beta_old + (rho * beta_upd);
       mu = link_inv_(eta, fam);
-      dev = accu(dev_resids_(y, mu, theta, wt, fam));
+      dev = dev_resids_(y, mu, theta, wt, fam);
       dev_crit = is_finite(dev);
       val_crit = valid_eta_(eta, fam) && valid_mu_(mu, fam);
       imp_crit = ((dev - dev_old) / (0.1 + abs(dev))) <= -dev_tol;
@@ -309,11 +319,11 @@ Col<double> variance_(const Col<double> &mu,
 
   // Center variables
 
-  MX = center_variables_(X, w, k_list, center_tol, max_center_iter);
+  MX = center_variables_(MX, w, k_list, center_tol, iter_center_max);
 
   // Recompute Hessian
 
-  H = crossprod_(MX, w, true, true);
+  H = crossprod_(MX, w, n, p, true, true);
 
   // Generate result list
 
@@ -324,7 +334,7 @@ Col<double> variance_(const Col<double> &mu,
   out.push_back({"weights"_nm = as_doubles(wt)});
   out.push_back({"Hessian"_nm = as_doubles_matrix(H)});
   out.push_back({"deviance"_nm = dev});
-  out.push_back({"null.deviance"_nm = null.dev});
+  out.push_back({"null.deviance"_nm = null_dev});
   out.push_back({"conv"_nm = conv});
   out.push_back({"iter"_nm = iter});
 

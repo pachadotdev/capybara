@@ -21,10 +21,10 @@
 #'  details of family functions.
 #' @param weights an optional string with the name of the 'prior weights'
 #'  variable in \code{data}.
-#' @param beta.start an optional vector of starting values for the structural
+#' @param beta_start an optional vector of starting values for the structural
 #'  parameters in the linear predictor. Default is
 #'  \eqn{\boldsymbol{\beta} = \mathbf{0}}{\beta = 0}.
-#' @param eta.start an optional vector of starting values for the linear
+#' @param eta_start an optional vector of starting values for the linear
 #'  predictor.
 #' @param control a named list of parameters for controlling the fitting
 #'  process. See \code{\link{feglm_control}} for details.
@@ -68,8 +68,8 @@ feglm <- function(
     data = NULL,
     family = gaussian(),
     weights = NULL,
-    beta.start = NULL,
-    eta.start = NULL,
+    beta_start = NULL,
+    eta_start = NULL,
     control = NULL) {
   # Check validity of formula ----
   check_formula_(formula)
@@ -96,24 +96,24 @@ feglm <- function(
   check_response_(data, lhs, family)
 
   # Get names of the fixed effects variables and sort ----
-  k.vars <- attr(terms(formula, rhs = 2L), "term.labels")
-  k <- length(k.vars)
+  k_vars <- attr(terms(formula, rhs = 2L), "term.labels")
+  k <- length(k_vars)
 
   # Generate temporary variable ----
   tmp.var <- temp_var_(data)
 
   # Drop observations that do not contribute to the log likelihood ----
-  data <- drop_by_link_type_(data, lhs, family, tmp.var, k.vars, control)
+  data <- drop_by_link_type_(data, lhs, family, tmp.var, k_vars, control)
 
   # Transform fixed effects and clusters to factors ----
-  data <- transform_fe_(data, formula, k.vars)
+  data <- transform_fe_(data, formula, k_vars)
 
   # Determine the number of dropped observations ----
   nt <- nrow(data)
   nobs <- nobs_(nobs.full, nobs.na, nt)
 
   # Extract model response and regressor matrix ----
-  nms.sp <- NA
+  nms_sp <- NA
   p <- NA
   model_response_(data, formula)
 
@@ -131,18 +131,20 @@ feglm <- function(
   check_weights_(wt)
 
   # Compute and check starting guesses ----
-  start_guesses_(beta.start, eta.start, y, X, beta, nt, wt, p, family)
+  start_guesses_(beta_start, eta_start, y, X, beta, nt, wt, p, family)
 
   # Get names and number of levels in each fixed effects category ----
-  nms.fe <- lapply(select(data, all_of(k.vars)), levels)
-  lvls.k <- vapply(nms.fe, length, integer(1))
+  nms_fe <- lapply(select(data, all_of(k_vars)), levels)
+  lvls_k <- vapply(nms_fe, length, integer(1))
 
   # Generate auxiliary list of indexes for different sub panels ----
-  k.list <- get_index_list_(k.vars, data)
+  k_list <- get_index_list_(k_vars, data)
 
   # Fit generalized linear model ----
+  if (is.integer(y)) { y <- as.numeric(y) }
+  if (is.integer(nt)) { nt <- as.numeric(nt) }
   fit <- feglm_fit_(
-    beta, eta, y, X, wt, k.list, family, control
+    beta, eta, y, X, nt, wt, 0.0, family[["family"]], control, k_list
   )
 
   y <- NULL
@@ -150,18 +152,18 @@ feglm <- function(
   eta <- NULL
 
   # Add names to beta, Hessian, and MX (if provided) ----
-  names(fit[["coefficients"]]) <- nms.sp
-  if (control[["keep.mx"]]) {
-    colnames(fit[["MX"]]) <- nms.sp
+  names(fit[["coefficients"]]) <- nms_sp
+  if (control[["keep_mx"]]) {
+    colnames(fit[["MX"]]) <- nms_sp
   }
-  dimnames(fit[["Hessian"]]) <- list(nms.sp, nms.sp)
+  dimnames(fit[["Hessian"]]) <- list(nms_sp, nms_sp)
 
   # Generate result list ----
   reslist <- c(
     fit, list(
       nobs    = nobs,
-      lvls.k  = lvls.k,
-      nms.fe  = nms.fe,
+      lvls_k  = lvls_k,
+      nms_fe  = nms_fe,
       formula = formula,
       data    = data,
       family  = family,

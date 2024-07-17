@@ -41,13 +41,6 @@ extern "C" SEXP _capybara_group_sums_cov_(SEXP M_r, SEXP N_r, SEXP jlist) {
   END_CPP11
 }
 // 04_linear_algebra.cpp
-doubles_matrix<> crossprod_(const doubles_matrix<> & x, const doubles & w, const bool & weighted, const bool & root_weights);
-extern "C" SEXP _capybara_crossprod_(SEXP x, SEXP w, SEXP weighted, SEXP root_weights) {
-  BEGIN_CPP11
-    return cpp11::as_sexp(crossprod_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(x), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(w), cpp11::as_cpp<cpp11::decay_t<const bool &>>(weighted), cpp11::as_cpp<cpp11::decay_t<const bool &>>(root_weights)));
-  END_CPP11
-}
-// 04_linear_algebra.cpp
 doubles_matrix<> gamma_(const doubles_matrix<> & mx, const doubles_matrix<> & hessian, const doubles_matrix<> & j, const doubles_matrix<> & ppsi, const doubles & v, const SEXP & nt_full);
 extern "C" SEXP _capybara_gamma_(SEXP mx, SEXP hessian, SEXP j, SEXP ppsi, SEXP v, SEXP nt_full) {
   BEGIN_CPP11
@@ -111,10 +104,10 @@ extern "C" SEXP _capybara_solve_eta2_(SEXP yadj, SEXP myadj, SEXP offset, SEXP e
   END_CPP11
 }
 // 05_glm_fit.cpp
-list feglm_fit_(const doubles & beta_r, const doubles & eta_r, const doubles & y_r, const doubles_matrix<> & x_r, const doubles & nt_r, const doubles & wt_r, const double & theta, const std::string & family, const list & control, const list & k_list);
-extern "C" SEXP _capybara_feglm_fit_(SEXP beta_r, SEXP eta_r, SEXP y_r, SEXP x_r, SEXP nt_r, SEXP wt_r, SEXP theta, SEXP family, SEXP control, SEXP k_list) {
+list feglm_fit_(const doubles & beta_r, const doubles & eta_r, const doubles & y_r, const doubles_matrix<> & x_r, const double & nt, const doubles & wt_r, const double & theta, const std::string & family, const list & control, const list & k_list);
+extern "C" SEXP _capybara_feglm_fit_(SEXP beta_r, SEXP eta_r, SEXP y_r, SEXP x_r, SEXP nt, SEXP wt_r, SEXP theta, SEXP family, SEXP control, SEXP k_list) {
   BEGIN_CPP11
-    return cpp11::as_sexp(feglm_fit_(cpp11::as_cpp<cpp11::decay_t<const doubles &>>(beta_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(eta_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(y_r), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(x_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(nt_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(wt_r), cpp11::as_cpp<cpp11::decay_t<const double &>>(theta), cpp11::as_cpp<cpp11::decay_t<const std::string &>>(family), cpp11::as_cpp<cpp11::decay_t<const list &>>(control), cpp11::as_cpp<cpp11::decay_t<const list &>>(k_list)));
+    return cpp11::as_sexp(feglm_fit_(cpp11::as_cpp<cpp11::decay_t<const doubles &>>(beta_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(eta_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(y_r), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(x_r), cpp11::as_cpp<cpp11::decay_t<const double &>>(nt), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(wt_r), cpp11::as_cpp<cpp11::decay_t<const double &>>(theta), cpp11::as_cpp<cpp11::decay_t<const std::string &>>(family), cpp11::as_cpp<cpp11::decay_t<const list &>>(control), cpp11::as_cpp<cpp11::decay_t<const list &>>(k_list)));
   END_CPP11
 }
 // 06_kendall_correlation.cpp
@@ -134,7 +127,6 @@ extern "C" SEXP _capybara_pkendall_(SEXP Q, SEXP n) {
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
-    {"_capybara_crossprod_",           (DL_FUNC) &_capybara_crossprod_,            4},
     {"_capybara_feglm_fit_",           (DL_FUNC) &_capybara_feglm_fit_,           10},
     {"_capybara_gamma_",               (DL_FUNC) &_capybara_gamma_,                6},
     {"_capybara_get_alpha_",           (DL_FUNC) &_capybara_get_alpha_,            3},

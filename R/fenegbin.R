@@ -2,7 +2,7 @@
 #'  effects
 #' @description A routine that uses the same internals as \code{\link{feglm}}.
 #' @inheritParams feglm
-#' @param init.theta an optional initial value for the theta parameter (see
+#' @param init_theta an optional initial value for the theta parameter (see
 #'  \code{\link[MASS]{glm.nb}}).
 #' @param link the link function. Must be one of \code{"log"}, \code{"sqrt"}, or
 #'  \code{"identity"}.
@@ -22,9 +22,9 @@ fenegbin <- function(
     formula = NULL,
     data = NULL,
     weights = NULL,
-    beta.start = NULL,
-    eta.start = NULL,
-    init.theta = NULL,
+    beta_start = NULL,
+    eta_start = NULL,
+    init_theta = NULL,
     link = c("log", "identity", "sqrt"),
     control = NULL) {
   # Check validity of formula ----
@@ -49,31 +49,31 @@ fenegbin <- function(
   model_frame_(data, formula, weights)
 
   # Check starting guess of theta ----
-  family <- init_theta_(init.theta, link)
-  rm(init.theta)
+  family <- init_theta_(init_theta, link)
+  rm(init_theta)
 
   # Ensure that model response is in line with the chosen model ----
   check_response_(data, lhs, family)
 
   # Get names of the fixed effects variables and sort ----
-  k.vars <- attr(terms(formula, rhs = 2L), "term.labels")
-  k <- length(k.vars)
+  k_vars <- attr(terms(formula, rhs = 2L), "term.labels")
+  k <- length(k_vars)
 
   # Generate temporary variable ----
   tmp.var <- temp_var_(data)
 
   # Drop observations that do not contribute to the log likelihood ----
-  data <- drop_by_link_type_(data, lhs, family, tmp.var, k.vars, control)
+  data <- drop_by_link_type_(data, lhs, family, tmp.var, k_vars, control)
 
   # Transform fixed effects and clusters to factors ----
-  data <- transform_fe_(data, formula, k.vars)
+  data <- transform_fe_(data, formula, k_vars)
 
   # Determine the number of dropped observations ----
   nt <- nrow(data)
   nobs <- nobs_(nobs.full, nobs.na, nt)
 
   # Extract model response and regressor matrix ----
-  nms.sp <- NA
+  nms_sp <- NA
   p <- NA
   model_response_(data, formula)
 
@@ -91,24 +91,24 @@ fenegbin <- function(
   check_weights_(wt)
 
   # Compute and check starting guesses ----
-  start_guesses_(beta.start, eta.start, y, X, beta, nt, wt, p, family)
+  start_guesses_(beta_start, eta_start, y, X, beta, nt, wt, p, family)
 
   # Get names and number of levels in each fixed effects category ----
-  nms.fe <- lapply(select(data, all_of(k.vars)), levels)
-  lvls.k <- vapply(nms.fe, length, integer(1))
+  nms_fe <- lapply(select(data, all_of(k_vars)), levels)
+  lvls_k <- vapply(nms_fe, length, integer(1))
 
   # Generate auxiliary list of indexes for different sub panels ----
-  k.list <- get_index_list_(k.vars, data)
+  k.list <- get_index_list_(k_vars, data)
 
   # Extract control arguments ----
-  tol <- control[["dev.tol"]]
+  tol <- control[["dev_tol"]]
   limit <- control[["limit"]]
-  iter.max <- control[["iter.max"]]
+  iter_max <- control[["iter_max"]]
   trace <- control[["trace"]]
 
   # Initial negative binomial fit ----
   fit <- feglm_fit_(
-    beta, eta, y, X, wt, k.list, family, control
+    beta, eta, y, X, nt, wt, theta, family[["family"]], control, k_list
   )
 
   beta <- fit[["coefficients"]]
@@ -126,12 +126,12 @@ fenegbin <- function(
 
   # Alternate between fitting glm and \theta ----
   conv <- FALSE
-  for (iter in seq.int(iter.max)) {
+  for (iter in seq.int(iter_max)) {
     # Fit negative binomial model
     dev.old <- dev
     theta.old <- theta
     family <- negative.binomial(theta, link)
-    family$theta <- theta
+    family[["theta"]] <- theta
     fit <- feglm_fit_(beta, eta, y, X, wt, k.list, family, control)
     beta <- fit[["coefficients"]]
     eta <- fit[["eta"]]
@@ -173,11 +173,11 @@ fenegbin <- function(
   if (!conv && trace) cat("Algorithm did not converge.\n")
 
   # Add names to beta, Hessian, and MX (if provided) ----
-  names(fit[["coefficients"]]) <- nms.sp
-  if (control[["keep.mx"]]) {
-    colnames(fit[["MX"]]) <- nms.sp
+  names(fit[["coefficients"]]) <- nms_sp
+  if (control[["keep_mx"]]) {
+    colnames(fit[["MX"]]) <- nms_sp
   }
-  dimnames(fit[["Hessian"]]) <- list(nms.sp, nms.sp)
+  dimnames(fit[["Hessian"]]) <- list(nms_sp, nms_sp)
 
   # Generate result list ----
   reslist <- c(
@@ -186,8 +186,8 @@ fenegbin <- function(
       iter.outer = iter,
       conv.outer = conv,
       nobs       = nobs,
-      lvls.k     = lvls.k,
-      nms.fe     = nms.fe,
+      lvls_k     = lvls_k,
+      nms_fe     = nms_fe,
       formula    = formula,
       data       = data,
       family     = family,
