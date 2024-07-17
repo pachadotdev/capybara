@@ -138,48 +138,27 @@ update_beta_eta_(const doubles &old, const doubles &upd, const double &param) {
   return res;
 }
 
-[[cpp11::register]] doubles solve_beta_(const doubles_matrix<> &mx,
-                                        const doubles_matrix<> &mnu,
-                                        const doubles &wtilde,
-                                        const bool &weighted) {
-  Mat<double> X = as_Mat(mx);
-  Mat<double> Y = as_Mat(mnu);
-
-  // Weight the X and Y matrices
-  if (weighted) {
-    Mat<double> w = as_Mat(wtilde);
-    w = sqrt(w);
-    X = X.each_col() % w; // element-wise multiplication
-    Y = Y.each_col() % w;
-  }
-
-  // Solve the system X * beta = Y
-
-  // QR decomposition
+Col<double> solve_beta_(const Mat<double> &MX, const Mat<double> &MNU,
+                                 const Col<double> &w) {
+  Col<double> wtilde = sqrt(w);
 
   Mat<double> Q, R;
 
-  bool computable = qr_econ(Q, R, X);
+  bool computable = qr_econ(Q, R, MX.each_col() % wtilde);
 
   if (!computable) {
     stop("QR decomposition failed");
   } else {
     // backsolve
-    return as_doubles(solve(R, Q.t() * Y));
+    return solve(R, Q.t() * (MNU.each_col() % wtilde));
   }
 }
 
 // eta.upd <- nu - as.vector(Mnu - MX %*% beta.upd)
 
-[[cpp11::register]] doubles solve_eta_(const doubles_matrix<> &mx,
-                                       const doubles_matrix<> &mnu,
-                                       const doubles &nu, const doubles &beta) {
-  Mat<double> MX = as_Mat(mx);
-  Mat<double> MNU = as_Mat(mnu);
-  Mat<double> Nu = as_Mat(nu);
-  Mat<double> Beta = as_Mat(beta);
-
-  return as_doubles(Nu - (MNU - MX * Beta));
+Col<double> solve_eta_(const Mat<double> &MX, const Mat<double> &MNU,
+                        const Col<double> &nu, const Col<double> &beta) {
+  return nu - MNU + MX * beta;
 }
 
 // eta.upd <- yadj - as.vector(Myadj) + offset - eta
@@ -192,153 +171,4 @@ update_beta_eta_(const doubles &old, const doubles &upd, const double &param) {
   Mat<double> Eta = as_Mat(eta);
 
   return as_doubles(Yadj - Myadj + Offset - Eta);
-}
-
-std::string tidy_family(const std::string &family) {
-  // tidy family param
-  std::string fam = family;
-
-  // 1. put all in lowercase
-  std::transform(fam.begin(), fam.end(), fam.begin(),
-                 [](unsigned char c) { return std::tolower(c); });
-
-  // 2. remove numbers
-  fam.erase(std::remove_if(fam.begin(), fam.end(), ::isdigit), fam.end());
-
-  // 3. remove parentheses and everything inside
-  size_t pos = fam.find("(");
-  if (pos != std::string::npos) {
-    fam.erase(pos, fam.size());
-  }
-
-  // 4. replace spaces and dots
-  std::replace(fam.begin(), fam.end(), ' ', '_');
-  std::replace(fam.begin(), fam.end(), '.', '_');
-
-  // 5. trim
-  fam.erase(std::remove_if(fam.begin(), fam.end(), ::isspace), fam.end());
-
-  return fam;
-}
-
-[[cpp11::register]] doubles linkinv_(const doubles &eta_r,
-                                     const std::string &family) {
-  Col<double> eta = as_Col(eta_r);
-  Col<double> res(eta.n_elem);
-  
-  std::string fam = tidy_family(family);
-
-  if (fam == "gaussian") {
-    res = eta;
-  } else if (fam == "poisson") {
-    res = exp(eta);
-  } else if (fam == "binomial") {
-    // res = exp(eta) / (1.0 + exp(eta));
-    res = 1.0 / (1.0 + exp(-eta));
-  } else if (fam == "gamma") {
-    res = 1.0 / eta;
-  } else if (fam == "inverse_gaussian") {
-    res = 1.0 / sqrt(eta);
-  } else if (fam == "negative_binomial") {
-    res = exp(eta);
-  } else {
-    stop("Unknown family");
-  }
-
-  return as_doubles(res);
-}
-
-[[cpp11::register]] double dev_resids_(const doubles &y_r, const doubles &mu_r,
-                                       const double &theta, const doubles &wt_r,
-                                       const std::string &family) {
-  Col<double> y = as_Col(y_r);
-  Col<double> mu = as_Col(mu_r);
-  Col<double> wt = as_Col(wt_r);
-  double res;
-
-  std::string fam = tidy_family(family);
-
-  if (fam == "gaussian") {
-    res = accu(wt % square(y - mu));
-  } else if (fam == "poisson") {
-    uvec p = find(y > 0.0);
-    Col<double> r = mu % wt;
-    r(p) = y(p) % log(y(p) / mu(p)) - (y(p) - mu(p));
-    res = 2.0 * accu(r);
-  } else if (fam == "binomial") {
-    uvec p = find(y != 0.0);
-    uvec q = find(y != 1.0);
-    Col<double> r = y / mu;
-    Col<double> s = (1.0 - y) / (1.0 - mu);
-    r(p) = log(r(p));
-    s(q) = log(s(q));
-    res = 2.0 * accu(wt % (y % r + (1.0 - y) % s));
-  } else if (fam == "gamma") {
-    uvec p = find(y == 0.0);
-    Col<double> r = y / mu;
-    r.elem(p).fill(1.0);
-    res = -2.0 * accu(wt % (log(r) - (y - mu) / mu));
-  } else if (fam == "inverse_gaussian") {
-    res = accu(wt % square(y - mu) / (y % square(mu)));
-  } else if (fam == "negative_binomial") {
-    uvec p = find(y < 1.0);
-    Col<double> r = y;
-    r.elem(p).fill(1.0);
-    res = 2.0 * accu(
-        wt % (y % log(r / mu) - (y + theta) % log((y + theta) / (mu + theta))));
-  } else {
-    stop("Unknown family");
-  }
-
-  return res;
-}
-
-[[cpp11::register]] bool valideta_(const doubles &eta_r,
-                                   const std::string &family) {
-  Col<double> eta = as_Col(eta_r);
-  std::string fam = tidy_family(family);
-  bool res;
-
-  if (fam == "gaussian") {
-    res = true;
-  } else if (fam == "poisson") {
-    res = true;
-  } else if (fam == "binomial") {
-    res = true;
-  } else if (fam == "gamma") {
-    res = is_finite(eta) && all(eta != 0);
-  } else if (fam == "inverse_gaussian") {
-    res = is_finite(eta) && all(eta > 0);
-  } else if (fam == "negative_binomial") {
-    res = true;
-  } else {
-    stop("Unknown family");
-  }
-
-  return res;
-}
-
-[[cpp11::register]] bool validmu_(const doubles &mu_r,
-                                  const std::string &family) {
-  Col<double> mu = as_Col(mu_r);
-  std::string fam = tidy_family(family);
-  bool res;
-
-  if (fam == "gaussian") {
-    res = true;
-  } else if (fam == "poisson") {
-    res = is_finite(mu) && all(mu > 0);
-  } else if (fam == "binomial") {
-    res = is_finite(mu) && all(mu > 0) && all(mu < 1);
-  } else if (fam == "gamma") {
-    res = is_finite(mu) && all(mu > 0);
-  } else if (fam == "inverse_gaussian") {
-    res = true;
-  } else if (fam == "negative_binomial") {
-    return all(mu > 0);
-  } else {
-    stop("Unknown family");
-  }
-
-  return res;
 }

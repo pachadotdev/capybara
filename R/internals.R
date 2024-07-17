@@ -13,7 +13,6 @@ check_factor_ <- function(x) {
 felm_fit_ <- function(y, X, wt, k.list, control) {
   # Extract control arguments
   center.tol <- control[["center.tol"]]
-  epsilon <- max(1.0e-07, .Machine[["double.eps"]])
   keep.mx <- control[["keep.mx"]]
 
   # Generate temporary variables
@@ -41,138 +40,134 @@ felm_fit_ <- function(y, X, wt, k.list, control) {
 
 # Fitting algorithm (similar to glm.fit) ----
 
-feglm_fit_ <- function(beta, eta, y, X, wt, k.list, family, control) {
-  # Extract control arguments
-  center.tol <- control[["center.tol"]]
-  dev.tol <- control[["dev.tol"]]
-  epsilon <- max(min(1.0e-07, dev.tol / 1000.0), .Machine[["double.eps"]])
-  iter.max <- control[["iter.max"]]
-  trace <- control[["trace"]]
-  keep.mx <- control[["keep.mx"]]
+# feglm_fit_ <- function(beta, eta, y, X, wt, k.list, family, control) {
+#   # Extract control arguments
+#   center.tol <- control[["center.tol"]]
+#   dev.tol <- control[["dev.tol"]]
+#   iter.max <- control[["iter.max"]]
+#   keep.mx <- control[["keep.mx"]]
 
-  # Compute initial quantities for the maximization routine
-  nt <- length(y)
-  mu <- family[["linkinv"]](eta)
-  dev <- sum(family[["dev.resids"]](y, mu, wt))
-  null.dev <- sum(family[["dev.resids"]](y, mean(y), wt))
+#   # Compute initial quantities for the maximization routine
+#   nt <- length(y)
+#   mu <- family[["linkinv"]](eta)
+#   dev <- sum(family[["dev.resids"]](y, mu, wt))
+#   null.dev <- sum(family[["dev.resids"]](y, mean(y), wt))
 
-  # Generate temporary variables
-  Mnu <- as.matrix(numeric(nt))
-  MX <- X
+#   # Generate temporary variables
+#   Mnu <- as.matrix(numeric(nt))
+#   MX <- X
 
-  # Start maximization of the log-likelihood
-  conv <- FALSE
-  for (iter in seq.int(iter.max)) {
-    # Store \eta, \beta, and deviance of the previous iteration
-    eta.old <- eta
-    beta.old <- beta
-    dev.old <- dev
+#   # Start maximization of the log-likelihood
+#   conv <- FALSE
+#   for (iter in seq.int(iter.max)) {
+#     # Store \eta, \beta, and deviance of the previous iteration
+#     eta.old <- eta
+#     beta.old <- beta
+#     dev.old <- dev
 
-    # Compute weights and dependent variable
-    mu.eta <- family[["mu.eta"]](eta)
-    w <- (wt * mu.eta^2) / family[["variance"]](mu)
-    nu <- (y - mu) / mu.eta
+#     # Compute weights and dependent variable
+#     mu.eta <- family[["mu.eta"]](eta)
+#     w <- (wt * mu.eta^2) / family[["variance"]](mu)
+#     nu <- (y - mu) / mu.eta
 
-    # Centering variables
-    Mnu <- center_variables_(Mnu, nu, w, k.list, center.tol, 10000L, TRUE)
-    MX <- center_variables_(MX, NA_real_, w, k.list, center.tol, 10000L, FALSE)
+#     # Centering variables
+#     Mnu <- center_variables_(Mnu, nu, w, k.list, center.tol, 10000L, TRUE)
+#     MX <- center_variables_(MX, NA_real_, w, k.list, center.tol, 10000L, FALSE)
 
-    # Compute update step and update eta
-    # beta.upd <- as.vector(qr.solve(MX * w.tilde, Mnu * w.tilde, epsilon))
-    # eta.upd <- nu - as.vector(Mnu - MX %*% beta.upd)
-    beta.upd <- solve_beta_(MX, Mnu, w, TRUE)
-    eta.upd <- solve_eta_(MX, Mnu, nu, beta.upd)
+#     # Compute update step and update eta
+    
+#     # Step-halving with three checks
+#     # 1. finite deviance
+#     # 2. valid \eta and \mu
+#     # 3. improvement as in glm2
+    
+#     # if (is.integer(y)) y <- as.double(y)
+#     # theta <- ifelse(is.null(family[["theta"]]), 0.0, family[["theta"]])
+#     # sh <- step_halving_(
+#     #   MX, Mnu, nu, w, eta.old, beta.old, y, wt,
+#     #   theta, family[["family"]], dev.old, dev.tol
+#     # )
 
-    # Step-halving with three checks
-    # 1. finite deviance
-    # 2. valid \eta and \mu
-    # 3. improvement as in glm2
-    rho <- 1.0
+#     # dev <- sh[["dev"]]
+#     # eta <- sh[["eta"]]
+#     # beta <- sh[["beta"]]
+#     # mu <- sh[["mu"]]
+#     # imp.crit <- sh[["imp.crit"]]
+#     # sh <- NULL
 
-    for (inner.iter in seq.int(50L)) {
-      # eta <- eta.old + rho * eta.upd
-      # beta <- beta.old + rho * beta.upd
-      eta <- update_beta_eta_(eta.old, eta.upd, rho)
-      beta <- update_beta_eta_(beta.old, beta.upd, rho)
-      # mu <- family[["linkinv"]](eta)
-      mu <- linkinv_(eta, family$family)
-      # dev <- sum(family[["dev.resids"]](y, mu, wt))
-      if (is.integer(y)) { y <- as.double(y) }
-      dev <- dev_resids_(y, mu,
-        ifelse(is.null(family$theta), 0.0, family$theta),
-        wt, family$family)
-      dev.crit <- is.finite(dev)
-      val.crit <- valideta_(eta, family$family) && validmu_(mu, family$family)
-      imp.crit <- (dev - dev.old) / (0.1 + abs(dev)) <= -dev.tol
-      if (dev.crit && val.crit && imp.crit) break
-      rho <- rho * 0.5
-    }
+#     beta.upd <- solve_beta_(MX, Mnu, w, TRUE)
+#     # print(beta.upd)
+#     eta.upd <- solve_eta_(MX, Mnu, nu, beta.upd)
 
-    # Check if step-halving failed (deviance and invalid \eta or \mu)
-    if (!dev.crit || !val.crit) {
-      stop("Inner loop failed; cannot correct step size.", call. = FALSE)
-    }
+#     rho <- 1.0
 
-    # Stop if we do not improve
-    if (!imp.crit) {
-      eta <- eta.old
-      beta <- beta.old
-      dev <- dev.old
-      mu <- family[["linkinv"]](eta)
-    }
+#     for (inner.iter in seq.int(50L)) {
+#       eta <- update_beta_eta_(eta.old, eta.upd, rho)
+#       beta <- update_beta_eta_(beta.old, beta.upd, rho)
+#       mu <- family[["linkinv"]](eta)
+#       dev <- sum(family[["dev.resids"]](y, mu, wt))
+#       dev.crit <- is.finite(dev)
+#       val.crit <- family[["valideta"]](eta) && family[["validmu"]](mu)
+#       imp.crit <- (dev - dev.old) / (0.1 + abs(dev)) <= -dev.tol
+#       # print(c(dev.crit, val.crit, imp.crit))
+#       if (dev.crit && val.crit && imp.crit) break
+#       rho <- rho * 0.5
+#     }
 
-    # Progress information
-    if (trace) {
-      cat(
-        "Deviance=", format(dev, digits = 5L, nsmall = 2L), "Iterations -",
-        iter, "\n"
-      )
-      cat("Estimates=", format(beta, digits = 3L, nsmall = 2L), "\n")
-    }
+#     # Check if step-halving failed (deviance and invalid \eta or \mu)
+#     if (!dev.crit || !val.crit) {
+#       stop("Inner loop failed; cannot correct step size.", call. = FALSE)
+#     }
 
-    # Check convergence
-    dev.crit <- abs(dev - dev.old) / (0.1 + abs(dev))
-    if (trace) cat("Stopping criterion=", dev.crit, "\n")
-    if (dev.crit < dev.tol) {
-      if (trace) cat("Convergence\n")
-      conv <- TRUE
-      break
-    }
+#     # Stop if we do not improve
+#     if (!imp.crit) {
+#       eta <- eta.old
+#       beta <- beta.old
+#       dev <- dev.old
+#       mu <- family[["linkinv"]](eta)
+#     }
 
-    # Update starting guesses for acceleration
-    Mnu <- Mnu - nu
-  }
+#     # Check convergence
+#     dev.crit <- abs(dev - dev.old) / (0.1 + abs(dev))
+#     if (dev.crit < dev.tol) {
+#       conv <- TRUE
+#       break
+#     }
 
-  # Information if convergence failed
-  if (!conv && trace) cat("Algorithm did not converge.\n")
+#     # Update starting guesses for acceleration
+#     Mnu <- Mnu - nu
+#   }
 
-  # Update weights and dependent variable
-  mu.eta <- family[["mu.eta"]](eta)
-  w <- (wt * mu.eta^2) / family[["variance"]](mu)
+#   # Information if convergence failed
+#   if (!conv) cat("Algorithm did not converge.\n")
 
-  # Center variables
-  MX <- center_variables_(X, NA_real_, w, k.list, center.tol, 10000L, FALSE)
-  # Recompute Hessian
-  H <- crossprod_(MX, w, TRUE, TRUE)
+#   # Update weights and dependent variable
+#   mu.eta <- family[["mu.eta"]](eta)
+#   w <- (wt * mu.eta^2) / family[["variance"]](mu)
 
-  # Generate result list
-  reslist <- list(
-    coefficients  = beta,
-    eta           = eta,
-    weights       = wt,
-    Hessian       = H,
-    deviance      = dev,
-    null.deviance = null.dev,
-    conv          = conv,
-    iter          = iter
-  )
+#   # Center variables
+#   MX <- center_variables_(X, NA_real_, w, k.list, center.tol, 10000L, FALSE)
+#   # Recompute Hessian
+#   H <- crossprod_(MX, w, TRUE, TRUE)
 
-  # Update result list
-  if (keep.mx) reslist[["MX"]] <- MX
+#   # Generate result list
+#   reslist <- list(
+#     coefficients  = beta,
+#     eta           = eta,
+#     weights       = wt,
+#     Hessian       = H,
+#     deviance      = dev,
+#     null.deviance = null.dev,
+#     conv          = conv,
+#     iter          = iter
+#   )
 
-  # Return result list
-  reslist
-}
+#   # Update result list
+#   if (keep.mx) reslist[["MX"]] <- MX
+
+#   # Return result list
+#   reslist
+# }
 
 # Efficient offset algorithm to update the linear predictor ----
 
