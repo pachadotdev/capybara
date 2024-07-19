@@ -1,7 +1,11 @@
 test_that("feglm is similar to glm", {
   # Gaussian ----
 
-  # same as felm
+  # see felm
+
+  # Poisson
+
+  # see fepoisson
 
   # Binomial ----
 
