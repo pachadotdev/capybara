@@ -10,6 +10,36 @@ check_factor_ <- function(x) {
 
 # Higher-order partial derivatives ----
 
+second_order_derivative_ <- function(eta, f, family) {
+  link <- family[["link"]]
+  linkinv_eta <- family[["linkinv"]](eta)
+
+  if (link == "logit") {
+    return(f * (1.0 - 2.0 * linkinv_eta))
+  } else if (link == "probit") {
+    return(-eta * f)
+  } else if (link == "cloglog") {
+    return(f * (1.0 - exp(eta)))
+  } else {
+    return(-2.0 * eta / (1.0 + eta^2) * f)
+  }
+}
+
+third_order_derivative_ <- function(eta, f, family) {
+  link <- family[["link"]]
+  linkinv_eta <- family[["linkinv"]](eta)
+
+  if (link == "logit") {
+    return(f * ((1.0 - 2.0 * linkinv_eta)^2 - 2.0 * f))
+  } else if (link == "probit") {
+    return((eta^2 - 1.0) * f)
+  } else if (link == "cloglog") {
+    return(f * (1.0 - exp(eta)) * (2.0 - exp(eta)) - f)
+  } else {
+    return((6.0 * eta^2 - 2.0) / (1.0 + eta^2)^2 * f)
+  }
+}
+
 partial_mu_eta_ <- function(eta, family, order) {
   # Safeguard eta if necessary
   if (family[["link"]] != "logit") {
@@ -19,27 +49,9 @@ partial_mu_eta_ <- function(eta, family, order) {
   f <- family[["mu.eta"]](eta)
 
   if (order == 2L) {
-    # Second-order derivative
-    if (family[["link"]] == "logit") {
-      f * (1.0 - 2.0 * family[["linkinv"]](eta))
-    } else if (family[["link"]] == "probit") {
-      -eta * f
-    } else if (family[["link"]] == "cloglog") {
-      f * (1.0 - exp(eta))
-    } else {
-      -2.0 * eta / (1.0 + eta^2) * f
-    }
+    return(second_order_derivative_(eta, f, family))
   } else {
-    # Third-order derivative
-    if (family[["link"]] == "logit") {
-      f * ((1.0 - 2.0 * family[["linkinv"]](eta))^2 - 2.0 * f)
-    } else if (family[["link"]] == "probit") {
-      (eta^2 - 1.0) * f
-    } else if (family[["link"]] == "cloglog") {
-      f * (1.0 - exp(eta)) * (2.0 - exp(eta)) - f
-    } else {
-      (6.0 * eta^2 - 2.0) / (1.0 + eta^2)^2 * f
-    }
+    return(third_order_derivative_(eta, f, family))
   }
 }
 
@@ -167,7 +179,7 @@ check_response_ <- function(data, lhs, family) {
 
 drop_by_link_type_ <- function(data, lhs, family, tmp.var, k.vars, control) {
   if (family[["family"]] %in% c("binomial", "poisson")) {
-    if (control[["drop.pc"]]) {
+    if (control[["drop_pc"]]) {
       repeat {
         # Drop observations that do not contribute to the log-likelihood
         ncheck <- nrow(data)
@@ -247,7 +259,7 @@ init_theta_ <- function(init.theta, link) {
   if (is.null(init.theta)) {
     family <- poisson(link)
   } else {
-    # Validity of input argument (beta.start)
+    # Validity of input argument (beta_start)
     if (length(init.theta) != 1L) {
       stop("'init.theta' has to be a scalar.", call. = FALSE)
     } else if (init.theta <= 0.0) {
@@ -260,23 +272,23 @@ init_theta_ <- function(init.theta, link) {
 }
 
 start_guesses_ <- function(
-    beta.start, eta.start, y, X, beta, nt, wt, p, family) {
-  if (!is.null(beta.start) || !is.null(eta.start)) {
-    # If both are specified, ignore eta.start
-    if (!is.null(beta.start) && !is.null(eta.start)) {
+    beta_start, eta_start, y, X, beta, nt, wt, p, family) {
+  if (!is.null(beta_start) || !is.null(eta_start)) {
+    # If both are specified, ignore eta_start
+    if (!is.null(beta_start) && !is.null(eta_start)) {
       warning(
-        "'beta.start' and 'eta.start' are specified. Ignoring 'eta.start'.",
+        "'beta_start' and 'eta_start' are specified. Ignoring 'eta_start'.",
         call. = FALSE
       )
     }
 
     # Compute and check starting guesses
-    if (!is.null(beta.start)) {
-      # Validity of input argument (beta.start)
-      if (length(beta.start) != p) {
+    if (!is.null(beta_start)) {
+      # Validity of input argument (beta_start)
+      if (length(beta_start) != p) {
         stop(
           paste(
-            "Length of 'beta.start' has to be equal to the number of",
+            "Length of 'beta_start' has to be equal to the number of",
             "structural parameters."
           ),
           call. = FALSE
@@ -284,14 +296,14 @@ start_guesses_ <- function(
       }
 
       # Set starting guesses
-      beta <- beta.start
+      beta <- beta_start
       eta <- solve_y_(X, beta)
     } else {
-      # Validity of input argument (eta.start)
-      if (length(eta.start) != nt) {
+      # Validity of input argument (eta_start)
+      if (length(eta_start) != nt) {
         stop(
           paste(
-            "Length of 'eta.start' has to be equal to the number of",
+            "Length of 'eta_start' has to be equal to the number of",
             "observations."
           ),
           call. = FALSE
@@ -300,7 +312,7 @@ start_guesses_ <- function(
 
       # Set starting guesses
       beta <- numeric(p)
-      eta <- eta.start
+      eta <- eta_start
     }
   } else {
     # Compute starting guesses if not user specified
@@ -316,4 +328,68 @@ start_guesses_ <- function(
 
   assign("beta", beta, envir = parent.frame())
   assign("eta", eta, envir = parent.frame())
+}
+
+# Generate auxiliary list of indexes for different sub panels ----
+
+get_index_list_ <- function(k.vars, data) {
+  indexes <- seq.int(0L, nrow(data) - 1L)
+  lapply(k.vars, function(x, indexes, data) {
+    split(indexes, data[[x]])
+  }, indexes = indexes, data = data)
+}
+
+# Compute score matrix ----
+
+get_score_matrix_ <- function(object) {
+  # Extract required quantities from result list
+  control <- object[["control"]]
+  data <- object[["data"]]
+  eta <- object[["eta"]]
+  wt <- object[["weights"]]
+  family <- object[["family"]]
+
+  # Update weights and dependent variable
+  y <- data[[1L]]
+  mu <- family[["linkinv"]](eta)
+  mu.eta <- family[["mu.eta"]](eta)
+  w <- (wt * mu.eta^2) / family[["variance"]](mu)
+  # nu <- (y - mu) / mu.eta
+  nu <- update_nu_(y, mu, mu.eta)
+
+  # Center regressor matrix (if required)
+  if (control[["keep_mx"]]) {
+    MX <- object[["MX"]]
+  } else {
+    # Extract additional required quantities from result list
+    formula <- object[["formula"]]
+    k.vars <- names(object[["lvls.k"]])
+
+    # Generate auxiliary list of indexes to project out the fixed effects
+    k.list <- get_index_list_(k.vars, data)
+
+    # Extract regressor matrix
+    X <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
+    nms_sp <- attr(X, "dimnames")[[2L]]
+    attr(X, "dimnames") <- NULL
+
+    # Center variables
+    MX <- center_variables_(X, NA_real_, w, k.list, control[["center.tol"]], 10000L, FALSE)
+    colnames(MX) <- nms_sp
+  }
+
+  # Return score matrix
+  MX * (nu * w)
+}
+
+# Suitable name for a temporary variable ----
+
+temp_var_ <- function(data) {
+  repeat {
+    tmp.var <- paste0(sample(letters, 5L, replace = TRUE), collapse = "")
+    if (!(tmp.var %in% colnames(data))) {
+      break
+    }
+  }
+  tmp.var
 }

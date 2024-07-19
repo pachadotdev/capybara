@@ -51,7 +51,7 @@ test_that("error conditions", {
     fepoisson(
       trade ~ log_dist | rta,
       data = trade_panel_2002,
-      control = list(dev.tol = -1.0)
+      control = list(dev_tol = -1.0)
     ),
     "greater than zero"
   )
@@ -60,7 +60,7 @@ test_that("error conditions", {
     fepoisson(
       trade ~ log_dist | rta,
       data = trade_panel_2002,
-      control = list(iter.max = 0)
+      control = list(iter_max = 0)
     ),
     "at least one"
   )

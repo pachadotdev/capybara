@@ -201,7 +201,7 @@ bias_corr <- function(
   colnames(MX) <- nms.sp
 
   # Update Hessian
-  H <- crossprod_(MX, w, TRUE, TRUE)
+  H <- crossprod(MX * sqrt(w))
   dimnames(H) <- list(nms.sp, nms.sp)
 
   # Update result list

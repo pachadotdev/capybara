@@ -87,7 +87,7 @@ vcov.feglm <- function(
       } else {
         # Compute inner part of the sandwich formula
         if (type == "sandwich") {
-          B <- crossprod_(G, NA_real_, FALSE, FALSE)
+          B <- crossprod(G)
         } else {
           if (isFALSE(k >= 1L)) {
             stop(
@@ -131,14 +131,13 @@ vcov.feglm <- function(
             B.r <- matrix(0.0, p, p)
             for (j in seq.int(ncol(cl.combn))) {
               cl <- cl.combn[, j]
-              B.r <- B.r + crossprod_(
+              B.r <- B.r + crossprod(
                 as.matrix(
                   G %>%
                     group_by(!!sym(cl)) %>%
                     summarise(across(all_of(sp.vars), sum), .groups = "drop") %>%
                     select(-!!sym(cl))
-                ),
-                NA_real_, FALSE, FALSE
+                )
               )
             }
 

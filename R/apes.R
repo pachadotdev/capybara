@@ -297,19 +297,19 @@ apes <- function(
 
   # Compute covariance matrix
   Gamma <- gamma_(MX, object[["Hessian"]], J, PPsi, v, nt.full)
-  V <- crossprod_(Gamma, NA_real_, FALSE, FALSE)
+  V <- crossprod(Gamma)
 
   if (adj > 0.0) {
     # Simplify covariance if sampling assumptions are imposed
     if (sampling.fe == "independence") {
       V <- V + adj * group_sums_var_(Delta, k.list[[1L]])
       if (k > 1L) {
-        V <- V + adj * (group_sums_var_(Delta, k.list[[2L]]) - crossprod_(Delta, NA_real_, FALSE, FALSE))
+        V <- V + adj * (group_sums_var_(Delta, k.list[[2L]]) - crossprod(Delta))
       }
       if (panel.structure == "network") {
         if (k > 2L) {
           V <- V + adj * (group_sums_var_(Delta, k.list[[3L]]) -
-            crossprod_(Delta, NA_real_, FALSE, FALSE))
+            crossprod(Delta))
         }
       }
     }

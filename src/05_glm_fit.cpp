@@ -27,12 +27,28 @@ std::string tidy_family_(const std::string &family) {
   return fam;
 }
 
+// Pairwise-maximum function
+// Col<double> pmax_(const Col<double> &x, const Col<double> &y) {
+//   Col<double> res(x.n_elem);
+
+//   // for (int i = 0; i < x.n_elem; ++i) {
+//   //   res(i) = std::max(x(i), y(i));
+//   // }
+
+//   std::transform(x.begin(), x.end(), y.begin(), res.begin(),
+//                  [](double a, double b) { return std::max(a, b); });
+
+//   return res;
+// }
+
 Col<double> link_inv_(const Col<double> &eta, const std::string &fam) {
   Col<double> res(eta.n_elem);
   
   if (fam == "gaussian") {
     res = eta;
   } else if (fam == "poisson") {
+    // Col<double> epsilon = 1e-7 * ones<Col<double>>(eta.n_elem);
+    // res = pmax_(exp(eta), epsilon);
     res = exp(eta);
   } else if (fam == "binomial") {
     // res = exp(eta) / (1.0 + exp(eta));
@@ -60,7 +76,7 @@ double dev_resids_(const Col<double> &y, const Col<double> &mu,
   } else if (fam == "poisson") {
     uvec p = find(y > 0.0);
     Col<double> r = mu % wt;
-    r(p) = y(p) % log(y(p) / mu(p)) - (y(p) - mu(p));
+    r(p) = wt(p) % (y(p) % log(y(p) / mu(p)) - (y(p) - mu(p)));
     res = 2.0 * accu(r);
   } else if (fam == "binomial") {
     uvec p = find(y != 0.0);
@@ -192,8 +208,8 @@ Col<double> variance_(const Col<double> &mu,
   Col<double> eta = as_Col(eta_r);
   Col<double> y = as_Col(y_r);
   Mat<double> MX = as_Mat(x_r);
+  // Mat<double> MNU = nt * Mat<double>(y.n_elem, 1, fill::ones);
   Mat<double> MNU(y.n_elem, 1, fill::ones);
-  MNU = nt * MNU;
   Col<double> wt = as_Col(wt_r);
 
   // Auxiliary variables (fixed)
@@ -201,16 +217,18 @@ Col<double> variance_(const Col<double> &mu,
   std::string fam = tidy_family_(family);
   double center_tol = as_cpp<double>(control["center_tol"]);
   double dev_tol = as_cpp<double>(control["dev_tol"]);
+  // std::cout << "dev_tol: " << dev_tol << std::endl;
   int iter;
   int iter_max = as_cpp<int>(control["iter_max"]);
   int iter_center_max = 10000;
   bool keep_mx = as_cpp<bool>(control["keep_mx"]);
+  int iter_inner, iter_inner_max = 50;
+  const int k = beta.n_elem;
 
   // Auxiliary variables (storage)
 
   Col<double> mu = link_inv_(eta, fam);
-  Col<double> ymean(y.n_elem, fill::ones);
-  ymean = mean(y) * ymean;
+  Col<double> ymean = mean(y) * Col<double>(y.n_elem, fill::ones);
   double dev = dev_resids_(y, mu, theta, wt, fam);
   double null_dev = dev_resids_(y, ymean, theta, wt, fam);
   
@@ -218,29 +236,20 @@ Col<double> variance_(const Col<double> &mu,
   const int p = MX.n_cols;
   Col<double> mu_eta(n), nu(n);
   Mat<double> H(p, p), w(n, 1);
+  bool conv = false;
+
+  bool dev_crit, val_crit, imp_crit;
+  double dev_old, dev_crit_ratio, rho;
+  Col<double> eta_upd(n), beta_upd(k), eta_old(n), beta_old(k);
 
   // Maximize the log-likelihood
 
-  bool conv = false;
-
   for (iter = 0; iter < iter_max; ++iter) {
-    // Auxiliary variables (fixed)
-
-    int iter_inner, iter_inner_max = 50;
-    const int k = beta.n_elem;
-    bool dev_crit, val_crit, imp_crit;
-    double dev_old;
-
-    // Auxiliary variables (storage)
-
-    double rho = 1.0;
-    Col<double> eta_upd(n), beta_upd(k), eta_old(n), beta_old(k);
-
-    // Store eta, beta, and deviance of the previous iteration
-
-    eta_old = eta;
-    beta_old = beta;
-    dev_old = dev;
+    std::cout << "iter: " << iter << std::endl;
+    std::cout << "dev: " << dev << std::endl;
+    rho = 1.0;
+    dev_crit = false, val_crit = false, imp_crit = false;
+    eta_old = eta, beta_old = beta, dev_old = dev;
 
     // Compute weights and dependent variable
 
@@ -250,8 +259,7 @@ Col<double> variance_(const Col<double> &mu,
     
     // Center variables
 
-    MNU = center_variables_(MNU.each_col() + nu, w, k_list, center_tol,
-      iter_center_max);
+    MNU = center_variables_(MNU + nu, w, k_list, center_tol, iter_center_max);
     MX = center_variables_(MX, w, k_list, center_tol, iter_center_max);
 
     // Compute update step and update eta
@@ -270,9 +278,10 @@ Col<double> variance_(const Col<double> &mu,
       mu = link_inv_(eta, fam);
       dev = dev_resids_(y, mu, theta, wt, fam);
       dev_crit = is_finite(dev);
-      val_crit = valid_eta_(eta, fam) && valid_mu_(mu, fam);
-      imp_crit = ((dev - dev_old) / (0.1 + abs(dev))) <= -dev_tol;
-      if (dev_crit && val_crit && imp_crit) {
+      val_crit = (valid_eta_(eta, fam) && valid_mu_(mu, fam));
+      imp_crit = ((dev - dev_old) / (0.1 + abs(dev)) <=  -1.0 * dev_tol);
+
+      if (dev_crit == true && val_crit == true && imp_crit == true) {
         break;
       }
       rho *= 0.5;
@@ -295,8 +304,8 @@ Col<double> variance_(const Col<double> &mu,
 
     // Check convergence
 
-    dev_crit = abs(dev - dev_old) / (0.1 + abs(dev));
-    if (dev_crit < dev_tol) {
+    dev_crit_ratio = abs(dev - dev_old) / (0.1 + abs(dev));
+    if (dev_crit_ratio < dev_tol) {
       conv = true;
       break;
     }
@@ -319,7 +328,7 @@ Col<double> variance_(const Col<double> &mu,
 
   // Center variables
 
-  MX = center_variables_(MX, w, k_list, center_tol, iter_center_max);
+  MX = center_variables_(as_Mat(x_r), w, k_list, center_tol, iter_center_max);
 
   // Recompute Hessian
 
