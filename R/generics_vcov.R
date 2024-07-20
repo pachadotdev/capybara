@@ -67,7 +67,7 @@ vcov.feglm <- function(
   p <- ncol(H)
   if (type == "hessian") {
     # If the Hessian is invertible, compute its inverse
-    V <- try(inv_(H), silent = TRUE)
+    V <- try(solve(H), silent = TRUE)
     if (inherits(V, "try-error")) {
       V <- matrix(Inf, p, p)
     }
@@ -75,13 +75,13 @@ vcov.feglm <- function(
     G <- get_score_matrix_(object)
     if (type == "outer.product") {
       # Check if the OP is invertible and compute its inverse
-      V <- try(inv_(G), silent = TRUE)
+      V <- try(solve(G), silent = TRUE)
       if (inherits(V, "try-error")) {
         V <- matrix(Inf, p, p)
       }
     } else {
       # Check if the Hessian is invertible and compute its inverse
-      V <- try(inv_(H), silent = TRUE)
+      V <- try(solve(H), silent = TRUE)
       if (inherits(V, "try-error")) {
         V <- matrix(Inf, p, p)
       } else {
@@ -151,7 +151,7 @@ vcov.feglm <- function(
         }
 
         # Sandwich formula
-        V <- sandwich_(V, B)
+        V <- V %*% B %*% V
       }
     }
   }

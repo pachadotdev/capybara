@@ -55,7 +55,6 @@ feglm_offset_ <- function(object, offset) {
     # Centering dependent variable and compute \eta update
     Myadj <- center_variables_(Myadj, yadj, w, k.list, center.tol, 10000L, TRUE)
     eta.upd <- yadj - drop(Myadj) + offset - eta
-    # eta.upd <- solve_eta2_(yadj, Myadj, offset, eta)
 
     # Step-halving with three checks
     # 1. finite deviance
@@ -64,7 +63,6 @@ feglm_offset_ <- function(object, offset) {
     rho <- 1.0
     for (inner.iter in seq.int(50L)) {
       eta <- eta.old + rho * eta.upd
-      # eta <- update_beta_eta_(eta.old, eta.upd, rho)
       mu <- family[["linkinv"]](eta)
       dev <- sum(family[["dev.resids"]](y, mu, wt))
       dev.crit <- is.finite(dev)

@@ -241,7 +241,7 @@ model_response_ <- function(data, formula) {
 }
 
 check_linear_dependence_ <- function(X, p) {
-  if (rank_(X) < p) {
+  if (qr(X)$rank < p) {
     stop("Linear dependent terms detected.", call. = FALSE)
   }
 }
@@ -297,7 +297,7 @@ start_guesses_ <- function(
 
       # Set starting guesses
       beta <- beta_start
-      eta <- solve_y_(X, beta)
+      eta <- X %*% beta
     } else {
       # Validity of input argument (eta_start)
       if (length(eta_start) != nt) {
@@ -354,9 +354,8 @@ get_score_matrix_ <- function(object) {
   mu <- family[["linkinv"]](eta)
   mu.eta <- family[["mu.eta"]](eta)
   w <- (wt * mu.eta^2) / family[["variance"]](mu)
-  # nu <- (y - mu) / mu.eta
-  nu <- update_nu_(y, mu, mu.eta)
-
+  nu <- (y - mu) / mu.eta
+  
   # Center regressor matrix (if required)
   if (control[["keep_mx"]]) {
     MX <- object[["MX"]]
@@ -392,4 +391,11 @@ temp_var_ <- function(data) {
     }
   }
   tmp.var
+}
+
+# Gamma computation (APES) ----
+
+gamma_ <- function(MX, H, J, PPsi, v, nt) {
+  inv_nt <- 1.0 / nt
+  (MX %*% solve(H * inv_nt, J) - PPsi) * v * inv_nt
 }

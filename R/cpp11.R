@@ -20,42 +20,6 @@ group_sums_cov_ <- function(M_r, N_r, jlist) {
   .Call(`_capybara_group_sums_cov_`, M_r, N_r, jlist)
 }
 
-gamma_ <- function(mx, hessian, j, ppsi, v, nt_full) {
-  .Call(`_capybara_gamma_`, mx, hessian, j, ppsi, v, nt_full)
-}
-
-inv_ <- function(h) {
-  .Call(`_capybara_inv_`, h)
-}
-
-rank_ <- function(x) {
-  .Call(`_capybara_rank_`, x)
-}
-
-solve_bias_ <- function(beta_uncorr, hessian, nt, b) {
-  .Call(`_capybara_solve_bias_`, beta_uncorr, hessian, nt, b)
-}
-
-solve_y_ <- function(a, x) {
-  .Call(`_capybara_solve_y_`, a, x)
-}
-
-sandwich_ <- function(a, b) {
-  .Call(`_capybara_sandwich_`, a, b)
-}
-
-update_beta_eta_ <- function(old, upd, param) {
-  .Call(`_capybara_update_beta_eta_`, old, upd, param)
-}
-
-update_nu_ <- function(y, mu, mu_eta) {
-  .Call(`_capybara_update_nu_`, y, mu, mu_eta)
-}
-
-solve_eta2_ <- function(yadj, myadj, offset, eta) {
-  .Call(`_capybara_solve_eta2_`, yadj, myadj, offset, eta)
-}
-
 feglm_fit_ <- function(beta_r, eta_r, y_r, x_r, wt_r, theta, family, control, k_list) {
   .Call(`_capybara_feglm_fit_`, beta_r, eta_r, y_r, x_r, wt_r, theta, family, control, k_list)
 }
