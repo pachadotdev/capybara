@@ -142,17 +142,9 @@ Col<double> solve_beta_(const Mat<double> &MX, const Mat<double> &MNU,
 
   if (!computable) {
     stop("QR decomposition failed");
-  } else {
-    // backsolve
-    return solve(R, Q.t() * (MNU.each_col() % wtilde));
   }
-}
 
-// eta.upd <- nu - as.vector(Mnu - MX %*% beta.upd)
-
-Col<double> solve_eta_(const Mat<double> &MX, const Mat<double> &MNU,
-                        const Col<double> &nu, const Col<double> &beta) {
-  return nu - MNU + MX * beta;
+  return solve(R, Q.t() * (MNU.each_col() % wtilde));
 }
 
 // eta.upd <- yadj - as.vector(Myadj) + offset - eta

@@ -56,8 +56,8 @@ solve_eta2_ <- function(yadj, myadj, offset, eta) {
   .Call(`_capybara_solve_eta2_`, yadj, myadj, offset, eta)
 }
 
-feglm_fit_ <- function(beta_r, eta_r, y_r, x_r, nt, wt_r, theta, family, control, k_list) {
-  .Call(`_capybara_feglm_fit_`, beta_r, eta_r, y_r, x_r, nt, wt_r, theta, family, control, k_list)
+feglm_fit_ <- function(beta_r, eta_r, y_r, x_r, wt_r, theta, family, control, k_list) {
+  .Call(`_capybara_feglm_fit_`, beta_r, eta_r, y_r, x_r, wt_r, theta, family, control, k_list)
 }
 
 kendall_cor_ <- function(m) {

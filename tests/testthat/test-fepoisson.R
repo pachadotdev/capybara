@@ -1,19 +1,4 @@
 test_that("fepoisson is similar to fixest", {
-  # mod <- fepoisson(
-  #   mpg ~ hp + wt | cyl,
-  #   mtcars
-  # )
-
-  # mod <- fepoisson(
-  #   mpg ~ hp + wt | cyl + am,
-  #   mtcars
-  # )
-
-  # mod <- fepoisson(
-  #   mpg ~ hp + wt + drat | cyl + am | carb,
-  #   mtcars
-  # )
-
   mod <- fepoisson(
     trade ~ log_dist + lang + cntg + clny | exp_year + imp_year | pair,
     trade_panel
