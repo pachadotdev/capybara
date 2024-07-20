@@ -98,7 +98,7 @@ fenegbin <- function(
   lvls_k <- vapply(nms_fe, length, integer(1))
 
   # Generate auxiliary list of indexes for different sub panels ----
-  k.list <- get_index_list_(k_vars, data)
+  k_list <- get_index_list_(k_vars, data)
 
   # Extract control arguments ----
   tol <- control[["dev_tol"]]
@@ -107,13 +107,7 @@ fenegbin <- function(
   trace <- control[["trace"]]
 
   # Initial negative binomial fit ----
-  fit <- feglm_fit_(
-    beta, eta, y, X, nt, wt, theta, family[["family"]], control, k_list
-  )
 
-  beta <- fit[["coefficients"]]
-  eta <- fit[["eta"]]
-  dev <- fit[["deviance"]]
   theta <- suppressWarnings(
     theta.ml(
       y     = y,
@@ -124,6 +118,14 @@ fenegbin <- function(
     )
   )
 
+  fit <- feglm_fit_(
+    beta, eta, y, X, wt, theta, family[["family"]], control, k_list
+  )
+
+  beta <- fit[["coefficients"]]
+  eta <- fit[["eta"]]
+  dev <- fit[["deviance"]]
+
   # Alternate between fitting glm and \theta ----
   conv <- FALSE
   for (iter in seq.int(iter_max)) {
@@ -131,11 +133,6 @@ fenegbin <- function(
     dev.old <- dev
     theta.old <- theta
     family <- negative.binomial(theta, link)
-    family[["theta"]] <- theta
-    fit <- feglm_fit_(beta, eta, y, X, wt, k.list, family, control)
-    beta <- fit[["coefficients"]]
-    eta <- fit[["eta"]]
-    dev <- fit[["deviance"]]
     theta <- suppressWarnings(
       theta.ml(
         y     = y,
@@ -145,6 +142,10 @@ fenegbin <- function(
         trace = trace
       )
     )
+    fit <- feglm_fit_(beta, eta, y, X, wt, theta, family[["family"]], control, k_list)
+    beta <- fit[["coefficients"]]
+    eta <- fit[["eta"]]
+    dev <- fit[["deviance"]]
 
     # Progress information
     if (trace) {
