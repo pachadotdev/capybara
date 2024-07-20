@@ -180,11 +180,11 @@ bias_corr <- function(
   }
 
   # Compute bias-corrected structural parameters
-  beta <- solve_bias_(beta.uncorr, object[["Hessian"]], nt, -b)
+  beta <- beta.uncorr - solve(object[["Hessian"]] / nt, b)
   names(beta) <- nms.sp
 
   # Update \eta and first- and second-order derivatives
-  eta <- feglm_offset_(object, solve_y_(X, beta))
+  eta <- feglm_offset_(object, X %*% beta)
   mu <- family[["linkinv"]](eta)
   mu.eta <- family[["mu.eta"]](eta)
   v <- wt * (y - mu)

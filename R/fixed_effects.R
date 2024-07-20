@@ -54,7 +54,6 @@ fixed_effects <- function(object = NULL, alpha_tol = 1.0e-08) {
   k_list <- get_index_list_(k_vars, data)
 
   # Recover fixed effects by alternating the solutions of normal equations
-  # pie <- eta - solve_y_(X, beta)
   pie <- eta - X %*% beta
   fe_list <- as.list(get_alpha_(pie, k_list, alpha_tol))
 
