@@ -28,26 +28,23 @@ test_that("fepoisson is similar to fixest", {
   expect_visible(summary(mod, type = "cluster"))
 
   fes <- fixed_effects(mod)
-
+  n <- unname(mod[["nobs"]]["nobs"])
+  p <- dim(mod[["MX"]])[2]
   expect_equal(length(fes), 2)
+  expect_equal(length(fitted(mod)), n)
+  expect_equal(length(predict(mod)), n)
+  expect_equal(length(coef(mod)), p)
+  expect_equal(length(fes), 2)
+  expect_equal(round(fes[["exp_year"]][1:3], 3), c(10.195, 11.081, 11.260))
+  expect_equal(round(fes[["imp_year"]][1:3], 3), c(0.226, -0.254, 1.115))
 
   smod <- summary(mod)
 
-  expect_gt(length(fitted(mod)), 0)
-  expect_gt(length(predict(mod)), 0)
-  expect_gt(length(coef(mod)), 0)
-  expect_gt(length(coef(smod)), 0)
-
+  expect_equal(length(coef(smod)[, 1]), p)
   expect_output(summary_formula_(smod))
   expect_output(summary_family_(smod))
   expect_output(summary_estimates_(smod, 3))
   expect_output(summary_r2_(smod, 3))
   expect_output(summary_nobs_(smod))
   expect_output(summary_fisher_(smod))
-
-  fe <- fixed_effects(mod)
-
-  expect_equal(length(fe), 2)
-  expect_equal(round(fe$exp_year[1:3], 3), c(10.195, 11.081, 11.260))
-  expect_equal(round(fe$imp_year[1:3], 3), c(0.226, -0.254, 1.115))
 })
