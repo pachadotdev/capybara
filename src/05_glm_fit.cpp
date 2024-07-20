@@ -47,9 +47,9 @@ Col<double> link_inv_(const Col<double> &eta, const std::string &fam) {
   if (fam == "gaussian") {
     res = eta;
   } else if (fam == "poisson") {
-    // Col<double> epsilon = 1e-7 * ones<Col<double>>(eta.n_elem);
-    // res = pmax_(exp(eta), epsilon);
     res = exp(eta);
+    // Col<double> epsilon = 2.220446e-16 * ones<Col<double>>(eta.n_elem);
+    // res = pmax_(exp(eta), epsilon);
   } else if (fam == "binomial") {
     // res = exp(eta) / (1.0 + exp(eta));
     res = 1.0 / (1.0 + exp(-eta));
@@ -74,10 +74,10 @@ double dev_resids_(const Col<double> &y, const Col<double> &mu,
   if (fam == "gaussian") {
     res = accu(wt % square(y - mu));
   } else if (fam == "poisson") {
-    uvec p = find(y > 0.0);
+    uvec p = find(y > 0);
     Col<double> r = mu % wt;
     r(p) = wt(p) % (y(p) % log(y(p) / mu(p)) - (y(p) - mu(p)));
-    res = 2.0 * accu(r);
+    res = 2 * accu(r);
   } else if (fam == "binomial") {
     uvec p = find(y != 0.0);
     uvec q = find(y != 1.0);
@@ -134,7 +134,7 @@ bool valid_mu_(const Col<double> &mu, const std::string &fam) {
   if (fam == "gaussian") {
     res = true;
   } else if (fam == "poisson") {
-    res = is_finite(mu) && all(mu > 0.0);
+    res = is_finite(mu) && all(mu > 0);
   } else if (fam == "binomial") {
     res = is_finite(mu) && all(mu > 0.0 && mu < 1.0);
   } else if (fam == "gamma") {
@@ -159,6 +159,8 @@ Col<double> mu_eta_(Col<double> &eta, const std::string &fam) {
     res.ones();
   } else if (fam == "poisson") {
     res = exp(eta);
+    // Col<double> epsilon = 2.220446e-16 * ones<Col<double>>(eta.n_elem);
+    // res = pmax_(exp(eta), epsilon);
   } else if (fam == "binomial") {
     res = 1.0 / (2.0 + exp(eta) + exp(-eta));
   } else if (fam == "gamma") {
@@ -174,8 +176,8 @@ Col<double> mu_eta_(Col<double> &eta, const std::string &fam) {
   return res;
 }
 
-Col<double> variance_(const Col<double> &mu,
-                      const double &theta, const std::string &fam) {
+Col<double> variance_(const Col<double> &mu, const double &theta,
+                      const std::string &fam) {
   Col<double> res(mu.n_elem);
 
   if (fam == "gaussian") {
@@ -197,19 +199,20 @@ Col<double> variance_(const Col<double> &mu,
   return res;
 }
 
-[[cpp11::register]] list feglm_fit_(
-    const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
-    const doubles_matrix<> &x_r, const double &nt, const doubles &wt_r,
-    const double &theta, const std::string &family, const list &control,
-    const list &k_list) {
+[[cpp11::register]] list feglm_fit_(const doubles &beta_r, const doubles &eta_r,
+                                    const doubles &y_r,
+                                    const doubles_matrix<> &x_r,
+                                    const doubles &wt_r,
+                                    const double &theta,
+                                    const std::string &family,
+                                    const list &control, const list &k_list) {
   // Type conversion
 
   Col<double> beta = as_Col(beta_r);
   Col<double> eta = as_Col(eta_r);
   Col<double> y = as_Col(y_r);
   Mat<double> MX = as_Mat(x_r);
-  // Mat<double> MNU = nt * Mat<double>(y.n_elem, 1, fill::ones);
-  Mat<double> MNU(y.n_elem, 1, fill::ones);
+  Mat<double> MNU = Mat<double>(y.n_elem, 1, fill::zeros);
   Col<double> wt = as_Col(wt_r);
 
   // Auxiliary variables (fixed)
@@ -217,9 +220,7 @@ Col<double> variance_(const Col<double> &mu,
   std::string fam = tidy_family_(family);
   double center_tol = as_cpp<double>(control["center_tol"]);
   double dev_tol = as_cpp<double>(control["dev_tol"]);
-  // std::cout << "dev_tol: " << dev_tol << std::endl;
-  int iter;
-  int iter_max = as_cpp<int>(control["iter_max"]);
+  int iter, iter_max = as_cpp<int>(control["iter_max"]);
   int iter_center_max = 10000;
   bool keep_mx = as_cpp<bool>(control["keep_mx"]);
   int iter_inner, iter_inner_max = 50;
@@ -231,7 +232,7 @@ Col<double> variance_(const Col<double> &mu,
   Col<double> ymean = mean(y) * Col<double>(y.n_elem, fill::ones);
   double dev = dev_resids_(y, mu, theta, wt, fam);
   double null_dev = dev_resids_(y, ymean, theta, wt, fam);
-  
+
   const int n = y.n_elem;
   const int p = MX.n_cols;
   Col<double> mu_eta(n), nu(n);
@@ -239,16 +240,13 @@ Col<double> variance_(const Col<double> &mu,
   bool conv = false;
 
   bool dev_crit, val_crit, imp_crit;
-  double dev_old, dev_crit_ratio, rho;
+  double dev_old, dev_crit_ratio, dev_crit_ratio_inner, rho;
   Col<double> eta_upd(n), beta_upd(k), eta_old(n), beta_old(k);
 
   // Maximize the log-likelihood
 
   for (iter = 0; iter < iter_max; ++iter) {
-    std::cout << "iter: " << iter << std::endl;
-    std::cout << "dev: " << dev << std::endl;
     rho = 1.0;
-    dev_crit = false, val_crit = false, imp_crit = false;
     eta_old = eta, beta_old = beta, dev_old = dev;
 
     // Compute weights and dependent variable
@@ -256,12 +254,12 @@ Col<double> variance_(const Col<double> &mu,
     mu_eta = mu_eta_(eta, fam);
     w = (wt % square(mu_eta)) / variance_(mu, theta, fam);
     nu = (y - mu) / mu_eta;
-    
+
     // Center variables
 
     MNU = center_variables_(MNU + nu, w, k_list, center_tol, iter_center_max);
     MX = center_variables_(MX, w, k_list, center_tol, iter_center_max);
-
+    
     // Compute update step and update eta
 
     // Step-halving with three checks:
@@ -270,20 +268,22 @@ Col<double> variance_(const Col<double> &mu,
     // 3. improvement as in glm2
 
     beta_upd = solve_beta_(MX, MNU, w);
-    eta_upd = solve_eta_(MX, MNU, nu, beta_upd);
+    eta_upd = nu - MNU + MX * beta_upd;
 
     for (iter_inner = 0; iter_inner < iter_inner_max; ++iter_inner) {
       eta = eta_old + (rho * eta_upd);
       beta = beta_old + (rho * beta_upd);
       mu = link_inv_(eta, fam);
       dev = dev_resids_(y, mu, theta, wt, fam);
+      dev_crit_ratio_inner = (dev - dev_old) / (0.1 + abs(dev_old));
       dev_crit = is_finite(dev);
       val_crit = (valid_eta_(eta, fam) && valid_mu_(mu, fam));
-      imp_crit = ((dev - dev_old) / (0.1 + abs(dev)) <=  -1.0 * dev_tol);
+      imp_crit = (dev_crit_ratio_inner <= -1.0 * dev_tol);
 
       if (dev_crit == true && val_crit == true && imp_crit == true) {
         break;
       }
+
       rho *= 0.5;
     }
 

@@ -142,9 +142,8 @@ feglm <- function(
 
   # Fit generalized linear model ----
   if (is.integer(y)) { y <- as.numeric(y) }
-  if (is.integer(nt)) { nt <- as.numeric(nt) }
   fit <- feglm_fit_(
-    beta, eta, y, X, nt, wt, 0.0, family[["family"]], control, k_list
+    beta, eta, y, X, wt, 0.0, family[["family"]], control, k_list
   )
 
   y <- NULL
