@@ -10,7 +10,7 @@ test_that("feglm is similar to glm", {
   # Binomial ----
 
   mod <- feglm(
-    am ~ wt + mpg| cyl,
+    am ~ wt + mpg | cyl,
     mtcars,
     family = binomial()
   )

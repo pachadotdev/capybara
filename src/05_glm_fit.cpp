@@ -41,18 +41,80 @@ std::string tidy_family_(const std::string &family) {
 //   return res;
 // }
 
+// static const double THRESH = 30.;
+// static const double MTHRESH = -30.;
+// static const double DBL_EPSILON = std::numeric_limits<double>::epsilon();
+// static const double INVEPS = 1 / DBL_EPSILON;
+
+// Col<double> link_inv_logit_(const Col<double> &x) {
+//   Col<double> res(x.n_elem);
+
+//   uword i, n = x.n_elem;
+//   for (i = 0; i < n; ++i) {
+//     if (x(i) < MTHRESH) {
+//       res(i) = DBL_EPSILON;
+//     } else if (x(i) > THRESH) {
+//       res(i) = INVEPS;
+//     } else {
+//       double y = exp(x(i));
+//       res(i) = y / (1 + y);
+//     }
+//   }
+
+//   return res;
+// }
+
+Col<double> link_inv_logit_(const Col<double> &x) {
+  Col<double> y = exp(x);
+  return y / (1 + y);
+}
+
+// Adapted from binomial_dev_resids()
+// in R base it can be found in src/library/stats/src/family.c
+// unfortunately the functions that work with a SEXP won't work with a Col<>
+Col<double> dev_resids_logit_(const Col<double> &y, const Col<double> &mu) {
+  Col<double> res(y.n_elem, fill::zeros);
+
+  uvec p = find(y != 0);
+  res(p) = y(p) % log(y(p) / mu(p));
+
+  return res;
+}
+
+// Col<double> mu_eta_logit_(const Col<double> &x) {
+//   Col<double> res(x.n_elem);
+
+//   uword i, n = x.n_elem;
+
+//   for (i = 0; i < n; ++i) {
+//     double opexp = 1 + exp(x(i));
+    
+//     if ((x(i) > THRESH) || (x(i) < MTHRESH)){
+//       res(i) = DBL_EPSILON;
+//     } else {
+//       res(i) = exp(x(i)) / (opexp * opexp);
+//     }
+//   }
+
+//   return res;
+// }
+
+Col<double> mu_eta_logit_(const Col<double> &x) {
+  Col<double> y = exp(x);
+  return y / square(1 + y);
+}
+
 Col<double> link_inv_(const Col<double> &eta, const std::string &fam) {
   Col<double> res(eta.n_elem);
   
   if (fam == "gaussian") {
     res = eta;
   } else if (fam == "poisson") {
-    res = exp(eta);
     // Col<double> epsilon = 2.220446e-16 * ones<Col<double>>(eta.n_elem);
     // res = pmax_(exp(eta), epsilon);
+    res = exp(eta);
   } else if (fam == "binomial") {
-    // res = exp(eta) / (1.0 + exp(eta));
-    res = 1.0 / (1.0 + exp(-eta));
+    res = link_inv_logit_(eta);
   } else if (fam == "gamma") {
     res = 1.0 / eta;
   } else if (fam == "inverse_gaussian") {
@@ -79,13 +141,8 @@ double dev_resids_(const Col<double> &y, const Col<double> &mu,
     r(p) = wt(p) % (y(p) % log(y(p) / mu(p)) - (y(p) - mu(p)));
     res = 2 * accu(r);
   } else if (fam == "binomial") {
-    uvec p = find(y != 0.0);
-    uvec q = find(y != 1.0);
-    Col<double> r = y / mu;
-    Col<double> s = (1.0 - y) / (1.0 - mu);
-    r(p) = log(r(p));
-    s(q) = log(s(q));
-    res = 2.0 * accu(wt % (y % r + (1.0 - y) % s));
+    res = 2 * accu(wt % (dev_resids_logit_(y, mu) +
+      dev_resids_logit_(1 - y, 1 - mu)));
   } else if (fam == "gamma") {
     uvec p = find(y == 0.0);
     Col<double> r = y / mu;
@@ -94,11 +151,11 @@ double dev_resids_(const Col<double> &y, const Col<double> &mu,
   } else if (fam == "inverse_gaussian") {
     res = accu(wt % square(y - mu) / (y % square(mu)));
   } else if (fam == "negative_binomial") {
-    uvec p = find(y < 1.0);
+    uvec p = find(y < 1);
     Col<double> r = y;
     r.elem(p).fill(1.0);
-    res = 2.0 * accu(
-        wt % (y % log(r / mu) - (y + theta) % log((y + theta) / (mu + theta))));
+    res = 2 * accu(wt % (y % log(r / mu) -
+      (y + theta) % log((y + theta) / (mu + theta))));
   } else {
     stop("Unknown family");
   }
@@ -136,7 +193,7 @@ bool valid_mu_(const Col<double> &mu, const std::string &fam) {
   } else if (fam == "poisson") {
     res = is_finite(mu) && all(mu > 0);
   } else if (fam == "binomial") {
-    res = is_finite(mu) && all(mu > 0.0 && mu < 1.0);
+    res = is_finite(mu) && all(mu > 0 && mu < 1);
   } else if (fam == "gamma") {
     res = is_finite(mu) && all(mu > 0.0);
   } else if (fam == "inverse_gaussian") {
@@ -150,7 +207,7 @@ bool valid_mu_(const Col<double> &mu, const std::string &fam) {
   return res;
 }
 
-// inverse link mu = g^-1 (eta), then mu_eta = d mu / d eta
+// mu_eta = d link_inv / d eta = d mu / d eta
 
 Col<double> mu_eta_(Col<double> &eta, const std::string &fam) {
   Col<double> res(eta.n_elem);
@@ -159,14 +216,12 @@ Col<double> mu_eta_(Col<double> &eta, const std::string &fam) {
     res.ones();
   } else if (fam == "poisson") {
     res = exp(eta);
-    // Col<double> epsilon = 2.220446e-16 * ones<Col<double>>(eta.n_elem);
-    // res = pmax_(exp(eta), epsilon);
   } else if (fam == "binomial") {
-    res = 1.0 / (2.0 + exp(eta) + exp(-eta));
+    res = mu_eta_logit_(eta);
   } else if (fam == "gamma") {
-    res = -1.0 / square(eta);
+    res = -1 / square(eta);
   } else if (fam == "inverse_gaussian") {
-    res = 1.0 / (2.0 * pow(eta, 1.5));
+    res = -1 / (2 * pow(eta, 1.5));
   } else if (fam == "negative_binomial") {
     res = exp(eta);
   } else {
@@ -185,7 +240,7 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
   } else if (fam == "poisson") {
     res = mu;
   } else if (fam == "binomial") {
-    res = mu % (1.0 - mu);
+    res = mu % (1 - mu);
   } else if (fam == "gamma") {
     res = square(mu);
   } else if (fam == "inverse_gaussian") {
@@ -278,7 +333,7 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
       dev_crit_ratio_inner = (dev - dev_old) / (0.1 + abs(dev_old));
       dev_crit = is_finite(dev);
       val_crit = (valid_eta_(eta, fam) && valid_mu_(mu, fam));
-      imp_crit = (dev_crit_ratio_inner <= -1.0 * dev_tol);
+      imp_crit = (dev_crit_ratio_inner <= -dev_tol);
 
       if (dev_crit == true && val_crit == true && imp_crit == true) {
         break;
