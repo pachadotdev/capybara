@@ -27,46 +27,34 @@ std::string tidy_family_(const std::string &family) {
   return fam;
 }
 
-// Pairwise-maximum function
-// Col<double> pmax_(const Col<double> &x, const Col<double> &y) {
-//   Col<double> res(x.n_elem);
+Col<double> link_inv_gaussian_(const Col<double> &x) {
+  return x;
+}
 
-//   // for (int i = 0; i < x.n_elem; ++i) {
-//   //   res(i) = std::max(x(i), y(i));
-//   // }
-
-//   std::transform(x.begin(), x.end(), y.begin(), res.begin(),
-//                  [](double a, double b) { return std::max(a, b); });
-
-//   return res;
-// }
-
-// static const double THRESH = 30.;
-// static const double MTHRESH = -30.;
-// static const double DBL_EPSILON = std::numeric_limits<double>::epsilon();
-// static const double INVEPS = 1 / DBL_EPSILON;
-
-// Col<double> link_inv_logit_(const Col<double> &x) {
-//   Col<double> res(x.n_elem);
-
-//   uword i, n = x.n_elem;
-//   for (i = 0; i < n; ++i) {
-//     if (x(i) < MTHRESH) {
-//       res(i) = DBL_EPSILON;
-//     } else if (x(i) > THRESH) {
-//       res(i) = INVEPS;
-//     } else {
-//       double y = exp(x(i));
-//       res(i) = y / (1 + y);
-//     }
-//   }
-
-//   return res;
-// }
+Col<double> link_inv_poisson_(const Col<double> &x) {
+  return exp(x);
+}
 
 Col<double> link_inv_logit_(const Col<double> &x) {
   Col<double> y = exp(x);
   return y / (1 + y);
+}
+
+Col<double> link_inv_gamma_(const Col<double> &x) {
+  return 1 / x;
+}
+
+Col<double> link_inv_invgaussian_(const Col<double> &x) {
+  return 1 / sqrt(x);
+}
+
+Col<double> link_inv_negbin_(const Col<double> &x) {
+  return exp(x);
+}
+
+double dev_resids_gaussian_(const Col<double> &y, const Col<double> &mu,
+                                const Col<double> &wt) {
+  return accu(wt % square(y - mu));
 }
 
 double dev_resids_poisson_(const Col<double> &y, const Col<double> &mu,
@@ -121,46 +109,46 @@ double dev_resids_negbin_(const Col<double> &y, const Col<double> &mu,
   return 2 * accu(r);
 }
 
-// Col<double> mu_eta_logit_(const Col<double> &x) {
-//   Col<double> res(x.n_elem);
+Col<double> mu_eta_gaussian_(const Col<double> &x) {
+  return ones<Col<double>>(x.n_elem);
+}
 
-//   uword i, n = x.n_elem;
-
-//   for (i = 0; i < n; ++i) {
-//     double opexp = 1 + exp(x(i));
-    
-//     if ((x(i) > THRESH) || (x(i) < MTHRESH)){
-//       res(i) = DBL_EPSILON;
-//     } else {
-//       res(i) = exp(x(i)) / (opexp * opexp);
-//     }
-//   }
-
-//   return res;
-// }
+Col<double> mu_eta_poisson_(const Col<double> &x) {
+  return exp(x);
+}
 
 Col<double> mu_eta_logit_(const Col<double> &x) {
   Col<double> y = exp(x);
   return y / square(1 + y);
 }
 
+Col<double> mu_eta_gamma_(const Col<double> &x) {
+  return -1 / square(x);
+}
+
+Col<double> mu_eta_invgaussian_(const Col<double> &x) {
+  return -1 / (2 * pow(x, 1.5));
+}
+
+Col<double> mu_eta_negbin_(const Col<double> &x) {
+  return exp(x);
+}
+
 Col<double> link_inv_(const Col<double> &eta, const std::string &fam) {
   Col<double> res(eta.n_elem);
   
   if (fam == "gaussian") {
-    res = eta;
+    res = link_inv_gaussian_(eta);
   } else if (fam == "poisson") {
-    // Col<double> epsilon = 2.220446e-16 * ones<Col<double>>(eta.n_elem);
-    // res = pmax_(exp(eta), epsilon);
-    res = exp(eta);
+    res = link_inv_poisson_(eta);
   } else if (fam == "binomial") {
     res = link_inv_logit_(eta);
   } else if (fam == "gamma") {
-    res = 1.0 / eta;
+    res = link_inv_gamma_(eta);
   } else if (fam == "inverse_gaussian") {
-    res = 1.0 / sqrt(eta);
+    res = link_inv_invgaussian_(eta);
   } else if (fam == "negative_binomial") {
-    res = exp(eta);
+    res = link_inv_negbin_(eta);
   } else {
     stop("Unknown family");
   }
@@ -174,7 +162,7 @@ double dev_resids_(const Col<double> &y, const Col<double> &mu,
   double res;
 
   if (fam == "gaussian") {
-    res = accu(wt % square(y - mu));
+    res = dev_resids_gaussian_(y, mu, wt);
   } else if (fam == "poisson") {
     res = dev_resids_poisson_(y, mu, wt);
   } else if (fam == "binomial") {
@@ -242,17 +230,17 @@ Col<double> mu_eta_(Col<double> &eta, const std::string &fam) {
   Col<double> res(eta.n_elem);
 
   if (fam == "gaussian") {
-    res.ones();
+    res = mu_eta_gaussian_(eta);
   } else if (fam == "poisson") {
-    res = exp(eta);
+    res = mu_eta_poisson_(eta);
   } else if (fam == "binomial") {
     res = mu_eta_logit_(eta);
   } else if (fam == "gamma") {
-    res = -1 / square(eta);
+    res = mu_eta_gamma_(eta);
   } else if (fam == "inverse_gaussian") {
-    res = -1 / (2 * pow(eta, 1.5));
+    res = mu_eta_invgaussian_(eta);
   } else if (fam == "negative_binomial") {
-    res = exp(eta);
+    res = mu_eta_negbin_(eta);
   } else {
     stop("Unknown family");
   }
@@ -359,21 +347,26 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
       beta = beta_old + (rho * beta_upd);
       mu = link_inv_(eta, fam);
       dev = dev_resids_(y, mu, theta, wt, fam);
-      dev_ratio_inner = (dev - dev_old) / (0.1 + abs(dev_old));
+      dev_ratio_inner = (dev - dev_old) / (0.1 + fabs(dev_old));
 
-      std::cout << "dev: " << dev << std::endl;
-      std::cout << "dev_ratio_inner: " << dev_ratio_inner << std::endl;
-      std::cout << "dev_tol: " << dev_tol << std::endl;
+      // std::cout << "iter: " << iter << std::endl;
+      // std::cout << "iter_inner: " << iter_inner << std::endl;
+      // std::cout << "beta old: " << beta_old.t() << std::endl;
+      // std::cout << "beta: " << beta.t() << std::endl;
+      // std::cout << "dev: " << dev << std::endl;
+      // std::cout << "dev_ratio_inner: " << dev_ratio_inner << std::endl;
+      // std::cout << "dev_tol: " << dev_tol << std::endl;
 
       dev_crit = is_finite(dev);
       val_crit = (valid_eta_(eta, fam) && valid_mu_(mu, fam));
       imp_crit = (dev_ratio_inner <= -dev_tol);
 
       if (dev_crit == true && val_crit == true && imp_crit == true) {
+        // std::cout << "ok" << std::endl;
         break;
       }
 
-      rho = 0.5;
+      rho *= 0.5;
     }
 
     // Check if step-halving failed (deviance and invalid eta or mu)
@@ -393,7 +386,8 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
 
     // Check convergence
 
-    dev_ratio = abs(dev - dev_old) / (0.1 + abs(dev));
+    dev_ratio = fabs(dev - dev_old) / (0.1 + fabs(dev));
+
     if (dev_ratio < dev_tol) {
       conv = true;
       break;
