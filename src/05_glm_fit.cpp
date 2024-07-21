@@ -324,7 +324,7 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
   bool conv = false;
 
   bool dev_crit, val_crit, imp_crit;
-  double dev_old, dev_crit_ratio, dev_crit_ratio_inner, rho;
+  double dev_old, dev_ratio, dev_ratio_inner, rho;
   Col<double> eta_upd(n), beta_upd(k), eta_old(n), beta_old(k);
 
   // Maximize the log-likelihood
@@ -359,16 +359,21 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
       beta = beta_old + (rho * beta_upd);
       mu = link_inv_(eta, fam);
       dev = dev_resids_(y, mu, theta, wt, fam);
-      dev_crit_ratio_inner = (dev - dev_old) / (0.1 + abs(dev_old));
+      dev_ratio_inner = (dev - dev_old) / (0.1 + abs(dev_old));
+
+      std::cout << "dev: " << dev << std::endl;
+      std::cout << "dev_ratio_inner: " << dev_ratio_inner << std::endl;
+      std::cout << "dev_tol: " << dev_tol << std::endl;
+
       dev_crit = is_finite(dev);
       val_crit = (valid_eta_(eta, fam) && valid_mu_(mu, fam));
-      imp_crit = (dev_crit_ratio_inner < -dev_tol);
+      imp_crit = (dev_ratio_inner <= -dev_tol);
 
       if (dev_crit == true && val_crit == true && imp_crit == true) {
         break;
       }
 
-      rho *= 0.5;
+      rho = 0.5;
     }
 
     // Check if step-halving failed (deviance and invalid eta or mu)
@@ -388,8 +393,8 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
 
     // Check convergence
 
-    dev_crit_ratio = abs(dev - dev_old) / (0.1 + abs(dev));
-    if (dev_crit_ratio < dev_tol) {
+    dev_ratio = abs(dev - dev_old) / (0.1 + abs(dev));
+    if (dev_ratio < dev_tol) {
       conv = true;
       break;
     }
