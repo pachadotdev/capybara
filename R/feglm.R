@@ -88,8 +88,8 @@ feglm <- function(
 
   # Generate model.frame
   lhs <- NA # just to avoid global variable warning
-  nobs.na <- NA
-  nobs.full <- NA
+  nobs_na <- NA
+  nobs_full <- NA
   model_frame_(data, formula, weights)
 
   # Ensure that model response is in line with the chosen model ----
@@ -110,7 +110,7 @@ feglm <- function(
 
   # Determine the number of dropped observations ----
   nt <- nrow(data)
-  nobs <- nobs_(nobs.full, nobs.na, nt)
+  nobs <- nobs_(nobs_full, nobs_na, nt)
 
   # Extract model response and regressor matrix ----
   nms_sp <- NA
@@ -150,12 +150,12 @@ feglm <- function(
   X <- NULL
   eta <- NULL
 
-  # Add names to beta, Hessian, and MX (if provided) ----
+  # Add names to beta, hessian, and MX (if provided) ----
   names(fit[["coefficients"]]) <- nms_sp
   if (control[["keep_mx"]]) {
     colnames(fit[["MX"]]) <- nms_sp
   }
-  dimnames(fit[["Hessian"]]) <- list(nms_sp, nms_sp)
+  dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
 
   # Generate result list ----
   reslist <- c(

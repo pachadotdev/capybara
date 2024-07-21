@@ -14,10 +14,10 @@ vcov.apes <- function(object, ...) {
 #' @title Covariance matrix for GLMs
 #' @description Covariance matrix for the estimator of the structural parameters
 #'  from objects returned by \code{\link{feglm}}. The covariance is computed
-#' from the Hessian, the scores, or a combination of both after convergence.
+#' from the hessian, the scores, or a combination of both after convergence.
 #' @param object an object of class \code{"feglm"}.
 #' @param type the type of covariance estimate required. \code{"hessian"} refers
-#'  to the inverse of the negative expected Hessian after convergence and is the
+#'  to the inverse of the negative expected hessian after convergence and is the
 #'  default option. \code{"outer.product"} is the outer-product-of-the-gradient
 #'  estimator. \code{"sandwich"} is the sandwich estimator (sometimes also
 #'  referred as robust estimator), and \code{"clustered"} computes a clustered
@@ -63,10 +63,10 @@ vcov.feglm <- function(
   }
 
   # Compute requested type of covariance matrix
-  H <- object[["Hessian"]]
+  H <- object[["hessian"]]
   p <- ncol(H)
   if (type == "hessian") {
-    # If the Hessian is invertible, compute its inverse
+    # If the hessian is invertible, compute its inverse
     V <- try(solve(H), silent = TRUE)
     if (inherits(V, "try-error")) {
       V <- matrix(Inf, p, p)
@@ -80,7 +80,7 @@ vcov.feglm <- function(
         V <- matrix(Inf, p, p)
       }
     } else {
-      # Check if the Hessian is invertible and compute its inverse
+      # Check if the hessian is invertible and compute its inverse
       V <- try(solve(H), silent = TRUE)
       if (inherits(V, "try-error")) {
         V <- matrix(Inf, p, p)
@@ -163,7 +163,7 @@ vcov.feglm <- function(
 #' @title Covariance matrix for LMs
 #' @description Covariance matrix for the estimator of the structural parameters
 #'  from objects returned by \code{\link{felm}}. The covariance is computed
-#' from the Hessian, the scores, or a combination of both after convergence.
+#' from the hessian, the scores, or a combination of both after convergence.
 #' @param object an object of class \code{"felm"}.
 #' @inherit vcov.feglm
 #' @seealso \code{\link{felm}}

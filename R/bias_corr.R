@@ -77,11 +77,11 @@ bias_corr <- function(
   eps <- .Machine[["double.eps"]]
   family <- object[["family"]]
   formula <- object[["formula"]]
-  lvls.k <- object[["lvls.k"]]
+  lvls_k <- object[["lvls_k"]]
   nms.sp <- names(beta.uncorr)
   nt <- object[["nobs"]][["nobs"]]
-  k.vars <- names(lvls.k)
-  k <- length(lvls.k)
+  k.vars <- names(lvls_k)
+  k <- length(lvls_k)
 
   # Check if binary choice model
   if (family[["family"]] != "binomial") {
@@ -92,7 +92,7 @@ bias_corr <- function(
   }
 
   # Check if the number of FEs is > 3
-  if (length(lvls.k) > 3) {
+  if (length(lvls_k) > 3) {
     stop(
       "bias_corr() only supports models with up to three-way fixed effects.",
       call. = FALSE
@@ -147,10 +147,10 @@ bias_corr <- function(
   }
 
   # Center regressor matrix (if required)
-  if (control[["keep.mx"]]) {
+  if (control[["keep_mx"]]) {
     MX <- object[["MX"]]
   } else {
-    MX <- center_variables_(X, NA_real_, w, k.list, control[["center.tol"]], 100000L, FALSE)
+    MX <- center_variables_(X, NA_real_, w, k.list, control[["center_tol"]], 100000L, FALSE)
   }
 
   # Compute bias terms for requested bias correction
@@ -180,7 +180,7 @@ bias_corr <- function(
   }
 
   # Compute bias-corrected structural parameters
-  beta <- beta.uncorr - solve(object[["Hessian"]] / nt, b)
+  beta <- beta.uncorr - solve(object[["hessian"]] / nt, b)
   names(beta) <- nms.sp
 
   # Update \eta and first- and second-order derivatives
@@ -197,18 +197,18 @@ bias_corr <- function(
   }
 
   # Update centered regressor matrix
-  MX <- center_variables_(X, NA_real_, w, k.list, control[["center.tol"]], 100000L, FALSE)
+  MX <- center_variables_(X, NA_real_, w, k.list, control[["center_tol"]], 100000L, FALSE)
   colnames(MX) <- nms.sp
 
-  # Update Hessian
+  # Update hessian
   H <- crossprod(MX * sqrt(w))
   dimnames(H) <- list(nms.sp, nms.sp)
 
   # Update result list
   object[["coefficients"]] <- beta
   object[["eta"]] <- eta
-  if (control[["keep.mx"]]) object[["MX"]] <- MX
-  object[["Hessian"]] <- H
+  if (control[["keep_mx"]]) object[["MX"]] <- MX
+  object[["hessian"]] <- H
   object[["coefficients.uncorr"]] <- beta.uncorr
   object[["bias.term"]] <- b
   object[["panel.structure"]] <- panel.structure

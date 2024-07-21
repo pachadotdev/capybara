@@ -104,6 +104,10 @@ check_family_ <- function(family) {
   } else if (startsWith(family[["family"]], "Negative Binomial")) {
     stop("Please use 'fenegbin' instead.", call. = FALSE)
   }
+
+  if (family[["family"]] == "binomial" && family[["link"]] != "logit") {
+    stop("The current version only supports logit in the binomial family.", call. = FALSE)
+  }
 }
 
 update_formula_ <- function(formula) {
@@ -124,17 +128,17 @@ model_frame_ <- function(data, formula, weights) {
 
   lhs <- names(data)[[1L]]
 
-  nobs.full <- nrow(data)
+  nobs_full <- nrow(data)
 
   data <- na.omit(data)
 
-  nobs.na <- nobs.full - nrow(data)
-  nobs.full <- nrow(data)
+  nobs_na <- nobs_full - nrow(data)
+  nobs_full <- nrow(data)
 
   assign("data", data, envir = parent.frame())
   assign("lhs", lhs, envir = parent.frame())
-  assign("nobs.na", nobs.na, envir = parent.frame())
-  assign("nobs.full", nobs.full, envir = parent.frame())
+  assign("nobs_na", nobs_na, envir = parent.frame())
+  assign("nobs_full", nobs_full, envir = parent.frame())
 }
 
 check_response_ <- function(data, lhs, family) {
@@ -218,11 +222,11 @@ transform_fe_ <- function(data, formula, k.vars) {
   data
 }
 
-nobs_ <- function(nobs.full, nobs.na, nt) {
+nobs_ <- function(nobs_full, nobs_na, nt) {
   c(
-    nobs.full = nobs.full,
-    nobs.na   = nobs.na,
-    nobs.pc   = nobs.full - nt,
+    nobs_full = nobs_full,
+    nobs_na   = nobs_na,
+    nobs_pc   = nobs_full - nt,
     nobs      = nt
   )
 }
@@ -362,7 +366,7 @@ get_score_matrix_ <- function(object) {
   } else {
     # Extract additional required quantities from result list
     formula <- object[["formula"]]
-    k.vars <- names(object[["lvls.k"]])
+    k.vars <- names(object[["lvls_k"]])
 
     # Generate auxiliary list of indexes to project out the fixed effects
     k.list <- get_index_list_(k.vars, data)
@@ -373,7 +377,7 @@ get_score_matrix_ <- function(object) {
     attr(X, "dimnames") <- NULL
 
     # Center variables
-    MX <- center_variables_(X, NA_real_, w, k.list, control[["center.tol"]], 10000L, FALSE)
+    MX <- center_variables_(X, NA_real_, w, k.list, control[["center_tol"]], 10000L, FALSE)
     colnames(MX) <- nms_sp
   }
 

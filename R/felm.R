@@ -35,7 +35,7 @@ felm <- function(formula = NULL, data = NULL, weights = NULL) {
 
   names(reslist)[which(names(reslist) == "eta")] <- "fitted.values"
 
-  # reslist[["Hessian"]] <- NULL
+  # reslist[["hessian"]] <- NULL
   reslist[["family"]] <- NULL
   reslist[["deviance"]] <- NULL
 
