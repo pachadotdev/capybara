@@ -9,10 +9,10 @@ glance.feglm <- function(x, ...) {
     summary(x),
     data.frame(
       deviance = deviance,
-      null.deviance = null.deviance,
-      nobs.full = nobs["nobs.full"],
-      nobs.na = nobs["nobs.na"],
-      nobs.pc = nobs["nobs.pc"],
+      null_deviance = null_deviance,
+      nobs_full = nobs["nobs_full"],
+      nobs_na = nobs["nobs_na"],
+      nobs_pc = nobs["nobs_pc"],
       nobs = nobs["nobs"]
     )
   )
@@ -29,9 +29,9 @@ glance.felm <- function(x, ...) {
     tibble(
       r.squared = r.squared,
       adj.r.squared = adj.r.squared,
-      nobs.full = nobs["nobs.full"],
-      nobs.na = nobs["nobs.na"],
-      nobs.pc = nobs["nobs.pc"],
+      nobs_full = nobs["nobs_full"],
+      nobs_na = nobs["nobs_na"],
+      nobs_pc = nobs["nobs_pc"],
       nobs = nobs["nobs"]
     )
   )

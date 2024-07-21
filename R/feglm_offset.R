@@ -12,15 +12,15 @@ feglm_offset_ <- function(object, offset) {
   wt <- object[["weights"]]
   family <- object[["family"]]
   formula <- object[["formula"]]
-  lvls.k <- object[["lvls.k"]]
+  lvls_k <- object[["lvls_k"]]
   nt <- object[["nobs"]][["nobs"]]
-  k.vars <- names(lvls.k)
+  k.vars <- names(lvls_k)
 
   # Extract dependent variable
   y <- data[[1L]]
 
   # Extract control arguments
-  center.tol <- control[["center.tol"]]
+  center_tol <- control[["center_tol"]]
   dev.tol <- control[["dev.tol"]]
   iter.max <- control[["iter.max"]]
 
@@ -53,7 +53,7 @@ feglm_offset_ <- function(object, offset) {
     yadj <- (y - mu) / mu.eta + eta - offset
 
     # Centering dependent variable and compute \eta update
-    Myadj <- center_variables_(Myadj, yadj, w, k.list, center.tol, 10000L, TRUE)
+    Myadj <- center_variables_(Myadj, yadj, w, k.list, center_tol, 10000L, TRUE)
     eta.upd <- yadj - drop(Myadj) + offset - eta
 
     # Step-halving with three checks

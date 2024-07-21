@@ -27,29 +27,29 @@ std::string tidy_family_(const std::string &family) {
   return fam;
 }
 
-Col<double> link_inv_gaussian_(const Col<double> &x) {
-  return x;
+Col<double> link_inv_gaussian_(const Col<double> &eta) {
+  return eta;
 }
 
-Col<double> link_inv_poisson_(const Col<double> &x) {
-  return exp(x);
+Col<double> link_inv_poisson_(const Col<double> &eta) {
+  return exp(eta);
 }
 
-Col<double> link_inv_logit_(const Col<double> &x) {
-  Col<double> y = exp(x);
-  return y / (1 + y);
+Col<double> link_inv_logit_(const Col<double> &eta) {
+  Col<double> expeta = exp(eta);
+  return expeta / (1 + expeta);
 }
 
-Col<double> link_inv_gamma_(const Col<double> &x) {
-  return 1 / x;
+Col<double> link_inv_gamma_(const Col<double> &eta) {
+  return 1 / eta;
 }
 
-Col<double> link_inv_invgaussian_(const Col<double> &x) {
-  return 1 / sqrt(x);
+Col<double> link_inv_invgaussian_(const Col<double> &eta) {
+  return 1 / sqrt(eta);
 }
 
-Col<double> link_inv_negbin_(const Col<double> &x) {
-  return exp(x);
+Col<double> link_inv_negbin_(const Col<double> &eta) {
+  return exp(eta);
 }
 
 double dev_resids_gaussian_(const Col<double> &y, const Col<double> &mu,
@@ -109,29 +109,53 @@ double dev_resids_negbin_(const Col<double> &y, const Col<double> &mu,
   return 2 * accu(r);
 }
 
-Col<double> mu_eta_gaussian_(const Col<double> &x) {
-  return ones<Col<double>>(x.n_elem);
+Col<double> mu_eta_gaussian_(const Col<double> &eta) {
+  return ones<Col<double>>(eta.n_elem);
 }
 
-Col<double> mu_eta_poisson_(const Col<double> &x) {
-  return exp(x);
+Col<double> mu_eta_poisson_(const Col<double> &eta) {
+  return exp(eta);
 }
 
-Col<double> mu_eta_logit_(const Col<double> &x) {
-  Col<double> y = exp(x);
-  return y / square(1 + y);
+Col<double> mu_eta_logit_(const Col<double> &eta) {
+  Col<double> expeta = exp(eta);
+  return expeta / square(1 + expeta);
 }
 
-Col<double> mu_eta_gamma_(const Col<double> &x) {
-  return -1 / square(x);
+Col<double> mu_eta_gamma_(const Col<double> &eta) {
+  return -1 / square(eta);
 }
 
-Col<double> mu_eta_invgaussian_(const Col<double> &x) {
-  return -1 / (2 * pow(x, 1.5));
+Col<double> mu_eta_invgaussian_(const Col<double> &eta) {
+  return -1 / (2 * pow(eta, 1.5));
 }
 
-Col<double> mu_eta_negbin_(const Col<double> &x) {
-  return exp(x);
+Col<double> mu_eta_negbin_(const Col<double> &eta) {
+  return exp(eta);
+}
+
+Col<double> variance_gaussian_(const Col<double> &mu) {
+  return ones<Col<double>>(mu.n_elem);
+}
+
+Col<double> variance_poisson_(const Col<double> &mu) {
+  return mu;
+}
+
+Col<double> variance_binomial_(const Col<double> &mu) {
+  return mu % (1 - mu);
+}
+
+Col<double> variance_gamma_(const Col<double> &mu) {
+  return square(mu);
+}
+
+Col<double> variance_invgaussian_(const Col<double> &mu) {
+  return pow(mu, 3.0);
+}
+
+Col<double> variance_negbin_(const Col<double> &mu, const double &theta) {
+  return mu + square(mu) / theta;
 }
 
 Col<double> link_inv_(const Col<double> &eta, const std::string &fam) {
@@ -253,17 +277,17 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
   Col<double> res(mu.n_elem);
 
   if (fam == "gaussian") {
-    res.ones();
+    res = variance_gaussian_(mu);
   } else if (fam == "poisson") {
-    res = mu;
+    res = variance_poisson_(mu);
   } else if (fam == "binomial") {
-    res = mu % (1 - mu);
+    res = variance_binomial_(mu);
   } else if (fam == "gamma") {
-    res = square(mu);
+    res = variance_gamma_(mu);
   } else if (fam == "inverse_gaussian") {
-    res = pow(mu, 3.0);
+    res = variance_invgaussian_(mu);
   } else if (fam == "negative_binomial") {
-    res = mu + square(mu) / theta;
+    res = variance_negbin_(mu, theta);
   } else {
     stop("Unknown family");
   }
@@ -419,14 +443,14 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
 
   // Generate result list
 
-  writable::list out(8);
+  writable::list out;
 
   out.push_back({"coefficients"_nm = as_doubles(beta)});
   out.push_back({"eta"_nm = as_doubles(eta)});
   out.push_back({"weights"_nm = as_doubles(wt)});
-  out.push_back({"Hessian"_nm = as_doubles_matrix(H)});
+  out.push_back({"hessian"_nm = as_doubles_matrix(H)});
   out.push_back({"deviance"_nm = dev});
-  out.push_back({"null.deviance"_nm = null_dev});
+  out.push_back({"null_deviance"_nm = null_dev});
   out.push_back({"conv"_nm = conv});
   out.push_back({"iter"_nm = iter});
 

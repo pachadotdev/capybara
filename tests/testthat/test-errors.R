@@ -30,7 +30,7 @@ test_that("error conditions", {
         data = trade_panel_2002,
         family = binomial()
       ),
-      panel.structure = "classic"
+      panel_structure = "classic"
     ), "two-way"
   )
 
@@ -41,7 +41,7 @@ test_that("error conditions", {
         data = trade_panel_2002,
         family = binomial()
       ),
-      panel.structure = "network"
+      panel_structure = "network"
     ), "three-way"
   )
 
