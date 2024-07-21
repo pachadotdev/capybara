@@ -69,16 +69,56 @@ Col<double> link_inv_logit_(const Col<double> &x) {
   return y / (1 + y);
 }
 
+double dev_resids_poisson_(const Col<double> &y, const Col<double> &mu,
+                                const Col<double> &wt) {
+  Col<double> r = mu % wt;
+
+  uvec p = find(y > 0);
+  r(p) = wt(p) % (y(p) % log(y(p) / mu(p)) - (y(p) - mu(p)));
+
+  return 2 * accu(r);
+}
+
 // Adapted from binomial_dev_resids()
 // in R base it can be found in src/library/stats/src/family.c
 // unfortunately the functions that work with a SEXP won't work with a Col<>
-Col<double> dev_resids_logit_(const Col<double> &y, const Col<double> &mu) {
-  Col<double> res(y.n_elem, fill::zeros);
+double dev_resids_logit_(const Col<double> &y, const Col<double> &mu, const Col<double> &wt) {
+  Col<double> r(y.n_elem, fill::zeros);
+  Col<double> s(y.n_elem, fill::zeros);
 
-  uvec p = find(y != 0);
-  res(p) = y(p) % log(y(p) / mu(p));
+  uvec p = find(y == 1);
+  uvec q = find(y == 0);
+  r(p) = y(p) % log(y(p) / mu(p));
+  s(q) = (1 - y(q)) % log((1 - y(q)) / (1 - mu(q)));
 
-  return res;
+  return 2 * accu(wt % (r + s));
+}
+
+double dev_resids_gamma_(const Col<double> &y, const Col<double> &mu,
+                              const Col<double> &wt) {
+  Col<double> r = y / mu;
+  
+  uvec p = find(y == 0);
+  r.elem(p).fill(1.0);
+  r = wt % (log(r) - (y - mu) / mu);
+
+  return -2 * accu(r);
+}
+
+double dev_resids_invgaussian_(const Col<double> &y, const Col<double> &mu,
+                                   const Col<double> &wt) {
+  return accu(wt % square(y - mu) / (y % square(mu)));
+}
+
+double dev_resids_negbin_(const Col<double> &y, const Col<double> &mu,
+                               const double &theta, const Col<double> &wt) {
+  Col<double> r = y;
+  
+  uvec p = find(y < 1);
+  r.elem(p).fill(1.0);
+  r = wt % (y % log(r / mu) - (y + theta) % log((y + theta) / (mu + theta)));
+
+  return 2 * accu(r);
 }
 
 // Col<double> mu_eta_logit_(const Col<double> &x) {
@@ -136,26 +176,15 @@ double dev_resids_(const Col<double> &y, const Col<double> &mu,
   if (fam == "gaussian") {
     res = accu(wt % square(y - mu));
   } else if (fam == "poisson") {
-    uvec p = find(y > 0);
-    Col<double> r = mu % wt;
-    r(p) = wt(p) % (y(p) % log(y(p) / mu(p)) - (y(p) - mu(p)));
-    res = 2 * accu(r);
+    res = dev_resids_poisson_(y, mu, wt);
   } else if (fam == "binomial") {
-    res = 2 * accu(wt % (dev_resids_logit_(y, mu) +
-      dev_resids_logit_(1 - y, 1 - mu)));
+    res = dev_resids_logit_(y, mu, wt);
   } else if (fam == "gamma") {
-    uvec p = find(y == 0.0);
-    Col<double> r = y / mu;
-    r.elem(p).fill(1.0);
-    res = -2.0 * accu(wt % (log(r) - (y - mu) / mu));
+    res = dev_resids_gamma_(y, mu, wt);
   } else if (fam == "inverse_gaussian") {
-    res = accu(wt % square(y - mu) / (y % square(mu)));
+    res = dev_resids_invgaussian_(y, mu, wt);
   } else if (fam == "negative_binomial") {
-    uvec p = find(y < 1);
-    Col<double> r = y;
-    r.elem(p).fill(1.0);
-    res = 2 * accu(wt % (y % log(r / mu) -
-      (y + theta) % log((y + theta) / (mu + theta))));
+    res = dev_resids_negbin_(y, mu, theta, wt);
   } else {
     stop("Unknown family");
   }
@@ -333,7 +362,7 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
       dev_crit_ratio_inner = (dev - dev_old) / (0.1 + abs(dev_old));
       dev_crit = is_finite(dev);
       val_crit = (valid_eta_(eta, fam) && valid_mu_(mu, fam));
-      imp_crit = (dev_crit_ratio_inner <= -dev_tol);
+      imp_crit = (dev_crit_ratio_inner < -dev_tol);
 
       if (dev_crit == true && val_crit == true && imp_crit == true) {
         break;
