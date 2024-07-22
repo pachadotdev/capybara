@@ -106,7 +106,9 @@ check_family_ <- function(family) {
   }
 
   if (family[["family"]] == "binomial" && family[["link"]] != "logit") {
-    stop("The current version only supports logit in the binomial family.", call. = FALSE)
+    stop("The current version only supports logit in the binomial family.
+    This is because I had to rewrite the links in C++ to use those with Armadillo.
+    Send me a Pull Request or open an issue if you need Probit.", call. = FALSE)
   }
 }
 

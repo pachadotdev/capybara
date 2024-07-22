@@ -14,18 +14,18 @@ feglm_offset_ <- function(object, offset) {
   formula <- object[["formula"]]
   lvls_k <- object[["lvls_k"]]
   nt <- object[["nobs"]][["nobs"]]
-  k.vars <- names(lvls_k)
+  k_vars <- names(lvls_k)
 
   # Extract dependent variable
   y <- data[[1L]]
 
   # Extract control arguments
   center_tol <- control[["center_tol"]]
-  dev.tol <- control[["dev.tol"]]
-  iter.max <- control[["iter.max"]]
+  dev_tol <- control[["dev_tol"]]
+  iter_max <- control[["iter_max"]]
 
   # Generate auxiliary list of indexes to project out the fixed effects
-  k.list <- get_index_list_(k.vars, data)
+  k_list <- get_index_list_(k_vars, data)
 
   # Compute starting guess for \eta
   if (family[["family"]] == "binomial") {
@@ -42,10 +42,10 @@ feglm_offset_ <- function(object, offset) {
   Myadj <- as.matrix(numeric(nt))
 
   # Start maximization of the log-likelihood
-  for (iter in seq.int(iter.max)) {
+  for (iter in seq.int(iter_max)) {
     # Store \eta, \beta, and deviance of the previous iteration
-    eta.old <- eta
-    dev.old <- dev
+    eta_old <- eta
+    dev_old <- dev
 
     # Compute weights and dependent variable
     mu.eta <- family[["mu.eta"]](eta)
@@ -53,8 +53,8 @@ feglm_offset_ <- function(object, offset) {
     yadj <- (y - mu) / mu.eta + eta - offset
 
     # Centering dependent variable and compute \eta update
-    Myadj <- center_variables_(Myadj, yadj, w, k.list, center_tol, 10000L, TRUE)
-    eta.upd <- yadj - drop(Myadj) + offset - eta
+    Myadj <- center_variables_r_(Myadj + yadj, w, k_list, center_tol, 10000L)
+    eta_upd <- yadj - drop(Myadj) + offset - eta
 
     # Step-halving with three checks
     # 1. finite deviance
@@ -62,12 +62,12 @@ feglm_offset_ <- function(object, offset) {
     # 3. improvement as in glm2
     rho <- 1.0
     for (inner.iter in seq.int(50L)) {
-      eta <- eta.old + rho * eta.upd
+      eta <- eta_old + rho * eta_upd
       mu <- family[["linkinv"]](eta)
       dev <- sum(family[["dev.resids"]](y, mu, wt))
       dev.crit <- is.finite(dev)
       val.crit <- family[["valideta"]](eta) && family[["validmu"]](mu)
-      imp.crit <- (dev - dev.old) / (0.1 + abs(dev)) <= -dev.tol
+      imp.crit <- (dev - dev_old) / (0.1 + abs(dev)) <= -dev_tol
       if (dev.crit && val.crit && imp.crit) break
       rho <- rho / 2.0
     }
@@ -78,7 +78,7 @@ feglm_offset_ <- function(object, offset) {
     }
 
     # Check termination condition
-    if (abs(dev - dev.old) / (0.1 + abs(dev)) < dev.tol) break
+    if (abs(dev - dev_old) / (0.1 + abs(dev)) < dev_tol) break
 
     # Update starting guesses for acceleration
     Myadj <- Myadj - yadj

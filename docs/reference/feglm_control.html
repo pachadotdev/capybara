@@ -18,7 +18,7 @@ Termination conditions are similar to glm."><meta property="og:image" content="/
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">capybara</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.5.2</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.6.0</span>
       </span>
     </div>
 
@@ -66,33 +66,33 @@ Termination conditions are similar to <code><a href="https://rdrr.io/r/stats/glm
 
     <div id="ref-usage">
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">feglm_control</span><span class="op">(</span></span>
-<span>  dev.tol <span class="op">=</span> <span class="fl">1e-08</span>,</span>
-<span>  center.tol <span class="op">=</span> <span class="fl">1e-08</span>,</span>
-<span>  iter.max <span class="op">=</span> <span class="fl">25L</span>,</span>
+<span>  dev_tol <span class="op">=</span> <span class="fl">1e-08</span>,</span>
+<span>  center_tol <span class="op">=</span> <span class="fl">1e-08</span>,</span>
+<span>  iter_max <span class="op">=</span> <span class="fl">25L</span>,</span>
 <span>  limit <span class="op">=</span> <span class="fl">10L</span>,</span>
 <span>  trace <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  drop.pc <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  keep.mx <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  drop_pc <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  keep_mx <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div id="arguments">
     <h2>Arguments</h2>
-    <dl><dt>dev.tol</dt>
+    <dl><dt>dev_tol</dt>
 <dd><p>tolerance level for the first stopping condition of the
 maximization routine. The stopping condition is based on the relative change
 of the deviance in iteration \(r\) and can be expressed as follows:
 \(|dev_{r} - dev_{r - 1}| / (0.1 + |dev_{r}|) &lt; tol\). The default is <code>1.0e-08</code>.</p></dd>
 
 
-<dt>center.tol</dt>
+<dt>center_tol</dt>
 <dd><p>tolerance level for the stopping condition of the centering
 algorithm. The stopping condition is based on the relative change of the
 centered variable similar to the <code>'lfe'</code> package. The default is
 <code>1.0e-08</code>.</p></dd>
 
 
-<dt>iter.max</dt>
+<dt>iter_max</dt>
 <dd><p>unsigned integer indicating the maximum number of iterations
 in the maximization routine. The default is <code>25L</code>.</p></dd>
 
@@ -107,7 +107,7 @@ in the maximization routine. The default is <code>25L</code>.</p></dd>
 iteration. Default is <code>FALSE</code>.</p></dd>
 
 
-<dt>drop.pc</dt>
+<dt>drop_pc</dt>
 <dd><p>logical indicating to drop observations that are perfectly
 classified/separated and hence do not contribute to the log-likelihood. This
 option is useful to reduce the computational costs of the maximization
@@ -116,7 +116,7 @@ dropping perfectly separated observations does not affect the estimates.
 The default is <code>TRUE</code>.</p></dd>
 
 
-<dt>keep.mx</dt>
+<dt>keep_mx</dt>
 <dd><p>logical indicating if the centered regressor matrix should be
 stored. The centered regressor matrix is required for some covariance
 estimators, bias corrections, and average partial effects. This option saves

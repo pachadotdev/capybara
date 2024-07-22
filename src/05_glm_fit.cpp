@@ -452,7 +452,7 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
   out.push_back({"deviance"_nm = dev});
   out.push_back({"null_deviance"_nm = null_dev});
   out.push_back({"conv"_nm = conv});
-  out.push_back({"iter"_nm = iter});
+  out.push_back({"iter"_nm = iter + 1});
 
   if (keep_mx == true) {
     out.push_back({"MX"_nm = as_doubles_matrix(MX)});
