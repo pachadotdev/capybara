@@ -19,7 +19,7 @@ effects — fenegbin"><meta property="og:description" content="A routine that us
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">capybara</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.5.2</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.6.0</span>
       </span>
     </div>
 
@@ -70,9 +70,9 @@ effects</h1>
 <span>  formula <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  data <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  weights <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  beta.start <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  eta.start <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  init.theta <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  beta_start <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  eta_start <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  init_theta <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  link <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"log"</span>, <span class="st">"identity"</span>, <span class="st">"sqrt"</span><span class="op">)</span>,</span>
 <span>  control <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -98,18 +98,18 @@ in the model.</p></dd>
 variable in <code>data</code>.</p></dd>
 
 
-<dt>beta.start</dt>
+<dt>beta_start</dt>
 <dd><p>an optional vector of starting values for the structural
 parameters in the linear predictor. Default is
 \(\boldsymbol{\beta} = \mathbf{0}\).</p></dd>
 
 
-<dt>eta.start</dt>
+<dt>eta_start</dt>
 <dd><p>an optional vector of starting values for the linear
 predictor.</p></dd>
 
 
-<dt>init.theta</dt>
+<dt>init_theta</dt>
 <dd><p>an optional initial value for the theta parameter (see
 <code><a href="https://rdrr.io/pkg/MASS/man/glm.nb.html" class="external-link">glm.nb</a></code>).</p></dd>
 
@@ -141,7 +141,7 @@ process. See <code><a href="feglm_control.html">feglm_control</a></code> for det
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Formula: trade ~ log_dist + lang + cntg + clny | exp_year + imp_year</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x6194fec80d60&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x5fa3c7540330&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Family: Negative Binomial(1.1839)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>

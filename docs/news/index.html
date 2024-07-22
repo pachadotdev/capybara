@@ -17,7 +17,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">capybara</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.5.2</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.6.0</span>
       </span>
     </div>
 
@@ -57,6 +57,11 @@
       <small>Source: <a href="https://github.com/pachadotdev/capybara/blob/HEAD/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="page-header" data-toc-text="0.6.0" id="capybara-060">capybara 0.6.0<a class="anchor" aria-label="anchor" href="#capybara-060"></a></h2>
+<ul><li>Moves all the heavy computation to C++ using Armadillo and it exports the results to R. Previously, there were multiple data copies between R and C++ that added overhead to the computations.</li>
+<li>For a future release, I may rewrite the offset and APES computation to C++, but with those the overhead is minimal.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="page-header" data-toc-text="0.5.2" id="capybara-052">capybara 0.5.2<a class="anchor" aria-label="anchor" href="#capybara-052"></a></h2>
 <ul><li>Uses an O(n log(n)) algorithm to compute the Kendall correlation for the pseudo-R2 in the Poisson model.</li></ul></div>

@@ -5,28 +5,28 @@
 \title{Set \code{feglm} Control Parameters}
 \usage{
 feglm_control(
-  dev.tol = 1e-08,
-  center.tol = 1e-08,
-  iter.max = 25L,
+  dev_tol = 1e-08,
+  center_tol = 1e-08,
+  iter_max = 25L,
   limit = 10L,
   trace = FALSE,
-  drop.pc = TRUE,
-  keep.mx = TRUE
+  drop_pc = TRUE,
+  keep_mx = TRUE
 )
 }
 \arguments{
-\item{dev.tol}{tolerance level for the first stopping condition of the
+\item{dev_tol}{tolerance level for the first stopping condition of the
 maximization routine. The stopping condition is based on the relative change
 of the deviance in iteration \eqn{r} and can be expressed as follows:
 \eqn{|dev_{r} - dev_{r - 1}| / (0.1 + |dev_{r}|) < tol}{|dev - devold| /
  (0.1 + |dev|) < tol}. The default is \code{1.0e-08}.}
 
-\item{center.tol}{tolerance level for the stopping condition of the centering
+\item{center_tol}{tolerance level for the stopping condition of the centering
 algorithm. The stopping condition is based on the relative change of the
 centered variable similar to the \code{'lfe'} package. The default is
 \code{1.0e-08}.}
 
-\item{iter.max}{unsigned integer indicating the maximum number of iterations
+\item{iter_max}{unsigned integer indicating the maximum number of iterations
 in the maximization routine. The default is \code{25L}.}
 
 \item{limit}{unsigned integer indicating the maximum number of iterations of
@@ -35,14 +35,14 @@ in the maximization routine. The default is \code{25L}.}
 \item{trace}{logical indicating if output should be produced in each
 iteration. Default is \code{FALSE}.}
 
-\item{drop.pc}{logical indicating to drop observations that are perfectly
+\item{drop_pc}{logical indicating to drop observations that are perfectly
 classified/separated and hence do not contribute to the log-likelihood. This
 option is useful to reduce the computational costs of the maximization
 problem and improves the numerical stability of the algorithm. Note that
 dropping perfectly separated observations does not affect the estimates.
 The default is \code{TRUE}.}
 
-\item{keep.mx}{logical indicating if the centered regressor matrix should be
+\item{keep_mx}{logical indicating if the centered regressor matrix should be
 stored. The centered regressor matrix is required for some covariance
 estimators, bias corrections, and average partial effects. This option saves
 some computation time at the cost of memory. The default is \code{TRUE}.}

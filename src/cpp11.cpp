@@ -5,6 +5,13 @@
 #include "cpp11/declarations.hpp"
 #include <R_ext/Visibility.h>
 
+// 01_center_variables.cpp
+doubles_matrix<> center_variables_r_(const doubles_matrix<> & V_r, const doubles & w_r, const list & klist, const double & tol, const int & maxiter);
+extern "C" SEXP _capybara_center_variables_r_(SEXP V_r, SEXP w_r, SEXP klist, SEXP tol, SEXP maxiter) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(center_variables_r_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(V_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(w_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(klist), cpp11::as_cpp<cpp11::decay_t<const double &>>(tol), cpp11::as_cpp<cpp11::decay_t<const int &>>(maxiter)));
+  END_CPP11
+}
 // 02_get_alpha.cpp
 list get_alpha_(const doubles_matrix<> & p_r, const list & klist, const double & tol);
 extern "C" SEXP _capybara_get_alpha_(SEXP p_r, SEXP klist, SEXP tol) {
@@ -64,6 +71,7 @@ extern "C" SEXP _capybara_pkendall_(SEXP Q, SEXP n) {
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
+    {"_capybara_center_variables_r_",  (DL_FUNC) &_capybara_center_variables_r_,  5},
     {"_capybara_feglm_fit_",           (DL_FUNC) &_capybara_feglm_fit_,           9},
     {"_capybara_get_alpha_",           (DL_FUNC) &_capybara_get_alpha_,           3},
     {"_capybara_group_sums_",          (DL_FUNC) &_capybara_group_sums_,          3},

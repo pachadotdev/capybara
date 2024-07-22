@@ -121,27 +121,27 @@ to test with testthat.
 Median time for the different models in the book
 [An Advanced Guide to Trade Policy Analysis](https://www.wto.org/english/res_e/publications_e/advancedguide2016_e.htm).
 
-|package      |    PPML| Trade Diversion| Endogeneity| Reverse Causality| Non-linear/Phasing Effects| Globalization|
-|:------------|-------:|---------------:|-----------:|-----------------:|--------------------------:|-------------:|
-|Alpaca       |   261ms|             2s |         2s |               2s |                        3s |           6s |
-|Base R       |     2m |             2m |        23m |              24m |                       23m |          25m |
-|**Capybara** |   364ms|             3s |         1s |               2s |                        2s |           4s |
-|Fixest       |    69ms|           488ms|       125ms|             148ms|                      251ms|         497ms|
+| package     |   PPML | Trade Diversion  | Endogeneity | Reverse Causality | Non-linear/Phasing Effects | Globalization |
+|:------------|-------:|-----------------:|------------:|-----------------:|----------------------------:|--------------:|
+| Alpaca      |   0.4s |             2.6s |        1.6s |             2.0s |                        3.1s |          5.3s |
+| Base R      | 120.0s |             2.0m |     1380.0s |          1440.0s |                     1380.0s |       1500.0s |
+| **Capybara**|   0.3s |             2.2s |        1.4s |             1.7s |                        2.1s |          3.9s |
+| Fixest      |   0.1s |             0.5s |        0.1s |             0.2s |                        0.3s |          0.5s |
 
 Memory allocation for the same models
 
 |package      |    PPML| Trade Diversion| Endogeneity| Reverse Causality| Non-linear/Phasing Effects| Globalization|
 |:------------|-------:|---------------:|-----------:|-----------------:|--------------------------:|-------------:|
-|Alpaca       |   306MB|           341MB|       306MB|             336MB|                      395MB|         541MB|
-|Base R       |     3GB|             3GB|        12GB|              12GB|                       12GB|          12GB|
-|**Capybara** |   211MB|           235MB|       243MB|             250MB|                      265MB|         302MB|
-|Fixest       |    44MB|            36MB|        27MB|              32MB|                       41MB|          63MB|
+|Alpaca       |  307MB |          341MB |      306MB |            336MB |                     395MB |        541MB |
+|Base R       | 3000MB |         3000MB |    12000MB |          12000GB |                   12000GB |      12000MB |
+|**Capybara** |   29MB |           34MB |       21MB |             24MB |                      30MB |         47MB |
+|Fixest       |   44MB |           36MB |       27MB |             32MB |                      41MB |         63MB |
 
 # Debugging
 
 *This debugging is about code quality, not about statistical quality.*
 *There is a full set of numerical tests for testthat to check the math.*
-*In this section of the test, I can write pi = 3 and if there are no memory
+*In this section of the test, I could write "pi = 3" and if there are no memory
 leaks, it will pass the test.*
 
 I run `r_valgrind "dev/test_get_alpha.r"` or the corresponding test from the

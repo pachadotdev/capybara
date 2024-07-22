@@ -11,10 +11,10 @@
 )
 }
 \arguments{
-\item{object}{an object of class \code{"feglm"}.}
+\item{object}{an object of class \code{"felm"}.}
 
 \item{type}{the type of covariance estimate required. \code{"hessian"} refers
-to the inverse of the negative expected Hessian after convergence and is the
+to the inverse of the negative expected hessian after convergence and is the
 default option. \code{"outer.product"} is the outer-product-of-the-gradient
 estimator. \code{"sandwich"} is the sandwich estimator (sometimes also
 referred as robust estimator), and \code{"clustered"} computes a clustered
@@ -29,8 +29,8 @@ A named matrix of covariance estimates.
 }
 \description{
 Covariance matrix for the estimator of the structural parameters
-from objects returned by \code{\link{feglm}}. The covariance is computed
-from the Hessian, the scores, or a combination of both after convergence.
+from objects returned by \code{\link{felm}}. The covariance is computed
+from the hessian, the scores, or a combination of both after convergence.
 }
 \examples{
 mod <- fepoisson(
