@@ -117,27 +117,27 @@ Median time for the different models in the book [An Advanced Guide to
 Trade Policy
 Analysis](https://www.wto.org/english/res_e/publications_e/advancedguide2016_e.htm).
 
-| package      |    PPML | Trade Diversion | Endogeneity | Reverse Causality | Non-linear/Phasing Effects | Globalization |
-| :----------- | ------: | --------------: | ----------: | ----------------: | -------------------------: | ------------: |
-| Alpaca       | 346.4ms |           2.52s |       1.51s |              1.9s |                      2.96s |         5.57s |
-| Base R       |    1.5m |           1.53m |      23.43m |            23.52m |                     23.16m |        24.85m |
-| **Capybara** |   440ms |           2.86s |       1.92s |             2.29s |                      2.96s |         4.46s |
-| Fixest       |  64.9ms |           503ms |    106.14ms |          145.04ms |                   243.61ms |       524.7ms |
+| package      |   PPML | Trade Diversion | Endogeneity | Reverse Causality | Non-linear/Phasing Effects | Globalization |
+| :----------- | -----: | --------------: | ----------: | ----------------: | -------------------------: | ------------: |
+| Alpaca       |   0.4s |            2.6s |        1.6s |              2.0s |                       3.1s |          5.3s |
+| Base R       | 120.0s |            2.0m |     1380.0s |           1440.0s |                    1380.0s |       1500.0s |
+| **Capybara** |   0.3s |            2.0s |        1.2s |              1.4s |                       1.7s |          3.4s |
+| Fixest       |   0.1s |            0.5s |        0.1s |              0.2s |                       0.3s |          0.5s |
 
 Memory allocation for the same models
 
 | package      |   PPML | Trade Diversion | Endogeneity | Reverse Causality | Non-linear/Phasing Effects | Globalization |
 | :----------- | -----: | --------------: | ----------: | ----------------: | -------------------------: | ------------: |
-| Alpaca       |  306MB |         340.8MB |     306.4MB |           335.9MB |                    394.6MB |       541.3MB |
-| Base R       |  2.7GB |           2.6GB |      11.9GB |           11.92GB |                    11.95GB |       11.97GB |
-| **Capybara** |  210MB |           235MB |       241MB |             249MB |                      263MB |         299MB |
-| Fixest       | 44.4MB |          36.4MB |      27.9MB |            32.2MB |                     40.9MB |        62.7MB |
+| Alpaca       |  307MB |           341MB |       306MB |             336MB |                      395MB |         541MB |
+| Base R       | 3000MB |          3000MB |     12000MB |           12000GB |                    12000GB |       12000MB |
+| **Capybara** |   27MB |            32MB |        20MB |              23MB |                       29MB |          43MB |
+| Fixest       |   44MB |            36MB |        27MB |              32MB |                       41MB |          63MB |
 
 # Debugging
 
 *This debugging is about code quality, not about statistical quality.*
 *There is a full set of numerical tests for testthat to check the math.*
-*In this section of the test, I can write pi = 3 and if there are no
+*In this section of the test, I could write “pi = 3” and if there are no
 memory leaks, it will pass the test.*
 
 I run `r_valgrind "dev/test_get_alpha.r"` or the corresponding test from
@@ -219,3 +219,10 @@ leaks.
 
 When you are ready testing, you need to remove `-UDEGUG` from
 `src/Makevars`.
+
+## Code of Conduct
+
+Please note that the capybara project is released with a [Contributor
+Code of
+Conduct](https://contributor-covenant.org/version/2/1/CODE_OF_CONDUCT.html).
+By contributing to this project, you agree to abide by its terms.

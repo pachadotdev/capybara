@@ -1,4 +1,4 @@
-test_that("multiplication works", {
+test_that("error conditions", {
   trade_panel_2002 <- trade_panel[trade_panel$year == 2002, ]
   trade_panel_2002$trade_100 <- ifelse(trade_panel_2002$trade >= 100, 1, 0)
   trade_panel_2002$trade_200_100 <- as.factor(ifelse(trade_panel_2002$trade >= 200, 1,
@@ -30,7 +30,7 @@ test_that("multiplication works", {
         data = trade_panel_2002,
         family = binomial()
       ),
-      panel.structure = "classic"
+      panel_structure = "classic"
     ), "two-way"
   )
 
@@ -41,7 +41,7 @@ test_that("multiplication works", {
         data = trade_panel_2002,
         family = binomial()
       ),
-      panel.structure = "network"
+      panel_structure = "network"
     ), "three-way"
   )
 
@@ -51,7 +51,7 @@ test_that("multiplication works", {
     fepoisson(
       trade ~ log_dist | rta,
       data = trade_panel_2002,
-      control = list(dev.tol = -1.0)
+      control = list(dev_tol = -1.0)
     ),
     "greater than zero"
   )
@@ -60,7 +60,7 @@ test_that("multiplication works", {
     fepoisson(
       trade ~ log_dist | rta,
       data = trade_panel_2002,
-      control = list(iter.max = 0)
+      control = list(iter_max = 0)
     ),
     "at least one"
   )

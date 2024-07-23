@@ -5,7 +5,7 @@
 \title{Asymptotic bias correction after fitting binary choice models with a
 1,2,3-way error component}
 \usage{
-bias_corr(object = NULL, L = 0L, panel.structure = c("classic", "network"))
+bias_corr(object = NULL, L = 0L, panel_structure = c("classic", "network"))
 }
 \arguments{
 \item{object}{an object of class \code{"feglm"}.}
@@ -18,7 +18,7 @@ weakly exogenous regressors, e.g. lagged outcome variables, we suggest to
 choose a bandwidth between one and four. Note that the order of factors to
 be partialed out is important for bandwidths larger than zero.}
 
-\item{panel.structure}{a string equal to \code{"classic"} or \code{"network"}
+\item{panel_structure}{a string equal to \code{"classic"} or \code{"network"}
 which determines the structure of the panel used. \code{"classic"} denotes
 panel structures where for example the same cross-sectional units are
 observed several times (this includes pseudo panels). \code{"network"}

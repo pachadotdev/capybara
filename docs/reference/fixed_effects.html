@@ -20,7 +20,7 @@ the fixed effects."><meta property="og:image" content="/logo.svg"><!-- mathjax -
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">capybara</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.5.2</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.6.0</span>
       </span>
     </div>
 
@@ -69,7 +69,7 @@ the fixed effects.</p>
     </div>
 
     <div id="ref-usage">
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">fixed_effects</span><span class="op">(</span>object <span class="op">=</span> <span class="cn">NULL</span>, alpha.tol <span class="op">=</span> <span class="fl">1e-08</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">fixed_effects</span><span class="op">(</span>object <span class="op">=</span> <span class="cn">NULL</span>, alpha_tol <span class="op">=</span> <span class="fl">1e-08</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div id="arguments">
@@ -78,7 +78,7 @@ the fixed effects.</p>
 <dd><p>an object of class <code>"feglm"</code>.</p></dd>
 
 
-<dt>alpha.tol</dt>
+<dt>alpha_tol</dt>
 <dd><p>tolerance level for the stopping condition. The algorithm is
 stopped at iteration \(i\) if \(||\boldsymbol{\alpha}_{i} -
  \boldsymbol{\alpha}_{i - 1}||_{2} &lt; tol ||\boldsymbol{\alpha}_{i - 1}||

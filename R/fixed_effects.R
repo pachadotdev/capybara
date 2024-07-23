@@ -4,7 +4,7 @@
 #'  function has to be applied to our solution to get meaningful estimates of
 #'  the fixed effects.
 #' @param object an object of class \code{"feglm"}.
-#' @param alpha.tol tolerance level for the stopping condition. The algorithm is
+#' @param alpha_tol tolerance level for the stopping condition. The algorithm is
 #'  stopped at iteration \eqn{i} if \eqn{||\boldsymbol{\alpha}_{i} -
 #'  \boldsymbol{\alpha}_{i - 1}||_{2} < tol ||\boldsymbol{\alpha}_{i - 1}||
 #'  {2}}{||\Delta \alpha|| < tol ||\alpha_old||}. Default is \code{1.0e-08}.
@@ -23,7 +23,7 @@
 #'
 #' fixed_effects(mod)
 #' @export
-fixed_effects <- function(object = NULL, alpha.tol = 1.0e-08) {
+fixed_effects <- function(object = NULL, alpha_tol = 1.0e-08) {
   # Check validity of 'object'
   if (is.null(object)) {
     stop("'object' has to be specified.", call. = FALSE)
@@ -39,31 +39,31 @@ fixed_effects <- function(object = NULL, alpha.tol = 1.0e-08) {
   beta <- object[["coefficients"]]
   data <- object[["data"]]
   formula <- object[["formula"]]
-  lvls.k <- object[["lvls.k"]]
-  nms.fe <- object[["nms.fe"]]
-  k.vars <- names(lvls.k)
-  k <- length(lvls.k)
+  lvls_k <- object[["lvls_k"]]
+  nms_fe <- object[["nms_fe"]]
+  k_vars <- names(lvls_k)
+  k <- length(lvls_k)
   eta <- object[["eta"]]
 
   # Extract regressor matrix
   X <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
-  nms.sp <- attr(X, "dimnames")[[2L]]
+  nms_sp <- attr(X, "dimnames")[[2L]]
   attr(X, "dimnames") <- NULL
 
   # Generate auxiliary list of indexes for different sub panels
-  k.list <- get_index_list_(k.vars, data)
+  k_list <- get_index_list_(k_vars, data)
 
   # Recover fixed effects by alternating the solutions of normal equations
-  pie <- eta - solve_y_(X, beta)
-  fe.list <- as.list(get_alpha_(pie, k.list, alpha.tol))
+  pie <- eta - X %*% beta
+  fe_list <- as.list(get_alpha_(pie, k_list, alpha_tol))
 
   # Assign names to the different fixed effects categories
   for (i in seq.int(k)) {
-    colnames(fe.list[[i]]) <- k.vars[i]
-    rownames(fe.list[[i]]) <- nms.fe[[i]]
+    colnames(fe_list[[i]]) <- k_vars[i]
+    rownames(fe_list[[i]]) <- nms_fe[[i]]
   }
-  names(fe.list) <- k.vars
+  names(fe_list) <- k_vars
 
   # Return list of estimated fixed effects
-  fe.list
+  fe_list
 }

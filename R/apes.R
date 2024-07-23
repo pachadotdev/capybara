@@ -13,27 +13,27 @@
 #'
 #' @param object an object of class \code{"bias_corr"} or \code{"feglm"};
 #'  currently restricted to \code{\link[stats]{binomial}}.
-#' @param n.pop unsigned integer indicating a finite population correction for
+#' @param n_pop unsigned integer indicating a finite population correction for
 #'  the estimation of the covariance matrix of the average partial effects
 #'  proposed by Cruz-Gonzalez, Fernández-Val, and Weidner (2017). The correction
 #'  factor is computed as follows:
-#'  \eqn{(n^{\ast} - n) / (n^{\ast} - 1)}{(n.pop - n) / (n.pop - 1)},
-#'  where \eqn{n^{\ast}}{n.pop} and \eqn{n}{n} are the sizes of the entire
+#'  \eqn{(n^{\ast} - n) / (n^{\ast} - 1)}{(n_pop - n) / (n_pop - 1)},
+#'  where \eqn{n^{\ast}}{n_pop} and \eqn{n}{n} are the sizes of the entire
 #'  population and the full sample size. Default is \code{NULL}, which refers to
 #'  a factor of zero and a covariance obtained by the delta method.
-#' @param panel.structure a string equal to \code{"classic"} or \code{"network"}
+#' @param panel_structure a string equal to \code{"classic"} or \code{"network"}
 #'  which determines the structure of the panel used. \code{"classic"} denotes
 #'  panel structures where for example the same cross-sectional units are
 #'  observed several times (this includes pseudo panels). \code{"network"}
 #'  denotes panel structures where for example bilateral trade flows are
 #'  observed for several time periods. Default is \code{"classic"}.
-#' @param sampling.fe a string equal to \code{"independence"} or
+#' @param sampling_fe a string equal to \code{"independence"} or
 #'  \code{"unrestricted"} which imposes sampling assumptions about the
 #'  unobserved effects. \code{"independence"} imposes that all unobserved
 #'  effects are independent sequences. \code{"unrestricted"} does not impose any
 #'  sampling assumptions. Note that this option only affects the optional finite
 #'  population correction. Default is \code{"independence"}.
-#' @param weak.exo logical indicating if some of the regressors are assumed to
+#' @param weak_exo logical indicating if some of the regressors are assumed to
 #'  be weakly exogenous (e.g. predetermined). If object is of class
 #'  \code{"bias_corr"}, the option will be automatically set to \code{TRUE} if
 #'  the chosen bandwidth parameter is larger than zero. Note that this option
@@ -83,10 +83,10 @@
 #' @export
 apes <- function(
     object = NULL,
-    n.pop = NULL,
-    panel.structure = c("classic", "network"),
-    sampling.fe = c("independence", "unrestricted"),
-    weak.exo = FALSE) {
+    n_pop = NULL,
+    panel_structure = c("classic", "network"),
+    sampling_fe = c("independence", "unrestricted"),
+    weak_exo = FALSE) {
   # Check validity of 'object'
   if (is.null(object)) {
     stop("'object' has to be specified.", call. = FALSE)
@@ -95,22 +95,22 @@ apes <- function(
   }
 
   # Extract prior information if available or check validity of
-  # 'panel.structure'
+  # 'panel_structure'
   bias_corr <- inherits(object, "bias_corr")
   if (bias_corr) {
-    panel.structure <- object[["panel.structure"]]
+    panel_structure <- object[["panel_structure"]]
     L <- object[["bandwidth"]]
     if (L > 0L) {
-      weak.exo <- TRUE
+      weak_exo <- TRUE
     } else {
-      weak.exo <- FALSE
+      weak_exo <- FALSE
     }
   } else {
-    panel.structure <- match.arg(panel.structure)
+    panel_structure <- match.arg(panel_structure)
   }
 
-  # Check validity of 'sampling.fe'
-  sampling.fe <- match.arg(sampling.fe)
+  # Check validity of 'sampling_fe'
+  sampling_fe <- match.arg(sampling_fe)
 
   # Extract model information
   beta <- object[["coefficients"]]
@@ -119,11 +119,11 @@ apes <- function(
   eps <- .Machine[["double.eps"]]
   family <- object[["family"]]
   formula <- object[["formula"]]
-  lvls.k <- object[["lvls.k"]]
+  lvls_k <- object[["lvls_k"]]
   nt <- object[["nobs"]][["nobs"]]
-  nt.full <- object[["nobs"]][["nobs.full"]]
-  k <- length(lvls.k)
-  k.vars <- names(lvls.k)
+  nt.full <- object[["nobs"]][["nobs_full"]]
+  k <- length(lvls_k)
+  k_vars <- names(lvls_k)
   p <- length(beta)
 
   # Check if binary choice model
@@ -134,11 +134,11 @@ apes <- function(
   }
 
   # Check if provided object matches requested panel structure
-  if (panel.structure == "classic") {
+  if (panel_structure == "classic") {
     if (!(k %in% c(1L, 2L))) {
       stop(
         paste(
-          "panel.structure == 'classic' expects a one- or two-way fixed",
+          "panel_structure == 'classic' expects a one- or two-way fixed",
           "effects model."
         ),
         call. = FALSE
@@ -148,7 +148,7 @@ apes <- function(
     if (!(k %in% c(2L, 3L))) {
       stop(
         paste(
-          "panel.structure == 'network' expects a two- or three-way fixed",
+          "panel_structure == 'network' expects a two- or three-way fixed",
           "effects model."
         ),
         call. = FALSE
@@ -156,11 +156,11 @@ apes <- function(
     }
   }
 
-  # Check validity of 'n.pop'
+  # Check validity of 'n_pop'
   # Note: Default option is no adjustment i.e. only delta method covariance
-  if (!is.null(n.pop)) {
-    n.pop <- as.integer(n.pop)
-    if (n.pop < nt.full) {
+  if (!is.null(n_pop)) {
+    n_pop <- as.integer(n_pop)
+    if (n_pop < nt.full) {
       warning(
         paste(
           "Size of the entire population is lower than the full sample size.",
@@ -170,7 +170,7 @@ apes <- function(
       )
       adj <- 0.0
     } else {
-      adj <- (n.pop - nt.full) / (n.pop - 1L)
+      adj <- (n_pop - nt.full) / (n_pop - 1L)
     }
   } else {
     adj <- 0.0
@@ -187,7 +187,7 @@ apes <- function(
   binary <- apply(X, 2L, function(x) all(x %in% c(0.0, 1.0)))
 
   # Generate auxiliary list of indexes for different sub panels
-  k.list <- get_index_list_(k.vars, data)
+  k_list <- get_index_list_(k_vars, data)
 
   # Compute derivatives and weights
   eta <- object[["eta"]]
@@ -205,10 +205,10 @@ apes <- function(
   }
 
   # Center regressor matrix (if required)
-  if (control[["keep.mx"]]) {
+  if (control[["keep_mx"]]) {
     MX <- object[["MX"]]
   } else {
-    MX <- center_variables_(X, NA_real_, w, k.list, control[["center.tol"]], 100000L, FALSE)
+    MX <- center_variables_r_(X, w, k_list, control[["center_tol"]], 10000L)
   }
 
   # Compute average partial effects, derivatives, and Jacobian
@@ -243,7 +243,7 @@ apes <- function(
 
   # Compute projection and residual projection of \Psi
   Psi <- -Delta1 / w
-  MPsi <- center_variables_(Psi, NA_real_, w, k.list, control[["center.tol"]], 100000L, FALSE)
+  MPsi <- center_variables_r_(Psi, w, k_list, control[["center_tol"]], 10000L)
   PPsi <- Psi - MPsi
   rm(Delta1, Psi)
 
@@ -264,28 +264,28 @@ apes <- function(
     }
 
     # Compute bias terms for requested bias correction
-    if (panel.structure == "classic") {
+    if (panel_structure == "classic") {
       # Compute \hat{B} and \hat{D}
-      b <- group_sums_(Delta2 + PPsi * z, w, k.list[[1L]]) / (2.0 * nt)
+      b <- group_sums_(Delta2 + PPsi * z, w, k_list[[1L]]) / (2.0 * nt)
       if (k > 1L) {
-        b <- (b + group_sums_(Delta2 + PPsi * z, w, k.list[[2L]])) / (2.0 * nt)
+        b <- (b + group_sums_(Delta2 + PPsi * z, w, k_list[[2L]])) / (2.0 * nt)
       }
 
       # Compute spectral density part of \hat{B}
       if (L > 0L) {
-        b <- (b - group_sums_spectral_(MPsi * w, v, w, L, k.list[[1L]])) / nt
+        b <- (b - group_sums_spectral_(MPsi * w, v, w, L, k_list[[1L]])) / nt
       }
     } else {
       # Compute \hat{D}_{1}, \hat{D}_{2}, and \hat{B}
-      b <- group_sums_(Delta2 + PPsi * z, w, k.list[[1L]]) / (2.0 * nt)
-      b <- (b + group_sums_(Delta2 + PPsi * z, w, k.list[[2L]])) / (2.0 * nt)
+      b <- group_sums_(Delta2 + PPsi * z, w, k_list[[1L]]) / (2.0 * nt)
+      b <- (b + group_sums_(Delta2 + PPsi * z, w, k_list[[2L]])) / (2.0 * nt)
       if (k > 2L) {
-        b <- (b + group_sums_(Delta2 + PPsi * z, w, k.list[[3L]])) / (2.0 * nt)
+        b <- (b + group_sums_(Delta2 + PPsi * z, w, k_list[[3L]])) / (2.0 * nt)
       }
 
       # Compute spectral density part of \hat{B}
       if (k > 2L && L > 0L) {
-        b <- (b - group_sums_spectral_(MPsi * w, v, w, L, k.list[[3L]])) / nt
+        b <- (b - group_sums_spectral_(MPsi * w, v, w, L, k_list[[3L]])) / nt
       }
     }
     rm(Delta2)
@@ -296,33 +296,33 @@ apes <- function(
   rm(eta, w, z, MPsi)
 
   # Compute covariance matrix
-  Gamma <- gamma_(MX, object[["Hessian"]], J, PPsi, v, nt.full)
-  V <- crossprod_(Gamma, NA_real_, FALSE, FALSE)
+  Gamma <- gamma_(MX, object[["hessian"]], J, PPsi, v, nt.full)
+  V <- crossprod(Gamma)
 
   if (adj > 0.0) {
     # Simplify covariance if sampling assumptions are imposed
-    if (sampling.fe == "independence") {
-      V <- V + adj * group_sums_var_(Delta, k.list[[1L]])
+    if (sampling_fe == "independence") {
+      V <- V + adj * group_sums_var_(Delta, k_list[[1L]])
       if (k > 1L) {
-        V <- V + adj * (group_sums_var_(Delta, k.list[[2L]]) - crossprod_(Delta, NA_real_, FALSE, FALSE))
+        V <- V + adj * (group_sums_var_(Delta, k_list[[2L]]) - crossprod(Delta))
       }
-      if (panel.structure == "network") {
+      if (panel_structure == "network") {
         if (k > 2L) {
-          V <- V + adj * (group_sums_var_(Delta, k.list[[3L]]) -
-            crossprod_(Delta, NA_real_, FALSE, FALSE))
+          V <- V + adj * (group_sums_var_(Delta, k_list[[3L]]) -
+            crossprod(Delta))
         }
       }
     }
 
     # Add covariance in case of weak exogeneity
-    if (weak.exo) {
-      if (panel.structure == "classic") {
-        C <- group_sums_cov_(Delta, Gamma, k.list[[1L]])
+    if (weak_exo) {
+      if (panel_structure == "classic") {
+        C <- group_sums_cov_(Delta, Gamma, k_list[[1L]])
         V <- V + adj * (C + t(C))
         rm(C)
       } else {
         if (k > 2L) {
-          C <- group_sums_cov_(Delta, Gamma, k.list[[3L]])
+          C <- group_sums_cov_(Delta, Gamma, k_list[[3L]])
           V <- V + adj * (C + t(C))
           rm(C)
         }
@@ -338,9 +338,9 @@ apes <- function(
   reslist <- list(
     delta           = delta,
     vcov            = V,
-    panel.structure = panel.structure,
-    sampling.fe     = sampling.fe,
-    weak.exo        = weak.exo
+    panel_structure = panel_structure,
+    sampling_fe     = sampling_fe,
+    weak_exo        = weak_exo
   )
 
   # Update result list
