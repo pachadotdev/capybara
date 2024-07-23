@@ -9,9 +9,9 @@ fenegbin(
   formula = NULL,
   data = NULL,
   weights = NULL,
-  beta.start = NULL,
-  eta.start = NULL,
-  init.theta = NULL,
+  beta_start = NULL,
+  eta_start = NULL,
+  init_theta = NULL,
   link = c("log", "identity", "sqrt"),
   control = NULL
 )
@@ -29,14 +29,14 @@ in the model.}
 \item{weights}{an optional string with the name of the 'prior weights'
 variable in \code{data}.}
 
-\item{beta.start}{an optional vector of starting values for the structural
+\item{beta_start}{an optional vector of starting values for the structural
 parameters in the linear predictor. Default is
 \eqn{\boldsymbol{\beta} = \mathbf{0}}{\beta = 0}.}
 
-\item{eta.start}{an optional vector of starting values for the linear
+\item{eta_start}{an optional vector of starting values for the linear
 predictor.}
 
-\item{init.theta}{an optional initial value for the theta parameter (see
+\item{init_theta}{an optional initial value for the theta parameter (see
 \code{\link[MASS]{glm.nb}}).}
 
 \item{link}{the link function. Must be one of \code{"log"}, \code{"sqrt"}, or

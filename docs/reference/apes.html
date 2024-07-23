@@ -26,7 +26,7 @@ partial effects based on functional forms like interactions and polynomials."><m
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">capybara</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.5.2</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.6.0</span>
       </span>
     </div>
 
@@ -82,10 +82,10 @@ partial effects based on functional forms like interactions and polynomials.</p>
     <div id="ref-usage">
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">apes</span><span class="op">(</span></span>
 <span>  object <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  n.pop <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  panel.structure <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"classic"</span>, <span class="st">"network"</span><span class="op">)</span>,</span>
-<span>  sampling.fe <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"independence"</span>, <span class="st">"unrestricted"</span><span class="op">)</span>,</span>
-<span>  weak.exo <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  n_pop <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  panel_structure <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"classic"</span>, <span class="st">"network"</span><span class="op">)</span>,</span>
+<span>  sampling_fe <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"independence"</span>, <span class="st">"unrestricted"</span><span class="op">)</span>,</span>
+<span>  weak_exo <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -96,7 +96,7 @@ partial effects based on functional forms like interactions and polynomials.</p>
 currently restricted to <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></code>.</p></dd>
 
 
-<dt>n.pop</dt>
+<dt>n_pop</dt>
 <dd><p>unsigned integer indicating a finite population correction for
 the estimation of the covariance matrix of the average partial effects
 proposed by Cruz-Gonzalez, Fernández-Val, and Weidner (2017). The correction
@@ -107,7 +107,7 @@ population and the full sample size. Default is <code>NULL</code>, which refers 
 a factor of zero and a covariance obtained by the delta method.</p></dd>
 
 
-<dt>panel.structure</dt>
+<dt>panel_structure</dt>
 <dd><p>a string equal to <code>"classic"</code> or <code>"network"</code>
 which determines the structure of the panel used. <code>"classic"</code> denotes
 panel structures where for example the same cross-sectional units are
@@ -116,7 +116,7 @@ denotes panel structures where for example bilateral trade flows are
 observed for several time periods. Default is <code>"classic"</code>.</p></dd>
 
 
-<dt>sampling.fe</dt>
+<dt>sampling_fe</dt>
 <dd><p>a string equal to <code>"independence"</code> or
 <code>"unrestricted"</code> which imposes sampling assumptions about the
 unobserved effects. <code>"independence"</code> imposes that all unobserved
@@ -125,7 +125,7 @@ sampling assumptions. Note that this option only affects the optional finite
 population correction. Default is <code>"independence"</code>.</p></dd>
 
 
-<dt>weak.exo</dt>
+<dt>weak_exo</dt>
 <dd><p>logical indicating if some of the regressors are assumed to
 be weakly exogenous (e.g. predetermined). If object is of class
 <code>"bias_corr"</code>, the option will be automatically set to <code>TRUE</code> if
@@ -178,7 +178,7 @@ partially consistent observations". Econometrica, 16(1), 1-32.</p>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod_ape</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Estimates:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>      Estimate Std. Error z value Pr(&gt;|z|)    </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> lang  0.05594    0.01512   3.699 0.000217 ***</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> lang  0.05594    0.01513   3.698 0.000218 ***</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> ---</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1</span>
 <span class="r-in"><span></span></span>
@@ -186,7 +186,7 @@ partially consistent observations". Econometrica, 16(1), 1-32.</p>
 <span class="r-in"><span><span class="va">mod_bc</span> <span class="op">&lt;-</span> <span class="fu"><a href="bias_corr.html">bias_corr</a></span><span class="op">(</span><span class="va">mod</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod_bc</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Formula: trade ~ lang | year</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x6194fd0f13a0&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x579102d4cff0&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Family: Binomial</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
@@ -194,7 +194,7 @@ partially consistent observations". Econometrica, 16(1), 1-32.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> |      | Estimate | Std. Error | z value | Pr(&gt;|z|)   |</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> |------|----------|------------|---------|------------|</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> | lang |   0.2393 |     0.0634 |  3.7724 | 0.0002 *** |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | lang |   0.2394 |     0.0634 |  3.7740 | 0.0002 *** |</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Significance codes: *** 99.9%; ** 99%; * 95%; . 90%</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
@@ -207,7 +207,7 @@ partially consistent observations". Econometrica, 16(1), 1-32.</p>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod_ape_bc</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Estimates:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>      Estimate Std. Error z value Pr(&gt;|z|)    </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> lang  0.05593    0.01512   3.698 0.000217 ***</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> lang  0.05596    0.01513   3.699 0.000216 ***</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> ---</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1</span>
 </code></pre></div>

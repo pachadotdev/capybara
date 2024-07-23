@@ -9,6 +9,10 @@ test_that("fepoisson is similar to fixest", {
   #   trade_panel,
   #   cluster = ~pair
   # )
+  
+  coef_mod_fixest <- c(-0.8409273, 0.2474765, 0.4374432, -0.2224899)
+
+  expect_equal(unname(round(coef(mod) - coef_mod_fixest, 5)), rep(0, 4))
 
   summary_mod <- summary(mod, type = "clustered")
   
@@ -24,26 +28,22 @@ test_that("fepoisson is similar to fixest", {
   expect_visible(summary(mod, type = "cluster"))
 
   fes <- fixed_effects(mod)
-
+  n <- unname(mod[["nobs"]]["nobs"])
   expect_equal(length(fes), 2)
+  expect_equal(length(fitted(mod)), n)
+  expect_equal(length(predict(mod)), n)
+  expect_equal(length(coef(mod)), 4)
+  expect_equal(length(fes), 2)
+  expect_equal(round(fes[["exp_year"]][1:3], 3), c(10.195, 11.081, 11.260))
+  expect_equal(round(fes[["imp_year"]][1:3], 3), c(0.226, -0.254, 1.115))
 
   smod <- summary(mod)
 
-  expect_gt(length(fitted(mod)), 0)
-  expect_gt(length(predict(mod)), 0)
-  expect_gt(length(coef(mod)), 0)
-  expect_gt(length(coef(smod)), 0)
-
+  expect_equal(length(coef(smod)[, 1]), 4)
   expect_output(summary_formula_(smod))
   expect_output(summary_family_(smod))
   expect_output(summary_estimates_(smod, 3))
   expect_output(summary_r2_(smod, 3))
   expect_output(summary_nobs_(smod))
   expect_output(summary_fisher_(smod))
-
-  fe <- fixed_effects(mod)
-
-  expect_equal(length(fe), 2)
-  expect_equal(round(fe$exp_year[1:3], 3), c(10.195, 11.081, 11.260))
-  expect_equal(round(fe$imp_year[1:3], 3), c(0.226, -0.254, 1.115))
 })

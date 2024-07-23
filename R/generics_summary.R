@@ -37,10 +37,10 @@ summary.feglm <- function(
   res <- list(
     cm            = cm,
     deviance      = object[["deviance"]],
-    null.deviance = object[["null.deviance"]],
+    null_deviance = object[["null_deviance"]],
     iter          = object[["iter"]],
     nobs          = object[["nobs"]],
-    lvls.k        = object[["lvls.k"]],
+    lvls_k        = object[["lvls_k"]],
     formula       = object[["formula"]],
     family        = object[["family"]]
   )
@@ -87,7 +87,7 @@ summary.felm <- function(
   e_sq <- (y - object[["fitted.values"]])^2
   tss <- sum(w * ydemeaned_sq)
   rss <- sum(w * e_sq)
-  n <- unname(object[["nobs"]]["nobs.full"])
+  n <- unname(object[["nobs"]]["nobs_full"])
   k <- length(object[["coefficients"]]) +
     sum(vapply(object[["nms.fe"]], length, integer(1)))
 
@@ -95,7 +95,7 @@ summary.felm <- function(
   res <- list(
     cm            = cm,
     nobs          = object[["nobs"]],
-    lvls.k        = object[["lvls.k"]],
+    lvls_k        = object[["lvls_k"]],
     formula       = object[["formula"]],
     r.squared     = 1 - (rss / tss),
     adj.r.squared = 1 - (rss / tss) * ((n - 1) / (n - k))

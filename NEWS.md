@@ -1,3 +1,10 @@
+# capybara 0.6.0
+
+* Moves all the heavy computation to C++ using Armadillo and it exports the 
+  results to R. Previously, there were multiple data copies between R and C++
+  that added overhead to the computations.
+* The previous versions returned MX by default, now it has to be specified.
+
 # capybara 0.5.2
 
 * Uses an O(n log(n)) algorithm to compute the Kendall correlation for the

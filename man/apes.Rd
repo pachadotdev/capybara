@@ -7,40 +7,40 @@ with a 1,2,3-way error component}
 \usage{
 apes(
   object = NULL,
-  n.pop = NULL,
-  panel.structure = c("classic", "network"),
-  sampling.fe = c("independence", "unrestricted"),
-  weak.exo = FALSE
+  n_pop = NULL,
+  panel_structure = c("classic", "network"),
+  sampling_fe = c("independence", "unrestricted"),
+  weak_exo = FALSE
 )
 }
 \arguments{
 \item{object}{an object of class \code{"bias_corr"} or \code{"feglm"};
 currently restricted to \code{\link[stats]{binomial}}.}
 
-\item{n.pop}{unsigned integer indicating a finite population correction for
+\item{n_pop}{unsigned integer indicating a finite population correction for
 the estimation of the covariance matrix of the average partial effects
 proposed by Cruz-Gonzalez, Fernández-Val, and Weidner (2017). The correction
 factor is computed as follows:
-\eqn{(n^{\ast} - n) / (n^{\ast} - 1)}{(n.pop - n) / (n.pop - 1)},
-where \eqn{n^{\ast}}{n.pop} and \eqn{n}{n} are the sizes of the entire
+\eqn{(n^{\ast} - n) / (n^{\ast} - 1)}{(n_pop - n) / (n_pop - 1)},
+where \eqn{n^{\ast}}{n_pop} and \eqn{n}{n} are the sizes of the entire
 population and the full sample size. Default is \code{NULL}, which refers to
 a factor of zero and a covariance obtained by the delta method.}
 
-\item{panel.structure}{a string equal to \code{"classic"} or \code{"network"}
+\item{panel_structure}{a string equal to \code{"classic"} or \code{"network"}
 which determines the structure of the panel used. \code{"classic"} denotes
 panel structures where for example the same cross-sectional units are
 observed several times (this includes pseudo panels). \code{"network"}
 denotes panel structures where for example bilateral trade flows are
 observed for several time periods. Default is \code{"classic"}.}
 
-\item{sampling.fe}{a string equal to \code{"independence"} or
+\item{sampling_fe}{a string equal to \code{"independence"} or
 \code{"unrestricted"} which imposes sampling assumptions about the
 unobserved effects. \code{"independence"} imposes that all unobserved
 effects are independent sequences. \code{"unrestricted"} does not impose any
 sampling assumptions. Note that this option only affects the optional finite
 population correction. Default is \code{"independence"}.}
 
-\item{weak.exo}{logical indicating if some of the regressors are assumed to
+\item{weak_exo}{logical indicating if some of the regressors are assumed to
 be weakly exogenous (e.g. predetermined). If object is of class
 \code{"bias_corr"}, the option will be automatically set to \code{TRUE} if
 the chosen bandwidth parameter is larger than zero. Note that this option

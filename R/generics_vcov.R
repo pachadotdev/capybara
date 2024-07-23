@@ -14,10 +14,10 @@ vcov.apes <- function(object, ...) {
 #' @title Covariance matrix for GLMs
 #' @description Covariance matrix for the estimator of the structural parameters
 #'  from objects returned by \code{\link{feglm}}. The covariance is computed
-#' from the Hessian, the scores, or a combination of both after convergence.
+#' from the hessian, the scores, or a combination of both after convergence.
 #' @param object an object of class \code{"feglm"}.
 #' @param type the type of covariance estimate required. \code{"hessian"} refers
-#'  to the inverse of the negative expected Hessian after convergence and is the
+#'  to the inverse of the negative expected hessian after convergence and is the
 #'  default option. \code{"outer.product"} is the outer-product-of-the-gradient
 #'  estimator. \code{"sandwich"} is the sandwich estimator (sometimes also
 #'  referred as robust estimator), and \code{"clustered"} computes a clustered
@@ -63,11 +63,11 @@ vcov.feglm <- function(
   }
 
   # Compute requested type of covariance matrix
-  H <- object[["Hessian"]]
+  H <- object[["hessian"]]
   p <- ncol(H)
   if (type == "hessian") {
-    # If the Hessian is invertible, compute its inverse
-    V <- try(inv_(H), silent = TRUE)
+    # If the hessian is invertible, compute its inverse
+    V <- try(solve(H), silent = TRUE)
     if (inherits(V, "try-error")) {
       V <- matrix(Inf, p, p)
     }
@@ -75,19 +75,19 @@ vcov.feglm <- function(
     G <- get_score_matrix_(object)
     if (type == "outer.product") {
       # Check if the OP is invertible and compute its inverse
-      V <- try(inv_(G), silent = TRUE)
+      V <- try(solve(G), silent = TRUE)
       if (inherits(V, "try-error")) {
         V <- matrix(Inf, p, p)
       }
     } else {
-      # Check if the Hessian is invertible and compute its inverse
-      V <- try(inv_(H), silent = TRUE)
+      # Check if the hessian is invertible and compute its inverse
+      V <- try(solve(H), silent = TRUE)
       if (inherits(V, "try-error")) {
         V <- matrix(Inf, p, p)
       } else {
         # Compute inner part of the sandwich formula
         if (type == "sandwich") {
-          B <- crossprod_(G, NA_real_, FALSE, FALSE)
+          B <- crossprod(G)
         } else {
           if (isFALSE(k >= 1L)) {
             stop(
@@ -131,14 +131,13 @@ vcov.feglm <- function(
             B.r <- matrix(0.0, p, p)
             for (j in seq.int(ncol(cl.combn))) {
               cl <- cl.combn[, j]
-              B.r <- B.r + crossprod_(
+              B.r <- B.r + crossprod(
                 as.matrix(
                   G %>%
                     group_by(!!sym(cl)) %>%
                     summarise(across(all_of(sp.vars), sum), .groups = "drop") %>%
                     select(-!!sym(cl))
-                ),
-                NA_real_, FALSE, FALSE
+                )
               )
             }
 
@@ -152,7 +151,7 @@ vcov.feglm <- function(
         }
 
         # Sandwich formula
-        V <- sandwich_(V, B)
+        V <- V %*% B %*% V
       }
     }
   }
@@ -164,7 +163,7 @@ vcov.feglm <- function(
 #' @title Covariance matrix for LMs
 #' @description Covariance matrix for the estimator of the structural parameters
 #'  from objects returned by \code{\link{felm}}. The covariance is computed
-#' from the Hessian, the scores, or a combination of both after convergence.
+#' from the hessian, the scores, or a combination of both after convergence.
 #' @param object an object of class \code{"felm"}.
 #' @inherit vcov.feglm
 #' @seealso \code{\link{felm}}

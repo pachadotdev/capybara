@@ -137,8 +137,8 @@ summary_nobs_ <- function(x) {
   cat(
     "\nNumber of observations:",
     paste0("Full ", x[["nobs"]][["nobs"]], ";"),
-    paste0("Missing ", x[["nobs"]][["nobs.na"]], ";"),
-    paste0("Perfect classification ", x[["nobs"]][["nobs.pc"]]), "\n"
+    paste0("Missing ", x[["nobs"]][["nobs_na"]], ";"),
+    paste0("Perfect classification ", x[["nobs"]][["nobs_pc"]]), "\n"
   )
 }
 
@@ -171,7 +171,7 @@ print.feglm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
   cat(
     sub("\\(.*\\)", "", x[["family"]][["family"]]), " - ",
     x[["family"]][["link"]], " link",
-    ", l= [", paste0(x[["lvls.k"]], collapse = ", "), "]\n\n",
+    ", l= [", paste0(x[["lvls_k"]], collapse = ", "), "]\n\n",
     sep = ""
   )
   print(x[["coefficients"]], digits = digits)
