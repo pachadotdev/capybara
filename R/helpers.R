@@ -229,7 +229,7 @@ nobs_ <- function(nobs_full, nobs_na, nt) {
     nobs_full = nobs_full,
     nobs_na   = nobs_na,
     nobs_pc   = nobs_full - nt,
-    nobs      = nt
+    nobs      = nobs_full + nobs_na
   )
 }
 
