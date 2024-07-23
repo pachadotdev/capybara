@@ -1,5 +1,4 @@
 test_that("felm works", {
-  load_all()
   m1 <- felm(mpg ~ wt | cyl, mtcars)
   m2 <- lm(mpg ~ wt + as.factor(cyl), mtcars)
 

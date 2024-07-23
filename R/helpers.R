@@ -379,7 +379,7 @@ get_score_matrix_ <- function(object) {
     attr(X, "dimnames") <- NULL
 
     # Center variables
-    MX <- center_variables_(X, NA_real_, w, k.list, control[["center_tol"]], 10000L, FALSE)
+    MX <- center_variables_r_(X, w, k.list, control[["center_tol"]], 10000L)
     colnames(MX) <- nms_sp
   }
 

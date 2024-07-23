@@ -157,19 +157,15 @@ feglm <- function(
   }
   dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
 
-  # Generate result list ----
-  reslist <- c(
-    fit, list(
-      nobs    = nobs,
-      lvls_k  = lvls_k,
-      nms_fe  = nms_fe,
-      formula = formula,
-      data    = data,
-      family  = family,
-      control = control
-    )
-  )
+  # Add to fit list ----
+  fit[["nobs"]] <- nobs
+  fit[["lvls_k"]] <- lvls_k
+  fit[["nms_fe"]] <- nms_fe
+  fit[["formula"]] <- formula
+  fit[["data"]] <- data
+  fit[["family"]] <- family
+  fit[["control"]] <- control
 
   # Return result list ----
-  structure(reslist, class = "feglm")
+  structure(fit, class = "feglm")
 }

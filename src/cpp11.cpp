@@ -54,6 +54,13 @@ extern "C" SEXP _capybara_feglm_fit_(SEXP beta_r, SEXP eta_r, SEXP y_r, SEXP x_r
     return cpp11::as_sexp(feglm_fit_(cpp11::as_cpp<cpp11::decay_t<const doubles &>>(beta_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(eta_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(y_r), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(x_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(wt_r), cpp11::as_cpp<cpp11::decay_t<const double &>>(theta), cpp11::as_cpp<cpp11::decay_t<const std::string &>>(family), cpp11::as_cpp<cpp11::decay_t<const list &>>(control), cpp11::as_cpp<cpp11::decay_t<const list &>>(k_list)));
   END_CPP11
 }
+// 06_glm_offset_fit.cpp
+doubles feglm_offset_fit_(const doubles & eta_r, const doubles & y_r, const doubles & offset_r, const doubles & wt_r, const std::string & family, const list & control, const list & k_list);
+extern "C" SEXP _capybara_feglm_offset_fit_(SEXP eta_r, SEXP y_r, SEXP offset_r, SEXP wt_r, SEXP family, SEXP control, SEXP k_list) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(feglm_offset_fit_(cpp11::as_cpp<cpp11::decay_t<const doubles &>>(eta_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(y_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(offset_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(wt_r), cpp11::as_cpp<cpp11::decay_t<const std::string &>>(family), cpp11::as_cpp<cpp11::decay_t<const list &>>(control), cpp11::as_cpp<cpp11::decay_t<const list &>>(k_list)));
+  END_CPP11
+}
 // 06_kendall_correlation.cpp
 double kendall_cor_(const doubles_matrix<> & m);
 extern "C" SEXP _capybara_kendall_cor_(SEXP m) {
@@ -73,6 +80,7 @@ extern "C" {
 static const R_CallMethodDef CallEntries[] = {
     {"_capybara_center_variables_r_",  (DL_FUNC) &_capybara_center_variables_r_,  5},
     {"_capybara_feglm_fit_",           (DL_FUNC) &_capybara_feglm_fit_,           9},
+    {"_capybara_feglm_offset_fit_",    (DL_FUNC) &_capybara_feglm_offset_fit_,    7},
     {"_capybara_get_alpha_",           (DL_FUNC) &_capybara_get_alpha_,           3},
     {"_capybara_group_sums_",          (DL_FUNC) &_capybara_group_sums_,          3},
     {"_capybara_group_sums_cov_",      (DL_FUNC) &_capybara_group_sums_cov_,      3},

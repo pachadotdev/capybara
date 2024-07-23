@@ -39,7 +39,7 @@ feglm_control <- function(
     limit = 10L,
     trace = FALSE,
     drop_pc = TRUE,
-    keep_mx = TRUE) {
+    keep_mx = FALSE) {
   # Check validity of tolerance parameters
   if (dev_tol <= 0.0 || center_tol <= 0.0) {
     stop(
