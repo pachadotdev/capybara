@@ -89,7 +89,8 @@ summary.felm <- function(
   rss <- sum(w * e_sq)
   n <- unname(object[["nobs"]]["nobs_full"])
   k <- length(object[["coefficients"]]) +
-    sum(vapply(object[["nms.fe"]], length, integer(1)))
+    sum(vapply(object[["nms_fe"]], length, integer(1)))
+  rsq <- 1 - (rss / tss)
 
   # Generate result list
   res <- list(
@@ -97,8 +98,8 @@ summary.felm <- function(
     nobs          = object[["nobs"]],
     lvls_k        = object[["lvls_k"]],
     formula       = object[["formula"]],
-    r.squared     = 1 - (rss / tss),
-    adj.r.squared = 1 - (rss / tss) * ((n - 1) / (n - k))
+    r.squared     = rsq,
+    adj.r.squared = 1 - (1 - rsq) * (n - 1) / (n - k + 1)
   )
 
   # Return list

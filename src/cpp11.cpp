@@ -61,14 +61,14 @@ extern "C" SEXP _capybara_feglm_offset_fit_(SEXP eta_r, SEXP y_r, SEXP offset_r,
     return cpp11::as_sexp(feglm_offset_fit_(cpp11::as_cpp<cpp11::decay_t<const doubles &>>(eta_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(y_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(offset_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(wt_r), cpp11::as_cpp<cpp11::decay_t<const std::string &>>(family), cpp11::as_cpp<cpp11::decay_t<const list &>>(control), cpp11::as_cpp<cpp11::decay_t<const list &>>(k_list)));
   END_CPP11
 }
-// 06_kendall_correlation.cpp
+// 07_kendall_correlation.cpp
 double kendall_cor_(const doubles_matrix<> & m);
 extern "C" SEXP _capybara_kendall_cor_(SEXP m) {
   BEGIN_CPP11
     return cpp11::as_sexp(kendall_cor_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(m)));
   END_CPP11
 }
-// 06_kendall_correlation.cpp
+// 07_kendall_correlation.cpp
 doubles pkendall_(doubles Q, int n);
 extern "C" SEXP _capybara_pkendall_(SEXP Q, SEXP n) {
   BEGIN_CPP11
