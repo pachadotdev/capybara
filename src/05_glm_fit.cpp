@@ -371,22 +371,13 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
       beta = beta_old + (rho * beta_upd);
       mu = link_inv_(eta, fam);
       dev = dev_resids_(y, mu, theta, wt, fam);
-      dev_ratio_inner = (dev - dev_old) / (0.1 + fabs(dev_old));
-
-      // std::cout << "iter: " << iter << std::endl;
-      // std::cout << "iter_inner: " << iter_inner << std::endl;
-      // std::cout << "beta old: " << beta_old.t() << std::endl;
-      // std::cout << "beta: " << beta.t() << std::endl;
-      // std::cout << "dev: " << dev << std::endl;
-      // std::cout << "dev_ratio_inner: " << dev_ratio_inner << std::endl;
-      // std::cout << "dev_tol: " << dev_tol << std::endl;
+      dev_ratio_inner = (dev - dev_old) / (0.1 + fabs(dev));
 
       dev_crit = is_finite(dev);
       val_crit = (valid_eta_(eta, fam) && valid_mu_(mu, fam));
       imp_crit = (dev_ratio_inner <= -dev_tol);
 
       if (dev_crit == true && val_crit == true && imp_crit == true) {
-        // std::cout << "ok" << std::endl;
         break;
       }
 
@@ -433,10 +424,6 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
   mu_eta = mu_eta_(eta, fam);
   w = (wt % square(mu_eta)) / variance_(mu, theta, fam);
 
-  // Center variables
-
-  MX = center_variables_(as_Mat(x_r), w, k_list, center_tol, iter_center_max);
-
   // Recompute Hessian
 
   H = crossprod_(MX, w, n, p, true, true);
@@ -455,7 +442,11 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
   out.push_back({"iter"_nm = iter + 1});
 
   if (keep_mx == true) {
-    out.push_back({"MX"_nm = as_doubles_matrix(MX)});
+    out.push_back({
+      "MX"_nm = as_doubles_matrix(
+        center_variables_(as_Mat(x_r), w, k_list, center_tol, iter_center_max)
+      )
+    });
   }
 
   return out;

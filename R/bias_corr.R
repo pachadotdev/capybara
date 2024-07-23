@@ -16,7 +16,7 @@
 #'  weakly exogenous regressors, e.g. lagged outcome variables, we suggest to
 #'  choose a bandwidth between one and four. Note that the order of factors to
 #'  be partialed out is important for bandwidths larger than zero.
-#' @param panel.structure a string equal to \code{"classic"} or \code{"network"}
+#' @param panel_structure a string equal to \code{"classic"} or \code{"network"}
 #'  which determines the structure of the panel used. \code{"classic"} denotes
 #'  panel structures where for example the same cross-sectional units are
 #'  observed several times (this includes pseudo panels). \code{"network"}
@@ -59,7 +59,7 @@
 bias_corr <- function(
     object = NULL,
     L = 0L,
-    panel.structure = c("classic", "network")) {
+    panel_structure = c("classic", "network")) {
   # Check validity of 'object'
   if (is.null(object)) {
     stop("'object' has to be specified.", call. = FALSE)
@@ -67,20 +67,20 @@ bias_corr <- function(
     stop("'bias_corr' called on a non-'feglm' object.", call. = FALSE)
   }
 
-  # Check validity of 'panel.structure'
-  panel.structure <- match.arg(panel.structure)
+  # Check validity of 'panel_structure'
+  panel_structure <- match.arg(panel_structure)
 
   # Extract model information
-  beta.uncorr <- object[["coefficients"]]
+  beta_uncorr <- object[["coefficients"]]
   control <- object[["control"]]
   data <- object[["data"]]
   eps <- .Machine[["double.eps"]]
   family <- object[["family"]]
   formula <- object[["formula"]]
   lvls_k <- object[["lvls_k"]]
-  nms.sp <- names(beta.uncorr)
+  nms.sp <- names(beta_uncorr)
   nt <- object[["nobs"]][["nobs"]]
-  k.vars <- names(lvls_k)
+  k_vars <- names(lvls_k)
   k <- length(lvls_k)
 
   # Check if binary choice model
@@ -100,11 +100,11 @@ bias_corr <- function(
   }
 
   # Check if provided object matches requested panel structure
-  if (panel.structure == "classic") {
+  if (panel_structure == "classic") {
     if (!(k %in% c(1L, 2L))) {
       stop(
         paste(
-          "panel.structure == 'classic' expects a one- or two-way fixed",
+          "panel_structure == 'classic' expects a one- or two-way fixed",
           "effect model."
         ),
         call. = FALSE
@@ -114,7 +114,7 @@ bias_corr <- function(
     if (!(k %in% c(2L, 3L))) {
       stop(
         paste(
-          "panel.structure == 'network' expects a two- or three-way fixed",
+          "panel_structure == 'network' expects a two- or three-way fixed",
           "effects model."
         ),
         call. = FALSE
@@ -129,17 +129,17 @@ bias_corr <- function(
   wt <- object[["weights"]]
 
   # Generate auxiliary list of indexes for different sub panels
-  k.list <- get_index_list_(k.vars, data)
+  k_list <- get_index_list_(k_vars, data)
 
   # Compute derivatives and weights
   eta <- object[["eta"]]
   mu <- family[["linkinv"]](eta)
-  mu.eta <- family[["mu.eta"]](eta)
+  mu_eta <- family[["mu.eta"]](eta)
   v <- wt * (y - mu)
-  w <- wt * mu.eta
+  w <- wt * mu_eta
   z <- wt * partial_mu_eta_(eta, family, 2L)
   if (family[["link"]] != "logit") {
-    h <- mu.eta / family[["variance"]](mu)
+    h <- mu_eta / family[["variance"]](mu)
     v <- h * v
     w <- h * w
     z <- h * z
@@ -150,54 +150,54 @@ bias_corr <- function(
   if (control[["keep_mx"]]) {
     MX <- object[["MX"]]
   } else {
-    MX <- center_variables_(X, w, k.list, control[["center_tol"]], 10000L)
+    MX <- center_variables_r_(X, w, k_list, control[["center_tol"]], 10000L)
   }
 
   # Compute bias terms for requested bias correction
-  if (panel.structure == "classic") {
+  if (panel_structure == "classic") {
     # Compute \hat{B} and \hat{D}
-    b <- as.vector(group_sums_(MX * z, w, k.list[[1L]])) / 2.0 / nt
+    b <- as.vector(group_sums_(MX * z, w, k_list[[1L]])) / 2.0 / nt
     if (k > 1L) {
-      b <- b + as.vector(group_sums_(MX * z, w, k.list[[2L]])) / 2.0 / nt
+      b <- b + as.vector(group_sums_(MX * z, w, k_list[[2L]])) / 2.0 / nt
     }
 
     # Compute spectral density part of \hat{B}
     if (L > 0L) {
-      b <- (b + group_sums_spectral_(MX * w, v, w, L, k.list[[1L]])) / nt
+      b <- (b + group_sums_spectral_(MX * w, v, w, L, k_list[[1L]])) / nt
     }
   } else {
     # Compute \hat{D}_{1}, \hat{D}_{2}, and \hat{B}
-    b <- group_sums_(MX * z, w, k.list[[1L]]) / (2.0 * nt)
-    b <- (b + group_sums_(MX * z, w, k.list[[2L]])) / (2.0 * nt)
+    b <- group_sums_(MX * z, w, k_list[[1L]]) / (2.0 * nt)
+    b <- (b + group_sums_(MX * z, w, k_list[[2L]])) / (2.0 * nt)
     if (k > 2L) {
-      b <- (b + group_sums_(MX * z, w, k.list[[3L]])) / (2.0 * nt)
+      b <- (b + group_sums_(MX * z, w, k_list[[3L]])) / (2.0 * nt)
     }
 
     # Compute spectral density part of \hat{B}
     if (k > 2L && L > 0L) {
-      b <- (b + group_sums_spectral_(MX * w, v, w, L, k.list[[3L]])) / nt
+      b <- (b + group_sums_spectral_(MX * w, v, w, L, k_list[[3L]])) / nt
     }
   }
 
   # Compute bias-corrected structural parameters
-  beta <- beta.uncorr - solve(object[["hessian"]] / nt, b)
+  beta <- beta_uncorr - solve(object[["hessian"]] / nt, b)
   names(beta) <- nms.sp
 
   # Update \eta and first- and second-order derivatives
   eta <- feglm_offset_(object, X %*% beta)
   mu <- family[["linkinv"]](eta)
-  mu.eta <- family[["mu.eta"]](eta)
+  mu_eta <- family[["mu.eta"]](eta)
   v <- wt * (y - mu)
-  w <- wt * mu.eta
+  w <- wt * mu_eta
   if (family[["link"]] != "logit") {
-    h <- mu.eta / family[["variance"]](mu)
+    h <- mu_eta / family[["variance"]](mu)
     v <- h * v
     w <- h * w
     rm(h)
   }
 
   # Update centered regressor matrix
-  MX <- center_variables_r_(X, w, k.list, control[["center_tol"]], 10000L)
+  MX <- center_variables_r_(X, w, k_list, control[["center_tol"]], 10000L)
   colnames(MX) <- nms.sp
 
   # Update hessian
@@ -209,9 +209,9 @@ bias_corr <- function(
   object[["eta"]] <- eta
   if (control[["keep_mx"]]) object[["MX"]] <- MX
   object[["hessian"]] <- H
-  object[["coefficients.uncorr"]] <- beta.uncorr
-  object[["bias.term"]] <- b
-  object[["panel.structure"]] <- panel.structure
+  object[["coefficients_uncorr"]] <- beta_uncorr
+  object[["bias_term"]] <- b
+  object[["panel_structure"]] <- panel_structure
   object[["bandwidth"]] <- L
 
   # Add additional class to result list

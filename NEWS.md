@@ -3,8 +3,7 @@
 * Moves all the heavy computation to C++ using Armadillo and it exports the 
   results to R. Previously, there were multiple data copies between R and C++
   that added overhead to the computations.
-* For a future release, I may rewrite the offset and APES computation to C++,
-  but with those the overhead is minimal.
+* The previous versions returned MX by default, now it has to be specified.
 
 # capybara 0.5.2
 

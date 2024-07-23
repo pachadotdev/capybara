@@ -1,7 +1,7 @@
 # this is not just about speed/memory, but also about obtaining the same
 # slopes as in base R
 
-library(alpaca)
+library(capybara)
 library(dplyr)
 library(tidyr)
 library(janitor)

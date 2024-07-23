@@ -11,7 +11,7 @@ feglm_control(
   limit = 10L,
   trace = FALSE,
   drop_pc = TRUE,
-  keep_mx = TRUE
+  keep_mx = FALSE
 )
 }
 \arguments{
