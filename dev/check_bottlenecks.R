@@ -39,23 +39,4 @@ form2 <- trade ~ log_dist + cntg + lang + clny +
 
 d <- filter(ch1_application3, importer != exporter)
 
-# profvis(fepoisson(form2, data = d))
-
-fepoisson(form2, data = d)
-
-load_all()
-
-foo <- function() {
-  x <- feglm(
-    trade ~ log_dist + lang + cntg + clny | exp_year + imp_year | pair,
-    trade_panel,
-    family = poisson(link = "log")
-  )
-
-  summary(x, "clustered")
-}
-
-m <- bench::mark(foo())
-
-m$median
-m$mem_alloc
+profvis(fepoisson(form2, data = d))
