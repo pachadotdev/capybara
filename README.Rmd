@@ -122,20 +122,20 @@ Median time for the different models in the book
 [An Advanced Guide to Trade Policy Analysis](https://www.wto.org/english/res_e/publications_e/advancedguide2016_e.htm).
 
 | package     |   PPML | Trade Diversion  | Endogeneity | Reverse Causality | Non-linear/Phasing Effects | Globalization |
-|:------------|-------:|-----------------:|------------:|-----------------:|----------------------------:|--------------:|
-| Alpaca      |   0.4s |             2.6s |        1.6s |             2.0s |                        3.1s |          5.3s |
-| Base R      | 120.0s |             2.0m |     1380.0s |          1440.0s |                     1380.0s |       1500.0s |
-| **Capybara**|   0.3s |             2.0s |        1.2s |             1.4s |                        1.7s |          3.4s |
-| Fixest      |   0.1s |             0.5s |        0.1s |             0.2s |                        0.3s |          0.5s |
+|:------------|-------:|-----------------:|------------:|------------------:|---------------------------:|--------------:|
+| Alpaca      |   0.4s |             2.6s |        1.6s |              2.0s |                       3.1s |          5.3s |
+| Base R      | 120.0s |             2.0m |     1380.0s |           1440.0s |                    1380.0s |       1500.0s |
+| **Capybara**|   0.3s |             1.7s |        1.0s |              1.3s |                       1.7s |          2.8s |
+| Fixest      |   0.1s |             0.5s |        0.1s |              0.2s |                       0.3s |          0.5s |
 
 Memory allocation for the same models
 
-|package      |    PPML| Trade Diversion| Endogeneity| Reverse Causality| Non-linear/Phasing Effects| Globalization|
-|:------------|-------:|---------------:|-----------:|-----------------:|--------------------------:|-------------:|
-|Alpaca       |  307MB |          341MB |      306MB |            336MB |                     395MB |        541MB |
-|Base R       | 3000MB |         3000MB |    12000MB |          12000GB |                   12000GB |      12000MB |
-|**Capybara** |   27MB |           32MB |       20MB |             23MB |                      29MB |         43MB |
-|Fixest       |   44MB |           36MB |       27MB |             32MB |                      41MB |         63MB |
+| package      |   PPML | Trade Diversion | Endogeneity | Reverse Causality | Non-linear/Phasing Effects | Globalization |
+|:-------------|-------:|----------------:|------------:|------------------:|---------------------------:|--------------:|
+| Alpaca       |  307MB |           341MB |       306MB |             336MB |                      395MB |         541MB |
+| Base R       | 3000MB |          3000MB |     12000MB |           12000GB |                    12000GB |       12000MB |
+| **Capybara** |   21MB |            28MB |        15MB |              18MB |                       24MB |          37MB |
+| Fixest       |   44MB |            36MB |        27MB |              32MB |                       41MB |          63MB |
 
 # Debugging
 

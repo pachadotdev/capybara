@@ -116,7 +116,7 @@ vcov.feglm <- function(
           }
 
           # Ensure cluster variables are factors
-          D <- mutate(D, across(all_of(cl.vars), check_factor_))
+          D[, (cl.vars) := lapply(.SD, check_factor_), .SDcols = cl.vars]
 
           # Join cluster variables and scores
           sp.vars <- colnames(G)
@@ -133,10 +133,8 @@ vcov.feglm <- function(
               cl <- cl.combn[, j]
               B.r <- B.r + crossprod(
                 as.matrix(
-                  G %>%
-                    group_by(!!sym(cl)) %>%
-                    summarise(across(all_of(sp.vars), sum), .groups = "drop") %>%
-                    select(-!!sym(cl))
+                  G[, lapply(.SD, sum), by = list(get(cl)), .SDcols = sp.vars][,
+                    setdiff(names(G), cl), with = FALSE]
                 )
               )
             }

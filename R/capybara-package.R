@@ -12,11 +12,9 @@
 #' and Wanner (2020).
 #'
 #' @name capybara-package
-#' @importFrom dplyr across all_of filter group_by mutate pull select summarise
-#'  ungroup vars
+#' @importFrom data.table setDT setkeyv uniqueN .N .SD :=
 #' @importFrom Formula Formula
 #' @importFrom MASS negative.binomial theta.ml
-#' @importFrom rlang sym :=
 #' @importFrom stats as.formula binomial model.matrix na.omit gaussian poisson
 #'  pnorm printCoefmat rgamma rlogis rnorm rpois terms vcov predict var
 #'  complete.cases

@@ -57,7 +57,7 @@ fenegbin <- function(
 
   # Get names of the fixed effects variables and sort ----
   k_vars <- attr(terms(formula, rhs = 2L), "term.labels")
-  k <- length(k_vars)
+  setkeyv(data, k_vars)
 
   # Generate temporary variable ----
   tmp.var <- temp_var_(data)
@@ -94,7 +94,7 @@ fenegbin <- function(
   start_guesses_(beta_start, eta_start, y, X, beta, nt, wt, p, family)
 
   # Get names and number of levels in each fixed effects category ----
-  nms_fe <- lapply(select(data, all_of(k_vars)), levels)
+  nms_fe <- lapply(data[, .SD, .SDcols = k_vars], levels)
   lvls_k <- vapply(nms_fe, length, integer(1))
 
   # Generate auxiliary list of indexes for different sub panels ----

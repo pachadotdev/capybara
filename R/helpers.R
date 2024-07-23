@@ -126,7 +126,9 @@ update_formula_ <- function(formula) {
 }
 
 model_frame_ <- function(data, formula, weights) {
-  data <- select(ungroup(data), all_of(c(all.vars(formula), weights)))
+  setDT(data)
+
+  data <- data[, c(all.vars(formula), weights), with = FALSE]
 
   lhs <- names(data)[[1L]]
 
@@ -146,38 +148,38 @@ model_frame_ <- function(data, formula, weights) {
 check_response_ <- function(data, lhs, family) {
   if (family[["family"]] == "binomial") {
     # Check if 'y' is numeric
-    if (is.numeric(pull(select(data, !!sym(lhs))))) {
+    if (is.numeric(data[[lhs]])) {
       # Check if 'y' is in [0, 1]
-      if (nrow(filter(data, !!sym(lhs) < 0.0 | !!sym(lhs) > 1.0)) > 0L) {
+      if (data[get(lhs) < 0.0 | get(lhs) > 1.0, .N] > 0L) {
         stop("Model response has to be within the unit interval.",
           call. = FALSE
         )
       }
     } else {
       # Check if 'y' is factor and transform otherwise
-      data <- mutate(data, !!sym(lhs) := check_factor_(!!sym(lhs)))
+      data[, (lhs) := check_factor_(get(lhs))]
 
       # Check if the number of levels equals two
-      if (nrow(summarise(data, n_levels = nlevels(!!sym(lhs)))) != 2L) {
+      if (uniqueN(data[[lhs]]) != 2L) {
         stop("Model response has to be binary.", call. = FALSE)
       }
 
       # Ensure 'y' is 0-1 encoded
       ## if lhs is not numeric, convert it
-      if (!is.numeric(pull(select(data, !!sym(lhs))))) {
-        data <- mutate(data, !!sym(lhs) := as.numeric(!!sym(lhs)) - 1.0)
+      if (!is.numeric(data[[lhs]])) {
+        data[, (lhs) := as.numeric(get(lhs)) - 1.0]
       } else {
-        data <- mutate(data, !!sym(lhs) := !!sym(lhs) - 1.0)
+        data[, (lhs) := get(lhs) - 1.0]
       }
     }
   } else if (family[["family"]] %in% c("Gamma", "inverse.gaussian")) {
     # Check if 'y' is strictly positive
-    if (nrow(filter(data, !!sym(lhs) <= 0.0)) > 0L) {
+    if (data[get(lhs) <= 0.0, .N] > 0L) {
       stop("Model response has to be strictly positive.", call. = FALSE)
     }
   } else if (family[["family"]] != "gaussian") {
     # Check if 'y' is positive
-    if (nrow(filter(data, !!sym(lhs) < 0.0)) > 0L) {
+    if (data[get(lhs) < 0.0, .N] > 0L) {
       stop("Model response has to be positive.", call. = FALSE)
     }
   }
@@ -190,16 +192,13 @@ drop_by_link_type_ <- function(data, lhs, family, tmp.var, k.vars, control) {
         # Drop observations that do not contribute to the log-likelihood
         ncheck <- nrow(data)
         for (j in k.vars) {
-          data <- data %>%
-            group_by(!!sym(j)) %>%
-            mutate(!!sym(tmp.var) := mean(!!sym(lhs))) %>%
-            ungroup()
+          data[, tmp.var := mean(get(lhs)), by = list(get(j))]
           if (family[["family"]] == "binomial") {
-            data <- filter(data, !!sym(tmp.var) > 0.0 & !!sym(tmp.var) < 1.0)
+            data <- data[tmp.var > 0.0 & tmp.var < 1.0]
           } else {
-            data <- filter(data, !!sym(tmp.var) > 0.0)
+            data <- data[tmp.var > 0.0]
           }
-          data <- select(data, -!!sym(tmp.var))
+          data[, tmp.var := NULL]
         }
 
         # Check termination
@@ -214,11 +213,11 @@ drop_by_link_type_ <- function(data, lhs, family, tmp.var, k.vars, control) {
 }
 
 transform_fe_ <- function(data, formula, k.vars) {
-  data <- mutate(data, across(all_of(k.vars), check_factor_))
+  data[, (k.vars) := lapply(.SD, check_factor_), .SDcols = k.vars]
 
   if (length(formula)[[2L]] > 2L) {
     add.vars <- attr(terms(formula, rhs = 3L), "term.labels")
-    data <- mutate(data, across(all_of(add.vars), check_factor_))
+    data[, (add.vars) := lapply(.SD, check_factor_), .SDcols = add.vars]
   }
 
   data
