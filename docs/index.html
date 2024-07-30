@@ -98,12 +98,11 @@
 <div class="section level2">
 <h2 id="about">About<a class="anchor" aria-label="anchor" href="#about"></a>
 </h2>
-<p>tldr; If you have a 2-4GB dataset and you need to estimate a (generalized) linear model with a large number of fixed effects, this package is for you. It works with larger datasets as well.</p>
-<p>Capybara is a fast and small footprint software that provides efficient functions for demeaning variables before conducting a GLM estimation via Iteratively Weighted Least Squares (IWLS). This technique is particularly useful when estimating linear models with multiple group fixed effects. It is a fork of the excellent Alpaca package created and maintained by <a href="https://github.com/amrei-stammann" class="external-link">Dr. Amrei Stammann</a>.</p>
-<p>The software can estimate GLMs from the Exponential Family and also Negative Binomial models but the focus will be the Poisson estimator because it is the one used for structural counterfactual analysis in International Trade. It is relevant to add that the IWLS estimator is equivalent with the PPML estimator from Santos-Silva et al. 2006</p>
-<p>Traditional QR estimation can be unfeasible due to additional memory requirements. The method, which is based on Halperin 1962 article on vector projections offers important time and memory savings without compromising numerical stability in the estimation process.</p>
-<p>The software heavily borrows from Gaure 20213 and Stammann 2018 works on the OLS and IWLS estimator with large k-way fixed effects (i.e., the lfe and alpaca packages). The differences are that Capybara does not use C nor Rcpp code, instead it uses the cpp11 and <a href="https://github.com/pachadotdev/cpp11armadillo" class="external-link">cpp11armadillo</a> packages.</p>
-<p>The summary tables are nothing like R’s default and borrow from Stata outputs. I have also provided integrations with broom to facilitate the inclusion of statistical tables in Quarto/Jupyter notebooks.</p>
+<p>tldr; If you have a 2-4GB dataset and you need to estimate a (generalized) linear model with a large number of fixed effects, this package is for you. It works with larger datasets as well and facilites computing clustered standard errors.</p>
+<p>‘capybara’ is a fast and small footprint software that provides efficient functions for demeaning variables before conducting a GLM estimation. This technique is particularly useful when estimating linear models with multiple group fixed effects. It is a fork of the excellent Alpaca package created and maintained by <a href="https://github.com/amrei-stammann" class="external-link">Dr. Amrei Stammann</a>. The software can estimate Exponential Family models (e.g., Poisson) and Negative Binomial models.</p>
+<p>Traditional QR estimation can be unfeasible due to additional memory requirements. The method, which is based on Halperin (1962) vector projections offers important time and memory savings without compromising numerical stability in the estimation process.</p>
+<p>The software heavily borrows from Gaure (2013) and Stammann (2018) works on OLS and GLM estimation with large fixed effects implemented in the ‘lfe’ and ‘alpaca’ packages. The differences are that ‘capybara’ does not use C nor Rcpp code, instead it uses cpp11 and <a href="https://github.com/pachadotdev/cpp11armadillo" class="external-link">cpp11armadillo</a>.</p>
+<p>The summary tables borrow from Stata outputs. I have also provided integrations with ‘broom’ to facilitate the inclusion of statistical tables in Quarto/Jupyter notebooks.</p>
 <p>If this software is useful to you, please consider donating on <a href="https://buymeacoffee.com/pacha" class="external-link">Buy Me A Coffee</a>. All donations will be used to continue improving <code>capybara</code>.</p>
 </div>
 <div class="section level2">
@@ -121,18 +120,17 @@
 <div class="section level2">
 <h2 id="design-choices">Design choices<a class="anchor" aria-label="anchor" href="#design-choices"></a>
 </h2>
-<p>Capybara uses C++ and vectorized R operations to address bottlenecks. Some parts of the code use dplyr, which allows me to write code that is easier to understand and it works very well to performed grouped operations.</p>
-<p>I tried to implement an important lesson between v0.1 and v0.2: “He who gives up [code] safety for [code] speed deserves neither.” (Wickham, 2014).</p>
-<p>I know some parts of the code are not particularly easy to understand. For example, I initially wrote an implementation for Kendall’s Tau (or Kendall’s correlation) with a time complexity of O(n^2). Posterior work on it, allowed me to solve the bottleneck that computation created, and I was able to reduce it to a time complexity of O(n * log(n)) at the expense of making the code harder to understand, but I still did my best to write a straightforward code.</p>
-<p>Capybara is full of trade-offs. I used dplyr and dtplyr to help myself with the data.table syntax, otherwise there is no way to use in-place modification of data. This is something intentional in dplyr to avoid side effects like changing the input data. In my research I use SQL because I have over 200 GB of international trade data, where dplyr helps a lot because it allows me to query SQL directly from R and just using dplyr syntax, something impossible with data.table, which requires me to go to the SQL editor en export my queries in CSV format and then import them in R.</p>
-<p>With data.table you get faster computation and a slightly reduced use of memory. The problem is to understand the code when you are familiar with data.table. data.table uses in-place modification, which gives me the heebie-jeebies, but I am ok with it as I am using in internal package functions that the end user never sees. I think data.table and dplyr are great tools, the problem is the user that uses one in the same way as some people use a plier instead of a wrench.</p>
-<p>I think with my design choices I accomplished my goal of making model estimation feasible, and now I can run models on my laptop relying on UofT’s servers a bit less.</p>
+<p>Capybara uses C++ and vectorized R operations to address bottlenecks where possible. Some parts of the code use ‘dplyr’, which allows me to write code that is easier to understand and it works well to performed grouped operations. The intensive computations are done on C++ side. I tried to implement this idea from v0.2 and onwards: “He who gives up code safety for code speed deserves neither.” (Wickham, 2014).</p>
+<p>I know some parts of the code are not particularly easy to understand. For example, such as my implementation of Kendall’s Tau (or Kendall’s correlation) with a time complexity of O(n * log(n)) instead of O(n^2). I still did my best to write a straightforward code.</p>
+<p>Capybara is full of trade-offs. I have a branch where I used ‘dplyr’ and ‘dtplyr’ to help myself with the ‘data.table’ syntax, otherwise there is no way to use in-place modification of data. Because ‘data.table’ modifies the original data (e.g., it converts ‘data.frame’ and ‘tibble’ structures into ‘data.table’ structures), the main branch uses ‘dplyr’ to avoid side effects.</p>
+<p>In my research I use ‘SQL’ because I have over 200 GB of international trade data, where ‘dplyr’ helps a lot because it allows me to query ‘SQL’ directly from R mand just using ‘dplyr’ syntax, something impossible with ‘data.table’, which requires me to go to the ‘SQL’ editor en export my queries in CSV format and then import them in R. The downside is that ‘dplyr’ is slower than ‘data.table’ and uses more memory.</p>
+<p>I think with my design choices I accomplished my goal of fitting models in my laptop instead of relying on UofT’s servers.</p>
 </div>
 <div class="section level2">
 <h2 id="future-plans">Future plans<a class="anchor" aria-label="anchor" href="#future-plans"></a>
 </h2>
-<p>I will also work on adding a RESET test to summaries.</p>
-<p>This also needs lots of tests. There are a few in the dev folder, but I need to test with testthat.</p>
+<p>I will add a RESET test.</p>
+<p>There are a few tests but these have to be expanded.</p>
 </div>
 <div class="section level2">
 <h2 id="benchmarks">Benchmarks<a class="anchor" aria-label="anchor" href="#benchmarks"></a>
@@ -260,7 +258,6 @@
 <div class="section level1">
 <h1 id="debugging">Debugging<a class="anchor" aria-label="anchor" href="#debugging"></a>
 </h1>
-<p><em>This debugging is about code quality, not about statistical quality.</em> <em>There is a full set of numerical tests for testthat to check the math.</em> <em>In this section of the test, I could write “pi = 3” and if there are no memory leaks, it will pass the test.</em></p>
 <p>I run <code>r_valgrind "dev/test_get_alpha.r"</code> or the corresponding test from the project’s root in a new terminal (bash).</p>
 <p>This works because I previously defined this in <code>.bashrc</code>, to make it work you need to run <code>source ~/.bashrc</code> or reboot:</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true"></a><span class="cf">function</span> <span class="kw">r_debug_symbols</span> () {</span>
@@ -325,9 +322,9 @@
 <span id="cb2-60"><a href="#cb2-60" aria-hidden="true"></a><span class="co"># create an alias for R</span></span>
 <span id="cb2-61"><a href="#cb2-61" aria-hidden="true"></a>alias r=<span class="st">"R"</span></span>
 <span id="cb2-62"><a href="#cb2-62" aria-hidden="true"></a>alias rvalgrind=<span class="st">"R --vanilla -d 'valgrind -s --track-origins=yes'"</span></span></code></pre></div>
-<p><code>r_debug_symbols()</code> makes everything slower, but makes sure that all compiler optimizations are disabled and then valgrind will point us to the lines that create memory leaks.</p>
-<p><code>r_valgrind()</code> will run an R script and use Linux system tools to test for initialized values and all kinds of problems that result in memory leaks.</p>
-<p>When you are ready testing, you need to remove <code>-UDEGUG</code> from <code>src/Makevars</code>.</p>
+<p><code>r_debug_symbols</code> makes everything slower, but makes sure that all compiler optimizations are disabled and then valgrind will point us to the lines that create memory leaks.</p>
+<p><code>r_valgrind</code> will run an R script and use Linux system tools to test for initialized values and all kinds of problems that result in memory leaks.</p>
+<p>When you are ready testing, you need to remove <code>-UDEBUG</code> from <code>src/Makevars</code>.</p>
 <div class="section level2">
 <h2 id="code-of-conduct">Code of Conduct<a class="anchor" aria-label="anchor" href="#code-of-conduct"></a>
 </h2>
