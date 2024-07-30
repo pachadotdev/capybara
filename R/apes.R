@@ -80,6 +80,7 @@
 #' # Compute bias-corrected average partial effects
 #' mod_ape_bc <- apes(mod_bc)
 #' summary(mod_ape_bc)
+#' 
 #' @export
 apes <- function(
     object = NULL,
