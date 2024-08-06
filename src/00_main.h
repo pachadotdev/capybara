@@ -2,7 +2,7 @@
 #include <armadillo.hpp>
 #include <cmath>
 #include <cpp11.hpp>
-#include <cpp11armadillo.hpp>
+#include <r_armadillo_bindings.hpp>
 #include <numeric>
 #include <vector>
 #include "Rmath.h"

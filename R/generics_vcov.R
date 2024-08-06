@@ -1,20 +1,28 @@
 #' @title Covariance matrix for APEs
+#' 
 #' @description Covariance matrix for the estimator of the
 #'  average partial effects from objects returned by \code{\link{apes}}.
+#' 
 #' @param object an object of class \code{"apes"}.
 #' @param ... additional arguments.
+#' 
 #' @return A named matrix of covariance estimates.
+#' 
 #' @seealso \code{\link{apes}}
+#' 
 #' @export
+#' 
 #' @noRd
 vcov.apes <- function(object, ...) {
   object[["vcov"]]
 }
 
 #' @title Covariance matrix for GLMs
+#' 
 #' @description Covariance matrix for the estimator of the structural parameters
 #'  from objects returned by \code{\link{feglm}}. The covariance is computed
 #' from the hessian, the scores, or a combination of both after convergence.
+#' 
 #' @param object an object of class \code{"feglm"}.
 #' @param type the type of covariance estimate required. \code{"hessian"} refers
 #'  to the inverse of the negative expected hessian after convergence and is the
@@ -22,11 +30,16 @@ vcov.apes <- function(object, ...) {
 #'  estimator. \code{"sandwich"} is the sandwich estimator (sometimes also
 #'  referred as robust estimator), and \code{"clustered"} computes a clustered
 #'  covariance matrix given some cluster variables.
+#' 
 #' @param ... additional arguments.
+#' 
 #' @return A named matrix of covariance estimates.
+#' 
 #' @references Cameron, C., J. Gelbach, and D. Miller (2011). "Robust Inference
 #'  With Multiway Clustering". Journal of Business & Economic Statistics 29(2).
+#' 
 #' @seealso \code{\link{feglm}}
+#' 
 #' @examples 
 #' mod <- fepoisson(
 #'  trade ~ log_dist + lang + cntg + clny | exp_year + imp_year | pair,
@@ -161,12 +174,17 @@ vcov.feglm <- function(
 }
 
 #' @title Covariance matrix for LMs
+#' 
 #' @description Covariance matrix for the estimator of the structural parameters
 #'  from objects returned by \code{\link{felm}}. The covariance is computed
-#' from the hessian, the scores, or a combination of both after convergence.
+#'  from the hessian, the scores, or a combination of both after convergence.
+#' 
 #' @param object an object of class \code{"felm"}.
+#' 
 #' @inherit vcov.feglm
+#'
 #' @seealso \code{\link{felm}}
+#' 
 #' @export
 vcov.felm <- function(
     object,

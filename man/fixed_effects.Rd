@@ -31,6 +31,7 @@ mod <- fepoisson(
 )
 
 fixed_effects(mod)
+
 }
 \references{
 Stammann, A. (2018). "Fast and Feasible Estimation of Generalized

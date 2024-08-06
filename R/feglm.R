@@ -100,10 +100,10 @@ feglm <- function(
   k <- length(k_vars)
 
   # Generate temporary variable ----
-  tmp.var <- temp_var_(data)
+  tmp_var <- temp_var_(data)
 
   # Drop observations that do not contribute to the log likelihood ----
-  data <- drop_by_link_type_(data, lhs, family, tmp.var, k_vars, control)
+  data <- drop_by_link_type_(data, lhs, family, tmp_var, k_vars, control)
 
   # Transform fixed effects and clusters to factors ----
   data <- transform_fe_(data, formula, k_vars)
