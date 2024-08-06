@@ -10,9 +10,6 @@
     <loc>/CONTRIBUTING.html</loc>
   </url>
   <url>
-    <loc>/LICENSE-text.html</loc>
-  </url>
-  <url>
     <loc>/LICENSE.html</loc>
   </url>
   <url>
@@ -73,19 +70,7 @@
     <loc>/reference/reexports.html</loc>
   </url>
   <url>
-    <loc>/reference/summary.apes.html</loc>
-  </url>
-  <url>
-    <loc>/reference/summary.feglm.html</loc>
-  </url>
-  <url>
-    <loc>/reference/summary.felm.html</loc>
-  </url>
-  <url>
     <loc>/reference/trade_panel.html</loc>
-  </url>
-  <url>
-    <loc>/reference/vcov.apes.html</loc>
   </url>
   <url>
     <loc>/reference/vcov.feglm.html</loc>

@@ -80,6 +80,7 @@ summary(mod_bc)
 # Compute bias-corrected average partial effects
 mod_ape_bc <- apes(mod_bc)
 summary(mod_ape_bc)
+
 }
 \references{
 Cruz-Gonzalez, M., I. Fernández-Val, and M. Weidner (2017). "Bias

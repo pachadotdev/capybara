@@ -1,5 +1,13 @@
-# Efficient offset algorithm to update the linear predictor ----
-
+#' @title GLM offset
+#' 
+#' @description Efficient offset algorithm to update the linear predictor
+#' 
+#' @param object an object of class \code{feglm}
+#' @param offset a numeric vector of length equal to the number of observations
+#' 
+#' @return an object of class \code{feglm}
+#' 
+#' @noRd
 feglm_offset_ <- function(object, offset) {
   # Check validity of 'object'
   if (!inherits(object, "feglm")) {

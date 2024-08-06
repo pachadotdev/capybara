@@ -1,3 +1,5 @@
+#' @title Predict method for 'feglm' objects
+#' @description Similar to the 'predict' method for 'glm' objects
 #' @export
 #' @noRd
 predict.feglm <- function(object, type = c("link", "response"), ...) {
@@ -14,6 +16,8 @@ predict.feglm <- function(object, type = c("link", "response"), ...) {
   x
 }
 
+#' @title Predict method for 'felm' objects
+#' @description Similar to the 'predict' method for 'lm' objects
 #' @export
 #' @noRd
 predict.felm <- function(object, ...) {

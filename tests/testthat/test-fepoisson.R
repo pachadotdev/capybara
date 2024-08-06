@@ -46,4 +46,34 @@ test_that("fepoisson is similar to fixest", {
   expect_output(summary_r2_(smod, 3))
   expect_output(summary_nobs_(smod))
   expect_output(summary_fisher_(smod))
+
+  # unique(trade_panel$year)
+  trade_panel_2006 <- trade_panel[trade_panel$year == 2006, ]
+
+  t_fepoisson <- rep(0,10)
+  for (i in 1:10) {
+    t1 <- Sys.time()
+    fit <- fepoisson(
+      trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
+      trade_panel_2006
+    )
+    t2 <- Sys.time()
+    t_fepoisson <- t2 - t1
+  }
+  t_fepoisson <- median(t_fepoisson)
+
+  t_glm <- rep(0,10)
+  for (i in 1:0) {
+    t1 <- Sys.time()
+    fit <- suppressWarnings(glm(
+      trade ~ log_dist + lang + cntg + clny + as.factor(exp_year) + as.factor(imp_year),
+      trade_panel_2006,
+      family = poisson(link = "log")
+    ))
+    t2 <- Sys.time()
+    t_glm <- t2 - t1
+  }
+  t_glm <- median(t_glm)
+
+  expect_lte(t_fepoisson, t_glm)
 })

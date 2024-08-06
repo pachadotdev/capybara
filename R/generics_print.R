@@ -1,8 +1,14 @@
+#' @title Refactors for and 'feglm' summaries
+#' @description Reduces the cyclomatic complexity of print.summary.feglm
+#' @noRd
 summary_formula_ <- function(x) {
   cat("Formula: ")
   print(x[["formula"]])
 }
 
+#' @title Refactors for and 'feglm' summaries
+#' @description Reduces the cyclomatic complexity of print.summary.feglm
+#' @noRd
 summary_family_ <- function(x) {
   cat(
     "\nFamily: ", gsub("^([a-z])", "\\U\\1", x[["family"]][["family"]],
@@ -12,6 +18,9 @@ summary_family_ <- function(x) {
   )
 }
 
+#' @title Refactors for and 'feglm' summaries
+#' @description Reduces the cyclomatic complexity of print.summary.feglm
+#' @noRd
 summary_estimates_ <- function(x, digits) {
   cat("\nEstimates:\n\n")
   coefmat <- as.data.frame(x[["cm"]])
@@ -113,6 +122,9 @@ summary_estimates_ <- function(x, digits) {
   cat("\nSignificance codes: *** 99.9%; ** 99%; * 95%; . 90%\n")
 }
 
+#' @title Refactors for and 'feglm' summaries
+#' @description Reduces the cyclomatic complexity of print.summary.feglm
+#' @noRd
 summary_r2_ <- function(x, digits) {
   cat(
     sprintf("\nR-squared%*s:", nchar("Adj. "), " "),
@@ -124,6 +136,9 @@ summary_r2_ <- function(x, digits) {
   )
 }
 
+#' @title Refactors for and 'feglm' summaries
+#' @description Reduces the cyclomatic complexity of print.summary.feglm
+#' @noRd
 summary_pseudo_rsq_ <- function(x, digits) {
   if (x[["family"]][["family"]] == "poisson") {
     cat(
@@ -133,6 +148,9 @@ summary_pseudo_rsq_ <- function(x, digits) {
   }
 }
 
+#' @title Refactors for and 'feglm' summaries
+#' @description Reduces the cyclomatic complexity of print.summary.feglm
+#' @noRd
 summary_nobs_ <- function(x) {
   cat(
     "\nNumber of observations:",
@@ -142,6 +160,9 @@ summary_nobs_ <- function(x) {
   )
 }
 
+#' @title Refactors for and 'feglm' summaries
+#' @description Reduces the cyclomatic complexity of print.summary.feglm
+#' @noRd
 summary_fisher_ <- function(x, digits) {
   if (is.null(x[["theta"]])) {
     cat("\nNumber of Fisher Scoring iterations:", x[["iter"]], "\n")
@@ -159,12 +180,16 @@ summary_fisher_ <- function(x, digits) {
   }
 }
 
+#' @title Print method for 'apes' objects
+#' @description Similar to the 'print' method for 'glm' objects
 #' @export
 #' @noRd
 print.apes <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
   print(x[["delta"]], digits = digits)
 }
 
+#' @title Print method for 'feglm' objects
+#' @description Similar to the 'print' method for 'glm' objects
 #' @export
 #' @noRd
 print.feglm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
@@ -177,12 +202,16 @@ print.feglm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
   print(x[["coefficients"]], digits = digits)
 }
 
+#' @title Print method for 'felm' objects
+#' @description Similar to the 'print' method for 'lm' objects
 #' @export
 #' @noRd
 print.felm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
   print(x[["coefficients"]], digits = digits)
 }
 
+#' @title Print method for 'apes' summary objects
+#' @description Similar to the 'print' method for 'glm' objects
 #' @export
 #' @noRd
 print.summary.apes <- function(
@@ -191,6 +220,8 @@ print.summary.apes <- function(
   printCoefmat(x[["cm"]], P.values = TRUE, has.Pvalue = TRUE, digits = digits)
 }
 
+#' @title Print method for 'feglm' summary objects
+#' @description Similar to the 'print' method for 'glm' objects
 #' @export
 #' @noRd
 print.summary.feglm <- function(
@@ -209,6 +240,8 @@ print.summary.feglm <- function(
   summary_fisher_(x, digits)
 }
 
+#' @title Print method for 'felm' summary objects
+#' @description Similar to the 'print' method for 'lm' objects
 #' @export
 #' @noRd
 print.summary.felm <- function(

@@ -1,5 +1,7 @@
-# Checks if variable is a factor and transforms if necessary ---
-
+#' @title Transform factor
+#' @description Checks if variable is a factor and transforms if necessary
+#' @param x Variable to be checked
+#' @noRd
 check_factor_ <- function(x) {
   if (is.factor(x)) {
     droplevels(x)
@@ -8,67 +10,87 @@ check_factor_ <- function(x) {
   }
 }
 
-# Higher-order partial derivatives ----
-
-second_order_derivative_ <- function(eta, f, family) {
+#' @title Second order derivative
+#' @description Helper for the partial_mu_eta function
+#' @param eta Eta value
+#' @param mu_eta Mu.eta value
+#' @param family Family object
+#' @noRd
+second_order_derivative_ <- function(eta, mu_eta, family) {
   link <- family[["link"]]
   linkinv_eta <- family[["linkinv"]](eta)
 
   if (link == "logit") {
-    return(f * (1.0 - 2.0 * linkinv_eta))
+    return(mu_eta * (1.0 - 2.0 * linkinv_eta))
   } else if (link == "probit") {
-    return(-eta * f)
+    return(-eta * mu_eta)
   } else if (link == "cloglog") {
-    return(f * (1.0 - exp(eta)))
+    return(mu_eta * (1.0 - exp(eta)))
   } else {
-    return(-2.0 * eta / (1.0 + eta^2) * f)
+    return(-2.0 * eta / (1.0 + eta^2) * mu_eta)
   }
 }
 
-third_order_derivative_ <- function(eta, f, family) {
+#' @title Third order derivative
+#' @description Helper for the partial_mu_eta function
+#' @param eta Eta value
+#' @param mu_eta Mu.eta value
+#' @param family Family object
+#' @noRd
+third_order_derivative_ <- function(eta, mu_eta, family) {
   link <- family[["link"]]
   linkinv_eta <- family[["linkinv"]](eta)
 
   if (link == "logit") {
-    return(f * ((1.0 - 2.0 * linkinv_eta)^2 - 2.0 * f))
+    return(mu_eta * ((1.0 - 2.0 * linkinv_eta)^2 - 2.0 * mu_eta))
   } else if (link == "probit") {
-    return((eta^2 - 1.0) * f)
+    return((eta^2 - 1.0) * mu_eta)
   } else if (link == "cloglog") {
-    return(f * (1.0 - exp(eta)) * (2.0 - exp(eta)) - f)
+    return(mu_eta * (1.0 - exp(eta)) * (2.0 - exp(eta)) - mu_eta)
   } else {
-    return((6.0 * eta^2 - 2.0) / (1.0 + eta^2)^2 * f)
+    return((6.0 * eta^2 - 2.0) / (1.0 + eta^2)^2 * mu_eta)
   }
 }
 
+#' @title Second or third order derivative
+#' @description Computes the second or third order derivative of the link function
+#' @param eta Linear predictor
+#' @param family Family object
+#' @param order Order of the derivative (2 or 3)
+#' @noRd
 partial_mu_eta_ <- function(eta, family, order) {
   # Safeguard eta if necessary
   if (family[["link"]] != "logit") {
     eta <- family[["linkfun"]](family[["linkinv"]](eta))
   }
 
-  f <- family[["mu.eta"]](eta)
+  mu_eta <- family[["mu.eta"]](eta)
 
   if (order == 2L) {
-    return(second_order_derivative_(eta, f, family))
+    return(second_order_derivative_(eta, mu_eta, family))
   } else {
-    return(third_order_derivative_(eta, f, family))
+    return(third_order_derivative_(eta, mu_eta, family))
   }
 }
 
-# Returns suitable name for a temporary variable ----
-
+#' @title Temporary variable
+#' @description Generates a temporary variable name
+#' @param data Data frame
+#' @noRd
 temp_var_ <- function(data) {
   repeat {
-    tmp.var <- paste0("capybara_internal_variable_", sample(letters, 5L, replace = TRUE), collapse = "")
-    if (!(tmp.var %in% colnames(data))) {
+    tmp_var <- paste0("capybara_internal_variable_", sample(letters, 5L, replace = TRUE), collapse = "")
+    if (!(tmp_var %in% colnames(data))) {
       break
     }
   }
-  tmp.var
+  tmp_var
 }
 
-# GLM/NegBin ----
-
+#' @title Check formula
+#' @description Checks if formula for GLM/NegBin models
+#' @param formula Formula object
+#' @noRd
 check_formula_ <- function(formula) {
   if (is.null(formula)) {
     stop("'formula' has to be specified.", call. = FALSE)
@@ -77,6 +99,10 @@ check_formula_ <- function(formula) {
   }
 }
 
+#' @title Check data
+#' @description Checks data for GLM/NegBin models
+#' @param data Data frame
+#' @noRd
 check_data_ <- function(data) {
   if (is.null(data)) {
     stop("'data' has to be specified.", call. = FALSE)
@@ -85,6 +111,10 @@ check_data_ <- function(data) {
   }
 }
 
+#' @title Check control
+#' @description Checks control for GLM/NegBin models
+#' @param control Control list
+#' @noRd
 check_control_ <- function(control) {
   if (is.null(control)) {
     control <- list()
@@ -95,6 +125,10 @@ check_control_ <- function(control) {
   do.call(feglm_control, control)
 }
 
+#' @title Check family
+#' @description Checks family for GLM/NegBin models
+#' @param family Family object
+#' @noRd
 check_family_ <- function(family) {
   if (!inherits(family, "family")) {
     stop("'family' has to be of class family", call. = FALSE)
@@ -112,6 +146,10 @@ check_family_ <- function(family) {
   }
 }
 
+#' @title Update formula
+#' @description Updates formula for GLM/NegBin models
+#' @param formula Formula object
+#' @noRd
 update_formula_ <- function(formula) {
   formula <- Formula(formula)
 
@@ -125,6 +163,12 @@ update_formula_ <- function(formula) {
   formula
 }
 
+#' @title Model frame
+#' @description Creates model frame for GLM/NegBin models
+#' @param data Data frame
+#' @param formula Formula object
+#' @param weights Weights
+#' @noRd
 model_frame_ <- function(data, formula, weights) {
   data <- select(ungroup(data), all_of(c(all.vars(formula), weights)))
 
@@ -143,6 +187,12 @@ model_frame_ <- function(data, formula, weights) {
   assign("nobs_full", nobs_full, envir = parent.frame())
 }
 
+#' @title Check response
+#' @description Checks response for GLM/NegBin models
+#' @param data Data frame
+#' @param lhs Left-hand side of the formula
+#' @param family Family object
+#' @noRd
 check_response_ <- function(data, lhs, family) {
   if (family[["family"]] == "binomial") {
     # Check if 'y' is numeric
@@ -183,23 +233,32 @@ check_response_ <- function(data, lhs, family) {
   }
 }
 
-drop_by_link_type_ <- function(data, lhs, family, tmp.var, k.vars, control) {
+#' @title Drop by link type
+#' @description Drops observations that do not contribute to the log-likelihood for binomial and poisson models
+#' @param data Data frame
+#' @param lhs Left-hand side of the formula
+#' @param family Family object
+#' @param tmp_var Temporary variable
+#' @param k_vars Fixed effects
+#' @param control Control list
+#' @noRd
+drop_by_link_type_ <- function(data, lhs, family, tmp_var, k_vars, control) {
   if (family[["family"]] %in% c("binomial", "poisson")) {
     if (control[["drop_pc"]]) {
       repeat {
         # Drop observations that do not contribute to the log-likelihood
         ncheck <- nrow(data)
-        for (j in k.vars) {
+        for (j in k_vars) {
           data <- data %>%
             group_by(!!sym(j)) %>%
-            mutate(!!sym(tmp.var) := mean(!!sym(lhs))) %>%
+            mutate(!!sym(tmp_var) := mean(!!sym(lhs))) %>%
             ungroup()
           if (family[["family"]] == "binomial") {
-            data <- filter(data, !!sym(tmp.var) > 0.0 & !!sym(tmp.var) < 1.0)
+            data <- filter(data, !!sym(tmp_var) > 0.0 & !!sym(tmp_var) < 1.0)
           } else {
-            data <- filter(data, !!sym(tmp.var) > 0.0)
+            data <- filter(data, !!sym(tmp_var) > 0.0)
           }
-          data <- select(data, -!!sym(tmp.var))
+          data <- select(data, -!!sym(tmp_var))
         }
 
         # Check termination
@@ -213,8 +272,14 @@ drop_by_link_type_ <- function(data, lhs, family, tmp.var, k.vars, control) {
   data
 }
 
-transform_fe_ <- function(data, formula, k.vars) {
-  data <- mutate(data, across(all_of(k.vars), check_factor_))
+#' @title Transform fixed effects
+#' @description Transforms fixed effects that are factors
+#' @param data Data frame
+#' @param formula Formula object
+#' @param k_vars Fixed effects
+#' @noRd
+transform_fe_ <- function(data, formula, k_vars) {
+  data <- mutate(data, across(all_of(k_vars), check_factor_))
 
   if (length(formula)[[2L]] > 2L) {
     add.vars <- attr(terms(formula, rhs = 3L), "term.labels")
@@ -224,6 +289,12 @@ transform_fe_ <- function(data, formula, k.vars) {
   data
 }
 
+#' @title Number of observations
+#' @description Computes the number of observations
+#' @param nobs_full Number of observations in the full data set
+#' @param nobs_na Number of observations with missing values
+#' @param nt Number of observations after dropping
+#' @noRd
 nobs_ <- function(nobs_full, nobs_na, nt) {
   c(
     nobs_full = nobs_full,
@@ -233,6 +304,11 @@ nobs_ <- function(nobs_full, nobs_na, nt) {
   )
 }
 
+#' @title Model response
+#' @description Computes the model response
+#' @param data Data frame
+#' @param formula Formula object
+#' @noRd
 model_response_ <- function(data, formula) {
   y <- data[[1L]]
   X <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
@@ -252,6 +328,10 @@ check_linear_dependence_ <- function(X, p) {
   }
 }
 
+#' @title Check weights
+#' @description Checks if weights are valid
+#' @param wt Weights
+#' @noRd
 check_weights_ <- function(wt) {
   if (!is.numeric(wt)) {
     stop("weights must be numeric.", call. = FALSE)
@@ -261,6 +341,11 @@ check_weights_ <- function(wt) {
   }
 }
 
+#' @title Check starting theta
+#' @description Checks if starting theta is valid for NegBin models
+#' @param init.theta Initial theta value
+#' @param link Link function
+#' @noRd
 init_theta_ <- function(init.theta, link) {
   if (is.null(init.theta)) {
     family <- poisson(link)
@@ -277,6 +362,18 @@ init_theta_ <- function(init.theta, link) {
   family
 }
 
+#' @title Check starting guesses
+#' @description Checks if starting guesses are valid
+#' @param beta_start Starting values for beta
+#' @param eta_start Starting values for eta
+#' @param y Dependent variable
+#' @param X Regressor matrix
+#' @param beta Beta values
+#' @param nt Number of observations
+#' @param wt Weights
+#' @param p Number parameters
+#' @param family Family object
+#' @noRd
 start_guesses_ <- function(
     beta_start, eta_start, y, X, beta, nt, wt, p, family) {
   if (!is.null(beta_start) || !is.null(eta_start)) {
@@ -336,17 +433,22 @@ start_guesses_ <- function(
   assign("eta", eta, envir = parent.frame())
 }
 
-# Generate auxiliary list of indexes for different sub panels ----
-
-get_index_list_ <- function(k.vars, data) {
+#' @title Get index list
+#' @description Generates an auxiliary list of indexes to project out the fixed effects
+#' @param k_vars Fixed effects
+#' @param data Data frame
+#' @noRd
+get_index_list_ <- function(k_vars, data) {
   indexes <- seq.int(0L, nrow(data) - 1L)
-  lapply(k.vars, function(x, indexes, data) {
+  lapply(k_vars, function(x, indexes, data) {
     split(indexes, data[[x]])
   }, indexes = indexes, data = data)
 }
 
-# Compute score matrix ----
-
+#' @title Get score matrix
+#' @description Computes the score matrix
+#' @param object Result list
+#' @noRd
 get_score_matrix_ <- function(object) {
   # Extract required quantities from result list
   control <- object[["control"]]
@@ -368,10 +470,10 @@ get_score_matrix_ <- function(object) {
   } else {
     # Extract additional required quantities from result list
     formula <- object[["formula"]]
-    k.vars <- names(object[["lvls_k"]])
+    k_vars <- names(object[["lvls_k"]])
 
     # Generate auxiliary list of indexes to project out the fixed effects
-    k.list <- get_index_list_(k.vars, data)
+    k.list <- get_index_list_(k_vars, data)
 
     # Extract regressor matrix
     X <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
@@ -387,20 +489,15 @@ get_score_matrix_ <- function(object) {
   MX * (nu * w)
 }
 
-# Suitable name for a temporary variable ----
-
-temp_var_ <- function(data) {
-  repeat {
-    tmp.var <- paste0(sample(letters, 5L, replace = TRUE), collapse = "")
-    if (!(tmp.var %in% colnames(data))) {
-      break
-    }
-  }
-  tmp.var
-}
-
-# Gamma computation (APES) ----
-
+#' @title Gamma computation
+#' @description Computes the gamma matrix for the APES function
+#' @param MX Regressor matrix
+#' @param H Hessian matrix
+#' @param J Jacobian matrix
+#' @param PPsi Psi matrix
+#' @param v Vector of weights
+#' @param nt Number of observations
+#' @noRd
 gamma_ <- function(MX, H, J, PPsi, v, nt) {
   inv_nt <- 1.0 / nt
   (MX %*% solve(H * inv_nt, J) - PPsi) * v * inv_nt

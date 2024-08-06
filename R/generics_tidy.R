@@ -2,6 +2,8 @@
 #' @export
 generics::tidy
 
+#' @title Tidy method for 'feglm' objects
+#' @description Integration with the 'broom' package
 #' @export
 #' @noRd
 tidy.feglm <- function(x, conf.int = FALSE, conf.level = 0.95, ...) {
@@ -15,6 +17,8 @@ tidy.feglm <- function(x, conf.int = FALSE, conf.level = 0.95, ...) {
   res
 }
 
+#' @title Tidy method for 'felm' objects
+#' @description Integration with the 'broom' package
 #' @export
 #' @noRd
 tidy.felm <- function(x, conf.int = FALSE, conf.level = 0.95, ...) {
