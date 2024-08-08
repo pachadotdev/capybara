@@ -106,6 +106,8 @@ check_formula_ <- function(formula) {
 check_data_ <- function(data) {
   if (is.null(data)) {
     stop("'data' has to be specified.", call. = FALSE)
+  } else if (nrow(data) == 0L) {
+    stop("'data' has zero observations.", call. = FALSE)
   } else if (!inherits(data, "data.frame")) {
     stop("'data' has to be of class data.frame.", call. = FALSE)
   }

@@ -10,7 +10,8 @@
 //   double inv_N = 1.0 / as_cpp<double>(nt_full);
 
 //   Mat<double> res =
-//       (as_Mat(mx) * solve(as_Mat(hessian) * inv_N, as_Mat(j))) - as_Mat(ppsi);
+//       (as_Mat(mx) * solve(as_Mat(hessian) * inv_N, as_Mat(j))) -
+//       as_Mat(ppsi);
 //   res = (res.each_col() % as_Mat(v)) * inv_N;
 
 //   return as_doubles_matrix(res);
@@ -53,7 +54,7 @@ Mat<double> crossprod_(const Mat<double> &X, const Col<double> &w, const int &n,
 }
 
 Col<double> solve_beta_(const Mat<double> &MX, const Mat<double> &MNU,
-                                 const Col<double> &w) {
+                        const Col<double> &w) {
   Col<double> wtilde = sqrt(w);
 
   Mat<double> Q, R;

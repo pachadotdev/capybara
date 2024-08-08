@@ -36,7 +36,7 @@ kendall_cor <- function(x, y) {
 
   n <- ncol(arr)
 
-  kw <- kendall_warnings(arr, n)
+  kw <- kendall_warnings_(arr, n)
 
   if (isFALSE(kw)) { return(NA) }
 
@@ -81,7 +81,7 @@ kendall_cor_test <- function(x, y,
   n <- nrow(arr)
   m <- ncol(arr)
 
-  kw <- kendall_warnings(arr, m)
+  kw <- kendall_warnings_(arr, m)
 
   if (isFALSE(kw)) { return(NA) }
 
@@ -138,7 +138,7 @@ kendall_cor_test <- function(x, y,
   )
 }
 
-kendall_warnings <- function(arr, n) {
+kendall_warnings_ <- function(arr, n) {
   if (n != 2) {
     stop("x and y must be uni-dimensional vectors")
   }

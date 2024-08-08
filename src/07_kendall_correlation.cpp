@@ -20,8 +20,9 @@ uint64_t insertion_sort_(double *arr, size_t len) {
     size_t j = i;
     double val = arr[i];
 
-    for (; j < maxJ && arr[j + 1] < val; ++j) {
+    while (j < maxJ && arr[j + 1] < val) {
       arr[j] = arr[j + 1];
+      ++j;
     }
 
     arr[j] = val;
@@ -145,13 +146,17 @@ uint64_t merge_sort_(double *x, double *buf, size_t len) {
 
 double ckendall_(int k, int n, std::vector<std::vector<double>> &w) {
   int u = n * (n - 1) / 2;
-  if (k < 0 || k > u) return 0;
+  if (k < 0 || k > u) {
+    return 0;
+  }
   if (w[n][k] < 0) {
     if (n == 1)
       w[n][k] = (k == 0) ? 1 : 0;
     else {
       double s = 0;
-      for (int i = 0; i <= u; i++) s += ckendall_(k - i, n - 1, w);
+      for (int i = 0; i <= u; i++) {
+        s += ckendall_(k - i, n - 1, w);
+      }
       w[n][k] = s;
     }
   }
@@ -172,7 +177,9 @@ double ckendall_(int k, int n, std::vector<std::vector<double>> &w) {
       P[i] = 1;
     else {
       double p = 0;
-      for (int j = 0; j <= q; j++) p += ckendall_(j, n, w);
+      for (int j = 0; j <= q; j++) {
+        p += ckendall_(j, n, w);
+      }
       P[i] = p / gammafn(n + 1);
     }
   }
