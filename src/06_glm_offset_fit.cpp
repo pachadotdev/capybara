@@ -1,9 +1,10 @@
 #include "00_main.h"
 
-[[cpp11::register]] doubles feglm_offset_fit_(
-    const doubles &eta_r, const doubles &y_r, const doubles &offset_r,
-    const doubles &wt_r, const std::string &family, const list &control,
-    const list &k_list) {
+[[cpp11::register]] doubles
+feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
+                  const doubles &offset_r, const doubles &wt_r,
+                  const std::string &family, const list &control,
+                  const list &k_list) {
   // Type conversion
 
   Col<double> eta = as_Col(eta_r);
@@ -49,7 +50,8 @@
 
     // Center variables
 
-    Myadj = center_variables_(Myadj + yadj, w, k_list, center_tol, iter_center_max);
+    Myadj =
+        center_variables_(Myadj + yadj, w, k_list, center_tol, iter_center_max);
 
     // Compute update step and update eta
 

@@ -27,38 +27,30 @@ std::string tidy_family_(const std::string &family) {
   return fam;
 }
 
-Col<double> link_inv_gaussian_(const Col<double> &eta) {
-  return eta;
-}
+Col<double> link_inv_gaussian_(const Col<double> &eta) { return eta; }
 
-Col<double> link_inv_poisson_(const Col<double> &eta) {
-  return exp(eta);
-}
+Col<double> link_inv_poisson_(const Col<double> &eta) { return exp(eta); }
 
 Col<double> link_inv_logit_(const Col<double> &eta) {
   Col<double> expeta = exp(eta);
   return expeta / (1 + expeta);
 }
 
-Col<double> link_inv_gamma_(const Col<double> &eta) {
-  return 1 / eta;
-}
+Col<double> link_inv_gamma_(const Col<double> &eta) { return 1 / eta; }
 
 Col<double> link_inv_invgaussian_(const Col<double> &eta) {
   return 1 / sqrt(eta);
 }
 
-Col<double> link_inv_negbin_(const Col<double> &eta) {
-  return exp(eta);
-}
+Col<double> link_inv_negbin_(const Col<double> &eta) { return exp(eta); }
 
 double dev_resids_gaussian_(const Col<double> &y, const Col<double> &mu,
-                                const Col<double> &wt) {
+                            const Col<double> &wt) {
   return accu(wt % square(y - mu));
 }
 
 double dev_resids_poisson_(const Col<double> &y, const Col<double> &mu,
-                                const Col<double> &wt) {
+                           const Col<double> &wt) {
   Col<double> r = mu % wt;
 
   uvec p = find(y > 0);
@@ -70,7 +62,8 @@ double dev_resids_poisson_(const Col<double> &y, const Col<double> &mu,
 // Adapted from binomial_dev_resids()
 // in R base it can be found in src/library/stats/src/family.c
 // unfortunately the functions that work with a SEXP won't work with a Col<>
-double dev_resids_logit_(const Col<double> &y, const Col<double> &mu, const Col<double> &wt) {
+double dev_resids_logit_(const Col<double> &y, const Col<double> &mu,
+                         const Col<double> &wt) {
   Col<double> r(y.n_elem, fill::zeros);
   Col<double> s(y.n_elem, fill::zeros);
 
@@ -83,9 +76,9 @@ double dev_resids_logit_(const Col<double> &y, const Col<double> &mu, const Col<
 }
 
 double dev_resids_gamma_(const Col<double> &y, const Col<double> &mu,
-                              const Col<double> &wt) {
+                         const Col<double> &wt) {
   Col<double> r = y / mu;
-  
+
   uvec p = find(y == 0);
   r.elem(p).fill(1.0);
   r = wt % (log(r) - (y - mu) / mu);
@@ -94,14 +87,14 @@ double dev_resids_gamma_(const Col<double> &y, const Col<double> &mu,
 }
 
 double dev_resids_invgaussian_(const Col<double> &y, const Col<double> &mu,
-                                   const Col<double> &wt) {
+                               const Col<double> &wt) {
   return accu(wt % square(y - mu) / (y % square(mu)));
 }
 
 double dev_resids_negbin_(const Col<double> &y, const Col<double> &mu,
-                               const double &theta, const Col<double> &wt) {
+                          const double &theta, const Col<double> &wt) {
   Col<double> r = y;
-  
+
   uvec p = find(y < 1);
   r.elem(p).fill(1.0);
   r = wt % (y % log(r / mu) - (y + theta) % log((y + theta) / (mu + theta)));
@@ -113,42 +106,30 @@ Col<double> mu_eta_gaussian_(const Col<double> &eta) {
   return ones<Col<double>>(eta.n_elem);
 }
 
-Col<double> mu_eta_poisson_(const Col<double> &eta) {
-  return exp(eta);
-}
+Col<double> mu_eta_poisson_(const Col<double> &eta) { return exp(eta); }
 
 Col<double> mu_eta_logit_(const Col<double> &eta) {
   Col<double> expeta = exp(eta);
   return expeta / square(1 + expeta);
 }
 
-Col<double> mu_eta_gamma_(const Col<double> &eta) {
-  return -1 / square(eta);
-}
+Col<double> mu_eta_gamma_(const Col<double> &eta) { return -1 / square(eta); }
 
 Col<double> mu_eta_invgaussian_(const Col<double> &eta) {
   return -1 / (2 * pow(eta, 1.5));
 }
 
-Col<double> mu_eta_negbin_(const Col<double> &eta) {
-  return exp(eta);
-}
+Col<double> mu_eta_negbin_(const Col<double> &eta) { return exp(eta); }
 
 Col<double> variance_gaussian_(const Col<double> &mu) {
   return ones<Col<double>>(mu.n_elem);
 }
 
-Col<double> variance_poisson_(const Col<double> &mu) {
-  return mu;
-}
+Col<double> variance_poisson_(const Col<double> &mu) { return mu; }
 
-Col<double> variance_binomial_(const Col<double> &mu) {
-  return mu % (1 - mu);
-}
+Col<double> variance_binomial_(const Col<double> &mu) { return mu % (1 - mu); }
 
-Col<double> variance_gamma_(const Col<double> &mu) {
-  return square(mu);
-}
+Col<double> variance_gamma_(const Col<double> &mu) { return square(mu); }
 
 Col<double> variance_invgaussian_(const Col<double> &mu) {
   return pow(mu, 3.0);
@@ -160,7 +141,7 @@ Col<double> variance_negbin_(const Col<double> &mu, const double &theta) {
 
 Col<double> link_inv_(const Col<double> &eta, const std::string &fam) {
   Col<double> res(eta.n_elem);
-  
+
   if (fam == "gaussian") {
     res = link_inv_gaussian_(eta);
   } else if (fam == "poisson") {
@@ -298,8 +279,7 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
 [[cpp11::register]] list feglm_fit_(const doubles &beta_r, const doubles &eta_r,
                                     const doubles &y_r,
                                     const doubles_matrix<> &x_r,
-                                    const doubles &wt_r,
-                                    const double &theta,
+                                    const doubles &wt_r, const double &theta,
                                     const std::string &family,
                                     const list &control, const list &k_list) {
   // Type conversion
@@ -355,7 +335,7 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
 
     MNU = center_variables_(MNU + nu, w, k_list, center_tol, iter_center_max);
     MX = center_variables_(MX, w, k_list, center_tol, iter_center_max);
-    
+
     // Compute update step and update eta
 
     // Step-halving with three checks:
@@ -442,11 +422,8 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
   out.push_back({"iter"_nm = iter + 1});
 
   if (keep_mx == true) {
-    out.push_back({
-      "MX"_nm = as_doubles_matrix(
-        center_variables_(as_Mat(x_r), w, k_list, center_tol, iter_center_max)
-      )
-    });
+    out.push_back({"MX"_nm = as_doubles_matrix(center_variables_(
+                       as_Mat(x_r), w, k_list, center_tol, iter_center_max))});
   }
 
   return out;

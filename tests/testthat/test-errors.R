@@ -50,6 +50,14 @@ test_that("error conditions", {
   expect_error(
     fepoisson(
       trade ~ log_dist | rta,
+      data = trade_panel_2002[trade_panel_2002$year == 3000, ]
+    ),
+    "zero observations"
+  )
+
+  expect_error(
+    fepoisson(
+      trade ~ log_dist | rta,
       data = trade_panel_2002,
       control = list(dev_tol = -1.0)
     ),
