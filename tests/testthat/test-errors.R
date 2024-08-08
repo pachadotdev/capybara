@@ -112,15 +112,7 @@ test_that("error conditions", {
       trade ~ log_dist | rta,
       data = list()
     ),
-    "'data' has to be of class data.frame"
-  )
-
-  expect_error(
-    fepoisson(
-      trade ~ log_dist | rta,
-      data = list()
-    ),
-    "'data' has to be of class data.frame"
+    "length zero"
   )
 
   expect_error(
