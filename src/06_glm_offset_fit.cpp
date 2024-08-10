@@ -30,7 +30,6 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
   const int n = y.n_elem;
   Col<double> mu_eta(n), yadj(n);
   Mat<double> w(n, 1);
-  bool conv = false;
 
   bool dev_crit, val_crit, imp_crit;
   double dev_old, dev_ratio, dev_ratio_inner, rho;
@@ -90,7 +89,6 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
     dev_ratio = fabs(dev - dev_old) / (0.1 + fabs(dev));
 
     if (dev_ratio < dev_tol) {
-      conv = true;
       break;
     }
 

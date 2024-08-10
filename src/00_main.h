@@ -4,7 +4,7 @@
 #include <cmath>
 #include <cpp11.hpp>
 #include <numeric>
-#include <r_armadillo_bindings.hpp>
+#include <cpp11armadillo.hpp>
 #include <vector>
 
 // #include <iostream>

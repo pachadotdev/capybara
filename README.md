@@ -118,13 +118,35 @@ Memory allocation for the same models
 | **Capybara** |   27MB |            32MB |        20MB |              23MB |                       29MB |          43MB |
 | Fixest       |   44MB |            36MB |        27MB |              32MB |                       41MB |          63MB |
 
-# Debugging
+## Changing the number of cores
 
-I run `r_valgrind "dev/test_get_alpha.r"` or the corresponding test from
-the project’s root in a new terminal (bash).
+Note that you can edit the `Makevars` file to change the number of cores
+that capybara uses, here is an example of how it affects the performance
+
+| cores | PPML | Trade Diversion | Endogeneity | Reverse Causality | Non-linear/Phasing Effects | Globalization |
+| :---- | ---: | --------------: | ----------: | ----------------: | -------------------------: | ------------: |
+| 2     | 1.8s |           16.2s |        7.7s |              9.6s |                      13.0s |         24.0s |
+| 4     | 1.7s |           16.0s |        7.4s |              9.3s |                      12.3s |         23.6s |
+| 6     | 0.7s |            2.4s |        2.0s |              2.0s |                       2.5s |          4.0s |
+| 8     | 0.3s |            2.0s |        1.2s |              1.4s |                       1.7s |          3.4s |
+
+## Testing and debugging
+
+## Testing
+
+I use `testthat` (e.g., `devtools::test()`) to compare the results with
+base R. These tests are about the correctness of the results.
+
+### Debuging
+
+I run `r_valgrind "dev/valgrind-kendall-correlation.r"` or the
+corresponding test from the project’s root in a new terminal (bash)
+after running `devtools::install()`. These tests are about memory leaks
+(e.g., I use repeteated computations and sometimes things such as “pi =
+3”).
 
 This works because I previously defined this in `.bashrc`, to make it
-work you need to run `source ~/.bashrc` or reboot:
+work you need to run `source ~/.bashrc` or reboot your computer.
 
     function r_debug_symbols () {
         # if src/Makevars does not exist, exit

@@ -90,7 +90,6 @@
 
       </header><div class="row">
   <div class="contents col-md-9">
-
 <div class="section level1">
 <div class="page-header"><h1 id="capybara-">capybara <img src="reference/figures/logo.svg" align="right" height="139" alt=""><a class="anchor" aria-label="anchor" href="#capybara-"></a>
 </h1></div>
@@ -254,12 +253,80 @@
 </tbody>
 </table>
 </div>
+<div class="section level2">
+<h2 id="changing-the-number-of-cores">Changing the number of cores<a class="anchor" aria-label="anchor" href="#changing-the-number-of-cores"></a>
+</h2>
+<p>Note that you can edit the <code>Makevars</code> file to change the number of cores that capybara uses, here is an example of how it affects the performance</p>
+<table class="table">
+<colgroup>
+<col width="5%">
+<col width="4%">
+<col width="16%">
+<col width="12%">
+<col width="18%">
+<col width="28%">
+<col width="14%">
+</colgroup>
+<thead><tr class="header">
+<th align="left">cores</th>
+<th align="right">PPML</th>
+<th align="right">Trade Diversion</th>
+<th align="right">Endogeneity</th>
+<th align="right">Reverse Causality</th>
+<th align="right">Non-linear/Phasing Effects</th>
+<th align="right">Globalization</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td align="left">2</td>
+<td align="right">1.8s</td>
+<td align="right">16.2s</td>
+<td align="right">7.7s</td>
+<td align="right">9.6s</td>
+<td align="right">13.0s</td>
+<td align="right">24.0s</td>
+</tr>
+<tr class="even">
+<td align="left">4</td>
+<td align="right">1.7s</td>
+<td align="right">16.0s</td>
+<td align="right">7.4s</td>
+<td align="right">9.3s</td>
+<td align="right">12.3s</td>
+<td align="right">23.6s</td>
+</tr>
+<tr class="odd">
+<td align="left">6</td>
+<td align="right">0.7s</td>
+<td align="right">2.4s</td>
+<td align="right">2.0s</td>
+<td align="right">2.0s</td>
+<td align="right">2.5s</td>
+<td align="right">4.0s</td>
+</tr>
+<tr class="even">
+<td align="left">8</td>
+<td align="right">0.3s</td>
+<td align="right">2.0s</td>
+<td align="right">1.2s</td>
+<td align="right">1.4s</td>
+<td align="right">1.7s</td>
+<td align="right">3.4s</td>
+</tr>
+</tbody>
+</table>
 </div>
-<div class="section level1">
-<h1 id="debugging">Debugging<a class="anchor" aria-label="anchor" href="#debugging"></a>
-</h1>
-<p>I run <code>r_valgrind "dev/test_get_alpha.r"</code> or the corresponding test from the project’s root in a new terminal (bash).</p>
-<p>This works because I previously defined this in <code>.bashrc</code>, to make it work you need to run <code>source ~/.bashrc</code> or reboot:</p>
+<div class="section level2"><h2 id="testing-and-debugging">Testing and debugging<a class="anchor" aria-label="anchor" href="#testing-and-debugging"></a>
+</h2></div>
+<div class="section level2">
+<h2 id="testing">Testing<a class="anchor" aria-label="anchor" href="#testing"></a>
+</h2>
+<p>I use <code>testthat</code> (e.g., <code><a href="https://devtools.r-lib.org/reference/test.html" class="external-link">devtools::test()</a></code>) to compare the results with base R. These tests are about the correctness of the results.</p>
+<div class="section level3">
+<h3 id="debuging">Debuging<a class="anchor" aria-label="anchor" href="#debuging"></a>
+</h3>
+<p>I run <code>r_valgrind "dev/valgrind-kendall-correlation.r"</code> or the corresponding test from the project’s root in a new terminal (bash) after running <code><a href="https://devtools.r-lib.org/reference/install.html" class="external-link">devtools::install()</a></code>. These tests are about memory leaks (e.g., I use repeteated computations and sometimes things such as “pi = 3”).</p>
+<p>This works because I previously defined this in <code>.bashrc</code>, to make it work you need to run <code>source ~/.bashrc</code> or reboot your computer.</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true"></a><span class="cf">function</span> <span class="kw">r_debug_symbols</span> () {</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true"></a>    <span class="co"># if src/Makevars does not exist, exit</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true"></a>    <span class="cf">if</span> [ <span class="op">!</span><span class="st"> </span><span class="op">-</span>f src<span class="op">/</span>Makevars ]; then</span>
@@ -325,13 +392,14 @@
 <p><code>r_debug_symbols</code> makes everything slower, but makes sure that all compiler optimizations are disabled and then valgrind will point us to the lines that create memory leaks.</p>
 <p><code>r_valgrind</code> will run an R script and use Linux system tools to test for initialized values and all kinds of problems that result in memory leaks.</p>
 <p>When you are ready testing, you need to remove <code>-UDEBUG</code> from <code>src/Makevars</code>.</p>
+</div>
+</div>
 <div class="section level2">
 <h2 id="code-of-conduct">Code of Conduct<a class="anchor" aria-label="anchor" href="#code-of-conduct"></a>
 </h2>
 <p>Please note that the capybara project is released with a <a href="https://contributor-covenant.org/version/2/1/CODE_OF_CONDUCT.html" class="external-link">Contributor Code of Conduct</a>. By contributing to this project, you agree to abide by its terms.</p>
 </div>
 </div>
-
   </div>
 
   <div class="col-md-3 hidden-xs hidden-sm" id="pkgdown-sidebar">
