@@ -1,7 +1,10 @@
 #' @title Poisson model fitting high-dimensional with k-way fixed effects
+#' 
 #' @description A wrapper for \code{\link{feglm}} with
 #'  \code{family = poisson()}.
+#' 
 #' @inheritParams feglm
+#' 
 #' @examples
 #' # same as the example in feglm but with less typing
 #' mod <- fepoisson(

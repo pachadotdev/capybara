@@ -14,14 +14,31 @@ out. It is also possible to pass clustering variables to \code{\link{feglm}}
 as \code{y ~ x | k | c}.}
 
 \item{data}{an object of class \code{"data.frame"} containing the variables
-in the model.}
+in the model. The expected input is a dataset with the variables specified
+in \code{formula} and a number of rows at least equal to the number of
+variables in the model.}
 
 \item{weights}{an optional string with the name of the 'prior weights'
 variable in \code{data}.}
 }
 \value{
-The function \code{\link{felm}} returns a named list of class
-\code{"felm"}.
+A named list of class \code{"felm"}. The list contains the following
+eleven elements:
+\item{coefficients}{a named vector of the estimated coefficients.}
+\item{fitted.values}{a vector of the estimated dependent variable.}
+\item{weights}{a vector of the weights used in the estimation.}
+\item{hessian}{a matrix with the numerical second derivatives.}
+\item{null_deviance}{the null deviance of the model.}
+effects}
+\item{nobs}{a named vector with the number of observations used in th
+estimation indicating the dropped and perfectly predicted observations}
+\item{lvls_k}{a named vector with the number of levels in each fixed
+effects}
+\item{nms_fe}{a list with the names of the fixed effects variables}
+\item{formula}{the formula used in the model}
+\item{data}{the data used in the model after dropping non-contributing
+observations}
+\item{control}{the control list used in the model}
 }
 \description{
 A wrapper for \code{\link{feglm}} with

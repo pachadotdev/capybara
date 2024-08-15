@@ -21,7 +21,9 @@ out. It is also possible to pass clustering variables to \code{\link{feglm}}
 as \code{y ~ x | k | c}.}
 
 \item{data}{an object of class \code{"data.frame"} containing the variables
-in the model.}
+in the model. The expected input is a dataset with the variables specified
+in \code{formula} and a number of rows at least equal to the number of
+variables in the model.}
 
 \item{weights}{an optional string with the name of the 'prior weights'
 variable in \code{data}.}

@@ -14,7 +14,9 @@
 #'  out. It is also possible to pass clustering variables to \code{\link{feglm}}
 #'  as \code{y ~ x | k | c}.
 #' @param data an object of class \code{"data.frame"} containing the variables
-#'  in the model.
+#'  in the model. The expected input is a dataset with the variables specified
+#'  in \code{formula} and a number of rows at least equal to the number of
+#'  variables in the model.
 #' @param family the link function to be used in the model. Similar to
 #'  \code{\link[stats]{glm.fit}} this has to be the result of a call to a family
 #'  function. Default is \code{gaussian()}. See \code{\link[stats]{family}} for
@@ -34,7 +36,26 @@
 #'  category. In this case, you should carefully inspect your model
 #'  specification.
 #'
-#' @return A named list of class \code{"feglm"}.
+#' @return A named list of class \code{"feglm"}. The list contains the following
+#'  fifteen elements:
+#'  \item{coefficients}{a named vector of the estimated coefficients.}
+#'  \item{eta}{a vector of the linear predictor.}
+#'  \item{weights}{a vector of the weights used in the estimation.}
+#'  \item{hessian}{a matrix with the numerical second derivatives.}
+#'  \item{deviance}{the deviance of the model.}
+#'  \item{null_deviance}{the null deviance of the model.}
+#'  \item{conv}{a logical indicating whether the model converged}
+#'  \item{iter}{the number of iterations needed to converge}
+#'  \item{nobs}{a named vector with the number of observations used in the
+#'   estimation indicating the dropped and perfectly predicted observations}
+#'  \item{lvls_k}{a named vector with the number of levels in each fixed
+#'   effects}
+#'  \item{nms_fe}{a list with the names of the fixed effects variables}
+#'  \item{formula}{the formula used in the model}
+#'  \item{data}{the data used in the model after dropping non-contributing
+#'   observations}
+#'  \item{family}{the family used in the model}
+#'  \item{control}{the control list used in the model}
 #'
 #' @references Gaure, S. (2013). "OLS with Multiple High Dimensional Category
 #'  Variables". Computational Statistics and Data Analysis, 66.

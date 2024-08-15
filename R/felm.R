@@ -5,8 +5,23 @@
 #'
 #' @inheritParams feglm
 #'
-#' @return The function \code{\link{felm}} returns a named list of class
-#'  \code{"felm"}.
+#' @return A named list of class \code{"felm"}. The list contains the following
+#'  eleven elements:
+#'  \item{coefficients}{a named vector of the estimated coefficients.}
+#'  \item{fitted.values}{a vector of the estimated dependent variable.}
+#'  \item{weights}{a vector of the weights used in the estimation.}
+#'  \item{hessian}{a matrix with the numerical second derivatives.}
+#'  \item{null_deviance}{the null deviance of the model.}
+#'   effects}
+#'  \item{nobs}{a named vector with the number of observations used in th
+#'   estimation indicating the dropped and perfectly predicted observations}
+#'  \item{lvls_k}{a named vector with the number of levels in each fixed
+#'   effects}
+#'  \item{nms_fe}{a list with the names of the fixed effects variables}
+#'  \item{formula}{the formula used in the model}
+#'  \item{data}{the data used in the model after dropping non-contributing
+#'   observations}
+#'  \item{control}{the control list used in the model}
 #'
 #' @references Gaure, S. (2013). "OLS with Multiple High Dimensional Category
 #'  Variables". Computational Statistics and Data Analysis, 66.
@@ -36,6 +51,8 @@ felm <- function(formula = NULL, data = NULL, weights = NULL) {
   names(reslist)[which(names(reslist) == "eta")] <- "fitted.values"
 
   # reslist[["hessian"]] <- NULL
+  reslist[["conv"]] <- NULL
+  reslist[["iter"]] <- NULL
   reslist[["family"]] <- NULL
   reslist[["deviance"]] <- NULL
 
