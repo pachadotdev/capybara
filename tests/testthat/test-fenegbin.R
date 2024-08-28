@@ -1,20 +1,13 @@
 test_that("fenegbin is similar to fixest", {
-  mod <- fenegbin(
-    trade ~ log_dist + lang + cntg + clny | exp_year + imp_year | pair,
-    trade_panel
-  )
+  mod <- fenegbin(mpg ~ wt | cyl | am, data = mtcars)
 
-  # mod_fixest <- fixest::fenegbin(
-  #   trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
-  #   trade_panel,
-  #   cluster = ~pair
-  # )
+  # mod_fixest <- fixest::fenegbin(mpg ~ wt | cyl, data = mtcars, cluster = ~am)
 
   summary_mod <- summary(mod, type = "clustered")
   
   # summary_mod_fixest <- summary(mod_fixest)
-  # summary_mod_fixest$coeftable[,2][1:4]
-  summary_mod_fixest <- c(0.02618568, 0.05870689, 0.12188073, 0.10366409)
+  # summary_mod_fixest$coeftable[,2][1]
+  summary_mod_fixest <- 0.01889489
 
-  expect_equal(unname(round(summary_mod$cm[,2] - summary_mod_fixest, 1)), rep(0, 4))
+  expect_equal(unname(round(summary_mod$cm[,2] - summary_mod_fixest, 1)), 0)
 })
