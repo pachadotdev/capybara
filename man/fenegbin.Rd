@@ -50,12 +50,12 @@ process. See \code{\link{feglm_control}} for details.}
 \value{
 A named list of class \code{"feglm"}. The list contains the following
 eighteen elements:
-\item{coefficients}{a named vector of the estimated coefficients.}
-\item{eta}{a vector of the linear predictor.}
-\item{weights}{a vector of the weights used in the estimation.}
-\item{hessian}{a matrix with the numerical second derivatives.}
-\item{deviance}{the deviance of the model.}
-\item{null_deviance}{the null deviance of the model.}
+\item{coefficients}{a named vector of the estimated coefficients}
+\item{eta}{a vector of the linear predictor}
+\item{weights}{a vector of the weights used in the estimation}
+\item{hessian}{a matrix with the numerical second derivatives}
+\item{deviance}{the deviance of the model}
+\item{null_deviance}{the null deviance of the model}
 \item{conv}{a logical indicating whether the model converged}
 \item{iter}{the number of iterations needed to converge}
 \item{theta}{the estimated theta parameter}
@@ -76,10 +76,16 @@ observations}
 A routine that uses the same internals as \code{\link{feglm}}.
 }
 \examples{
-# same as the example in fepoisson but with overdispersion/underdispersion
+# check the feglm examples for the details about clustered standard errors
+
+# subset trade flows to avoid fitting time warnings during check
+set.seed(123)
+trade_2006 <- trade_panel[trade_panel$year == 2006, ]
+trade_2006 <- trade_2006[sample(nrow(trade_2006), 1000), ]
+ 
 mod <- fenegbin(
   trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
-  trade_panel
+  trade_2006
 )
 
 summary(mod)

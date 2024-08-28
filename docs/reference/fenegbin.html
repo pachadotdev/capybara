@@ -90,7 +90,9 @@ as <code>y ~ x | k | c</code>.</p></dd>
 
 <dt>data</dt>
 <dd><p>an object of class <code>"data.frame"</code> containing the variables
-in the model.</p></dd>
+in the model. The expected input is a dataset with the variables specified
+in <code>formula</code> and a number of rows at least equal to the number of
+variables in the model.</p></dd>
 
 
 <dt>weights</dt>
@@ -128,39 +130,103 @@ process. See <code><a href="feglm_control.html">feglm_control</a></code> for det
     <h2>Value</h2>
     
 
-<p>A named list of class <code>"feglm"</code>.</p>
-    </div>
+<p>A named list of class <code>"feglm"</code>. The list contains the following
+eighteen elements:</p>
+<dl><dt>coefficients</dt>
+<dd><p>a named vector of the estimated coefficients</p></dd>
+
+<dt>eta</dt>
+<dd><p>a vector of the linear predictor</p></dd>
+
+<dt>weights</dt>
+<dd><p>a vector of the weights used in the estimation</p></dd>
+
+<dt>hessian</dt>
+<dd><p>a matrix with the numerical second derivatives</p></dd>
+
+<dt>deviance</dt>
+<dd><p>the deviance of the model</p></dd>
+
+<dt>null_deviance</dt>
+<dd><p>the null deviance of the model</p></dd>
+
+<dt>conv</dt>
+<dd><p>a logical indicating whether the model converged</p></dd>
+
+<dt>iter</dt>
+<dd><p>the number of iterations needed to converge</p></dd>
+
+<dt>theta</dt>
+<dd><p>the estimated theta parameter</p></dd>
+
+<dt>iter.outer</dt>
+<dd><p>the number of outer iterations</p></dd>
+
+<dt>conv.outer</dt>
+<dd><p>a logical indicating whether the outer loop converged</p></dd>
+
+<dt>nobs</dt>
+<dd><p>a named vector with the number of observations used in the
+estimation indicating the dropped and perfectly predicted observations</p></dd>
+
+<dt>lvls_k</dt>
+<dd><p>a named vector with the number of levels in each fixed
+effects</p></dd>
+
+<dt>nms_fe</dt>
+<dd><p>a list with the names of the fixed effects variables</p></dd>
+
+<dt>formula</dt>
+<dd><p>the formula used in the model</p></dd>
+
+<dt>data</dt>
+<dd><p>the data used in the model after dropping non-contributing
+observations</p></dd>
+
+<dt>family</dt>
+<dd><p>the family used in the model</p></dd>
+
+<dt>control</dt>
+<dd><p>the control list used in the model</p></dd>
+
+</dl></div>
 
     <div id="ref-examples">
     <h2>Examples</h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># same as the example in fepoisson but with overdispersion/underdispersion</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># check the feglm examples for the details about clustered standard errors</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># subset trade flows to avoid fitting time warnings during check</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">trade_2006</span> <span class="op">&lt;-</span> <span class="va">trade_panel</span><span class="op">[</span><span class="va">trade_panel</span><span class="op">$</span><span class="va">year</span> <span class="op">==</span> <span class="fl">2006</span>, <span class="op">]</span></span></span>
+<span class="r-in"><span><span class="va">trade_2006</span> <span class="op">&lt;-</span> <span class="va">trade_2006</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">trade_2006</span><span class="op">)</span>, <span class="fl">1000</span><span class="op">)</span>, <span class="op">]</span></span></span>
+<span class="r-in"><span> </span></span>
 <span class="r-in"><span><span class="va">mod</span> <span class="op">&lt;-</span> <span class="fu">fenegbin</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  <span class="va">trade</span> <span class="op">~</span> <span class="va">log_dist</span> <span class="op">+</span> <span class="va">lang</span> <span class="op">+</span> <span class="va">cntg</span> <span class="op">+</span> <span class="va">clny</span> <span class="op">|</span> <span class="va">exp_year</span> <span class="op">+</span> <span class="va">imp_year</span>,</span></span>
-<span class="r-in"><span>  <span class="va">trade_panel</span></span></span>
+<span class="r-in"><span>  <span class="va">trade_2006</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Formula: trade ~ log_dist + lang + cntg + clny | exp_year + imp_year</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x57ff79a219a0&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x6341accad2b8&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Family: Negative Binomial(1.1839)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Family: Negative Binomial(1.6626)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Estimates:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> |          | Estimate | Std. Error | z value   | Pr(&gt;|z|)   |</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> |----------|----------|------------|-----------|------------|</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> | log_dist |  -1.1172 |     0.0107 | -104.4868 | 0.0000 *** |</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> | lang     |   0.5103 |     0.0230 |   22.1516 | 0.0000 *** |</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> | cntg     |   0.6143 |     0.0421 |   14.5781 | 0.0000 *** |</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> | clny     |   0.7448 |     0.0419 |   17.7741 | 0.0000 *** |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |          | Estimate | Std. Error | z value  | Pr(&gt;|z|)   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |----------|----------|------------|----------|------------|</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | log_dist |  -1.1483 |     0.0516 | -22.2520 | 0.0000 *** |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | lang     |   0.7609 |     0.1046 |   7.2769 | 0.0000 *** |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | cntg     |   0.7725 |     0.1968 |   3.9249 | 0.0001 *** |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | clny     |   0.4720 |     0.1917 |   2.4620 | 0.0138 *   |</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Significance codes: *** 99.9%; ** 99%; * 95%; . 90%</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Number of observations: Full 28152; Missing 0; Perfect classification 0 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Number of observations: Full 1000; Missing 0; Perfect classification 0 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Number of Fisher Scoring iterations: 1</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Number of outer iterations: 5</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> theta= 1.184, std. error= 0.01175</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> theta= 1.663, std. error= 0.08249</span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

@@ -33,9 +33,16 @@ from objects returned by \code{\link{feglm}}. The covariance is computed
 from the hessian, the scores, or a combination of both after convergence.
 }
 \examples{
+# same as the example in feglm but extracting the covariance matrix
+
+# subset trade flows to avoid fitting time warnings during check
+set.seed(123)
+trade_2006 <- trade_panel[trade_panel$year == 2006, ]
+trade_2006 <- trade_2006[sample(nrow(trade_2006), 1000), ]
+
 mod <- fepoisson(
  trade ~ log_dist + lang + cntg + clny | exp_year + imp_year | pair,
- trade_panel
+ trade_2006
 )
 
 round(vcov(mod, type = "clustered"), 5)

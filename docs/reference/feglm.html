@@ -96,7 +96,9 @@ as <code>y ~ x | k | c</code>.</p></dd>
 
 <dt>data</dt>
 <dd><p>an object of class <code>"data.frame"</code> containing the variables
-in the model.</p></dd>
+in the model. The expected input is a dataset with the variables specified
+in <code>formula</code> and a number of rows at least equal to the number of
+variables in the model.</p></dd>
 
 
 <dt>family</dt>
@@ -131,8 +133,57 @@ process. See <code><a href="feglm_control.html">feglm_control</a></code> for det
     <h2>Value</h2>
     
 
-<p>A named list of class <code>"feglm"</code>.</p>
-    </div>
+<p>A named list of class <code>"feglm"</code>. The list contains the following
+fifteen elements:</p>
+<dl><dt>coefficients</dt>
+<dd><p>a named vector of the estimated coefficients</p></dd>
+
+<dt>eta</dt>
+<dd><p>a vector of the linear predictor</p></dd>
+
+<dt>weights</dt>
+<dd><p>a vector of the weights used in the estimation</p></dd>
+
+<dt>hessian</dt>
+<dd><p>a matrix with the numerical second derivatives</p></dd>
+
+<dt>deviance</dt>
+<dd><p>the deviance of the model</p></dd>
+
+<dt>null_deviance</dt>
+<dd><p>the null deviance of the model</p></dd>
+
+<dt>conv</dt>
+<dd><p>a logical indicating whether the model converged</p></dd>
+
+<dt>iter</dt>
+<dd><p>the number of iterations needed to converge</p></dd>
+
+<dt>nobs</dt>
+<dd><p>a named vector with the number of observations used in the
+estimation indicating the dropped and perfectly predicted observations</p></dd>
+
+<dt>lvls_k</dt>
+<dd><p>a named vector with the number of levels in each fixed
+effects</p></dd>
+
+<dt>nms_fe</dt>
+<dd><p>a list with the names of the fixed effects variables</p></dd>
+
+<dt>formula</dt>
+<dd><p>the formula used in the model</p></dd>
+
+<dt>data</dt>
+<dd><p>the data used in the model after dropping non-contributing
+observations</p></dd>
+
+<dt>family</dt>
+<dd><p>the family used in the model</p></dd>
+
+<dt>control</dt>
+<dd><p>the control list used in the model</p></dd>
+
+</dl></div>
     <div id="details">
     <h2>Details</h2>
     <p>If <code>feglm</code> does not converge this is often a sign of
@@ -154,32 +205,37 @@ Linear Models with High-Dimensional k-Way Fixed Effects". ArXiv e-prints.</p>
 
     <div id="ref-examples">
     <h2>Examples</h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">mod</span> <span class="op">&lt;-</span> <span class="fu">feglm</span><span class="op">(</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># subset trade flows to avoid fitting time warnings during check</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">trade_2006</span> <span class="op">&lt;-</span> <span class="va">trade_panel</span><span class="op">[</span><span class="va">trade_panel</span><span class="op">$</span><span class="va">year</span> <span class="op">==</span> <span class="fl">2006</span>, <span class="op">]</span></span></span>
+<span class="r-in"><span><span class="va">trade_2006</span> <span class="op">&lt;-</span> <span class="va">trade_2006</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">trade_2006</span><span class="op">)</span>, <span class="fl">1000</span><span class="op">)</span>, <span class="op">]</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="va">mod</span> <span class="op">&lt;-</span> <span class="fu">feglm</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  <span class="va">trade</span> <span class="op">~</span> <span class="va">log_dist</span> <span class="op">+</span> <span class="va">lang</span> <span class="op">+</span> <span class="va">cntg</span> <span class="op">+</span> <span class="va">clny</span> <span class="op">|</span> <span class="va">exp_year</span> <span class="op">+</span> <span class="va">imp_year</span>,</span></span>
-<span class="r-in"><span>  <span class="va">trade_panel</span>,</span></span>
+<span class="r-in"><span>  <span class="va">trade_2006</span>,</span></span>
 <span class="r-in"><span>  family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">poisson</a></span><span class="op">(</span>link <span class="op">=</span> <span class="st">"log"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Formula: trade ~ log_dist + lang + cntg + clny | exp_year + imp_year</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x57ff79cf07f8&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x6341adc58f58&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Family: Poisson</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Estimates:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> |          | Estimate | Std. Error | z value    | Pr(&gt;|z|)   |</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> |----------|----------|------------|------------|------------|</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> | log_dist |  -0.8409 |     0.0004 | -2327.2129 | 0.0000 *** |</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> | lang     |   0.2475 |     0.0008 |   294.3167 | 0.0000 *** |</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> | cntg     |   0.4374 |     0.0009 |   505.6839 | 0.0000 *** |</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> | clny     |  -0.2225 |     0.0010 |  -224.2241 | 0.0000 *** |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |          | Estimate | Std. Error | z value   | Pr(&gt;|z|)   |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |----------|----------|------------|-----------|------------|</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | log_dist |  -0.8291 |     0.0017 | -475.6166 | 0.0000 *** |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | lang     |   0.1187 |     0.0048 |   24.6865 | 0.0000 *** |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | cntg     |   0.4567 |     0.0049 |   92.7378 | 0.0000 *** |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | clny     |   0.0793 |     0.0054 |   14.6837 | 0.0000 *** |</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Significance codes: *** 99.9%; ** 99%; * 95%; . 90%</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Pseudo R-squared: 0.5739 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Pseudo R-squared: 0.6198 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Number of observations: Full 28152; Missing 0; Perfect classification 0 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Number of observations: Full 1000; Missing 0; Perfect classification 0 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Number of Fisher Scoring iterations: 12 </span>
 <span class="r-in"><span></span></span>
@@ -192,7 +248,7 @@ Linear Models with High-Dimensional k-Way Fixed Effects". ArXiv e-prints.</p>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod</span>, type <span class="op">=</span> <span class="st">"clustered"</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Formula: trade ~ log_dist + lang + cntg + clny | exp_year + imp_year | </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     pair</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x57ff79cf07f8&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x6341adc58f58&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Family: Poisson</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>

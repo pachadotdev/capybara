@@ -42,6 +42,6 @@ LinkingTo: cpp11, cpp11armadillo
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 Remotes: 
-    ropenscilabs/srr
+    ropenscilabs/srr,
     pachadotdev/kendallknight
 Roxygen: list(markdown = TRUE, roclets = c("namespace", "rd", "srr::srr_stats_roclet"))

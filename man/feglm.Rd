@@ -47,12 +47,12 @@ process. See \code{\link{feglm_control}} for details.}
 \value{
 A named list of class \code{"feglm"}. The list contains the following
 fifteen elements:
-\item{coefficients}{a named vector of the estimated coefficients.}
-\item{eta}{a vector of the linear predictor.}
-\item{weights}{a vector of the weights used in the estimation.}
-\item{hessian}{a matrix with the numerical second derivatives.}
-\item{deviance}{the deviance of the model.}
-\item{null_deviance}{the null deviance of the model.}
+\item{coefficients}{a named vector of the estimated coefficients}
+\item{eta}{a vector of the linear predictor}
+\item{weights}{a vector of the weights used in the estimation}
+\item{hessian}{a matrix with the numerical second derivatives}
+\item{deviance}{the deviance of the model}
+\item{null_deviance}{the null deviance of the model}
 \item{conv}{a logical indicating whether the model converged}
 \item{iter}{the number of iterations needed to converge}
 \item{nobs}{a named vector with the number of observations used in the
@@ -82,9 +82,14 @@ category. In this case, you should carefully inspect your model
 specification.
 }
 \examples{
+# subset trade flows to avoid fitting time warnings during check
+set.seed(123)
+trade_2006 <- trade_panel[trade_panel$year == 2006, ]
+trade_2006 <- trade_2006[sample(nrow(trade_2006), 1000), ]
+
 mod <- feglm(
   trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
-  trade_panel,
+  trade_2006,
   family = poisson(link = "log")
 )
 
