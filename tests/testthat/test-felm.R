@@ -50,4 +50,17 @@ test_that("felm works", {
   m1 <- felm(mpg ~ wt + qsec | cyl + am | carb, mtcars)
 
   expect_equal(round(coef(m1), 2), round(coef(m2)[c(2, 3)], 2))
+
+  set.seed(200100)
+  d <- data.frame(
+    y = rnorm(100),
+    f = factor(sample(1:2, 1000, replace = TRUE))
+  )
+  d$x <- 2 * y
+
+  fit <- felm(y ~ x | f, data = d)
+  s1 <- summary(fit)
+  expect_equal(s1$r.squared, 1)
+  expect_equal(s1$adj.r.squared, 1)
+  expect_equal(s1$cm[4], 0)
 })

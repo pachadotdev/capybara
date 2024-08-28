@@ -37,10 +37,9 @@ LazyData: true
 RoxygenNote: 7.3.1
 Encoding: UTF-8
 NeedsCompilation: yes
-LinkingTo: cpp11, armadillo
+LinkingTo: cpp11, cpp11armadillo
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 Remotes: 
-    pachadotdev/armadillo,
     ropenscilabs/srr
 Roxygen: list(markdown = TRUE, roclets = c("namespace", "rd", "srr::srr_stats_roclet"))

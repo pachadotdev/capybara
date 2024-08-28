@@ -61,7 +61,11 @@ fixed_effects <- function(object = NULL, alpha_tol = 1.0e-08) {
   k_list <- get_index_list_(k_vars, data)
 
   # Recover fixed effects by alternating the solutions of normal equations
-  pie <- eta - X %*% beta
+  if (inherits(object, "feglm")) {
+    pie <- eta - X %*% beta
+  } else {
+    pie <- fitted.values(object) - X %*% beta
+  }
   fe_list <- as.list(get_alpha_(pie, k_list, alpha_tol))
 
   # Assign names to the different fixed effects categories
