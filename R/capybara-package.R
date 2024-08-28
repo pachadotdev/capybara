@@ -15,11 +15,11 @@
 #' @importFrom dplyr across all_of filter group_by mutate pull select summarise
 #'  ungroup vars
 #' @importFrom Formula Formula
+#' @importFrom kendallknight kendall_cor kendall_cor_test
 #' @importFrom MASS negative.binomial theta.ml
 #' @importFrom rlang sym :=
-#' @importFrom stats as.formula binomial model.matrix na.omit gaussian poisson
-#'  pnorm printCoefmat rgamma rlogis rnorm rpois terms vcov predict var
-#'  complete.cases
+#' @importFrom stats as.formula fitted.values gaussian model.matrix na.omit
+#'  pnorm poisson predict printCoefmat terms vcov
 #' @importFrom utils combn
 #' @useDynLib capybara, .registration = TRUE
 "_PACKAGE"

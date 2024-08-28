@@ -7,16 +7,15 @@
 #'
 #' @return A named list of class \code{"felm"}. The list contains the following
 #'  eleven elements:
-#'  \item{coefficients}{a named vector of the estimated coefficients.}
-#'  \item{fitted.values}{a vector of the estimated dependent variable.}
-#'  \item{weights}{a vector of the weights used in the estimation.}
-#'  \item{hessian}{a matrix with the numerical second derivatives.}
-#'  \item{null_deviance}{the null deviance of the model.}
-#'   effects}
-#'  \item{nobs}{a named vector with the number of observations used in th
-#'   estimation indicating the dropped and perfectly predicted observations}
+#'  \item{coefficients}{a named vector of the estimated coefficients}
+#'  \item{fitted.values}{a vector of the estimated dependent variable}
+#'  \item{weights}{a vector of the weights used in the estimation}
+#'  \item{hessian}{a matrix with the numerical second derivatives}
+#'  \item{null_deviance}{the null deviance of the model}
+#'  \item{nobs}{a named vector with the number of observations used in the
+#'    estimation indicating the dropped and perfectly predicted observations}
 #'  \item{lvls_k}{a named vector with the number of levels in each fixed
-#'   effects}
+#'    effect}
 #'  \item{nms_fe}{a list with the names of the fixed effects variables}
 #'  \item{formula}{the formula used in the model}
 #'  \item{data}{the data used in the model after dropping non-contributing
@@ -33,12 +32,21 @@
 #'  Linear Models with High-Dimensional k-Way Fixed Effects". ArXiv e-prints.
 #'
 #' @examples
+#' # check the feglm examples for the details about clustered standard errors
+#' 
+#' # subset trade flows to avoid fitting time warnings during check
+#' set.seed(123)
+#' trade_2006 <- trade_panel[trade_panel$year == 2006, ]
+#' trade_2006 <- trade_2006[sample(nrow(trade_2006), 1000), ]
+#'
+#' 
 #' mod <- felm(
 #'   log(trade) ~ log_dist + lang + cntg + clny | exp_year + imp_year,
-#'   trade_panel
+#'   trade_2006
 #' )
 #'
 #' summary(mod)
+#' 
 #' @export
 felm <- function(formula = NULL, data = NULL, weights = NULL) {
   # Use 'feglm' to estimate the model

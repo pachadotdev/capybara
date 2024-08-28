@@ -50,17 +50,56 @@ test_that("felm works", {
   m1 <- felm(mpg ~ wt + qsec | cyl + am | carb, mtcars)
 
   expect_equal(round(coef(m1), 2), round(coef(m2)[c(2, 3)], 2))
+})
 
+test_that("felm works with perfect relationships", {
   set.seed(200100)
   d <- data.frame(
     y = rnorm(100),
     f = factor(sample(1:2, 1000, replace = TRUE))
   )
-  d$x <- 2 * y
+  d$x <- 2 * d$y
 
   fit <- felm(y ~ x | f, data = d)
   s1 <- summary(fit)
   expect_equal(s1$r.squared, 1)
   expect_equal(s1$adj.r.squared, 1)
   expect_equal(s1$cm[4], 0)
+})
+
+test_that("felm time is the same adding noise to the data", {
+  mtcars2 <- mtcars[, c("mpg", "wt", "cyl")]
+  set.seed(200100)
+  mtcars2$mpg <- mtcars2$mpg + rbinom(nrow(mtcars2), 1, 0.5) * .Machine$double.eps
+  m1 <- felm(mpg ~ wt | cyl, mtcars)
+  m2 <- felm(mpg ~ wt | cyl, mtcars2)
+  expect_equal(coef(m1), coef(m2))
+  expect_equal(fixed_effects(m1), fixed_effects(m2))
+
+  t1 <- rep(NA, 10)
+  t2 <- rep(NA, 10)
+  for (i in 1:10) {
+    a <- Sys.time()
+    m1 <- felm(mpg ~ wt | cyl, mtcars)
+    b <- Sys.time()
+    t1[i] <- b - a
+
+    a <- Sys.time()
+    m2 <- felm(mpg ~ wt | cyl, mtcars2)
+    b <- Sys.time()
+    t2[i] <- b - a
+  }
+  expect_lte(abs(median(t1) - median(t2)), 5e-03)
+})
+
+test_that("proportional regressors produce an error", {
+  set.seed(200100)
+  d <- data.frame(
+    y = rnorm(100),
+    x1 = rnorm(100),
+    f = factor(sample(1:2, 1000, replace = TRUE))
+  )
+  d$x2 <- 2 * d$x1
+
+  expect_error(felm(y ~ x1 + x2 | f, data = d), "dependent terms")
 })

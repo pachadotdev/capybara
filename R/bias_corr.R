@@ -45,11 +45,15 @@
 #' @seealso \code{\link{feglm}}
 #'
 #' @examples
-#' trade_short <- trade_panel[trade_panel$year %in% 2002L:2006L, ]
-#' trade_short$trade <- ifelse(trade_short$trade > 100, 1L, 0L)
+#' # subset trade flows to avoid fitting time warnings during check
+#' set.seed(123)
+#' trade_2006 <- trade_panel[trade_panel$year == 2006, ]
+#' trade_2006 <- trade_2006[sample(nrow(trade_2006), 1000), ]
+#' 
+#' trade_2006$trade <- ifelse(trade_2006$trade > 100, 1L, 0L)
 #'
 #' # Fit 'feglm()'
-#' mod <- feglm(trade ~ lang | year, trade_short, family = binomial())
+#' mod <- feglm(trade ~ lang | year, trade_2006, family = binomial())
 #'
 #' # Apply analytical bias correction
 #' mod_bc <- bias_corr(mod)

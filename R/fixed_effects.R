@@ -17,18 +17,24 @@
 #'  Linear Models with High-Dimensional k-way Fixed Effects". ArXiv e-prints.
 #' @references Gaure, S. (n. d.). "Multicollinearity, identification, and
 #'  estimable functions". Unpublished.
-#' 
+#'
 #' @seealso \code{\link{felm}}, \code{\link{feglm}}
-#' 
+#'
 #' @examples
-#' # same as the example in feglm but extracting the fixed effects
+#' # check the feglm examples for the details about clustered standard errors
+#'
+#' # subset trade flows to avoid fitting time warnings during check
+#' set.seed(123)
+#' trade_2006 <- trade_panel[trade_panel$year == 2006, ]
+#' trade_2006 <- trade_2006[sample(nrow(trade_2006), 1000), ]
+#'
 #' mod <- fepoisson(
 #'   trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
-#'   trade_panel
+#'   trade_2006
 #' )
 #'
 #' fixed_effects(mod)
-#' 
+#'
 #' @export
 fixed_effects <- function(object = NULL, alpha_tol = 1.0e-08) {
   # Check validity of 'object'
