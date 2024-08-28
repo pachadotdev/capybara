@@ -1,11 +1,6 @@
-#include "Rmath.h"
-#include <algorithm>
 #include <armadillo.hpp>
-#include <cmath>
 #include <cpp11.hpp>
-#include <numeric>
 #include <cpp11armadillo.hpp>
-#include <vector>
 
 // #include <iostream>
 
