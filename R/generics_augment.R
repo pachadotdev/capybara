@@ -2,11 +2,13 @@
 #' @export
 generics::augment
 
+#' @title Augment method for 'feglm' objects
+#' @description Integration with the 'broom' package
 #' @export
 #' @noRd
-augment.feglm <- function(x, data = x$data, newdata = NULL, ...) {
+augment.feglm <- function(x, newdata = NULL, ...) {
   if (is.null(newdata)) {
-    res <- data
+    res <- x$data
   } else {
     res <- newdata
   }
@@ -16,4 +18,12 @@ augment.feglm <- function(x, data = x$data, newdata = NULL, ...) {
 
   class(res) <- c("tbl_df", "tbl", "data.frame")
   res
+}
+
+#' @title Augement method for 'felm' objects
+#' @description Integration with the 'broom' package
+#' @export
+#' @noRd
+augment.felm <- function(x, newdata = NULL, ...) {
+  augment.feglm(x, newdata, ...)
 }
