@@ -15,9 +15,15 @@ confint.feglm <- function(object, parm, level = 0.95, ...) {
     conf.high = res[, "estimate"] + z * res[, "std.error"]
   )
 
-  colnames(conf.int) <- paste(100 * (c(0, 1) + c(1, -1) * (1 - conf.level) / 2),
+  colnames(conf.int) <- paste(100 * (c(0, 1) + c(1, -1) * (1 - level) / 2),
     "%")
 
   # Return the confidence intervals
   conf.int
+}
+
+#' @export
+#' @noRd
+confint.felm <- function(object, parm, level = 0.95, ...) {
+  confint.feglm(object, parm, level, ...)
 }

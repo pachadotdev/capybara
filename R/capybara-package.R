@@ -19,7 +19,7 @@
 #' @importFrom MASS negative.binomial theta.ml
 #' @importFrom rlang sym :=
 #' @importFrom stats as.formula fitted.values gaussian model.matrix na.omit
-#'  pnorm poisson predict printCoefmat terms vcov
+#'  pnorm poisson predict printCoefmat qnorm terms vcov
 #' @importFrom utils combn
 #' @useDynLib capybara, .registration = TRUE
 "_PACKAGE"
