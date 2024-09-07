@@ -178,10 +178,10 @@ feglm <- function(
   x <- NULL
   eta <- NULL
 
-  # Add names to beta, hessian, and MX (if provided) ----
+  # Add names to beta, hessian, and mx (if provided) ----
   names(fit[["coefficients"]]) <- nms_sp
   if (control[["keep_mx"]]) {
-    colnames(fit[["MX"]]) <- nms_sp
+    colnames(fit[["mx"]]) <- nms_sp
   }
   dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
 

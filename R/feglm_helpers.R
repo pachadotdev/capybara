@@ -468,7 +468,7 @@ get_score_matrix_ <- function(object) {
 
   # Center regressor matrix (if required)
   if (control[["keep_mx"]]) {
-    MX <- object[["MX"]]
+    mx <- object[["mx"]]
   } else {
     # Extract additional required quantities from result list
     formula <- object[["formula"]]
@@ -483,24 +483,24 @@ get_score_matrix_ <- function(object) {
     attr(x, "dimnames") <- NULL
 
     # Center variables
-    MX <- center_variables_r_(x, w, k.list, control[["center_tol"]], 10000L)
-    colnames(MX) <- nms_sp
+    mx <- center_variables_r_(x, w, k.list, control[["center_tol"]], 10000L)
+    colnames(mx) <- nms_sp
   }
 
   # Return score matrix
-  MX * (nu * w)
+  mx * (nu * w)
 }
 
 #' @title Gamma computation
 #' @description Computes the gamma matrix for the APES function
-#' @param MX Regressor matrix
+#' @param mx Regressor matrix
 #' @param H Hessian matrix
 #' @param J Jacobian matrix
 #' @param PPsi Psi matrix
 #' @param v Vector of weights
 #' @param nt Number of observations
 #' @noRd
-gamma_ <- function(MX, H, J, PPsi, v, nt) {
+gamma_ <- function(mx, H, J, PPsi, v, nt) {
   inv_nt <- 1.0 / nt
-  (MX %*% solve(H * inv_nt, J) - PPsi) * v * inv_nt
+  (mx %*% solve(H * inv_nt, J) - PPsi) * v * inv_nt
 }

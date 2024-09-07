@@ -201,15 +201,17 @@ fenegbin <- function(
   # Information if convergence failed ----
   if (!conv && trace) cat("Algorithm did not converge.\n")
 
-  # Add names to beta, hessian, and MX (if provided) ----
+  # Add names to beta, hessian, and mx (if provided) ----
   names(fit[["coefficients"]]) <- nms_sp
   if (control[["keep_mx"]]) {
-    colnames(fit[["MX"]]) <- nms_sp
+    colnames(fit[["mx"]]) <- nms_sp
   }
   dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
 
-  fenegbin_result_list_(fit, theta, iter, conv, nobs, lvls_k, nms_fe,
-    formula, data, family, control)
+  fenegbin_result_list_(
+    fit, theta, iter, conv, nobs, lvls_k, nms_fe,
+    formula, data, family, control
+  )
 }
 
 # Convergence Check ----
@@ -222,8 +224,9 @@ fenegbin_check_convergence_ <- function(dev, dev_old, theta, theta_old, tol) {
 
 # Generate result list ----
 
-fenegbin_result_list_ <- function(fit, theta, iter, conv, nobs, lvls_k,
-  nms_fe, formula, data, family, control) {
+fenegbin_result_list_ <- function(
+    fit, theta, iter, conv, nobs, lvls_k,
+    nms_fe, formula, data, family, control) {
   reslist <- c(
     fit, list(
       theta      = theta,

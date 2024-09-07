@@ -166,13 +166,13 @@ apes <- function(
 
   # Center regressor matrix (if required)
   if (control[["keep_mx"]]) {
-    MX <- object[["MX"]]
+    mx <- object[["mx"]]
   } else {
-    MX <- center_variables_r_(x, w, k_list, control[["center_tol"]], 10000L)
+    mx <- center_variables_r_(x, w, k_list, control[["center_tol"]], 10000L)
   }
 
   # Compute average partial effects, derivatives, and Jacobian
-  PX <- x - MX
+  PX <- x - mx
   Delta <- matrix(NA_real_, nt, p)
   Delta1 <- matrix(NA_real_, nt, p)
   J <- matrix(NA_real_, p, p)
@@ -193,7 +193,7 @@ apes <- function(
     } else {
       Delta[, j] <- beta[[j]] * Delta[, j]
       Delta1[, j] <- beta[[j]] * Delta1[, j]
-      J[, j] <- colSums(MX * Delta1[, j]) / nt_full
+      J[, j] <- colSums(mx * Delta1[, j]) / nt_full
       J[j, j] <- sum(mu.eta) / nt_full + J[j, j]
     }
   }
@@ -209,18 +209,22 @@ apes <- function(
 
   # Compute analytical bias correction of average partial effects
   if (bias_corr) {
-    b <- apes_bias_correction_(eta, family, x, beta, binary, nt, p, PPsi, z,
-      w, k_list, panel_structure, L, k, MPsi, v)
+    b <- apes_bias_correction_(
+      eta, family, x, beta, binary, nt, p, PPsi, z,
+      w, k_list, panel_structure, L, k, MPsi, v
+    )
     delta <- delta - b
   }
   rm(eta, w, z, MPsi)
 
   # Compute covariance matrix
-  Gamma <- gamma_(MX, object[["hessian"]], J, PPsi, v, nt_full)
+  Gamma <- gamma_(mx, object[["hessian"]], J, PPsi, v, nt_full)
   V <- crossprod(Gamma)
 
-  V <- apes_adjust_covariance_(V, Delta, Gamma, k_list, adj, sampling_fe,
-    weak_exo, panel_structure)
+  V <- apes_adjust_covariance_(
+    V, Delta, Gamma, k_list, adj, sampling_fe,
+    weak_exo, panel_structure
+  )
 
   # Add names
   names(delta) <- nms.sp
@@ -268,8 +272,9 @@ apes_set_adj_ <- function(n_pop, nt_full) {
   return(adj)
 }
 
-apes_adjust_covariance_ <- function(V, Delta, Gamma, k_list, adj, sampling_fe,
-  weak_exo, panel_structure) {
+apes_adjust_covariance_ <- function(
+    V, Delta, Gamma, k_list, adj, sampling_fe,
+    weak_exo, panel_structure) {
   if (adj > 0.0) {
     # Simplify covariance if sampling assumptions are imposed
     if (sampling_fe == "independence") {
@@ -298,8 +303,9 @@ apes_adjust_covariance_ <- function(V, Delta, Gamma, k_list, adj, sampling_fe,
   return(V)
 }
 
-apes_bias_correction_ <- function(eta, family, x, beta, binary, nt, p, PPsi,
-  z, w, k_list, panel_structure, L, k, MPsi, v) {
+apes_bias_correction_ <- function(
+    eta, family, x, beta, binary, nt, p, PPsi,
+    z, w, k_list, panel_structure, L, k, MPsi, v) {
   # Compute second-order partial derivatives
   Delta2 <- matrix(NA_real_, nt, p)
   Delta2[, !binary] <- partial_mu_eta_(eta, family, 3L)
