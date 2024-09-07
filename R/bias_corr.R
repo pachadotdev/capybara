@@ -65,11 +65,7 @@ bias_corr <- function(
     L = 0L,
     panel_structure = c("classic", "network")) {
   # Check validity of 'object'
-  if (is.null(object)) {
-    stop("'object' has to be specified.", call. = FALSE)
-  } else if (!inherits(object, "feglm")) {
-    stop("'bias_corr' called on a non-'feglm' object.", call. = FALSE)
-  }
+  bias_corr_check_object_(object)
 
   # Check validity of 'panel_structure'
   panel_structure <- match.arg(panel_structure)
@@ -88,43 +84,13 @@ bias_corr <- function(
   k <- length(lvls_k)
 
   # Check if binary choice model
-  if (family[["family"]] != "binomial") {
-    stop(
-      "'bias_corr' currently only supports binary choice models.",
-      call. = FALSE
-    )
-  }
+  bias_corr_check_binary_model_(family)
 
   # Check if the number of FEs is > 3
-  if (length(lvls_k) > 3) {
-    stop(
-      "bias_corr() only supports models with up to three-way fixed effects.",
-      call. = FALSE
-    )
-  }
+  bias_corr_check_fixed_effects_(k)
 
   # Check if provided object matches requested panel structure
-  if (panel_structure == "classic") {
-    if (!(k %in% c(1L, 2L))) {
-      stop(
-        paste(
-          "panel_structure == 'classic' expects a one- or two-way fixed",
-          "effect model."
-        ),
-        call. = FALSE
-      )
-    }
-  } else {
-    if (!(k %in% c(2L, 3L))) {
-      stop(
-        paste(
-          "panel_structure == 'network' expects a two- or three-way fixed",
-          "effects model."
-        ),
-        call. = FALSE
-      )
-    }
-  }
+  bias_corr_check_panel_(panel_structure, k)
 
   # Extract model response, regressor matrix, and weights
   y <- data[[1L]]
@@ -152,34 +118,34 @@ bias_corr <- function(
 
   # Center regressor matrix (if required)
   if (control[["keep_mx"]]) {
-    MX <- object[["MX"]]
+    mx <- object[["mx"]]
   } else {
-    MX <- center_variables_r_(x, w, k_list, control[["center_tol"]], 10000L)
+    mx <- center_variables_r_(x, w, k_list, control[["center_tol"]], 10000L)
   }
 
   # Compute bias terms for requested bias correction
   if (panel_structure == "classic") {
     # Compute \hat{B} and \hat{D}
-    b <- as.vector(group_sums_(MX * z, w, k_list[[1L]])) / 2.0 / nt
+    b <- as.vector(group_sums_(mx * z, w, k_list[[1L]])) / 2.0 / nt
     if (k > 1L) {
-      b <- b + as.vector(group_sums_(MX * z, w, k_list[[2L]])) / 2.0 / nt
+      b <- b + as.vector(group_sums_(mx * z, w, k_list[[2L]])) / 2.0 / nt
     }
 
     # Compute spectral density part of \hat{B}
     if (L > 0L) {
-      b <- (b + group_sums_spectral_(MX * w, v, w, L, k_list[[1L]])) / nt
+      b <- (b + group_sums_spectral_(mx * w, v, w, L, k_list[[1L]])) / nt
     }
   } else {
     # Compute \hat{D}_{1}, \hat{D}_{2}, and \hat{B}
-    b <- group_sums_(MX * z, w, k_list[[1L]]) / (2.0 * nt)
-    b <- (b + group_sums_(MX * z, w, k_list[[2L]])) / (2.0 * nt)
+    b <- group_sums_(mx * z, w, k_list[[1L]]) / (2.0 * nt)
+    b <- (b + group_sums_(mx * z, w, k_list[[2L]])) / (2.0 * nt)
     if (k > 2L) {
-      b <- (b + group_sums_(MX * z, w, k_list[[3L]])) / (2.0 * nt)
+      b <- (b + group_sums_(mx * z, w, k_list[[3L]])) / (2.0 * nt)
     }
 
     # Compute spectral density part of \hat{B}
     if (k > 2L && L > 0L) {
-      b <- (b + group_sums_spectral_(MX * w, v, w, L, k_list[[3L]])) / nt
+      b <- (b + group_sums_spectral_(mx * w, v, w, L, k_list[[3L]])) / nt
     }
   }
 
@@ -201,17 +167,17 @@ bias_corr <- function(
   }
 
   # Update centered regressor matrix
-  MX <- center_variables_r_(x, w, k_list, control[["center_tol"]], 10000L)
-  colnames(MX) <- nms.sp
+  mx <- center_variables_r_(x, w, k_list, control[["center_tol"]], 10000L)
+  colnames(mx) <- nms.sp
 
   # Update hessian
-  H <- crossprod(MX * sqrt(w))
+  H <- crossprod(mx * sqrt(w))
   dimnames(H) <- list(nms.sp, nms.sp)
 
   # Update result list
   object[["coefficients"]] <- beta
   object[["eta"]] <- eta
-  if (control[["keep_mx"]]) object[["MX"]] <- MX
+  if (control[["keep_mx"]]) object[["mx"]] <- mx
   object[["hessian"]] <- H
   object[["coefficients_uncorr"]] <- beta_uncorr
   object[["bias_term"]] <- b
@@ -223,4 +189,62 @@ bias_corr <- function(
 
   # Return updated list
   object
+}
+
+# Check object ----
+
+bias_corr_check_object_ <- function(object) {
+  if (is.null(object)) {
+    stop("'object' has to be specified.", call. = FALSE)
+  } else if (!inherits(object, "feglm")) {
+    stop("'bias_corr' called on a non-'feglm' object.", call. = FALSE)
+  }
+}
+
+# Check if binary choice model ----
+
+bias_corr_check_binary_model_ <- function(family) {
+  if (family[["family"]] != "binomial") {
+    stop(
+      "'bias_corr' currently only supports binary choice models.",
+      call. = FALSE
+    )
+  }
+}
+
+# Check if the number of FEs is > 3 ----
+
+bias_corr_check_fixed_effects_ <- function(lvls_k) {
+  if (length(lvls_k) > 3) {
+    stop(
+      "bias_corr() only supports models with up to three-way fixed effects.",
+      call. = FALSE
+    )
+  }
+}
+
+# Check if provided object matches requested panel structure ----
+
+bias_corr_check_panel_ <- function(panel_structure, k) {
+  if (panel_structure == "classic") {
+    if (!(k %in% c(1L, 2L))) {
+      stop(
+        paste(
+          "panel_structure == 'classic' expects a one- or two-way fixed",
+          "effect model."
+        ),
+        call. = FALSE
+      )
+    }
+  } else {
+    if (!(k %in% c(2L, 3L))) {
+      stop(
+        paste(
+          "panel_structure == 'network' expects a two- or three-way fixed",
+          "effects model."
+        ),
+        call. = FALSE
+      )
+    }
+  }
 }
