@@ -59,18 +59,18 @@ fixed_effects <- function(object = NULL, alpha_tol = 1.0e-08) {
   eta <- object[["eta"]]
 
   # Extract regressor matrix
-  X <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
-  nms_sp <- attr(X, "dimnames")[[2L]]
-  attr(X, "dimnames") <- NULL
+  x <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
+  nms_sp <- attr(x, "dimnames")[[2L]]
+  attr(x, "dimnames") <- NULL
 
   # Generate auxiliary list of indexes for different sub panels
   k_list <- get_index_list_(k_vars, data)
 
   # Recover fixed effects by alternating the solutions of normal equations
   if (inherits(object, "feglm")) {
-    pie <- eta - X %*% beta
+    pie <- eta - x %*% beta
   } else {
-    pie <- fitted.values(object) - X %*% beta
+    pie <- fitted.values(object) - x %*% beta
   }
   fe_list <- as.list(get_alpha_(pie, k_list, alpha_tol))
 

@@ -313,19 +313,19 @@ nobs_ <- function(nobs_full, nobs_na, nt) {
 #' @noRd
 model_response_ <- function(data, formula) {
   y <- data[[1L]]
-  X <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
-  nms_sp <- attr(X, "dimnames")[[2L]]
-  attr(X, "dimnames") <- NULL
-  p <- ncol(X)
+  x <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
+  nms_sp <- attr(x, "dimnames")[[2L]]
+  attr(x, "dimnames") <- NULL
+  p <- ncol(x)
 
   assign("y", y, envir = parent.frame())
-  assign("X", X, envir = parent.frame())
+  assign("x", x, envir = parent.frame())
   assign("nms_sp", nms_sp, envir = parent.frame())
   assign("p", p, envir = parent.frame())
 }
 
-check_linear_dependence_ <- function(X, p) {
-  if (qr(X)$rank < p) {
+check_linear_dependence_ <- function(x, p) {
+  if (qr(x)$rank < p) {
     stop("Linear dependent terms detected.", call. = FALSE)
   }
 }
@@ -369,7 +369,7 @@ init_theta_ <- function(init.theta, link) {
 #' @param beta_start Starting values for beta
 #' @param eta_start Starting values for eta
 #' @param y Dependent variable
-#' @param X Regressor matrix
+#' @param x Regressor matrix
 #' @param beta Beta values
 #' @param nt Number of observations
 #' @param wt Weights
@@ -377,7 +377,7 @@ init_theta_ <- function(init.theta, link) {
 #' @param family Family object
 #' @noRd
 start_guesses_ <- function(
-    beta_start, eta_start, y, X, beta, nt, wt, p, family) {
+    beta_start, eta_start, y, x, beta, nt, wt, p, family) {
   if (!is.null(beta_start) || !is.null(eta_start)) {
     # If both are specified, ignore eta_start
     if (!is.null(beta_start) && !is.null(eta_start)) {
@@ -402,7 +402,7 @@ start_guesses_ <- function(
 
       # Set starting guesses
       beta <- beta_start
-      eta <- X %*% beta
+      eta <- x %*% beta
     } else {
       # Validity of input argument (eta_start)
       if (length(eta_start) != nt) {
@@ -478,12 +478,12 @@ get_score_matrix_ <- function(object) {
     k.list <- get_index_list_(k_vars, data)
 
     # Extract regressor matrix
-    X <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
-    nms_sp <- attr(X, "dimnames")[[2L]]
-    attr(X, "dimnames") <- NULL
+    x <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
+    nms_sp <- attr(x, "dimnames")[[2L]]
+    attr(x, "dimnames") <- NULL
 
     # Center variables
-    MX <- center_variables_r_(X, w, k.list, control[["center_tol"]], 10000L)
+    MX <- center_variables_r_(x, w, k.list, control[["center_tol"]], 10000L)
     colnames(MX) <- nms_sp
   }
 

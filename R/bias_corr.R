@@ -128,8 +128,8 @@ bias_corr <- function(
 
   # Extract model response, regressor matrix, and weights
   y <- data[[1L]]
-  X <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
-  attr(X, "dimnames") <- NULL
+  x <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
+  attr(x, "dimnames") <- NULL
   wt <- object[["weights"]]
 
   # Generate auxiliary list of indexes for different sub panels
@@ -154,7 +154,7 @@ bias_corr <- function(
   if (control[["keep_mx"]]) {
     MX <- object[["MX"]]
   } else {
-    MX <- center_variables_r_(X, w, k_list, control[["center_tol"]], 10000L)
+    MX <- center_variables_r_(x, w, k_list, control[["center_tol"]], 10000L)
   }
 
   # Compute bias terms for requested bias correction
@@ -188,7 +188,7 @@ bias_corr <- function(
   names(beta) <- nms.sp
 
   # Update \eta and first- and second-order derivatives
-  eta <- feglm_offset_(object, X %*% beta)
+  eta <- feglm_offset_(object, x %*% beta)
   mu <- family[["linkinv"]](eta)
   mu_eta <- family[["mu.eta"]](eta)
   v <- wt * (y - mu)
@@ -201,7 +201,7 @@ bias_corr <- function(
   }
 
   # Update centered regressor matrix
-  MX <- center_variables_r_(X, w, k_list, control[["center_tol"]], 10000L)
+  MX <- center_variables_r_(x, w, k_list, control[["center_tol"]], 10000L)
   colnames(MX) <- nms.sp
 
   # Update hessian

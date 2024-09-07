@@ -143,8 +143,8 @@ feglm <- function(
   p <- NA
   model_response_(data, formula)
 
-  # Check for linear dependence in 'X' ----
-  check_linear_dependence_(X, p)
+  # Check for linear dependence in 'x' ----
+  check_linear_dependence_(x, p)
 
   # Extract weights if required ----
   if (is.null(weights)) {
@@ -157,7 +157,7 @@ feglm <- function(
   check_weights_(wt)
 
   # Compute and check starting guesses ----
-  start_guesses_(beta_start, eta_start, y, X, beta, nt, wt, p, family)
+  start_guesses_(beta_start, eta_start, y, x, beta, nt, wt, p, family)
 
   # Get names and number of levels in each fixed effects category ----
   nms_fe <- lapply(select(data, all_of(k_vars)), levels)
@@ -171,11 +171,11 @@ feglm <- function(
     y <- as.numeric(y)
   }
   fit <- feglm_fit_(
-    beta, eta, y, X, wt, 0.0, family[["family"]], control, k_list
+    beta, eta, y, x, wt, 0.0, family[["family"]], control, k_list
   )
 
   y <- NULL
-  X <- NULL
+  x <- NULL
   eta <- NULL
 
   # Add names to beta, hessian, and MX (if provided) ----

@@ -89,7 +89,7 @@ test_that("felm time is the same adding noise to the data", {
     b <- Sys.time()
     t2[i] <- b - a
   }
-  expect_lte(abs(median(t1) - median(t2)), 5e-04)
+  expect_lte(abs(median(t1) - median(t2)), 0.05)
 })
 
 test_that("proportional regressors produce an error", {

@@ -183,13 +183,13 @@ apes <- function(
 
   # Extract model response, regressor matrix, and weights
   y <- data[[1L]]
-  X <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
-  nms.sp <- attr(X, "dimnames")[[2L]]
-  attr(X, "dimnames") <- NULL
+  x <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
+  nms.sp <- attr(x, "dimnames")[[2L]]
+  attr(x, "dimnames") <- NULL
   wt <- object[["weights"]]
 
   # Determine which of the regressors are binary
-  binary <- apply(X, 2L, function(x) all(x %in% c(0.0, 1.0)))
+  binary <- apply(x, 2L, function(x) all(x %in% c(0.0, 1.0)))
 
   # Generate auxiliary list of indexes for different sub panels
   k_list <- get_index_list_(k_vars, data)
@@ -213,11 +213,11 @@ apes <- function(
   if (control[["keep_mx"]]) {
     MX <- object[["MX"]]
   } else {
-    MX <- center_variables_r_(X, w, k_list, control[["center_tol"]], 10000L)
+    MX <- center_variables_r_(x, w, k_list, control[["center_tol"]], 10000L)
   }
 
   # Compute average partial effects, derivatives, and Jacobian
-  PX <- X - MX
+  PX <- x - MX
   Delta <- matrix(NA_real_, nt, p)
   Delta1 <- matrix(NA_real_, nt, p)
   J <- matrix(NA_real_, p, p)
@@ -225,14 +225,14 @@ apes <- function(
   Delta1[, !binary] <- partial_mu_eta_(eta, family, 2L)
   for (j in seq.int(p)) {
     if (binary[[j]]) {
-      eta0 <- eta - X[, j] * beta[[j]]
+      eta0 <- eta - x[, j] * beta[[j]]
       eta1 <- eta0 + beta[[j]]
       f1 <- family[["mu.eta"]](eta1)
       Delta[, j] <- (family[["linkinv"]](eta1) - family[["linkinv"]](eta0))
       Delta1[, j] <- f1 - family[["mu.eta"]](eta0)
       J[, j] <- -colSums(PX * Delta1[, j]) / nt.full
       J[j, j] <- sum(f1) / nt.full + J[j, j]
-      J[-j, j] <- colSums(X[, -j, drop = FALSE] * Delta1[, j]) /
+      J[-j, j] <- colSums(x[, -j, drop = FALSE] * Delta1[, j]) /
         nt.full + J[-j, j]
       rm(eta0, f1)
     } else {
@@ -259,7 +259,7 @@ apes <- function(
     Delta2[, !binary] <- partial_mu_eta_(eta, family, 3L)
     for (j in seq.int(p)) {
       if (binary[[j]]) {
-        eta0 <- eta - X[, j] * beta[[j]]
+        eta0 <- eta - x[, j] * beta[[j]]
         Delta2[, j] <- partial_mu_eta_(eta0 + beta[[j]], family, 2L) -
           partial_mu_eta_(eta0, family, 2L)
         rm(eta0)

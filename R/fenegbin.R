@@ -75,9 +75,7 @@ fenegbin <- function(
   formula <- update_formula_(formula)
 
   # Generate model.frame
-  lhs <- NA # just to avoid global variable warning
-  nobs_na <- NA
-  nobs_full <- NA
+  lhs <- nobs_na <- nobs_full <- NA
   model_frame_(data, formula, weights)
 
   # Check starting guess of theta ----
@@ -89,13 +87,12 @@ fenegbin <- function(
 
   # Get names of the fixed effects variables and sort ----
   k_vars <- attr(terms(formula, rhs = 2L), "term.labels")
-  k <- length(k_vars)
 
   # Generate temporary variable ----
-  tmp.var <- temp_var_(data)
+  tmp_var <- temp_var_(data)
 
   # Drop observations that do not contribute to the log likelihood ----
-  data <- drop_by_link_type_(data, lhs, family, tmp.var, k_vars, control)
+  data <- drop_by_link_type_(data, lhs, family, tmp_var, k_vars, control)
 
   # Transform fixed effects and clusters to factors ----
   data <- transform_fe_(data, formula, k_vars)
@@ -105,12 +102,11 @@ fenegbin <- function(
   nobs <- nobs_(nobs_full, nobs_na, nt)
 
   # Extract model response and regressor matrix ----
-  nms_sp <- NA
-  p <- NA
+  nms_sp <- p <- NA
   model_response_(data, formula)
 
-  # Check for linear dependence in 'X' ----
-  check_linear_dependence_(X, p)
+  # Check for linear dependence in 'x' ----
+  check_linear_dependence_(x, p)
 
   # Extract weights if required ----
   if (is.null(weights)) {
@@ -123,7 +119,7 @@ fenegbin <- function(
   check_weights_(wt)
 
   # Compute and check starting guesses ----
-  start_guesses_(beta_start, eta_start, y, X, beta, nt, wt, p, family)
+  start_guesses_(beta_start, eta_start, y, x, beta, nt, wt, p, family)
 
   # Get names and number of levels in each fixed effects category ----
   nms_fe <- lapply(select(data, all_of(k_vars)), levels)
@@ -151,7 +147,7 @@ fenegbin <- function(
   )
 
   fit <- feglm_fit_(
-    beta, eta, y, X, wt, theta, family[["family"]], control, k_list
+    beta, eta, y, x, wt, theta, family[["family"]], control, k_list
   )
 
   beta <- fit[["coefficients"]]
@@ -162,8 +158,8 @@ fenegbin <- function(
   conv <- FALSE
   for (iter in seq.int(iter_max)) {
     # Fit negative binomial model
-    dev.old <- dev
-    theta.old <- theta
+    dev_old <- dev
+    theta_old <- theta
     family <- negative.binomial(theta, link)
     theta <- suppressWarnings(
       theta.ml(
@@ -174,7 +170,10 @@ fenegbin <- function(
         trace = trace
       )
     )
-    fit <- feglm_fit_(beta, eta, y, X, wt, theta, family[["family"]], control, k_list)
+    fit <- feglm_fit_(
+      beta, eta, y, x, wt, theta, family[["family"]], control,
+      k_list
+    )
     beta <- fit[["coefficients"]]
     eta <- fit[["eta"]]
     dev <- fit[["deviance"]]
@@ -188,9 +187,9 @@ fenegbin <- function(
     }
 
     # Check termination condition
-    dev.crit <- abs(dev - dev.old) / (0.1 + abs(dev))
-    theta.crit <- abs(theta - theta.old) / (0.1 + abs(theta.old))
-    if (dev.crit <= tol && theta.crit <= tol) {
+    dev_crit <- abs(dev - dev_old) / (0.1 + abs(dev))
+    theta_crit <- abs(theta - theta_old) / (0.1 + abs(theta_old))
+    if (dev_crit <= tol && theta_crit <= tol) {
       if (trace) {
         cat("Convergence\n")
       }
@@ -198,9 +197,8 @@ fenegbin <- function(
       break
     }
   }
-  y <- NULL
-  X <- NULL
-  eta <- NULL
+
+  y <- x <- eta <- NULL
 
   # Information if convergence failed ----
   if (!conv && trace) cat("Algorithm did not converge.\n")
