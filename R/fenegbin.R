@@ -186,10 +186,8 @@ fenegbin <- function(
       cat("Estimates=", format(beta, digits = 3L, nsmall = 2L), "\n")
     }
 
-    # Check termination condition
-    dev_crit <- abs(dev - dev_old) / (0.1 + abs(dev))
-    theta_crit <- abs(theta - theta_old) / (0.1 + abs(theta_old))
-    if (dev_crit <= tol && theta_crit <= tol) {
+    # Check termination condition ----
+    if (fenegbin_check_convergence_(dev, dev_old, theta, theta_old, tol)) {
       if (trace) {
         cat("Convergence\n")
       }
@@ -210,7 +208,22 @@ fenegbin <- function(
   }
   dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
 
-  # Generate result list ----
+  fenegbin_result_list_(fit, theta, iter, conv, nobs, lvls_k, nms_fe,
+    formula, data, family, control)
+}
+
+# Convergence Check ----
+
+fenegbin_check_convergence_ <- function(dev, dev_old, theta, theta_old, tol) {
+  dev_crit <- abs(dev - dev_old) / (0.1 + abs(dev))
+  theta_crit <- abs(theta - theta_old) / (0.1 + abs(theta_old))
+  dev_crit <= tol && theta_crit <= tol
+}
+
+# Generate result list ----
+
+fenegbin_result_list_ <- function(fit, theta, iter, conv, nobs, lvls_k,
+  nms_fe, formula, data, family, control) {
   reslist <- c(
     fit, list(
       theta      = theta,
