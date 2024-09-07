@@ -9,13 +9,13 @@ test_that("fepoisson is similar to fixest", {
   #   trade_panel,
   #   cluster = ~pair
   # )
-  
+
   coef_mod_fixest <- c(-0.8409273, 0.2474765, 0.4374432, -0.2224899)
 
   expect_equal(unname(round(coef(mod) - coef_mod_fixest, 5)), rep(0, 4))
 
   summary_mod <- summary(mod, type = "clustered")
-  
+
   # summary_mod_fixest <- summary(mod_fixest)
   # summary_mod_fixest$coeftable[,2]
   summary_mod_fixest <- c(0.02656441, 0.06322979, 0.06825364, 0.09380935)
@@ -48,31 +48,31 @@ test_that("fepoisson is similar to fixest", {
   expect_output(summary_fisher_(smod))
 
   # unique(trade_panel$year)
-  trade_panel_2 <- trade_panel[trade_panel$year %in% c(2002,2006), ]
+  trade_panel_2 <- trade_panel[trade_panel$year %in% c(2002, 2006), ]
 
-  if (identical(Sys.info()[['user']], 'pacha')) {
-    t_fepoisson <- rep(0,10)
+  if (identical(Sys.info()[["user"]], "pacha")) {
+    t_fepoisson <- rep(0, 10)
     # for (i in 1:10) {
-      t1 <- Sys.time()
-      fit <- fepoisson(
-        trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
-        trade_panel_2
-      )
-      t2 <- Sys.time()
-      t_fepoisson <- t2 - t1
+    t1 <- Sys.time()
+    fit <- fepoisson(
+      trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
+      trade_panel_2
+    )
+    t2 <- Sys.time()
+    t_fepoisson <- t2 - t1
     # }
     # t_fepoisson <- median(t_fepoisson)
 
-    t_glm <- rep(0,10)
+    t_glm <- rep(0, 10)
     # for (i in 1:0) {
-      t1 <- Sys.time()
-      fit <- suppressWarnings(glm(
-        trade ~ log_dist + lang + cntg + clny + as.factor(exp_year) + as.factor(imp_year),
-        trade_panel_2,
-        family = poisson(link = "log")
-      ))
-      t2 <- Sys.time()
-      t_glm <- t2 - t1
+    t1 <- Sys.time()
+    fit <- suppressWarnings(glm(
+      trade ~ log_dist + lang + cntg + clny + as.factor(exp_year) + as.factor(imp_year),
+      trade_panel_2,
+      family = poisson(link = "log")
+    ))
+    t2 <- Sys.time()
+    t_glm <- t2 - t1
     # }
     # t_glm <- median(t_glm)
 

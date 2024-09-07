@@ -44,7 +44,7 @@ test_that("kendall", {
   k2 <- cor.test(x, y, method = "kendall", alternative = "less")
   expect_equal(k1$statistic, unname(k2$estimate))
   expect_equal(k1$p_value, k2$p.value)
-  
+
   x <- rnorm(1e3)
   y <- rpois(1e3, 2)
   expect_equal(kendall_cor(x, y), cor(x, y, method = "kendall"))

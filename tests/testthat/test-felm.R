@@ -13,7 +13,7 @@ test_that("felm works", {
   m1 <- felm(mpg ~ wt + qsec | cyl, mtcars)
   m2 <- lm(mpg ~ wt + qsec + as.factor(cyl), mtcars)
 
-  expect_equal(round(coef(m1), 2), round(coef(m2)[c(2,3)], 2))
+  expect_equal(round(coef(m1), 2), round(coef(m2)[c(2, 3)], 2))
 
   m1 <- felm(mpg ~ wt + qsec | cyl + am, mtcars)
   m2 <- lm(mpg ~ wt + qsec + as.factor(cyl) + as.factor(am), mtcars)
@@ -89,7 +89,7 @@ test_that("felm time is the same adding noise to the data", {
     b <- Sys.time()
     t2[i] <- b - a
   }
-  expect_lte(abs(median(t1) - median(t2)), 5e-03)
+  expect_lte(abs(median(t1) - median(t2)), 5e-04)
 })
 
 test_that("proportional regressors produce an error", {

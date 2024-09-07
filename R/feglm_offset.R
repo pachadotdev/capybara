@@ -1,12 +1,12 @@
 #' @title GLM offset
-#' 
+#'
 #' @description Efficient offset algorithm to update the linear predictor
-#' 
+#'
 #' @param object an object of class \code{feglm}
 #' @param offset a numeric vector of length equal to the number of observations
-#' 
+#'
 #' @return an object of class \code{feglm}
-#' 
+#'
 #' @noRd
 feglm_offset_ <- function(object, offset) {
   # Check validity of 'object'
@@ -45,7 +45,11 @@ feglm_offset_ <- function(object, offset) {
   }
 
   # Return eta
-  if (is.integer(y)) { y <- as.numeric(y) }
-  feglm_offset_fit_(eta, y, offset, wt, family[["family"]], control,
-    k_list)
+  if (is.integer(y)) {
+    y <- as.numeric(y)
+  }
+  feglm_offset_fit_(
+    eta, y, offset, wt, family[["family"]], control,
+    k_list
+  )
 }

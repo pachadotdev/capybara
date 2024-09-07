@@ -12,16 +12,16 @@
 #'
 #' @examples
 #' if (require("broom")) {
-#'  set.seed(123)
-#'  trade_2006 <- trade_panel[trade_panel$year == 2006, ]
-#'  trade_2006 <- trade_2006[sample(nrow(trade_2006), 1000), ]
+#'   set.seed(123)
+#'   trade_2006 <- trade_panel[trade_panel$year == 2006, ]
+#'   trade_2006 <- trade_2006[sample(nrow(trade_2006), 1000), ]
 #'
-#'  mod <- fepoisson(
-#'   trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
-#'   trade_2006
-#'  )
+#'   mod <- fepoisson(
+#'     trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
+#'     trade_2006
+#'   )
 #'
-#'  broom::augment(mod)
+#'   broom::augment(mod)
 #' }
 
 #' Glance method for fepoisson (Broom)

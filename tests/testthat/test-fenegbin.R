@@ -17,10 +17,10 @@ test_that("fenegbin is similar to fixest", {
   # )
 
   summary_mod <- summary(mod, type = "clustered")
-  
+
   # summary_mod_fixest <- summary(mod_fixest)
   # summary_mod_fixest$coeftable[,2][1:4]
   summary_mod_fixest <- c(0.03234993, 0.07188846, 0.14751949, 0.12471723)
 
-  expect_equal(unname(round(summary_mod$cm[,2] - summary_mod_fixest, 1)), rep(0, 4))
+  expect_equal(unname(round(summary_mod$cm[, 2] - summary_mod_fixest, 1)), rep(0, 4))
 })

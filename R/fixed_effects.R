@@ -1,18 +1,18 @@
 #' @title Recover the estimates of the fixed effects after fitting (G)LMs
-#' 
+#'
 #' @description The system might not have a unique solution since we do not take
 #'  collinearity into account. If the solution is not unique, an estimable
 #'  function has to be applied to our solution to get meaningful estimates of
 #'  the fixed effects.
-#' 
+#'
 #' @param object an object of class \code{"feglm"}.
 #' @param alpha_tol tolerance level for the stopping condition. The algorithm is
 #'  stopped at iteration \eqn{i} if \eqn{||\boldsymbol{\alpha}_{i} -
 #'  \boldsymbol{\alpha}_{i - 1}||_{2} < tol ||\boldsymbol{\alpha}_{i - 1}||
 #'  {2}}{||\Delta \alpha|| < tol ||\alpha_old||}. Default is \code{1.0e-08}.
-#' 
+#'
 #' @return A named list containing named vectors of estimated fixed effects.
-#' 
+#'
 #' @references Stammann, A. (2018). "Fast and Feasible Estimation of Generalized
 #'  Linear Models with High-Dimensional k-way Fixed Effects". ArXiv e-prints.
 #' @references Gaure, S. (n. d.). "Multicollinearity, identification, and

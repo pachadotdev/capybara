@@ -65,7 +65,7 @@
 #'  Effects Logit Models with Large Panel Data". Working paper.
 #' @references Stammann, A. (2018). "Fast and Feasible Estimation of Generalized
 #'  Linear Models with High-Dimensional k-Way Fixed Effects". ArXiv e-prints.
-#' 
+#'
 #' @examples
 #' # subset trade flows to avoid fitting time warnings during check
 #' set.seed(123)
@@ -167,7 +167,9 @@ feglm <- function(
   k_list <- get_index_list_(k_vars, data)
 
   # Fit generalized linear model ----
-  if (is.integer(y)) { y <- as.numeric(y) }
+  if (is.integer(y)) {
+    y <- as.numeric(y)
+  }
   fit <- feglm_fit_(
     beta, eta, y, X, wt, 0.0, family[["family"]], control, k_list
   )

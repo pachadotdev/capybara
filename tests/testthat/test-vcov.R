@@ -8,7 +8,7 @@ test_that("vcov works", {
     trade ~ log_dist + lang + cntg + clny | exp_year + imp_year | pair,
     trade_panel
   )
-  
+
   v1 <- vcov(m1)
   v2 <- vcov(m2, type = "clustered")
   v3 <- vcov(m1, type = "sandwich")

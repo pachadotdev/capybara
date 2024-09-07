@@ -49,7 +49,7 @@
 #' set.seed(123)
 #' trade_2006 <- trade_panel[trade_panel$year == 2006, ]
 #' trade_2006 <- trade_2006[sample(nrow(trade_2006), 1000), ]
-#' 
+#'
 #' trade_2006$trade <- ifelse(trade_2006$trade > 100, 1L, 0L)
 #'
 #' # Fit 'feglm()'

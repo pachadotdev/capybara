@@ -1,30 +1,30 @@
 #' @title Negative Binomial model fitting with high-dimensional k-way fixed
 #'  effects
-#' 
+#'
 #' @description A routine that uses the same internals as \code{\link{feglm}}.
-#' 
+#'
 #' @inheritParams feglm
-#' 
+#'
 #' @param init_theta an optional initial value for the theta parameter (see
 #'  \code{\link[MASS]{glm.nb}}).
 #' @param link the link function. Must be one of \code{"log"}, \code{"sqrt"}, or
 #'  \code{"identity"}.
-#' 
+#'
 #' @examples
 #' # check the feglm examples for the details about clustered standard errors
-#' 
+#'
 #' # subset trade flows to avoid fitting time warnings during check
 #' set.seed(123)
 #' trade_2006 <- trade_panel[trade_panel$year == 2006, ]
 #' trade_2006 <- trade_2006[sample(nrow(trade_2006), 1000), ]
-#'  
+#'
 #' mod <- fenegbin(
 #'   trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
 #'   trade_2006
 #' )
 #'
 #' summary(mod)
-#' 
+#'
 #' @return A named list of class \code{"feglm"}. The list contains the following
 #'  eighteen elements:
 #'  \item{coefficients}{a named vector of the estimated coefficients}
@@ -48,7 +48,7 @@
 #'   observations}
 #'  \item{family}{the family used in the model}
 #'  \item{control}{the control list used in the model}
-#' 
+#'
 #' @export
 fenegbin <- function(
     formula = NULL,

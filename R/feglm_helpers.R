@@ -465,7 +465,7 @@ get_score_matrix_ <- function(object) {
   mu.eta <- family[["mu.eta"]](eta)
   w <- (wt * mu.eta^2) / family[["variance"]](mu)
   nu <- (y - mu) / mu.eta
-  
+
   # Center regressor matrix (if required)
   if (control[["keep_mx"]]) {
     MX <- object[["MX"]]
