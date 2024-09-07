@@ -65,7 +65,7 @@ bias_corr <- function(
     L = 0L,
     panel_structure = c("classic", "network")) {
   # Check validity of 'object'
-  bias_corr_check_object_(object)
+  apes_bias_check_object_(object, fun = "bias_corr")
 
   # Check validity of 'panel_structure'
   panel_structure <- match.arg(panel_structure)
@@ -84,13 +84,13 @@ bias_corr <- function(
   k <- length(lvls_k)
 
   # Check if binary choice model
-  bias_corr_check_binary_model_(family)
+  apes_bias_check_binary_model_(family, fun = "bias_corr")
 
   # Check if the number of FEs is > 3
   bias_corr_check_fixed_effects_(k)
 
   # Check if provided object matches requested panel structure
-  bias_corr_check_panel_(panel_structure, k)
+  apes_bias_check_panel_(panel_structure, k)
 
   # Extract model response, regressor matrix, and weights
   y <- data[[1L]]
@@ -191,60 +191,11 @@ bias_corr <- function(
   object
 }
 
-# Check object ----
-
-bias_corr_check_object_ <- function(object) {
-  if (is.null(object)) {
-    stop("'object' has to be specified.", call. = FALSE)
-  } else if (!inherits(object, "feglm")) {
-    stop("'bias_corr' called on a non-'feglm' object.", call. = FALSE)
-  }
-}
-
-# Check if binary choice model ----
-
-bias_corr_check_binary_model_ <- function(family) {
-  if (family[["family"]] != "binomial") {
-    stop(
-      "'bias_corr' currently only supports binary choice models.",
-      call. = FALSE
-    )
-  }
-}
-
-# Check if the number of FEs is > 3 ----
-
 bias_corr_check_fixed_effects_ <- function(lvls_k) {
   if (length(lvls_k) > 3) {
     stop(
       "bias_corr() only supports models with up to three-way fixed effects.",
       call. = FALSE
     )
-  }
-}
-
-# Check if provided object matches requested panel structure ----
-
-bias_corr_check_panel_ <- function(panel_structure, k) {
-  if (panel_structure == "classic") {
-    if (!(k %in% c(1L, 2L))) {
-      stop(
-        paste(
-          "panel_structure == 'classic' expects a one- or two-way fixed",
-          "effect model."
-        ),
-        call. = FALSE
-      )
-    }
-  } else {
-    if (!(k %in% c(2L, 3L))) {
-      stop(
-        paste(
-          "panel_structure == 'network' expects a two- or three-way fixed",
-          "effects model."
-        ),
-        call. = FALSE
-      )
-    }
   }
 }

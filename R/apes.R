@@ -93,14 +93,9 @@ apes <- function(
     sampling_fe = c("independence", "unrestricted"),
     weak_exo = FALSE) {
   # Check validity of 'object'
-  if (is.null(object)) {
-    stop("'object' has to be specified.", call. = FALSE)
-  } else if (!inherits(object, "feglm")) {
-    stop("'apes' called on a non-'feglm' object.", call. = FALSE)
-  }
+  apes_bias_check_object_(object, fun = "apes")
 
-  # Extract prior information if available or check validity of
-  # 'panel_structure'
+  # Extract prior information if available or check validity of panel_structure
   bias_corr <- inherits(object, "bias_corr")
   if (bias_corr) {
     panel_structure <- object[["panel_structure"]]
@@ -126,60 +121,20 @@ apes <- function(
   formula <- object[["formula"]]
   lvls_k <- object[["lvls_k"]]
   nt <- object[["nobs"]][["nobs"]]
-  nt.full <- object[["nobs"]][["nobs_full"]]
+  nt_full <- object[["nobs"]][["nobs_full"]]
   k <- length(lvls_k)
   k_vars <- names(lvls_k)
   p <- length(beta)
 
   # Check if binary choice model
-  if (family[["family"]] != "binomial") {
-    stop("'bias_corr' currently only supports binary choice models.",
-      call. = FALSE
-    )
-  }
+  apes_bias_check_binary_model_(family, fun = "apes")
 
   # Check if provided object matches requested panel structure
-  if (panel_structure == "classic") {
-    if (!(k %in% c(1L, 2L))) {
-      stop(
-        paste(
-          "panel_structure == 'classic' expects a one- or two-way fixed",
-          "effects model."
-        ),
-        call. = FALSE
-      )
-    }
-  } else {
-    if (!(k %in% c(2L, 3L))) {
-      stop(
-        paste(
-          "panel_structure == 'network' expects a two- or three-way fixed",
-          "effects model."
-        ),
-        call. = FALSE
-      )
-    }
-  }
+  apes_bias_check_panel_(panel_structure, k)
 
   # Check validity of 'n_pop'
   # Note: Default option is no adjustment i.e. only delta method covariance
-  if (!is.null(n_pop)) {
-    n_pop <- as.integer(n_pop)
-    if (n_pop < nt.full) {
-      warning(
-        paste(
-          "Size of the entire population is lower than the full sample size.",
-          "Correction factor set to zero."
-        ),
-        call. = FALSE
-      )
-      adj <- 0.0
-    } else {
-      adj <- (n_pop - nt.full) / (n_pop - 1L)
-    }
-  } else {
-    adj <- 0.0
-  }
+  adj <- apes_set_adj_(n_pop, nt_full)
 
   # Extract model response, regressor matrix, and weights
   y <- data[[1L]]
@@ -230,20 +185,20 @@ apes <- function(
       f1 <- family[["mu.eta"]](eta1)
       Delta[, j] <- (family[["linkinv"]](eta1) - family[["linkinv"]](eta0))
       Delta1[, j] <- f1 - family[["mu.eta"]](eta0)
-      J[, j] <- -colSums(PX * Delta1[, j]) / nt.full
-      J[j, j] <- sum(f1) / nt.full + J[j, j]
+      J[, j] <- -colSums(PX * Delta1[, j]) / nt_full
+      J[j, j] <- sum(f1) / nt_full + J[j, j]
       J[-j, j] <- colSums(x[, -j, drop = FALSE] * Delta1[, j]) /
-        nt.full + J[-j, j]
+        nt_full + J[-j, j]
       rm(eta0, f1)
     } else {
       Delta[, j] <- beta[[j]] * Delta[, j]
       Delta1[, j] <- beta[[j]] * Delta1[, j]
-      J[, j] <- colSums(MX * Delta1[, j]) / nt.full
-      J[j, j] <- sum(mu.eta) / nt.full + J[j, j]
+      J[, j] <- colSums(MX * Delta1[, j]) / nt_full
+      J[j, j] <- sum(mu.eta) / nt_full + J[j, j]
     }
   }
-  delta <- colSums(Delta) / nt.full
-  Delta <- t(t(Delta) - delta) / nt.full
+  delta <- colSums(Delta) / nt_full
+  Delta <- t(t(Delta) - delta) / nt_full
   rm(mu, mu.eta, PX)
 
   # Compute projection and residual projection of \Psi
@@ -254,86 +209,18 @@ apes <- function(
 
   # Compute analytical bias correction of average partial effects
   if (bias_corr) {
-    # Compute second-order partial derivatives
-    Delta2 <- matrix(NA_real_, nt, p)
-    Delta2[, !binary] <- partial_mu_eta_(eta, family, 3L)
-    for (j in seq.int(p)) {
-      if (binary[[j]]) {
-        eta0 <- eta - x[, j] * beta[[j]]
-        Delta2[, j] <- partial_mu_eta_(eta0 + beta[[j]], family, 2L) -
-          partial_mu_eta_(eta0, family, 2L)
-        rm(eta0)
-      } else {
-        Delta2[, j] <- beta[[j]] * Delta2[, j]
-      }
-    }
-
-    # Compute bias terms for requested bias correction
-    if (panel_structure == "classic") {
-      # Compute \hat{B} and \hat{D}
-      b <- group_sums_(Delta2 + PPsi * z, w, k_list[[1L]]) / (2.0 * nt)
-      if (k > 1L) {
-        b <- (b + group_sums_(Delta2 + PPsi * z, w, k_list[[2L]])) / (2.0 * nt)
-      }
-
-      # Compute spectral density part of \hat{B}
-      if (L > 0L) {
-        b <- (b - group_sums_spectral_(MPsi * w, v, w, L, k_list[[1L]])) / nt
-      }
-    } else {
-      # Compute \hat{D}_{1}, \hat{D}_{2}, and \hat{B}
-      b <- group_sums_(Delta2 + PPsi * z, w, k_list[[1L]]) / (2.0 * nt)
-      b <- (b + group_sums_(Delta2 + PPsi * z, w, k_list[[2L]])) / (2.0 * nt)
-      if (k > 2L) {
-        b <- (b + group_sums_(Delta2 + PPsi * z, w, k_list[[3L]])) / (2.0 * nt)
-      }
-
-      # Compute spectral density part of \hat{B}
-      if (k > 2L && L > 0L) {
-        b <- (b - group_sums_spectral_(MPsi * w, v, w, L, k_list[[3L]])) / nt
-      }
-    }
-    rm(Delta2)
-
-    # Compute bias-corrected average partial effects
+    b <- apes_bias_correction_(eta, family, x, beta, binary, nt, p, PPsi, z,
+      w, k_list, panel_structure, L, k, MPsi, v)
     delta <- delta - b
   }
   rm(eta, w, z, MPsi)
 
   # Compute covariance matrix
-  Gamma <- gamma_(MX, object[["hessian"]], J, PPsi, v, nt.full)
+  Gamma <- gamma_(MX, object[["hessian"]], J, PPsi, v, nt_full)
   V <- crossprod(Gamma)
 
-  if (adj > 0.0) {
-    # Simplify covariance if sampling assumptions are imposed
-    if (sampling_fe == "independence") {
-      V <- V + adj * group_sums_var_(Delta, k_list[[1L]])
-      if (k > 1L) {
-        V <- V + adj * (group_sums_var_(Delta, k_list[[2L]]) - crossprod(Delta))
-      }
-      if (panel_structure == "network") {
-        if (k > 2L) {
-          V <- V + adj * (group_sums_var_(Delta, k_list[[3L]]) -
-            crossprod(Delta))
-        }
-      }
-    }
-
-    # Add covariance in case of weak exogeneity
-    if (weak_exo) {
-      if (panel_structure == "classic") {
-        C <- group_sums_cov_(Delta, Gamma, k_list[[1L]])
-        V <- V + adj * (C + t(C))
-        rm(C)
-      } else {
-        if (k > 2L) {
-          C <- group_sums_cov_(Delta, Gamma, k_list[[3L]])
-          V <- V + adj * (C + t(C))
-          rm(C)
-        }
-      }
-    }
-  }
+  V <- apes_adjust_covariance_(V, Delta, Gamma, k_list, adj, sampling_fe,
+    weak_exo, panel_structure)
 
   # Add names
   names(delta) <- nms.sp
@@ -357,4 +244,102 @@ apes <- function(
 
   # Return result list
   structure(reslist, class = "apes")
+}
+
+apes_set_adj_ <- function(n_pop, nt_full) {
+  if (!is.null(n_pop)) {
+    n_pop <- as.integer(n_pop)
+    if (n_pop < nt_full) {
+      warning(
+        paste(
+          "Size of the entire population is lower than the full sample size.",
+          "Correction factor set to zero."
+        ),
+        call. = FALSE
+      )
+      adj <- 0.0
+    } else {
+      adj <- (n_pop - nt_full) / (n_pop - 1L)
+    }
+  } else {
+    adj <- 0.0
+  }
+
+  return(adj)
+}
+
+apes_adjust_covariance_ <- function(V, Delta, Gamma, k_list, adj, sampling_fe,
+  weak_exo, panel_structure) {
+  if (adj > 0.0) {
+    # Simplify covariance if sampling assumptions are imposed
+    if (sampling_fe == "independence") {
+      V <- V + adj * group_sums_var_(Delta, k_list[[1L]])
+      if (length(k_list) > 1L) {
+        V <- V + adj * (group_sums_var_(Delta, k_list[[2L]]) - crossprod(Delta))
+      }
+      if (panel_structure == "network" && length(k_list) > 2L) {
+        V <- V + adj * (group_sums_var_(Delta, k_list[[3L]]) - crossprod(Delta))
+      }
+    }
+
+    # Add covariance in case of weak exogeneity
+    if (weak_exo) {
+      if (panel_structure == "classic") {
+        C <- group_sums_cov_(Delta, Gamma, k_list[[1L]])
+        V <- V + adj * (C + t(C))
+        rm(C)
+      } else if (length(k_list) > 2L) {
+        C <- group_sums_cov_(Delta, Gamma, k_list[[3L]])
+        V <- V + adj * (C + t(C))
+        rm(C)
+      }
+    }
+  }
+  return(V)
+}
+
+apes_bias_correction_ <- function(eta, family, x, beta, binary, nt, p, PPsi,
+  z, w, k_list, panel_structure, L, k, MPsi, v) {
+  # Compute second-order partial derivatives
+  Delta2 <- matrix(NA_real_, nt, p)
+  Delta2[, !binary] <- partial_mu_eta_(eta, family, 3L)
+  for (j in seq.int(p)) {
+    if (binary[[j]]) {
+      eta0 <- eta - x[, j] * beta[[j]]
+      Delta2[, j] <- partial_mu_eta_(eta0 + beta[[j]], family, 2L) -
+        partial_mu_eta_(eta0, family, 2L)
+      rm(eta0)
+    } else {
+      Delta2[, j] <- beta[[j]] * Delta2[, j]
+    }
+  }
+
+  # Compute bias terms for requested bias correction
+  if (panel_structure == "classic") {
+    # Compute \hat{B} and \hat{D}
+    b <- group_sums_(Delta2 + PPsi * z, w, k_list[[1L]]) / (2.0 * nt)
+    if (k > 1L) {
+      b <- (b + group_sums_(Delta2 + PPsi * z, w, k_list[[2L]])) / (2.0 * nt)
+    }
+
+    # Compute spectral density part of \hat{B}
+    if (L > 0L) {
+      b <- (b - group_sums_spectral_(MPsi * w, v, w, L, k_list[[1L]])) / nt
+    }
+  } else {
+    # Compute \hat{D}_{1}, \hat{D}_{2}, and \hat{B}
+    b <- group_sums_(Delta2 + PPsi * z, w, k_list[[1L]]) / (2.0 * nt)
+    b <- (b + group_sums_(Delta2 + PPsi * z, w, k_list[[2L]])) / (2.0 * nt)
+    if (k > 2L) {
+      b <- (b + group_sums_(Delta2 + PPsi * z, w, k_list[[3L]])) / (2.0 * nt)
+    }
+
+    # Compute spectral density part of \hat{B}
+    if (k > 2L && L > 0L) {
+      b <- (b - group_sums_spectral_(MPsi * w, v, w, L, k_list[[3L]])) / nt
+    }
+  }
+  rm(Delta2)
+
+  return(b)
 }
