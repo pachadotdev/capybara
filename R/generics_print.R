@@ -104,7 +104,7 @@ summary_estimates_print_header_ <- function(coef_width, max_widths) {
     function(name, width) {
       sprintf("| %-*s", width, name)
     },
-    name = c("Estimate", "Std. Error", "t value", "Pr(>|t|)"),
+    name = c("Estimate", "Std. Error", "z value", "Pr(>|z|)"),
     width = max_widths + 1L
   )
 

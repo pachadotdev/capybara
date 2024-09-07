@@ -1,8 +1,8 @@
 #' Augment method for fepoisson (Broom)
 #'
 #' @param x A fitted model object.
-#' @param newdata Optional argument to use data different from the data used to fit
-#'  the model.
+#' @param newdata Optional argument to use data different from the data used to
+#'  fit the model.
 #' @param ... Additional arguments passed to the method.
 #'
 #' @return A tibble with the input data and additional columns for the fitted
@@ -11,18 +11,16 @@
 #' @rdname broom
 #'
 #' @examples
-#' if (require("broom")) {
-#'   set.seed(123)
-#'   trade_2006 <- trade_panel[trade_panel$year == 2006, ]
-#'   trade_2006 <- trade_2006[sample(nrow(trade_2006), 1000), ]
+#' set.seed(123)
+#' trade_2006 <- trade_panel[trade_panel$year == 2006, ]
+#' trade_2006 <- trade_2006[sample(nrow(trade_2006), 1000), ]
 #'
-#'   mod <- fepoisson(
-#'     trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
-#'     trade_2006
-#'   )
+#' mod <- fepoisson(
+#'  trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
+#'  trade_2006
+#' )
 #'
-#'   broom::augment(mod)
-#' }
+#' broom::augment(mod)
 
 #' Glance method for fepoisson (Broom)
 #'
@@ -35,23 +33,22 @@
 #' @rdname broom
 #'
 #' @examples
-#' if (require("broom")) {
-#'   set.seed(123)
-#'   trade_2006 <- trade_panel[trade_panel$year == 2006, ]
-#'   trade_2006 <- trade_2006[sample(nrow(trade_2006), 1000), ]
+#' set.seed(123)
+#' trade_2006 <- trade_panel[trade_panel$year == 2006, ]
+#' trade_2006 <- trade_2006[sample(nrow(trade_2006), 1000), ]
 #'
-#'   mod <- fepoisson(
-#'     trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
-#'     trade_2006
-#'   )
+#' mod <- fepoisson(
+#'  trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
+#'  trade_2006
+#' )
 #'
-#'   broom::glance(mod)
-#' }
+#' broom::glance(mod)
 
 #' Tidy method for fepoisson (Broom)
 #'
 #' @param x A fitted model object.
-#' @param conf.int Logical indicating whether to include the confidence interval.
+#' @param conf.int Logical indicating whether to include the confidence
+#'  interval.
 #' @param conf.level The confidence level for the confidence interval.
 #' @param ... Additional arguments passed to the method.
 #'
@@ -62,15 +59,13 @@
 #' @rdname broom
 #'
 #' @examples
-#' if (require("broom")) {
-#'   set.seed(123)
-#'   trade_2006 <- trade_panel[trade_panel$year == 2006, ]
-#'   trade_2006 <- trade_2006[sample(nrow(trade_2006), 1000), ]
+#' set.seed(123)
+#' trade_2006 <- trade_panel[trade_panel$year == 2006, ]
+#' trade_2006 <- trade_2006[sample(nrow(trade_2006), 1000), ]
 #'
-#'   mod <- fepoisson(
-#'     trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
-#'     trade_2006
-#'   )
+#' mod <- fepoisson(
+#'  trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
+#'  trade_2006
+#' )
 #'
-#'   broom::tidy(mod)
-#' }
+#' broom::tidy(mod)
