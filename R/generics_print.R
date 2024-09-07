@@ -25,6 +25,20 @@ summary_estimates_ <- function(x, digits) {
   cat("\nEstimates:\n\n")
   coefmat <- as.data.frame(x[["cm"]])
 
+  coefmat <- summary_estimates_format_significance_(coefmat, digits)
+  coefmat <- summary_estimates_format_columns_(coefmat, digits)
+
+  coef_width <- max(nchar(rownames(coefmat))) + 2L
+  max_widths <- summary_estimates_max_width_(coefmat)
+
+  summary_estimates_print_header_(coef_width, max_widths)
+  summary_estimates_print_dashes_(coef_width, max_widths)
+  summary_estimates_print_rows_(coefmat, coef_width, max_widths)
+
+  cat("\nSignificance codes: *** 99.9%; ** 99%; * 95%; . 90%\n")
+}
+
+summary_estimates_format_significance_ <- function(coefmat, digits) {
   coefmat[, max(ncol(coefmat))] <- vapply(
     coefmat[, max(ncol(coefmat))],
     function(x) {
@@ -42,7 +56,6 @@ summary_estimates_ <- function(x, digits) {
     }, character(1)
   )
 
-  # get rid of extra spaces (i.e., no number with ***)
   coefmat[, max(ncol(coefmat))] <- gsub(
     "\\*\\s+$", "*",
     coefmat[, max(ncol(coefmat))]
@@ -52,29 +65,30 @@ summary_estimates_ <- function(x, digits) {
     coefmat[, max(ncol(coefmat))]
   )
 
-  # fill coefmat[, max(ncol(coefmat))] with spaces to the right
   signif_width <- max(nchar(coefmat[, max(ncol(coefmat))]))
   coefmat[, max(ncol(coefmat))] <- sprintf(
     "%-*s", signif_width,
     coefmat[, max(ncol(coefmat))]
   )
 
-  # format the other columns as formatC(x, format = "f", digits = digits)
+  coefmat
+}
+
+summary_estimates_format_columns_ <- function(coefmat, digits) {
   for (i in 1:(ncol(coefmat) - 1)) {
     coefmat[, i] <- formatC(as.double(coefmat[, i]),
       format = "f",
       digits = digits
     )
   }
+  coefmat
+}
 
-  coef_width <- max(nchar(rownames(coefmat))) + 2L
-  max_widths <- c(
-    nchar("Estimate"), nchar("Std. Error"), nchar("t value"),
-    nchar("Pr(>|t|)")
-  )
+summary_estimates_max_width_ <- function(coefmat) {
+  # max_widths <- c(nchar("Estimate"), nchar("Std. Error"), nchar("t value"),
+  #   nchar("Pr(>|t|)"))
+  max_widths <- c(8L, 10L, 7L, 8L)
 
-  # get the maximum number of digits (with sign and decimal point)
-  # for each column
   for (i in seq_len(nrow(coefmat))) {
     row_values <- coefmat[i, ]
     max_widths <- mapply(function(value, width) {
@@ -82,19 +96,25 @@ summary_estimates_ <- function(x, digits) {
     }, value = row_values, width = max_widths)
   }
 
-  # create a header such as "| Estimate | Std. Error | t value | Pr(>|t|) |\n"
-  # but adding spaces between the bars and the column names to make sure the
-  # numbers will fit
-  header <- mapply(function(name, width) {
-    sprintf("| %-*s", width, name)
-  }, name = colnames(coefmat), width = max_widths + 1L)
+  max_widths
+}
+
+summary_estimates_print_header_ <- function(coef_width, max_widths) {
+  header <- mapply(
+    function(name, width) {
+      sprintf("| %-*s", width, name)
+    },
+    name = c("Estimate", "Std. Error", "t value", "Pr(>|t|)"),
+    width = max_widths + 1L
+  )
 
   cat("|", paste(rep(" ", coef_width), collapse = ""),
     paste(header, collapse = ""), "|\n",
     sep = ""
   )
+}
 
-  # now the same for "|----|----|----|----|\n"
+summary_estimates_print_dashes_ <- function(coef_width, max_widths) {
   dashes <- mapply(function(width) {
     sprintf("|%s", paste(rep("-", width), collapse = ""))
   }, width = max_widths + 2L)
@@ -103,7 +123,9 @@ summary_estimates_ <- function(x, digits) {
     paste(dashes, collapse = ""), "|\n",
     sep = ""
   )
+}
 
+summary_estimates_print_rows_ <- function(coefmat, coef_width, max_widths) {
   for (i in seq_len(nrow(coefmat))) {
     cat("| ", sprintf("%-*s", coef_width - 1L, rownames(coefmat)[i]), sep = "")
     row_values <- coefmat[i, ]
@@ -111,15 +133,8 @@ summary_estimates_ <- function(x, digits) {
       sprintf("| %*s ", width, value)
     }, value = row_values, width = max_widths)
 
-    if (i == max(nrow(coefmat))) {
-      cat(formatted_values, "|\n", sep = "")
-    } else {
-      cat(formatted_values, "|\n", sep = "")
-    }
+    cat(formatted_values, "|\n", sep = "")
   }
-
-  # significance message
-  cat("\nSignificance codes: *** 99.9%; ** 99%; * 95%; . 90%\n")
 }
 
 #' @title Refactors for and 'feglm' summaries
