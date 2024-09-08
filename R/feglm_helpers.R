@@ -53,7 +53,8 @@ third_order_derivative_ <- function(eta, mu_eta, family) {
 }
 
 #' @title Second or third order derivative
-#' @description Computes the second or third order derivative of the link function
+#' @description Computes the second or third order derivative of the link
+#'  function
 #' @param eta Linear predictor
 #' @param family Family object
 #' @param order Order of the derivative (2 or 3)
@@ -79,7 +80,10 @@ partial_mu_eta_ <- function(eta, family, order) {
 #' @noRd
 temp_var_ <- function(data) {
   repeat {
-    tmp_var <- paste0("capybara_internal_variable_", sample(letters, 5L, replace = TRUE), collapse = "")
+    tmp_var <- paste0("capybara_internal_variable_",
+      sample(letters, 5L, replace = TRUE),
+      collapse = ""
+    )
     if (!(tmp_var %in% colnames(data))) {
       break
     }
@@ -135,16 +139,19 @@ check_family_ <- function(family) {
   if (!inherits(family, "family")) {
     stop("'family' has to be of class family", call. = FALSE)
   } else if (family[["family"]] %in%
-    c("quasi", "quasipoisson", "quasibinomial")) {
+               c("quasi", "quasipoisson", "quasibinomial")) {
     stop("Quasi-variants of 'family' are not supported.", call. = FALSE)
   } else if (startsWith(family[["family"]], "Negative Binomial")) {
     stop("Please use 'fenegbin' instead.", call. = FALSE)
   }
 
   if (family[["family"]] == "binomial" && family[["link"]] != "logit") {
-    stop("The current version only supports logit in the binomial family.
-    This is because I had to rewrite the links in C++ to use those with Armadillo.
-    Send me a Pull Request or open an issue if you need Probit.", call. = FALSE)
+    stop(
+      "The current version only supports logit in the binomial family.
+       This is because I had to rewrite the links in C++ to use those with
+       Armadillo. Send me a Pull Request or open an issue if you need Probit.",
+      call. = FALSE
+    )
   }
 }
 
@@ -236,7 +243,8 @@ check_response_ <- function(data, lhs, family) {
 }
 
 #' @title Drop by link type
-#' @description Drops observations that do not contribute to the log-likelihood for binomial and poisson models
+#' @description Drops observations that do not contribute to the log-likelihood
+#'  for binomial and poisson models
 #' @param data Data frame
 #' @param lhs Left-hand side of the formula
 #' @param family Family object
@@ -284,8 +292,8 @@ transform_fe_ <- function(data, formula, k_vars) {
   data <- mutate(data, across(all_of(k_vars), check_factor_))
 
   if (length(formula)[[2L]] > 2L) {
-    add.vars <- attr(terms(formula, rhs = 3L), "term.labels")
-    data <- mutate(data, across(all_of(add.vars), check_factor_))
+    add_vars <- attr(terms(formula, rhs = 3L), "term.labels")
+    data <- mutate(data, across(all_of(add_vars), check_factor_))
   }
 
   data
@@ -345,20 +353,20 @@ check_weights_ <- function(wt) {
 
 #' @title Check starting theta
 #' @description Checks if starting theta is valid for NegBin models
-#' @param init.theta Initial theta value
+#' @param init_theta Initial theta value
 #' @param link Link function
 #' @noRd
-init_theta_ <- function(init.theta, link) {
-  if (is.null(init.theta)) {
+init_theta_ <- function(init_theta, link) {
+  if (is.null(init_theta)) {
     family <- poisson(link)
   } else {
     # Validity of input argument (beta_start)
-    if (length(init.theta) != 1L) {
-      stop("'init.theta' has to be a scalar.", call. = FALSE)
-    } else if (init.theta <= 0.0) {
-      stop("'init.theta' has to be strictly positive.", call. = FALSE)
+    if (length(init_theta) != 1L) {
+      stop("'init_theta' has to be a scalar.", call. = FALSE)
+    } else if (init_theta <= 0.0) {
+      stop("'init_theta' has to be strictly positive.", call. = FALSE)
     }
-    family <- negative.binomial(init.theta, link)
+    family <- negative.binomial(init_theta, link)
   }
 
   family
@@ -436,7 +444,8 @@ start_guesses_ <- function(
 }
 
 #' @title Get index list
-#' @description Generates an auxiliary list of indexes to project out the fixed effects
+#' @description Generates an auxiliary list of indexes to project out the fixed
+#'  effects
 #' @param k_vars Fixed effects
 #' @param data Data frame
 #' @noRd
@@ -462,9 +471,9 @@ get_score_matrix_ <- function(object) {
   # Update weights and dependent variable
   y <- data[[1L]]
   mu <- family[["linkinv"]](eta)
-  mu.eta <- family[["mu.eta"]](eta)
-  w <- (wt * mu.eta^2) / family[["variance"]](mu)
-  nu <- (y - mu) / mu.eta
+  mu_eta <- family[["mu.eta"]](eta)
+  w <- (wt * mu_eta^2) / family[["variance"]](mu)
+  nu <- (y - mu) / mu_eta
 
   # Center regressor matrix (if required)
   if (control[["keep_mx"]]) {
@@ -475,7 +484,7 @@ get_score_matrix_ <- function(object) {
     k_vars <- names(object[["lvls_k"]])
 
     # Generate auxiliary list of indexes to project out the fixed effects
-    k.list <- get_index_list_(k_vars, data)
+    k_list <- get_index_list_(k_vars, data)
 
     # Extract regressor matrix
     x <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
@@ -483,7 +492,7 @@ get_score_matrix_ <- function(object) {
     attr(x, "dimnames") <- NULL
 
     # Center variables
-    mx <- center_variables_r_(x, w, k.list, control[["center_tol"]], 10000L)
+    mx <- center_variables_r_(x, w, k_list, control[["center_tol"]], 10000L)
     colnames(mx) <- nms_sp
   }
 
@@ -494,13 +503,13 @@ get_score_matrix_ <- function(object) {
 #' @title Gamma computation
 #' @description Computes the gamma matrix for the APES function
 #' @param mx Regressor matrix
-#' @param H Hessian matrix
-#' @param J Jacobian matrix
-#' @param PPsi Psi matrix
+#' @param h Hessian matrix
+#' @param j Jacobian matrix
+#' @param ppsi Psi matrix
 #' @param v Vector of weights
 #' @param nt Number of observations
 #' @noRd
-gamma_ <- function(mx, H, J, PPsi, v, nt) {
+gamma_ <- function(mx, h, j, ppsi, v, nt) {
   inv_nt <- 1.0 / nt
-  (mx %*% solve(H * inv_nt, J) - PPsi) * v * inv_nt
+  (mx %*% solve(h * inv_nt, j) - ppsi) * v * inv_nt
 }

@@ -37,7 +37,7 @@
 #' # subset trade flows to avoid fitting time warnings during check
 #' set.seed(123)
 #' trade_2006 <- trade_panel[trade_panel$year == 2006, ]
-#' trade_2006 <- trade_2006[sample(nrow(trade_2006), 1000), ]
+#' trade_2006 <- trade_2006[sample(nrow(trade_2006), 500), ]
 #'
 #'
 #' mod <- felm(
@@ -58,7 +58,6 @@ felm <- function(formula = NULL, data = NULL, weights = NULL) {
 
   names(reslist)[which(names(reslist) == "eta")] <- "fitted.values"
 
-  # reslist[["hessian"]] <- NULL
   reslist[["conv"]] <- NULL
   reslist[["iter"]] <- NULL
   reslist[["family"]] <- NULL

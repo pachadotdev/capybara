@@ -31,6 +31,9 @@
 #'
 #' @return A named list of control parameters.
 #'
+#' @examples
+#' feglm_control(0.05, 0.05, 10L, 10L, TRUE, TRUE, TRUE)
+#'
 #' @seealso \code{\link{feglm}}
 #'
 #' @export

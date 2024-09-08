@@ -26,7 +26,7 @@
 #' # subset trade flows to avoid fitting time warnings during check
 #' set.seed(123)
 #' trade_2006 <- trade_panel[trade_panel$year == 2006, ]
-#' trade_2006 <- trade_2006[sample(nrow(trade_2006), 1000), ]
+#' trade_2006 <- trade_2006[sample(nrow(trade_2006), 500), ]
 #'
 #' mod <- fepoisson(
 #'   trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
@@ -41,7 +41,7 @@ fixed_effects <- function(object = NULL, alpha_tol = 1.0e-08) {
   if (is.null(object)) {
     stop("'object' has to be specified.", call. = FALSE)
   } else if (isFALSE(inherits(object, "felm")) &&
-    isFALSE(inherits(object, "feglm"))) {
+               isFALSE(inherits(object, "feglm"))) {
     stop(
       "'fixed_effects' called on a non-'felm' or non-'feglm' object.",
       call. = FALSE
@@ -60,7 +60,6 @@ fixed_effects <- function(object = NULL, alpha_tol = 1.0e-08) {
 
   # Extract regressor matrix
   x <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
-  nms_sp <- attr(x, "dimnames")[[2L]]
   attr(x, "dimnames") <- NULL
 
   # Generate auxiliary list of indexes for different sub panels

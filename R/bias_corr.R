@@ -9,7 +9,7 @@
 #'  effects.
 #'
 #' @param object an object of class \code{"feglm"}.
-#' @param L unsigned integer indicating a bandwidth for the estimation of
+#' @param l unsigned integer indicating a bandwidth for the estimation of
 #'  spectral densities proposed by Hahn and Kuersteiner (2011). The default is
 #'  zero, which should be used if all regressors are assumed to be strictly
 #'  exogenous with respect to the idiosyncratic error term. In the presence of
@@ -48,7 +48,7 @@
 #' # subset trade flows to avoid fitting time warnings during check
 #' set.seed(123)
 #' trade_2006 <- trade_panel[trade_panel$year == 2006, ]
-#' trade_2006 <- trade_2006[sample(nrow(trade_2006), 1000), ]
+#' trade_2006 <- trade_2006[sample(nrow(trade_2006), 500), ]
 #'
 #' trade_2006$trade <- ifelse(trade_2006$trade > 100, 1L, 0L)
 #'
@@ -62,7 +62,7 @@
 #' @export
 bias_corr <- function(
     object = NULL,
-    L = 0L,
+    l = 0L,
     panel_structure = c("classic", "network")) {
   # Check validity of 'object'
   apes_bias_check_object_(object, fun = "bias_corr")
@@ -74,11 +74,10 @@ bias_corr <- function(
   beta_uncorr <- object[["coefficients"]]
   control <- object[["control"]]
   data <- object[["data"]]
-  eps <- .Machine[["double.eps"]]
   family <- object[["family"]]
   formula <- object[["formula"]]
   lvls_k <- object[["lvls_k"]]
-  nms.sp <- names(beta_uncorr)
+  nms_sp <- names(beta_uncorr)
   nt <- object[["nobs"]][["nobs"]]
   k_vars <- names(lvls_k)
   k <- length(lvls_k)
@@ -132,8 +131,8 @@ bias_corr <- function(
     }
 
     # Compute spectral density part of \hat{B}
-    if (L > 0L) {
-      b <- (b + group_sums_spectral_(mx * w, v, w, L, k_list[[1L]])) / nt
+    if (l > 0L) {
+      b <- (b + group_sums_spectral_(mx * w, v, w, l, k_list[[1L]])) / nt
     }
   } else {
     # Compute \hat{D}_{1}, \hat{D}_{2}, and \hat{B}
@@ -144,14 +143,14 @@ bias_corr <- function(
     }
 
     # Compute spectral density part of \hat{B}
-    if (k > 2L && L > 0L) {
-      b <- (b + group_sums_spectral_(mx * w, v, w, L, k_list[[3L]])) / nt
+    if (k > 2L && l > 0L) {
+      b <- (b + group_sums_spectral_(mx * w, v, w, l, k_list[[3L]])) / nt
     }
   }
 
   # Compute bias-corrected structural parameters
   beta <- beta_uncorr - solve(object[["hessian"]] / nt, b)
-  names(beta) <- nms.sp
+  names(beta) <- nms_sp
 
   # Update \eta and first- and second-order derivatives
   eta <- feglm_offset_(object, x %*% beta)
@@ -168,21 +167,21 @@ bias_corr <- function(
 
   # Update centered regressor matrix
   mx <- center_variables_r_(x, w, k_list, control[["center_tol"]], 10000L)
-  colnames(mx) <- nms.sp
+  colnames(mx) <- nms_sp
 
   # Update hessian
-  H <- crossprod(mx * sqrt(w))
-  dimnames(H) <- list(nms.sp, nms.sp)
+  h <- crossprod(mx * sqrt(w))
+  dimnames(h) <- list(nms_sp, nms_sp)
 
   # Update result list
   object[["coefficients"]] <- beta
   object[["eta"]] <- eta
   if (control[["keep_mx"]]) object[["mx"]] <- mx
-  object[["hessian"]] <- H
+  object[["hessian"]] <- h
   object[["coefficients_uncorr"]] <- beta_uncorr
   object[["bias_term"]] <- b
   object[["panel_structure"]] <- panel_structure
-  object[["bandwidth"]] <- L
+  object[["bandwidth"]] <- l
 
   # Add additional class to result list
   attr(object, "class") <- c("feglm", "bias_corr")

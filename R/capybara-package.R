@@ -15,6 +15,8 @@
 #' @importFrom dplyr across all_of filter group_by mutate pull select summarise
 #'  ungroup vars
 #' @importFrom Formula Formula
+#' @importFrom ggplot2 ggplot aes geom_point geom_errorbar labs theme_minimal
+#'  coord_flip autoplot
 #' @importFrom kendallknight kendall_cor kendall_cor_test
 #' @importFrom MASS negative.binomial theta.ml
 #' @importFrom rlang sym :=

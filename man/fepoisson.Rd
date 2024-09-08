@@ -51,7 +51,7 @@ A wrapper for \code{\link{feglm}} with
 # subset trade flows to avoid fitting time warnings during check
 set.seed(123)
 trade_2006 <- trade_panel[trade_panel$year == 2006, ]
-trade_2006 <- trade_2006[sample(nrow(trade_2006), 1000), ]
+trade_2006 <- trade_2006[sample(nrow(trade_2006), 500), ]
 
 mod <- fepoisson(
   trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,

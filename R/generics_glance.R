@@ -2,10 +2,8 @@
 #' @export
 generics::glance
 
-#' @title Glance method for 'feglm' objects
-#' @description Integration with the 'broom' package
+#' @rdname broom
 #' @export
-#' @noRd
 glance.feglm <- function(x, ...) {
   res <- with(
     summary(x),
@@ -23,10 +21,9 @@ glance.feglm <- function(x, ...) {
   res
 }
 
-#' @title Glance method for 'felm' objects
-#' @description Integration with the 'broom' package
+#' @rdname broom
 #' @export
-#' @noRd
+#' @export
 glance.felm <- function(x, ...) {
   with(
     summary(x),

@@ -19,18 +19,12 @@ feglm_offset_ <- function(object, offset) {
   data <- object[["data"]]
   wt <- object[["weights"]]
   family <- object[["family"]]
-  formula <- object[["formula"]]
   lvls_k <- object[["lvls_k"]]
   nt <- object[["nobs"]][["nobs"]]
   k_vars <- names(lvls_k)
 
   # Extract dependent variable
   y <- data[[1L]]
-
-  # Extract control arguments
-  center_tol <- control[["center_tol"]]
-  dev_tol <- control[["dev_tol"]]
-  iter_max <- control[["iter_max"]]
 
   # Generate auxiliary list of indexes to project out the fixed effects
   k_list <- get_index_list_(k_vars, data)
@@ -49,7 +43,6 @@ feglm_offset_ <- function(object, offset) {
     y <- as.numeric(y)
   }
   feglm_offset_fit_(
-    eta, y, offset, wt, family[["family"]], control,
-    k_list
+    eta, y, offset, wt, family[["family"]], control, k_list
   )
 }

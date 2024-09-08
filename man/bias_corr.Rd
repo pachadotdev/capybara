@@ -5,12 +5,12 @@
 \title{Asymptotic bias correction after fitting binary choice models with a
 1,2,3-way error component}
 \usage{
-bias_corr(object = NULL, L = 0L, panel_structure = c("classic", "network"))
+bias_corr(object = NULL, l = 0L, panel_structure = c("classic", "network"))
 }
 \arguments{
 \item{object}{an object of class \code{"feglm"}.}
 
-\item{L}{unsigned integer indicating a bandwidth for the estimation of
+\item{l}{unsigned integer indicating a bandwidth for the estimation of
 spectral densities proposed by Hahn and Kuersteiner (2011). The default is
 zero, which should be used if all regressors are assumed to be strictly
 exogenous with respect to the idiosyncratic error term. In the presence of
@@ -40,7 +40,7 @@ effects.
 # subset trade flows to avoid fitting time warnings during check
 set.seed(123)
 trade_2006 <- trade_panel[trade_panel$year == 2006, ]
-trade_2006 <- trade_2006[sample(nrow(trade_2006), 1000), ]
+trade_2006 <- trade_2006[sample(nrow(trade_2006), 500), ]
 
 trade_2006$trade <- ifelse(trade_2006$trade > 100, 1L, 0L)
 

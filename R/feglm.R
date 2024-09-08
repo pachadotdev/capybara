@@ -70,7 +70,7 @@
 #' # subset trade flows to avoid fitting time warnings during check
 #' set.seed(123)
 #' trade_2006 <- trade_panel[trade_panel$year == 2006, ]
-#' trade_2006 <- trade_2006[sample(nrow(trade_2006), 1000), ]
+#' trade_2006 <- trade_2006[sample(nrow(trade_2006), 500), ]
 #'
 #' mod <- feglm(
 #'   trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
@@ -123,7 +123,6 @@ feglm <- function(
 
   # Get names of the fixed effects variables and sort ----
   k_vars <- attr(terms(formula, rhs = 2L), "term.labels")
-  k <- length(k_vars)
 
   # Generate temporary variable ----
   tmp_var <- temp_var_(data)

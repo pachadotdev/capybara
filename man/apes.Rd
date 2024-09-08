@@ -66,7 +66,7 @@ partial effects based on functional forms like interactions and polynomials.
 # subset trade flows to avoid fitting time warnings during check
 set.seed(123)
 trade_2006 <- trade_panel[trade_panel$year == 2006, ]
-trade_2006 <- trade_2006[sample(nrow(trade_2006), 1000), ]
+trade_2006 <- trade_2006[sample(nrow(trade_2006), 500), ]
 
 trade_2006$trade <- ifelse(trade_2006$trade > 100, 1L, 0L)
 

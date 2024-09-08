@@ -16,15 +16,18 @@ test_that("fepoisson is similar to fixest", {
 
   summary_mod <- summary(mod, type = "clustered")
 
-  # summary_mod_fixest <- summary(mod_fixest)
+  # the vector comes from:
+  # summary_mod_fixest <- summary(mod_fixest);
   # summary_mod_fixest$coeftable[,2]
   summary_mod_fixest <- c(0.02656441, 0.06322979, 0.06825364, 0.09380935)
 
-  expect_equal(unname(round(summary_mod$cm[, 2] - summary_mod_fixest, 2)), rep(0, 4))
+  expect_equal(
+    unname(round(summary_mod$cm[, 2] - summary_mod_fixest, 2)),
+    rep(0, 4)
+  )
 
   expect_output(print(mod))
 
-  # expect_message(summary(mod))
   expect_visible(summary(mod, type = "cluster"))
 
   fes <- fixed_effects(mod)
@@ -47,12 +50,11 @@ test_that("fepoisson is similar to fixest", {
   expect_output(summary_nobs_(smod))
   expect_output(summary_fisher_(smod))
 
-  # unique(trade_panel$year)
   trade_panel_2 <- trade_panel[trade_panel$year %in% c(2002, 2006), ]
 
   if (identical(Sys.info()[["user"]], "pacha")) {
     t_fepoisson <- rep(0, 10)
-    # for (i in 1:10) {
+
     t1 <- Sys.time()
     fit <- fepoisson(
       trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
@@ -60,21 +62,19 @@ test_that("fepoisson is similar to fixest", {
     )
     t2 <- Sys.time()
     t_fepoisson <- t2 - t1
-    # }
-    # t_fepoisson <- median(t_fepoisson)
 
     t_glm <- rep(0, 10)
-    # for (i in 1:0) {
+
     t1 <- Sys.time()
     fit <- suppressWarnings(glm(
-      trade ~ log_dist + lang + cntg + clny + as.factor(exp_year) + as.factor(imp_year),
+      trade ~ log_dist + lang + cntg + clny + as.factor(exp_year) +
+        as.factor(imp_year),
       trade_panel_2,
       family = poisson(link = "log")
     ))
     t2 <- Sys.time()
+
     t_glm <- t2 - t1
-    # }
-    # t_glm <- median(t_glm)
 
     expect_lte(t_fepoisson, t_glm)
   }

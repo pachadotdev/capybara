@@ -23,13 +23,6 @@ test_that("felm works", {
   s1 <- summary(m1)
   s2 <- summary(m2)
 
-  # m1r2 <- s1$r.squared
-  # m1r2a <- 1 - (1 - m1r2) * (s1$nobs["nobs"] - 1) / (s1$nobs["nobs"] - length(coef(m1)) -
-  #   sum(vapply(m1[["nms_fe"]], length, integer(1))) + 1)
-
-  # m2r2 <- s2$r.squared
-  # m2r2a <- 1 - (1 - m2r2) * ((length(m2$residuals) - 1) / m2$df.residual)
-
   expect_equal(s1$r.squared, s2$r.squared)
   expect_equal(s1$adj.r.squared, s2$adj.r.squared)
 
@@ -70,7 +63,8 @@ test_that("felm works with perfect relationships", {
 test_that("felm time is the same adding noise to the data", {
   mtcars2 <- mtcars[, c("mpg", "wt", "cyl")]
   set.seed(200100)
-  mtcars2$mpg <- mtcars2$mpg + rbinom(nrow(mtcars2), 1, 0.5) * .Machine$double.eps
+  mtcars2$mpg <- mtcars2$mpg + rbinom(nrow(mtcars2), 1, 0.5) *
+    .Machine$double.eps
   m1 <- felm(mpg ~ wt | cyl, mtcars)
   m2 <- felm(mpg ~ wt | cyl, mtcars2)
   expect_equal(coef(m1), coef(m2))

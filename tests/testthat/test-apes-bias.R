@@ -6,6 +6,7 @@ test_that("apes/bias works", {
   apes1 <- apes(mod1)
   bias1 <- bias_corr(mod1)
 
+  # the values come from:
   # mod2 <- alpaca::feglm(trade ~ lang | year, trade_short, family = binomial())
   # apes2 <- alpaca::getAPEs(mod2)
   # bias2 <- alpaca::biasCorr(mod2)

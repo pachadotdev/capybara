@@ -170,7 +170,7 @@ partially consistent observations". Econometrica, 16(1), 1-32.</p>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># subset trade flows to avoid fitting time warnings during check</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">trade_2006</span> <span class="op">&lt;-</span> <span class="va">trade_panel</span><span class="op">[</span><span class="va">trade_panel</span><span class="op">$</span><span class="va">year</span> <span class="op">==</span> <span class="fl">2006</span>, <span class="op">]</span></span></span>
-<span class="r-in"><span><span class="va">trade_2006</span> <span class="op">&lt;-</span> <span class="va">trade_2006</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">trade_2006</span><span class="op">)</span>, <span class="fl">1000</span><span class="op">)</span>, <span class="op">]</span></span></span>
+<span class="r-in"><span><span class="va">trade_2006</span> <span class="op">&lt;-</span> <span class="va">trade_2006</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">trade_2006</span><span class="op">)</span>, <span class="fl">500</span><span class="op">)</span>, <span class="op">]</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="va">trade_2006</span><span class="op">$</span><span class="va">trade</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="va">trade_2006</span><span class="op">$</span><span class="va">trade</span> <span class="op">&gt;</span> <span class="fl">100</span>, <span class="fl">1L</span>, <span class="fl">0L</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
@@ -181,14 +181,14 @@ partially consistent observations". Econometrica, 16(1), 1-32.</p>
 <span class="r-in"><span><span class="va">mod_ape</span> <span class="op">&lt;-</span> <span class="fu">apes</span><span class="op">(</span><span class="va">mod</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod_ape</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Estimates:</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>      Estimate Std. Error z value Pr(&gt;|z|)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> lang  0.06185    0.04708   1.314    0.189</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       Estimate Std. Error z value Pr(&gt;|z|)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> lang -0.008063   0.065477  -0.123    0.902</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Apply analytical bias correction</span></span></span>
 <span class="r-in"><span><span class="va">mod_bc</span> <span class="op">&lt;-</span> <span class="fu"><a href="bias_corr.html">bias_corr</a></span><span class="op">(</span><span class="va">mod</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod_bc</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Formula: trade ~ lang | year</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x63b7e08ca458&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x5ee15cd53ac8&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Family: Binomial</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
@@ -196,11 +196,11 @@ partially consistent observations". Econometrica, 16(1), 1-32.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> |      | Estimate | Std. Error | z value | Pr(&gt;|z|) |</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> |------|----------|------------|---------|----------|</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> | lang |   0.2530 |     0.1903 |  1.3292 |   0.1838 |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | lang |  -0.0341 |     0.2774 | -0.1230 |   0.9021 |</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Significance codes: *** 99.9%; ** 99%; * 95%; . 90%</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Number of observations: Full 1000; Missing 0; Perfect classification 0 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Number of observations: Full 500; Missing 0; Perfect classification 0 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Number of Fisher Scoring iterations: 3 </span>
 <span class="r-in"><span></span></span>
@@ -208,8 +208,8 @@ partially consistent observations". Econometrica, 16(1), 1-32.</p>
 <span class="r-in"><span><span class="va">mod_ape_bc</span> <span class="op">&lt;-</span> <span class="fu">apes</span><span class="op">(</span><span class="va">mod_bc</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod_ape_bc</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Estimates:</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>      Estimate Std. Error z value Pr(&gt;|z|)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> lang  0.06198    0.04708   1.317    0.188</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       Estimate Std. Error z value Pr(&gt;|z|)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> lang -0.008095   0.065477  -0.124    0.902</span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

@@ -10,18 +10,18 @@ confint.feglm <- function(object, parm, level = 0.95, ...) {
   z <- qnorm(1 - alpha / 2)
 
   # Compute the confidence intervals
-  conf.int <- data.frame(
+  conf_int <- data.frame(
     conf.low = res[, "estimate"] - z * res[, "std.error"],
     conf.high = res[, "estimate"] + z * res[, "std.error"]
   )
 
-  colnames(conf.int) <- paste(
+  colnames(conf_int) <- paste(
     100 * (c(0, 1) + c(1, -1) * (1 - level) / 2),
     "%"
   )
 
   # Return the confidence intervals
-  conf.int
+  conf_int
 }
 
 #' @export

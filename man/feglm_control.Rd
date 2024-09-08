@@ -54,6 +54,10 @@ A named list of control parameters.
 Set and change parameters used for fitting \code{\link{feglm}}.
 Termination conditions are similar to \code{\link[stats]{glm}}.
 }
+\examples{
+feglm_control(0.05, 0.05, 10L, 10L, TRUE, TRUE, TRUE)
+
+}
 \seealso{
 \code{\link{feglm}}
 }

@@ -1,10 +1,11 @@
 test_that("error conditions", {
   trade_panel_2002 <- trade_panel[trade_panel$year == 2002, ]
   trade_panel_2002$trade_100 <- ifelse(trade_panel_2002$trade >= 100, 1, 0)
-  trade_panel_2002$trade_200_100 <- as.factor(ifelse(trade_panel_2002$trade >= 200, 1,
-    ifelse(trade_panel_2002$trade >= 100, 0.5, 0)
-  ))
-  trade_panel_2002$trade_1_minus1 <- ifelse(trade_panel_2002$trade >= 100, 1, -1)
+  trade_panel_2002$trade_200_100 <- as.factor(ifelse(trade_panel_2002$trade >=
+    200, 1, ifelse(trade_panel_2002$trade >= 100, 0.5, 0)))
+  trade_panel_2002$trade_1_minus1 <- ifelse(trade_panel_2002$trade >= 100, 1,
+    -1
+  )
 
 
   # APEs ----
@@ -96,7 +97,11 @@ test_that("error conditions", {
   )
 
   expect_error(
-    feglm(formula = "a ~ b", data = trade_panel_2002), "'formula' has to be of class 'formula'"
+    feglm(
+      formula = "a ~ b",
+      data = trade_panel_2002
+    ),
+    "'formula' has to be of class 'formula'"
   )
 
   expect_error(

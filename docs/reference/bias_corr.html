@@ -76,7 +76,7 @@ effects.</p>
     </div>
 
     <div id="ref-usage">
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">bias_corr</span><span class="op">(</span>object <span class="op">=</span> <span class="cn">NULL</span>, L <span class="op">=</span> <span class="fl">0L</span>, panel_structure <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"classic"</span>, <span class="st">"network"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">bias_corr</span><span class="op">(</span>object <span class="op">=</span> <span class="cn">NULL</span>, l <span class="op">=</span> <span class="fl">0L</span>, panel_structure <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"classic"</span>, <span class="st">"network"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div id="arguments">
@@ -85,7 +85,7 @@ effects.</p>
 <dd><p>an object of class <code>"feglm"</code>.</p></dd>
 
 
-<dt>L</dt>
+<dt>l</dt>
 <dd><p>unsigned integer indicating a bandwidth for the estimation of
 spectral densities proposed by Hahn and Kuersteiner (2011). The default is
 zero, which should be used if all regressors are assumed to be strictly
@@ -139,7 +139,7 @@ partially consistent observations". Econometrica, 16(1), 1-32.</p>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># subset trade flows to avoid fitting time warnings during check</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">trade_2006</span> <span class="op">&lt;-</span> <span class="va">trade_panel</span><span class="op">[</span><span class="va">trade_panel</span><span class="op">$</span><span class="va">year</span> <span class="op">==</span> <span class="fl">2006</span>, <span class="op">]</span></span></span>
-<span class="r-in"><span><span class="va">trade_2006</span> <span class="op">&lt;-</span> <span class="va">trade_2006</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">trade_2006</span><span class="op">)</span>, <span class="fl">1000</span><span class="op">)</span>, <span class="op">]</span></span></span>
+<span class="r-in"><span><span class="va">trade_2006</span> <span class="op">&lt;-</span> <span class="va">trade_2006</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">trade_2006</span><span class="op">)</span>, <span class="fl">500</span><span class="op">)</span>, <span class="op">]</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="va">trade_2006</span><span class="op">$</span><span class="va">trade</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="va">trade_2006</span><span class="op">$</span><span class="va">trade</span> <span class="op">&gt;</span> <span class="fl">100</span>, <span class="fl">1L</span>, <span class="fl">0L</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
@@ -150,7 +150,7 @@ partially consistent observations". Econometrica, 16(1), 1-32.</p>
 <span class="r-in"><span><span class="va">mod_bc</span> <span class="op">&lt;-</span> <span class="fu">bias_corr</span><span class="op">(</span><span class="va">mod</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod_bc</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Formula: trade ~ lang | year</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x63b7deab1d68&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x5ee15aca50c0&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Family: Binomial</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
@@ -158,11 +158,11 @@ partially consistent observations". Econometrica, 16(1), 1-32.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> |      | Estimate | Std. Error | z value | Pr(&gt;|z|) |</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> |------|----------|------------|---------|----------|</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> | lang |   0.2530 |     0.1903 |  1.3292 |   0.1838 |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | lang |  -0.0341 |     0.2774 | -0.1230 |   0.9021 |</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Significance codes: *** 99.9%; ** 99%; * 95%; . 90%</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Number of observations: Full 1000; Missing 0; Perfect classification 0 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Number of observations: Full 500; Missing 0; Perfect classification 0 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Number of Fisher Scoring iterations: 3 </span>
 <span class="r-in"><span></span></span>

@@ -31,7 +31,19 @@
     <loc>/reference/apes.html</loc>
   </url>
   <url>
+    <loc>/reference/autoplot.feglm.html</loc>
+  </url>
+  <url>
+    <loc>/reference/autoplot.felm.html</loc>
+  </url>
+  <url>
+    <loc>/reference/autoplot.html</loc>
+  </url>
+  <url>
     <loc>/reference/bias_corr.html</loc>
+  </url>
+  <url>
+    <loc>/reference/broom.html</loc>
   </url>
   <url>
     <loc>/reference/capybara-package.html</loc>

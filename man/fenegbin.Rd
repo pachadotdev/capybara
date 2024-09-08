@@ -81,8 +81,8 @@ A routine that uses the same internals as \code{\link{feglm}}.
 # subset trade flows to avoid fitting time warnings during check
 set.seed(123)
 trade_2006 <- trade_panel[trade_panel$year == 2006, ]
-trade_2006 <- trade_2006[sample(nrow(trade_2006), 1000), ]
- 
+trade_2006 <- trade_2006[sample(nrow(trade_2006), 700), ]
+
 mod <- fenegbin(
   trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
   trade_2006

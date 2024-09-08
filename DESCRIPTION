@@ -15,12 +15,14 @@ Imports:
     dplyr,
     Formula,
     generics,
+    ggplot2,
     kendallknight,
     magrittr,
     MASS,
     rlang,
     stats
 Suggests: 
+    broom,
     knitr,
     rmarkdown,
     testthat (>= 3.0.0),

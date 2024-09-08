@@ -2,15 +2,13 @@
 #' @export
 generics::tidy
 
-#' @title Tidy method for 'feglm' objects
-#' @description Integration with the 'broom' package
+#' @rdname broom
 #' @export
-#' @noRd
-tidy.feglm <- function(x, conf.int = FALSE, conf.level = 0.95, ...) {
+tidy.feglm <- function(x, conf_int = FALSE, conf_level = 0.95, ...) {
   res <- summary(x)$cm
   colnames(res) <- c("estimate", "std.error", "statistic", "p.value")
 
-  if (conf.int) {
+  if (conf_int) {
     res <- cbind(res, res[, "estimate"] - 1.96 * res[, "std.error"])
     res <- cbind(res, res[, "estimate"] + 1.96 * res[, "std.error"])
     colnames(res) <- c(
@@ -25,10 +23,8 @@ tidy.feglm <- function(x, conf.int = FALSE, conf.level = 0.95, ...) {
   res
 }
 
-#' @title Tidy method for 'felm' objects
-#' @description Integration with the 'broom' package
+#' @rdname broom
 #' @export
-#' @noRd
-tidy.felm <- function(x, conf.int = FALSE, conf.level = 0.95, ...) {
-  tidy.feglm(x, conf.int, conf.level, ...)
+tidy.felm <- function(x, conf_int = FALSE, conf_level = 0.95, ...) {
+  tidy.feglm(x, conf_int, conf_level, ...)
 }

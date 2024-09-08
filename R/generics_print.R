@@ -25,20 +25,20 @@ summary_estimates_ <- function(x, digits) {
   cat("\nEstimates:\n\n")
   coefmat <- as.data.frame(x[["cm"]])
 
-  coefmat <- summary_estimates_format_significance_(coefmat, digits)
-  coefmat <- summary_estimates_format_columns_(coefmat, digits)
+  coefmat <- summary_estimates_signif_(coefmat, digits)
+  coefmat <- summary_estimates_cols_(coefmat, digits)
 
   coef_width <- max(nchar(rownames(coefmat))) + 2L
   max_widths <- summary_estimates_max_width_(coefmat)
 
-  summary_estimates_print_header_(coef_width, max_widths)
-  summary_estimates_print_dashes_(coef_width, max_widths)
+  summary_estimates_header_(coef_width, max_widths)
+  summary_estimates_dashes_(coef_width, max_widths)
   summary_estimates_print_rows_(coefmat, coef_width, max_widths)
 
   cat("\nSignificance codes: *** 99.9%; ** 99%; * 95%; . 90%\n")
 }
 
-summary_estimates_format_significance_ <- function(coefmat, digits) {
+summary_estimates_signif_ <- function(coefmat, digits) {
   coefmat[, max(ncol(coefmat))] <- vapply(
     coefmat[, max(ncol(coefmat))],
     function(x) {
@@ -74,7 +74,7 @@ summary_estimates_format_significance_ <- function(coefmat, digits) {
   coefmat
 }
 
-summary_estimates_format_columns_ <- function(coefmat, digits) {
+summary_estimates_cols_ <- function(coefmat, digits) {
   for (i in 1:(ncol(coefmat) - 1)) {
     coefmat[, i] <- formatC(as.double(coefmat[, i]),
       format = "f",
@@ -99,7 +99,7 @@ summary_estimates_max_width_ <- function(coefmat) {
   max_widths
 }
 
-summary_estimates_print_header_ <- function(coef_width, max_widths) {
+summary_estimates_header_ <- function(coef_width, max_widths) {
   header <- mapply(
     function(name, width) {
       sprintf("| %-*s", width, name)
@@ -114,7 +114,7 @@ summary_estimates_print_header_ <- function(coef_width, max_widths) {
   )
 }
 
-summary_estimates_print_dashes_ <- function(coef_width, max_widths) {
+summary_estimates_dashes_ <- function(coef_width, max_widths) {
   dashes <- mapply(function(width) {
     sprintf("|%s", paste(rep("-", width), collapse = ""))
   }, width = max_widths + 2L)

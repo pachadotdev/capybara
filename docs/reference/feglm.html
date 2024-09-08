@@ -208,7 +208,7 @@ Linear Models with High-Dimensional k-Way Fixed Effects". ArXiv e-prints.</p>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># subset trade flows to avoid fitting time warnings during check</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">trade_2006</span> <span class="op">&lt;-</span> <span class="va">trade_panel</span><span class="op">[</span><span class="va">trade_panel</span><span class="op">$</span><span class="va">year</span> <span class="op">==</span> <span class="fl">2006</span>, <span class="op">]</span></span></span>
-<span class="r-in"><span><span class="va">trade_2006</span> <span class="op">&lt;-</span> <span class="va">trade_2006</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">trade_2006</span><span class="op">)</span>, <span class="fl">1000</span><span class="op">)</span>, <span class="op">]</span></span></span>
+<span class="r-in"><span><span class="va">trade_2006</span> <span class="op">&lt;-</span> <span class="va">trade_2006</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">trade_2006</span><span class="op">)</span>, <span class="fl">500</span><span class="op">)</span>, <span class="op">]</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="va">mod</span> <span class="op">&lt;-</span> <span class="fu">feglm</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  <span class="va">trade</span> <span class="op">~</span> <span class="va">log_dist</span> <span class="op">+</span> <span class="va">lang</span> <span class="op">+</span> <span class="va">cntg</span> <span class="op">+</span> <span class="va">clny</span> <span class="op">|</span> <span class="va">exp_year</span> <span class="op">+</span> <span class="va">imp_year</span>,</span></span>
@@ -218,7 +218,7 @@ Linear Models with High-Dimensional k-Way Fixed Effects". ArXiv e-prints.</p>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Formula: trade ~ log_dist + lang + cntg + clny | exp_year + imp_year</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x63b7e3378670&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x5ee1650c38d8&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Family: Poisson</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
@@ -226,18 +226,18 @@ Linear Models with High-Dimensional k-Way Fixed Effects". ArXiv e-prints.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> |          | Estimate | Std. Error | z value   | Pr(&gt;|z|)   |</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> |----------|----------|------------|-----------|------------|</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> | log_dist |  -0.8291 |     0.0017 | -475.6166 | 0.0000 *** |</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> | lang     |   0.1187 |     0.0048 |   24.6865 | 0.0000 *** |</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> | cntg     |   0.4567 |     0.0049 |   92.7378 | 0.0000 *** |</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> | clny     |   0.0793 |     0.0054 |   14.6837 | 0.0000 *** |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | log_dist |  -0.7937 |     0.0049 | -162.0651 | 0.0000 *** |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | lang     |   0.0491 |     0.0103 |    4.7808 | 0.0000 *** |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | cntg     |   0.6913 |     0.0113 |   61.3261 | 0.0000 *** |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | clny     |  -0.0239 |     0.0109 |   -2.1871 | 0.0287 *   |</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Significance codes: *** 99.9%; ** 99%; * 95%; . 90%</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Pseudo R-squared: 0.6198 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Pseudo R-squared: 0.6264 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Number of observations: Full 1000; Missing 0; Perfect classification 0 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Number of observations: Full 500; Missing 0; Perfect classification 0 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Number of Fisher Scoring iterations: 12 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Number of Fisher Scoring iterations: 13 </span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="va">mod</span> <span class="op">&lt;-</span> <span class="fu">feglm</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  <span class="va">trade</span> <span class="op">~</span> <span class="va">log_dist</span> <span class="op">+</span> <span class="va">lang</span> <span class="op">+</span> <span class="va">cntg</span> <span class="op">+</span> <span class="va">clny</span> <span class="op">|</span> <span class="va">exp_year</span> <span class="op">+</span> <span class="va">imp_year</span> <span class="op">|</span> <span class="va">pair</span>,</span></span>
@@ -248,7 +248,7 @@ Linear Models with High-Dimensional k-Way Fixed Effects". ArXiv e-prints.</p>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod</span>, type <span class="op">=</span> <span class="st">"clustered"</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Formula: trade ~ log_dist + lang + cntg + clny | exp_year + imp_year | </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     pair</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x63b7e3378670&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x5ee1650c38d8&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Family: Poisson</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
