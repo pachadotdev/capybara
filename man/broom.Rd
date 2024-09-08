@@ -42,7 +42,7 @@ and \code{tidy} methods.
 \description{
 The provided \code{broom} methods do the following:
 \enumerate{
-\item \code{augment}: takes the input data and adds additional columns with the
+\item \code{augment}: Takes the input data and adds additional columns with the
 fitted values and residuals.
 \item \code{glance}: Extracts the deviance, null deviance, and the number of
 observations.`
