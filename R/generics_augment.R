@@ -5,7 +5,7 @@ generics::augment
 #' @title Broom Integration
 #'
 #' @description The provided `broom` methods do the following:
-#'  1. `augment`: takes the input data and adds additional columns with the
+#'  1. `augment`: Takes the input data and adds additional columns with the
 #'      fitted values and residuals.
 #'  2. `glance`: Extracts the deviance, null deviance, and the number of
 #'      observations.`
