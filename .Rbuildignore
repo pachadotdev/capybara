@@ -14,3 +14,4 @@
 ^codemeta\.json$
 ^CODE_OF_CONDUCT\.md$
 ^\.lintr$
+^_pkgdown\.yml$
