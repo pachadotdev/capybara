@@ -7,7 +7,7 @@ generics::augment
 #' @srrstats {RE4.10} *Model Residuals, including sufficient documentation to enable interpretation of residuals, and to enable users to submit residuals to their own tests.*
 #' 
 #' @description The provided `broom` methods do the following:
-#'  1. `augment`: takes the input data and adds additional columns with the
+#'  1. `augment`: Takes the input data and adds additional columns with the
 #'      fitted values and residuals.
 #'  2. `glance`: Extracts the deviance, null deviance, and the number of
 #'      observations.`

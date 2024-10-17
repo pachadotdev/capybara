@@ -223,7 +223,7 @@ vcov_feglm_clustered_cov_ <- function(g, cl_vars, sp_vars, p) {
 #'  from the hessian, the scores, or a combination of both after convergence.
 #'
 #' @srrstats {RE4.6} *The variance-covariance matrix of the model parameters (via `vcov()`)*
-#' 
+#'
 #' @param object an object of class \code{"felm"}.
 #'
 #' @inherit vcov.feglm
