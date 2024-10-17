@@ -8,6 +8,22 @@
 #' \strong{Remark:} The term fixed effect is used in econometrician's sense of
 #'  having intercepts for each level in each category.
 #'
+#' @srrstats {G2.3} *For univariate character input:*
+#' @srrstats {G2.3a} *Use `match.arg()` or equivalent where applicable to only permit expected values.*
+#' @srrstats {G2.3b} *Either: use `tolower()` or equivalent to ensure input of character parameters is not case dependent; or explicitly document that parameters are strictly case-sensitive.*
+#' @srrstats {RE4.4} *The specification of the model, generally as a formula (via `formula()`)*
+#' @srrstats {RE1.0} *Regression Software should enable models to be specified via a formula interface, unless reasons for not doing so are explicitly documented.*
+#' @srrstats {RE1.1} *Regression Software should document how formula interfaces are converted to matrix representations of input data.*
+#' @srrstats {RE1.2} *Regression Software should document expected format (types or classes) for inputting predictor variables, including descriptions of types or classes which are not accepted.*
+#' @srrstats {RE1.3} *Regression Software which passes or otherwise transforms aspects of input data onto output structures should ensure that those output structures retain all relevant aspects of input data, notably including row and column names, and potentially information from other `attributes()`.*
+#' @srrstats {RE1.3a} *Where otherwise relevant information is not transferred, this should be explicitly documented.*
+#' @srrstats {RE1.4} *Regression Software should document any assumptions made with regard to input data; for example distributional assumptions, or assumptions that predictor data have mean values of zero. Implications of violations of these assumptions should be both documented and tested.*
+#' @srrstats {RE2.3} *Where applicable, Regression Software should enable data to be centred (for example, through converting to zero-mean equivalent values; or to z-scores) or offset (for example, to zero-intercept equivalent values) via additional parameters, with the effects of any such parameters clearly documented and tested.*
+#' @srrstats {RE3.0} *Issue appropriate warnings or other diagnostic messages for models which fail to converge.*
+#' @srrstats {RE3.1} *Enable such messages to be optionally suppressed, yet should ensure that the resultant model object nevertheless includes sufficient data to identify lack of convergence.*
+#' @srrstats {RE3.2} *Ensure that convergence thresholds have sensible default values, demonstrated through explicit documentation.*
+#' @srrstats {RE3.3} *Allow explicit setting of convergence thresholds, unless reasons against doing so are explicitly documented.*
+#'
 #' @param formula an object of class \code{"formula"}: a symbolic description of
 #'  the model to be fitted. \code{formula} must be of type \code{y ~ x | k},
 #'  where the second part of the formula refers to factors to be concentrated
@@ -36,6 +52,9 @@
 #'  category. In this case, you should carefully inspect your model
 #'  specification.
 #'
+#' @srrstats {G1.3} *All statistical terminology should be clarified and unambiguously defined.*
+#' @srrstats {RE4.0} *Regression Software should return some form of "model" object, generally through using or modifying existing class structures for model objects (such as `lm`, `glm`, or model objects from other packages), or creating a new class of model objects.*
+#' 
 #' @return A named list of class \code{"feglm"}. The list contains the following
 #'  fifteen elements:
 #'  \item{coefficients}{a named vector of the estimated coefficients}
@@ -57,6 +76,8 @@
 #'  \item{family}{the family used in the model}
 #'  \item{control}{the control list used in the model}
 #'
+#' @srrstats {G1.0} *Statistical Software should list at least one primary reference from published academic literature.*
+#' 
 #' @references Gaure, S. (2013). "OLS with Multiple High Dimensional Category
 #'  Variables". Computational Statistics and Data Analysis, 66.
 #' @references Marschner, I. (2011). "glm2: Fitting generalized linear models

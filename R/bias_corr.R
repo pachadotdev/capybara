@@ -8,6 +8,10 @@
 #'  currently restricted to \code{\link[stats]{binomial}} with 1,2,3-way fixed
 #'  effects.
 #'
+#' @srrstats {G2.3} *For univariate character input:*
+#' @srrstats {G2.3a} *Use `match.arg()` or equivalent where applicable to only permit expected values.*
+#' @srrstats {G2.3b} *Either: use `tolower()` or equivalent to ensure input of character parameters is not case dependent; or explicitly document that parameters are strictly case-sensitive.*
+#' 
 #' @param object an object of class \code{"feglm"}.
 #' @param l unsigned integer indicating a bandwidth for the estimation of
 #'  spectral densities proposed by Hahn and Kuersteiner (2011). The default is
@@ -25,6 +29,8 @@
 #'
 #' @return A named list of classes \code{"bias_corr"} and \code{"feglm"}.
 #'
+#' @srrstats {G1.0} *Statistical Software should list at least one primary reference from published academic literature.*
+#' 
 #' @references Czarnowske, D. and A. Stammann (2020). "Fixed Effects Binary
 #'  Choice Models: Estimation and Inference with Long Panels". ArXiv e-prints.
 #' @references Fernández-Val, I. and M. Weidner (2016). "Individual and time

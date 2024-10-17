@@ -5,6 +5,9 @@
 #'
 #' @inheritParams feglm
 #'
+#' @srrstats {G1.3} *All statistical terminology should be clarified and unambiguously defined.*
+#' @srrstats {RE4.0} *Regression Software should return some form of "model" object, generally through using or modifying existing class structures for model objects (such as `lm`, `glm`, or model objects from other packages), or creating a new class of model objects.*
+#' 
 #' @return A named list of class \code{"felm"}. The list contains the following
 #'  eleven elements:
 #'  \item{coefficients}{a named vector of the estimated coefficients}
@@ -22,6 +25,8 @@
 #'   observations}
 #'  \item{control}{the control list used in the model}
 #'
+#' @srrstats {G1.0} *Statistical Software should list at least one primary reference from published academic literature.*
+#' 
 #' @references Gaure, S. (2013). "OLS with Multiple High Dimensional Category
 #'  Variables". Computational Statistics and Data Analysis, 66.
 #' @references Marschner, I. (2011). "glm2: Fitting generalized linear models
@@ -38,7 +43,6 @@
 #' set.seed(123)
 #' trade_2006 <- trade_panel[trade_panel$year == 2006, ]
 #' trade_2006 <- trade_2006[sample(nrow(trade_2006), 500), ]
-#'
 #'
 #' mod <- felm(
 #'   log(trade) ~ log_dist + lang + cntg + clny | exp_year + imp_year,

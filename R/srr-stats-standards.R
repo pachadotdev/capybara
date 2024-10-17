@@ -9,22 +9,12 @@
 #'
 #' @srrstatsVerbose TRUE
 #'
-#' @srrstats {G1.0} *Statistical Software should list at least one primary reference from published academic literature.*
-#' @srrstats {G1.1} *Statistical Software should document whether the algorithm(s) it implements are:* - *The first implementation of a novel algorithm*; or - *The first implementation within **R** of an algorithm which has previously been implemented in other languages or contexts*; or - *An improvement on other implementations of similar algorithms in **R***.
-#' @srrstats {G1.2} *Statistical Software should include a* Life Cycle Statement *describing current and anticipated future states of development.*
-#' @srrstats {G1.3} *All statistical terminology should be clarified and unambiguously defined.*
-#' @srrstats {G1.4} *Software should use [`roxygen2`](https://roxygen2.r-lib.org/) to document all functions.*
-#' @srrstats {G1.4a} *All internal (non-exported) functions should also be documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format, along with a final `@noRd` tag to suppress automatic generation of `.Rd` files.*
 #' @srrstats {G1.5} *Software should include all code necessary to reproduce results which form the basis of performance claims made in associated publications.*
 #' @srrstats {G1.6} *Software should include code necessary to compare performance claims with alternative implementations in other R packages.*
-#' @srrstats {G2.0} *Implement assertions on lengths of inputs, particularly through asserting that inputs expected to be single- or multi-valued are indeed so.*
 #' @srrstats {G2.0a} Provide explicit secondary documentation of any expectations on lengths of inputs
 #' @srrstats {G2.1} *Implement assertions on types of inputs (see the initial point on nomenclature above).*
 #' @srrstats {G2.1a} *Provide explicit secondary documentation of expectations on data types of all vector inputs.*
 #' @srrstats {G2.2} *Appropriately prohibit or restrict submission of multivariate input to parameters expected to be univariate.*
-#' @srrstats {G2.3} *For univariate character input:*
-#' @srrstats {G2.3a} *Use `match.arg()` or equivalent where applicable to only permit expected values.*
-#' @srrstats {G2.3b} *Either: use `tolower()` or equivalent to ensure input of character parameters is not case dependent; or explicitly document that parameters are strictly case-sensitive.*
 #' @srrstats {G2.4} *Provide appropriate mechanisms to convert between different data types, potentially including:*
 #' @srrstats {G2.4a} *explicit conversion to `integer` via `as.integer()`*
 #' @srrstats {G2.4b} *explicit conversion to continuous via `as.numeric()`*
@@ -47,7 +37,6 @@
 #' @srrstats {G3.0} *Statistical software should never compare floating point numbers for equality. All numeric equality comparisons should either ensure that they are made between integers, or use appropriate tolerances for approximate equality.*
 #' @srrstats {G3.1} *Statistical software which relies on covariance calculations should enable users to choose between different algorithms for calculating covariances, and should not rely solely on covariances from the `stats::cov` function.*
 #' @srrstats {G3.1a} *The ability to use arbitrarily specified covariance methods should be documented (typically in examples or vignettes).*
-#' @srrstats {G4.0} *Statistical Software which enables outputs to be written to local files should parse parameters specifying file names to ensure appropriate file suffices are automatically generated where not provided.*
 #' @srrstats {G5.0} *Where applicable or practicable, tests should use standard data sets with known properties (for example, the [NIST Standard Reference Datasets](https://www.itl.nist.gov/div898/strd/), or data sets provided by other widely-used R packages).*
 #' @srrstats {G5.1} *Data sets created within, and used to test, a package should be exported (or otherwise made generally available) so that users can confirm tests and run examples.*
 #' @srrstats {G5.2} *Appropriate error and warning behaviour of all functions should be explicitly demonstrated through tests. In particular,*
@@ -70,36 +59,7 @@
 #' @srrstats {G5.10} *Extended tests should included and run under a common framework with other tests but be switched on by flags such as as a `<MYPKG>_EXTENDED_TESTS="true"` environment variable.* - The extended tests can be then run automatically by GitHub Actions for example by adding the following to the `env` section of the workflow:
 #' @srrstats {G5.11} *Where extended tests require large data sets or other assets, these should be provided for downloading and fetched as part of the testing workflow.*
 #' @srrstats {G5.12} *Any conditions necessary to run extended tests such as platform requirements, memory, expected runtime, and artefacts produced that may need manual inspection, should be described in developer documentation such as a `CONTRIBUTING.md` or `tests/README.md` file.*
-#' @srrstats {RE1.0} *Regression Software should enable models to be specified via a formula interface, unless reasons for not doing so are explicitly documented.*
-#' @srrstats {RE1.1} *Regression Software should document how formula interfaces are converted to matrix representations of input data.*
-#' @srrstats {RE1.2} *Regression Software should document expected format (types or classes) for inputting predictor variables, including descriptions of types or classes which are not accepted.*
-#' @srrstats {RE1.3} *Regression Software which passes or otherwise transforms aspects of input data onto output structures should ensure that those output structures retain all relevant aspects of input data, notably including row and column names, and potentially information from other `attributes()`.*
-#' @srrstats {RE1.3a} *Where otherwise relevant information is not transferred, this should be explicitly documented.*
-#' @srrstats {RE1.4} *Regression Software should document any assumptions made with regard to input data; for example distributional assumptions, or assumptions that predictor data have mean values of zero. Implications of violations of these assumptions should be both documented and tested.*
-#' @srrstats {RE2.0} *Regression Software should document any transformations applied to input data, for example conversion of label-values to `factor`, and should provide ways to explicitly avoid any default transformations (with error or warning conditions where appropriate).*
-#' @srrstats {RE2.1} *Regression Software should implement explicit parameters controlling the processing of missing values, ideally distinguishing `NA` or `NaN` values from `Inf` values (for example, through use of `na.omit()` and related functions from the `stats` package).*
-#' @srrstats {RE2.3} *Where applicable, Regression Software should enable data to be centred (for example, through converting to zero-mean equivalent values; or to z-scores) or offset (for example, to zero-intercept equivalent values) via additional parameters, with the effects of any such parameters clearly documented and tested.*
-#' @srrstats {RE2.4} *Regression Software should implement pre-processing routines to identify whether aspects of input data are perfectly collinear, notably including:*
-#' @srrstats {RE2.4a} *Perfect collinearity among predictor variables*
-#' @srrstats {RE2.4b} *Perfect collinearity between independent and dependent variables*
-#' @srrstats {RE3.0} *Issue appropriate warnings or other diagnostic messages for models which fail to converge.*
-#' @srrstats {RE3.1} *Enable such messages to be optionally suppressed, yet should ensure that the resultant model object nevertheless includes sufficient data to identify lack of convergence.*
-#' @srrstats {RE3.2} *Ensure that convergence thresholds have sensible default values, demonstrated through explicit documentation.*
-#' @srrstats {RE3.3} *Allow explicit setting of convergence thresholds, unless reasons against doing so are explicitly documented.*
-#' @srrstats {RE4.0} *Regression Software should return some form of "model" object, generally through using or modifying existing class structures for model objects (such as `lm`, `glm`, or model objects from other packages), or creating a new class of model objects.*
-#' @srrstats {RE4.2} *Model coefficients (via `coef()` / `coefficients()`)*
-#' @srrstats {RE4.3} *Confidence intervals on those coefficients (via `confint()`)*
-#' @srrstats {RE4.4} *The specification of the model, generally as a formula (via `formula()`)*
-#' @srrstats {RE4.5} *Numbers of observations submitted to model (via `nobs()`)*
-#' @srrstats {RE4.6} *The variance-covariance matrix of the model parameters (via `vcov()`)*
-#' @srrstats {RE4.7} *Where appropriate, convergence statistics*
 #' @srrstats {RE4.8} *Response variables, and associated "metadata" where applicable.*
-#' @srrstats {RE4.9} *Modelled values of response variables.*
-#' @srrstats {RE4.10} *Model Residuals, including sufficient documentation to enable interpretation of residuals, and to enable users to submit residuals to their own tests.*
-#' @srrstats {RE4.11} *Goodness-of-fit and other statistics associated such as effect sizes with model coefficients.*
-#' @srrstats {RE4.12} *Where appropriate, functions used to transform input data, and associated inverse transform functions.*
-#' @srrstats {RE4.13} *Predictor variables, and associated "metadata" where applicable.*
-#' @srrstats {RE4.18} *Regression Software may also implement `summary` methods for model objects, and in particular should implement distinct `summary` methods for any cases in which calculation of summary statistics is computationally non-trivial (for example, for bootstrapped estimates of confidence intervals).*
 #' @srrstats {RE5.0} *Scaling relationships between sizes of input data (numbers of observations, with potential extension to numbers of variables/columns) and speed of algorithm.*
 #' @srrstats {RE7.0} *Tests with noiseless, exact relationships between predictor (independent) data.*
 #' @srrstats {RE7.0a} In particular, these tests should confirm ability to reject perfectly noiseless input data.
@@ -119,6 +79,7 @@ NULL
 #' (These comments may also be deleted at any time.)
 #' @srrstatsNA {G2.14c} *replace missing data with appropriately imputed values*
 #' @srrstatsNA {G2.16} *All functions should also provide options to handle undefined values (e.g., `NaN`, `Inf` and `-Inf`), including potentially ignoring or removing such values.*
+#' @srrstatsNA {G4.0} *Statistical Software which enables outputs to be written to local files should parse parameters specifying file names to ensure appropriate file suffices are automatically generated where not provided.*
 #' @srrstatsNA {G5.3} *For functions which are expected to return objects containing no missing (`NA`) or undefined (`NaN`, `Inf`) values, the absence of any such values in return objects should be explicitly tested.*
 #' @srrstatsNA {G5.4} **Correctness tests** *to test that statistical algorithms produce expected results to some fixed test data sets (potentially through comparisons using binding frameworks such as [RStata](https://github.com/lbraglia/RStata)).*
 #' @srrstatsNA {G5.5} *Correctness tests should be run with a fixed random seed*

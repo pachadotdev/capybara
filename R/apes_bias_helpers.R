@@ -1,3 +1,9 @@
+#' @title Checks if the object is an `feglm` object
+#' @description Internal check
+#' @param object Object to check
+#' @param fun Function name (e.g., "apes")
+#' @srrstats {G1.4a} *All internal (non-exported) functions should also be documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format, along with a final `@noRd` tag to suppress automatic generation of `.Rd` files.*
+#' @noRd
 apes_bias_check_object_ <- function(object, fun) {
   if (is.null(object)) {
     stop("'object' has to be specified.", call. = FALSE)
@@ -12,6 +18,12 @@ apes_bias_check_object_ <- function(object, fun) {
   }
 }
 
+#' @title Checks if the `feglm` object is a binary choice model
+#' @description Internal check
+#' @param object Object to check
+#' @param fun Function name (e.g., "apes")
+#' @srrstats {G1.4a} *All internal (non-exported) functions should also be documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format, along with a final `@noRd` tag to suppress automatic generation of `.Rd` files.*
+#' @noRd
 apes_bias_check_binary_model_ <- function(family, fun) {
   if (family[["family"]] != "binomial") {
     stop(
@@ -21,6 +33,12 @@ apes_bias_check_binary_model_ <- function(family, fun) {
   }
 }
 
+#' @title Checks if the panel structure string is valid
+#' @description Internal check
+#' @param panel_structure Object to check
+#' @param k Number of fixed effects
+#' @srrstats {G1.4a} *All internal (non-exported) functions should also be documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format, along with a final `@noRd` tag to suppress automatic generation of `.Rd` files.*
+#' @noRd
 apes_bias_check_panel_ <- function(panel_structure, k) {
   if (panel_structure == "classic") {
     if (!(k %in% c(1L, 2L))) {
