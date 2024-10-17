@@ -11,8 +11,12 @@
 #'  \boldsymbol{\alpha}_{i - 1}||_{2} < tol ||\boldsymbol{\alpha}_{i - 1}||
 #'  {2}}{||\Delta \alpha|| < tol ||\alpha_old||}. Default is \code{1.0e-08}.
 #'
+#' @srrstats {G1.3} *All statistical terminology should be clarified and unambiguously defined.*
+#' 
 #' @return A named list containing named vectors of estimated fixed effects.
 #'
+#' @srrstats {G1.0} *Statistical Software should list at least one primary reference from published academic literature.*
+#' 
 #' @references Stammann, A. (2018). "Fast and Feasible Estimation of Generalized
 #'  Linear Models with High-Dimensional k-way Fixed Effects". ArXiv e-prints.
 #' @references Gaure, S. (n. d.). "Multicollinearity, identification, and

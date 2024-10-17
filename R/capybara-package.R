@@ -1,6 +1,10 @@
 #' @title Generalized Linear Models (GLMs) with high-dimensional k-way fixed
 #'  effects
 #'
+#' @srrstats {G1.1} *Statistical Software should document whether the algorithm(s) it implements are:* - *The first implementation of a novel algorithm*; or - *The first implementation within **R** of an algorithm which has previously been implemented in other languages or contexts*; or - *An improvement on other implementations of similar algorithms in **R***.
+#' @srrstats {G1.2} *Statistical Software should include a* Life Cycle Statement *describing current and anticipated future states of development.*
+#' @srrstats {G1.4} *Software should use [`roxygen2`](https://roxygen2.r-lib.org/) to document all functions.*
+#' 
 #' @description
 #' Provides a routine to partial out factors with many levels during the
 #' optimization of the log-likelihood function of the corresponding GLM. The
@@ -9,7 +13,11 @@
 #' post-estimation routine and includes robust and multi-way clustered standard
 #' errors. Further the package provides analytical bias corrections for binary
 #' choice models derived by Fernández-Val and Weidner (2016) and Hinz, Stammann,
-#' and Wanner (2020).
+#' and Wanner (2020). This package is a ground up rewrite with multiple
+#' refactors, optimizations, and new features compared to the original package
+#' `alpaca`. In its current state, the package is stable and future changes will
+#' be limited to bug fixes and improvements, but not to altering the functions'
+#' arguments or outputs.
 #'
 #' @name capybara-package
 #' @importFrom dplyr across all_of filter group_by mutate pull select summarise
