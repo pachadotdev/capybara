@@ -3,7 +3,8 @@
 #' @srrstatsVerbose TRUE
 #' 
 #' @srrstats {G5.12} *Any conditions necessary to run extended tests such as platform requirements, memory, expected runtime, and artefacts produced that may need manual inspection, should be described in developer documentation such as a `CONTRIBUTING.md` or `tests/README.md` file.*
-#' @noRd 
+#' 
+#' @noRd
 NULL
 
 test_that("fepoisson is similar to fixest", {
