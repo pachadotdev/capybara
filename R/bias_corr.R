@@ -1,3 +1,15 @@
+#' srr_stats (tests)
+#' @srrstats {G1.0} Statistical Software should list at least one primary
+#'  reference from published academic literature.
+#' @srrstats {G2.3} For univariate character input:
+#' @srrstats {G2.3a} Use `match.arg()` or equivalent where applicable to only
+#'  permit expected values.
+#' @srrstats {G2.3b} Either: use `tolower()` or equivalent to ensure input of
+#'  character parameters is not case dependent; or explicitly document that
+#'  parameters are strictly case-sensitive.
+#' @noRd
+NULL
+
 #' @title Asymptotic bias correction after fitting binary choice models with a
 #'  1,2,3-way error component
 #'
@@ -7,10 +19,6 @@
 #'  obtain bias-corrected estimates of the structural parameters and is
 #'  currently restricted to \code{\link[stats]{binomial}} with 1,2,3-way fixed
 #'  effects.
-#'
-#' @srrstats {G2.3} *For univariate character input:*
-#' @srrstats {G2.3a} *Use `match.arg()` or equivalent where applicable to only permit expected values.*
-#' @srrstats {G2.3b} *Either: use `tolower()` or equivalent to ensure input of character parameters is not case dependent; or explicitly document that parameters are strictly case-sensitive.*
 #' 
 #' @param object an object of class \code{"feglm"}.
 #' @param l unsigned integer indicating a bandwidth for the estimation of
@@ -28,8 +36,6 @@
 #'  observed for several time periods. Default is \code{"classic"}.
 #'
 #' @return A named list of classes \code{"bias_corr"} and \code{"feglm"}.
-#'
-#' @srrstats {G1.0} *Statistical Software should list at least one primary reference from published academic literature.*
 #' 
 #' @references Czarnowske, D. and A. Stammann (2020). "Fixed Effects Binary
 #'  Choice Models: Estimation and Inference with Long Panels". ArXiv e-prints.

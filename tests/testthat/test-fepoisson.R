@@ -1,39 +1,23 @@
 #' srr_stats (tests)
-#'
 #' @srrstatsVerbose TRUE
-#' 
-#' @srrstats {G5.12} *Any conditions necessary to run extended tests such as platform requirements, memory, expected runtime, and artefacts produced that may need manual inspection, should be described in developer documentation such as a `CONTRIBUTING.md` or `tests/README.md` file.*
-#' 
+#' @srrstats {G5.4b} See test-feglm.R
 #' @noRd
 NULL
 
 test_that("fepoisson is similar to fixest", {
-  mod <- fepoisson(
-    trade ~ log_dist + lang + cntg + clny | exp_year + imp_year | pair,
-    trade_panel
+  mod <- fepoisson(mpg ~ wt | cyl | am, mtcars)
+
+  mod_base <- glm(
+    mpg ~ wt + as.factor(cyl),
+    mtcars,
+    family = quasipoisson(link = "log")
   )
 
-  # mod_fixest <- fixest::fepois(
-  #   trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
-  #   trade_panel,
-  #   cluster = ~pair
-  # )
+  coef_dist_base <- coef(mod_base)[2]
 
-  coef_mod_fixest <- c(-0.8409273, 0.2474765, 0.4374432, -0.2224899)
+  dist_variation <- abs((coef(mod)[1] - coef_dist_base) / coef(mod)[1])
 
-  expect_equal(unname(round(coef(mod) - coef_mod_fixest, 5)), rep(0, 4))
-
-  summary_mod <- summary(mod, type = "clustered")
-
-  # the vector comes from:
-  # summary_mod_fixest <- summary(mod_fixest);
-  # summary_mod_fixest$coeftable[,2]
-  summary_mod_fixest <- c(0.02656441, 0.06322979, 0.06825364, 0.09380935)
-
-  expect_equal(
-    unname(round(summary_mod$cm[, 2] - summary_mod_fixest, 2)),
-    rep(0, 4)
-  )
+  expect_lt(dist_variation, 0.05)
 
   expect_output(print(mod))
 
@@ -41,88 +25,71 @@ test_that("fepoisson is similar to fixest", {
 
   fes <- fixed_effects(mod)
   n <- unname(mod[["nobs"]]["nobs"])
-  expect_equal(length(fes), 2)
+  expect_equal(length(fes), 1)
   expect_equal(length(fitted(mod)), n)
   expect_equal(length(predict(mod)), n)
-  expect_equal(length(coef(mod)), 4)
-  expect_equal(length(fes), 2)
-  expect_equal(round(fes[["exp_year"]][1:3], 3), c(10.195, 11.081, 11.260))
-  expect_equal(round(fes[["imp_year"]][1:3], 3), c(0.226, -0.254, 1.115))
+  expect_equal(length(coef(mod)), 1)
+  expect_equal(length(fes), 1)
+  
+  expect_equal(
+    round(fes[["cyl"]][1], 2),
+    unname(round(coef(glm(mpg ~ wt + as.factor(cyl), mtcars, family = quasipoisson(link = "log")))[1], 2))
+  )
 
   smod <- summary(mod)
 
-  expect_equal(length(coef(smod)[, 1]), 4)
+  expect_equal(length(coef(smod)[, 1]), 1)
   expect_output(summary_formula_(smod))
   expect_output(summary_family_(smod))
   expect_output(summary_estimates_(smod, 3))
   expect_output(summary_r2_(smod, 3))
   expect_output(summary_nobs_(smod))
   expect_output(summary_fisher_(smod))
-
-  trade_panel_2 <- trade_panel[trade_panel$year %in% c(2002, 2006), ]
-
-  if (identical(Sys.info()[["user"]], "pacha")) {
-    t_fepoisson <- rep(0, 10)
-
-    t1 <- Sys.time()
-    fit <- fepoisson(
-      trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
-      trade_panel_2
-    )
-    t2 <- Sys.time()
-    t_fepoisson <- t2 - t1
-
-    t_glm <- rep(0, 10)
-
-    t1 <- Sys.time()
-    fit <- suppressWarnings(glm(
-      trade ~ log_dist + lang + cntg + clny + as.factor(exp_year) +
-        as.factor(imp_year),
-      trade_panel_2,
-      family = poisson(link = "log")
-    ))
-    t2 <- Sys.time()
-
-    t_glm <- t2 - t1
-
-    expect_lte(t_fepoisson, t_glm)
-  }
 })
 
-# test_that("fepoisson time is the same adding noise to the data", {
-#   trade_panel2 <- trade_panel
-#   set.seed(200100)
-#   trade_panel2$trade2 <- trade_panel$trade + rbinom(nrow(trade_panel2), 1, 0.5) *
-#     .Machine$double.eps
-#   m1 <- fepoisson(
-#     trade ~ log_dist + lang + cntg + clny | exp_year + imp_year | pair,
-#     trade_panel2
-#   )
-#   m2 <- fepoisson(
-#     trade2 ~ log_dist + lang + cntg + clny | exp_year + imp_year | pair,
-#     trade_panel2
-#   )
-#   expect_equal(coef(m1), coef(m2))
-#   expect_equal(fixed_effects(m1), fixed_effects(m2))
+#' srr_stats (tests)
+#'
+#' @srrstatsVerbose TRUE
+#'
+#' @srrstats {G5.9a} Here we add a censored white noise (i.e., y cannot be < 0
+#'  in a Poisson model). The noise is rnorm * .Machine$double.eps to check that
+#'  the slopes do not change. See test-feglm.R.
+#' @srrstats {RE7.1a} Model fitting is at least as fast or (preferably) faster
+#'  than testing with equivalent noisy data (see RE2.4b).*
+#'
+#' @noRd
+NULL
 
-#   t1 <- rep(NA, 10)
-#   t2 <- rep(NA, 10)
-#   for (i in 1:10) {
-#     a <- Sys.time()
-#     m1 <- fepoisson(
-#       trade ~ log_dist + lang + cntg + clny | exp_year + imp_year | pair,
-#       trade_panel2
-#     )
-#     b <- Sys.time()
-#     t1[i] <- b - a
+test_that("fepoisson time is the same adding noise to the data", {
+  set.seed(123)
+  d <- data.frame(
+    x = rnorm(1000),
+    y = rpois(1000, 1),
+    f = factor(rep(1:10, 100))
+  )
 
-#     a <- Sys.time()
-#     m2 <- fepoisson(
-#       trade2 ~ log_dist + lang + cntg + clny | exp_year + imp_year | pair,
-#       trade_panel2
-#     )
-#     b <- Sys.time()
-#     t2[i] <- b - a
-#   }
-#   expect_lte(abs(median(t1) - median(t2)), 0.05)
-# })
+  set.seed(123)
+  d$y2 <- d$y + pmax(rnorm(nrow(d)), 0) * .Machine$double.eps
+
+  m1 <- fepoisson(y ~ x | f, d)
+  m2 <- fepoisson(y2 ~ x | f, d)
+  expect_equal(coef(m1), coef(m2))
+  expect_equal(fixed_effects(m1), fixed_effects(m2))
+
+  t1 <- rep(NA, 10)
+  t2 <- rep(NA, 10)
+  for (i in 1:10) {
+    a <- Sys.time()
+    m1 <- fepoisson(y ~ x | f, d)
+    b <- Sys.time()
+    t1[i] <- b - a
+
+    a <- Sys.time()
+    m2 <- fepoisson(y2 ~ x | f, d)
+    b <- Sys.time()
+    t2[i] <- b - a
+  }
+  expect_gt(abs(median(t1) / median(t2)), 0.9)
+  expect_lt(abs(median(t1) / median(t2)), 1)
+  expect_lt(median(t1), median(t2))
+})

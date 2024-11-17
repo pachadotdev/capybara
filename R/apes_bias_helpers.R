@@ -1,8 +1,15 @@
+#' srr_stats (tests)
+#' @srrstats {G1.4a} All internal (non-exported) functions should also be
+#'  documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format,
+#'  along with a final `@noRd` tag to suppress automatic generation of `.Rd`
+#'  files.
+#' @noRd
+NULL
+ 
 #' @title Checks if the object is an `feglm` object
 #' @description Internal check
 #' @param object Object to check
 #' @param fun Function name (e.g., "apes")
-#' @srrstats {G1.4a} *All internal (non-exported) functions should also be documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format, along with a final `@noRd` tag to suppress automatic generation of `.Rd` files.*
 #' @noRd
 apes_bias_check_object_ <- function(object, fun) {
   if (is.null(object)) {

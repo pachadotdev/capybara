@@ -1,10 +1,22 @@
+#' srr_stats (tests)
+#' @srrstats {G1.4a} All internal (non-exported) functions should also be
+#'  documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format,
+#'  along with a final `@noRd` tag to suppress automatic generation of `.Rd`
+#'  files.
+#' @noRd
+NULL
+
+#' srr_stats (tests)
+#' @srrstats {G2.4} Provide appropriate mechanisms to convert between different
+#'  data types, potentially including:
+#' @srrstats {G2.4d} explicit conversion to factor via `as.factor()`
+#' @srrstats {G2.4e} explicit conversion from factor via `as...()` functions
+#' @noRd
+NULL
+
 #' @title Transform factor
 #' @description Checks if variable is a factor and transforms if necessary
 #' @param x Variable to be checked
-#' @srrstats {G1.4a} *All internal (non-exported) functions should also be documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format, along with a final `@noRd` tag to suppress automatic generation of `.Rd` files.*
-#' @srrstats {G2.4} *Provide appropriate mechanisms to convert between different data types, potentially including:*
-#' @srrstats {G2.4d} *explicit conversion to factor via `as.factor()`*
-#' @srrstats {G2.4e} *explicit conversion from factor via `as...()` functions*
 #' @noRd
 check_factor_ <- function(x) {
   if (is.factor(x)) {
@@ -19,7 +31,6 @@ check_factor_ <- function(x) {
 #' @param eta Eta value
 #' @param mu_eta Mu.eta value
 #' @param family Family object
-#' @srrstats {G1.4a} *All internal (non-exported) functions should also be documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format, along with a final `@noRd` tag to suppress automatic generation of `.Rd` files.*
 #' @noRd
 second_order_derivative_ <- function(eta, mu_eta, family) {
   link <- family[["link"]]
@@ -41,7 +52,6 @@ second_order_derivative_ <- function(eta, mu_eta, family) {
 #' @param eta Eta value
 #' @param mu_eta Mu.eta value
 #' @param family Family object
-#' @srrstats {G1.4a} *All internal (non-exported) functions should also be documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format, along with a final `@noRd` tag to suppress automatic generation of `.Rd` files.*
 #' @noRd
 third_order_derivative_ <- function(eta, mu_eta, family) {
   link <- family[["link"]]
@@ -64,7 +74,6 @@ third_order_derivative_ <- function(eta, mu_eta, family) {
 #' @param eta Linear predictor
 #' @param family Family object
 #' @param order Order of the derivative (2 or 3)
-#' @srrstats {G1.4a} *All internal (non-exported) functions should also be documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format, along with a final `@noRd` tag to suppress automatic generation of `.Rd` files.*
 #' @noRd
 partial_mu_eta_ <- function(eta, family, order) {
   # Safeguard eta if necessary
@@ -84,7 +93,6 @@ partial_mu_eta_ <- function(eta, family, order) {
 #' @title Temporary variable
 #' @description Generates a temporary variable name
 #' @param data Data frame
-#' @srrstats {G1.4a} *All internal (non-exported) functions should also be documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format, along with a final `@noRd` tag to suppress automatic generation of `.Rd` files.*
 #' @noRd
 temp_var_ <- function(data) {
   repeat {
@@ -102,7 +110,6 @@ temp_var_ <- function(data) {
 #' @title Check formula
 #' @description Checks if formula for GLM/NegBin models
 #' @param formula Formula object
-#' @srrstats {G1.4a} *All internal (non-exported) functions should also be documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format, along with a final `@noRd` tag to suppress automatic generation of `.Rd` files.*
 #' @noRd
 check_formula_ <- function(formula) {
   if (is.null(formula)) {
@@ -112,11 +119,16 @@ check_formula_ <- function(formula) {
   }
 }
 
+#' srr_stats (tests)
+#' @srrstats {G2.0} Implement assertions on lengths of inputs, particularly
+#'  through asserting that inputs expected to be single- or multi-valued are
+#'  indeed so.
+#' @noRd
+NULL
+
 #' @title Check data
 #' @description Checks data for GLM/NegBin models
 #' @param data Data frame
-#' @srrstats {G1.4a} *All internal (non-exported) functions should also be documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format, along with a final `@noRd` tag to suppress automatic generation of `.Rd` files.*
-#' @srrstats {G2.0} *Implement assertions on lengths of inputs, particularly through asserting that inputs expected to be single- or multi-valued are indeed so.*
 #' @noRd
 check_data_ <- function(data) {
   if (is.null(data)) {
@@ -131,7 +143,6 @@ check_data_ <- function(data) {
 #' @title Check control
 #' @description Checks control for GLM/NegBin models
 #' @param control Control list
-#' @srrstats {G1.4a} *All internal (non-exported) functions should also be documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format, along with a final `@noRd` tag to suppress automatic generation of `.Rd` files.*
 #' @noRd
 check_control_ <- function(control) {
   if (is.null(control)) {
@@ -146,7 +157,6 @@ check_control_ <- function(control) {
 #' @title Check family
 #' @description Checks family for GLM/NegBin models
 #' @param family Family object
-#' @srrstats {G1.4a} *All internal (non-exported) functions should also be documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format, along with a final `@noRd` tag to suppress automatic generation of `.Rd` files.*
 #' @noRd
 check_family_ <- function(family) {
   if (!inherits(family, "family")) {
@@ -171,7 +181,6 @@ check_family_ <- function(family) {
 #' @title Update formula
 #' @description Updates formula for GLM/NegBin models
 #' @param formula Formula object
-#' @srrstats {G1.4a} *All internal (non-exported) functions should also be documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format, along with a final `@noRd` tag to suppress automatic generation of `.Rd` files.*
 #' @noRd
 update_formula_ <- function(formula) {
   formula <- Formula(formula)
@@ -186,15 +195,24 @@ update_formula_ <- function(formula) {
   formula
 }
 
+#' srr_stats (tests)
+#' @srrstats {RE2.0} Regression Software should document any transformations
+#'  applied to input data, for example conversion of label-values to `factor`,
+#'  and should provide ways to explicitly avoid any default transformations
+#'  (with error or warning conditions where appropriate).
+#' @srrstats {RE2.1} Regression Software should implement explicit parameters
+#'  controlling the processing of missing values, ideally distinguishing `NA` or
+#'  `NaN` values from `Inf` values (for example, through use of `na.omit()` and
+#'  related functions from the `stats` package).
+#' @srrstats {RE4.5} Numbers of observations submitted to model (via `nobs()`)
+#' @noRd
+NULL
+
 #' @title Model frame
 #' @description Creates model frame for GLM/NegBin models
 #' @param data Data frame
 #' @param formula Formula object
 #' @param weights Weights
-#' @srrstats {G1.4a} *All internal (non-exported) functions should also be documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format, along with a final `@noRd` tag to suppress automatic generation of `.Rd` files.*
-#' @srrstats {RE2.0} *Regression Software should document any transformations applied to input data, for example conversion of label-values to `factor`, and should provide ways to explicitly avoid any default transformations (with error or warning conditions where appropriate).*
-#' @srrstats {RE2.1} *Regression Software should implement explicit parameters controlling the processing of missing values, ideally distinguishing `NA` or `NaN` values from `Inf` values (for example, through use of `na.omit()` and related functions from the `stats` package).*
-#' @srrstats {RE4.5} *Numbers of observations submitted to model (via `nobs()`)*
 #' @noRd
 model_frame_ <- function(data, formula, weights) {
   data <- select(ungroup(data), all_of(c(all.vars(formula), weights)))
@@ -219,7 +237,6 @@ model_frame_ <- function(data, formula, weights) {
 #' @param data Data frame
 #' @param lhs Left-hand side of the formula
 #' @param family Family object
-#' @srrstats {G1.4a} *All internal (non-exported) functions should also be documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format, along with a final `@noRd` tag to suppress automatic generation of `.Rd` files.*
 #' @noRd
 check_response_ <- function(data, lhs, family) {
   if (family[["family"]] == "binomial") {
@@ -270,7 +287,6 @@ check_response_ <- function(data, lhs, family) {
 #' @param tmp_var Temporary variable
 #' @param k_vars Fixed effects
 #' @param control Control list
-#' @srrstats {G1.4a} *All internal (non-exported) functions should also be documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format, along with a final `@noRd` tag to suppress automatic generation of `.Rd` files.*
 #' @noRd
 drop_by_link_type_ <- function(data, lhs, family, tmp_var, k_vars, control) {
   if (family[["family"]] %in% c("binomial", "poisson")) {
@@ -307,7 +323,6 @@ drop_by_link_type_ <- function(data, lhs, family, tmp_var, k_vars, control) {
 #' @param data Data frame
 #' @param formula Formula object
 #' @param k_vars Fixed effects
-#' @srrstats {G1.4a} *All internal (non-exported) functions should also be documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format, along with a final `@noRd` tag to suppress automatic generation of `.Rd` files.*
 #' @noRd
 transform_fe_ <- function(data, formula, k_vars) {
   data <- mutate(data, across(all_of(k_vars), check_factor_))
@@ -325,7 +340,6 @@ transform_fe_ <- function(data, formula, k_vars) {
 #' @param nobs_full Number of observations in the full data set
 #' @param nobs_na Number of observations with missing values
 #' @param nt Number of observations after dropping
-#' @srrstats {G1.4a} *All internal (non-exported) functions should also be documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format, along with a final `@noRd` tag to suppress automatic generation of `.Rd` files.*
 #' @noRd
 nobs_ <- function(nobs_full, nobs_na, nt) {
   c(
@@ -340,7 +354,6 @@ nobs_ <- function(nobs_full, nobs_na, nt) {
 #' @description Computes the model response
 #' @param data Data frame
 #' @param formula Formula object
-#' @srrstats {G1.4a} *All internal (non-exported) functions should also be documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format, along with a final `@noRd` tag to suppress automatic generation of `.Rd` files.*
 #' @noRd
 model_response_ <- function(data, formula) {
   y <- data[[1L]]
@@ -355,15 +368,23 @@ model_response_ <- function(data, formula) {
   assign("p", p, envir = parent.frame())
 }
 
+#' srr_stats (tests)
+#' @srrstats {G2.0} Implement assertions on lengths of inputs, particularly
+#'  through asserting that inputs expected to be single- or multi-valued are
+#'  indeed so.
+#' @srrstats {RE2.4} Regression Software should implement pre-processing
+#'  routines to identify whether aspects of input data are perfectly collinear,
+#'  notably including:
+#' @srrstats {RE2.4a} Perfect collinearity among predictor variables
+#' @srrstats {RE2.4b} Perfect collinearity between independent and dependent
+#'  variables
+#' @noRd
+NULL
+
 #' @title Check weights
 #' @description Checks if weights are valid
 #' @param x Regressor matrix
 #' @param p Number of parameters
-#' @srrstats {G1.4a} *All internal (non-exported) functions should also be documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format, along with a final `@noRd` tag to suppress automatic generation of `.Rd` files.*
-#' @srrstats {G2.0} *Implement assertions on lengths of inputs, particularly through asserting that inputs expected to be single- or multi-valued are indeed so.*
-#' @srrstats {RE2.4} *Regression Software should implement pre-processing routines to identify whether aspects of input data are perfectly collinear, notably including:*
-#' @srrstats {RE2.4a} *Perfect collinearity among predictor variables*
-#' @srrstats {RE2.4b} *Perfect collinearity between independent and dependent variables*
 #' @noRd
 check_linear_dependence_ <- function(x, p) {
   if (qr(x)$rank < p) {
@@ -371,11 +392,16 @@ check_linear_dependence_ <- function(x, p) {
   }
 }
 
+#' srr_stats (tests)
+#' @srrstats {G2.0} Implement assertions on lengths of inputs, particularly
+#'  through asserting that inputs expected to be single- or multi-valued are
+#'  indeed so.
+#' @noRd
+NULL
+
 #' @title Check weights
 #' @description Checks if weights are valid
 #' @param wt Weights
-#' @srrstats {G1.4a} *All internal (non-exported) functions should also be documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format, along with a final `@noRd` tag to suppress automatic generation of `.Rd` files.*
-#' @srrstats {G2.0} *Implement assertions on lengths of inputs, particularly through asserting that inputs expected to be single- or multi-valued are indeed so.*
 #' @noRd
 check_weights_ <- function(wt) {
   if (!is.numeric(wt)) {
@@ -390,7 +416,6 @@ check_weights_ <- function(wt) {
 #' @description Checks if starting theta is valid for NegBin models
 #' @param init_theta Initial theta value
 #' @param link Link function
-#' @srrstats {G1.4a} *All internal (non-exported) functions should also be documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format, along with a final `@noRd` tag to suppress automatic generation of `.Rd` files.*
 #' @noRd
 init_theta_ <- function(init_theta, link) {
   if (is.null(init_theta)) {
@@ -419,7 +444,6 @@ init_theta_ <- function(init_theta, link) {
 #' @param wt Weights
 #' @param p Number parameters
 #' @param family Family object
-#' @srrstats {G1.4a} *All internal (non-exported) functions should also be documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format, along with a final `@noRd` tag to suppress automatic generation of `.Rd` files.*
 #' @noRd
 start_guesses_ <- function(
     beta_start, eta_start, y, x, beta, nt, wt, p, family) {
@@ -485,7 +509,6 @@ start_guesses_ <- function(
 #'  effects
 #' @param k_vars Fixed effects
 #' @param data Data frame
-#' @srrstats {G1.4a} *All internal (non-exported) functions should also be documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format, along with a final `@noRd` tag to suppress automatic generation of `.Rd` files.*
 #' @noRd
 get_index_list_ <- function(k_vars, data) {
   indexes <- seq.int(0L, nrow(data) - 1L)
@@ -497,7 +520,6 @@ get_index_list_ <- function(k_vars, data) {
 #' @title Get score matrix
 #' @description Computes the score matrix
 #' @param object Result list
-#' @srrstats {G1.4a} *All internal (non-exported) functions should also be documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format, along with a final `@noRd` tag to suppress automatic generation of `.Rd` files.*
 #' @noRd
 get_score_matrix_ <- function(object) {
   # Extract required quantities from result list
@@ -547,7 +569,6 @@ get_score_matrix_ <- function(object) {
 #' @param ppsi Psi matrix
 #' @param v Vector of weights
 #' @param nt Number of observations
-#' @srrstats {G1.4a} *All internal (non-exported) functions should also be documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format, along with a final `@noRd` tag to suppress automatic generation of `.Rd` files.*
 #' @noRd
 gamma_ <- function(mx, h, j, ppsi, v, nt) {
   inv_nt <- 1.0 / nt

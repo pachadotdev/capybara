@@ -1,3 +1,13 @@
+#' srr_stats (tests)
+#' @srrstats {G1.3} All statistical terminology should be clarified and
+#'  unambiguously defined.
+#' @srrstats {RE4.0} Regression Software should return some form of "model"
+#'  object, generally through using or modifying existing class structures for
+#'  model objects (such as `lm`, `glm`, or model objects from other packages),
+#'  or creating a new class of model objects.
+#' @noRd
+NULL
+
 #' @title Negative Binomial model fitting with high-dimensional k-way fixed
 #'  effects
 #'
@@ -24,9 +34,6 @@
 #' )
 #'
 #' summary(mod)
-#'
-#' @srrstats {G1.3} *All statistical terminology should be clarified and unambiguously defined.*
-#' @srrstats {RE4.0} *Regression Software should return some form of "model" object, generally through using or modifying existing class structures for model objects (such as `lm`, `glm`, or model objects from other packages), or creating a new class of model objects.*
 #' 
 #' @return A named list of class \code{"feglm"}. The list contains the following
 #'  eighteen elements:
@@ -109,7 +116,7 @@ fenegbin <- function(
   model_response_(data, formula)
 
   # Check for linear dependence in 'x' ----
-  check_linear_dependence_(x, p)
+  check_linear_dependence_(cbind(y,x), p + 1L)
 
   # Extract weights if required ----
   if (is.null(weights)) {

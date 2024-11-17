@@ -1,4 +1,19 @@
-test_that("error conditions", {
+#' srr_stats (tests)
+#' @srrstatsVerbose TRUE
+#' @srrstats {G5.2b} Here we cover errors as broadly as possible conditions,
+#'  and we write intentionally bad examples to compare the result with expected
+#'  values and inputs.
+#' @srrstats {G5.8a} We test for errors created when passing zero-length data
+#'  frames or NULL as the data argument.
+#' @srrstats {G5.8c} We test dependency in the data by checking the range of
+#'  the data and the number of observations (i.e., determining if the data is
+#'  linearly dependent).
+#' @srrstats {G5.8d} Data with more columns than rows (i.e., linearly dependent)
+#'  produces an error.
+#' @noRd
+NULL
+
+test_that("error conditions in APEs", {
   trade_panel_2002 <- trade_panel[trade_panel$year == 2002, ]
   trade_panel_2002$trade_100 <- ifelse(trade_panel_2002$trade >= 100, 1, 0)
   trade_panel_2002$trade_200_100 <- as.factor(ifelse(trade_panel_2002$trade >=
@@ -7,11 +22,8 @@ test_that("error conditions", {
     -1
   )
 
-
-  # APEs ----
-
-  # TODO: test n.pop argument and the rest of apes()
-
+  # no model
+  
   expect_error(apes(), "specified")
 
   expect_error(
@@ -19,10 +31,14 @@ test_that("error conditions", {
     "non-'feglm'"
   )
 
+  # using APEs with Poisson
+
   expect_error(
     apes(fepoisson(trade ~ log_dist | rta, data = trade_panel_2002)),
     "binary choice"
   )
+
+  # not using two-way fixed effects
 
   expect_error(
     apes(
@@ -35,6 +51,8 @@ test_that("error conditions", {
     ), "two-way"
   )
 
+  # not using three-way fixed effects
+
   expect_error(
     apes(
       feglm(
@@ -46,7 +64,33 @@ test_that("error conditions", {
     ), "three-way"
   )
 
-  # GLMs ----
+  # wrong population size
+
+  trade_panel_2002$tradebin <- ifelse(trade_panel_2002$trade > 100, 1L, 0L)
+
+  expect_error(
+    apes(
+      feglm(
+        tradebin ~ lang | year,
+        data = trade_panel_2002,
+        family = binomial()
+      ),
+      # n_pop = 4692
+      n_pop = NA
+    ), "missing value"
+  )
+})
+
+test_that("error conditions in GLMs", {
+  trade_panel_2002 <- trade_panel[trade_panel$year == 2002, ]
+  trade_panel_2002$trade_100 <- ifelse(trade_panel_2002$trade >= 100, 1, 0)
+  trade_panel_2002$trade_200_100 <- as.factor(ifelse(trade_panel_2002$trade >=
+    200, 1, ifelse(trade_panel_2002$trade >= 100, 0.5, 0)))
+  trade_panel_2002$trade_1_minus1 <- ifelse(trade_panel_2002$trade >= 100, 1,
+    -1
+  )
+
+  # 0 rows in the data
 
   expect_error(
     fepoisson(
@@ -55,6 +99,8 @@ test_that("error conditions", {
     ),
     "zero observations"
   )
+
+  # incorrect deviance tolerance
 
   expect_error(
     fepoisson(
@@ -65,6 +111,8 @@ test_that("error conditions", {
     "greater than zero"
   )
 
+  # bad number of iterations
+
   expect_error(
     fepoisson(
       trade ~ log_dist | rta,
@@ -74,6 +122,8 @@ test_that("error conditions", {
     "at least one"
   )
 
+  # bad number of iterations
+
   expect_error(
     fepoisson(
       trade ~ log_dist | rta,
@@ -82,19 +132,24 @@ test_that("error conditions", {
     ),
     "at least one"
   )
+})
 
-  # Helpers ----
+test_that("error conditions in helpers", {
+  trade_panel_2002 <- trade_panel[trade_panel$year == 2002, ]
+  trade_panel_2002$trade_100 <- ifelse(trade_panel_2002$trade >= 100, 1, 0)
+  trade_panel_2002$trade_200_100 <- as.factor(ifelse(trade_panel_2002$trade >=
+    200, 1, ifelse(trade_panel_2002$trade >= 100, 0.5, 0)))
+  trade_panel_2002$trade_1_minus1 <- ifelse(trade_panel_2002$trade >= 100, 1,
+    -1
+  )
 
-  # TODO:
-  # weights
-  # linear dependence
-  # init.theta
-  # beta.start
-  # eta.start
+  # no formula
 
   expect_error(
     feglm(data = trade_panel_2002), "'formula' has to be specified"
   )
+
+  # incorrect formula
 
   expect_error(
     feglm(
@@ -104,6 +159,8 @@ test_that("error conditions", {
     "'formula' has to be of class 'formula'"
   )
 
+  # null data
+
   expect_error(
     fepoisson(
       trade ~ log_dist | rta,
@@ -112,6 +169,8 @@ test_that("error conditions", {
     "'data' has to be specified"
   )
 
+  # empty data
+
   expect_error(
     fepoisson(
       trade ~ log_dist | rta,
@@ -119,6 +178,8 @@ test_that("error conditions", {
     ),
     "length zero"
   )
+
+  # incorrect control
 
   expect_error(
     fepoisson(
@@ -129,6 +190,8 @@ test_that("error conditions", {
     "'control' has to be a list"
   )
 
+  # incorrect family
+
   expect_error(
     feglm(
       trade ~ log_dist | rta,
@@ -137,6 +200,8 @@ test_that("error conditions", {
     ),
     "'family' has to be of class family"
   )
+
+  # we have the cluster estimator to do the same as quasi-Poisson
 
   expect_error(
     feglm(
@@ -147,6 +212,8 @@ test_that("error conditions", {
     "Quasi-variants of 'family' are not supported"
   )
 
+  # fitting a negative binomial model with the GLM function
+
   expect_error(
     feglm(
       trade ~ log_dist | rta,
@@ -156,6 +223,8 @@ test_that("error conditions", {
     "use 'fenegbin' instead"
   )
 
+  # not adding fixed effects
+
   expect_error(
     fepoisson(
       trade ~ log_dist,
@@ -163,6 +232,8 @@ test_that("error conditions", {
     ),
     "'formula' incorrectly specified"
   )
+
+  # incorrect data + link = bad response
 
   expect_error(
     feglm(
@@ -173,6 +244,8 @@ test_that("error conditions", {
     "response has to be within the unit interval"
   )
 
+  # incorrect data + link = bad response
+
   expect_error(
     feglm(
       trade_200_100 ~ log_dist | rta,
@@ -181,6 +254,8 @@ test_that("error conditions", {
     ),
     "response has to be binary"
   )
+
+  # incorrect data + link = bad response
 
   expect_error(
     feglm(
@@ -191,6 +266,8 @@ test_that("error conditions", {
     "response has to be strictly positive"
   )
 
+  # incorrect data + link = bad response
+
   expect_error(
     feglm(
       trade_1_minus1 ~ log_dist | rta,
@@ -198,5 +275,51 @@ test_that("error conditions", {
       family = inverse.gaussian()
     ),
     "response has to be strictly positive"
+  )
+
+  # incorrect beta
+
+  expect_error(
+    feglm(
+      trade ~ log_dist | rta,
+      data = trade_panel_2002,
+      beta_start = NA # not allowed
+    ),
+    "Invalid input type"
+  )
+
+  # incorrect eta
+
+  expect_error(
+    feglm(
+      trade ~ log_dist | rta,
+      data = trade_panel_2002,
+      eta_start = rep(NA, nrow(trade_panel_2002))
+    ),
+    "Invalid input type"
+  )
+
+  # incorrect theta
+
+  expect_error(
+    fenegbin(
+      trade ~ log_dist | rta,
+      data = trade_panel_2002,
+      init_theta = -1 # not allowed
+    ),
+    "has to be strictly positive"
+  )
+
+  # intentionally break the data with unusable weights
+
+  trade_panel_2002$bad_weights <- NA
+
+  expect_error(
+    feglm(
+      trade ~ log_dist | rta,
+      data = trade_panel_2002,
+      weights = "bad_weights"
+    ),
+    "Linear dependent terms detected"
   )
 })

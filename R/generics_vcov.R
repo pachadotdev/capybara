@@ -1,9 +1,13 @@
+#' srr_stats (tests)
+#' @srrstats {RE4.6} The variance-covariance matrix of the model parameters
+#'  (via `vcov()`)
+#' @noRd
+NULL
+
 #' @title Covariance matrix for APEs
 #'
 #' @description Covariance matrix for the estimator of the
 #'  average partial effects from objects returned by \code{\link{apes}}.
-#'
-#' @srrstats {RE4.6} *The variance-covariance matrix of the model parameters (via `vcov()`)*
 #' 
 #' @param object an object of class \code{"apes"}.
 #' @param ... additional arguments.
@@ -24,8 +28,6 @@ vcov.apes <- function(object, ...) {
 #' @description Covariance matrix for the estimator of the structural parameters
 #'  from objects returned by \code{\link{feglm}}. The covariance is computed
 #' from the hessian, the scores, or a combination of both after convergence.
-#'
-#' @srrstats {RE4.6} *The variance-covariance matrix of the model parameters (via `vcov()`)*
 #' 
 #' @param object an object of class \code{"feglm"}.
 #' @param type the type of covariance estimate required. \code{"hessian"} refers
@@ -221,8 +223,6 @@ vcov_feglm_clustered_cov_ <- function(g, cl_vars, sp_vars, p) {
 #' @description Covariance matrix for the estimator of the structural parameters
 #'  from objects returned by \code{\link{felm}}. The covariance is computed
 #'  from the hessian, the scores, or a combination of both after convergence.
-#'
-#' @srrstats {RE4.6} *The variance-covariance matrix of the model parameters (via `vcov()`)*
 #'
 #' @param object an object of class \code{"felm"}.
 #'

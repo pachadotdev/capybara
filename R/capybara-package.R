@@ -1,9 +1,15 @@
+#' srr_stats (tests)
+#' @srrstats {G1.1} The algorithm is a full refactor with memory and speed
+#'  improvements for a previous R implementation (Stammann, 2018).
+#' @srrstats {G1.2} Describes the current and anticipated future states of
+#'  development.
+#' @srrstats {G1.4} The package uses [`roxygen2`](https://roxygen2.r-lib.org/)
+#'  to document all functions (see ./DESCRIPTION).
+#' @noRd
+NULL
+
 #' @title Generalized Linear Models (GLMs) with high-dimensional k-way fixed
 #'  effects
-#'
-#' @srrstats {G1.1} *Statistical Software should document whether the algorithm(s) it implements are:* - *The first implementation of a novel algorithm*; or - *The first implementation within **R** of an algorithm which has previously been implemented in other languages or contexts*; or - *An improvement on other implementations of similar algorithms in **R***.
-#' @srrstats {G1.2} *Statistical Software should include a* Life Cycle Statement *describing current and anticipated future states of development.*
-#' @srrstats {G1.4} *Software should use [`roxygen2`](https://roxygen2.r-lib.org/) to document all functions.*
 #' 
 #' @description
 #' Provides a routine to partial out factors with many levels during the
@@ -34,6 +40,11 @@
 #' @useDynLib capybara, .registration = TRUE
 "_PACKAGE"
 
+#' srr_stats (tests)
+#' @srrstats {G5.1} The panel is exported and used in the package examples.
+#' @noRd
+NULL
+
 #' Trade Panel 1986-2006
 #'
 #' Aggregated exports at origin-destination-year level for 1986-2006.
@@ -54,5 +65,6 @@
 #'   \item{exp_year}{Exporter ISO country code and year}
 #'   \item{imp_year}{Importer ISO country code and year}
 #' }
+#' 
 #' @source Advanced Guide to Trade Policy Analysis (ISBN: 978-92-870-4367-2)
 "trade_panel"

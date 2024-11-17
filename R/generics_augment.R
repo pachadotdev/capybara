@@ -1,10 +1,15 @@
+#' srr_stats (tests)
+#' @srrstats {RE4.10} Model Residuals, including sufficient documentation to
+#'  enable interpretation of residuals, and to enable users to submit residuals
+#'  to their own tests.
+#' @noRd
+NULL
+
 #' @importFrom generics augment
 #' @export
 generics::augment
 
 #' @title Broom Integration
-#'
-#' @srrstats {RE4.10} *Model Residuals, including sufficient documentation to enable interpretation of residuals, and to enable users to submit residuals to their own tests.*
 #' 
 #' @description The provided `broom` methods do the following:
 #'  1. `augment`: Takes the input data and adds additional columns with the

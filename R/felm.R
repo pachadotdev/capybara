@@ -1,12 +1,21 @@
+#' srr_stats (tests)
+#' @srrstats {G1.0} Statistical Software should list at least one primary
+#'  reference from published academic literature.
+#' @srrstats {G1.3} All statistical terminology should be clarified and
+#'  unambiguously defined.
+#' @srrstats {RE4.0} Regression Software should return some form of "model"
+#'  object, generally through using or modifying existing class structures for
+#'  model objects (such as `lm`, `glm`, or model objects from other packages),
+#'  or creating a new class of model objects.
+#' @noRd
+NULL
+
 #' @title LM fitting with high-dimensional k-way fixed effects
 #'
 #' @description A wrapper for \code{\link{feglm}} with
 #'  \code{family = gaussian()}.
 #'
 #' @inheritParams feglm
-#'
-#' @srrstats {G1.3} *All statistical terminology should be clarified and unambiguously defined.*
-#' @srrstats {RE4.0} *Regression Software should return some form of "model" object, generally through using or modifying existing class structures for model objects (such as `lm`, `glm`, or model objects from other packages), or creating a new class of model objects.*
 #' 
 #' @return A named list of class \code{"felm"}. The list contains the following
 #'  eleven elements:
@@ -24,8 +33,6 @@
 #'  \item{data}{the data used in the model after dropping non-contributing
 #'   observations}
 #'  \item{control}{the control list used in the model}
-#'
-#' @srrstats {G1.0} *Statistical Software should list at least one primary reference from published academic literature.*
 #' 
 #' @references Gaure, S. (2013). "OLS with Multiple High Dimensional Category
 #'  Variables". Computational Statistics and Data Analysis, 66.

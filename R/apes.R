@@ -1,3 +1,15 @@
+#' srr_stats (tests)
+#' @srrstats {G1.0} Statistical Software should list at least one primary
+#'  reference from published academic literature.
+#' @srrstats {G2.3} For univariate character input:
+#' @srrstats {G2.3a} Use `match.arg()` or equivalent where applicable to only
+#'  permit expected values.
+#' @srrstats {G2.3b} Either: use `tolower()` or equivalent to ensure input of
+#'  character parameters is not case dependent; or explicitly document that
+#'  parameters are strictly case-sensitive.
+#' @noRd
+NULL
+
 #' @title Compute average partial effects after fitting binary choice models
 #'  with a 1,2,3-way error component
 #'
@@ -10,10 +22,6 @@
 #'
 #'  \strong{Remark:} The routine currently does not allow to compute average
 #'  partial effects based on functional forms like interactions and polynomials.
-#'
-#' @srrstats {G2.3} *For univariate character input:*
-#' @srrstats {G2.3a} *Use `match.arg()` or equivalent where applicable to only permit expected values.*
-#' @srrstats {G2.3b} *Either: use `tolower()` or equivalent to ensure input of character parameters is not case dependent; or explicitly document that parameters are strictly case-sensitive.*
 #' 
 #' @param object an object of class \code{"bias_corr"} or \code{"feglm"};
 #'  currently restricted to \code{\link[stats]{binomial}}.
@@ -46,8 +54,6 @@
 #'
 #' @return The function \code{\link{apes}} returns a named list of class
 #'  \code{"apes"}.
-#'
-#' @srrstats {G1.0} *Statistical Software should list at least one primary reference from published academic literature.*
 #' 
 #' @references Cruz-Gonzalez, M., I. Fernández-Val, and M. Weidner (2017). "Bias
 #'  corrections for probit and logit models with two-way fixed effects". The

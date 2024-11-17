@@ -1,5 +1,10 @@
+#' srr_stats (tests)
+#' @srrstats {RE4.3} Confidence intervals on those coefficients
+#'  (via `confint()`)
+#' @noRd
+NULL
+
 #' @export
-#' @srrstats {RE4.3} *Confidence intervals on those coefficients (via `confint()`)*
 #' @noRd
 confint.feglm <- function(object, parm, level = 0.95, ...) {
   # Extract the summary of the feglm object
@@ -26,7 +31,6 @@ confint.feglm <- function(object, parm, level = 0.95, ...) {
 }
 
 #' @export
-#' @srrstats {RE4.3} *Confidence intervals on those coefficients (via `confint()`)*
 #' @noRd
 confint.felm <- function(object, parm, level = 0.95, ...) {
   confint.feglm(object, parm, level, ...)

@@ -1,11 +1,21 @@
+#' srr_stats (tests)
+#' @srrstats {RE4.5} Numbers of observations submitted to model (via `nobs()`)
+#' @srrstats {RE4.6} The variance-covariance matrix of the model parameters
+#'  (via `vcov()`)
+#' @srrstats {RE4.7} Where appropriate, convergence statistics
+#' @srrstats {RE4.11} Goodness-of-fit and other statistics associated such as
+#'  effect sizes with model coefficients.
+#' @srrstats {RE4.18} Regression Software may also implement `summary` methods
+#'  for model objects, and in particular should implement distinct `summary`
+#'  methods for any cases in which calculation of summary statistics is
+#'  computationally non-trivial (for example, for bootstrapped estimates of
+#'  confidence intervals).
+#' @noRd
+NULL
+
 #' @title Summary method for fixed effects APEs
 #' @inherit vcov.apes
 #' @export
-#' @srrstats {RE4.6} *The variance-covariance matrix of the model parameters (via `vcov()`)*
-#' @srrstats {RE4.5} *Numbers of observations submitted to model (via `nobs()`)*
-#' @srrstats {RE4.7} *Where appropriate, convergence statistics*
-#' @srrstats {RE4.11} *Goodness-of-fit and other statistics associated such as effect sizes with model coefficients.*
-#' @srrstats {RE4.18} *Regression Software may also implement `summary` methods for model objects, and in particular should implement distinct `summary` methods for any cases in which calculation of summary statistics is computationally non-trivial (for example, for bootstrapped estimates of confidence intervals).*
 #' @noRd
 summary.apes <- function(object, ...) {
   # Compute coefficent matrix
@@ -24,10 +34,6 @@ summary.apes <- function(object, ...) {
 #' @title Summary method for fixed effects GLMs
 #' @inherit vcov.feglm
 #' @export
-#' @srrstats {RE4.6} *The variance-covariance matrix of the model parameters (via `vcov()`)*
-#' @srrstats {RE4.5} *Numbers of observations submitted to model (via `nobs()`)*
-#' @srrstats {RE4.7} *Where appropriate, convergence statistics*
-#' @srrstats {RE4.11} *Goodness-of-fit and other statistics associated such as effect sizes with model coefficients.*
 #' @noRd
 summary.feglm <- function(
     object,
@@ -76,11 +82,6 @@ summary.feglm <- function(
 #' @title Summary method for fixed effects LMs
 #' @inherit vcov.felm
 #' @export
-#' @srrstats {RE4.6} *The variance-covariance matrix of the model parameters (via `vcov()`)*
-#' @srrstats {RE4.5} *Numbers of observations submitted to model (via `nobs()`)*
-#' @srrstats {RE4.7} *Where appropriate, convergence statistics*
-#' @srrstats {RE4.11} *Goodness-of-fit and other statistics associated such as effect sizes with model coefficients.*
-#' @srrstats {RE4.18} *Regression Software may also implement `summary` methods for model objects, and in particular should implement distinct `summary` methods for any cases in which calculation of summary statistics is computationally non-trivial (for example, for bootstrapped estimates of confidence intervals).*
 #' @noRd
 summary.felm <- function(
     object,

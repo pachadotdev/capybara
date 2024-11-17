@@ -37,7 +37,7 @@ License: Apache License (>= 2)
 BugReports: https://github.com/pachadotdev/capybara/issues
 URL: https://pacha.dev/capybara/, https://github.com/pachadotdev/capybara
 LazyData: true
-RoxygenNote: 7.3.1
+RoxygenNote: 7.3.2
 Encoding: UTF-8
 NeedsCompilation: yes
 LinkingTo: cpp11, cpp11armadillo
