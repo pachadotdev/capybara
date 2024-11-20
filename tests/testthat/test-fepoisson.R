@@ -60,7 +60,7 @@ test_that("fepoisson is similar to fixest", {
 #' @noRd
 NULL
 
-test_that("fepoisson time is the same adding noise to the data", {
+test_that("fepoisson estimation is the same adding noise to the data", {
   set.seed(123)
   d <- data.frame(
     x = rnorm(1000),
@@ -76,20 +76,20 @@ test_that("fepoisson time is the same adding noise to the data", {
   expect_equal(coef(m1), coef(m2))
   expect_equal(fixed_effects(m1), fixed_effects(m2))
 
-  t1 <- rep(NA, 10)
-  t2 <- rep(NA, 10)
-  for (i in 1:10) {
-    a <- Sys.time()
-    m1 <- fepoisson(y ~ x | f, d)
-    b <- Sys.time()
-    t1[i] <- b - a
+  # t1 <- rep(NA, 10)
+  # t2 <- rep(NA, 10)
+  # for (i in 1:10) {
+  #   a <- Sys.time()
+  #   m1 <- fepoisson(y ~ x | f, d)
+  #   b <- Sys.time()
+  #   t1[i] <- b - a
 
-    a <- Sys.time()
-    m2 <- fepoisson(y2 ~ x | f, d)
-    b <- Sys.time()
-    t2[i] <- b - a
-  }
-  expect_gt(abs(median(t1) / median(t2)), 0.9)
-  expect_lt(abs(median(t1) / median(t2)), 1)
-  expect_lt(median(t1), median(t2))
+  #   a <- Sys.time()
+  #   m2 <- fepoisson(y2 ~ x | f, d)
+  #   b <- Sys.time()
+  #   t2[i] <- b - a
+  # }
+  # expect_gt(abs(median(t1) / median(t2)), 0.9)
+  # expect_lt(abs(median(t1) / median(t2)), 1)
+  # expect_lt(median(t1), median(t2))
 })

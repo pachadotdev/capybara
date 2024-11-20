@@ -97,9 +97,7 @@ partial_mu_eta_ <- function(eta, family, order) {
 temp_var_ <- function(data) {
   repeat {
     tmp_var <- paste0("capybara_internal_variable_",
-      sample(letters, 5L, replace = TRUE),
-      collapse = ""
-    )
+      paste0(sample(letters, 5L, replace = TRUE), collapse = ""))
     if (!(tmp_var %in% colnames(data))) {
       break
     }

@@ -22,24 +22,83 @@ NULL
 #' @description Similar to the 'predict' method for 'glm' objects
 #' @export
 #' @noRd
-predict.feglm <- function(object, type = c("link", "response"), ...) {
-  # Check validity of 'type'
+predict.feglm <- function(object, newdata = NULL, type = c("link", "response"), ...) {
   type <- match.arg(type)
 
-  # Compute requested type of prediction
-  x <- object[["eta"]]
-  if (type == "response") {
-    x <- object[["family"]][["linkinv"]](x)
+  if (!is.null(newdata)) {
+    check_data_(newdata)
+    
+    data <- NA # just to avoid global variable warning
+    lhs <- NA
+    nobs_na <- NA
+    nobs_full <- NA
+    model_frame_(newdata, object$formula, NULL)
+    check_response_(data, lhs, object$family)
+    k_vars <- attr(terms(object$formula, rhs = 2L), "term.labels")
+    data <- transform_fe_(data, object$formula, k_vars)
+
+    x <- NA
+    nms_sp <- NA
+    p <- NA
+    model_response_(data, object$formula)
+
+    fes <- fixed_effects(object)
+    fes2 <- list()
+
+    for (name in names(fes)) {
+      # # match the FE rownames and replace each level in the data with the FE
+      fe <- fes[[name]]
+      fes2[[name]] <- fe[match(data[[name]], rownames(fe)), ]
+    }
+
+    eta <- x %*% object$coefficients + Reduce("+", fes2)
+  } else {
+    eta <- object[["eta"]]
   }
 
-  # Return prediction
-  x
+  if (type == "response") {
+    eta <- object[["family"]][["linkinv"]](eta)
+  }
+
+  as.numeric(eta)
 }
 
 #' @title Predict method for 'felm' objects
 #' @description Similar to the 'predict' method for 'lm' objects
 #' @export
 #' @noRd
-predict.felm <- function(object, ...) {
-  object[["fitted.values"]]
+predict.felm <- function(object, newdata = NULL, type = c("response", "terms"), ...) {
+  type <- match.arg(type)
+
+  if (!is.null(newdata)) {
+    check_data_(newdata)
+
+    data <- NA # just to avoid global variable warning
+    lhs <- NA
+    nobs_na <- NA
+    nobs_full <- NA
+    model_frame_(newdata, object$formula, NULL)
+    k_vars <- attr(terms(object$formula, rhs = 2L), "term.labels")
+    data <- transform_fe_(data, object$formula, k_vars)
+
+    x <- NA
+    nms_sp <- NA
+    p <- NA
+    model_response_(data, object$formula)
+
+    fes <- fixed_effects(object)
+    fes2 <- list()
+
+    for (name in names(fes)) {
+      # # match the FE rownames and replace each level in the data with the FE
+      fe <- fes[[name]]
+      fes2[[name]] <- fe[match(data[[name]], rownames(fe)), ]
+    }
+
+    yhat <- x %*% object$coefficients + Reduce("+", fes2)
+  } else {
+    yhat <- object[["fitted.values"]]
+  }
+
+  as.numeric(yhat)
 }

@@ -1,3 +1,8 @@
+# capybara 0.7.0
+
+* The predict method now allows to pass new data to predict the outcome.
+* Fully documented code and tests according to rOpenSci standards.
+
 # capybara 0.6.0
 
 * Moves all the heavy computation to C++ using Armadillo and it exports the 
