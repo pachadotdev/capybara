@@ -1,6 +1,11 @@
 #' srr_stats (tests)
 #' @srrstatsVerbose TRUE
 #' @srrstats {G5.4b} See test-feglm.R
+#' @srrstats {G5.7} See test-feglm.R
+#' @srrstats {G5.9} **Noise susceptibility tests** *Packages should test for
+#'  expected stochastic behaviour, such as through the following conditions:*
+#' #' @srrstats {G5.9a} *Adding trivial noise (for example, at the scale of
+#'  `.Machine$double.eps`) to data does not meaningfully change results*
 #' @noRd
 NULL
 

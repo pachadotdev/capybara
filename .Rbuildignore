@@ -11,6 +11,7 @@
 ^README\.html$
 ^pkgdown$
 ^Makefile$
+^src/Makevars$
 ^codemeta\.json$
 ^CODE_OF_CONDUCT\.md$
 ^\.lintr$

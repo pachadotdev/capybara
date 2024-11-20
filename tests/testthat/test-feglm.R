@@ -8,10 +8,19 @@
 #' @srrstats {G5.4b} We determine correctess for GLMs by comparison, checking
 #'  the estimates versus base R and hardcoded values obtained with Alpaca
 #'  (Stammann, 2018).
-#' @srrstats {G5.8} **Edge condition tests** *to test that these conditions produce expected behaviour such as clear warnings or errors when confronted with data with extreme properties including but not limited to:*
-#' @srrstats {G5.8b} *Data of unsupported types (e.g., character or complex numbers in for functions designed only for numeric data)*
-#' @srrstats {RE7.2} Demonstrate that output objects retain aspects of input data such as row or case names (see **RE1.3**).
-#' @srrstats {RE7.3} Demonstrate and test expected behaviour when objects returned from regression software are submitted to the accessor methods of **RE4.2**--**RE4.7**.
+#' @srrstats {G5.8} **Edge condition tests** *to test that these conditions
+#'  produce expected behaviour such as clear warnings or errors when confronted with data with extreme properties including but not limited to:*
+#' @srrstats {G5.8b} *Data of unsupported types (e.g., character or complex
+#'  numbers in for functions designed only for numeric data)*
+#' @srrstats {G5.7} **Algorithm performance tests** *to test that implementation
+#'  performs as expected as properties of data change. For instance, a test may
+#'  show that parameters approach correct estimates within tolerance as data
+#'  size increases, or that convergence times decrease for higher convergence
+#'  thresholds.*
+#' @srrstats {RE7.2} Demonstrate that output objects retain aspects of input
+#'  data such as row or case names (see **RE1.3**).
+#' @srrstats {RE7.3} Demonstrate and test expected behaviour when objects
+#'  returned from regression software are submitted to the accessor methods of **RE4.2**--**RE4.7**.
 #' 
 #' @noRd
 NULL

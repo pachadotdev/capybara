@@ -1,6 +1,11 @@
 #' srr_stats (tests)
 #' @srrstatsVerbose TRUE
 #' @srrstats {G5.4b} See test-feglm.R
+#' @srrstats {G5.7} See test-feglm.R
+#' @srrstats {G5.9} **Noise susceptibility tests** *Packages should test for
+#'  expected stochastic behaviour, such as through the following conditions:*
+#' #' @srrstats {G5.9a} *Adding trivial noise (for example, at the scale of
+#'  `.Machine$double.eps`) to data does not meaningfully change results*
 #' @noRd
 NULL
 
@@ -56,7 +61,9 @@ test_that("fepoisson is similar to fixest", {
 #'  the slopes do not change. See test-feglm.R.
 #' @srrstats {RE7.1a} Model fitting is at least as fast or (preferably) faster
 #'  than testing with equivalent noisy data (see RE2.4b).*
-#'
+#' @srrstats {G5.12} The commented time test takes around 1 minute, which is
+#'  too long for CRAN, but it shows that the algorithm speed is robust to noise
+#'  and it it marginally slower with noise.
 #' @noRd
 NULL
 
@@ -75,6 +82,18 @@ test_that("fepoisson estimation is the same adding noise to the data", {
   m2 <- fepoisson(y2 ~ x | f, d)
   expect_equal(coef(m1), coef(m2))
   expect_equal(fixed_effects(m1), fixed_effects(m2))
+
+  # n <- 10e5
+
+  # set.seed(123)
+
+  # d <- data.frame(
+  #   x = rnorm(n),
+  #   y = rpois(n, 1),
+  #   f = factor(rep(1:10, 10e4))
+  # )
+
+  # d$y2 <- d$y + pmax(rnorm(nrow(d)), 0) * .Machine$double.eps
 
   # t1 <- rep(NA, 10)
   # t2 <- rep(NA, 10)

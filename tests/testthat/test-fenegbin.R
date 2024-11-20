@@ -1,6 +1,7 @@
 #' srr_stats (tests)
 #' @srrstatsVerbose TRUE
 #' @srrstats {G5.4b} See test-feglm.R
+#' @srrstats {G5.7} See test-feglm.R
 #' @noRd
 NULL
 
