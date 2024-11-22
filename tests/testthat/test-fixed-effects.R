@@ -1,20 +1,12 @@
 #' srr_stats (tests)
-#'
-#' @srrstatsVerbose TRUE
-#' 
-#' @srrstats {G5.6} **Parameter recovery tests** *to test that the implementation produce expected results given data with known properties. For instance, a linear regression algorithm should return expected coefficient values for a simulated data set generated from a linear model.*
-#' @srrstats {G5.6a} *Parameter recovery tests should generally be expected to succeed within a defined tolerance rather than recovering exact values.*
-#' @srrstats {G5.6b} *Parameter recovery tests should be run with multiple random seeds when either data simulation or the algorithm contains a random component. (When long-running, such tests may be part of an extended, rather than regular, test suite; see G5.10-4.12, below).*
-#' 
+#' @srrstats {G5.6b} Conducts parameter recovery tests with multiple random seeds to validate consistency in results despite random components in data simulation or algorithms.
+#' @srrstats {RE3.2} Compares fixed effects estimated by `feglm` and `felm` with equivalent GLM models to ensure similarity.
+#' @srrstats {RE3.3} Validates the alignment of fixed effects recovery across different model implementations.
+#' @srrstats {RE4.3} Ensures robustness of fixed effects recovery under varied random seeds.
 #' @noRd
 NULL
 
 test_that("fixed_effects is similar to glm", {
-  # this is also tested in feglm with real data
-  # this is about  SRR {G5.6b}:
-  # Parameter recovery tests should be run with multiple random seeds when
-  # either data simulation or the algorithm contains a random component.
-
   set.seed(200100)
   d <- data.frame(
     y = rnorm(100),

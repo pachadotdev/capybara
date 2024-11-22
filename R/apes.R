@@ -1,12 +1,15 @@
-#' srr_stats (tests)
-#' @srrstats {G1.0} Statistical Software should list at least one primary
-#'  reference from published academic literature.
-#' @srrstats {G2.3} For univariate character input:
-#' @srrstats {G2.3a} Use `match.arg()` or equivalent where applicable to only
-#'  permit expected values.
-#' @srrstats {G2.3b} Either: use `tolower()` or equivalent to ensure input of
-#'  character parameters is not case dependent; or explicitly document that
-#'  parameters are strictly case-sensitive.
+#' srr_stats
+#' @srrstats {G1.0} Closely follows methodologies described in Stammann (2018) and other referenced works for binary choice models.
+#' @srrstats {G2.1a} Ensures the input object is of the expected class (`bias_corr` or `feglm`).
+#' @srrstats {G2.3a} Uses `match.arg()` to validate `panel_structure` and `sampling_fe` inputs against expected values.
+#' @srrstats {G2.3b} Uses `tolower()` to handle potential case sensitivity issues.
+#' @srrstats {G2.13} Validates that the input data contains no missing values.
+#' @srrstats {G2.14a} Issues errors when handling missing data is required but unsupported.
+#' @srrstats {G2.14b} Provides default warnings or messages when missing data is ignored.
+#' @srrstats {G3.1a} Allows arbitrarily specified covariance methods for flexibility in inference.
+#' @srrstats {G5.2a} Produces unique and meaningful error, warning, and message outputs for diagnostics.
+#' @srrstats {RE5.0} Considers relationships between input data size and computational efficiency.
+#' @srrstats {G5.4a} Includes tests against trivial cases or alternative implementations to ensure algorithm correctness.
 #' @noRd
 NULL
 
@@ -261,6 +264,12 @@ apes <- function(
   structure(reslist, class = "apes")
 }
 
+#' srr_stats
+#' @srrstats {G2.0} Implements assertions to ensure valid scaling relationships between population size and sample size.
+#' @srrstats {G5.2a} Issues clear warnings for invalid population adjustments or mismatched sizes.
+#' @noRd
+NULL
+
 apes_set_adj_ <- function(n_pop, nt_full) {
   if (!is.null(n_pop)) {
     n_pop <- as.integer(n_pop)
@@ -282,6 +291,13 @@ apes_set_adj_ <- function(n_pop, nt_full) {
 
   return(adj)
 }
+
+#' srr_stats
+#' @srrstats {G2.1a} Ensures all covariance adjustments align with the input model assumptions.
+#' @srrstats {G3.1a} Accounts for adjustments based on finite population corrections and weak exogeneity assumptions.
+#' @srrstats {G5.2a} Provides meaningful warnings or messages for invalid covariance settings or assumptions.
+#' @noRd
+NULL
 
 apes_adjust_covariance_ <- function(
     v, delta, gamma, k_list, adj, sampling_fe,
@@ -313,6 +329,14 @@ apes_adjust_covariance_ <- function(
   }
   return(v)
 }
+
+#' srr_stats
+#' @srrstats {G2.1a} Validates analytical bias correction computations against model assumptions.
+#' @srrstats {G3.1a} Handles bias correction across panel structures (`classic` or `network`) and varying numbers of fixed effects.
+#' @srrstats {RE5.0} Scales bias correction computations to handle large panels efficiently.
+#' @srrstats {G5.2a} Issues clear errors for unsupported bias correction settings or invalid assumptions.
+#' @noRd
+NULL
 
 apes_bias_correction_ <- function(
     eta, family, x, beta, binary, nt, p, ppsi,

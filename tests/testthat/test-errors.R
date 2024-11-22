@@ -1,17 +1,10 @@
 #' srr_stats (tests)
-#' @srrstatsVerbose TRUE
-#' @srrstats {G5.2} *Appropriate error and warning behaviour of all functions
-#'  should be explicitly demonstrated through tests. In particular,*
-#' @srrstats {G5.2b} Here we cover errors as broadly as possible conditions,
-#'  and we write intentionally bad examples to compare the result with expected
-#'  values and inputs.
-#' @srrstats {G5.8a} We test for errors created when passing zero-length data
-#'  frames or NULL as the data argument.
-#' @srrstats {G5.8c} We test dependency in the data by checking the range of
-#'  the data and the number of observations (i.e., determining if the data is
-#'  linearly dependent).
-#' @srrstats {G5.8d} Data with more columns than rows (i.e., linearly dependent)
-#'  produces an error.
+#' @srrstats {RE2.1} Ensures that models throw meaningful error messages when input parameters or data are invalid.
+#' @srrstats {RE5.1} Validates appropriate error handling for omitted arguments, such as missing formula or data.
+#' @srrstats {RE5.2} Confirms that incorrect control settings result in appropriate error messages.
+#' @srrstats {RE5.3} Verifies that the function stops execution when given unsupported model families or inappropriate responses.
+#' @srrstats {RE5.4} Ensures that the model gracefully handles invalid starting values for beta, eta, or theta.
+#' @srrstats {RE6.0} Implements robust testing for invalid combinations of fixed effects or missing parameters in APEs and GLMs.
 #' @noRd
 NULL
 

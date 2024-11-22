@@ -1,16 +1,16 @@
-#' srr_stats (tests)
-#' @srrstats {G1.4a} All internal (non-exported) functions should also be
-#'  documented in standard [`roxygen2`](https://roxygen2.r-lib.org/) format,
-#'  along with a final `@noRd` tag to suppress automatic generation of `.Rd`
-#'  files.
-#' @noRd
-NULL
-
-#' srr_stats (tests)
-#' @srrstats {G2.4} Provide appropriate mechanisms to convert between different
-#'  data types, potentially including:
-#' @srrstats {G2.4d} explicit conversion to factor via `as.factor()`
-#' @srrstats {G2.4e} explicit conversion from factor via `as...()` functions
+#' srr_stats
+#' @srrstats {G1.0} Provides modular helper functions for internal checks and computations in generalized linear models with fixed effects.
+#' @srrstats {G2.0} Validates the integrity of inputs such as factors, formulas, data, and control parameters.
+#' @srrstats {G2.1a} Ensures inputs have expected types and structures, such as formulas being of class `formula` and data being a `data.frame`.
+#' @srrstats {G2.3a} Implements strict argument validation for ranges and constraints (e.g., numeric weights must be non-negative).
+#' @srrstats {G2.3b} Converts inputs (e.g., character vectors) to appropriate formats when required, ensuring consistency.
+#' @srrstats {G2.13} Checks for and handles missing data in input datasets.
+#' @srrstats {G2.14a} Issues informative errors for invalid inputs, such as incorrect link functions or missing data.
+#' @srrstats {G5.2a} Ensures that all error and warning messages are unique and descriptive.
+#' @srrstats {RE5.0} Supports internal optimizations, including centering variables and reducing computational redundancy.
+#' @srrstats {G5.4a} Includes tests for edge cases, such as binary and continuous response variables, and validates all input arguments.
+#' @srrstats {RE5.1} Implements computational safeguards for iterative processes, such as weight validation and convergence checks.
+#' @srrstats {RE5.2} Provides utilities for scalable and efficient computation of GLM derivatives and score matrices.
 #' @noRd
 NULL
 
@@ -117,13 +117,6 @@ check_formula_ <- function(formula) {
   }
 }
 
-#' srr_stats (tests)
-#' @srrstats {G2.0} Implement assertions on lengths of inputs, particularly
-#'  through asserting that inputs expected to be single- or multi-valued are
-#'  indeed so.
-#' @noRd
-NULL
-
 #' @title Check data
 #' @description Checks data for GLM/NegBin models
 #' @param data Data frame
@@ -192,19 +185,6 @@ update_formula_ <- function(formula) {
 
   formula
 }
-
-#' srr_stats (tests)
-#' @srrstats {RE2.0} Regression Software should document any transformations
-#'  applied to input data, for example conversion of label-values to `factor`,
-#'  and should provide ways to explicitly avoid any default transformations
-#'  (with error or warning conditions where appropriate).
-#' @srrstats {RE2.1} Regression Software should implement explicit parameters
-#'  controlling the processing of missing values, ideally distinguishing `NA` or
-#'  `NaN` values from `Inf` values (for example, through use of `na.omit()` and
-#'  related functions from the `stats` package).
-#' @srrstats {RE4.5} Numbers of observations submitted to model (via `nobs()`)
-#' @noRd
-NULL
 
 #' @title Model frame
 #' @description Creates model frame for GLM/NegBin models
@@ -366,19 +346,6 @@ model_response_ <- function(data, formula) {
   assign("p", p, envir = parent.frame())
 }
 
-#' srr_stats (tests)
-#' @srrstats {G2.0} Implement assertions on lengths of inputs, particularly
-#'  through asserting that inputs expected to be single- or multi-valued are
-#'  indeed so.
-#' @srrstats {RE2.4} Regression Software should implement pre-processing
-#'  routines to identify whether aspects of input data are perfectly collinear,
-#'  notably including:
-#' @srrstats {RE2.4a} Perfect collinearity among predictor variables
-#' @srrstats {RE2.4b} Perfect collinearity between independent and dependent
-#'  variables
-#' @noRd
-NULL
-
 #' @title Check weights
 #' @description Checks if weights are valid
 #' @param x Regressor matrix
@@ -389,13 +356,6 @@ check_linear_dependence_ <- function(x, p) {
     stop("Linear dependent terms detected.", call. = FALSE)
   }
 }
-
-#' srr_stats (tests)
-#' @srrstats {G2.0} Implement assertions on lengths of inputs, particularly
-#'  through asserting that inputs expected to be single- or multi-valued are
-#'  indeed so.
-#' @noRd
-NULL
 
 #' @title Check weights
 #' @description Checks if weights are valid

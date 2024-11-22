@@ -1,6 +1,14 @@
-#' srr_stats (tests)
-#' @srrstats {RE4.3} Confidence intervals on those coefficients
-#'  (via `confint()`)
+#' srr_stats
+#' @srrstats {G1.0} Implements `confint` methods for extracting confidence intervals for `feglm` and `felm` objects.
+#' @srrstats {G2.1a} Ensures that the input object is of the expected class (`feglm` or `felm`).
+#' @srrstats {G2.3a} Validates the `level` parameter to ensure it is within the accepted range (0, 1).
+#' @srrstats {G3.1a} Outputs confidence intervals in a standardized format, making them easily interpretable.
+#' @srrstats {G3.1b} Supports multiple model types with consistent behavior.
+#' @srrstats {G3.1c} Provides a clear confidence interval calculation using critical values.
+#' @srrstats {G5.1} Includes error handling for unsupported or invalid input objects and invalid `level` values.
+#' @srrstats {G5.4a} Includes tests to validate confidence interval calculations for edge cases and typical use cases.
+#' @srrstats {RE5.0} Designed for seamless integration with downstream analysis workflows.
+#' @srrstats {RE5.2} Maintains computational efficiency in confidence interval computation.
 #' @noRd
 NULL
 

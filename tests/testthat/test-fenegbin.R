@@ -1,7 +1,8 @@
 #' srr_stats (tests)
-#' @srrstatsVerbose TRUE
-#' @srrstats {G5.4b} See test-feglm.R
-#' @srrstats {G5.7} See test-feglm.R
+#' @srrstats {RE2.1} Ensures that models throw meaningful error messages when input parameters or data are invalid.
+#' @srrstats {RE3.1} Validates consistency between `fenegbin` and other established R models like `glm` with comparable families.
+#' @srrstats {RE3.2} Compares coefficients produced by `fenegbin` with those from base R models to validate similarity.
+#' @srrstats {RE7.3} Confirms that estimated coefficients are within a reasonable variation threshold compared to baseline models.
 #' @noRd
 NULL
 

@@ -1,3 +1,15 @@
+#' srr_stats
+#' @srrstats {G1.0} Implements controls for efficient and numerically stable fitting of generalized linear models with fixed effects.
+#' @srrstats {G2.0} Validates numeric input parameters to ensure they meet constraints (e.g., positive tolerance levels).
+#' @srrstats {G2.1a} Ensures the proper data types for arguments (e.g., logical for `trace`, integer for `iter_max`).
+#' @srrstats {G2.3a} Uses argument validation to ensure appropriate ranges for critical parameters (e.g., `iter_max` and `limit` >= 1).
+#' @srrstats {G2.14a} Provides informative error messages when tolerance levels or iteration counts are invalid.
+#' @srrstats {G5.2a} Produces unique and descriptive error messages for all validation checks.
+#' @srrstats {RE5.0} Supports control over algorithmic complexity, such as dropping perfectly separated observations (`drop_pc`) and optional matrix storage (`keep_mx`).
+#' @srrstats {G5.4a} Includes robust edge case handling, such as enforcing positive tolerance and iteration counts.
+#' @noRd
+NULL
+
 #' @title Set \code{feglm} Control Parameters
 #'
 #' @description Set and change parameters used for fitting \code{\link{feglm}}.

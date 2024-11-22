@@ -1,13 +1,20 @@
-#' srr_stats (tests)
-#' @srrstats {RE4.10} Model Residuals, including sufficient documentation to
-#'  enable interpretation of residuals, and to enable users to submit residuals
-#'  to their own tests.
-#' @noRd
-NULL
-
 #' @importFrom generics augment
 #' @export
 generics::augment
+
+#' srr_stats
+#' @srrstats {G1.0} Provides integration with the `broom` package for model output tidying.
+#' @srrstats {G2.1a} Ensures the input object is of the expected class (`feglm` or `felm`).
+#' @srrstats {G2.3a} Ensures compatibility with new data provided via the `newdata` argument.
+#' @srrstats {G3.1a} Outputs include fitted values and residuals in a tidy tibble format for interpretability.
+#' @srrstats {G3.1c} Supports additional columns in the output for confidence intervals if requested.
+#' @srrstats {G3.3} Handles the addition of multiple model outputs (`.fitted`, `.residuals`) to the data.
+#' @srrstats {G5.1} Provides robust error handling for missing or invalid input objects.
+#' @srrstats {RE5.0} Optimized for integration with downstream analysis workflows.
+#' @srrstats {RE5.1} Maintains computational efficiency when augmenting large datasets.
+#' @srrstats {RE5.3} Supports additional data input (`newdata`) to enhance flexibility.
+#' @noRd
+NULL
 
 #' @title Broom Integration
 #' 

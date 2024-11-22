@@ -1,8 +1,9 @@
 #' srr_stats (tests)
-#' @srrstatsVerbose TRUE
-#' @srrstats {RE7.0} Test exact relationships between predictors.
-#' @srrstats {RE7.0a} Reject perfectly noiseless input data.
-#' @srrstats {RE7.1} Tests exact relationships between predictor and response.
+#' @srrstats {G1.0} Implements tests to detect deterministic relations among predictors.
+#' @srrstats {RE2.2} Ensures that models correctly fail when predictors are linearly dependent.
+#' @srrstats {RE5.1} Confirms that the function provides meaningful error messages for invalid input.
+#' @srrstats {RE5.2} Verifies that the model throws an error when dependent columns are included in the formula.
+#' @srrstats {RE5.4} Checks robustness against deterministic linear relationships in the design matrix.
 #' @noRd
 NULL
 

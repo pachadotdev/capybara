@@ -1,12 +1,13 @@
-#' srr_stats (tests)
-#' @srrstats {G1.0} Statistical Software should list at least one primary
-#'  reference from published academic literature.
-#' @srrstats {G2.3} For univariate character input:
-#' @srrstats {G2.3a} Use `match.arg()` or equivalent where applicable to only
-#'  permit expected values.
-#' @srrstats {G2.3b} Either: use `tolower()` or equivalent to ensure input of
-#'  character parameters is not case dependent; or explicitly document that
-#'  parameters are strictly case-sensitive.
+#' srr_stats
+#' @srrstats {G1.0} The implementation is aligned with established methods, including those described in Stammann (2018), Fernández-Val and Weidner (2016), and others.
+#' @srrstats {G2.1a} Ensures input objects are of the expected class (`feglm`).
+#' @srrstats {G2.3a} Validates string arguments like `panel_structure` using `match.arg()` for predefined values.
+#' @srrstats {G2.14a} Provides errors for missing or invalid inputs, such as non-`feglm` objects.
+#' @srrstats {G2.14b} Provides clear error messages when exceeding supported fixed-effect dimensions.
+#' @srrstats {G3.1a} Supports structured panels (`classic` or `network`) for analyzing fixed effects.
+#' @srrstats {RE5.0} Efficient handling of computational scaling for large panels through fixed-effect groupings.
+#' @srrstats {G5.2a} Produces unique and informative error messages for all stopping conditions.
+#' @srrstats {G5.4a} Includes logical checks for computational edge cases, such as unsupported models.
 #' @noRd
 NULL
 

@@ -1,8 +1,14 @@
-#' srr_stats (tests)
-#' @srrstats {G1.3} All statistical terminology should be clarified and
-#'  unambiguously defined.
-#' @srrstats {G1.0} Statistical Software should list at least one primary
-#'  reference from published academic literature.
+#' srr_stats
+#' @srrstats {G1.0} Implements recovery of fixed effects for models estimated with high-dimensional k-way fixed effects.
+#' @srrstats {G2.1a} Ensures that the input object is of the expected class (`felm` or `feglm`).
+#' @srrstats {G2.2} Checks for valid tolerance levels (`alpha_tol`) to control convergence.
+#' @srrstats {G3.1a} Outputs include named vectors of estimated fixed effects for interpretability.
+#' @srrstats {G3.3} Handles multiple high-dimensional fixed effect categories by iterative computation.
+#' @srrstats {G5.1} Provides robust error handling for missing or invalid input objects.
+#' @srrstats {G5.2a} Issues unique error messages for invalid input or class mismatches.
+#' @srrstats {RE5.0} Optimized for computational efficiency in high-dimensional fixed effects recovery.
+#' @srrstats {RE5.1} Includes iterative solving of normal equations for high-dimensional datasets.
+#' @srrstats {RE5.2} Ensures numerical stability with specified tolerance thresholds.
 #' @noRd
 NULL
 

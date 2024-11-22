@@ -1,10 +1,13 @@
-#' srr_stats (tests)
+#' srr_stats
 #' @srrstats {G1.1} The algorithm is a full refactor with memory and speed
-#'  improvements for a previous R implementation (Stammann, 2018).
-#' @srrstats {G1.2} Describes the current and anticipated future states of
+#'  improvements for a previous R implementation (Stammann, 2018). The reference
+#'  is Stammann (2018) <https://arxiv.org/abs/1707.01815> for GLMs, and also
+#'  Gaure (2013) <https://dx.doi.org/10.1016/j.csda.2013.03.024> for LMs.
+#' @srrstats {G1.2} This describes the current and anticipated future states of
 #'  development.
-#' @srrstats {G1.4} The package uses [`roxygen2`](https://roxygen2.r-lib.org/)
-#'  to document all functions (see ./DESCRIPTION).
+#' @srrstats {G1.4} The package uses roxygen2.
+#' @srrstats {G1.4a} All internal (non-exported) functions are documented. See
+#'  the `*_helpers.R` files.
 #' @noRd
 NULL
 

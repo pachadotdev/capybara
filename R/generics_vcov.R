@@ -1,6 +1,15 @@
-#' srr_stats (tests)
-#' @srrstats {RE4.6} The variance-covariance matrix of the model parameters
-#'  (via `vcov()`)
+#' srr_stats
+#' @srrstats {G1.0} Implements covariance matrix extraction methods for `apes`, `feglm`, and `felm` objects.
+#' @srrstats {G2.1a} Validates input objects as instances of `apes`, `feglm`, or `felm`.
+#' @srrstats {G2.2} Provides various covariance estimation types including `hessian`, `outer.product`, `sandwich`, and `clustered`.
+#' @srrstats {G2.3} Handles cases with or without clustering variables, ensuring flexibility for diverse use cases.
+#' @srrstats {G3.0} Handles edge cases such as non-invertible hessians or missing cluster variables gracefully with informative errors.
+#' @srrstats {G4.0} Integrates seamlessly with the modeling pipeline, supporting consistent outputs for downstream analysis.
+#' @srrstats {RE2.1} Ensures compatibility with multiway clustering approaches as proposed by Cameron, Gelbach, and Miller (2011).
+#' @srrstats {RE2.3} Supports computation of robust covariance estimates for generalized linear models and linear models.
+#' @srrstats {RE5.0} Ensures that the output covariance matrix is correctly labeled for interpretability.
+#' @srrstats {RE5.2} Provides explicit errors for invalid or missing clustering variables in clustered covariance computation.
+#' @srrstats {RE6.1} Implements efficient matrix operations to handle large-scale data and high-dimensional models.
 #' @noRd
 NULL
 

@@ -2,6 +2,19 @@
 #' @export
 ggplot2::autoplot
 
+#' srr_stats
+#' @srrstats {G1.0} Adheres to R standards for extending methods like `autoplot` for custom classes (`feglm` and `felm`).
+#' @srrstats {G2.1a} Ensures input objects are of the expected classes (`feglm` or `felm`), stopping otherwise.
+#' @srrstats {G2.3a} Provides validation for optional arguments like `conf_level`, ensuring their correctness.
+#' @srrstats {G2.3b} Handles potential case sensitivity issues for user-specified arguments.
+#' @srrstats {G2.14a} Issues errors if required packages (`ggplot2`) are missing, ensuring dependencies are installed.
+#' @srrstats {G2.14b} Provides default values for optional arguments when missing.
+#' @srrstats {G3.1a} Supports customizable confidence intervals via user-provided `conf_level`.
+#' @srrstats {G5.2a} Produces unique and informative error messages when preconditions are not met.
+#' @srrstats {G5.4a} Includes validation against common edge cases, like missing required input or invalid argument values.
+#' @noRd
+NULL
+
 #' @title Autoplot method for feglm objects
 #'
 #' @description Extracts the estimated coefficients and their confidence

@@ -1,27 +1,14 @@
 #' srr_stats (tests)
-#' 
-#' @srrstatsVerbose TRUE
-#' 
-#' @srrstats {G5.0} The tests use the widely known mtcars data set. It has few
-#'  observations, and it is easy to compare the results with the base R
-#'  functions.
-#' @srrstats {G5.4b} We determine correctess for GLMs by comparison, checking
-#'  the estimates versus base R and hardcoded values obtained with Alpaca
-#'  (Stammann, 2018).
-#' @srrstats {G5.8} **Edge condition tests** *to test that these conditions
-#'  produce expected behaviour such as clear warnings or errors when confronted with data with extreme properties including but not limited to:*
-#' @srrstats {G5.8b} *Data of unsupported types (e.g., character or complex
-#'  numbers in for functions designed only for numeric data)*
-#' @srrstats {G5.7} **Algorithm performance tests** *to test that implementation
-#'  performs as expected as properties of data change. For instance, a test may
-#'  show that parameters approach correct estimates within tolerance as data
-#'  size increases, or that convergence times decrease for higher convergence
-#'  thresholds.*
-#' @srrstats {RE7.2} Demonstrate that output objects retain aspects of input
-#'  data such as row or case names (see **RE1.3**).
-#' @srrstats {RE7.3} Demonstrate and test expected behaviour when objects
-#'  returned from regression software are submitted to the accessor methods of **RE4.2**--**RE4.7**.
-#' 
+#' @srrstats {RE2.1} Ensures that models throw meaningful error messages when input parameters or data are invalid.
+#' @srrstats {RE3.2} Compares model outputs (coefficients and fixed effects) against established benchmarks like base R's `glm`.
+#' @srrstats {RE3.3} Confirms consistency of fixed effects and structural parameters between `feglm` and equivalent base models.
+#' @srrstats {RE5.1} Validates appropriate error handling for omitted arguments, such as missing formula or data.
+#' @srrstats {RE5.2} Confirms that incorrect control settings result in appropriate error messages.
+#' @srrstats {RE5.3} Verifies that the function stops execution when given unsupported model families or inappropriate responses.
+#' @srrstats {RE5.4} Ensures that the model gracefully handles invalid starting values for beta, eta, or theta.
+#' @srrstats {RE6.0} Implements robust testing for invalid combinations of fixed effects or missing parameters in APEs and GLMs.
+#' @srrstats {RE7.1} Validates consistency in output types and structures across all supported families and link functions.
+#' @srrstats {RE7.2} Confirms that confidence intervals and standard errors are computed correctly for coefficients.
 #' @noRd
 NULL
 

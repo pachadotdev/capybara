@@ -1,15 +1,13 @@
-#' srr_stats (tests)
-#' @srrstats {RE4.5} Numbers of observations submitted to model (via `nobs()`)
-#' @srrstats {RE4.6} The variance-covariance matrix of the model parameters
-#'  (via `vcov()`)
-#' @srrstats {RE4.7} Where appropriate, convergence statistics
-#' @srrstats {RE4.11} Goodness-of-fit and other statistics associated such as
-#'  effect sizes with model coefficients.
-#' @srrstats {RE4.18} Regression Software may also implement `summary` methods
-#'  for model objects, and in particular should implement distinct `summary`
-#'  methods for any cases in which calculation of summary statistics is
-#'  computationally non-trivial (for example, for bootstrapped estimates of
-#'  confidence intervals).
+#' srr_stats
+#' @srrstats {G1.0} Implements `summary` methods for various model objects (`apes`, `feglm`, `felm`) to provide detailed post-estimation statistics.
+#' @srrstats {G2.1a} Ensures that input objects are of the expected class (`apes`, `feglm`, `felm`).
+#' @srrstats {G2.3} Accurately computes standard errors, z-values, and p-values for model coefficients.
+#' @srrstats {G3.1} Includes residual statistics, deviance measures, and (where applicable) pseudo R-squared values for Poisson models.
+#' @srrstats {G5.2a} Outputs include well-structured coefficient matrices with appropriate column headers and row names.
+#' @srrstats {RE2.1} Summary methods ensure compatibility with standard statistical workflows by providing model evaluation metrics.
+#' @srrstats {RE2.2} Custom handling of model-specific details like Poisson pseudo R-squared and Negative Binomial `theta` values.
+#' @srrstats {RE5.0} Reduces cyclomatic complexity through modular functions for computing summary components.
+#' @srrstats {RE5.2} Facilitates interpretability of models by providing a unified and clear summary output format.
 #' @noRd
 NULL
 

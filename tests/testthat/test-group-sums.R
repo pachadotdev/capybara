@@ -1,3 +1,11 @@
+#' srr_stats (tests)
+#' @srrstats {G5.2} Validates the correctness of group operations like summation and covariance using precomputed results.
+#' @srrstats {RE3.3} Compares outputs of group-related calculations with reference implementations to ensure consistency.
+#' @srrstats {RE4.3} Confirms robustness of grouped computations under different random seeds.
+#' @srrstats {RE6.0} Ensures proper handling of input matrix dimensions and group structures in grouped summation functions.
+#' @noRd
+NULL
+
 test_that("group_sums_* works", {
   set.seed(123)
   m <- matrix(rnorm(9), ncol = 3, nrow = 3)

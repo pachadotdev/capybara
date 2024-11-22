@@ -1,3 +1,15 @@
+#' srr_stats (tests)
+#' @srrstats {G1.0} Implements unit testing for APEs and bias correction using known examples.
+#' @srrstats {G2.1} Validates the correct implementation of model outputs (e.g., coefficients, summaries).
+#' @srrstats {G2.2} Compares results against known benchmarks from alternative implementations.
+#' @srrstats {G3.0} Ensures that printed outputs for models are as expected.
+#' @srrstats {RE2.1} Verifies that computed APEs align with external library outputs (`alpaca`).
+#' @srrstats {RE2.3} Confirms that bias correction results are consistent with benchmark values.
+#' @srrstats {RE5.2} Ensures coefficients, summaries, and bias corrections are computed without errors.
+#' @srrstats {RE6.1} Ensures efficient computation for moderately sized data (e.g., subsetted trade data).
+#' @noRd
+NULL
+
 test_that("apes/bias works", {
   trade_short <- trade_panel[trade_panel$year %in% 2002L:2006L, ]
   trade_short$trade <- ifelse(trade_short$trade > 100, 1L, 0L)

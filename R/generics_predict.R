@@ -1,20 +1,16 @@
-#' srr_stats (tests)
-#' @srrstats {G2.3} For univariate character input:
-#' @srrstats {G2.3a} Use `match.arg()` or equivalent where applicable to only
-#'  permit expected values.
-#' @srrstats {G2.3b} Either: use `tolower()` or equivalent to ensure input of
-#'  character parameters is not case dependent; or explicitly document that
-#'  parameters are strictly case-sensitive.
-#' @srrstats {RE4.9} Modelled values of response variables.
-#' @srrstats {RE4.12} Where appropriate, functions used to transform input data,
-#'  and associated inverse transform functions.
-#' @srrstats {RE4.13} Predictor variables, and associated "metadata" where
-#'  applicable. (via `confint()`)
-#' @srrstats {RE4.18} Regression Software may also implement `summary` methods
-#'  for model objects, and in particular should implement distinct `summary`
-#'  methods for any cases in which calculation of summary statistics is
-#'  computationally non-trivial (for example, for bootstrapped estimates of
-#'  confidence intervals).
+#' srr_stats
+#' @srrstats {G1.0} Implements `predict` methods for `feglm` and `felm` objects, similar to base R methods.
+#' @srrstats {G2.1a} Ensures input objects are of the expected class (`feglm` or `felm`).
+#' @srrstats {G2.3a} Provides options for output type (`link`, `response`, or `terms`) via a standardized `type` argument.
+#' @srrstats {G2.3b} Handles missing or invalid new data gracefully with appropriate checks and error messages.
+#' @srrstats {G3.1a} Computes predicted values for both new and existing data sets.
+#' @srrstats {G3.1b} Supports fixed-effects predictions by accounting for levels in the data.
+#' @srrstats {G3.4a} Includes an option for type-specific predictions (e.g., `link` vs. `response`).
+#' @srrstats {G5.2a} Tests include validation of predictions against known values and edge cases.
+#' @srrstats {G5.4a} Outputs predictions in a format compatible with standard R workflows.
+#' @srrstats {RE5.0} Ensures computational efficiency in handling both `feglm` and `felm` prediction workflows.
+#' @srrstats {RE5.2} Integrates seamlessly with user-provided data for generating predictions.
+#' @srrstats {RE5.3} Provides predictable and consistent output types for downstream analysis.
 #' @noRd
 NULL
 

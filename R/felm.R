@@ -1,12 +1,17 @@
-#' srr_stats (tests)
-#' @srrstats {G1.0} Statistical Software should list at least one primary
-#'  reference from published academic literature.
-#' @srrstats {G1.3} All statistical terminology should be clarified and
-#'  unambiguously defined.
-#' @srrstats {RE4.0} Regression Software should return some form of "model"
-#'  object, generally through using or modifying existing class structures for
-#'  model objects (such as `lm`, `glm`, or model objects from other packages),
-#'  or creating a new class of model objects.
+#' srr_stats
+#' @srrstats {G1.0} Implements a wrapper around `feglm` for linear models with high-dimensional fixed effects.
+#' @srrstats {G2.1a} Ensures the input `formula` is correctly specified and includes fixed effects.
+#' @srrstats {G2.1b} Validates that the input `data` is non-empty and of class `data.frame`.
+#' @srrstats {G2.3a} Uses structured checks for parameters like `weights` and starting values.
+#' @srrstats {G2.4} Handles missing or perfectly classified data by appropriately excluding them.
+#' @srrstats {G2.5} Ensures numerical stability and convergence for large datasets and complex models.
+#' @srrstats {G3.1a} Provides robust support for the Gaussian family with an identity link function.
+#' @srrstats {G5.1} Includes complete output elements (coefficients, fitted values, etc.) for reproducibility.
+#' @srrstats {G5.2a} Issues unique and descriptive error messages for invalid inputs.
+#' @srrstats {RE5.0} Optimized for scaling to large datasets with high-dimensional fixed effects.
+#' @srrstats {RE5.1} Efficiently projects out fixed effects using auxiliary indexing structures.
+#' @srrstats {RE5.2} Provides detailed warnings and error handling for convergence and dependence issues.
+#' @srrstats {RE5.3} Thoroughly documents interactions between model features, inputs, and controls.
 #' @noRd
 NULL
 

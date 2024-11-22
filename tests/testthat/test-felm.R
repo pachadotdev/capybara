@@ -1,11 +1,12 @@
 #' srr_stats (tests)
-#' @srrstatsVerbose TRUE
-#' @srrstats {G5.4b} See test-feglm.R
-#' @srrstats {G5.7} See test-feglm.R
-#' @srrstats {G5.9} **Noise susceptibility tests** *Packages should test for
-#'  expected stochastic behaviour, such as through the following conditions:*
-#' #' @srrstats {G5.9a} *Adding trivial noise (for example, at the scale of
-#'  `.Machine$double.eps`) to data does not meaningfully change results*
+#' @srrstats {RE2.1} Ensures that models throw meaningful error messages when input parameters or data are invalid.
+#' @srrstats {RE3.1} Validates consistency between `felm` and base R `lm` in terms of coefficients, R-squared, and fitted values.
+#' @srrstats {RE3.2} Compares model outputs against established benchmarks such as base R's `lm`.
+#' @srrstats {RE5.1} Validates appropriate error handling for omitted arguments or missing data.
+#' @srrstats {RE6.0} Implements robust testing for invalid or collinear regressors.
+#' @srrstats {RE7.1} Validates that proportional regressors or collinear terms are detected and produce errors.
+#' @srrstats {RE7.2} Confirms that model computations remain consistent when small noise is added to data.
+#' @srrstats {RE8.1} Ensures computational times remain consistent under similar model specifications.
 #' @noRd
 NULL
 

@@ -1,3 +1,14 @@
+#' srr_stats
+#' @srrstats {G1.0} Implements an efficient offset algorithm for generalized linear models with fixed effects.
+#' @srrstats {G2.1a} Ensures the input object is of class `feglm` and validates offsets.
+#' @srrstats {G2.3a} Strictly checks that the `offset` parameter is numeric and matches the number of observations.
+#' @srrstats {G2.14a} Issues clear error messages for invalid inputs, such as non-`feglm` objects or mismatched offsets.
+#' @srrstats {G5.2a} Guarantees that all errors and warnings are unique and descriptive.
+#' @srrstats {RE5.0} Optimizes iterative computation with safeguards for large-scale datasets and weight adjustments.
+#' @srrstats {RE5.2} Efficiently handles updates to the linear predictor in models with fixed effects, ensuring scalability.
+#' @noRd
+NULL
+
 #' @title GLM offset
 #'
 #' @description Efficient offset algorithm to update the linear predictor

@@ -1,3 +1,16 @@
+#' srr_stats
+#' @srrstats {G1.0} Implements `print` methods for various model objects (`apes`, `feglm`, `felm`) and their summaries.
+#' @srrstats {G2.1a} Ensures that input objects are of the expected class (`apes`, `feglm`, `felm`, or summaries of these classes).
+#' @srrstats {G3.2} Provides detailed output, including coefficients, significance levels, and iteration counts, tailored to the model type.
+#' @srrstats {G3.3} Includes well-structured significance indicators (`***`, `**`, `*`, `.`) for coefficient p-values.
+#' @srrstats {G5.2a} Outputs are formatted for clarity, with aligned columns and headers.
+#' @srrstats {G5.4a} Validates consistency of printed summaries across model types, ensuring uniform presentation.
+#' @srrstats {RE5.0} Reduces cyclomatic complexity by modularizing summary and print methods.
+#' @srrstats {RE5.2} Facilitates easy interpretation of model summaries, including pseudo R-squared, deviance, and fixed-effects estimates.
+#' @srrstats {RE5.3} Designed for extensibility to accommodate additional model types or summary elements.
+#' @noRd
+NULL
+
 #' @title Refactors for and 'feglm' summaries
 #' @description Reduces the cyclomatic complexity of print.summary.feglm
 #' @noRd

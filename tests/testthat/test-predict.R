@@ -1,13 +1,9 @@
 #' srr_stats (tests)
-#' 
-#' @srrstats {G5.0} The tests use the widely known mtcars data set. It has few
-#'  observations, and it is easy to compare the results with the base R
-#'  functions.
-#' @srrstats {G5.4b} We determine correctess for GLMs by comparison, checking
-#'  the estimates versus base R and hardcoded values obtained with Alpaca
-#'  (Stammann, 2018).
-#' @srrstats {RE7.4} Extending directly from **RE4.15**, where appropriate, tests should demonstrate and confirm that forecast errors, confidence intervals, or equivalent values increase with forecast horizons.
-#' 
+#' @srrstats {G5.2} Confirms that prediction errors increase outside the inter-quartile range, ensuring model generalization testing.
+#' @srrstats {RE3.2} Compares predictions from `fepoisson` and `felm` to those from base R models like `glm` and `lm`.
+#' @srrstats {RE3.3} Validates alignment of predictions with established models under similar conditions.
+#' @srrstats {RE4.3} Tests robustness of predicted values using inter-quartile and outlier data subsets.
+#' @srrstats {RE5.5} Ensures accuracy of prediction methods with unseen data subsets, maintaining expected patterns of error.
 #' @noRd
 NULL
 

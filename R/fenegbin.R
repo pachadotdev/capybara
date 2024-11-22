@@ -1,10 +1,18 @@
-#' srr_stats (tests)
-#' @srrstats {G1.3} All statistical terminology should be clarified and
-#'  unambiguously defined.
-#' @srrstats {RE4.0} Regression Software should return some form of "model"
-#'  object, generally through using or modifying existing class structures for
-#'  model objects (such as `lm`, `glm`, or model objects from other packages),
-#'  or creating a new class of model objects.
+#' srr_stats
+#' @srrstats {G1.0} Implements Negative Binomial regression with high-dimensional fixed effects, adapting `feglm`.
+#' @srrstats {G2.1a} Validates input `formula` to ensure inclusion of fixed effects.
+#' @srrstats {G2.1b} Ensures `data` is of the appropriate class and contains non-zero rows.
+#' @srrstats {G2.3a} Uses `match.arg()` to validate the `link` argument.
+#' @srrstats {G2.3b} Checks numeric parameters such as starting guesses and weights for validity.
+#' @srrstats {G2.4} Handles missing and non-contributing observations by excluding them appropriately.
+#' @srrstats {G3.1a} Supports customizable link functions (`log`, `sqrt`, and `identity`) and initialization of theta.
+#' @srrstats {G3.1b} Provides detailed outputs including coefficients, deviance, and theta.
+#' @srrstats {G4.0} Uses an iterative algorithm for joint estimation of coefficients and theta, ensuring convergence.
+#' @srrstats {G5.2a} Generates unique and descriptive error messages for invalid configurations or inputs.
+#' @srrstats {RE5.0} Optimized for high-dimensional fixed effects and large datasets, ensuring computational feasibility.
+#' @srrstats {RE5.1} Validates convergence of both deviance and theta with strict tolerances.
+#' @srrstats {RE5.2} Issues warnings if the algorithm fails to converge within the maximum iterations.
+#' @srrstats {RE5.3} Outputs reproducible results, including detailed diagnostics and convergence information.
 #' @noRd
 NULL
 

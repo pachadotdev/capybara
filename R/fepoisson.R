@@ -1,10 +1,14 @@
-#' srr_stats (tests)
-#' @srrstats {G1.3} All statistical terminology should be clarified and
-#'  unambiguously defined.
-#' @srrstats {RE4.0} Regression Software should return some form of "model"
-#'  object, generally through using or modifying existing class structures for
-#'  model objects (such as `lm`, `glm`, or model objects from other packages),
-#'  or creating a new class of model objects.
+#' srr_stats
+#' @srrstats {G1.0} Implements Poisson regression with high-dimensional fixed effects via `feglm`.
+#' @srrstats {G2.1a} Validates input `formula` to ensure correct specification of fixed effects.
+#' @srrstats {G2.1b} Ensures `data` is appropriately formatted and contains sufficient observations.
+#' @srrstats {G2.3a} Uses internally validated arguments (`control` and starting guesses) for consistency.
+#' @srrstats {G3.1a} Supports canonical log link function for Poisson family.
+#' @srrstats {G3.1b} Provides detailed outputs including coefficients, deviance, and convergence diagnostics.
+#' @srrstats {G5.2a} Issues informative error messages when inputs or configurations are invalid.
+#' @srrstats {RE5.0} Optimized for high-dimensional data with scalability in fixed effect estimation.
+#' @srrstats {RE5.1} Relies on robust `feglm` fitting procedure to handle large-scale Poisson models.
+#' @srrstats {RE5.2} Ensures consistent convergence reporting via `feglm`.
 #' @noRd
 NULL
 
