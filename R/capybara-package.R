@@ -5,9 +5,18 @@
 #'  Gaure (2013) <https://dx.doi.org/10.1016/j.csda.2013.03.024> for LMs.
 #' @srrstats {G1.2} This describes the current and anticipated future states of
 #'  development.
+#' @srrstats {G1.3} For fixed effects, I mean the "c" coeffients in the model
+#'  mpg_i = a + b * wt_i + c * cyl_i + e_i with the variables from the mtcars
+#'  dataset. The model notation for this example is mpg ~ wt | cyl.
 #' @srrstats {G1.4} The package uses roxygen2.
 #' @srrstats {G1.4a} All internal (non-exported) functions are documented. See
 #'  the `*_helpers.R` files.
+#' @srrstats {G1.5} The test include examples to verify the speed gains
+#'  in this implementation compare to base R.
+#' @srrstats {G1.6} To keep dependencies minimal, we compare against base R in
+#'  the tests. An alternative would be to compare against alpaca.
+#' @srrstatsNA {G5.6a} No randomness in parameter estimation; deterministic methods used.
+#' @srrstatsNA {RE7.0a} No cross-validation implemented in this package.
 #' @noRd
 NULL
 

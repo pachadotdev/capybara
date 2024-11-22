@@ -1,6 +1,7 @@
 #' srr_stats
 #' @srrstats {G1.0} Implements controls for efficient and numerically stable fitting of generalized linear models with fixed effects.
 #' @srrstats {G2.0} Validates numeric input parameters to ensure they meet constraints (e.g., positive tolerance levels).
+#' @srrstatsTODO {G2.0a} The main function explains that the tolerance must be unidimensional or the function gives an error.
 #' @srrstats {G2.1a} Ensures the proper data types for arguments (e.g., logical for `trace`, integer for `iter_max`).
 #' @srrstats {G2.3a} Uses argument validation to ensure appropriate ranges for critical parameters (e.g., `iter_max` and `limit` >= 1).
 #' @srrstats {G2.14a} Provides informative error messages when tolerance levels or iteration counts are invalid.
