@@ -266,7 +266,7 @@ apes <- function(
 
 #' srr_stats
 #' @srrstats {G2.0} Implements assertions to ensure valid scaling relationships between population size and sample size.
-#' @srrstatsTODO {G2.0a} The main function explains that the inputs are unidimensional or the function gives an error.
+#' @srrstats {G2.0a} The main function explains that the inputs are unidimensional or the function gives an error.
 #' @srrstats {G5.2a} Issues clear warnings for invalid population adjustments or mismatched sizes.
 #' @noRd
 NULL

@@ -15,7 +15,13 @@
 #'  in this implementation compare to base R.
 #' @srrstats {G1.6} To keep dependencies minimal, we compare against base R in
 #'  the tests. An alternative would be to compare against alpaca.
-#' @srrstatsNA {G5.6a} No randomness in parameter estimation; deterministic methods used.
+#' @noRd
+NULL
+
+#' NA_standards
+#' @srrstatsNA {G5.6b} No randomness is needed for the in fixed effects
+#'  estimation. With the model slopes, recovering the fixed effects is a
+#'  deterministic process.
 #' @srrstatsNA {RE7.0a} No cross-validation implemented in this package.
 #' @noRd
 NULL
