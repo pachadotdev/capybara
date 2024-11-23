@@ -5,11 +5,16 @@
 #' @srrstats {G2.3b} Uses `tolower()` to handle potential case sensitivity issues.
 #' @srrstats {G2.13} Validates that the input data contains no missing values.
 #' @srrstats {G2.14a} Issues errors when handling missing data is required but unsupported.
-#' @srrstats {G2.14b} Provides default warnings or messages when missing data is ignored.
+#' @srrstats {G2.14b} Provides clear error messages when the data structure is incompatible with the model requirements.
 #' @srrstats {G3.1a} Allows arbitrarily specified covariance methods for flexibility in inference.
 #' @srrstats {G5.2a} Produces unique and meaningful error, warning, and message outputs for diagnostics.
 #' @srrstats {RE5.0} Considers relationships between input data size and computational efficiency.
 #' @srrstats {G5.4a} Includes tests against trivial cases or alternative implementations to ensure algorithm correctness.
+#' @noRd
+NULL
+
+#' NA_standards
+#' @srrstatsNA {G2.14} Missing observations are dropped, otherwise providing imputation methods would bias the estimation (i.e., replacing all missing values with the median).
 #' @noRd
 NULL
 

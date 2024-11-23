@@ -26,7 +26,8 @@ Suggests:
     knitr,
     rmarkdown,
     testthat (>= 3.0.0),
-    tidyr
+    tidyr,
+    units
 Depends: R(>= 3.5.0)
 Description: Fast and user-friendly estimation of generalized linear models with
     multiple fixed effects and cluster the standard errors. The method to obtain

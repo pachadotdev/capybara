@@ -5,6 +5,7 @@
 #' @srrstats {G3.3} Includes well-structured significance indicators (`***`, `**`, `*`, `.`) for coefficient p-values.
 #' @srrstats {G5.2a} Outputs are formatted for clarity, with aligned columns and headers.
 #' @srrstats {G5.4a} Validates consistency of printed summaries across model types, ensuring uniform presentation.
+#' @srrstats {RE4.17} Specific default `print()` method for summaries and coefficients.
 #' @srrstats {RE5.0} Reduces cyclomatic complexity by modularizing summary and print methods.
 #' @srrstats {RE5.2} Facilitates easy interpretation of model summaries, including pseudo R-squared, deviance, and fixed-effects estimates.
 #' @srrstats {RE5.3} Designed for extensibility to accommodate additional model types or summary elements.

@@ -15,13 +15,26 @@
 #'  in this implementation compare to base R.
 #' @srrstats {G1.6} To keep dependencies minimal, we compare against base R in
 #'  the tests. An alternative would be to compare against alpaca.
+#' @srrstats {RE4.12} The link and inverse link functions are written in C++
+#'  to use those with the Armadillo library. This is in the file
+#'  `src/05_glm_fit.cpp`.
 #' @noRd
 NULL
 
 #' NA_standards
+#' @srrstatsNA {G2.6} Only some model parameters can be unidimensional. To fit
+#'  a regression we need at least two observations and two variables.
 #' @srrstatsNA {G5.6b} No randomness is needed for the in fixed effects
 #'  estimation. With the model slopes, recovering the fixed effects is a
 #'  deterministic process.
+#' @srrstatsNA {G2.9} Conversion of variables from factor to character is not
+#'  conducted and the original input data is not modified.
+#' @srrstatsNA {G2.12} `data.frame`-like tabular objects which have list
+#'  columns cannot be used as input data. This behaviour should be tested.
+#' @srrstatsNA {G2.14c} Missing data is not replaced with imputed values.
+#' @srrstatsNA {G2.14c} Replacing data with imputed values bias the estimation.
+#'  This is not done in the package, and it is left to the user to decide
+#'  when processing the data.
 #' @srrstatsNA {RE7.0a} No cross-validation implemented in this package.
 #' @noRd
 NULL
@@ -45,7 +58,7 @@ NULL
 #'
 #' @name capybara-package
 #' @importFrom dplyr across all_of filter group_by mutate pull select summarise
-#'  ungroup vars
+#'  ungroup vars where
 #' @importFrom Formula Formula
 #' @importFrom ggplot2 ggplot aes geom_point geom_errorbar labs theme_minimal
 #'  coord_flip autoplot

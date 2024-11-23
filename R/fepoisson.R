@@ -33,6 +33,9 @@
 #' @srrstats {RE1.4} Implements diagnostic checks to verify the assumptions of independence and homoscedasticity, essential for valid inference.
 #' @srrstats {RE2.0} Labels all regression outputs, such as coefficients and standard errors, to ensure clarity and interpretability.
 #' @srrstats {RE2.4} Quantifies uncertainty in regression coefficients using confidence intervals.
+#' @srrstats {RE2.4a} Rejects perfect collinearity between independent variables.
+#' @srrstats {RE2.4b} Rejects perfect collinearity between dependent and independent variables.
+#' @srrstats {RE4.0} This returns a model-type object that is essentially a list with specific components and attributes.
 #' @srrstats {RE4.1} Identifies outliers and influential data points that may unduly impact regression results, offering visualization tools.
 #' @srrstats {RE4.6} Includes standard metrics such as R-squared and RMSE to help users evaluate model performance.
 #' @srrstats {RE4.7} Tests sensitivity to hyperparameter choices in regularized or complex regression models.

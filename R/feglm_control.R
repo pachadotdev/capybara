@@ -5,9 +5,16 @@
 #' @srrstats {G2.1a} Ensures the proper data types for arguments (e.g., logical for `trace`, integer for `iter_max`).
 #' @srrstats {G2.3a} Uses argument validation to ensure appropriate ranges for critical parameters (e.g., `iter_max` and `limit` >= 1).
 #' @srrstats {G2.14a} Provides informative error messages when tolerance levels or iteration counts are invalid.
+#' @srrstats {G2.14b} Provides clear error messages when the data structure is incompatible with the model requirements.
 #' @srrstats {G5.2a} Produces unique and descriptive error messages for all validation checks.
+#' @srrstats {RE3.0} If the deviance difference between 2 iterations is not less than tolerance after the max number of iterations, it prints a convergence warning.
 #' @srrstats {RE5.0} Supports control over algorithmic complexity, such as dropping perfectly separated observations (`drop_pc`) and optional matrix storage (`keep_mx`).
 #' @srrstats {G5.4a} Includes robust edge case handling, such as enforcing positive tolerance and iteration counts.
+#' @noRd
+NULL
+
+#' NA_standards
+#' @srrstatsNA {G2.14} Missing observations are dropped, otherwise providing imputation methods would bias the estimation (i.e., replacing all missing values with the median).
 #' @noRd
 NULL
 

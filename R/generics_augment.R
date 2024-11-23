@@ -10,6 +10,8 @@ generics::augment
 #' @srrstats {G3.1c} Supports additional columns in the output for confidence intervals if requested.
 #' @srrstats {G3.3} Handles the addition of multiple model outputs (`.fitted`, `.residuals`) to the data.
 #' @srrstats {G5.1} Provides robust error handling for missing or invalid input objects.
+#' @srrstats {RE4.10} The residuals are returned in a tidy data frame following the `broom` convention.
+#' @srrstats {RE4.11} The deviance and null deviance are returned in a tidy data frame following the `broom` convention.
 #' @srrstats {RE5.0} Optimized for integration with downstream analysis workflows.
 #' @srrstats {RE5.1} Maintains computational efficiency when augmenting large datasets.
 #' @srrstats {RE5.3} Supports additional data input (`newdata`) to enhance flexibility.

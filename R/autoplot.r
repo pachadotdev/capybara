@@ -15,6 +15,12 @@ ggplot2::autoplot
 #' @noRd
 NULL
 
+#' NA_standards
+#' @srrstatsNA {RE6.2} Considering that the data tends to be very large, it made more sense to add a method to plot the coefficients instead of millions of predicted data points.
+#' @srrstatsNA {RE6.3} We plot the estimated coefficients without the fixed effects. Plotting millions of points would only add visual clutter and not provide any additional information.
+#' @noRd
+NULL
+
 #' @title Autoplot method for feglm objects
 #'
 #' @description Extracts the estimated coefficients and their confidence

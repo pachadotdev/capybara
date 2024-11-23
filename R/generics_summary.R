@@ -6,6 +6,8 @@
 #' @srrstats {G5.2a} Outputs include well-structured coefficient matrices with appropriate column headers and row names.
 #' @srrstats {RE2.1} Summary methods ensure compatibility with standard statistical workflows by providing model evaluation metrics.
 #' @srrstats {RE2.2} Custom handling of model-specific details like Poisson pseudo R-squared and Negative Binomial `theta` values.
+#' @srrstats {RE4.11} The deviance, null deviance, R-squared and adjusted R-squared are returned in the summaries.
+#' @srrstats {RE4.18} Implemented `summary()` functions specific for GLMs and LMs (i.e., it shows R2 for LMs and pseudo R2 for Poisson models).
 #' @srrstats {RE5.0} Reduces cyclomatic complexity through modular functions for computing summary components.
 #' @srrstats {RE5.2} Facilitates interpretability of models by providing a unified and clear summary output format.
 #' @noRd

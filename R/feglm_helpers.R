@@ -9,11 +9,23 @@
 #' @srrstats {G2.4c} Ensures numeric inputs (e.g., convergence thresholds, tolerances) are within acceptable ranges to avoid unexpected results.
 #' @srrstats {G2.4d} Verifies the structure and completeness of input data, including the absence of missing values and correct dimensionality for matrices.
 #' @srrstats {G2.4e} Issues warnings when deprecated or redundant arguments are used, encouraging users to adopt updated practices while maintaining backward compatibility.
+#' @srrstats {G2.7} The input accepts data frames, tibbles and data table objects, from which it creates the design matrix.
+#' @srrstats {G2.8} The pre-processing for all main functions (e.g., `feglm`, `felm`, `fepois`, `fenegbin`) is the same. The helper functions discard unusable observations dependening on the link function, and then create the design matrix.
+#' @srrstats {G2.10} For data frames, tibbles and data tables the column-extraction operations are consistent.
+#' @srrstats {G2.11} `data.frame`-like tabular objects which have can have atypical columns (i.e., `vector`) do not error without reason.
 #' @srrstats {G2.13} Checks for and handles missing data in input datasets.
 #' @srrstats {G2.14a} Issues informative errors for invalid inputs, such as incorrect link functions or missing data.
+#' @srrstats {G2.14b} Provides clear error messages when the data structure is incompatible with the model requirements.
+#' @srrstats {G2.15} The functions check for unusable observations (i.e., one column has an NA), and these are discarded before creating the design matrix.
+#' @srrstats {G2.16} `NaN`, `Inf` and `-Inf` cannot be used for the design matrix, and all observations with these values are removed.
 #' @srrstats {G5.2a} Ensures that all error and warning messages are unique and descriptive.
-#' @srrstats {RE5.0} Supports internal optimizations, including centering variables and reducing computational redundancy.
 #' @srrstats {G5.4a} Includes tests for edge cases, such as binary and continuous response variables, and validates all input arguments.
+#' @srrstats {RE4.4} The model is specified using a formula object, or a character-type object convertible to a formula, which is then used to create the design matrix.
+#' @srrstats {RE4.5} Fitted models have an nobs element that can be called with `nobs()`.
+#' @srrstats {RE4.8} The response variable is checked and some observations are dropped if the response is not compatible with the link (i.e., negative values and log-link).
+#' @srrstats {RE4.12} The `check_data_()` function drops observations that are not useable with link function or that do not contribute to the log-likelihood.
+#' @srrstats {RE4.13} Observations with a dependent variable that is incompatible with the link function are removed.
+#' @srrstats {RE5.0} Supports internal optimizations, including centering variables and reducing computational redundancy.
 #' @srrstats {RE5.1} Implements computational safeguards for iterative processes, such as weight validation and convergence checks.
 #' @srrstats {RE5.2} Provides utilities for scalable and efficient computation of GLM derivatives and score matrices.
 #' @noRd
@@ -191,6 +203,14 @@ update_formula_ <- function(formula) {
   formula
 }
 
+#' @title Column types
+#' @description Returns the column types of a data frame
+#' @param data Data frame
+#' @noRd
+col_types <- function(data) {
+  vapply(data, class, character(1L), USE.NAMES = FALSE)
+}
+
 #' @title Model frame
 #' @description Creates model frame for GLM/NegBin models
 #' @param data Data frame
@@ -205,6 +225,13 @@ model_frame_ <- function(data, formula, weights) {
   nobs_full <- nrow(data)
 
   data <- na.omit(data)
+
+  # if any column if of type "units", convert it to numeric
+  types <- col_types(data)
+  if (any(types == "units")) {
+    # use a mutate to transform each unit-type column to numeric
+    data <- mutate(data, across(where(~"units" %in% types), as.numeric))
+  }
 
   nobs_na <- nobs_full - nrow(data)
   nobs_full <- nrow(data)

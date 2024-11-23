@@ -8,6 +8,8 @@
 #' @srrstats {G3.4a} Includes an option for type-specific predictions (e.g., `link` vs. `response`).
 #' @srrstats {G5.2a} Tests include validation of predictions against known values and edge cases.
 #' @srrstats {G5.4a} Outputs predictions in a format compatible with standard R workflows.
+#' @srrstats {RE4.9} The predicted values for the model data or new data are returned as a vector with `predict()`.
+#' @srrstats {RE4.16} The fixed effects are passed to the `predict()` function to add the group-specific effects to the predictions.
 #' @srrstats {RE5.0} Ensures computational efficiency in handling both `feglm` and `felm` prediction workflows.
 #' @srrstats {RE5.2} Integrates seamlessly with user-provided data for generating predictions.
 #' @srrstats {RE5.3} Provides predictable and consistent output types for downstream analysis.

@@ -4,6 +4,7 @@
 #' @srrstats {RE3.3} Validates alignment of predictions with established models under similar conditions.
 #' @srrstats {RE4.3} Tests robustness of predicted values using inter-quartile and outlier data subsets.
 #' @srrstats {RE5.5} Ensures accuracy of prediction methods with unseen data subsets, maintaining expected patterns of error.
+#' @srrstats {RE4.15} This is not a time-series package, so I show that the error increases when we predict outside the inter-quartile range.
 #' @noRd
 NULL
 
