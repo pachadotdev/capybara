@@ -5,6 +5,7 @@
 #' @srrstats {RE5.1} Validates appropriate error handling for omitted arguments or missing data.
 #' @srrstats {RE6.0} Implements robust testing for invalid or collinear regressors.
 #' @srrstats {RE7.1} Validates that proportional regressors or collinear terms are detected and produce errors.
+#' @srrstats {RE7.1a} Adding noise to the depending variable minimally affects the speed. I tested that explicitly.
 #' @srrstats {RE7.2} Confirms that model computations remain consistent when small noise is added to data.
 #' @srrstats {RE8.1} Ensures computational times remain consistent under similar model specifications.
 #' @noRd
@@ -57,7 +58,7 @@ test_that("felm works", {
   expect_equal(round(coef(m1), 2), round(coef(m2)[c(2, 3)], 2))
 })
 
-test_that("felm time is the same adding noise to the data", {
+test_that("felm time is the minimally affected when adding noise to the data", {
   mtcars2 <- mtcars[, c("mpg", "wt", "cyl")]
   set.seed(200100)
   mtcars2$mpg <- mtcars2$mpg + rbinom(nrow(mtcars2), 1, 0.5) *
