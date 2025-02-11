@@ -97,7 +97,7 @@ vcov.feglm <- function(
     # If the hessian is invertible, compute its inverse
     v <- vcov_feglm_hessian_covariance_(h, p)
   } else {
-    g <- get_score_matrix_(object)
+    g <- get_score_matrix_felm_(object)
     if (type == "outer.product") {
       # Check if the OP is invertible and compute its inverse
       v <- vcov_feglm_outer_covariance_(g, p)
@@ -175,21 +175,21 @@ vcov_feglm_cluster_nocluster_ <- function() {
   )
 }
 
-vcov_feglm_cluster_data_ <- function(object, cl_vars) {
-  d <- try(object[["data"]][, get("cl_vars"), with = FALSE], silent = TRUE)
+vcov_feglm_cluster_data_ <- function(object, cl_vars, model = "feglm") {
+  d <- try(object[["data"]][, cl_vars, drop = FALSE], silent = TRUE)
   if (inherits(d, "try-error")) {
-    vcov_feglm_cluster_notfound_()
+    vcov_feglm_cluster_notfound_(model)
   }
   d
 }
 
-vcov_feglm_cluster_notfound_ <- function() {
+vcov_feglm_cluster_notfound_ <- function(model) {
   stop(
-    paste(
-      "At least one cluster variable was not found.",
-      "Ensure to pass variables that are not part of the model",
-      "itself, but are required to compute clustered standard errors",
-      "to 'feglm'. This can be done via 'formula'. See documentation",
+    paste0(
+      "At least one cluster variable was not found. ",
+      "Ensure to pass variables that are not part of the model ",
+      "itself, but are required to compute clustered standard errors ",
+      "to '", model, "'. This can be done via 'formula'. See documentation",
       "for details."
     ),
     call. = FALSE
@@ -227,6 +227,8 @@ vcov_feglm_clustered_cov_ <- function(g, cl_vars, sp_vars, p) {
   b
 }
 
+# Particular case for linear models ----
+
 #' @title Covariance matrix for LMs
 #'
 #' @description Covariance matrix for the estimator of the structural parameters
@@ -234,15 +236,106 @@ vcov_feglm_clustered_cov_ <- function(g, cl_vars, sp_vars, p) {
 #'  from the hessian, the scores, or a combination of both after convergence.
 #'
 #' @param object an object of class \code{"felm"}.
+#' @param type the type of covariance estimate required. \code{"hessian"} refers
+#'  to the inverse of the negative expected hessian after convergence and is the
+#'  default option. \code{"outer.product"} is the outer-product-of-the-gradient
+#'  estimator. \code{"sandwich"} is the sandwich estimator (sometimes also
+#'  referred as robust estimator), and \code{"clustered"} computes a clustered
+#'  covariance matrix given some cluster variables.
 #'
-#' @inherit vcov.feglm
+#' @param ... additional arguments.
+#'
+#' @return A named matrix of covariance estimates.
 #'
 #' @seealso \code{\link{felm}}
+#'
+#' @examples
+#' # same as the example in felm but extracting the covariance matrix
+#'
+#' # subset trade flows to avoid fitting time warnings during check
+#' set.seed(123)
+#' trade_2006 <- trade_panel[trade_panel$year == 2006, ]
+#' trade_2006 <- trade_2006[sample(nrow(trade_2006), 500), ]
+#'
+#' mod <- felm(
+#'   trade ~ log_dist + lang + cntg + clny | exp_year + imp_year | pair,
+#'   trade_2006
+#' )
+#'
+#' round(vcov(mod, type = "clustered"), 5)
 #'
 #' @export
 vcov.felm <- function(
     object,
     type = c("hessian", "outer.product", "sandwich", "clustered"),
     ...) {
-  vcov.feglm(object, type)
+  # Check validity of input argument 'type'
+  type <- match.arg(type)
+
+  # Extract cluster from formula
+  # it is totally fine not to have a cluster variable
+  cl_vars <- vcov_felm_vars_(object)
+  k <- length(cl_vars)
+
+  if (isTRUE(k >= 1L) && type != "clustered") {
+    type <- "clustered"
+  }
+
+  # Compute requested type of covariance matrix
+  h <- object[["hessian"]]
+  p <- ncol(h)
+
+  if (type == "hessian") {
+    # If the hessian is invertible, compute its inverse
+    v <- vcov_feglm_hessian_covariance_(h, p)
+  } else {
+    g <- get_score_matrix_felm_(object)
+    if (type == "outer.product") {
+      # Check if the OP is invertible and compute its inverse
+      v <- vcov_feglm_outer_covariance_(g, p)
+    } else {
+      v <- vcov_felm_covmat_(
+        object, type, h, g,
+        cl_vars, k, p
+      )
+    }
+  }
+
+  v
+}
+
+vcov_felm_vars_ <- function(object) {
+  suppressWarnings({
+    attr(terms(object[["formula"]], rhs = 3L), "term.labels")
+  })
+}
+
+vcov_felm_covmat_ <- function(
+    object, type, h, g,
+    cl_vars, k, p) {
+  # Check if the hessian is invertible and compute its inverse
+  v <- try(solve(h), silent = TRUE)
+  if (inherits(v, "try-error")) {
+    v <- matrix(Inf, p, p)
+  } else {
+    # Compute inner part of the sandwich formula
+    if (type == "sandwich") {
+      b <- crossprod(g)
+    } else {
+      if (isFALSE(k >= 1L)) {
+        vcov_feglm_cluster_nocluster_()
+      }
+      d <- vcov_feglm_cluster_data_(object, cl_vars, "felm")
+      d <- mutate(d, across(all_of(cl_vars), check_factor_))
+      sp_vars <- colnames(g)
+      g <- cbind(d, g)
+      rm(d)
+      b <- vcov_feglm_clustered_cov_(g, cl_vars, sp_vars, p)
+    }
+    # Sandwich formula
+    v <- v %*% b %*% v
+  }
+
+  # Return covariance estimate
+  v
 }

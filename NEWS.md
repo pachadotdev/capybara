@@ -1,3 +1,8 @@
+# capybara 0.8.0
+
+* Dedicated functions for linear models to avoid the overhead of running
+  the GLM function with a Gaussian link.
+
 # capybara 0.7.0
 
 * The predict method now allows to pass new data to predict the outcome.

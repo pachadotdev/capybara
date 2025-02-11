@@ -1,5 +1,5 @@
 #' srr_stats
-#' @srrstats {G1.0} Implements a wrapper around `feglm` for linear models with high-dimensional fixed effects.
+#' @srrstats {G1.0} Implements linear models with high-dimensional fixed effects.
 #' @srrstats {G2.1a} Ensures the input `formula` is correctly specified and includes fixed effects.
 #' @srrstats {G2.1b} Validates that the input `data` is non-empty and of class `data.frame`.
 #' @srrstats {G2.3a} Uses structured checks for parameters like `weights` and starting values.
@@ -98,21 +98,87 @@ NULL
 #' summary(mod)
 #'
 #' @export
-felm <- function(formula = NULL, data = NULL, weights = NULL) {
-  # Use 'feglm' to estimate the model
-  # Using felm_fit_ directly leads to the incorrect yhat = Xb
-  # we need iteratively reweighted least squares
-  reslist <- feglm(
-    formula = formula, data = data, weights = weights, family = gaussian()
-  )
+felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
+  # Check validity of formula ----
+  check_formula_(formula)
 
-  names(reslist)[which(names(reslist) == "eta")] <- "fitted.values"
+  # Check validity of data ----
+  check_data_(data)
 
-  reslist[["conv"]] <- NULL
-  reslist[["iter"]] <- NULL
-  reslist[["family"]] <- NULL
-  reslist[["deviance"]] <- NULL
+  # Check validity of control + Extract control list ----
+  control <- check_control_(control)
 
-  # Return result list
-  structure(reslist, class = "felm")
+  # Update formula and do further validity check ----
+  formula <- update_formula_(formula)
+
+  # Generate model.frame
+  lhs <- NA # just to avoid global variable warning
+  nobs_na <- NA
+  nobs_full <- NA
+  model_frame_(data, formula, weights)
+
+  # Get names of the fixed effects variables and sort ----
+  k_vars <- attr(terms(formula, rhs = 2L), "term.labels")
+
+  # Generate temporary variable ----
+  tmp_var <- temp_var_(data)
+
+  # Transform fixed effects and clusters to factors ----
+  data <- transform_fe_(data, formula, k_vars)
+
+  # Determine the number of dropped observations ----
+  nt <- nrow(data)
+  nobs <- nobs_(nobs_full, nobs_na, nt)
+
+  # Extract model response and regressor matrix ----
+  nms_sp <- NA
+  p <- NA
+  model_response_(data, formula)
+
+  # Check for linear dependence ----
+  # check_linear_dependence_(x, p)
+  check_linear_dependence_(cbind(y,x), p + 1L)
+
+  # Extract weights if required ----
+  if (is.null(weights)) {
+    wt <- rep(1.0, nt)
+  } else {
+    wt <- data[[weights]]
+  }
+
+  # Check validity of weights ----
+  check_weights_(wt)
+
+  # Get names and number of levels in each fixed effects category ----
+  nms_fe <- lapply(select(data, all_of(k_vars)), levels)
+  lvls_k <- vapply(nms_fe, length, integer(1))
+
+  # Generate auxiliary list of indexes for different sub panels ----
+  k_list <- get_index_list_(k_vars, data)
+
+  # Fit linear model ----
+  if (is.integer(y)) {
+    y <- as.numeric(y)
+  }
+  fit <- felm_fit_(y, x, wt, control, k_list)
+
+  y <- NULL
+  x <- NULL
+
+  # Add names to beta, hessian, and mx (if provided) ----
+  names(fit[["coefficients"]]) <- nms_sp
+  if (control[["keep_mx"]]) {
+    colnames(fit[["mx"]]) <- nms_sp
+  }
+
+  # Add to fit list ----
+  fit[["nobs"]] <- nobs
+  fit[["lvls_k"]] <- lvls_k
+  fit[["nms_fe"]] <- nms_fe
+  fit[["formula"]] <- formula
+  fit[["data"]] <- data
+  fit[["control"]] <- control
+
+  # Return result list ----
+  structure(fit, class = "felm")
 }

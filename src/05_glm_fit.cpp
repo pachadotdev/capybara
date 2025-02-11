@@ -410,16 +410,20 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
 
   // Generate result list
 
-  writable::list out;
+  writable::list out(8);
 
-  out.push_back({"coefficients"_nm = as_doubles(beta)});
-  out.push_back({"eta"_nm = as_doubles(eta)});
-  out.push_back({"weights"_nm = as_doubles(wt)});
-  out.push_back({"hessian"_nm = as_doubles_matrix(H)});
-  out.push_back({"deviance"_nm = dev});
-  out.push_back({"null_deviance"_nm = null_dev});
-  out.push_back({"conv"_nm = conv});
-  out.push_back({"iter"_nm = iter + 1});
+  out[0] = as_doubles(beta);
+  out[1] = as_doubles(eta);
+  out[2] = as_doubles(wt);
+  out[3] = as_doubles_matrix(H);
+  out[4] = writable::doubles({dev});
+  out[5] = writable::doubles({null_dev});
+  out[6] = writable::logicals({conv});
+  out[7] = writable::integers({iter + 1});
+
+  out.attr("names") = writable::strings({"coefficients", "eta", "weights",
+                                              "hessian", "deviance",
+                                              "null_deviance", "conv", "iter"});
 
   if (keep_mx == true) {
     out.push_back({"MX"_nm = as_doubles_matrix(center_variables_(

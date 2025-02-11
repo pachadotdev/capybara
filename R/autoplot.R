@@ -56,8 +56,8 @@ autoplot.feglm <- function(object, ...) {
   }
 
   # stop if the object is not of class feglm or felm
-  if (!inherits(object, "feglm") && !inherits(object, "felm")) {
-    stop("The object must be of class 'feglm' or 'felm'")
+  if (!inherits(object, "feglm")) {
+    stop("The object must be of class 'feglm'")
   }
 
   # if conf_level is not provided, set it to 0.95
@@ -137,5 +137,64 @@ autoplot.feglm <- function(object, ...) {
 #'
 #' @export
 autoplot.felm <- function(object, ...) {
-  autoplot.feglm(object, ...)
+  # stop if ggplot2 is not installed
+  if (!requireNamespace("ggplot2", quietly = TRUE)) {
+    stop("The 'ggplot2' package is required to use this function")
+  }
+
+  # stop if the object is not of class feglm or felm
+  if (!inherits(object, "felm")) {
+    stop("The object must be of class 'felm'")
+  }
+
+  # if conf_level is not provided, set it to 0.95
+  if (!"conf_level" %in% names(list(...))) {
+    conf_level <- 0.95
+  } else {
+    conf_level <- list(...)$conf_level
+  }
+
+  # check that conf_level is between 0 and 1
+  if (conf_level <= 0 || conf_level >= 1) {
+    stop("The confidence level must be between 0 and 1")
+  }
+
+  # Extract the summary of the felm object
+  res <- summary(object)$cm
+  colnames(res) <- c("estimate", "std.error", "statistic", "p.value")
+
+  # Calculate the critical value for the specified confidence conf_level
+  alpha <- 1 - conf_level
+  z <- qnorm(1 - alpha / 2)
+
+  # Compute the confidence intervals
+  conf_data <- data.frame(
+    term = rownames(res),
+    estimate = res[, "estimate"],
+    conf_low = res[, "estimate"] - z * res[, "std.error"],
+    conf_high = res[, "estimate"] + z * res[, "std.error"]
+  )
+
+  p <- ggplot(conf_data, aes(x = !!sym("term"), y = !!sym("estimate"))) +
+    geom_errorbar(
+      aes(
+        ymin = !!sym("conf_low"),
+        ymax = !!sym("conf_high")
+      ),
+      width = 0.1,
+      color = "#165976"
+    ) +
+    geom_point() +
+    labs(
+      title = sprintf(
+        "Coefficient Estimates with Confidence Intervals at %s%%",
+        round(conf_level * 100, 0)
+      ),
+      x = "Term",
+      y = "Estimate"
+    ) +
+    theme_minimal() +
+    coord_flip()
+
+  p
 }

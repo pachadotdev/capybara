@@ -31,3 +31,7 @@ feglm_fit_ <- function(beta_r, eta_r, y_r, x_r, wt_r, theta, family, control, k_
 feglm_offset_fit_ <- function(eta_r, y_r, offset_r, wt_r, family, control, k_list) {
   .Call(`_capybara_feglm_offset_fit_`, eta_r, y_r, offset_r, wt_r, family, control, k_list)
 }
+
+felm_fit_ <- function(y_r, x_r, wt_r, control, k_list) {
+  .Call(`_capybara_felm_fit_`, y_r, x_r, wt_r, control, k_list)
+}

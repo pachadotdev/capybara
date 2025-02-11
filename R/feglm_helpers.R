@@ -511,7 +511,7 @@ get_index_list_ <- function(k_vars, data) {
 #' @description Computes the score matrix
 #' @param object Result list
 #' @noRd
-get_score_matrix_ <- function(object) {
+get_score_matrix_feglm_ <- function(object) {
   # Extract required quantities from result list
   control <- object[["control"]]
   data <- object[["data"]]

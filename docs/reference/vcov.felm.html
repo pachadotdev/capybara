@@ -11,7 +11,7 @@ from the hessian, the scores, or a combination of both after convergence."><meta
 
     <a class="navbar-brand me-2" href="../index.html">capybara</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.6.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.8.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -80,12 +80,6 @@ covariance matrix given some cluster variables.</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A named matrix of covariance estimates.</p>
-<p>A named matrix of covariance estimates.</p>
-    </div>
-    <div class="section level2">
-    <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
-    <p>Cameron, C., J. Gelbach, and D. Miller (2011). "Robust Inference
-With Multiway Clustering". Journal of Business &amp; Economic Statistics 29(2).</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
@@ -94,24 +88,24 @@ With Multiway Clustering". Journal of Business &amp; Economic Statistics 29(2).<
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># same as the example in feglm but extracting the covariance matrix</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># same as the example in felm but extracting the covariance matrix</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># subset trade flows to avoid fitting time warnings during check</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">trade_2006</span> <span class="op">&lt;-</span> <span class="va">trade_panel</span><span class="op">[</span><span class="va">trade_panel</span><span class="op">$</span><span class="va">year</span> <span class="op">==</span> <span class="fl">2006</span>, <span class="op">]</span></span></span>
 <span class="r-in"><span><span class="va">trade_2006</span> <span class="op">&lt;-</span> <span class="va">trade_2006</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">trade_2006</span><span class="op">)</span>, <span class="fl">500</span><span class="op">)</span>, <span class="op">]</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="va">mod</span> <span class="op">&lt;-</span> <span class="fu"><a href="fepoisson.html">fepoisson</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span><span class="va">mod</span> <span class="op">&lt;-</span> <span class="fu"><a href="felm.html">felm</a></span><span class="op">(</span></span></span>
 <span class="r-in"><span>  <span class="va">trade</span> <span class="op">~</span> <span class="va">log_dist</span> <span class="op">+</span> <span class="va">lang</span> <span class="op">+</span> <span class="va">cntg</span> <span class="op">+</span> <span class="va">clny</span> <span class="op">|</span> <span class="va">exp_year</span> <span class="op">+</span> <span class="va">imp_year</span> <span class="op">|</span> <span class="va">pair</span>,</span></span>
 <span class="r-in"><span>  <span class="va">trade_2006</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov</a></span><span class="op">(</span><span class="va">mod</span>, type <span class="op">=</span> <span class="st">"clustered"</span><span class="op">)</span>, <span class="fl">5</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>          log_dist     lang     cntg     clny</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> log_dist  0.00712 -0.00311  0.01483  0.00132</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> lang     -0.00311  0.04899 -0.02980 -0.03511</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> cntg      0.01483 -0.02980  0.06934  0.02976</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> clny      0.00132 -0.03511  0.02976  0.05457</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>           [,1]      [,2]      [,3]        [,4]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1,]  323124.4 -133764.2   1337701    152764.5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [2,] -133764.2 1541793.6   1762253   -279410.6</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [3,] 1337700.6 1762252.8  65752006 -10417343.8</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [4,]  152764.5 -279410.6 -10417344  10023486.9</span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>
@@ -124,7 +118,7 @@ With Multiway Clustering". Journal of Business &amp; Economic Statistics 29(2).<
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.1.9000.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.1.</p>
 </div>
 
     </footer></div>

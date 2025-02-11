@@ -4,7 +4,7 @@
 \alias{felm}
 \title{LM fitting with high-dimensional k-way fixed effects}
 \usage{
-felm(formula = NULL, data = NULL, weights = NULL)
+felm(formula = NULL, data = NULL, weights = NULL, control = NULL)
 }
 \arguments{
 \item{formula}{an object of class \code{"formula"}: a symbolic description of
@@ -20,6 +20,9 @@ variables in the model.}
 
 \item{weights}{an optional string with the name of the 'prior weights'
 variable in \code{data}.}
+
+\item{control}{a named list of parameters for controlling the fitting
+process. See \code{\link{feglm_control}} for details.}
 }
 \value{
 A named list of class \code{"felm"}. The list contains the following
