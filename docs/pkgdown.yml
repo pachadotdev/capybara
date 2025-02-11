@@ -3,4 +3,7 @@ pkgdown: 2.1.1
 pkgdown_sha: ~
 articles:
   intro: intro.html
-last_built: 2025-02-11T06:25Z
+last_built: 2025-02-11T16:07Z
+urls:
+  reference: ../capybara/reference
+  article: ../capybara/articles

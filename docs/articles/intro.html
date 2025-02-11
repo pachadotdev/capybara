@@ -48,7 +48,7 @@
 <li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
 </form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/pachadotdev/capybara/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
+<li class="nav-item"><a class="nav-link" href="https://github.com/pachadotdev/capybara/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul>
 </div>
 
@@ -63,7 +63,7 @@
       <img src="../logo.svg" class="logo" alt=""><h1>Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/pachadotdev/capybara/blob/HEAD/vignettes/intro.Rmd" class="external-link"><code>vignettes/intro.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/pachadotdev/capybara/blob/HEAD/vignettes/intro.Rmd"><code>vignettes/intro.Rmd</code></a></small>
       <div class="d-none name"><code>intro.Rmd</code></div>
     </div>
 
@@ -78,7 +78,7 @@ X_{ij,t} =&amp; \:\exp\left[\beta_1 \log(DIST)_{i,j} + \beta_2 CNTG_{i,j} +\righ
 <p>We use <code>dplyr</code> to obtain the log of the distance. This model excludes domestic flows, therefore we need to subset the data also with <code>dplyr</code>.</p>
 <p>Required packages:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://pacha.dev/capybara/" class="external-link">capybara</a></span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://pacha.dev/capybara/">capybara</a></span><span class="op">)</span></span></code></pre></div>
 <p>We can use the <code><a href="../reference/fepoisson.html">fepoisson()</a></code> function to obtain the estimated coefficients and we add the fixed effects as <code>| exp_year + imp_year</code> in the formula.</p>
 <p>Model estimation:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
