@@ -2,8 +2,7 @@
 
 [[cpp11::register]] list felm_fit_(const doubles &y_r,
                                    const doubles_matrix<> &x_r,
-                                   const doubles &wt_r,
-                                   const list &control,
+                                   const doubles &wt_r, const list &control,
                                    const list &k_list) {
   // Type conversion
 
@@ -29,7 +28,7 @@
   MX = center_variables_(X, w, k_list, center_tol, iter_center_max);
 
   // Solve the normal equations
-  
+
   Col<double> beta = solve_beta_(MX, MNU, w);
 
   // Fitted values
@@ -47,7 +46,8 @@
   out[1] = as_doubles(fitted);
   out[2] = as_doubles(w);
   out[3] = as_doubles_matrix(H);
-  out.attr("names") = writable::strings({"coefficients", "fitted.values", "weights", "hessian"});
+  out.attr("names") = writable::strings(
+      {"coefficients", "fitted.values", "weights", "hessian"});
 
   return out;
 }

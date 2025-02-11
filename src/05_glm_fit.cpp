@@ -421,9 +421,9 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
   out[6] = writable::logicals({conv});
   out[7] = writable::integers({iter + 1});
 
-  out.attr("names") = writable::strings({"coefficients", "eta", "weights",
-                                              "hessian", "deviance",
-                                              "null_deviance", "conv", "iter"});
+  out.attr("names") =
+      writable::strings({"coefficients", "eta", "weights", "hessian",
+                         "deviance", "null_deviance", "conv", "iter"});
 
   if (keep_mx == true) {
     out.push_back({"MX"_nm = as_doubles_matrix(center_variables_(
