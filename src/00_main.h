@@ -31,7 +31,7 @@ double dev_resids_(const Col<double> &y, const Col<double> &mu,
                    const double &theta, const Col<double> &wt,
                    const std::string &fam);
 
-Col<double> mu_eta_(Col<double> &eta, const std::string &fam);
+Col<double> mu_eta_(const Col<double> &eta, const std::string &fam);
 
 Col<double> variance_(const Col<double> &mu, const double &theta,
                       const std::string &fam);

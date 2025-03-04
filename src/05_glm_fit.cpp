@@ -102,41 +102,8 @@ double dev_resids_negbin_(const Col<double> &y, const Col<double> &mu,
   return 2 * accu(r);
 }
 
-Col<double> mu_eta_gaussian_(const Col<double> &eta) {
-  return ones<Col<double>>(eta.n_elem);
-}
-
-Col<double> mu_eta_poisson_(const Col<double> &eta) { return exp(eta); }
-
-Col<double> mu_eta_logit_(const Col<double> &eta) {
-  Col<double> expeta = exp(eta);
-  return expeta / square(1 + expeta);
-}
-
-Col<double> mu_eta_gamma_(const Col<double> &eta) { return -1 / square(eta); }
-
-Col<double> mu_eta_invgaussian_(const Col<double> &eta) {
-  return -1 / (2 * pow(eta, 1.5));
-}
-
-Col<double> mu_eta_negbin_(const Col<double> &eta) { return exp(eta); }
-
 Col<double> variance_gaussian_(const Col<double> &mu) {
   return ones<Col<double>>(mu.n_elem);
-}
-
-Col<double> variance_poisson_(const Col<double> &mu) { return mu; }
-
-Col<double> variance_binomial_(const Col<double> &mu) { return mu % (1 - mu); }
-
-Col<double> variance_gamma_(const Col<double> &mu) { return square(mu); }
-
-Col<double> variance_invgaussian_(const Col<double> &mu) {
-  return pow(mu, 3.0);
-}
-
-Col<double> variance_negbin_(const Col<double> &mu, const double &theta) {
-  return mu + square(mu) / theta;
 }
 
 Col<double> link_inv_(const Col<double> &eta, const std::string &fam) {
@@ -231,49 +198,74 @@ bool valid_mu_(const Col<double> &mu, const std::string &fam) {
 
 // mu_eta = d link_inv / d eta = d mu / d eta
 
-Col<double> mu_eta_(Col<double> &eta, const std::string &fam) {
-  Col<double> res(eta.n_elem);
+enum FamilyType {
+  GAUSSIAN,
+  POISSON,
+  BINOMIAL,
+  GAMMA,
+  INV_GAUSSIAN,
+  NEG_BIN,
+  UNKNOWN
+};
 
-  if (fam == "gaussian") {
-    res = mu_eta_gaussian_(eta);
-  } else if (fam == "poisson") {
-    res = mu_eta_poisson_(eta);
-  } else if (fam == "binomial") {
-    res = mu_eta_logit_(eta);
-  } else if (fam == "gamma") {
-    res = mu_eta_gamma_(eta);
-  } else if (fam == "inverse_gaussian") {
-    res = mu_eta_invgaussian_(eta);
-  } else if (fam == "negative_binomial") {
-    res = mu_eta_negbin_(eta);
-  } else {
-    stop("Unknown family");
+FamilyType get_family_type(const std::string &fam) {
+  static const std::unordered_map<std::string, FamilyType> family_map = {
+      {"gaussian", GAUSSIAN},
+      {"poisson", POISSON},
+      {"binomial", BINOMIAL},
+      {"gamma", GAMMA},
+      {"inverse_gaussian", INV_GAUSSIAN},
+      {"negative_binomial", NEG_BIN}};
+
+  auto it = family_map.find(fam);
+  return (it != family_map.end()) ? it->second : UNKNOWN;
+}
+
+Col<double> mu_eta_(const Col<double> &eta, const std::string &fam) {
+  Col<double> result(eta.n_elem);
+
+  switch (get_family_type(fam)) {
+    case GAUSSIAN:
+      result.ones();
+      break;
+    case POISSON:
+    case NEG_BIN:
+      result = arma::exp(eta);
+      break;
+    case BINOMIAL:
+      result = arma::exp(eta) / arma::square(1 + arma::exp(eta));
+      break;
+    case GAMMA:
+      result = -1 / arma::square(eta);
+      break;
+    case INV_GAUSSIAN:
+      result = -1 / (2 * arma::pow(eta, 1.5));
+      break;
+    default:
+      stop("Unknown family");
   }
 
-  return res;
+  return result;
 }
 
 Col<double> variance_(const Col<double> &mu, const double &theta,
                       const std::string &fam) {
-  Col<double> res(mu.n_elem);
-
-  if (fam == "gaussian") {
-    res = variance_gaussian_(mu);
-  } else if (fam == "poisson") {
-    res = variance_poisson_(mu);
-  } else if (fam == "binomial") {
-    res = variance_binomial_(mu);
-  } else if (fam == "gamma") {
-    res = variance_gamma_(mu);
-  } else if (fam == "inverse_gaussian") {
-    res = variance_invgaussian_(mu);
-  } else if (fam == "negative_binomial") {
-    res = variance_negbin_(mu, theta);
-  } else {
-    stop("Unknown family");
+  switch (get_family_type(fam)) {
+    case GAUSSIAN:
+      return ones<Col<double>>(mu.n_elem);
+    case POISSON:
+      return mu;
+    case BINOMIAL:
+      return mu % (1 - mu);
+    case GAMMA:
+      return square(mu);
+    case INV_GAUSSIAN:
+      return pow(mu, 3.0);
+    case NEG_BIN:
+      return mu + square(mu) / theta;
+    default:
+      stop("Unknown family");
   }
-
-  return res;
 }
 
 [[cpp11::register]] list feglm_fit_(const doubles &beta_r, const doubles &eta_r,
@@ -323,7 +315,7 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
 
   for (iter = 0; iter < iter_max; ++iter) {
     rho = 1.0;
-    eta_old = eta, beta_old = beta, dev_old = dev;
+    eta_old = eta, beta_old = std::move(beta), dev_old = dev;
 
     // Compute weights and dependent variable
 
@@ -344,7 +336,9 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
     // 3. improvement as in glm2
 
     beta_upd = solve_beta_(MX, MNU, w);
-    eta_upd = nu - MNU + MX * beta_upd;
+    eta_upd = MX * beta_upd;
+    eta_upd += nu;
+    eta_upd -= MNU;
 
     for (iter_inner = 0; iter_inner < iter_inner_max; ++iter_inner) {
       eta = eta_old + (rho * eta_upd);
@@ -390,7 +384,7 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
 
     // Update starting guesses for acceleration
 
-    MNU = MNU - nu;
+    MNU -= nu;
   }
 
   // Information if convergence failed
