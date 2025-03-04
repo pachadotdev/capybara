@@ -1,8 +1,7 @@
 #include <armadillo.hpp>
 #include <cpp11.hpp>
 #include <cpp11armadillo.hpp>
-
-// #include <iostream>
+#include <regex>
 
 using namespace arma;
 using namespace cpp11;

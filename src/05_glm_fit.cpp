@@ -232,9 +232,11 @@ Col<double> mu_eta_(const Col<double> &eta, const std::string &fam) {
     case NEG_BIN:
       result = arma::exp(eta);
       break;
-    case BINOMIAL:
-      result = arma::exp(eta) / arma::square(1 + arma::exp(eta));
+    case BINOMIAL: {
+      Col<double> exp_eta = arma::exp(eta);
+      result = exp_eta / arma::square(1 + exp_eta);
       break;
+    }
     case GAMMA:
       result = -1 / arma::square(eta);
       break;
