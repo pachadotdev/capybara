@@ -32,8 +32,8 @@ Mat<double> center_variables_(const Mat<double> &V, const Col<double> &w,
     }
   }
 
-// Halperin projections
-// #pragma omp parallel for schedule(dynamic)
+  // Halperin projections
+  // #pragma omp parallel for schedule(dynamic)
   for (p = 0; p < P; ++p) {
     // Center each variable
     x = V.col(p);
@@ -60,7 +60,8 @@ Mat<double> center_variables_(const Mat<double> &V, const Col<double> &w,
       }
 
       // Break loop if convergence is reached
-      if (accu(abs(x - x0) / (1.0 + abs(x0)) % w) * inv_sw < tol) break;
+      if (accu(abs(x - x0) / (1.0 + abs(x0)) % w) * inv_sw < tol)
+        break;
     }
     C.col(p) = x;
   }
@@ -68,9 +69,9 @@ Mat<double> center_variables_(const Mat<double> &V, const Col<double> &w,
   return C;
 }
 
-[[cpp11::register]] doubles_matrix<> center_variables_r_(
-    const doubles_matrix<> &V_r, const doubles &w_r, const list &klist,
-    const double &tol, const int &maxiter) {
+[[cpp11::register]] doubles_matrix<>
+center_variables_r_(const doubles_matrix<> &V_r, const doubles &w_r,
+                    const list &klist, const double &tol, const int &maxiter) {
   return as_doubles_matrix(
       center_variables_(as_Mat(V_r), as_Mat(w_r), klist, tol, maxiter));
 }

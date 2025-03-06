@@ -225,26 +225,26 @@ Col<double> mu_eta_(const Col<double> &eta, const std::string &fam) {
   Col<double> result(eta.n_elem);
 
   switch (get_family_type(fam)) {
-    case GAUSSIAN:
-      result.ones();
-      break;
-    case POISSON:
-    case NEG_BIN:
-      result = arma::exp(eta);
-      break;
-    case BINOMIAL: {
-      Col<double> exp_eta = arma::exp(eta);
-      result = exp_eta / arma::square(1 + exp_eta);
-      break;
-    }
-    case GAMMA:
-      result = -1 / arma::square(eta);
-      break;
-    case INV_GAUSSIAN:
-      result = -1 / (2 * arma::pow(eta, 1.5));
-      break;
-    default:
-      stop("Unknown family");
+  case GAUSSIAN:
+    result.ones();
+    break;
+  case POISSON:
+  case NEG_BIN:
+    result = arma::exp(eta);
+    break;
+  case BINOMIAL: {
+    Col<double> exp_eta = arma::exp(eta);
+    result = exp_eta / arma::square(1 + exp_eta);
+    break;
+  }
+  case GAMMA:
+    result = -1 / arma::square(eta);
+    break;
+  case INV_GAUSSIAN:
+    result = -1 / (2 * arma::pow(eta, 1.5));
+    break;
+  default:
+    stop("Unknown family");
   }
 
   return result;
@@ -253,20 +253,20 @@ Col<double> mu_eta_(const Col<double> &eta, const std::string &fam) {
 Col<double> variance_(const Col<double> &mu, const double &theta,
                       const std::string &fam) {
   switch (get_family_type(fam)) {
-    case GAUSSIAN:
-      return ones<Col<double>>(mu.n_elem);
-    case POISSON:
-      return mu;
-    case BINOMIAL:
-      return mu % (1 - mu);
-    case GAMMA:
-      return square(mu);
-    case INV_GAUSSIAN:
-      return pow(mu, 3.0);
-    case NEG_BIN:
-      return mu + square(mu) / theta;
-    default:
-      stop("Unknown family");
+  case GAUSSIAN:
+    return ones<Col<double>>(mu.n_elem);
+  case POISSON:
+    return mu;
+  case BINOMIAL:
+    return mu % (1 - mu);
+  case GAMMA:
+    return square(mu);
+  case INV_GAUSSIAN:
+    return pow(mu, 3.0);
+  case NEG_BIN:
+    return mu + square(mu) / theta;
+  default:
+    stop("Unknown family");
   }
 }
 
