@@ -12,11 +12,10 @@ Mat<double> center_variables_(const Mat<double> &V, const Col<double> &w,
   const double inv_sw = 1.0 / accu(w);
 
   // Auxiliary variables (storage)
-  size_t iter, j, k, p, J;
-  double delta, meanj;
-  Mat<double> C(N, P);
-  Col<double> x(N);
-  Col<double> x0(N);
+  size_t iter, j, k, p, J, interrupt_iter = 1000;
+  double meanj;
+  Mat<double> C(N, P, fill::zeros);
+  Col<double> x(N), x0(N);
 
   // Precompute group indices and weights
   field<field<uvec>> group_indices(K);
@@ -33,14 +32,16 @@ Mat<double> center_variables_(const Mat<double> &V, const Col<double> &w,
     }
   }
 
-  // Halperin projections
+// Halperin projections
+// #pragma omp parallel for schedule(dynamic)
   for (p = 0; p < P; ++p) {
     // Center each variable
     x = V.col(p);
 
     for (iter = 0; iter < I; ++iter) {
-      if (iter % 1000 == 0) {
+      if (iter == interrupt_iter) {
         check_user_interrupt();
+        interrupt_iter += 1000;
       }
 
       // Store centered vector from the last iteration
@@ -53,27 +54,23 @@ Mat<double> center_variables_(const Mat<double> &V, const Col<double> &w,
         for (j = 0; j < J; ++j) {
           // Subset j-th group of category 'k'
           const uvec &coords = group_indices(k)(j);
-          meanj = dot(w(coords), x(coords)) / group_weights(k)(j);
+          meanj = dot(w.elem(coords), x.elem(coords)) / group_weights(k)(j);
           x.elem(coords) -= meanj;
         }
       }
 
       // Break loop if convergence is reached
-      delta = accu(abs(x - x0) / (1.0 + abs(x0)) % w) * inv_sw;
-      if (delta < tol) {
-        break;
-      }
+      if (accu(abs(x - x0) / (1.0 + abs(x0)) % w) * inv_sw < tol) break;
     }
     C.col(p) = x;
   }
 
-  // Return matrix with centered variables
   return C;
 }
 
-[[cpp11::register]] doubles_matrix<>
-center_variables_r_(const doubles_matrix<> &V_r, const doubles &w_r,
-                    const list &klist, const double &tol, const int &maxiter) {
+[[cpp11::register]] doubles_matrix<> center_variables_r_(
+    const doubles_matrix<> &V_r, const doubles &w_r, const list &klist,
+    const double &tol, const int &maxiter) {
   return as_doubles_matrix(
       center_variables_(as_Mat(V_r), as_Mat(w_r), klist, tol, maxiter));
 }
