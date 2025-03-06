@@ -1,3 +1,5 @@
+utils::globalVariables(c("..cl_vars", "..sp_vars"))
+
 #' srr_stats
 #' @srrstats {G1.0} Implements covariance matrix extraction methods for `apes`, `feglm`, and `felm` objects.
 #' @srrstats {G2.1a} Validates input objects as instances of `apes`, `feglm`, or `felm`.
@@ -150,7 +152,7 @@ vcov_feglm_covmat_ <- function(
         vcov_feglm_cluster_nocluster_()
       }
       d <- vcov_feglm_cluster_data_(object, cl_vars)
-      d <- mutate(d, across(all_of(cl_vars), check_factor_))
+      d[, (cl_vars) := lapply(.SD, check_factor_), .SDcols = cl_vars]
       sp_vars <- colnames(g)
       g <- cbind(d, g)
       rm(d)
@@ -176,7 +178,7 @@ vcov_feglm_cluster_nocluster_ <- function() {
 }
 
 vcov_feglm_cluster_data_ <- function(object, cl_vars, model = "feglm") {
-  d <- try(object[["data"]][, cl_vars, drop = FALSE], silent = TRUE)
+  d <- try(object[["data"]][, ..cl_vars], silent = TRUE)
   if (inherits(d, "try-error")) {
     vcov_feglm_cluster_notfound_(model)
   }
@@ -199,32 +201,30 @@ vcov_feglm_cluster_notfound_ <- function(model) {
 # Ensure cluster variables are factors ----
 
 vcov_feglm_clustered_cov_ <- function(g, cl_vars, sp_vars, p) {
+  setDT(g)
+
   # Multiway clustering by Cameron, Gelbach, and Miller (2011)
   b <- matrix(0.0, p, p)
-  for (i in seq.int(length(cl_vars))) {
-    # Compute outer product for all possible combinations
-    cl_combn <- combn(cl_vars, i)
+
+  for (i in seq_along(cl_vars)) {
+    # Generate all combinations of clustering variables
+    cl_combn <- combn(cl_vars, i, simplify = FALSE)
+
     br <- matrix(0.0, p, p)
-    for (j in seq.int(ncol(cl_combn))) {
-      cl <- cl_combn[, j]
-      br <- br + crossprod(
-        as.matrix(
-          g %>%
-            group_by(!!sym(cl)) %>%
-            summarise(across(all_of(sp_vars), sum), .groups = "drop") %>%
-            select(-!!sym(cl))
-        )
-      )
+
+    for (cl in cl_combn) {
+      # Compute sum within each cluster
+      grouped_data <- g[, lapply(.SD, sum), by = cl, .SDcols = sp_vars]
+
+      # Compute crossproduct, dropping clustering columns
+      br <- br + crossprod(as.matrix(grouped_data[, ..sp_vars]))
     }
 
-    # Update outer product
-    if (i %% 2L) {
-      b <- b + br
-    } else {
-      b <- b - br
-    }
+    # Alternating sign adjustment
+    b <- if (i %% 2L) b + br else b - br
   }
-  b
+
+  return(b)
 }
 
 # Particular case for linear models ----
@@ -326,7 +326,8 @@ vcov_felm_covmat_ <- function(
         vcov_feglm_cluster_nocluster_()
       }
       d <- vcov_feglm_cluster_data_(object, cl_vars, "felm")
-      d <- mutate(d, across(all_of(cl_vars), check_factor_))
+      setDT(d)
+      d[, (cl_vars) := lapply(.SD, check_factor_), .SDcols = cl_vars]
       sp_vars <- colnames(g)
       g <- cbind(d, g)
       rm(d)

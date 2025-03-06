@@ -1,3 +1,5 @@
+utils::globalVariables("..k_vars")
+
 #' srr_stats
 #' @srrstats {G1.0} Implements linear models with high-dimensional fixed effects.
 #' @srrstats {G2.1a} Ensures the input `formula` is correctly specified and includes fixed effects.
@@ -150,7 +152,7 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   check_weights_(wt)
 
   # Get names and number of levels in each fixed effects category ----
-  nms_fe <- lapply(select(data, all_of(k_vars)), levels)
+  nms_fe <- lapply(data[, ..k_vars], levels)
   lvls_k <- vapply(nms_fe, length, integer(1))
 
   # Generate auxiliary list of indexes for different sub panels ----

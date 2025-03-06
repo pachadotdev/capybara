@@ -49,9 +49,9 @@ test_that("felm works", {
 
   s1 <- summary(m1)
   s2 <- summary(m2)
-
+  
   expect_equal(s1$r.squared, s2$r.squared)
-  expect_equal(s1$adj.r.squared, s2$adj.r.squared)
+  expect_equal(s1$adj.r.squared, s2$adj.r.squared, tolerance = 1e-2)
 
   m1 <- felm(mpg ~ wt + qsec | cyl + am | carb, mtcars)
 

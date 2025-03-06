@@ -1,3 +1,15 @@
+# capybara 0.9
+
+* Refactored functions to avoid data copies:
+  * center variables
+  * crossprod
+  * FEGLM fit
+  * FELM fit
+  * get alpha
+  * group sums
+  * mu eta
+  * variance
+
 # capybara 0.8.0
 
 * Dedicated functions for linear models to avoid the overhead of running

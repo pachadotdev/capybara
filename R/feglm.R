@@ -1,3 +1,5 @@
+utils::globalVariables("..k_vars")
+
 #' srr_stats
 #' @srrstats {G1.0} Implements generalized linear models with high-dimensional fixed effects.
 #' @srrstats {G2.1a} Ensures the input `formula` is correctly specified and includes fixed effects.
@@ -212,7 +214,7 @@ feglm <- function(
   start_guesses_(beta_start, eta_start, y, x, beta, nt, wt, p, family)
 
   # Get names and number of levels in each fixed effects category ----
-  nms_fe <- lapply(select(data, all_of(k_vars)), levels)
+  nms_fe <- lapply(data[, ..k_vars], levels)
   lvls_k <- vapply(nms_fe, length, integer(1))
 
   # Generate auxiliary list of indexes for different sub panels ----

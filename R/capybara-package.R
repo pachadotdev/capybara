@@ -57,14 +57,12 @@ NULL
 #' arguments or outputs.
 #'
 #' @name capybara-package
-#' @importFrom dplyr across all_of filter group_by mutate pull select summarise
-#'  ungroup vars where
+#' @importFrom data.table setDT := .SD
 #' @importFrom Formula Formula
 #' @importFrom ggplot2 ggplot aes geom_point geom_errorbar labs theme_minimal
 #'  coord_flip autoplot
 #' @importFrom kendallknight kendall_cor kendall_cor_test
 #' @importFrom MASS negative.binomial theta.ml
-#' @importFrom rlang sym :=
 #' @importFrom stats as.formula fitted.values gaussian model.matrix na.omit
 #'  pnorm poisson predict printCoefmat qnorm terms vcov
 #' @importFrom utils combn

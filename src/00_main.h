@@ -13,15 +13,13 @@ Mat<double> center_variables_(const Mat<double> &V, const Col<double> &w,
                               const list &klist, const double &tol,
                               const int &maxiter);
 
-Col<double> solve_beta_(const Mat<double> &MX, const Mat<double> &MNU,
+Col<double> solve_beta_(Mat<double> MX, const Mat<double> &MNU,
                         const Col<double> &w);
 
 Col<double> solve_eta_(const Mat<double> &MX, const Mat<double> &MNU,
                        const Col<double> &nu, const Col<double> &beta);
 
-Mat<double> crossprod_(const Mat<double> &X, const Col<double> &w, const int &n,
-                       const int &p, const bool &weighted,
-                       const bool &root_weights);
+Mat<double> crossprod_(const Mat<double> &X, const Col<double> &w);
 
 std::string tidy_family_(const std::string &family);
 

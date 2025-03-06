@@ -1,3 +1,5 @@
+utils::globalVariables("..needed_cols")
+
 #' srr_stats
 #' @srrstats {G1.0} Provides modular helper functions for internal checks and computations in generalized linear models with fixed effects.
 #' @srrstats {G2.0} Validates the integrity of inputs such as factors, formulas, data, and control parameters.
@@ -112,12 +114,9 @@ partial_mu_eta_ <- function(eta, family, order) {
 #' @param data Data frame
 #' @noRd
 temp_var_ <- function(data) {
-  repeat {
-    tmp_var <- paste0("capybara_internal_variable_",
-      paste0(sample(letters, 5L, replace = TRUE), collapse = ""))
-    if (!(tmp_var %in% colnames(data))) {
-      break
-    }
+  tmp_var <- "capybara_temp12345"
+  while (tmp_var %in% colnames(data)) {
+    tmp_var <- paste0("capybara_temp", sample(letters, 5, replace = TRUE))
   }
   tmp_var
 }
@@ -139,13 +138,11 @@ check_formula_ <- function(formula) {
 #' @param data Data frame
 #' @noRd
 check_data_ <- function(data) {
-  if (is.null(data)) {
-    stop("'data' has to be specified.", call. = FALSE)
-  } else if (nrow(data) == 0L) {
-    stop("'data' has zero observations.", call. = FALSE)
-  } else if (!inherits(data, "data.frame")) {
-    stop("'data' has to be of class data.frame.", call. = FALSE)
-  }
+  if (is.null(data)) stop("'data' must be specified.", call. = FALSE)
+  if (!is.data.frame(data)) stop("'data' must be a data.frame.", call. = FALSE)
+  if (nrow(data) == 0L) stop("'data' has zero observations.", call. = FALSE)
+
+  setDT(data) # Convert to data.table
 }
 
 #' @title Check control
@@ -167,14 +164,12 @@ check_control_ <- function(control) {
 #' @param family Family object
 #' @noRd
 check_family_ <- function(family) {
-  if (!inherits(family, "family")) {
-    stop("'family' has to be of class family", call. = FALSE)
-  } else if (family[["family"]] %in%
-               c("quasi", "quasipoisson", "quasibinomial")) {
-    stop("Quasi-variants of 'family' are not supported.", call. = FALSE)
-  } else if (startsWith(family[["family"]], "Negative Binomial")) {
-    stop("Please use 'fenegbin' instead.", call. = FALSE)
+  if (startsWith(family[["family"]], "Negative Binomial")) {
+    stop("use 'fenegbin' instead.", call. = FALSE)
   }
+
+  allowed_families <- c("gaussian", "binomial", "poisson", "Gamma", "inverse.gaussian")
+  family[["family"]] <- match.arg(family[["family"]], allowed_families)
 
   if (family[["family"]] == "binomial" && family[["link"]] != "logit") {
     stop(
@@ -218,23 +213,23 @@ col_types <- function(data) {
 #' @param weights Weights
 #' @noRd
 model_frame_ <- function(data, formula, weights) {
-  data <- select(ungroup(data), all_of(c(all.vars(formula), weights)))
+  # Necessary columns
+  needed_cols <- c(all.vars(formula), weights)
+  data <- data[, ..needed_cols]
 
-  lhs <- names(data)[[1L]]
+  lhs <- names(data)[1L]
 
   nobs_full <- nrow(data)
 
   data <- na.omit(data)
 
-  # if any column if of type "units", convert it to numeric
-  types <- col_types(data)
-  if (any(types == "units")) {
-    # use a mutate to transform each unit-type column to numeric
-    data <- mutate(data, across(where(~"units" %in% types), as.numeric))
+  # Convert columns of type "units" to numeric
+  unit_cols <- names(data)[vapply(data, inherits, what = "units", logical(1))]
+  if (length(unit_cols) > 0) {
+    data[, (unit_cols) := lapply(.SD, as.numeric), .SDcols = unit_cols]
   }
 
   nobs_na <- nobs_full - nrow(data)
-  nobs_full <- nrow(data)
 
   assign("data", data, envir = parent.frame())
   assign("lhs", lhs, envir = parent.frame())
@@ -251,39 +246,30 @@ model_frame_ <- function(data, formula, weights) {
 check_response_ <- function(data, lhs, family) {
   if (family[["family"]] == "binomial") {
     # Check if 'y' is numeric
-    if (is.numeric(pull(select(data, !!sym(lhs))))) {
-      # Check if 'y' is in [0, 1]
-      if (nrow(filter(data, !!sym(lhs) < 0.0 | !!sym(lhs) > 1.0)) > 0L) {
-        stop("Model response has to be within the unit interval.",
-          call. = FALSE
-        )
-      }
+    y <- data[[lhs]]
+    if (is.numeric(y)) {
+      if (any(y < 0 | y > 1)) stop("Model response must be within [0,1].")
     } else {
       # Check if 'y' is factor and transform otherwise
-      data <- mutate(data, !!sym(lhs) := check_factor_(!!sym(lhs)))
+      y <- check_factor_(y)
 
       # Check if the number of levels equals two
-      if (nrow(summarise(data, n_levels = nlevels(!!sym(lhs)))) != 2L) {
-        stop("Model response has to be binary.", call. = FALSE)
-      }
+      if (nlevels(y) != 2) stop("Model response has to be binary.")
 
       # Ensure 'y' is 0-1 encoded
-      ## if lhs is not numeric, convert it
-      if (!is.numeric(pull(select(data, !!sym(lhs))))) {
-        data <- mutate(data, !!sym(lhs) := as.numeric(!!sym(lhs)) - 1.0)
-      } else {
-        data <- mutate(data, !!sym(lhs) := !!sym(lhs) - 1.0)
-      }
+      y <- as.numeric(y) - 1
+
+      data[[lhs]] <- y
     }
   } else if (family[["family"]] %in% c("Gamma", "inverse.gaussian")) {
     # Check if 'y' is strictly positive
-    if (nrow(filter(data, !!sym(lhs) <= 0.0)) > 0L) {
-      stop("Model response has to be strictly positive.", call. = FALSE)
+    if (nrow(data[get(lhs) <= 0.0]) > 0L) {
+      stop("Model response has to be positive.", call. = FALSE)
     }
   } else if (family[["family"]] != "gaussian") {
     # Check if 'y' is positive
-    if (nrow(filter(data, !!sym(lhs) < 0.0)) > 0L) {
-      stop("Model response has to be positive.", call. = FALSE)
+    if (nrow(data[get(lhs) < 0.0]) > 0L) {
+      stop("Model response has to be strictly positive.", call. = FALSE)
     }
   }
 }
@@ -299,33 +285,33 @@ check_response_ <- function(data, lhs, family) {
 #' @param control Control list
 #' @noRd
 drop_by_link_type_ <- function(data, lhs, family, tmp_var, k_vars, control) {
-  if (family[["family"]] %in% c("binomial", "poisson")) {
-    if (control[["drop_pc"]]) {
-      repeat {
-        # Drop observations that do not contribute to the log-likelihood
-        ncheck <- nrow(data)
-        for (j in k_vars) {
-          data <- data %>%
-            group_by(!!sym(j)) %>%
-            mutate(!!sym(tmp_var) := mean(!!sym(lhs))) %>%
-            ungroup()
-          if (family[["family"]] == "binomial") {
-            data <- filter(data, !!sym(tmp_var) > 0.0 & !!sym(tmp_var) < 1.0)
-          } else {
-            data <- filter(data, !!sym(tmp_var) > 0.0)
-          }
-          data <- select(data, -!!sym(tmp_var))
+  if (family[["family"]] %in% c("binomial", "poisson") && control[["drop_pc"]]) {
+    ncheck <- 0
+    nrow_data <- nrow(data)
+
+    while (ncheck != nrow_data) {
+      ncheck <- nrow_data
+
+      for (j in k_vars) {
+        # Compute mean within group and assign it to a temporary column
+        data[, (tmp_var) := mean(get(lhs)), by = j]
+
+        # Filter rows based on family type
+        if (family[["family"]] == "binomial") {
+          data <- data[get(tmp_var) > 0 & get(tmp_var) < 1]
+        } else {
+          data <- data[get(tmp_var) > 0]
         }
 
-        # Check termination
-        if (ncheck == nrow(data)) {
-          break
-        }
+        # Drop temporary column in place
+        data[, (tmp_var) := NULL]
       }
+
+      nrow_data <- nrow(data)
     }
   }
 
-  data
+  return(data)
 }
 
 #' @title Transform fixed effects
@@ -335,14 +321,14 @@ drop_by_link_type_ <- function(data, lhs, family, tmp_var, k_vars, control) {
 #' @param k_vars Fixed effects
 #' @noRd
 transform_fe_ <- function(data, formula, k_vars) {
-  data <- mutate(data, across(all_of(k_vars), check_factor_))
+  data[, (k_vars) := lapply(.SD, check_factor_), .SDcols = k_vars]
 
   if (length(formula)[[2L]] > 2L) {
     add_vars <- attr(terms(formula, rhs = 3L), "term.labels")
-    data <- mutate(data, across(all_of(add_vars), check_factor_))
+    data[, (add_vars) := lapply(.SD, check_factor_), .SDcols = add_vars]
   }
 
-  data
+  return(data)
 }
 
 #' @title Number of observations
@@ -366,16 +352,14 @@ nobs_ <- function(nobs_full, nobs_na, nt) {
 #' @param formula Formula object
 #' @noRd
 model_response_ <- function(data, formula) {
-  y <- data[[1L]]
   x <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
-  nms_sp <- attr(x, "dimnames")[[2L]]
+  nms_sp <- colnames(x)
   attr(x, "dimnames") <- NULL
-  p <- ncol(x)
 
-  assign("y", y, envir = parent.frame())
+  assign("y", data[[1L]], envir = parent.frame())
   assign("x", x, envir = parent.frame())
   assign("nms_sp", nms_sp, envir = parent.frame())
-  assign("p", p, envir = parent.frame())
+  assign("p", ncol(x), envir = parent.frame())
 }
 
 #' @title Check weights
@@ -394,11 +378,11 @@ check_linear_dependence_ <- function(x, p) {
 #' @param wt Weights
 #' @noRd
 check_weights_ <- function(wt) {
-  if (!is.numeric(wt)) {
-    stop("weights must be numeric.", call. = FALSE)
+  if (!is.numeric(wt) || anyNA(wt)) {
+    stop("Weights must be numeric and non-missing.", call. = FALSE)
   }
-  if (any(wt < 0.0)) {
-    stop("negative weights are not allowed.", call. = FALSE)
+  if (any(wt < 0)) {
+    stop("Negative weights are not allowed.", call. = FALSE)
   }
 }
 

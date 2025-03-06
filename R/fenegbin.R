@@ -1,3 +1,5 @@
+utils::globalVariables("..k_vars")
+
 #' srr_stats
 #' @srrstats {G1.0} Implements Negative Binomial regression with high-dimensional fixed effects, adapting `feglm`.
 #' @srrstats {G2.1a} Validates input `formula` to ensure inclusion of fixed effects.
@@ -174,7 +176,7 @@ fenegbin <- function(
   start_guesses_(beta_start, eta_start, y, x, beta, nt, wt, p, family)
 
   # Get names and number of levels in each fixed effects category ----
-  nms_fe <- lapply(select(data, all_of(k_vars)), levels)
+  nms_fe <- lapply(data[, ..k_vars], levels)
   lvls_k <- vapply(nms_fe, length, integer(1))
 
   # Generate auxiliary list of indexes for different sub panels ----

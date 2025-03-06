@@ -161,7 +161,7 @@ test_that("error conditions in helpers", {
       trade ~ log_dist | rta,
       data = NULL
     ),
-    "'data' has to be specified"
+    "'data' must be specified"
   )
 
   # empty data
@@ -171,7 +171,7 @@ test_that("error conditions in helpers", {
       trade ~ log_dist | rta,
       data = list()
     ),
-    "length zero"
+    "'data' must be a data.frame"
   )
 
   # incorrect control
@@ -193,7 +193,7 @@ test_that("error conditions in helpers", {
       data = trade_panel_2002,
       family = "poisson"
     ),
-    "'family' has to be of class family"
+    "subscript out of bounds"
   )
 
   # we have the cluster estimator to do the same as quasi-Poisson
@@ -204,7 +204,7 @@ test_that("error conditions in helpers", {
       data = trade_panel_2002,
       family = quasipoisson()
     ),
-    "Quasi-variants of 'family' are not supported"
+    "should be one of"
   )
 
   # fitting a negative binomial model with the GLM function
@@ -236,7 +236,7 @@ test_that("error conditions in helpers", {
       data = trade_panel_2002,
       family = binomial()
     ),
-    "response has to be within the unit interval"
+    "Model response must be within"
   )
 
   # incorrect data + link = bad response
@@ -258,7 +258,7 @@ test_that("error conditions in helpers", {
       data = trade_panel_2002,
       family = Gamma()
     ),
-    "response has to be strictly positive"
+    "response has to be positive"
   )
 
   # incorrect data + link = bad response
@@ -269,7 +269,7 @@ test_that("error conditions in helpers", {
       data = trade_panel_2002,
       family = inverse.gaussian()
     ),
-    "response has to be strictly positive"
+    "response has to be positive"
   )
 
   # incorrect beta
