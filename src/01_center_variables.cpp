@@ -32,10 +32,10 @@ Mat<double> center_variables_(const Mat<double> &V, const Col<double> &w,
     }
   }
 
-// Halperin projections
-// #ifdef _OPENMP
-// #pragma omp parallel for schedule(dynamic) private(x, x0, iter, k, j, meanj, J, ratio)
-// #endif
+  // Halperin projections
+  // #ifdef _OPENMP
+  // #pragma omp parallel for schedule(dynamic) private(x, x0, iter, k, j,
+  // meanj, J, ratio) #endif
   for (p = 0; p < P; ++p) {
     // Center each variable
     x = V.col(p);
@@ -53,7 +53,8 @@ Mat<double> center_variables_(const Mat<double> &V, const Col<double> &w,
       for (k = 0; k < K; ++k) {
         // Substract the weighted group means of category 'k'
         J = group_indices(k).size();
-        if (J == 0) continue;  // Skip empty groups
+        if (J == 0)
+          continue; // Skip empty groups
 
         for (j = 0; j < J; ++j) {
           // Subset j-th group of category 'k'
@@ -64,9 +65,10 @@ Mat<double> center_variables_(const Mat<double> &V, const Col<double> &w,
       }
 
       // Break loop if convergence is reached
-      // ratio = accu(abs(x - x0) / (1.0 + abs(x0)) % w) * inv_sw;
-      ratio = norm(x - x0, 2) * inv_sw;
-      if (ratio < tol) break;
+      ratio = accu(abs(x - x0) / (1.0 + abs(x0)) % w) * inv_sw;
+      // ratio = norm(x - x0, 2) * inv_sw;
+      if (ratio < tol)
+        break;
     }
     C.col(p) = x;
   }
@@ -74,9 +76,9 @@ Mat<double> center_variables_(const Mat<double> &V, const Col<double> &w,
   return C;
 }
 
-[[cpp11::register]] doubles_matrix<> center_variables_r_(
-    const doubles_matrix<> &V_r, const doubles &w_r, const list &klist,
-    const double &tol, const int &maxiter) {
+[[cpp11::register]] doubles_matrix<>
+center_variables_r_(const doubles_matrix<> &V_r, const doubles &w_r,
+                    const list &klist, const double &tol, const int &maxiter) {
   return as_doubles_matrix(
       center_variables_(as_Mat(V_r), as_Mat(w_r), klist, tol, maxiter));
 }

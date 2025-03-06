@@ -3,8 +3,7 @@
 * Refactored functions to avoid data copies:
   * center variables
   * crossprod
-  * FEGLM fit
-  * FELM fit
+  * GLM and LM fit
   * get alpha
   * group sums
   * mu eta

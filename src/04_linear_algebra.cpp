@@ -8,12 +8,13 @@ Mat<double> crossprod_(const Mat<double> &X, const Col<double> &w) {
 
 Col<double> solve_beta_(Mat<double> MX, const Mat<double> &MNU,
                         const Col<double> &w) {
-  MX.each_col() %= sqrt(w);
+  const Col<double> sqrt_w = sqrt(w);
+  MX.each_col() %= sqrt_w;
 
   Mat<double> Q, R;
   if (!qr_econ(Q, R, MX)) {
     stop("QR decomposition failed");
   }
 
-  return solve(R, Q.t() * (MNU.each_col() % sqrt(w)));
+  return solve(R, Q.t() * (MNU.each_col() % sqrt_w));
 }

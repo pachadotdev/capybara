@@ -277,7 +277,6 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
                                     const std::string &family,
                                     const list &control, const list &k_list) {
   // Type conversion
-
   Col<double> beta = as_Col(beta_r);
   Col<double> eta = as_Col(eta_r);
   Col<double> y = as_Col(y_r);
@@ -290,11 +289,14 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
   std::string fam = tidy_family_(family);
   double center_tol = as_cpp<double>(control["center_tol"]);
   double dev_tol = as_cpp<double>(control["dev_tol"]);
-  int iter, iter_max = as_cpp<int>(control["iter_max"]);
-  int iter_center_max = 10000;
   bool keep_mx = as_cpp<bool>(control["keep_mx"]);
-  int iter_inner, iter_inner_max = 50;
-  const int k = beta.n_elem;
+  size_t iter, iter_inner;
+  const size_t iter_max = as_cpp<size_t>(control["iter_max"]);
+  const size_t iter_center_max = 10000;
+  const size_t iter_inner_max = 50;
+  const size_t n = y.n_elem;
+  const size_t p = MX.n_cols;
+  const size_t k = beta.n_elem;
 
   // Auxiliary variables (storage)
 
@@ -302,32 +304,28 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
   Col<double> ymean = mean(y) * Col<double>(y.n_elem, fill::ones);
   double dev = dev_resids_(y, mu, theta, wt, fam);
   double null_dev = dev_resids_(y, ymean, theta, wt, fam);
-
-  const int n = y.n_elem;
-  const int p = MX.n_cols;
-  Col<double> mu_eta(n), nu(n), w(n);
-  Mat<double> H(p, p);
-  bool conv = false;
-
-  bool dev_crit, val_crit, imp_crit;
+  bool dev_crit, val_crit, imp_crit, conv = false;
   double dev_old, dev_ratio, dev_ratio_inner, rho;
-  Col<double> eta_upd(n), beta_upd(k), eta_old(n), beta_old(k);
+  Col<double> mu_eta(n), w(n), nu(n), beta_upd(k), eta_upd(n), eta_old(n),
+      beta_old(k);
+  Mat<double> H(p, p);
 
   // Maximize the log-likelihood
-
   for (iter = 0; iter < iter_max; ++iter) {
     rho = 1.0;
-    eta_old = eta, beta_old = std::move(beta), dev_old = dev;
+    eta_old = eta;
+    beta_old = beta;
+    dev_old = dev;
 
     // Compute weights and dependent variable
-
     mu_eta = mu_eta_(eta, fam);
     w = (wt % square(mu_eta)) / variance_(mu, theta, fam);
     nu = (y - mu) / mu_eta;
 
     // Center variables
 
-    MNU = center_variables_(MNU + nu, w, k_list, center_tol, iter_center_max);
+    MNU += nu;
+    MNU = center_variables_(MNU, w, k_list, center_tol, iter_center_max);
     MX = center_variables_(MX, w, k_list, center_tol, iter_center_max);
 
     // Compute update step and update eta
@@ -338,22 +336,20 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
     // 3. improvement as in glm2
 
     beta_upd = solve_beta_(MX, MNU, w);
-    eta_upd = MX * beta_upd;
-    eta_upd += nu;
-    eta_upd -= MNU;
+    eta_upd = MX * beta_upd + nu - MNU;
 
     for (iter_inner = 0; iter_inner < iter_inner_max; ++iter_inner) {
-      eta = eta_old + (rho * eta_upd);
-      beta = beta_old + (rho * beta_upd);
+      eta = eta_old + rho * eta_upd;
+      beta = beta_old + rho * beta_upd;
       mu = link_inv_(eta, fam);
       dev = dev_resids_(y, mu, theta, wt, fam);
       dev_ratio_inner = (dev - dev_old) / (0.1 + fabs(dev));
 
       dev_crit = is_finite(dev);
-      val_crit = (valid_eta_(eta, fam) && valid_mu_(mu, fam));
+      val_crit = valid_eta_(eta, fam) && valid_mu_(mu, fam);
       imp_crit = (dev_ratio_inner <= -dev_tol);
 
-      if (dev_crit == true && val_crit == true && imp_crit == true) {
+      if (dev_crit && val_crit && imp_crit) {
         break;
       }
 
@@ -362,13 +358,13 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
 
     // Check if step-halving failed (deviance and invalid eta or mu)
 
-    if (dev_crit == false || val_crit == false) {
+    if (!dev_crit || !val_crit) {
       stop("Inner loop failed; cannot correct step size.");
     }
 
     // If step halving does not improve the deviance
 
-    if (imp_crit == false) {
+    if (!imp_crit) {
       eta = eta_old;
       beta = beta_old;
       dev = dev_old;
@@ -390,8 +386,7 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
   }
 
   // Information if convergence failed
-
-  if (conv == false) {
+  if (!conv) {
     stop("Algorithm did not converge.");
   }
 
@@ -400,7 +395,7 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
   mu_eta = mu_eta_(eta, fam);
   w = (wt % square(mu_eta)) / variance_(mu, theta, fam);
 
-  // Recompute Hessian
+  // Compute Hessian
 
   H = crossprod_(MX, w);
 
@@ -415,13 +410,13 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
   out[4] = writable::doubles({dev});
   out[5] = writable::doubles({null_dev});
   out[6] = writable::logicals({conv});
-  out[7] = writable::integers({iter + 1});
+  out[7] = writable::integers({static_cast<int>(iter + 1)});
 
   out.attr("names") =
       writable::strings({"coefficients", "eta", "weights", "hessian",
                          "deviance", "null_deviance", "conv", "iter"});
 
-  if (keep_mx == true) {
+  if (keep_mx) {
     out.push_back({"MX"_nm = as_doubles_matrix(center_variables_(
                        as_Mat(x_r), w, k_list, center_tol, iter_center_max))});
   }

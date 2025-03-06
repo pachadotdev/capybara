@@ -10,7 +10,7 @@
 
   // Auxiliary variables (storage)
   size_t j, k, l, iter, interrupt_iter = 1000, J, J1, J2;
-  double num, denom;
+  double num, denom, ratio;
   Col<double> y(p.n_elem);
 
   // Pre-compute list sizes
@@ -47,18 +47,18 @@
     Alpha0 = Alpha;
 
     for (k = 0; k < K; ++k) {
-      if (list_sizes(k) == 0) continue;  // Skip empty groups
+      if (list_sizes(k) == 0)
+        continue; // Skip empty groups
 
       // Compute adjusted dependent variable
       y = p;
       for (l = 0; l < K; ++l) {
         J1 = list_sizes(l);
-        if (l == k || J1 == 0) continue;
+        if (l == k || J1 == 0)
+          continue;
         for (j = 0; j < J1; ++j) {
           const uvec &indexes = group_indices(l)(j);
-          if (!indexes.is_empty()) {
-            y.elem(indexes) -= Alpha0(l)(j);
-          }
+          y.elem(indexes) -= Alpha0(l)(j);
         }
       }
 
@@ -68,22 +68,22 @@
         const uvec &indexes = group_indices(k)(j);
 
         // Store group mean
-        if (!indexes.is_empty()) {
-          Alpha(k)(j) = mean(y.elem(indexes));
-        }
+        Alpha(k)(j) = mean(y.elem(indexes));
       }
     }
 
     // Compute termination criterion and check convergence
     num = 0.0, denom = 0.0;
     for (k = 0; k < K; ++k) {
-      if (list_sizes(k) == 0) continue;  // Skip empty groups
+      if (list_sizes(k) == 0)
+        continue; // Skip empty groups
       const Col<double> &diff = Alpha(k) - Alpha0(k);
       num += dot(diff, diff);
       denom += dot(Alpha0(k), Alpha0(k));
     }
 
-    if (sqrt(num / denom) < tol) {
+    ratio = sqrt(num / denom);
+    if (ratio < tol) {
       break;
     }
   }
@@ -91,7 +91,7 @@
   // Return alpha
   writable::list Alpha_r(K);
   for (k = 0; k < K; ++k) {
-    Alpha_r[k] = as_doubles_matrix(Alpha(k).eval());  // Ensure materialization
+    Alpha_r[k] = as_doubles_matrix(Alpha(k).eval()); // Ensure materialization
   }
 
   return Alpha_r;
