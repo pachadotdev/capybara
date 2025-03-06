@@ -1,5 +1,3 @@
-utils::globalVariables("..needed_cols")
-
 #' srr_stats
 #' @srrstats {G1.0} Provides modular helper functions for internal checks and computations in generalized linear models with fixed effects.
 #' @srrstats {G2.0} Validates the integrity of inputs such as factors, formulas, data, and control parameters.
@@ -215,7 +213,7 @@ col_types <- function(data) {
 model_frame_ <- function(data, formula, weights) {
   # Necessary columns
   needed_cols <- c(all.vars(formula), weights)
-  data <- data[, ..needed_cols]
+  data <- data[, .SD, .SDcols = needed_cols]
 
   lhs <- names(data)[1L]
 

@@ -1,5 +1,3 @@
-utils::globalVariables(c("..cl_vars", "..sp_vars"))
-
 #' srr_stats
 #' @srrstats {G1.0} Implements covariance matrix extraction methods for `apes`, `feglm`, and `felm` objects.
 #' @srrstats {G2.1a} Validates input objects as instances of `apes`, `feglm`, or `felm`.
@@ -178,7 +176,7 @@ vcov_feglm_cluster_nocluster_ <- function() {
 }
 
 vcov_feglm_cluster_data_ <- function(object, cl_vars, model = "feglm") {
-  d <- try(object[["data"]][, ..cl_vars], silent = TRUE)
+  d <- try(object[["data"]][, .SD, .SDcols = cl_vars], silent = TRUE)
   if (inherits(d, "try-error")) {
     vcov_feglm_cluster_notfound_(model)
   }
@@ -201,8 +199,6 @@ vcov_feglm_cluster_notfound_ <- function(model) {
 # Ensure cluster variables are factors ----
 
 vcov_feglm_clustered_cov_ <- function(g, cl_vars, sp_vars, p) {
-  setDT(g)
-
   # Multiway clustering by Cameron, Gelbach, and Miller (2011)
   b <- matrix(0.0, p, p)
 
@@ -217,7 +213,7 @@ vcov_feglm_clustered_cov_ <- function(g, cl_vars, sp_vars, p) {
       grouped_data <- g[, lapply(.SD, sum), by = cl, .SDcols = sp_vars]
 
       # Compute crossproduct, dropping clustering columns
-      br <- br + crossprod(as.matrix(grouped_data[, ..sp_vars]))
+      br <- br + crossprod(as.matrix(grouped_data[, .SD, .SDcols = sp_vars]))
     }
 
     # Alternating sign adjustment
@@ -326,7 +322,6 @@ vcov_felm_covmat_ <- function(
         vcov_feglm_cluster_nocluster_()
       }
       d <- vcov_feglm_cluster_data_(object, cl_vars, "felm")
-      setDT(d)
       d[, (cl_vars) := lapply(.SD, check_factor_), .SDcols = cl_vars]
       sp_vars <- colnames(g)
       g <- cbind(d, g)
