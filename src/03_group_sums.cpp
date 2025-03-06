@@ -12,35 +12,25 @@
   const int P = M.n_cols;
 
   // Auxiliary variables (storage)
-  int i, j, I;
-  Mat<double> b(P, 1, fill::zeros);
-  Mat<double> num(P, 1);
+  int j;
   uvec indexes;
-  double denom;
+  Mat<double> b(P, 1, fill::zeros);
 
   // Compute sum of weighted group sums
   for (j = 0; j < J; ++j) {
-    denom = 0.0;
-
     indexes = as_uvec(as_cpp<integers>(jlist[j]));
-    I = indexes.size();
+    Row<double> groupSum = sum(M.rows(indexes), 0);
+    double denom = accu(w.elem(indexes));
 
-    num.zeros();
-    for (i = 0; i < I; ++i) {
-      num += M.row(indexes[i]).t();
-      denom += w(indexes[i]);
-    }
-
-    b += num / denom;
+    b += groupSum.t() / denom;
   }
 
   return as_doubles_matrix(b);
 }
 
-[[cpp11::register]] doubles_matrix<>
-group_sums_spectral_(const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
-                     const doubles_matrix<> &w_r, const int K,
-                     const list &jlist) {
+[[cpp11::register]] doubles_matrix<> group_sums_spectral_(
+    const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
+    const doubles_matrix<> &w_r, const int K, const list &jlist) {
   // Types conversion
   Mat<double> M = as_Mat(M_r);
   Mat<double> v = as_Mat(v_r);
@@ -51,28 +41,26 @@ group_sums_spectral_(const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
   const int P = M.n_cols;
 
   // Auxiliary variables (storage)
-  int i, j, k, I;
+  int j, I;
   Mat<double> b(P, 1, fill::zeros);
-  Mat<double> num(P, 1);
   double denom;
 
   // Compute sum of weighted group sums
-  for (j = 0; j < J; j++) {
+  for (j = 0; j < J; ++j) {
     uvec indexes = as_uvec(as_cpp<integers>(jlist[j]));
-    I = indexes.size();
+    I = indexes.n_elem;
 
-    num.zeros();
-    denom = 0.0;
+    if (I <= 1) continue;
 
-    for (i = 1; i < I; ++i) {
-      for (k = 1; k <= K; ++k) {
-        num += M.row(indexes[i]) * v(indexes[i - k], 0) * I / (I - 1);
-      }
+    Col<double> num(P, fill::zeros);
+    denom = accu(w.elem(indexes));
+
+    Col<double> v_shifted(I, fill::zeros);
+    for (int k = 1; k <= K && k < I; ++k) {
+      v_shifted.subvec(k, I - 1) += v.elem(indexes.subvec(0, I - k - 1));
     }
 
-    for (i = 0; i < I; ++i) {
-      denom += w(indexes[i]);
-    }
+    num = M.rows(indexes).t() * (v_shifted * (I / (I - 1.0)));
 
     b += num / denom;
   }
@@ -80,8 +68,8 @@ group_sums_spectral_(const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
   return as_doubles_matrix(b);
 }
 
-[[cpp11::register]] doubles_matrix<>
-group_sums_var_(const doubles_matrix<> &M_r, const list &jlist) {
+[[cpp11::register]] doubles_matrix<> group_sums_var_(
+    const doubles_matrix<> &M_r, const list &jlist) {
   // Types conversion
   Mat<double> M = as_Mat(M_r);
 
@@ -98,17 +86,17 @@ group_sums_var_(const doubles_matrix<> &M_r, const list &jlist) {
   for (j = 0; j < J; ++j) {
     uvec indexes = as_uvec(as_cpp<integers>(jlist[j]));
 
-    Mat<double> M_sub = M.rows(indexes);
-    v = sum(M_sub, 0).t();
+    Col<double> v = sum(M.rows(indexes), 0).t();
+
     V += v * v.t();
   }
 
   return as_doubles_matrix(V);
 }
 
-[[cpp11::register]] doubles_matrix<>
-group_sums_cov_(const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
-                const list &jlist) {
+[[cpp11::register]] doubles_matrix<> group_sums_cov_(
+    const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
+    const list &jlist) {
   // Types conversion
   Mat<double> M = as_Mat(M_r);
   Mat<double> N = as_Mat(N_r);
@@ -119,22 +107,19 @@ group_sums_cov_(const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
 
   // Auxiliary variables (storage)
   int j;
-  size_t i, k, I;
   uvec indexes;
   Mat<double> V(P, P, fill::zeros);
 
   // Compute covariance matrix
   for (j = 0; j < J; ++j) {
     indexes = as_uvec(as_cpp<integers>(jlist[j]));
-    I = indexes.n_elem;
 
-    for (i = 0; i < I; ++i) {
-      for (k = i + 1; k < I; ++k) {
-        V += M.row(indexes[i]).t() * N.row(indexes[k]);
-      }
+    if (indexes.n_elem < 2) {
+      continue;
     }
+
+    V += M.rows(indexes).t() * N.rows(indexes);
   }
 
-  // Return matrix
   return as_doubles_matrix(V);
 }
