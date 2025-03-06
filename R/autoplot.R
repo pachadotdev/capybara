@@ -1,3 +1,5 @@
+utils::globalVariables(c("term", "estimate", "conf_low", "conf_high"))
+
 #' @importFrom ggplot2 autoplot
 #' @export
 ggplot2::autoplot
@@ -88,11 +90,11 @@ autoplot.feglm <- function(object, ...) {
     conf_high = res[, "estimate"] + z * res[, "std.error"]
   )
 
-  p <- ggplot(conf_data, aes(x = !!sym("term"), y = !!sym("estimate"))) +
+  p <- ggplot(conf_data, aes(x = term, y = estimate)) +
     geom_errorbar(
       aes(
-        ymin = !!sym("conf_low"),
-        ymax = !!sym("conf_high")
+        ymin = conf_low,
+        ymax = conf_high
       ),
       width = 0.1,
       color = "#165976"
@@ -175,11 +177,11 @@ autoplot.felm <- function(object, ...) {
     conf_high = res[, "estimate"] + z * res[, "std.error"]
   )
 
-  p <- ggplot(conf_data, aes(x = !!sym("term"), y = !!sym("estimate"))) +
+  p <- ggplot(conf_data, aes(x = term, y = estimate)) +
     geom_errorbar(
       aes(
-        ymin = !!sym("conf_low"),
-        ymax = !!sym("conf_high")
+        ymin = conf_low,
+        ymax = conf_high
       ),
       width = 0.1,
       color = "#165976"
