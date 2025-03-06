@@ -11,10 +11,9 @@
   const size_t max_iter = 10000;
 
   // Auxiliary variables (storage)
-  double crit, denom, num;
-  size_t iter, k, l;
+  size_t j, k, l, iter, interrupt_iter = 1000;
+  double num, denom;
   Col<double> y(N);
-  size_t interrupt_iter = 1000;
 
   // Pre-compute list sizes
   field<int> list_sizes(K);
@@ -23,14 +22,12 @@
   }
 
   // Generate starting guess
-  field<Mat<double>> Alpha(K);
+  field<Mat<double>> Alpha(K), Alpha0(K);
   for (k = 0; k < K; ++k) {
-    Alpha(k) = zeros<Col<double>>(list_sizes[k]);
+    Alpha(k) = zeros<Col<double>>(list_sizes(k));
   }
 
   // Start alternating between normal equations
-  field<Mat<double>> Alpha0(K);
-
   for (iter = 0; iter < max_iter; ++iter) {
     if (iter == interrupt_iter) {
       check_user_interrupt();
@@ -46,7 +43,8 @@
       for (l = 0; l < K; ++l) {
         if (l != k) {
           const list &klist_l = klist[l];
-          for (int j = 0; j < list_sizes[l]; ++j) {
+          const size_t J1 = list_sizes[l];
+          for (j = 0; j < J1; ++j) {
             uvec indexes = as_uvec(as_cpp<integers>(klist_l[j]));
             y(indexes) -= Alpha(l)(j);
           }
@@ -55,8 +53,8 @@
 
       const list &klist_k = as_cpp<list>(klist[k]);
       Mat<double> &alpha = Alpha(k);
-
-      for (int j = 0; j < list_sizes[k]; ++j) {
+      const size_t J2 = list_sizes[k];
+      for (j = 0; j < J2; ++j) {
         // Subset the j-th group of category k
         uvec indexes = as_uvec(as_cpp<integers>(klist_k[j]));
 
@@ -74,8 +72,7 @@
       denom += accu(Alpha0(k) % Alpha0(k));
     }
 
-    crit = sqrt(num / denom);
-    if (crit < tol) {
+    if (sqrt(num / denom) < tol) {
       break;
     }
   }
