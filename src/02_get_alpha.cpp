@@ -6,13 +6,15 @@
   Mat<double> p = as_Mat(p_r);
 
   // Auxiliary variables (fixed)
-  const int N = p.n_rows;
-  const int K = klist.size();
+  const size_t N = p.n_rows;
+  const size_t K = klist.size();
+  const size_t max_iter = 10000;
 
   // Auxiliary variables (storage)
   double crit, denom, num;
-  int iter, k, l;
-  Mat<double> y(N, 1);
+  size_t iter, k, l;
+  Col<double> y(N);
+  size_t interrupt_iter = 1000;
 
   // Pre-compute list sizes
   field<int> list_sizes(K);
@@ -23,15 +25,16 @@
   // Generate starting guess
   field<Mat<double>> Alpha(K);
   for (k = 0; k < K; ++k) {
-    Alpha(k) = zeros<Mat<double>>(list_sizes[k], 1);
+    Alpha(k) = zeros<Col<double>>(list_sizes[k]);
   }
 
   // Start alternating between normal equations
   field<Mat<double>> Alpha0(K);
 
-  for (iter = 0; iter < 10000; ++iter) {
-    if ((iter % 1000) == 0) {
+  for (iter = 0; iter < max_iter; ++iter) {
+    if (iter == interrupt_iter) {
       check_user_interrupt();
+      interrupt_iter += 1000;
     }
     // Store alpha_0 of the previous iteration
     Alpha0 = Alpha;
