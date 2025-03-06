@@ -33,9 +33,9 @@ Mat<double> center_variables_(const Mat<double> &V, const Col<double> &w,
   }
 
 // Halperin projections
-#ifdef _OPENMP
-#pragma omp parallel for schedule(dynamic) private(x, x0, iter, k, j, meanj, J, ratio)
-#endif
+// #ifdef _OPENMP
+// #pragma omp parallel for schedule(dynamic) private(x, x0, iter, k, j, meanj, J, ratio)
+// #endif
   for (p = 0; p < P; ++p) {
     // Center each variable
     x = V.col(p);
