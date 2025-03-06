@@ -5,17 +5,18 @@ Mat<double> center_variables_(const Mat<double> &V, const Col<double> &w,
                               const list &klist, const double &tol,
                               const int &maxiter) {
   // Auxiliary variables (fixed)
-  const int N = V.n_rows;
-  const int P = V.n_cols;
-  const int K = klist.size();
+  const size_t I = static_cast<size_t>(maxiter);
+  const size_t N = V.n_rows;
+  const size_t P = V.n_cols;
+  const size_t K = klist.size();
   const double inv_sw = 1.0 / accu(w);
 
   // Auxiliary variables (storage)
-  int iter, j, k, p, J;
+  size_t iter, j, k, p, J;
   double delta, meanj;
   Mat<double> C(N, P);
-  Mat<double> x(N, 1);
-  Mat<double> x0(N, 1);
+  Col<double> x(N);
+  Col<double> x0(N);
 
   // Precompute group indices and weights
   field<field<uvec>> group_indices(K);
@@ -36,8 +37,9 @@ Mat<double> center_variables_(const Mat<double> &V, const Col<double> &w,
   for (p = 0; p < P; ++p) {
     // Center each variable
     x = V.col(p);
-    for (iter = 0; iter < maxiter; ++iter) {
-      if ((iter % 1000) == 0) {
+
+    for (iter = 0; iter < I; ++iter) {
+      if (iter % 1000 == 0) {
         check_user_interrupt();
       }
 
