@@ -8,7 +8,7 @@
 
   Col<double> y = as_Col(y_r);
   Mat<double> X = as_Mat(x_r);
-  Mat<double> MNU = Mat<double>(y.n_elem, 1, fill::zeros);
+  Col<double> MNU = Col<double>(y.n_elem, fill::zeros);
   Col<double> w = as_Col(wt_r);
 
   // Auxiliary variables (fixed)
@@ -19,8 +19,6 @@
   // Auxiliary variables (storage)
 
   Mat<double> MX, H;
-  const int n = y.n_elem;
-  const int p = X.n_cols;
 
   // Center variables
 
@@ -37,7 +35,7 @@
 
   // Recompute Hessian
 
-  H = crossprod_(MX, w, n, p, true, true);
+  H = crossprod_(MX, w);
 
   // Generate result list
 

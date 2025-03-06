@@ -10,7 +10,7 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
   Col<double> eta = as_Col(eta_r);
   Col<double> y = as_Col(y_r);
   Col<double> offset = as_Col(offset_r);
-  Mat<double> Myadj = Mat<double>(y.n_elem, 1, fill::zeros);
+  Col<double> Myadj = Col<double>(y.n_elem, fill::zeros);
   Col<double> wt = as_Col(wt_r);
 
   // Auxiliary variables (fixed)
@@ -28,8 +28,7 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
   double dev = dev_resids_(y, mu, 0.0, wt, fam);
 
   const int n = y.n_elem;
-  Col<double> mu_eta(n), yadj(n);
-  Mat<double> w(n, 1);
+  Col<double> mu_eta(n), yadj(n), w(n);
 
   bool dev_crit, val_crit, imp_crit;
   double dev_old, dev_ratio, dev_ratio_inner, rho;

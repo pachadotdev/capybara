@@ -282,7 +282,7 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
   Col<double> eta = as_Col(eta_r);
   Col<double> y = as_Col(y_r);
   Mat<double> MX = as_Mat(x_r);
-  Mat<double> MNU = Mat<double>(y.n_elem, 1, fill::zeros);
+  Col<double> MNU = Col<double>(y.n_elem, fill::zeros);
   Col<double> wt = as_Col(wt_r);
 
   // Auxiliary variables (fixed)
@@ -305,8 +305,8 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
 
   const int n = y.n_elem;
   const int p = MX.n_cols;
-  Col<double> mu_eta(n), nu(n);
-  Mat<double> H(p, p), w(n, 1);
+  Col<double> mu_eta(n), nu(n), w(n);
+  Mat<double> H(p, p);
   bool conv = false;
 
   bool dev_crit, val_crit, imp_crit;
@@ -402,7 +402,7 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
 
   // Recompute Hessian
 
-  H = crossprod_(MX, w, n, p, true, true);
+  H = crossprod_(MX, w);
 
   // Generate result list
 
