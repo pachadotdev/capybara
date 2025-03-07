@@ -72,10 +72,10 @@ void center_variables_(Mat<double> &V, const Col<double> &w, const list &klist,
   }
 }
 
-[[cpp11::register]] doubles_matrix<>
-center_variables_r_(const doubles_matrix<> &V_r, const doubles &w_r,
+[[cpp11::register]] doubles_matrix<> center_variables_r_(const doubles_matrix<> &V_r, const doubles &w_r,
                     const list &klist, const double &tol, const int &maxiter) {
   Mat<double> V = as_Mat(V_r);
-  center_variables_(V, as_Mat(w_r), klist, tol, maxiter);
+  Col<double> w = as_Col(w_r);
+  center_variables_(V, w, klist, tol, maxiter);
   return as_doubles_matrix(V);
 }

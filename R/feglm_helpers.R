@@ -525,12 +525,12 @@ get_score_matrix_feglm_ <- function(object) {
     attr(x, "dimnames") <- NULL
 
     # Center variables
-    mx <- center_variables_r_(x, w, k_list, control[["center_tol"]], 10000L)
-    colnames(mx) <- nms_sp
+    x <- center_variables_r_(x, w, k_list, control[["center_tol"]], 10000L)
+    colnames(x) <- nms_sp
   }
 
   # Return score matrix
-  mx * (nu * w)
+  x * (nu * w)
 }
 
 #' @title Gamma computation

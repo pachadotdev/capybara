@@ -9,7 +9,7 @@ using namespace cpp11;
 
 // used across the scripts
 
-Mat<double> center_variables_(const Mat<double> &V, const Col<double> &w,
+void center_variables_(Mat<double> &V, const Col<double> &w,
                               const list &klist, const double &tol,
                               const int &maxiter);
 
