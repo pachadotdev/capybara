@@ -1,9 +1,8 @@
 #include "00_main.h"
 
 // Method of alternating projections (Halperin)
-void center_variables_(Mat<double> &V, const Col<double> &w,
-                              const list &klist, const double &tol,
-                              const int &maxiter) {
+void center_variables_(Mat<double> &V, const Col<double> &w, const list &klist,
+                       const double &tol, const int &maxiter) {
   // Auxiliary variables (fixed)
   const size_t I = static_cast<size_t>(maxiter);
   const size_t N = V.n_rows;

@@ -416,11 +416,6 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
       writable::strings({"coefficients", "eta", "weights", "hessian",
                          "deviance", "null_deviance", "conv", "iter"});
 
-  // if (keep_mx) {
-  //   out.push_back({"MX"_nm = as_doubles_matrix(center_variables_(
-  //                      as_Mat(x_r), w, k_list, center_tol, iter_center_max))});
-  // }
-
   if (keep_mx) {
     Mat<double> x_cpp = as_Mat(x_r);
     center_variables_(x_cpp, w, k_list, center_tol, iter_center_max);
