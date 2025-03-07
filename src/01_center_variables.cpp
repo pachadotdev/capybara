@@ -1,7 +1,7 @@
 #include "00_main.h"
 
 // Method of alternating projections (Halperin)
-Mat<double> center_variables_(const Mat<double> &V, const Col<double> &w,
+void center_variables_(Mat<double> &V, const Col<double> &w,
                               const list &klist, const double &tol,
                               const int &maxiter) {
   // Auxiliary variables (fixed)
@@ -14,7 +14,6 @@ Mat<double> center_variables_(const Mat<double> &V, const Col<double> &w,
   // Auxiliary variables (storage)
   size_t iter, j, k, p, J, interrupt_iter = 1000;
   double meanj, ratio;
-  Mat<double> C(N, P, fill::zeros);
   Col<double> x(N), x0(N);
 
   // Precompute group indices and weights
@@ -70,15 +69,14 @@ Mat<double> center_variables_(const Mat<double> &V, const Col<double> &w,
       if (ratio < tol)
         break;
     }
-    C.col(p) = x;
+    V.col(p) = x;
   }
-
-  return C;
 }
 
 [[cpp11::register]] doubles_matrix<>
 center_variables_r_(const doubles_matrix<> &V_r, const doubles &w_r,
                     const list &klist, const double &tol, const int &maxiter) {
-  return as_doubles_matrix(
-      center_variables_(as_Mat(V_r), as_Mat(w_r), klist, tol, maxiter));
+  Mat<double> V = as_Mat(V_r);
+  center_variables_(V, as_Mat(w_r), klist, tol, maxiter);
+  return as_doubles_matrix(V);
 }

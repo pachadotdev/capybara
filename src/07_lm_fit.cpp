@@ -22,20 +22,21 @@
 
   // Center variables
 
-  MNU = center_variables_(MNU + y, w, k_list, center_tol, iter_center_max);
-  MX = center_variables_(X, w, k_list, center_tol, iter_center_max);
+  MNU += y;
+  center_variables_(MNU, w, k_list, center_tol, iter_center_max);
+  center_variables_(X, w, k_list, center_tol, iter_center_max);
 
   // Solve the normal equations
 
-  Col<double> beta = solve_beta_(MX, MNU, w);
+  Col<double> beta = solve_beta_(X, MNU, w);
 
   // Fitted values
 
-  Col<double> fitted = y - MNU + MX * beta;
+  Col<double> fitted = y - MNU + X * beta;
 
   // Recompute Hessian
 
-  H = crossprod_(MX, w);
+  H = crossprod_(X, w);
 
   // Generate result list
 

@@ -29,4 +29,8 @@ form <- trade ~ rta + rta_lead4 | exp_year + imp_year + pair_id_2
 
 d <- filter(ch1_application3, sum_trade > 0)
 
-mark(capybara::fepoisson(form, data = d)$coefficients["rta"], iterations = 10L)
+mark(
+  capybara::fepoisson(form, data = d)$coefficients["rta"],
+  fixest::fepois(form, data = d)$coefficients["rta"],
+  iterations = 10L
+)

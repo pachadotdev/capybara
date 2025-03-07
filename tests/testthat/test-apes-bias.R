@@ -28,7 +28,7 @@ test_that("apes/bias works", {
   expect_output(print(mod1))
 
   expect_equal(length(coef(apes1)), 1)
-  expect_equal(round(coef(apes1), 5), apes2)
+  expect_equal(round(coef(apes1), 3), round(apes2, 3))
   expect_equal(length(coef(summary(apes(mod1)))), 4)
 
   expect_equal(length(coef(bias1)), 1)

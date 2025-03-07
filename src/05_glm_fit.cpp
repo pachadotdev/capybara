@@ -325,8 +325,8 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
     // Center variables
 
     MNU += nu;
-    MNU = center_variables_(MNU, w, k_list, center_tol, iter_center_max);
-    MX = center_variables_(MX, w, k_list, center_tol, iter_center_max);
+    center_variables_(MNU, w, k_list, center_tol, iter_center_max);
+    center_variables_(MX, w, k_list, center_tol, iter_center_max);
 
     // Compute update step and update eta
 
@@ -416,9 +416,15 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
       writable::strings({"coefficients", "eta", "weights", "hessian",
                          "deviance", "null_deviance", "conv", "iter"});
 
+  // if (keep_mx) {
+  //   out.push_back({"MX"_nm = as_doubles_matrix(center_variables_(
+  //                      as_Mat(x_r), w, k_list, center_tol, iter_center_max))});
+  // }
+
   if (keep_mx) {
-    out.push_back({"MX"_nm = as_doubles_matrix(center_variables_(
-                       as_Mat(x_r), w, k_list, center_tol, iter_center_max))});
+    Mat<double> x_cpp = as_Mat(x_r);
+    center_variables_(x_cpp, w, k_list, center_tol, iter_center_max);
+    out.push_back({"MX"_nm = as_doubles_matrix(x_cpp)});
   }
 
   return out;

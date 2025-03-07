@@ -48,8 +48,8 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
 
     // Center variables
 
-    Myadj =
-        center_variables_(Myadj + yadj, w, k_list, center_tol, iter_center_max);
+    Myadj += yadj;
+    center_variables_(Myadj, w, k_list, center_tol, iter_center_max);
 
     // Compute update step and update eta
 
