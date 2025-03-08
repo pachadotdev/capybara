@@ -1,3 +1,4 @@
+
 #include "00_main.h"
 
 // Method of alternating projections (Halperin)
@@ -11,9 +12,8 @@ void center_variables_(Mat<double> &V, const Col<double> &w, const list &klist,
   const double inv_sw = 1.0 / accu(w);
 
   // Auxiliary variables (storage)
-  size_t iter, j, k, p, J, interrupt_iter = 1000;
+  size_t iter, j, k, J, interrupt_iter = 1000;
   double meanj, ratio;
-  Col<double> x(N), x0(N);
 
   // Precompute group indices and weights
   field<field<uvec>> group_indices(K);
@@ -30,16 +30,19 @@ void center_variables_(Mat<double> &V, const Col<double> &w, const list &klist,
     }
   }
 
-  // Halperin projections
-  // #ifdef _OPENMP
-  // #pragma omp parallel for schedule(dynamic) private(x, x0, iter, k, j,
-  // meanj, J, ratio) #endif
-  for (p = 0; p < P; ++p) {
+// Halperin projections
+#ifdef _OPENMP
+#pragma omp parallel for schedule(dynamic) private(                            \
+    iter, k, j, J, meanj, ratio) shared(V, w, group_indices, group_weights)
+#endif
+  for (size_t p = 0; p < P; ++p) {
     // Center each variable
-    x = V.col(p);
+    Col<double> x = V.col(p);
+    Col<double> x0(N);
 
     for (iter = 0; iter < I; ++iter) {
       if (iter == interrupt_iter) {
+#pragma omp critical
         check_user_interrupt();
         interrupt_iter += 1000;
       }
@@ -49,7 +52,7 @@ void center_variables_(Mat<double> &V, const Col<double> &w, const list &klist,
 
       // Alternate between categories
       for (k = 0; k < K; ++k) {
-        // Substract the weighted group means of category 'k'
+        // Subtract the weighted group means of category 'k'
         J = group_indices(k).size();
         if (J == 0)
           continue; // Skip empty groups
@@ -64,7 +67,6 @@ void center_variables_(Mat<double> &V, const Col<double> &w, const list &klist,
 
       // Break loop if convergence is reached
       ratio = accu(abs(x - x0) / (1.0 + abs(x0)) % w) * inv_sw;
-      // ratio = norm(x - x0, 2) * inv_sw;
       if (ratio < tol)
         break;
     }
@@ -72,7 +74,8 @@ void center_variables_(Mat<double> &V, const Col<double> &w, const list &klist,
   }
 }
 
-[[cpp11::register]] doubles_matrix<> center_variables_r_(const doubles_matrix<> &V_r, const doubles &w_r,
+[[cpp11::register]] doubles_matrix<>
+center_variables_r_(const doubles_matrix<> &V_r, const doubles &w_r,
                     const list &klist, const double &tol, const int &maxiter) {
   Mat<double> V = as_Mat(V_r);
   Col<double> w = as_Col(w_r);

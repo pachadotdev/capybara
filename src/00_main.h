@@ -9,9 +9,8 @@ using namespace cpp11;
 
 // used across the scripts
 
-void center_variables_(Mat<double> &V, const Col<double> &w,
-                              const list &klist, const double &tol,
-                              const int &maxiter);
+void center_variables_(Mat<double> &V, const Col<double> &w, const list &klist,
+                       const double &tol, const int &maxiter);
 
 Col<double> solve_beta_(Mat<double> MX, const Mat<double> &MNU,
                         const Col<double> &w);

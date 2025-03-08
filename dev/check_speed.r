@@ -34,3 +34,11 @@ mark(
   fixest::fepois(form, data = d)$coefficients["rta"],
   iterations = 10L
 )
+
+Rprof("capybara_profile.out")
+mod <- capybara::fepoisson(form, data = d)
+Rprof(NULL)
+
+profvis::profvis({
+  mod <- capybara::fepoisson(form, data = d)
+})
