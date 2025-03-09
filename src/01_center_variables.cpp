@@ -19,16 +19,16 @@ void center_variables_(Mat<double> &V, const Col<double> &w, const list &klist,
 
   // Precompute group indices and weights
   field<field<uvec>> group_indices(K);
-  field<vec> group_weights(K);
+  field<vec> group_inverse_weights(K);
 
   for (k = 0; k < K; ++k) {
     list jlist = klist[k];
     J = jlist.size();
     group_indices(k).set_size(J);
-    group_weights(k).set_size(J);
+    group_inverse_weights(k).set_size(J);
     for (j = 0; j < J; ++j) {
       group_indices(k)(j) = as_uvec(as_cpp<integers>(jlist[j]));
-      group_weights(k)(j) = accu(w.elem(group_indices(k)(j)));
+      group_inverse_weights(k)(j) = 1.0 / accu(w.elem(group_indices(k)(j)));
     }
   }
 
@@ -36,7 +36,7 @@ void center_variables_(Mat<double> &V, const Col<double> &w, const list &klist,
 #ifdef _OPENMP
 #pragma omp parallel for schedule(dynamic) private(iter, k, j, J, meanj,       \
                                                    ratio, alpha, xit, xit2)    \
-    shared(V, w, group_indices, group_weights)
+    shared(V, w, group_indices, group_inverse_weights)
 #endif
   for (size_t p = 0; p < P; ++p) {
     // Center each variable
@@ -63,7 +63,7 @@ void center_variables_(Mat<double> &V, const Col<double> &w, const list &klist,
         for (j = 0; j < J; ++j) {
           // Subset j-th group of category 'k'
           const uvec &coords = group_indices(k)(j);
-          meanj = dot(w.elem(coords), x.elem(coords)) / group_weights(k)(j);
+          meanj = dot(w.elem(coords), x.elem(coords)) * group_inverse_weights(k)(j);
           x.elem(coords) -= meanj;
         }
       }
