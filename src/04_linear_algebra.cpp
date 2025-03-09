@@ -16,7 +16,7 @@ Col<double> solve_beta_(Mat<double> MX, const Mat<double> &MNU,
     stop("QR decomposition failed");
   }
 
-  return solve(trimatu(R), Q.t() * (MNU.each_col() % sqrt_w));
+  return solve(trimatu(R), Q.t() * (MNU.each_col() % sqrt_w), solve_opts::fast);
 }
 
 // Col<double> solve_beta_(Mat<double> MX, const Mat<double> &MNU,
