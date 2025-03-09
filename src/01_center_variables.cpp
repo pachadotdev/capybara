@@ -12,10 +12,11 @@ void center_variables_(Mat<double> &V, const Col<double> &w, const list &klist,
 
   // Auxiliary variables (storage)
   size_t iter, j, k, J, interrupt_iter = 1000;
-  double meanj, ratio, alpha;
+  double meanj, ratio, alpha, dxit_norm;
   Col<double> xit(N, fill::zeros); // Store previous iterations for
                                    // Irons & Tuck acceleration
   Col<double> xit2 = xit;
+  Col<double> dx(N), dxit(N);
 
   // Precompute group indices and weights
   field<field<uvec>> group_indices(K);
@@ -35,7 +36,8 @@ void center_variables_(Mat<double> &V, const Col<double> &w, const list &klist,
   // Halperin projections with Irons & Tuck acceleration
 #ifdef _OPENMP
 #pragma omp parallel for schedule(dynamic) private(iter, k, j, J, meanj,       \
-                                                   ratio, alpha, xit, xit2)    \
+                                                   ratio, alpha, xit, xit2, dx, \
+                                                    dxit) \
     shared(V, w, group_indices, group_inverse_weights)
 #endif
   for (size_t p = 0; p < P; ++p) {
@@ -70,9 +72,9 @@ void center_variables_(Mat<double> &V, const Col<double> &w, const list &klist,
 
       // Compute Irons & Tuck acceleration step
       if (iter > 1) {
-        Col<double> dx = x - xit;
-        Col<double> dxit = xit - xit2;
-        double dxit_norm = norm(dxit, 2);
+        dx = x - xit;
+        dxit = xit - xit2;
+        dxit_norm = norm(dxit, 2);
 
         if (dxit_norm > 0) {
           alpha = -dot(dx, dxit) / (dxit_norm * dxit_norm);
