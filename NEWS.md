@@ -9,6 +9,9 @@
   * mu eta
   * variance
 
+* `iter_center_max` and `iter_inner_max` now can be modified in
+  `feglm_control()`.
+
 # capybara 0.8.0
 
 * Dedicated functions for linear models to avoid the overhead of running

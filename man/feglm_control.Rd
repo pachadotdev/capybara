@@ -8,6 +8,8 @@ feglm_control(
   dev_tol = 1e-08,
   center_tol = 1e-08,
   iter_max = 25L,
+  iter_center_max = 1000L,
+  iter_inner_max = 50L,
   limit = 10L,
   trace = FALSE,
   drop_pc = TRUE,
@@ -28,6 +30,13 @@ centered variable similar to the \code{'lfe'} package. The default is
 
 \item{iter_max}{unsigned integer indicating the maximum number of iterations
 in the maximization routine. The default is \code{25L}.}
+
+\item{iter_center_max}{unsigned integer indicating the maximum number of
+iterations in the centering algorithm. The default is \code{1000L}.}
+
+\item{iter_inner_max}{unsigned integer indicating the maximum number of
+iterations in the inner loop of the centering algorithm. The default is
+\code{50L}.}
 
 \item{limit}{unsigned integer indicating the maximum number of iterations of
 \code{\link[MASS]{theta.ml}}. The default is \code{10L}.}

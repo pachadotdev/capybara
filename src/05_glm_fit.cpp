@@ -292,8 +292,8 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
   bool keep_mx = as_cpp<bool>(control["keep_mx"]);
   size_t iter, iter_inner;
   const size_t iter_max = as_cpp<size_t>(control["iter_max"]);
-  const size_t iter_center_max = 10000;
-  const size_t iter_inner_max = 50;
+  const size_t iter_center_max = as_cpp<size_t>(control["iter_center_max"]);
+  const size_t iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]);
   const size_t n = y.n_elem;
   const size_t p = MX.n_cols;
   const size_t k = beta.n_elem;

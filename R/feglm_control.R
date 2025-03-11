@@ -34,6 +34,11 @@ NULL
 #'  \code{1.0e-08}.
 #' @param iter_max unsigned integer indicating the maximum number of iterations
 #'  in the maximization routine. The default is \code{25L}.
+#' @param iter_center_max unsigned integer indicating the maximum number of
+#'  iterations in the centering algorithm. The default is \code{1000L}.
+#' @param iter_inner_max unsigned integer indicating the maximum number of
+#'  iterations in the inner loop of the centering algorithm. The default is
+#'  \code{50L}.
 #' @param limit unsigned integer indicating the maximum number of iterations of
 #'  \code{\link[MASS]{theta.ml}}. The default is \code{10L}.
 #' @param trace logical indicating if output should be produced in each
@@ -61,6 +66,8 @@ feglm_control <- function(
     dev_tol = 1.0e-08,
     center_tol = 1.0e-08,
     iter_max = 25L,
+    iter_center_max = 1000L,
+    iter_inner_max = 50L,
     limit = 10L,
     trace = FALSE,
     drop_pc = TRUE,
@@ -82,6 +89,24 @@ feglm_control <- function(
     )
   }
 
+  # Check validity of 'iter_center_max'
+  iter_center_max <- as.integer(iter_center_max)
+  if (iter_center_max < 1L) {
+    stop(
+      "Maximum number of iterations for centering should be at least one.",
+      call. = FALSE
+    )
+  }
+
+  # Check validity of 'iter_inner_max'
+  iter_inner_max <- as.integer(iter_inner_max)
+  if (iter_inner_max < 1L) {
+    stop(
+      "Maximum number of iterations for inner loop should be at least one.",
+      call. = FALSE
+    )
+  }
+
   # Check validity of 'limit'
   limit <- as.integer(limit)
   if (limit < 1L) {
@@ -93,6 +118,8 @@ feglm_control <- function(
     dev_tol    = dev_tol,
     center_tol = center_tol,
     iter_max   = iter_max,
+    iter_center_max = iter_center_max,
+    iter_inner_max = iter_inner_max,
     limit      = limit,
     trace      = as.logical(trace),
     drop_pc    = as.logical(drop_pc),
