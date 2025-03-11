@@ -1,8 +1,9 @@
 #include "00_main.h"
 
-// Method of alternating projections (Halperin) with Irons & Tuck acceleration
-void center_variables_(Mat<double> &V, const Col<double> &w, const list &klist,
-                       const double &tol, const int &maxiter) {
+// Method of alternating projections (Halperin)
+void center_variables_(Mat<double> &V, const Col<double> &w,
+                                const list &klist, const double &tol,
+                                const int &maxiter) {
   // Auxiliary variables (fixed)
   const size_t I = static_cast<size_t>(maxiter);
   const size_t N = V.n_rows;
@@ -11,8 +12,7 @@ void center_variables_(Mat<double> &V, const Col<double> &w, const list &klist,
   const double inv_sw = 1.0 / accu(w);
 
   // Auxiliary variables (storage)
-  size_t iter, j, k, J, interrupt_iter = 1000;
-  double meanj, ratio;
+  size_t j, k, J;
 
   // Precompute group indices and weights
   field<field<uvec>> group_indices(K);
@@ -29,54 +29,46 @@ void center_variables_(Mat<double> &V, const Col<double> &w, const list &klist,
     }
   }
 
-  // Halperin projections with Irons & Tuck acceleration
+// Halperin projections parallelizing over columns
 #ifdef _OPENMP
-#pragma omp parallel for schedule(dynamic) private(iter, k, j, J, meanj,       \
-                                                   ratio) \
-    shared(V, w, group_indices, group_inverse_weights)
+#pragma omp parallel for schedule(dynamic)
 #endif
   for (size_t p = 0; p < P; ++p) {
-    // Center each variable
     Col<double> x = V.col(p);
     Col<double> x0(N);
+    size_t iter, interrupt_iter = 1000, l, m, L;
+    double xbar, ratio;
 
     for (iter = 0; iter < I; ++iter) {
       if (iter == interrupt_iter) {
-#pragma omp critical
         check_user_interrupt();
         interrupt_iter += 1000;
       }
 
-      // Store centered vector from the last iteration
       x0 = x;
 
-      // Alternate between categories
-      for (k = 0; k < K; ++k) {
-        // Subtract the weighted group means of category 'k'
-        J = group_indices(k).size();
-        if (J == 0)
-          continue; // Skip empty groups
+      for (l = 0; l < K; ++l) {
+        L = group_indices(l).size();
+        if (L == 0) continue;
 
-        for (j = 0; j < J; ++j) {
-          // Subset j-th group of category 'k'
-          const uvec &coords = group_indices(k)(j);
-          meanj = dot(w.elem(coords), x.elem(coords)) * group_inverse_weights(k)(j);
-          x.elem(coords) -= meanj;
+        for (m = 0; m < L; ++m) {
+          const uvec &coords = group_indices(l)(m);
+          xbar =
+              dot(w.elem(coords), x.elem(coords)) * group_inverse_weights(l)(m);
+          x.elem(coords) -= xbar;
         }
       }
 
-      // Break loop if convergence is reached
       ratio = accu(abs(x - x0) / (1.0 + abs(x0)) % w) * inv_sw;
-      if (ratio < tol)
-        break;
+      if (ratio < tol) break;
     }
     V.col(p) = x;
   }
 }
 
-[[cpp11::register]] doubles_matrix<>
-center_variables_r_(const doubles_matrix<> &V_r, const doubles &w_r,
-                    const list &klist, const double &tol, const int &maxiter) {
+[[cpp11::register]] doubles_matrix<> center_variables_r_(
+    const doubles_matrix<> &V_r, const doubles &w_r, const list &klist,
+    const double &tol, const int &maxiter) {
   Mat<double> V = as_Mat(V_r);
   Col<double> w = as_Col(w_r);
   center_variables_(V, w, klist, tol, maxiter);
