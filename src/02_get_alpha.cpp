@@ -17,6 +17,9 @@
   field<int> list_sizes(K);
   field<field<uvec>> group_indices(K);
 
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static, omp_get_max_threads())
+#endif
   for (k = 0; k < K; ++k) {
     const list &jlist = as_cpp<list>(klist[k]);
     J = jlist.size();
@@ -46,6 +49,9 @@
     // Store alpha_0 of the previous iteration
     Alpha0 = Alpha;
 
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static, omp_get_max_threads())
+#endif
     for (k = 0; k < K; ++k) {
       if (list_sizes(k) == 0)
         continue; // Skip empty groups
@@ -74,6 +80,10 @@
 
     // Compute termination criterion and check convergence
     num = 0.0, denom = 0.0;
+
+#ifdef _OPENMP
+#pragma omp parallel for reduction(+ : num, denom)
+#endif
     for (k = 0; k < K; ++k) {
       if (list_sizes(k) == 0)
         continue; // Skip empty groups

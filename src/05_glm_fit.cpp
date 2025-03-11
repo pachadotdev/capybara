@@ -46,7 +46,7 @@ Col<double> link_inv_negbin_(const Col<double> &eta) { return exp(eta); }
 
 double dev_resids_gaussian_(const Col<double> &y, const Col<double> &mu,
                             const Col<double> &wt) {
-  return accu(wt % square(y - mu));
+  return dot(wt, square(y - mu));
 }
 
 double dev_resids_poisson_(const Col<double> &y, const Col<double> &mu,
@@ -72,7 +72,7 @@ double dev_resids_logit_(const Col<double> &y, const Col<double> &mu,
   r(p) = y(p) % log(y(p) / mu(p));
   s(q) = (1 - y(q)) % log((1 - y(q)) / (1 - mu(q)));
 
-  return 2 * accu(wt % (r + s));
+  return 2 * dot(wt, r + s);
 }
 
 double dev_resids_gamma_(const Col<double> &y, const Col<double> &mu,
@@ -88,7 +88,7 @@ double dev_resids_gamma_(const Col<double> &y, const Col<double> &mu,
 
 double dev_resids_invgaussian_(const Col<double> &y, const Col<double> &mu,
                                const Col<double> &wt) {
-  return accu(wt % square(y - mu) / (y % square(mu)));
+  return dot(wt, square(y - mu) / (y % square(mu)));
 }
 
 double dev_resids_negbin_(const Col<double> &y, const Col<double> &mu,
