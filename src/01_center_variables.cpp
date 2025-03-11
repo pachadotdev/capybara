@@ -25,14 +25,19 @@ void center_variables_(Mat<double> &V, const Col<double> &w,
 #pragma omp parallel for schedule(static, n_threads)
 #endif
   for (k = 0; k < K; ++k) {
-    list jlist = klist[k];
+    const list &jlist = klist[k];
     J = jlist.size();
-    group_indices(k).set_size(J);
-    group_inverse_weights(k).set_size(J);
+
+    field<uvec> indices(J);
+    vec inverse_weights(J);
+
     for (j = 0; j < J; ++j) {
-      group_indices(k)(j) = as_uvec(as_cpp<integers>(jlist[j]));
-      group_inverse_weights(k)(j) = 1.0 / accu(w.elem(group_indices(k)(j)));
+      indices(j) = as_uvec(as_cpp<integers>(jlist[j]));
+      inverse_weights(j) = 1.0 / accu(w.elem(indices(j)));
     }
+
+    group_indices(k) = std::move(indices);
+    group_inverse_weights(k) = std::move(inverse_weights);
   }
 
 // Halperin projections parallelizing over columns
