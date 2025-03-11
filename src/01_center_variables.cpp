@@ -1,5 +1,7 @@
 #include "00_main.h"
 
+int n_threads = omp_get_max_threads();
+
 // Method of alternating projections (Halperin)
 void center_variables_(Mat<double> &V, const Col<double> &w,
                                 const list &klist, const double &tol,
@@ -13,11 +15,15 @@ void center_variables_(Mat<double> &V, const Col<double> &w,
 
   // Auxiliary variables (storage)
   size_t j, k, J;
+  uvec coords;
 
-  // Precompute group indices and weights
+  // Precompute group indices and weights parallelizing over groups
   field<field<uvec>> group_indices(K);
   field<vec> group_inverse_weights(K);
 
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static, n_threads)
+#endif
   for (k = 0; k < K; ++k) {
     list jlist = klist[k];
     J = jlist.size();
@@ -31,7 +37,8 @@ void center_variables_(Mat<double> &V, const Col<double> &w,
 
 // Halperin projections parallelizing over columns
 #ifdef _OPENMP
-#pragma omp parallel for schedule(dynamic)
+// #pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for schedule(static, n_threads)
 #endif
   for (size_t p = 0; p < P; ++p) {
     Col<double> x = V.col(p);
@@ -59,7 +66,7 @@ void center_variables_(Mat<double> &V, const Col<double> &w,
         }
       }
 
-      ratio = accu(abs(x - x0) / (1.0 + abs(x0)) % w) * inv_sw;
+      ratio = dot(abs(x - x0) / (1.0 + abs(x0)), w) * inv_sw;
       if (ratio < tol) break;
     }
     V.col(p) = x;
