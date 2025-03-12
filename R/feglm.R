@@ -87,7 +87,7 @@ NULL
 #'  linear dependence between one or more regressors and a fixed effects
 #'  category. In this case, you should carefully inspect your model
 #'  specification.
-#' 
+#'
 #' @return A named list of class \code{"feglm"}. The list contains the following
 #'  fifteen elements:
 #'  \item{coefficients}{a named vector of the estimated coefficients}
@@ -108,7 +108,7 @@ NULL
 #'   observations}
 #'  \item{family}{the family used in the model}
 #'  \item{control}{the control list used in the model}
-#' 
+#'
 #' @references Gaure, S. (2013). "OLS with Multiple High Dimensional Category
 #'  Variables". Computational Statistics and Data Analysis, 66.
 #' @references Marschner, I. (2011). "glm2: Fitting generalized linear models
@@ -196,7 +196,7 @@ feglm <- function(
 
   # Check for linear dependence ----
   # check_linear_dependence_(x, p)
-  check_linear_dependence_(cbind(y,x), p + 1L)
+  check_linear_dependence_(cbind(y, x), p + 1L)
 
   # Extract weights if required ----
   if (is.null(weights)) {

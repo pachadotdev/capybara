@@ -18,7 +18,7 @@ test_that("error conditions in APEs", {
   )
 
   # no model
-  
+
   expect_error(apes(), "specified")
 
   expect_error(

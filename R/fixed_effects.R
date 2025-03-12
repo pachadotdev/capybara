@@ -20,13 +20,11 @@ NULL
 #'  the fixed effects.
 #'
 #' @param object an object of class \code{"feglm"}.
-#' @param alpha_tol tolerance level for the stopping condition. The algorithm is
-#'  stopped at iteration \eqn{i} if \eqn{||\boldsymbol{\alpha}_{i} -
-#'  \boldsymbol{\alpha}_{i - 1}||_{2} < tol ||\boldsymbol{\alpha}_{i - 1}||
-#'  {2}}{||\Delta \alpha|| < tol ||\alpha_old||}. Default is \code{1.0e-08}.
-#' 
+#' @param control a list of control parameters. If \code{NULL}, the default
+#'  control parameters are used.
+#'
 #' @return A named list containing named vectors of estimated fixed effects.
-#' 
+#'
 #' @references Stammann, A. (2018). "Fast and Feasible Estimation of Generalized
 #'  Linear Models with High-Dimensional k-way Fixed Effects". ArXiv e-prints.
 #' @references Gaure, S. (n. d.). "Multicollinearity, identification, and
@@ -50,19 +48,22 @@ NULL
 #' fixed_effects(mod)
 #'
 #' @export
-fixed_effects <- function(object = NULL, alpha_tol = 1.0e-08) {
-  # Check validity of 'object'
+fixed_effects <- function(object = NULL, control = NULL) {
+  # Check validity of 'object' ----
   if (is.null(object)) {
     stop("'object' has to be specified.", call. = FALSE)
   } else if (isFALSE(inherits(object, "felm")) &&
-               isFALSE(inherits(object, "feglm"))) {
+    isFALSE(inherits(object, "feglm"))) {
     stop(
       "'fixed_effects' called on a non-'felm' or non-'feglm' object.",
       call. = FALSE
     )
   }
 
-  # Extract required quantities from result list
+  # Check validity of control + Extract control list ----
+  control <- check_control_(control)
+
+  # Extract required quantities from result list ----
   beta <- object[["coefficients"]]
   data <- object[["data"]]
   formula <- object[["formula"]]
@@ -72,28 +73,28 @@ fixed_effects <- function(object = NULL, alpha_tol = 1.0e-08) {
   k <- length(lvls_k)
   eta <- object[["eta"]]
 
-  # Extract regressor matrix
+  # Extract regressor matrix ----
   x <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
   attr(x, "dimnames") <- NULL
 
-  # Generate auxiliary list of indexes for different sub panels
+  # Generate auxiliary list of indexes for different sub panels ----
   k_list <- get_index_list_(k_vars, data)
 
-  # Recover fixed effects by alternating the solutions of normal equations
+  # Recover fixed effects by alternating the solutions of normal equations ----
   if (inherits(object, "feglm")) {
     pie <- eta - x %*% beta
   } else {
     pie <- fitted.values(object) - x %*% beta
   }
-  fe_list <- as.list(get_alpha_(pie, k_list, alpha_tol))
+  fe_list <- get_alpha_(pie, k_list, control)
 
-  # Assign names to the different fixed effects categories
+  # Assign names to the different fixed effects categories ----
   for (i in seq.int(k)) {
     colnames(fe_list[[i]]) <- k_vars[i]
     rownames(fe_list[[i]]) <- nms_fe[[i]]
   }
   names(fe_list) <- k_vars
 
-  # Return list of estimated fixed effects
+  # Return list of estimated fixed effects ----
   fe_list
 }

@@ -13,7 +13,7 @@
 
   // Auxiliary variables (fixed)
 
-  size_t interrupt = as_cpp<size_t>(control["interrupt_iter"]);
+  size_t iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]);
   double center_tol = as_cpp<double>(control["center_tol"]);
   int iter_center_max = 10000;
 
@@ -24,8 +24,9 @@
   // Center variables
 
   MNU += y;
-  center_variables_(MNU, w, k_list, center_tol, iter_center_max, interrupt);
-  center_variables_(X, w, k_list, center_tol, iter_center_max, interrupt);
+  center_variables_(MNU, w, k_list, center_tol, iter_center_max,
+                    iter_interrupt);
+  center_variables_(X, w, k_list, center_tol, iter_center_max, iter_interrupt);
 
   // Solve the normal equations
 

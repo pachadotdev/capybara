@@ -17,7 +17,7 @@ NULL
 #'
 #' @description Covariance matrix for the estimator of the
 #'  average partial effects from objects returned by \code{\link{apes}}.
-#' 
+#'
 #' @param object an object of class \code{"apes"}.
 #' @param ... additional arguments.
 #'
@@ -37,7 +37,7 @@ vcov.apes <- function(object, ...) {
 #' @description Covariance matrix for the estimator of the structural parameters
 #'  from objects returned by \code{\link{feglm}}. The covariance is computed
 #' from the hessian, the scores, or a combination of both after convergence.
-#' 
+#'
 #' @param object an object of class \code{"feglm"}.
 #' @param type the type of covariance estimate required. \code{"hessian"} refers
 #'  to the inverse of the negative expected hessian after convergence and is the

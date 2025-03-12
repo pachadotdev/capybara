@@ -4,15 +4,13 @@
 \alias{fixed_effects}
 \title{Recover the estimates of the fixed effects after fitting (G)LMs}
 \usage{
-fixed_effects(object = NULL, alpha_tol = 1e-08)
+fixed_effects(object = NULL, control = NULL)
 }
 \arguments{
 \item{object}{an object of class \code{"feglm"}.}
 
-\item{alpha_tol}{tolerance level for the stopping condition. The algorithm is
-stopped at iteration \eqn{i} if \eqn{||\boldsymbol{\alpha}_{i} -
- \boldsymbol{\alpha}_{i - 1}||_{2} < tol ||\boldsymbol{\alpha}_{i - 1}||
- {2}}{||\Delta \alpha|| < tol ||\alpha_old||}. Default is \code{1.0e-08}.}
+\item{control}{a list of control parameters. If \code{NULL}, the default
+control parameters are used.}
 }
 \value{
 A named list containing named vectors of estimated fixed effects.

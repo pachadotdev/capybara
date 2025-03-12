@@ -55,7 +55,7 @@ NULL
 #'  \code{family = gaussian()}.
 #'
 #' @inheritParams feglm
-#' 
+#'
 #' @return A named list of class \code{"felm"}. The list contains the following
 #'  eleven elements:
 #'  \item{coefficients}{a named vector of the estimated coefficients}
@@ -72,7 +72,7 @@ NULL
 #'  \item{data}{the data used in the model after dropping non-contributing
 #'   observations}
 #'  \item{control}{the control list used in the model}
-#' 
+#'
 #' @references Gaure, S. (2013). "OLS with Multiple High Dimensional Category
 #'  Variables". Computational Statistics and Data Analysis, 66.
 #' @references Marschner, I. (2011). "glm2: Fitting generalized linear models
@@ -136,8 +136,7 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   model_response_(data, formula)
 
   # Check for linear dependence ----
-  # check_linear_dependence_(x, p)
-  check_linear_dependence_(cbind(y,x), p + 1L)
+  check_linear_dependence_(cbind(y, x), p + 1L)
 
   # Extract weights if required ----
   if (is.null(weights)) {

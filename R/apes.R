@@ -30,7 +30,7 @@ NULL
 #'
 #'  \strong{Remark:} The routine currently does not allow to compute average
 #'  partial effects based on functional forms like interactions and polynomials.
-#' 
+#'
 #' @param object an object of class \code{"bias_corr"} or \code{"feglm"};
 #'  currently restricted to \code{\link[stats]{binomial}}.
 #' @param n_pop unsigned integer indicating a finite population correction for
@@ -62,7 +62,7 @@ NULL
 #'
 #' @return The function \code{\link{apes}} returns a named list of class
 #'  \code{"apes"}.
-#' 
+#'
 #' @references Cruz-Gonzalez, M., I. Fernández-Val, and M. Weidner (2017). "Bias
 #'  corrections for probit and logit models with two-way fixed effects". The
 #'  Stata Journal, 17(3), 517-545.
@@ -187,7 +187,7 @@ apes <- function(
   if (control[["keep_mx"]]) {
     mx <- object[["mx"]]
   } else {
-    mx <- center_variables_r_(x, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["interrupt_iter"]])
+    mx <- center_variables_r_(x, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]])
   }
 
   # Compute average partial effects, derivatives, and Jacobian
@@ -222,7 +222,7 @@ apes <- function(
 
   # Compute projection and residual projection of \psi
   psi <- -delta1 / w
-  mpsi <- center_variables_r_(psi, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["interrupt_iter"]])
+  mpsi <- center_variables_r_(psi, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]])
   ppsi <- psi - mpsi
   rm(delta1, psi)
 

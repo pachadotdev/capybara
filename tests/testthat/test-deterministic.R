@@ -21,7 +21,7 @@ test_that("deterministic relations", {
 
   # the solution is beta = 0.5 but we have the solve() function to
   # solve a linear system of equations!
-  expect_error(coef(feglm(y ~ x |f, d)), "Linear dependent terms")
+  expect_error(coef(feglm(y ~ x | f, d)), "Linear dependent terms")
 
   # error because we check linear dependency in the data
   expect_error(feglm(y ~ x + x2 | f, d), "Linear dependent terms")

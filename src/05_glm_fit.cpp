@@ -212,7 +212,7 @@ bool valid_mu_(const vec &mu, const FamilyType &fam) {
          null_dev = dev_resids_(y, ymean, theta, wt, fam), dev_old, dev_ratio,
          dev_ratio_inner, rho;
   bool dev_crit, val_crit, imp_crit, conv = false;
-  size_t interrupt = as_cpp<size_t>(control["interrupt_iter"]);
+  size_t iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]);
   mat H(p, p);
 
   // Maximize the log-likelihood
@@ -229,8 +229,10 @@ bool valid_mu_(const vec &mu, const FamilyType &fam) {
 
     // Center variables
     MNU += nu;
-    center_variables_(MNU, w, k_list, center_tol, iter_center_max, interrupt);
-    center_variables_(MX, w, k_list, center_tol, iter_center_max, interrupt);
+    center_variables_(MNU, w, k_list, center_tol, iter_center_max,
+                      iter_interrupt);
+    center_variables_(MX, w, k_list, center_tol, iter_center_max,
+                      iter_interrupt);
 
     // Compute update step and update eta
 
@@ -322,7 +324,8 @@ bool valid_mu_(const vec &mu, const FamilyType &fam) {
 
   if (keep_mx) {
     mat x_cpp = as_Mat(x_r);
-    center_variables_(x_cpp, w, k_list, center_tol, iter_center_max, interrupt);
+    center_variables_(x_cpp, w, k_list, center_tol, iter_center_max,
+                      iter_interrupt);
     out.push_back({"MX"_nm = as_doubles_matrix(x_cpp)});
   }
 

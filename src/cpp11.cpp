@@ -13,10 +13,10 @@ extern "C" SEXP _capybara_center_variables_r_(SEXP V_r, SEXP w_r, SEXP klist, SE
   END_CPP11
 }
 // 02_get_alpha.cpp
-list get_alpha_(const doubles_matrix<> & p_r, const list & klist, const double & tol);
-extern "C" SEXP _capybara_get_alpha_(SEXP p_r, SEXP klist, SEXP tol) {
+list get_alpha_(const doubles_matrix<> & p_r, const list & klist, const list & control);
+extern "C" SEXP _capybara_get_alpha_(SEXP p_r, SEXP klist, SEXP control) {
   BEGIN_CPP11
-    return cpp11::as_sexp(get_alpha_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(p_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(klist), cpp11::as_cpp<cpp11::decay_t<const double &>>(tol)));
+    return cpp11::as_sexp(get_alpha_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(p_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(klist), cpp11::as_cpp<cpp11::decay_t<const list &>>(control)));
   END_CPP11
 }
 // 03_group_sums.cpp

@@ -25,7 +25,7 @@ predict.feglm <- function(object, newdata = NULL, type = c("link", "response"), 
 
   if (!is.null(newdata)) {
     check_data_(newdata)
-    
+
     data <- NA # just to avoid global variable warning
     lhs <- NA
     nobs_na <- NA

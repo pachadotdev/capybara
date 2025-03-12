@@ -19,7 +19,7 @@ generics::augment
 NULL
 
 #' @title Broom Integration
-#' 
+#'
 #' @description The provided `broom` methods do the following:
 #'  1. `augment`: Takes the input data and adds additional columns with the
 #'      fitted values and residuals.

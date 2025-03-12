@@ -25,7 +25,7 @@ NULL
 #'  obtain bias-corrected estimates of the structural parameters and is
 #'  currently restricted to \code{\link[stats]{binomial}} with 1,2,3-way fixed
 #'  effects.
-#' 
+#'
 #' @param object an object of class \code{"feglm"}.
 #' @param l unsigned integer indicating a bandwidth for the estimation of
 #'  spectral densities proposed by Hahn and Kuersteiner (2011). The default is
@@ -42,7 +42,7 @@ NULL
 #'  observed for several time periods. Default is \code{"classic"}.
 #'
 #' @return A named list of classes \code{"bias_corr"} and \code{"feglm"}.
-#' 
+#'
 #' @references Czarnowske, D. and A. Stammann (2020). "Fixed Effects Binary
 #'  Choice Models: Estimation and Inference with Long Panels". ArXiv e-prints.
 #' @references Fernández-Val, I. and M. Weidner (2016). "Individual and time
@@ -137,7 +137,7 @@ bias_corr <- function(
   if (control[["keep_mx"]]) {
     x <- object[["mx"]]
   } else {
-    x <- center_variables_r_(x, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["interrupt_iter"]])
+    x <- center_variables_r_(x, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]])
   }
 
   # Compute bias terms for requested bias correction
@@ -184,7 +184,7 @@ bias_corr <- function(
   }
 
   # Update centered regressor matrix
-  x <- center_variables_r_(x, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["interrupt_iter"]])
+  x <- center_variables_r_(x, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]])
   colnames(x) <- nms_sp
 
   # Update hessian

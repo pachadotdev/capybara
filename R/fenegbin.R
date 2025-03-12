@@ -76,7 +76,7 @@ NULL
 #' )
 #'
 #' summary(mod)
-#' 
+#'
 #' @return A named list of class \code{"feglm"}. The list contains the following
 #'  eighteen elements:
 #'  \item{coefficients}{a named vector of the estimated coefficients}
@@ -158,7 +158,7 @@ fenegbin <- function(
   model_response_(data, formula)
 
   # Check for linear dependence in 'x' ----
-  check_linear_dependence_(cbind(y,x), p + 1L)
+  check_linear_dependence_(cbind(y, x), p + 1L)
 
   # Extract weights if required ----
   if (is.null(weights)) {

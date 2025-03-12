@@ -41,7 +41,7 @@ NULL
 
 #' @title Generalized Linear Models (GLMs) with high-dimensional k-way fixed
 #'  effects
-#' 
+#'
 #' @description
 #' Provides a routine to partial out factors with many levels during the
 #' optimization of the log-likelihood function of the corresponding GLM. The
@@ -94,6 +94,6 @@ NULL
 #'   \item{exp_year}{Exporter ISO country code and year}
 #'   \item{imp_year}{Importer ISO country code and year}
 #' }
-#' 
+#'
 #' @source Advanced Guide to Trade Policy Analysis (ISBN: 978-92-870-4367-2)
 "trade_panel"
