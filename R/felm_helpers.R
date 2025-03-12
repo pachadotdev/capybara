@@ -33,7 +33,7 @@ get_score_matrix_felm_ <- function(object) {
     attr(x, "dimnames") <- NULL
 
     # Center variables
-    mx <- center_variables_r_(x, w, k_list, control[["center_tol"]], 10000L)
+    mx <- center_variables_r_(x, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["interrupt_iter"]])
     colnames(mx) <- nms_sp
   }
 

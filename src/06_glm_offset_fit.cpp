@@ -7,32 +7,33 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
                   const list &k_list) {
   // Type conversion
 
-  Col<double> eta = as_Col(eta_r);
-  Col<double> y = as_Col(y_r);
-  Col<double> offset = as_Col(offset_r);
-  Col<double> Myadj = Col<double>(y.n_elem, fill::zeros);
-  Col<double> wt = as_Col(wt_r);
+  vec eta = as_Col(eta_r);
+  vec y = as_Col(y_r);
+  vec offset = as_Col(offset_r);
+  vec Myadj = vec(y.n_elem, fill::zeros);
+  vec wt = as_Col(wt_r);
 
   // Auxiliary variables (fixed)
 
-  std::string fam = tidy_family_(family);
+  FamilyType fam = get_family_type(tidy_family_(family));
   double center_tol = as_cpp<double>(control["center_tol"]);
   double dev_tol = as_cpp<double>(control["dev_tol"]);
+  size_t interrupt = as_cpp<size_t>(control["interrupt_iter"]);
   int iter, iter_max = as_cpp<int>(control["iter_max"]);
   int iter_center_max = 10000;
   int iter_inner, iter_inner_max = 50;
 
   // Auxiliary variables (storage)
 
-  Col<double> mu = link_inv_(eta, fam);
+  vec mu = link_inv_(eta, fam);
   double dev = dev_resids_(y, mu, 0.0, wt, fam);
 
   const int n = y.n_elem;
-  Col<double> mu_eta(n), yadj(n), w(n);
+  vec mu_eta(n), yadj(n), w(n);
 
   bool dev_crit, val_crit, imp_crit;
   double dev_old, dev_ratio, dev_ratio_inner, rho;
-  Col<double> eta_upd(n), eta_old(n);
+  vec eta_upd(n), eta_old(n);
 
   // Maximize the log-likelihood
 
@@ -49,7 +50,7 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
     // Center variables
 
     Myadj += yadj;
-    center_variables_(Myadj, w, k_list, center_tol, iter_center_max);
+    center_variables_(Myadj, w, k_list, center_tol, iter_center_max, interrupt);
 
     // Compute update step and update eta
 

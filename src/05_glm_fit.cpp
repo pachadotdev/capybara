@@ -27,187 +27,6 @@ std::string tidy_family_(const std::string &family) {
   return fam;
 }
 
-Col<double> link_inv_gaussian_(const Col<double> &eta) { return eta; }
-
-Col<double> link_inv_poisson_(const Col<double> &eta) { return exp(eta); }
-
-Col<double> link_inv_logit_(const Col<double> &eta) {
-  Col<double> expeta = exp(eta);
-  return expeta / (1 + expeta);
-}
-
-Col<double> link_inv_gamma_(const Col<double> &eta) { return 1 / eta; }
-
-Col<double> link_inv_invgaussian_(const Col<double> &eta) {
-  return 1 / sqrt(eta);
-}
-
-Col<double> link_inv_negbin_(const Col<double> &eta) { return exp(eta); }
-
-double dev_resids_gaussian_(const Col<double> &y, const Col<double> &mu,
-                            const Col<double> &wt) {
-  return dot(wt, square(y - mu));
-}
-
-double dev_resids_poisson_(const Col<double> &y, const Col<double> &mu,
-                           const Col<double> &wt) {
-  Col<double> r = mu % wt;
-
-  uvec p = find(y > 0);
-  r(p) = wt(p) % (y(p) % log(y(p) / mu(p)) - (y(p) - mu(p)));
-
-  return 2 * accu(r);
-}
-
-// Adapted from binomial_dev_resids()
-// in R base it can be found in src/library/stats/src/family.c
-// unfortunately the functions that work with a SEXP won't work with a Col<>
-double dev_resids_logit_(const Col<double> &y, const Col<double> &mu,
-                         const Col<double> &wt) {
-  Col<double> r(y.n_elem, fill::zeros);
-  Col<double> s(y.n_elem, fill::zeros);
-
-  uvec p = find(y == 1);
-  uvec q = find(y == 0);
-  r(p) = y(p) % log(y(p) / mu(p));
-  s(q) = (1 - y(q)) % log((1 - y(q)) / (1 - mu(q)));
-
-  return 2 * dot(wt, r + s);
-}
-
-double dev_resids_gamma_(const Col<double> &y, const Col<double> &mu,
-                         const Col<double> &wt) {
-  Col<double> r = y / mu;
-
-  uvec p = find(y == 0);
-  r.elem(p).fill(1.0);
-  r = wt % (log(r) - (y - mu) / mu);
-
-  return -2 * accu(r);
-}
-
-double dev_resids_invgaussian_(const Col<double> &y, const Col<double> &mu,
-                               const Col<double> &wt) {
-  return dot(wt, square(y - mu) / (y % square(mu)));
-}
-
-double dev_resids_negbin_(const Col<double> &y, const Col<double> &mu,
-                          const double &theta, const Col<double> &wt) {
-  Col<double> r = y;
-
-  uvec p = find(y < 1);
-  r.elem(p).fill(1.0);
-  r = wt % (y % log(r / mu) - (y + theta) % log((y + theta) / (mu + theta)));
-
-  return 2 * accu(r);
-}
-
-Col<double> variance_gaussian_(const Col<double> &mu) {
-  return ones<Col<double>>(mu.n_elem);
-}
-
-Col<double> link_inv_(const Col<double> &eta, const std::string &fam) {
-  Col<double> res(eta.n_elem);
-
-  if (fam == "gaussian") {
-    res = link_inv_gaussian_(eta);
-  } else if (fam == "poisson") {
-    res = link_inv_poisson_(eta);
-  } else if (fam == "binomial") {
-    res = link_inv_logit_(eta);
-  } else if (fam == "gamma") {
-    res = link_inv_gamma_(eta);
-  } else if (fam == "inverse_gaussian") {
-    res = link_inv_invgaussian_(eta);
-  } else if (fam == "negative_binomial") {
-    res = link_inv_negbin_(eta);
-  } else {
-    stop("Unknown family");
-  }
-
-  return res;
-}
-
-double dev_resids_(const Col<double> &y, const Col<double> &mu,
-                   const double &theta, const Col<double> &wt,
-                   const std::string &fam) {
-  double res;
-
-  if (fam == "gaussian") {
-    res = dev_resids_gaussian_(y, mu, wt);
-  } else if (fam == "poisson") {
-    res = dev_resids_poisson_(y, mu, wt);
-  } else if (fam == "binomial") {
-    res = dev_resids_logit_(y, mu, wt);
-  } else if (fam == "gamma") {
-    res = dev_resids_gamma_(y, mu, wt);
-  } else if (fam == "inverse_gaussian") {
-    res = dev_resids_invgaussian_(y, mu, wt);
-  } else if (fam == "negative_binomial") {
-    res = dev_resids_negbin_(y, mu, theta, wt);
-  } else {
-    stop("Unknown family");
-  }
-
-  return res;
-}
-
-bool valid_eta_(const Col<double> &eta, const std::string &fam) {
-  bool res;
-
-  if (fam == "gaussian") {
-    res = true;
-  } else if (fam == "poisson") {
-    res = true;
-  } else if (fam == "binomial") {
-    res = true;
-  } else if (fam == "gamma") {
-    res = is_finite(eta) && all(eta != 0.0);
-  } else if (fam == "inverse_gaussian") {
-    res = is_finite(eta) && all(eta > 0.0);
-  } else if (fam == "negative_binomial") {
-    res = true;
-  } else {
-    stop("Unknown family");
-  }
-
-  return res;
-}
-
-bool valid_mu_(const Col<double> &mu, const std::string &fam) {
-  bool res;
-
-  if (fam == "gaussian") {
-    res = true;
-  } else if (fam == "poisson") {
-    res = is_finite(mu) && all(mu > 0);
-  } else if (fam == "binomial") {
-    res = is_finite(mu) && all(mu > 0 && mu < 1);
-  } else if (fam == "gamma") {
-    res = is_finite(mu) && all(mu > 0.0);
-  } else if (fam == "inverse_gaussian") {
-    res = true;
-  } else if (fam == "negative_binomial") {
-    return all(mu > 0.0);
-  } else {
-    stop("Unknown family");
-  }
-
-  return res;
-}
-
-// mu_eta = d link_inv / d eta = d mu / d eta
-
-enum FamilyType {
-  GAUSSIAN,
-  POISSON,
-  BINOMIAL,
-  GAMMA,
-  INV_GAUSSIAN,
-  NEG_BIN,
-  UNKNOWN
-};
-
 FamilyType get_family_type(const std::string &fam) {
   static const std::unordered_map<std::string, FamilyType> family_map = {
       {"gaussian", GAUSSIAN},
@@ -221,40 +40,95 @@ FamilyType get_family_type(const std::string &fam) {
   return (it != family_map.end()) ? it->second : UNKNOWN;
 }
 
-Col<double> mu_eta_(const Col<double> &eta, const std::string &fam) {
-  Col<double> result(eta.n_elem);
-
-  switch (get_family_type(fam)) {
+// Compute link function inverse
+vec link_inv_(const vec &eta, const FamilyType &fam) {
+  switch (fam) {
   case GAUSSIAN:
-    result.ones();
-    break;
+    return eta;
   case POISSON:
   case NEG_BIN:
-    result = arma::exp(eta);
-    break;
+    return exp(eta);
   case BINOMIAL: {
-    Col<double> exp_eta = arma::exp(eta);
-    result = exp_eta / arma::square(1 + exp_eta);
-    break;
+    vec expeta = exp(eta);
+    return expeta / (1 + expeta);
   }
   case GAMMA:
-    result = -1 / arma::square(eta);
-    break;
+    return 1 / eta;
   case INV_GAUSSIAN:
-    result = -1 / (2 * arma::pow(eta, 1.5));
-    break;
+    return 1 / sqrt(eta);
   default:
     stop("Unknown family");
   }
-
-  return result;
 }
 
-Col<double> variance_(const Col<double> &mu, const double &theta,
-                      const std::string &fam) {
-  switch (get_family_type(fam)) {
+// Compute deviance residuals
+double dev_resids_(const vec &y, const vec &mu, const double &theta,
+                   const vec &wt, const FamilyType &fam) {
+  switch (fam) {
   case GAUSSIAN:
-    return ones<Col<double>>(mu.n_elem);
+    return dot(wt, square(y - mu));
+  case POISSON: {
+    vec r = mu % wt;
+    uvec p = find(y > 0);
+    r(p) = wt(p) % (y(p) % log(y(p) / mu(p)) - (y(p) - mu(p)));
+    return 2 * accu(r);
+  }
+  case BINOMIAL: {
+    vec r(y.n_elem, fill::zeros);
+    vec s(y.n_elem, fill::zeros);
+    uvec p = find(y == 1);
+    uvec q = find(y == 0);
+    r(p) = y(p) % log(y(p) / mu(p));
+    s(q) = (1 - y(q)) % log((1 - y(q)) / (1 - mu(q)));
+    return 2 * dot(wt, r + s);
+  }
+  case GAMMA: {
+    vec r = y / mu;
+    uvec p = find(y == 0);
+    r.elem(p).fill(1.0);
+    r = wt % (log(r) - (y - mu) / mu);
+    return -2 * accu(r);
+  }
+  case INV_GAUSSIAN:
+    return dot(wt, square(y - mu) / (y % square(mu)));
+  case NEG_BIN: {
+    vec r = y;
+    uvec p = find(y < 1);
+    r.elem(p).fill(1.0);
+    r = wt % (y % log(r / mu) - (y + theta) % log((y + theta) / (mu + theta)));
+    return 2 * accu(r);
+  }
+  default:
+    stop("Unknown family");
+  }
+}
+
+// Compute mu_eta
+vec mu_eta_(const vec &eta, const FamilyType &fam) {
+  switch (fam) {
+  case GAUSSIAN:
+    return ones<vec>(eta.n_elem);
+  case POISSON:
+  case NEG_BIN:
+    return exp(eta);
+  case BINOMIAL: {
+    vec exp_eta = exp(eta);
+    return exp_eta / square(1 + exp_eta);
+  }
+  case GAMMA:
+    return -1 / square(eta);
+  case INV_GAUSSIAN:
+    return -1 / (2 * pow(eta, 1.5));
+  default:
+    stop("Unknown family");
+  }
+}
+
+// Compute variance
+vec variance_(const vec &mu, const double &theta, const FamilyType &fam) {
+  switch (fam) {
+  case GAUSSIAN:
+    return ones<vec>(mu.n_elem);
   case POISSON:
     return mu;
   case BINOMIAL:
@@ -270,6 +144,40 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
   }
 }
 
+// Validate eta
+bool valid_eta_(const vec &eta, const FamilyType &fam) {
+  switch (fam) {
+  case GAUSSIAN:
+  case POISSON:
+  case BINOMIAL:
+  case NEG_BIN:
+    return true;
+  case GAMMA:
+    return is_finite(eta) && all(eta != 0.0);
+  case INV_GAUSSIAN:
+    return is_finite(eta) && all(eta > 0.0);
+  default:
+    stop("Unknown family");
+  }
+}
+
+// Validate mu
+bool valid_mu_(const vec &mu, const FamilyType &fam) {
+  switch (fam) {
+  case GAUSSIAN:
+  case POISSON:
+  case BINOMIAL:
+  case NEG_BIN:
+    return true;
+  case GAMMA:
+  case INV_GAUSSIAN:
+    return all(mu > 0.0);
+  default:
+    stop("Unknown family");
+  }
+}
+
+// Main GLM Fitting Function
 [[cpp11::register]] list feglm_fit_(const doubles &beta_r, const doubles &eta_r,
                                     const doubles &y_r,
                                     const doubles_matrix<> &x_r,
@@ -277,16 +185,15 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
                                     const std::string &family,
                                     const list &control, const list &k_list) {
   // Type conversion
-  Col<double> beta = as_Col(beta_r);
-  Col<double> eta = as_Col(eta_r);
-  Col<double> y = as_Col(y_r);
-  Mat<double> MX = as_Mat(x_r);
-  Col<double> MNU = Col<double>(y.n_elem, fill::zeros);
-  Col<double> wt = as_Col(wt_r);
+  vec beta = as_Col(beta_r);
+  vec eta = as_Col(eta_r);
+  vec y = as_Col(y_r);
+  mat MX = as_Mat(x_r);
+  vec MNU = vec(y.n_elem, fill::zeros);
+  vec wt = as_Col(wt_r);
 
   // Auxiliary variables (fixed)
-
-  std::string fam = tidy_family_(family);
+  FamilyType fam = get_family_type(tidy_family_(family));
   double center_tol = as_cpp<double>(control["center_tol"]);
   double dev_tol = as_cpp<double>(control["dev_tol"]);
   bool keep_mx = as_cpp<bool>(control["keep_mx"]);
@@ -299,16 +206,14 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
   const size_t k = beta.n_elem;
 
   // Auxiliary variables (storage)
-
-  Col<double> mu = link_inv_(eta, fam);
-  Col<double> ymean = mean(y) * Col<double>(y.n_elem, fill::ones);
-  double dev = dev_resids_(y, mu, theta, wt, fam);
-  double null_dev = dev_resids_(y, ymean, theta, wt, fam);
+  vec mu = link_inv_(eta, fam), ymean = mean(y) * vec(y.n_elem, fill::ones),
+      mu_eta(n), w(n), nu(n), beta_upd(k), eta_upd(n), eta_old(n), beta_old(k);
+  double dev = dev_resids_(y, mu, theta, wt, fam),
+         null_dev = dev_resids_(y, ymean, theta, wt, fam), dev_old, dev_ratio,
+         dev_ratio_inner, rho;
   bool dev_crit, val_crit, imp_crit, conv = false;
-  double dev_old, dev_ratio, dev_ratio_inner, rho;
-  Col<double> mu_eta(n), w(n), nu(n), beta_upd(k), eta_upd(n), eta_old(n),
-      beta_old(k);
-  Mat<double> H(p, p);
+  size_t interrupt = as_cpp<size_t>(control["interrupt_iter"]);
+  mat H(p, p);
 
   // Maximize the log-likelihood
   for (iter = 0; iter < iter_max; ++iter) {
@@ -323,10 +228,9 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
     nu = (y - mu) / mu_eta;
 
     // Center variables
-
     MNU += nu;
-    center_variables_(MNU, w, k_list, center_tol, iter_center_max);
-    center_variables_(MX, w, k_list, center_tol, iter_center_max);
+    center_variables_(MNU, w, k_list, center_tol, iter_center_max, interrupt);
+    center_variables_(MX, w, k_list, center_tol, iter_center_max, interrupt);
 
     // Compute update step and update eta
 
@@ -417,8 +321,8 @@ Col<double> variance_(const Col<double> &mu, const double &theta,
                          "deviance", "null_deviance", "conv", "iter"});
 
   if (keep_mx) {
-    Mat<double> x_cpp = as_Mat(x_r);
-    center_variables_(x_cpp, w, k_list, center_tol, iter_center_max);
+    mat x_cpp = as_Mat(x_r);
+    center_variables_(x_cpp, w, k_list, center_tol, iter_center_max, interrupt);
     out.push_back({"MX"_nm = as_doubles_matrix(x_cpp)});
   }
 

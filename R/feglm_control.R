@@ -35,10 +35,12 @@ NULL
 #' @param iter_max unsigned integer indicating the maximum number of iterations
 #'  in the maximization routine. The default is \code{25L}.
 #' @param iter_center_max unsigned integer indicating the maximum number of
-#'  iterations in the centering algorithm. The default is \code{1000L}.
+#'  iterations in the centering algorithm. The default is \code{10000L}.
 #' @param iter_inner_max unsigned integer indicating the maximum number of
 #'  iterations in the inner loop of the centering algorithm. The default is
 #'  \code{50L}.
+#' @param interrupt_iter unsigned integer indicating the maximum number of
+#' iterations before the algorithm is interrupted. The default is \code{1000L}.
 #' @param limit unsigned integer indicating the maximum number of iterations of
 #'  \code{\link[MASS]{theta.ml}}. The default is \code{10L}.
 #' @param trace logical indicating if output should be produced in each
@@ -66,8 +68,9 @@ feglm_control <- function(
     dev_tol = 1.0e-08,
     center_tol = 1.0e-08,
     iter_max = 25L,
-    iter_center_max = 1000L,
+    iter_center_max = 10000L,
     iter_inner_max = 50L,
+    interrupt_iter = 1000L,
     limit = 10L,
     trace = FALSE,
     drop_pc = TRUE,
@@ -107,6 +110,15 @@ feglm_control <- function(
     )
   }
 
+  # Check validity of 'interrupt_iter'
+  interrupt_iter <- as.integer(interrupt_iter)
+  if (interrupt_iter < 1L) {
+    stop(
+      "Maximum number of iterations for interrupt should be at least one.",
+      call. = FALSE
+    )
+  }
+
   # Check validity of 'limit'
   limit <- as.integer(limit)
   if (limit < 1L) {
@@ -120,6 +132,7 @@ feglm_control <- function(
     iter_max   = iter_max,
     iter_center_max = iter_center_max,
     iter_inner_max = iter_inner_max,
+    interrupt_iter = interrupt_iter,
     limit      = limit,
     trace      = as.logical(trace),
     drop_pc    = as.logical(drop_pc),
