@@ -6,14 +6,36 @@ mat crossprod_(const mat &X, const vec &w) {
   return Y.t() * Y;
 }
 
+// vec solve_beta_(mat MX, const mat &MNU, const vec &w) {
+//   const vec sqrt_w = sqrt(w);
+//   MX.each_col() %= sqrt_w;
+
+//   mat Q, R;
+//   if (!qr_econ(Q, R, MX)) {
+//     stop("QR decomposition failed");
+//   }
+
+//   return solve(trimatu(R), Q.t() * (MNU.each_col() % sqrt_w), solve_opts::fast);
+// }
+
 vec solve_beta_(mat MX, const mat &MNU, const vec &w) {
   const vec sqrt_w = sqrt(w);
   MX.each_col() %= sqrt_w;
+  mat XtX = MX.t() * MX;
 
-  mat Q, R;
-  if (!qr_econ(Q, R, MX)) {
-    stop("QR decomposition failed");
+  // Cholesky decomposition: XtX = L * L.t()
+  mat L;
+  if (!chol(L, XtX, "lower")) {
+    stop("Cholesky decomposition failed.");
   }
 
-  return solve(trimatu(R), Q.t() * (MNU.each_col() % sqrt_w), solve_opts::fast);
+  vec Xty = MX.t() * (MNU.each_col() % sqrt_w);
+
+  // Solve L * z = Xty
+  vec z = solve(trimatl(L), Xty, solve_opts::fast);
+
+  // Solve L.t() * beta = z
+  vec beta = solve(trimatu(L.t()), z, solve_opts::fast);
+
+  return beta;
 }
