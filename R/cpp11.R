@@ -4,6 +4,18 @@ center_variables_r_ <- function(V_r, w_r, klist, tol, maxiter, interrupt_iter) {
   .Call(`_capybara_center_variables_r_`, V_r, w_r, klist, tol, maxiter, interrupt_iter)
 }
 
+felm_fit_ <- function(y_r, x_r, wt_r, control, k_list) {
+  .Call(`_capybara_felm_fit_`, y_r, x_r, wt_r, control, k_list)
+}
+
+feglm_fit_ <- function(beta_r, eta_r, y_r, x_r, wt_r, theta, family, control, k_list) {
+  .Call(`_capybara_feglm_fit_`, beta_r, eta_r, y_r, x_r, wt_r, theta, family, control, k_list)
+}
+
+feglm_offset_fit_ <- function(eta_r, y_r, offset_r, wt_r, family, control, k_list) {
+  .Call(`_capybara_feglm_offset_fit_`, eta_r, y_r, offset_r, wt_r, family, control, k_list)
+}
+
 get_alpha_ <- function(p_r, klist, control) {
   .Call(`_capybara_get_alpha_`, p_r, klist, control)
 }
@@ -22,16 +34,4 @@ group_sums_var_ <- function(M_r, jlist) {
 
 group_sums_cov_ <- function(M_r, N_r, jlist) {
   .Call(`_capybara_group_sums_cov_`, M_r, N_r, jlist)
-}
-
-feglm_fit_ <- function(beta_r, eta_r, y_r, x_r, wt_r, theta, family, control, k_list) {
-  .Call(`_capybara_feglm_fit_`, beta_r, eta_r, y_r, x_r, wt_r, theta, family, control, k_list)
-}
-
-feglm_offset_fit_ <- function(eta_r, y_r, offset_r, wt_r, family, control, k_list) {
-  .Call(`_capybara_feglm_offset_fit_`, eta_r, y_r, offset_r, wt_r, family, control, k_list)
-}
-
-felm_fit_ <- function(y_r, x_r, wt_r, control, k_list) {
-  .Call(`_capybara_felm_fit_`, y_r, x_r, wt_r, control, k_list)
 }

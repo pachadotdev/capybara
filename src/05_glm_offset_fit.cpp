@@ -98,5 +98,5 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
     Myadj = Myadj - yadj;
   }
 
-  return as_doubles(eta);
+  return as_doubles(std::move(eta));
 }

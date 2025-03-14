@@ -25,7 +25,7 @@
     b += groupSum.t() / denom;
   }
 
-  return as_doubles_matrix(b);
+  return as_doubles_matrix(std::move(b));
 }
 
 [[cpp11::register]] doubles_matrix<>
@@ -67,7 +67,7 @@ group_sums_spectral_(const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
     b += num / denom;
   }
 
-  return as_doubles_matrix(b);
+  return as_doubles_matrix(std::move(b));
 }
 
 [[cpp11::register]] doubles_matrix<>
@@ -93,7 +93,7 @@ group_sums_var_(const doubles_matrix<> &M_r, const list &jlist) {
     V += v * v.t();
   }
 
-  return as_doubles_matrix(V);
+  return as_doubles_matrix(std::move(V));
 }
 
 [[cpp11::register]] doubles_matrix<>
@@ -123,5 +123,5 @@ group_sums_cov_(const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
     V += M.rows(indexes).t() * N.rows(indexes);
   }
 
-  return as_doubles_matrix(V);
+  return as_doubles_matrix(std::move(V));
 }

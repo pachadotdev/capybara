@@ -307,26 +307,22 @@ bool valid_mu_(const vec &mu, const FamilyType &fam) {
 
   // Generate result list
 
-  writable::list out(8);
-
-  out[0] = as_doubles(beta);
-  out[1] = as_doubles(eta);
-  out[2] = as_doubles(wt);
-  out[3] = as_doubles_matrix(H);
-  out[4] = writable::doubles({dev});
-  out[5] = writable::doubles({null_dev});
-  out[6] = writable::logicals({conv});
-  out[7] = writable::integers({static_cast<int>(iter + 1)});
-
-  out.attr("names") =
-      writable::strings({"coefficients", "eta", "weights", "hessian",
-                         "deviance", "null_deviance", "conv", "iter"});
+  writable::list out({
+      "coefficients"_nm = as_doubles(std::move(beta)),
+       "eta"_nm = as_doubles(std::move(eta)),
+       "weights"_nm = as_doubles(std::move(wt)),
+       "hessian"_nm = as_doubles_matrix(std::move(H)),
+       "deviance"_nm = writable::doubles({dev}),
+       "null_deviance"_nm = writable::doubles({null_dev}),
+       "conv"_nm = writable::logicals({conv}),
+       "iter"_nm = writable::integers({static_cast<int>(iter + 1)})
+  });
 
   if (keep_mx) {
     mat x_cpp = as_Mat(x_r);
     center_variables_(x_cpp, w, k_list, center_tol, iter_center_max,
                       iter_interrupt);
-    out.push_back({"MX"_nm = as_doubles_matrix(x_cpp)});
+    out.push_back({"MX"_nm = as_doubles_matrix(std::move(x_cpp))});
   }
 
   return out;

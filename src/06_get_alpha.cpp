@@ -8,11 +8,11 @@
   // Auxiliary variables (fixed)
   const size_t K = klist.size(),
                iter_max = as_cpp<size_t>(control["iter_center_max"]);
-  double tol = as_cpp<double>(control["center_tol"]);
+  const double tol = as_cpp<double>(control["center_tol"]);
+  const size_t interrupt_iter = as_cpp<size_t>(control["iter_interrupt"]);
 
   // Auxiliary variables (storage)
-  size_t iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]), j, k, l,
-         iter, J, J1, J2;
+  size_t interrupt = interrupt_iter, j, k, l, iter, J, J1, J2;
   double num, denom, ratio;
   vec y(p.n_elem);
 
@@ -21,7 +21,7 @@
   field<field<uvec>> group_indices(K);
 
 #ifdef _OPENMP
-#pragma omp parallel for schedule(static, omp_get_max_threads())
+#pragma omp parallel for schedule(static) num_threads(omp_get_max_threads())
 #endif
   for (k = 0; k < K; ++k) {
     const list &jlist = as_cpp<list>(klist[k]);
@@ -44,16 +44,23 @@
 
   // Start alternating between normal equations
   for (iter = 0; iter < iter_max; ++iter) {
-    if (iter == iter_interrupt) {
+    if (iter == interrupt) {
+      // Only main thread checks for interrupts
+#ifdef _OPENMP
+      if (omp_get_thread_num() == 0) {
+        check_user_interrupt();
+      }
+#else
       check_user_interrupt();
-      iter_interrupt += 1000;
+#endif
+      interrupt += interrupt_iter;
     }
 
     // Store alpha_0 of the previous iteration
     Alpha0 = Alpha;
 
 #ifdef _OPENMP
-#pragma omp parallel for schedule(static, omp_get_max_threads())
+#pragma omp parallel for schedule(static) num_threads(n_threads)
 #endif
     for (k = 0; k < K; ++k) {
       if (list_sizes(k) == 0)
@@ -104,7 +111,7 @@
   // Return alpha
   writable::list Alpha_r(K);
   for (k = 0; k < K; ++k) {
-    Alpha_r[k] = as_doubles_matrix(Alpha(k).eval()); // Ensure materialization
+    Alpha_r[k] = as_doubles_matrix(std::move(Alpha(k).eval()));
   }
 
   return Alpha_r;

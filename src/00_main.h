@@ -8,6 +8,10 @@ using namespace cpp11;
 
 // used across the scripts
 
+#ifdef _OPENMP
+const size_t n_threads = omp_get_max_threads();
+#endif
+
 void center_variables_(mat &V, const vec &w, const list &klist,
                        const double &tol, const size_t &maxiter,
                        const size_t &interrupt_iter);
