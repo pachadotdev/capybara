@@ -8,16 +8,15 @@ using namespace cpp11;
 
 // used across the scripts
 
-void center_variables_(Mat<double> &V, const vec &w, const list &klist,
+void center_variables_(mat &V, const vec &w, const list &klist,
                        const double &tol, const size_t &maxiter,
                        const size_t &interrupt_iter);
 
-vec solve_beta_(Mat<double> MX, const Mat<double> &MNU, const vec &w);
+vec solve_beta_(mat MX, const mat &MNU, const vec &w);
 
-vec solve_eta_(const Mat<double> &MX, const Mat<double> &MNU, const vec &nu,
-               const vec &beta);
+vec solve_eta_(const mat &MX, const mat &MNU, const vec &nu, const vec &beta);
 
-Mat<double> crossprod_(const Mat<double> &X, const vec &w);
+mat crossprod_(const mat &X, const vec &w);
 
 // Enum for GLM family types
 enum FamilyType {

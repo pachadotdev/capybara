@@ -4,8 +4,8 @@
                                                  const doubles_matrix<> &w_r,
                                                  const list &jlist) {
   // Types conversion
-  Mat<double> M = as_Mat(M_r);
-  Mat<double> w = as_Mat(w_r);
+  mat M = as_Mat(M_r);
+  mat w = as_Mat(w_r);
 
   // Auxiliary variables (fixed)
   const int J = jlist.size();
@@ -14,7 +14,7 @@
   // Auxiliary variables (storage)
   int j;
   uvec indexes;
-  Mat<double> b(P, 1, fill::zeros);
+  mat b(P, 1, fill::zeros);
 
   // Compute sum of weighted group sums
   for (j = 0; j < J; ++j) {
@@ -33,9 +33,9 @@ group_sums_spectral_(const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
                      const doubles_matrix<> &w_r, const int K,
                      const list &jlist) {
   // Types conversion
-  Mat<double> M = as_Mat(M_r);
-  Mat<double> v = as_Mat(v_r);
-  Mat<double> w = as_Mat(w_r);
+  mat M = as_Mat(M_r);
+  mat v = as_Mat(v_r);
+  mat w = as_Mat(w_r);
 
   // Auxiliary variables (fixed)
   const int J = jlist.size();
@@ -43,7 +43,7 @@ group_sums_spectral_(const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
 
   // Auxiliary variables (storage)
   int j, I;
-  Mat<double> b(P, 1, fill::zeros);
+  mat b(P, 1, fill::zeros);
   double denom;
 
   // Compute sum of weighted group sums
@@ -54,10 +54,10 @@ group_sums_spectral_(const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
     if (I <= 1)
       continue;
 
-    Col<double> num(P, fill::zeros);
+    vec num(P, fill::zeros);
     denom = accu(w.elem(indexes));
 
-    Col<double> v_shifted(I, fill::zeros);
+    vec v_shifted(I, fill::zeros);
     for (int k = 1; k <= K && k < I; ++k) {
       v_shifted.subvec(k, I - 1) += v.elem(indexes.subvec(0, I - k - 1));
     }
@@ -73,7 +73,7 @@ group_sums_spectral_(const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
 [[cpp11::register]] doubles_matrix<>
 group_sums_var_(const doubles_matrix<> &M_r, const list &jlist) {
   // Types conversion
-  Mat<double> M = as_Mat(M_r);
+  mat M = as_Mat(M_r);
 
   // Auxiliary variables (fixed)
   const int J = jlist.size();
@@ -81,14 +81,14 @@ group_sums_var_(const doubles_matrix<> &M_r, const list &jlist) {
 
   // Auxiliary variables (storage)
   int j;
-  Mat<double> v(P, 1);
-  Mat<double> V(P, P, fill::zeros);
+  mat v(P, 1);
+  mat V(P, P, fill::zeros);
 
   // Compute covariance matrix
   for (j = 0; j < J; ++j) {
     uvec indexes = as_uvec(as_cpp<integers>(jlist[j]));
 
-    Col<double> v = sum(M.rows(indexes), 0).t();
+    vec v = sum(M.rows(indexes), 0).t();
 
     V += v * v.t();
   }
@@ -100,8 +100,8 @@ group_sums_var_(const doubles_matrix<> &M_r, const list &jlist) {
 group_sums_cov_(const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
                 const list &jlist) {
   // Types conversion
-  Mat<double> M = as_Mat(M_r);
-  Mat<double> N = as_Mat(N_r);
+  mat M = as_Mat(M_r);
+  mat N = as_Mat(N_r);
 
   // Auxiliary variables (fixed)
   const int J = jlist.size();
@@ -110,7 +110,7 @@ group_sums_cov_(const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
   // Auxiliary variables (storage)
   int j;
   uvec indexes;
-  Mat<double> V(P, P, fill::zeros);
+  mat V(P, P, fill::zeros);
 
   // Compute covariance matrix
   for (j = 0; j < J; ++j) {

@@ -6,10 +6,10 @@
                                    const list &k_list) {
   // Type conversion
 
-  Col<double> y = as_Col(y_r);
-  Mat<double> X = as_Mat(x_r);
-  Col<double> MNU = Col<double>(y.n_elem, fill::zeros);
-  Col<double> w = as_Col(wt_r);
+  vec y = as_Col(y_r);
+  mat X = as_Mat(x_r);
+  vec MNU = vec(y.n_elem, fill::zeros);
+  vec w = as_Col(wt_r);
 
   // Auxiliary variables (fixed)
 
@@ -19,7 +19,7 @@
 
   // Auxiliary variables (storage)
 
-  Mat<double> MX, H;
+  mat MX, H;
 
   // Center variables
 
@@ -30,11 +30,11 @@
 
   // Solve the normal equations
 
-  Col<double> beta = solve_beta_(X, MNU, w);
+  vec beta = solve_beta_(X, MNU, w);
 
   // Fitted values
 
-  Col<double> fitted = y - MNU + X * beta;
+  vec fitted = y - MNU + X * beta;
 
   // Recompute Hessian
 

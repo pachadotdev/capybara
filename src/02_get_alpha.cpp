@@ -3,7 +3,7 @@
 [[cpp11::register]] list get_alpha_(const doubles_matrix<> &p_r,
                                     const list &klist, const list &control) {
   // Types conversion
-  Col<double> p = as_Mat(p_r);
+  vec p = as_Mat(p_r);
 
   // Auxiliary variables (fixed)
   const size_t K = klist.size(),
@@ -14,7 +14,7 @@
   size_t iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]), j, k, l,
          iter, J, J1, J2;
   double num, denom, ratio;
-  Col<double> y(p.n_elem);
+  vec y(p.n_elem);
 
   // Pre-compute list sizes
   field<int> list_sizes(K);
@@ -34,7 +34,7 @@
   }
 
   // Generate starting guess
-  field<Col<double>> Alpha(K), Alpha0(K);
+  field<vec> Alpha(K), Alpha0(K);
   for (k = 0; k < K; ++k) {
     if (list_sizes(k) > 0) {
       Alpha(k).zeros(list_sizes(k));
@@ -90,7 +90,7 @@
     for (k = 0; k < K; ++k) {
       if (list_sizes(k) == 0)
         continue; // Skip empty groups
-      const Col<double> &diff = Alpha(k) - Alpha0(k);
+      const vec &diff = Alpha(k) - Alpha0(k);
       num += dot(diff, diff);
       denom += dot(Alpha0(k), Alpha0(k));
     }
