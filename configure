@@ -1,16 +1,106 @@
-#!/bin/sh
+# Anticonf script by Pacha (2025)
 
-# Set the number of cores
-if [ -z "$PKG_NCORES" ]; then
-  PKG_NCORES=$(getconf _NPROCESSORS_ONLN)
-    if [ -z "$PKG_NCORES" ] || [ "$PKG_NCORES" -lt 1 ]; then
-      PKG_NCORES=1
-    elif [ "$PKG_NCORES" -gt 1 ]; then
-      PKG_NCORES=$((PKG_NCORES - 1))
-    fi
+PKG_CONFIG_NAME="capybara"
+
+# Parse command line arguments
+for arg in "$@"; do
+  case "$arg" in
+    --enable-optimization)
+      ENABLE_OPTIMIZATION=yes
+      ;;
+  esac
+done
+
+# Find compiler
+CXX=$(${R_HOME}/bin/R CMD config CXX)
+CXXFLAGS=$(${R_HOME}/bin/R CMD config CXXFLAGS)
+CPPFLAGS=$(${R_HOME}/bin/R CMD config CPPFLAGS)
+
+# Set optimization flags if requested
+OPTIMIZATION_FLAGS=""
+if [ "$ENABLE_OPTIMIZATION" = "yes" ]; then
+  OPTIMIZATION_FLAGS="-O3 -funroll-loops"
+  
+  # Check for AVX2 support
+  if grep -q avx2 /proc/cpuinfo 2>/dev/null; then
+    OPTIMIZATION_FLAGS="$OPTIMIZATION_FLAGS -mavx2"
+  fi
+
+  echo "Using optimization flags: $OPTIMIZATION_FLAGS"
+else
+  echo "Not using optimization flags"
 fi
 
-# Write Makevars
-sed -e "s|@ncores@|$PKG_NCORES|" \
-  src/Makevars.in > src/Makevars
+# Check for OpenMP support
+OPENMP_FLAG=""
+for flag in -fopenmp -qopenmp -openmp -xopenmp; do
+  save_CXXFLAGS="$CXXFLAGS"
+  CXXFLAGS="$CXXFLAGS $flag"
   
+  echo "int main() { return 0; }" | $CXX -xc++ -E $CXXFLAGS - >/dev/null 2>&1
+  if [ $? -eq 0 ]; then
+    OPENMP_FLAG="$flag"
+    break
+  fi
+  CXXFLAGS="$save_CXXFLAGS"
+done
+
+if [ -n "$OPENMP_FLAG" ]; then
+  echo "OpenMP is enabled: $OPENMP_FLAG"
+  PKG_CXXFLAGS="$OPENMP_FLAG $PKG_CXXFLAGS"
+  PKG_LIBS="$OPENMP_FLAG $PKG_LIBS"
+else
+  echo "OpenMP is disabled"
+fi
+
+# Determine number of cores using OpenMP if available
+if [ -n "$CAPYBARA_NCORES" ]; then
+  num_cores="$CAPYBARA_NCORES"
+  echo "using environment value: $num_cores"
+else
+  cat > nthreads.cpp << 'EOL'
+#include <iostream>
+#ifdef _OPENMP
+  #include <omp.h>
+#endif
+
+int main() {
+  int nthreads;
+  #ifdef _OPENMP
+    nthreads = std::max(1, (omp_get_max_threads() + 1) / 2);
+  #else
+    nthreads = 1;
+  #endif
+  std::cout << nthreads << std::endl;
+  return 0;
+}
+EOL
+
+  # Need to compile WITH the OpenMP flag
+  if [ -n "$OPENMP_FLAG" ]; then
+    $CXX nthreads.cpp -o nthreads $OPENMP_FLAG
+  else
+    $CXX nthreads.cpp -o nthreads
+  fi
+  
+  # Check if compilation succeeded
+  if [ $? -eq 0 ] && [ -x ./nthreads ]; then
+    num_cores=$(./nthreads)
+    echo "Number of available cores: $num_cores"
+  else
+    echo "OpenMP test failed, defaulting to 1"
+    num_cores=1
+  fi
+
+  # Clean up
+  rm -f nthreads nthreads.cpp
+fi
+
+# Write to Makevars
+echo "creating src/Makevars"
+sed -e "s|@ncores@|${num_cores}|g" \
+    -e "s|@OPTIMIZATION_FLAGS@|${OPTIMIZATION_FLAGS}|g" \
+    src/Makevars.in > src/Makevars
+
+# Success
+exit 0

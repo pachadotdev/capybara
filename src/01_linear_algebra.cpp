@@ -6,7 +6,8 @@ mat crossprod_(const mat &X, const vec &w) {
   return Y.t() * Y;
 }
 
-// vec solve_beta_(mat MX, const mat &MNU, const vec &w) {
+// vec solve_beta_(mat MX, const mat &MNU,
+//                         const vec &w) {
 //   const vec sqrt_w = sqrt(w);
 //   MX.each_col() %= sqrt_w;
 
@@ -15,27 +16,29 @@ mat crossprod_(const mat &X, const vec &w) {
 //     stop("QR decomposition failed");
 //   }
 
-//   return solve(trimatu(R), Q.t() * (MNU.each_col() % sqrt_w), solve_opts::fast);
+//   return solve(trimatu(R), Q.t() * (MNU.each_col() % sqrt_w),
+//   solve_opts::fast);
 // }
 
+// Cholesky decomposition
 vec solve_beta_(mat MX, const mat &MNU, const vec &w) {
   const vec sqrt_w = sqrt(w);
-  MX.each_col() %= sqrt_w;
-  mat XtX = MX.t() * MX;
 
-  // Cholesky decomposition: XtX = L * L.t()
+  MX.each_col() %= sqrt_w;
+  mat WMNU = MNU.each_col() % sqrt_w;
+
+  mat XtX = MX.t() * MX;
+  vec XtY = MX.t() * (MNU.each_col() % sqrt_w);
+
+  // XtX = L * L.t()
   mat L;
   if (!chol(L, XtX, "lower")) {
     stop("Cholesky decomposition failed.");
   }
 
-  vec Xty = MX.t() * (MNU.each_col() % sqrt_w);
-
   // Solve L * z = Xty
-  vec z = solve(trimatl(L), Xty, solve_opts::fast);
+  vec z = solve(trimatl(L), XtY, solve_opts::fast);
 
-  // Solve L.t() * beta = z
-  vec beta = solve(trimatu(L.t()), z, solve_opts::fast);
-
-  return beta;
+  // Solve Lt * beta = z
+  return solve(trimatu(L.t()), z, solve_opts::fast);
 }

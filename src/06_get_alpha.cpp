@@ -1,18 +1,15 @@
 #include "00_main.h"
 
 [[cpp11::register]] list get_alpha_(const doubles_matrix<> &p_r,
-                                    const list &klist, const list &control) {
+                                    const list &klist, const double &tol) {
   // Types conversion
   vec p = as_Mat(p_r);
 
   // Auxiliary variables (fixed)
-  const size_t K = klist.size(),
-               iter_max = as_cpp<size_t>(control["iter_center_max"]);
-  const double tol = as_cpp<double>(control["center_tol"]);
-  const size_t interrupt_iter = as_cpp<size_t>(control["iter_interrupt"]);
+  const size_t K = klist.size(), max_iter = 10000;
 
   // Auxiliary variables (storage)
-  size_t interrupt = interrupt_iter, j, k, l, iter, J, J1, J2;
+  size_t j, k, l, iter, interrupt_iter = 1000, J, J1, J2;
   double num, denom, ratio;
   vec y(p.n_elem);
 
@@ -20,9 +17,6 @@
   field<int> list_sizes(K);
   field<field<uvec>> group_indices(K);
 
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static) num_threads(omp_get_max_threads())
-#endif
   for (k = 0; k < K; ++k) {
     const list &jlist = as_cpp<list>(klist[k]);
     J = jlist.size();
@@ -43,25 +37,15 @@
   }
 
   // Start alternating between normal equations
-  for (iter = 0; iter < iter_max; ++iter) {
-    if (iter == interrupt) {
-      // Only main thread checks for interrupts
-#ifdef _OPENMP
-      if (omp_get_thread_num() == 0) {
-        check_user_interrupt();
-      }
-#else
+  for (iter = 0; iter < max_iter; ++iter) {
+    if (iter == interrupt_iter) {
       check_user_interrupt();
-#endif
-      interrupt += interrupt_iter;
+      interrupt_iter += 1000;
     }
 
     // Store alpha_0 of the previous iteration
     Alpha0 = Alpha;
 
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static) num_threads(n_threads)
-#endif
     for (k = 0; k < K; ++k) {
       if (list_sizes(k) == 0)
         continue; // Skip empty groups
@@ -91,9 +75,6 @@
     // Compute termination criterion and check convergence
     num = 0.0, denom = 0.0;
 
-#ifdef _OPENMP
-#pragma omp parallel for reduction(+ : num, denom)
-#endif
     for (k = 0; k < K; ++k) {
       if (list_sizes(k) == 0)
         continue; // Skip empty groups
@@ -111,7 +92,7 @@
   // Return alpha
   writable::list Alpha_r(K);
   for (k = 0; k < K; ++k) {
-    Alpha_r[k] = as_doubles_matrix(std::move(Alpha(k).eval()));
+    Alpha_r[k] = as_doubles_matrix(Alpha(k).eval()); // Ensure materialization
   }
 
   return Alpha_r;

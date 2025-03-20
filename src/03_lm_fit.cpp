@@ -13,7 +13,6 @@
 
   // Auxiliary variables (fixed)
 
-  size_t iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]);
   double center_tol = as_cpp<double>(control["center_tol"]);
   int iter_center_max = 10000;
 
@@ -24,9 +23,8 @@
   // Center variables
 
   MNU += y;
-  center_variables_(MNU, w, k_list, center_tol, iter_center_max,
-                    iter_interrupt);
-  center_variables_(X, w, k_list, center_tol, iter_center_max, iter_interrupt);
+  center_variables_(MNU, w, k_list, center_tol, iter_center_max);
+  center_variables_(X, w, k_list, center_tol, iter_center_max);
 
   // Solve the normal equations
 
@@ -42,10 +40,13 @@
 
   // Generate result list
 
-  return writable::list(
-      {"coefficients"_nm = as_doubles(std::move(beta)),
-       "fitted.values"_nm = as_doubles(std::move(fitted)),
-       "weights"_nm = as_doubles(std::move(w)),
-       "hessian"_nm = as_doubles_matrix(std::move(H))
-  });
+  writable::list out(4);
+  out[0] = as_doubles(beta);
+  out[1] = as_doubles(fitted);
+  out[2] = as_doubles(w);
+  out[3] = as_doubles_matrix(H);
+  out.attr("names") = writable::strings(
+      {"coefficients", "fitted.values", "weights", "hessian"});
+
+  return out;
 }
