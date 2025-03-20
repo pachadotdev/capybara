@@ -8,11 +8,10 @@
   mat w = as_Mat(w_r);
 
   // Auxiliary variables (fixed)
-  const int J = jlist.size();
-  const int P = M.n_cols;
+  const size_t J = jlist.size(), P = M.n_cols;
 
   // Auxiliary variables (storage)
-  int j;
+  size_t j;
   uvec indexes;
   mat b(P, 1, fill::zeros);
 

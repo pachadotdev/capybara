@@ -2,19 +2,19 @@
 
 // Method of alternating projections (Halperin)
 void center_variables_(mat &V, const vec &w, const list &klist,
-                       const double &tol, const int &maxiter) {
+                       const double &tol, const int &max_iter,
+                       const int &iter_interrupt) {
   // Auxiliary variables (fixed)
-  const size_t I = static_cast<size_t>(maxiter);
-  const size_t N = V.n_rows;
-  const size_t P = V.n_cols;
-  const size_t K = klist.size();
+  const size_t I = static_cast<size_t>(max_iter), N = V.n_rows, P = V.n_cols,
+               K = klist.size(),
+               iter_check_interrupt0 = static_cast<size_t>(iter_interrupt);
   const double inv_sw = 1.0 / accu(w);
 
   // Auxiliary variables (storage)
   size_t iter, j, k, l, m, p, L, J;
   vec x(N), x0(N);
   double xbar, ratio;
-  size_t iter_check_interrupt = 500;
+  size_t iter_check_interrupt = static_cast<size_t>(iter_interrupt);
 
   field<field<uvec>> group_indices(K);
   field<vec> group_inverse_weights(K);
@@ -40,10 +40,9 @@ void center_variables_(mat &V, const vec &w, const list &klist,
   for (p = 0; p < P; ++p) {
     x = V.col(p);
 
-    // Check for user interrupts every 500 iterations
     if (iter == iter_check_interrupt) {
       check_user_interrupt();
-      iter_check_interrupt += 500;
+      iter_check_interrupt += iter_check_interrupt0;
     }
 
     for (iter = 0; iter < I; ++iter) {
@@ -72,9 +71,10 @@ void center_variables_(mat &V, const vec &w, const list &klist,
 
 [[cpp11::register]] doubles_matrix<>
 center_variables_r_(const doubles_matrix<> &V_r, const doubles &w_r,
-                    const list &klist, const double &tol, const int &maxiter) {
+                    const list &klist, const double &tol, const int &max_iter,
+                    const int &iter_interrupt) {
   mat V = as_mat(V_r);
   vec w = as_col(w_r);
-  center_variables_(V, w, klist, tol, maxiter);
+  center_variables_(V, w, klist, tol, max_iter, iter_interrupt);
   return as_doubles_matrix(V);
 }

@@ -1,15 +1,17 @@
 #include "00_main.h"
 
 [[cpp11::register]] list get_alpha_(const doubles_matrix<> &p_r,
-                                    const list &klist, const double &tol) {
+                                    const list &klist, const list &control) {
   // Types conversion
   vec p = as_Mat(p_r);
 
   // Auxiliary variables (fixed)
-  const size_t K = klist.size(), max_iter = 10000;
+  const double tol = as_cpp<double>(control["center_tol"]);
+  const size_t K = klist.size(), iter_max = as_cpp<int>(control["iter_max"]),
+               interrupt_iter0 = as_cpp<size_t>(control["iter_interrupt"]);
 
   // Auxiliary variables (storage)
-  size_t j, k, l, iter, interrupt_iter = 1000, J, J1, J2;
+  size_t j, k, l, iter, J, J1, J2, interrupt_iter = interrupt_iter0;
   double num, denom, ratio;
   vec y(p.n_elem);
 
@@ -37,10 +39,10 @@
   }
 
   // Start alternating between normal equations
-  for (iter = 0; iter < max_iter; ++iter) {
+  for (iter = 0; iter < iter_max; ++iter) {
     if (iter == interrupt_iter) {
       check_user_interrupt();
-      interrupt_iter += 1000;
+      interrupt_iter += interrupt_iter0;
     }
 
     // Store alpha_0 of the previous iteration

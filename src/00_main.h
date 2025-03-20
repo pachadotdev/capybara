@@ -10,7 +10,8 @@ using namespace cpp11;
 // used across the scripts
 
 void center_variables_(mat &V, const vec &w, const list &klist,
-                       const double &tol, const int &maxiter);
+                       const double &tol, const int &max_iter,
+                       const int &iter_interrupt);
 
 vec solve_beta_(mat MX, const mat &MNU, const vec &w);
 

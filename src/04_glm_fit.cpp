@@ -275,20 +275,19 @@ vec variance_(const vec &mu, const double &theta, const std::string &fam) {
 
   // Auxiliary variables (fixed)
 
-  std::string fam = tidy_family_(family);
-  double center_tol = as_cpp<double>(control["center_tol"]);
-  double dev_tol = as_cpp<double>(control["dev_tol"]);
-  bool keep_mx = as_cpp<bool>(control["keep_mx"]);
-  size_t iter, iter_inner;
-  const size_t iter_max = as_cpp<size_t>(control["iter_max"]);
-  const size_t iter_center_max = as_cpp<size_t>(control["iter_center_max"]);
-  const size_t iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]);
-  const size_t n = y.n_elem;
-  const size_t p = MX.n_cols;
-  const size_t k = beta.n_elem;
+  const std::string fam = tidy_family_(family);
+  const double center_tol = as_cpp<double>(control["center_tol"]),
+               dev_tol = as_cpp<double>(control["dev_tol"]);
+  const bool keep_mx = as_cpp<bool>(control["keep_mx"]);
+  const size_t iter_max = as_cpp<size_t>(control["iter_max"]),
+               iter_center_max = as_cpp<size_t>(control["iter_center_max"]),
+               iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]),
+               iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]),
+               n = y.n_elem, p = MX.n_cols, k = beta.n_elem;
 
   // Auxiliary variables (storage)
 
+  size_t iter, iter_inner;
   vec mu = link_inv_(eta, fam);
   vec ymean = mean(y) * vec(y.n_elem, fill::ones);
   double dev = dev_resids_(y, mu, theta, wt, fam);
@@ -313,8 +312,10 @@ vec variance_(const vec &mu, const double &theta, const std::string &fam) {
     // Center variables
 
     MNU += nu;
-    center_variables_(MNU, w, k_list, center_tol, iter_center_max);
-    center_variables_(MX, w, k_list, center_tol, iter_center_max);
+    center_variables_(MNU, w, k_list, center_tol, iter_center_max,
+                      iter_interrupt);
+    center_variables_(MX, w, k_list, center_tol, iter_center_max,
+                      iter_interrupt);
 
     // Compute update step and update eta
 
@@ -406,7 +407,8 @@ vec variance_(const vec &mu, const double &theta, const std::string &fam) {
 
   if (keep_mx) {
     mat x_cpp = as_Mat(x_r);
-    center_variables_(x_cpp, w, k_list, center_tol, iter_center_max);
+    center_variables_(x_cpp, w, k_list, center_tol, iter_center_max,
+                      iter_interrupt);
     out.push_back({"MX"_nm = as_doubles_matrix(x_cpp)});
   }
 

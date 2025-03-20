@@ -15,15 +15,17 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
 
   // Auxiliary variables (fixed)
 
-  std::string fam = tidy_family_(family);
-  double center_tol = as_cpp<double>(control["center_tol"]);
-  double dev_tol = as_cpp<double>(control["dev_tol"]);
-  int iter, iter_max = as_cpp<int>(control["iter_max"]);
-  int iter_center_max = 10000;
-  int iter_inner, iter_inner_max = 50;
+  const std::string fam = tidy_family_(family);
+  const double center_tol = as_cpp<double>(control["center_tol"]),
+               dev_tol = as_cpp<double>(control["dev_tol"]);
+  const size_t iter_max = as_cpp<int>(control["iter_max"]),
+               iter_center_max = as_cpp<size_t>(control["iter_center_max"]),
+               iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]),
+               iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]);
 
   // Auxiliary variables (storage)
 
+  size_t iter, iter_inner;
   vec mu = link_inv_(eta, fam);
   double dev = dev_resids_(y, mu, 0.0, wt, fam);
 
@@ -49,7 +51,8 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
     // Center variables
 
     Myadj += yadj;
-    center_variables_(Myadj, w, k_list, center_tol, iter_center_max);
+    center_variables_(Myadj, w, k_list, center_tol, iter_center_max,
+                      iter_interrupt);
 
     // Compute update step and update eta
 

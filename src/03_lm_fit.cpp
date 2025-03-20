@@ -13,8 +13,9 @@
 
   // Auxiliary variables (fixed)
 
-  double center_tol = as_cpp<double>(control["center_tol"]);
-  int iter_center_max = 10000;
+  const double center_tol = as_cpp<double>(control["center_tol"]);
+  const size_t iter_center_max = as_cpp<size_t>(control["iter_center_max"]),
+               iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]);
 
   // Auxiliary variables (storage)
 
@@ -23,8 +24,9 @@
   // Center variables
 
   MNU += y;
-  center_variables_(MNU, w, k_list, center_tol, iter_center_max);
-  center_variables_(X, w, k_list, center_tol, iter_center_max);
+  center_variables_(MNU, w, k_list, center_tol, iter_center_max,
+                    iter_interrupt);
+  center_variables_(X, w, k_list, center_tol, iter_center_max, iter_interrupt);
 
   // Solve the normal equations
 
