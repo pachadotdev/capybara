@@ -65,8 +65,8 @@ NULL
 #'
 #' @export
 feglm_control <- function(
-    dev_tol = 1.0e-08,
-    center_tol = 1.0e-08,
+    dev_tol = 1.0e-06,
+    center_tol = 1.0e-06,
     iter_max = 25L,
     iter_center_max = 10000L,
     iter_inner_max = 50L,

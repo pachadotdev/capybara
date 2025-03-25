@@ -13,7 +13,7 @@ void center_variables_(mat &V, const vec &w, const list &klist,
   // Auxiliary variables (storage)
   size_t iter, j, k, l, m, p, L, J;
   vec x(N), x0(N);
-  double xbar, ratio;
+  double xbar, ratio, ratio0;
   size_t iter_check_interrupt = static_cast<size_t>(iter_interrupt);
 
   field<field<uvec>> group_indices(K);
@@ -39,6 +39,7 @@ void center_variables_(mat &V, const vec &w, const list &klist,
   // Halperin projections parallelizing over columns
   for (p = 0; p < P; ++p) {
     x = V.col(p);
+    ratio0 = std::numeric_limits<double>::max();
 
     if (iter == iter_check_interrupt) {
       check_user_interrupt();
@@ -64,6 +65,10 @@ void center_variables_(mat &V, const vec &w, const list &klist,
       ratio = dot(abs(x - x0) / (1.0 + abs(x0)), w) * inv_sw;
       if (ratio < tol)
         break;
+
+      if (iter > 0 && ratio0 / ratio < 1.1) break;
+
+      ratio0 = ratio;
     }
     V.col(p) = std::move(x);
   }

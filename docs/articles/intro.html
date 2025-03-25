@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">capybara</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.8.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -96,19 +96,19 @@ X_{ij,t} =&amp; \:\exp\left[\beta_1 \log(DIST)_{i,j} + \beta_2 CNTG_{i,j} +\righ
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; |          | Estimate | Std. Error | z value    | Pr(&gt;|z|)   |</span></span>
 <span><span class="co">#&gt; |----------|----------|------------|------------|------------|</span></span>
-<span><span class="co">#&gt; | log_dist |  -0.8216 |     0.0004 | -2194.0442 | 0.0000 *** |</span></span>
+<span><span class="co">#&gt; | log_dist |  -0.8216 |     0.0004 | -2194.0448 | 0.0000 *** |</span></span>
 <span><span class="co">#&gt; | cntg     |   0.4155 |     0.0009 |   476.0613 | 0.0000 *** |</span></span>
-<span><span class="co">#&gt; | lang     |   0.2499 |     0.0008 |   296.8883 | 0.0000 *** |</span></span>
+<span><span class="co">#&gt; | lang     |   0.2499 |     0.0008 |   296.8884 | 0.0000 *** |</span></span>
 <span><span class="co">#&gt; | clny     |  -0.2054 |     0.0010 |  -206.3476 | 0.0000 *** |</span></span>
-<span><span class="co">#&gt; | rta      |   0.1907 |     0.0010 |   191.0963 | 0.0000 *** |</span></span>
+<span><span class="co">#&gt; | rta      |   0.1907 |     0.0010 |   191.0964 | 0.0000 *** |</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Significance codes: *** 99.9%; ** 99%; * 95%; . 90%</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Pseudo R-squared: 0.5749 </span></span>
+<span><span class="co">#&gt; Pseudo R-squared: 0.587 </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Number of observations: Full 28152; Missing 0; Perfect classification 0 </span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Number of Fisher Scoring iterations: 12</span></span></code></pre></div>
+<span><span class="co">#&gt; Number of Fisher Scoring iterations: 11</span></span></code></pre></div>
 <p>The coefficients are almost identical to those in Table 3 from <span class="citation">Yotov et al. (2016)</span> that were obtained with Stata. The difference is attributed to the different fitting algorithms used by the software. Capybara uses the demeaning algorithm proposed by <span class="citation">Stammann (2018)</span>.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fepoisson.html">fepoisson</a></span><span class="op">(</span></span>
@@ -134,11 +134,11 @@ X_{ij,t} =&amp; \:\exp\left[\beta_1 \log(DIST)_{i,j} + \beta_2 CNTG_{i,j} +\righ
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Significance codes: *** 99.9%; ** 99%; * 95%; . 90%</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Pseudo R-squared: 0.5749 </span></span>
+<span><span class="co">#&gt; Pseudo R-squared: 0.587 </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Number of observations: Full 28152; Missing 0; Perfect classification 0 </span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Number of Fisher Scoring iterations: 12</span></span></code></pre></div>
+<span><span class="co">#&gt; Number of Fisher Scoring iterations: 11</span></span></code></pre></div>
 <p>The result is similar and the numerical difference comes fom the variance-covariance matrix estimation method. Capybara clustering algorithm is based on <span class="citation">Cameron, Gelbach, and Miller (2011)</span>.</p>
 <div class="section level2">
 <h2 class="unnumbered" id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>

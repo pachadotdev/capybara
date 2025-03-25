@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>Fast and Memory Efficient Fitting of Linear Models With High-Dimensional Fixed Effects • capybara</title>
+<title>Fast and Memory Efficient Fitting of Linear Models with High-Dimensional Fixed Effects • capybara</title>
 <!-- favicons --><link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
 <link rel="apple-touch-icon" type="image/png" sizes="180x180" href="apple-touch-icon.png">
@@ -16,9 +16,9 @@
 <link href="deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.4.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Fast and Memory Efficient Fitting of Linear Models With High-Dimensional Fixed Effects">
-<meta name="description" content="Fast and user-friendly estimation of generalized linear models with multiple fixed effects and cluster the standard errors. The method to obtain the estimated fixed-effects coefficients is based on Stammann (2018) &lt;https://arxiv.org/abs/1707.01815&gt; and Gaure (2013) &lt;https://dx.doi.org/10.1016/j.csda.2013.03.024&gt;.">
-<meta property="og:description" content="Fast and user-friendly estimation of generalized linear models with multiple fixed effects and cluster the standard errors. The method to obtain the estimated fixed-effects coefficients is based on Stammann (2018) &lt;https://arxiv.org/abs/1707.01815&gt; and Gaure (2013) &lt;https://dx.doi.org/10.1016/j.csda.2013.03.024&gt;.">
+<script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Fast and Memory Efficient Fitting of Linear Models with High-Dimensional Fixed Effects">
+<meta name="description" content="Fast and user-friendly estimation of generalized linear models with multiple fixed effects and cluster the standard errors. The method to obtain the estimated fixed-effects coefficients is based on Stammann (2018) &lt;doi:10.48550/arXiv.1707.01815&gt; and Gaure (2013) &lt;doi:10.1016/j.csda.2013.03.024&gt;.">
+<meta property="og:description" content="Fast and user-friendly estimation of generalized linear models with multiple fixed effects and cluster the standard errors. The method to obtain the estimated fixed-effects coefficients is based on Stammann (2018) &lt;doi:10.48550/arXiv.1707.01815&gt; and Gaure (2013) &lt;doi:10.1016/j.csda.2013.03.024&gt;.">
 <meta property="og:image" content="../capybara/logo.svg">
 </head>
 <body>
@@ -29,7 +29,7 @@
 
     <a class="navbar-brand me-2" href="index.html">capybara</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.8.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -85,22 +85,12 @@
 <div class="section level2">
 <h2 id="examples">Examples<a class="anchor" aria-label="anchor" href="#examples"></a>
 </h2>
-<p>See the documentation in progress: <a href="https://pacha.dev/capybara" class="uri">https://pacha.dev/capybara</a>.</p>
+<p>See the documentation in progress: <a href="https://pacha.dev/capybara/" class="uri">https://pacha.dev/capybara/</a>.</p>
 </div>
 <div class="section level2">
 <h2 id="design-choices">Design choices<a class="anchor" aria-label="anchor" href="#design-choices"></a>
 </h2>
-<p>Capybara uses C++ and vectorized R operations to address bottlenecks where possible. Some parts of the code use ‘dplyr’, which allows me to write code that is easier to understand and it works well to performed grouped operations. The intensive computations are done on C++ side. I tried to implement this idea from v0.2 and onwards: “He who gives up code safety for code speed deserves neither.” (Wickham, 2014).</p>
-<p>I know some parts of the code are not particularly easy to understand. For example, such as my implementation of Kendall’s Tau (or Kendall’s correlation) with a time complexity of O(n * log(n)) instead of O(n^2). I still did my best to write a straightforward code.</p>
-<p>Capybara is full of trade-offs. I have a branch where I used ‘dplyr’ and ‘dtplyr’ to help myself with the ‘data.table’ syntax, otherwise there is no way to use in-place modification of data. Because ‘data.table’ modifies the original data (e.g., it converts ‘data.frame’ and ‘tibble’ structures into ‘data.table’ structures), the main branch uses ‘dplyr’ to avoid side effects.</p>
-<p>In my research I use ‘SQL’ because I have over 200 GB of international trade data, where ‘dplyr’ helps a lot because it allows me to query ‘SQL’ directly from R mand just using ‘dplyr’ syntax, something impossible with ‘data.table’, which requires me to go to the ‘SQL’ editor en export my queries in CSV format and then import them in R. The downside is that ‘dplyr’ is slower than ‘data.table’ and uses more memory.</p>
-<p>I think with my design choices I accomplished my goal of fitting models in my laptop instead of relying on UofT’s servers.</p>
-</div>
-<div class="section level2">
-<h2 id="future-plans">Future plans<a class="anchor" aria-label="anchor" href="#future-plans"></a>
-</h2>
-<p>I will add a RESET test.</p>
-<p>There are a few tests but these have to be expanded.</p>
+<p>Capybara is full of trade-offs. I have used ‘data.table’ to benefit from in-place modifications. The model fitting is done on C++ side. While the code aims to be fast, I prefer to have some bottlenecks instead of low numerical stability. The principle was: “He who gives up code safety for code speed deserves neither.” (Wickham, 2014).</p>
 </div>
 <div class="section level2">
 <h2 id="benchmarks">Benchmarks<a class="anchor" aria-label="anchor" href="#benchmarks"></a>
@@ -374,6 +364,7 @@
   </main><aside class="col-md-3"><div class="links">
 <h2 data-toc-skip>Links</h2>
 <ul class="list-unstyled">
+<li><a href="https://cloud.r-project.org/package=capybara" class="external-link">View on CRAN</a></li>
 <li><a href="https://github.com/pachadotdev/capybara/">Browse source code</a></li>
 <li><a href="https://github.com/pachadotdev/capybara/issues">Report a bug</a></li>
 </ul>
@@ -413,9 +404,10 @@
 <h2 data-toc-skip>Dev status</h2>
 <ul class="list-unstyled">
 <li><a href="https://github.com/pachadotdev/capybara/actions/workflows/R-CMD-check.yaml"><img src="https://github.com/pachadotdev/capybara/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a></li>
-<li><a href="https://codecov.io/gh/pachadotdev/capybara"><img src="https://codecov.io/gh/pachadotdev/capybara/graph/badge.svg?token=kDP0pWmfRk" alt="codecov"></a></li>
-<li><a href="https://www.buymeacoffee.com/pacha" class="external-link"><img src="https://raw.githubusercontent.com/pachadotdev/buymeacoffee-badges/main/bmc-donate-yellow.svg" alt="BuyMeACoffee"></a></li>
+<li><a href="https://app.codecov.io/gh/pachadotdev/capybara"><img src="https://app.codecov.io/gh/pachadotdev/capybara/graph/badge.svg?token=kDP0pWmfRk" alt="codecov"></a></li>
+<li><a href="https://buymeacoffee.com/pacha" class="external-link"><img src="https://raw.githubusercontent.com/pachadotdev/buymeacoffee-badges/main/bmc-donate-yellow.svg" alt="BuyMeACoffee"></a></li>
 <li><a href="https://lifecycle.r-lib.org/articles/stages.html#stable" class="external-link"><img src="https://img.shields.io/badge/lifecycle-stable-brightgreen.svg" alt="Lifecycle: stable"></a></li>
+<li><a href="https://CRAN.R-project.org/package=capybara" class="external-link"><img src="https://www.r-pkg.org/badges/version/capybara" alt="CRAN status"></a></li>
 </ul>
 </div>
 

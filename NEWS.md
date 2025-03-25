@@ -1,5 +1,7 @@
 # capybara 0.9
 
+* First CRAN version
+
 * Refactored functions to avoid data copies:
   * center variables
   * crossprod

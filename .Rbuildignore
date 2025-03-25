@@ -17,3 +17,5 @@
 ^\.lintr$
 ^_pkgdown\.yml$
 ^penmp$
+^CRAN-SUBMISSION$
+^cran-comments\.md$

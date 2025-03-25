@@ -1,8 +1,8 @@
 Package: capybara
 Type: Package
-Title: Fast and Memory Efficient Fitting of Linear Models With High-Dimensional
+Title: Fast and Memory Efficient Fitting of Linear Models with High-Dimensional
     Fixed Effects
-Version: 0.8.1
+Version: 0.9.0
 Authors@R: c(
     person(
         given = "Mauricio",
@@ -29,8 +29,8 @@ Depends: R(>= 3.5.0)
 Description: Fast and user-friendly estimation of generalized linear models with
     multiple fixed effects and cluster the standard errors. The method to obtain
     the estimated fixed-effects coefficients is based on Stammann (2018) 
-    <https://arxiv.org/abs/1707.01815> and Gaure (2013)
-    <https://dx.doi.org/10.1016/j.csda.2013.03.024>.
+    <doi:10.48550/arXiv.1707.01815> and Gaure (2013)
+    <doi:10.1016/j.csda.2013.03.024>.
 License: Apache License (>= 2)
 BugReports: https://github.com/pachadotdev/capybara/issues
 URL: https://pacha.dev/capybara/, https://github.com/pachadotdev/capybara
@@ -42,6 +42,5 @@ LinkingTo: cpp11, cpp11armadillo
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 Remotes: 
-    ropenscilabs/srr,
-    pachadotdev/kendallknight
+    ropenscilabs/srr
 Roxygen: list(markdown = TRUE, roclets = c("namespace", "rd", "srr::srr_stats_roclet"))

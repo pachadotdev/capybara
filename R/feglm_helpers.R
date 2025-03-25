@@ -284,6 +284,11 @@ check_response_ <- function(data, lhs, family) {
 #' @noRd
 drop_by_link_type_ <- function(data, lhs, family, tmp_var, k_vars, control) {
   if (family[["family"]] %in% c("binomial", "poisson") && control[["drop_pc"]]) {
+    # Convert response to numeric if it's an integer
+    if (is.integer(data[[lhs]])) {
+      data[, (lhs) := as.numeric(get(lhs))]
+    }
+
     ncheck <- 0
     nrow_data <- nrow(data)
 
@@ -291,7 +296,6 @@ drop_by_link_type_ <- function(data, lhs, family, tmp_var, k_vars, control) {
       ncheck <- nrow_data
 
       for (j in k_vars) {
-        # Compute mean within group and assign it to a temporary column
         data[, (tmp_var) := mean(get(lhs)), by = j]
 
         # Filter rows based on family type
@@ -301,7 +305,6 @@ drop_by_link_type_ <- function(data, lhs, family, tmp_var, k_vars, control) {
           data <- data[get(tmp_var) > 0]
         }
 
-        # Drop temporary column in place
         data[, (tmp_var) := NULL]
       }
 
@@ -309,7 +312,7 @@ drop_by_link_type_ <- function(data, lhs, family, tmp_var, k_vars, control) {
     }
   }
 
-  return(data)
+  data
 }
 
 #' @title Transform fixed effects

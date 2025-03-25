@@ -21,15 +21,27 @@ mat crossprod_(const mat &X, const vec &w);
 
 std::string tidy_family_(const std::string &family);
 
-vec link_inv_(const vec &eta, const std::string &fam);
+enum FamilyType {
+  GAUSSIAN,
+  POISSON,
+  BINOMIAL,
+  GAMMA,
+  INV_GAUSSIAN,
+  NEG_BIN,
+  UNKNOWN
+};
+
+FamilyType get_family_type(const std::string &fam);
+
+vec link_inv_(const vec &eta, const FamilyType family_type);
 
 double dev_resids_(const vec &y, const vec &mu, const double &theta,
-                   const vec &wt, const std::string &fam);
+                   const vec &wt, const FamilyType family_type);
 
-vec mu_eta_(const vec &eta, const std::string &fam);
+vec mu_eta_(const vec &eta, const FamilyType family_type);
 
-vec variance_(const vec &mu, const double &theta, const std::string &fam);
+vec variance_(const vec &mu, const double &theta, const FamilyType family_type);
 
-bool valid_eta_(const vec &eta, const std::string &fam);
+bool valid_eta_(const vec &eta, const FamilyType family_type);
 
-bool valid_mu_(const vec &mu, const std::string &fam);
+bool valid_mu_(const vec &mu, const FamilyType family_type);

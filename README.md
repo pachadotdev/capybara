@@ -6,10 +6,12 @@
 <!-- badges: start -->
 
 [![R-CMD-check](https://github.com/pachadotdev/capybara/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/pachadotdev/capybara/actions/workflows/R-CMD-check.yaml)
-[![codecov](https://codecov.io/gh/pachadotdev/capybara/graph/badge.svg?token=kDP0pWmfRk)](https://codecov.io/gh/pachadotdev/capybara)
-[![BuyMeACoffee](https://raw.githubusercontent.com/pachadotdev/buymeacoffee-badges/main/bmc-donate-yellow.svg)](https://www.buymeacoffee.com/pacha)
+[![codecov](https://app.codecov.io/gh/pachadotdev/capybara/graph/badge.svg?token=kDP0pWmfRk)](https://app.codecov.io/gh/pachadotdev/capybara)
+[![BuyMeACoffee](https://raw.githubusercontent.com/pachadotdev/buymeacoffee-badges/main/bmc-donate-yellow.svg)](https://buymeacoffee.com/pacha)
 [![Lifecycle:
 stable](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
+[![CRAN
+status](https://www.r-pkg.org/badges/version/capybara)](https://CRAN.R-project.org/package=capybara)
 <!-- badges: end -->
 
 ## About
@@ -56,45 +58,15 @@ remotes::install_github("pachadotdev/capybara")
 
 ## Examples
 
-See the documentation in progress: <https://pacha.dev/capybara>.
+See the documentation in progress: <https://pacha.dev/capybara/>.
 
 ## Design choices
 
-Capybara uses C++ and vectorized R operations to address bottlenecks
-where possible. Some parts of the code use ‘dplyr’, which allows me to
-write code that is easier to understand and it works well to performed
-grouped operations. The intensive computations are done on C++ side. I
-tried to implement this idea from v0.2 and onwards: “He who gives up
-code safety for code speed deserves neither.” (Wickham, 2014).
-
-I know some parts of the code are not particularly easy to understand.
-For example, such as my implementation of Kendall’s Tau (or Kendall’s
-correlation) with a time complexity of O(n \* log(n)) instead of O(n^2).
-I still did my best to write a straightforward code.
-
-Capybara is full of trade-offs. I have a branch where I used ‘dplyr’ and
-‘dtplyr’ to help myself with the ‘data.table’ syntax, otherwise there is
-no way to use in-place modification of data. Because ‘data.table’
-modifies the original data (e.g., it converts ‘data.frame’ and ‘tibble’
-structures into ‘data.table’ structures), the main branch uses ‘dplyr’
-to avoid side effects.
-
-In my research I use ‘SQL’ because I have over 200 GB of international
-trade data, where ‘dplyr’ helps a lot because it allows me to query
-‘SQL’ directly from R mand just using ‘dplyr’ syntax, something
-impossible with ‘data.table’, which requires me to go to the ‘SQL’
-editor en export my queries in CSV format and then import them in R. The
-downside is that ‘dplyr’ is slower than ‘data.table’ and uses more
-memory.
-
-I think with my design choices I accomplished my goal of fitting models
-in my laptop instead of relying on UofT’s servers.
-
-## Future plans
-
-I will add a RESET test.
-
-There are a few tests but these have to be expanded.
+Capybara is full of trade-offs. I have used ‘data.table’ to benefit from
+in-place modifications. The model fitting is done on C++ side. While the
+code aims to be fast, I prefer to have some bottlenecks instead of low
+numerical stability. The principle was: “He who gives up code safety for
+code speed deserves neither.” (Wickham, 2014).
 
 ## Benchmarks
 

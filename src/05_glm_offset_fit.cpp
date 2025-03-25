@@ -16,6 +16,7 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
   // Auxiliary variables (fixed)
 
   const std::string fam = tidy_family_(family);
+  const FamilyType family_type = get_family_type(fam);
   const double center_tol = as_cpp<double>(control["center_tol"]),
                dev_tol = as_cpp<double>(control["dev_tol"]);
   const size_t iter_max = as_cpp<int>(control["iter_max"]),
@@ -26,8 +27,8 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
   // Auxiliary variables (storage)
 
   size_t iter, iter_inner;
-  vec mu = link_inv_(eta, fam);
-  double dev = dev_resids_(y, mu, 0.0, wt, fam);
+  vec mu = link_inv_(eta, family_type);
+  double dev = dev_resids_(y, mu, 0.0, wt, family_type);
 
   const int n = y.n_elem;
   vec mu_eta(n), yadj(n), w(n);
@@ -44,8 +45,8 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
 
     // Compute weights and dependent variable
 
-    mu_eta = mu_eta_(eta, fam);
-    w = (wt % square(mu_eta)) / variance_(mu, 0.0, fam);
+    mu_eta = mu_eta_(eta, family_type);
+    w = (wt % square(mu_eta)) / variance_(mu, 0.0, family_type);
     yadj = (y - mu) / mu_eta + eta - offset;
 
     // Center variables
@@ -65,12 +66,12 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
 
     for (iter_inner = 0; iter_inner < iter_inner_max; ++iter_inner) {
       eta = eta_old + (rho * eta_upd);
-      mu = link_inv_(eta, fam);
-      dev = dev_resids_(y, mu, 0.0, wt, fam);
+      mu = link_inv_(eta, family_type);
+      dev = dev_resids_(y, mu, 0.0, wt, family_type);
       dev_ratio_inner = (dev - dev_old) / (0.1 + fabs(dev_old));
 
       dev_crit = is_finite(dev);
-      val_crit = (valid_eta_(eta, fam) && valid_mu_(mu, fam));
+      val_crit = (valid_eta_(eta, family_type) && valid_mu_(mu, family_type));
       imp_crit = (dev_ratio_inner <= -dev_tol);
 
       if (dev_crit == true && val_crit == true && imp_crit == true) {

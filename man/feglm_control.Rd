@@ -5,8 +5,8 @@
 \title{Set \code{feglm} Control Parameters}
 \usage{
 feglm_control(
-  dev_tol = 1e-08,
-  center_tol = 1e-08,
+  dev_tol = 1e-06,
+  center_tol = 1e-06,
   iter_max = 25L,
   iter_center_max = 10000L,
   iter_inner_max = 50L,

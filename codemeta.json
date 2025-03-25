@@ -2,19 +2,19 @@
   "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
   "@type": "SoftwareSourceCode",
   "identifier": "capybara",
-  "description": "Fast and user-friendly estimation of generalized linear models with multiple fixed effects and cluster the standard errors. The method to obtain the estimated fixed-effects coefficients is based on Stammann (2018) <https://arxiv.org/abs/1707.01815> and Gaure (2013) <https://dx.doi.org/10.1016/j.csda.2013.03.024>.",
-  "name": "capybara: Fast and Memory Efficient Fitting of Linear Models With High-Dimensional\n    Fixed Effects",
+  "description": "Fast and user-friendly estimation of generalized linear models with multiple fixed effects and cluster the standard errors. The method to obtain the estimated fixed-effects coefficients is based on Stammann (2018) <doi:10.48550/arXiv.1707.01815> and Gaure (2013) <doi:10.1016/j.csda.2013.03.024>.",
+  "name": "capybara: Fast and Memory Efficient Fitting of Linear Models with High-Dimensional\n    Fixed Effects",
   "relatedLink": "https://pacha.dev/capybara/",
   "codeRepository": "https://github.com/pachadotdev/capybara",
   "issueTracker": "https://github.com/pachadotdev/capybara/issues",
   "license": "Apache License 2",
-  "version": "0.5.1",
+  "version": "0.9.0",
   "programmingLanguage": {
     "@type": "ComputerLanguage",
     "name": "R",
     "url": "https://r-project.org"
   },
-  "runtimePlatform": "R version 4.4.0 (2024-04-24)",
+  "runtimePlatform": "R version 4.4.3 (2025-02-28)",
   "author": [
     {
       "@type": "Person",
@@ -36,15 +36,15 @@
   "softwareSuggestions": [
     {
       "@type": "SoftwareApplication",
-      "identifier": "fixest",
-      "name": "fixest",
+      "identifier": "broom",
+      "name": "broom",
       "provider": {
         "@id": "https://cran.r-project.org",
         "@type": "Organization",
         "name": "Comprehensive R Archive Network (CRAN)",
         "url": "https://cran.r-project.org"
       },
-      "sameAs": "https://CRAN.R-project.org/package=fixest"
+      "sameAs": "https://CRAN.R-project.org/package=broom"
     },
     {
       "@type": "SoftwareApplication",
@@ -85,29 +85,29 @@
     },
     {
       "@type": "SoftwareApplication",
-      "identifier": "tidyr",
-      "name": "tidyr",
+      "identifier": "units",
+      "name": "units",
       "provider": {
         "@id": "https://cran.r-project.org",
         "@type": "Organization",
         "name": "Comprehensive R Archive Network (CRAN)",
         "url": "https://cran.r-project.org"
       },
-      "sameAs": "https://CRAN.R-project.org/package=tidyr"
+      "sameAs": "https://CRAN.R-project.org/package=units"
     }
   ],
   "softwareRequirements": {
     "1": {
       "@type": "SoftwareApplication",
-      "identifier": "dplyr",
-      "name": "dplyr",
+      "identifier": "data.table",
+      "name": "data.table",
       "provider": {
         "@id": "https://cran.r-project.org",
         "@type": "Organization",
         "name": "Comprehensive R Archive Network (CRAN)",
         "url": "https://cran.r-project.org"
       },
-      "sameAs": "https://CRAN.R-project.org/package=dplyr"
+      "sameAs": "https://CRAN.R-project.org/package=data.table"
     },
     "2": {
       "@type": "SoftwareApplication",
@@ -135,17 +135,29 @@
     },
     "4": {
       "@type": "SoftwareApplication",
-      "identifier": "magrittr",
-      "name": "magrittr",
+      "identifier": "ggplot2",
+      "name": "ggplot2",
       "provider": {
         "@id": "https://cran.r-project.org",
         "@type": "Organization",
         "name": "Comprehensive R Archive Network (CRAN)",
         "url": "https://cran.r-project.org"
       },
-      "sameAs": "https://CRAN.R-project.org/package=magrittr"
+      "sameAs": "https://CRAN.R-project.org/package=ggplot2"
     },
     "5": {
+      "@type": "SoftwareApplication",
+      "identifier": "kendallknight",
+      "name": "kendallknight",
+      "provider": {
+        "@id": "https://cran.r-project.org",
+        "@type": "Organization",
+        "name": "Comprehensive R Archive Network (CRAN)",
+        "url": "https://cran.r-project.org"
+      },
+      "sameAs": "https://CRAN.R-project.org/package=kendallknight"
+    },
+    "6": {
       "@type": "SoftwareApplication",
       "identifier": "MASS",
       "name": "MASS",
@@ -156,18 +168,6 @@
         "url": "https://cran.r-project.org"
       },
       "sameAs": "https://CRAN.R-project.org/package=MASS"
-    },
-    "6": {
-      "@type": "SoftwareApplication",
-      "identifier": "rlang",
-      "name": "rlang",
-      "provider": {
-        "@id": "https://cran.r-project.org",
-        "@type": "Organization",
-        "name": "Comprehensive R Archive Network (CRAN)",
-        "url": "https://cran.r-project.org"
-      },
-      "sameAs": "https://CRAN.R-project.org/package=rlang"
     },
     "7": {
       "@type": "SoftwareApplication",
@@ -182,10 +182,5 @@
     },
     "SystemRequirements": null
   },
-  "fileSize": "493.902KB",
-  "releaseNotes": "https://github.com/pachadotdev/capybara/blob/master/NEWS.md",
-  "readme": "https://github.com/pachadotdev/capybara/blob/main/README.md",
-  "contIntegration": ["https://github.com/pachadotdev/capybara/actions/workflows/R-CMD-check.yaml", "https://codecov.io/gh/pachadotdev/capybara"],
-  "developmentStatus": "https://lifecycle.r-lib.org/articles/stages.html#stable",
-  "keywords": ["cpp11", "econometrics", "linear-models", "rstats"]
+  "fileSize": "21720.012KB"
 }

@@ -42,13 +42,10 @@
 
   // Generate result list
 
-  writable::list out(4);
-  out[0] = as_doubles(beta);
-  out[1] = as_doubles(fitted);
-  out[2] = as_doubles(w);
-  out[3] = as_doubles_matrix(H);
-  out.attr("names") = writable::strings(
-      {"coefficients", "fitted.values", "weights", "hessian"});
-
-  return out;
+  return writable::list({
+    "coefficients"_nm = as_doubles(beta),
+    "fitted.values"_nm = as_doubles(fitted),
+    "weights"_nm = as_doubles(w),
+    "hessian"_nm = as_doubles_matrix(H)
+  });
 }
