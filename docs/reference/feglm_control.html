@@ -9,7 +9,7 @@ Termination conditions are similar to glm."><meta property="og:image" content=".
 
     <a class="navbar-brand me-2" href="../index.html">capybara</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -52,6 +52,7 @@ Termination conditions are similar to <code><a href="https://rdrr.io/r/stats/glm
 <span>  iter_center_max <span class="op">=</span> <span class="fl">10000L</span>,</span>
 <span>  iter_inner_max <span class="op">=</span> <span class="fl">50L</span>,</span>
 <span>  iter_interrupt <span class="op">=</span> <span class="fl">1000L</span>,</span>
+<span>  iter_ssr <span class="op">=</span> <span class="fl">10L</span>,</span>
 <span>  limit <span class="op">=</span> <span class="fl">10L</span>,</span>
 <span>  trace <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  drop_pc <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -96,6 +97,12 @@ iterations in the inner loop of the centering algorithm. The default is
 <dt id="arg-iter-interrupt">iter_interrupt<a class="anchor" aria-label="anchor" href="#arg-iter-interrupt"></a></dt>
 <dd><p>unsigned integer indicating the maximum number of
 iterations before the algorithm is interrupted. The default is <code>1000L</code>.</p></dd>
+
+
+<dt id="arg-iter-ssr">iter_ssr<a class="anchor" aria-label="anchor" href="#arg-iter-ssr"></a></dt>
+<dd><p>unsigned integer indicating the number of iterations
+to skip before checking if the sum of squared residuals improves. The default
+is <code>10L</code>.</p></dd>
 
 
 <dt id="arg-limit">limit<a class="anchor" aria-label="anchor" href="#arg-limit"></a></dt>
@@ -154,8 +161,11 @@ some computation time at the cost of memory. The default is <code>TRUE</code>.</
 <span class="r-out co"><span class="r-pr">#&gt;</span> $iter_interrupt</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> $limit</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $iter_ssr</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $limit</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 10</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $trace</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] FALSE</span>
