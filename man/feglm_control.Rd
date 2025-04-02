@@ -11,6 +11,7 @@ feglm_control(
   iter_center_max = 10000L,
   iter_inner_max = 50L,
   iter_interrupt = 1000L,
+  iter_ssr = 10L,
   limit = 10L,
   trace = FALSE,
   drop_pc = TRUE,
@@ -41,6 +42,10 @@ iterations in the inner loop of the centering algorithm. The default is
 
 \item{iter_interrupt}{unsigned integer indicating the maximum number of
 iterations before the algorithm is interrupted. The default is \code{1000L}.}
+
+\item{iter_ssr}{unsigned integer indicating the number of iterations
+to skip before checking if the sum of squared residuals improves. The default
+is \code{10L}.}
 
 \item{limit}{unsigned integer indicating the maximum number of iterations of
 \code{\link[MASS]{theta.ml}}. The default is \code{10L}.}

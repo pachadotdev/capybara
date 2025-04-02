@@ -22,7 +22,8 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
   const size_t iter_max = as_cpp<int>(control["iter_max"]),
                iter_center_max = as_cpp<size_t>(control["iter_center_max"]),
                iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]),
-               iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]);
+               iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]),
+               iter_ssr = as_cpp<size_t>(control["iter_ssr"]);
 
   // Auxiliary variables (storage)
 
@@ -53,7 +54,7 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
 
     Myadj += yadj;
     center_variables_(Myadj, w, k_list, center_tol, iter_center_max,
-                      iter_interrupt);
+                      iter_interrupt, iter_ssr);
 
     // Compute update step and update eta
 

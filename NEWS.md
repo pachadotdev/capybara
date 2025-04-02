@@ -1,3 +1,12 @@
+# capybara 0.9.2
+
+* Implements Irons and Tuck acceleration for fast convergence.
+
+# capybara 0.9.1
+
+* Fixes a minor uninitialized variable in the C++ code used for a conditional
+  check.
+  
 # capybara 0.9
 
 * First CRAN version

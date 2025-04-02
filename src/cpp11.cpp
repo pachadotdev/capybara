@@ -6,10 +6,10 @@
 #include <R_ext/Visibility.h>
 
 // 02_center_variables.cpp
-doubles_matrix<> center_variables_r_(const doubles_matrix<> & V_r, const doubles & w_r, const list & klist, const double & tol, const int & max_iter, const int & iter_interrupt);
-extern "C" SEXP _capybara_center_variables_r_(SEXP V_r, SEXP w_r, SEXP klist, SEXP tol, SEXP max_iter, SEXP iter_interrupt) {
+doubles_matrix<> center_variables_r_(const doubles_matrix<> & V_r, const doubles & w_r, const list & klist, const double & tol, const int & max_iter, const int & iter_interrupt, const int & iter_ssr);
+extern "C" SEXP _capybara_center_variables_r_(SEXP V_r, SEXP w_r, SEXP klist, SEXP tol, SEXP max_iter, SEXP iter_interrupt, SEXP iter_ssr) {
   BEGIN_CPP11
-    return cpp11::as_sexp(center_variables_r_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(V_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(w_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(klist), cpp11::as_cpp<cpp11::decay_t<const double &>>(tol), cpp11::as_cpp<cpp11::decay_t<const int &>>(max_iter), cpp11::as_cpp<cpp11::decay_t<const int &>>(iter_interrupt)));
+    return cpp11::as_sexp(center_variables_r_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(V_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(w_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(klist), cpp11::as_cpp<cpp11::decay_t<const double &>>(tol), cpp11::as_cpp<cpp11::decay_t<const int &>>(max_iter), cpp11::as_cpp<cpp11::decay_t<const int &>>(iter_interrupt), cpp11::as_cpp<cpp11::decay_t<const int &>>(iter_ssr)));
   END_CPP11
 }
 // 03_lm_fit.cpp
@@ -71,7 +71,7 @@ extern "C" SEXP _capybara_group_sums_cov_(SEXP M_r, SEXP N_r, SEXP jlist) {
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
-    {"_capybara_center_variables_r_",  (DL_FUNC) &_capybara_center_variables_r_,  6},
+    {"_capybara_center_variables_r_",  (DL_FUNC) &_capybara_center_variables_r_,  7},
     {"_capybara_feglm_fit_",           (DL_FUNC) &_capybara_feglm_fit_,           9},
     {"_capybara_feglm_offset_fit_",    (DL_FUNC) &_capybara_feglm_offset_fit_,    7},
     {"_capybara_felm_fit_",            (DL_FUNC) &_capybara_felm_fit_,            5},

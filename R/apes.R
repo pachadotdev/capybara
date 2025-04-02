@@ -187,7 +187,7 @@ apes <- function(
   if (control[["keep_mx"]]) {
     mx <- object[["mx"]]
   } else {
-    mx <- center_variables_r_(x, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]])
+    mx <- center_variables_r_(x, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]])
   }
 
   # Compute average partial effects, derivatives, and Jacobian
@@ -222,7 +222,7 @@ apes <- function(
 
   # Compute projection and residual projection of \psi
   psi <- -delta1 / w
-  mpsi <- center_variables_r_(psi, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]])
+  mpsi <- center_variables_r_(psi, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]])
   ppsi <- psi - mpsi
   rm(delta1, psi)
 

@@ -15,7 +15,8 @@
 
   const double center_tol = as_cpp<double>(control["center_tol"]);
   const size_t iter_center_max = as_cpp<size_t>(control["iter_center_max"]),
-               iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]);
+               iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]),
+               iter_ssr = as_cpp<size_t>(control["iter_ssr"]);
 
   // Auxiliary variables (storage)
 
@@ -25,8 +26,8 @@
 
   MNU += y;
   center_variables_(MNU, w, k_list, center_tol, iter_center_max,
-                    iter_interrupt);
-  center_variables_(X, w, k_list, center_tol, iter_center_max, iter_interrupt);
+                    iter_interrupt, iter_ssr);
+  center_variables_(X, w, k_list, center_tol, iter_center_max, iter_interrupt, iter_ssr);
 
   // Solve the normal equations
 
@@ -42,10 +43,8 @@
 
   // Generate result list
 
-  return writable::list({
-    "coefficients"_nm = as_doubles(beta),
-    "fitted.values"_nm = as_doubles(fitted),
-    "weights"_nm = as_doubles(w),
-    "hessian"_nm = as_doubles_matrix(H)
-  });
+  return writable::list({"coefficients"_nm = as_doubles(beta),
+                         "fitted.values"_nm = as_doubles(fitted),
+                         "weights"_nm = as_doubles(w),
+                         "hessian"_nm = as_doubles_matrix(H)});
 }

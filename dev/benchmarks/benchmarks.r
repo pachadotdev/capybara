@@ -1,13 +1,15 @@
-load_all()
+# 1: packages ----
+
+# pak::local_install("~/scratch/capybara/capybara", upgrade = FALSE)
+
+library(bench)
 library(dplyr)
 library(tidyr)
 library(janitor)
-library(profvis)
 
-rm(list = ls())
-gc()
+# 3: benchmarks ----
 
-# data ----
+## 3.1: data ----
 
 ch1_application3 <- tradepolicy::agtpa_applications %>%
   clean_names() %>%
@@ -29,14 +31,22 @@ ch1_application3 <- ch1_application3 %>%
   mutate(sum_trade = sum(trade)) %>%
   ungroup()
 
-# ppml ----
+## 3.2: benchmarks ----
+
+message("=======")
+message("TRADE DIVERSION")
+message("=======")
 
 form <- trade ~ 0 + log_dist + cntg + lang + clny +
-  rta + exp_year + imp_year
+  rta + exp_year + imp_year + intl_brdr
 
 form2 <- trade ~ log_dist + cntg + lang + clny +
-  rta | exp_year + imp_year
+  rta | exp_year + imp_year + intl_brdr
 
-d <- filter(ch1_application3, importer != exporter)
+d <- ch1_application3
 
-profvis(fepoisson(form2, data = d))
+bench_trade_diversion <- mark(
+  round(alpaca::feglm(form2, data = d, family = poisson())$coefficients["rta"], 2),
+  round(capybara::fepoisson(form2, data = d)$coefficients["rta"], 2),
+  round(fixest::fepois(form2, data = d)$coefficients["rta"], 2)
+)

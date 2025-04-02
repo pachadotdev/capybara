@@ -44,9 +44,7 @@ vec link_inv_gaussian_(const vec &eta) { return eta; }
 
 vec link_inv_poisson_(const vec &eta) { return exp(eta); }
 
-vec link_inv_logit_(const vec &eta) {
-  return 1.0 / (1.0 + exp(-eta));
-}
+vec link_inv_logit_(const vec &eta) { return 1.0 / (1.0 + exp(-eta)); }
 
 vec link_inv_gamma_(const vec &eta) { return 1 / eta; }
 
@@ -113,26 +111,26 @@ vec link_inv_(const vec &eta, const FamilyType family_type) {
   vec result(eta.n_elem);
 
   switch (family_type) {
-    case GAUSSIAN:
-      result = link_inv_gaussian_(eta);
-      break;
-    case POISSON:
-      result = link_inv_poisson_(eta);
-      break;
-    case BINOMIAL:
-      result = link_inv_logit_(eta);
-      break;
-    case GAMMA:
-      result = link_inv_gamma_(eta);
-      break;
-    case INV_GAUSSIAN:
-      result = link_inv_invgaussian_(eta);
-      break;
-    case NEG_BIN:
-      result = link_inv_negbin_(eta);
-      break;
-    default:
-      stop("Unknown family");
+  case GAUSSIAN:
+    result = link_inv_gaussian_(eta);
+    break;
+  case POISSON:
+    result = link_inv_poisson_(eta);
+    break;
+  case BINOMIAL:
+    result = link_inv_logit_(eta);
+    break;
+  case GAMMA:
+    result = link_inv_gamma_(eta);
+    break;
+  case INV_GAUSSIAN:
+    result = link_inv_invgaussian_(eta);
+    break;
+  case NEG_BIN:
+    result = link_inv_negbin_(eta);
+    break;
+  default:
+    stop("Unknown family");
   }
 
   return result;
@@ -141,54 +139,54 @@ vec link_inv_(const vec &eta, const FamilyType family_type) {
 double dev_resids_(const vec &y, const vec &mu, const double &theta,
                    const vec &wt, const FamilyType family_type) {
   switch (family_type) {
-    case GAUSSIAN:
-      return dev_resids_gaussian_(y, mu, wt);
-    case POISSON:
-      return dev_resids_poisson_(y, mu, wt);
-    case BINOMIAL:
-      return dev_resids_logit_(y, mu, wt);
-    case GAMMA:
-      return dev_resids_gamma_(y, mu, wt);
-    case INV_GAUSSIAN:
-      return dev_resids_invgaussian_(y, mu, wt);
-    case NEG_BIN:
-      return dev_resids_negbin_(y, mu, theta, wt);
-    default:
-      stop("Unknown family");
+  case GAUSSIAN:
+    return dev_resids_gaussian_(y, mu, wt);
+  case POISSON:
+    return dev_resids_poisson_(y, mu, wt);
+  case BINOMIAL:
+    return dev_resids_logit_(y, mu, wt);
+  case GAMMA:
+    return dev_resids_gamma_(y, mu, wt);
+  case INV_GAUSSIAN:
+    return dev_resids_invgaussian_(y, mu, wt);
+  case NEG_BIN:
+    return dev_resids_negbin_(y, mu, theta, wt);
+  default:
+    stop("Unknown family");
   }
 }
 
 bool valid_eta_(const vec &eta, const FamilyType family_type) {
   switch (family_type) {
-    case GAUSSIAN:
-    case POISSON:
-    case BINOMIAL:
-    case NEG_BIN:
-      return true;
-    case GAMMA:
-      return is_finite(eta) && all(eta != 0.0);
-    case INV_GAUSSIAN:
-      return is_finite(eta) && all(eta > 0.0);
-    default:
-      stop("Unknown family");
+  case GAUSSIAN:
+  case POISSON:
+  case BINOMIAL:
+  case NEG_BIN:
+    return true;
+  case GAMMA:
+    return is_finite(eta) && all(eta != 0.0);
+  case INV_GAUSSIAN:
+    return is_finite(eta) && all(eta > 0.0);
+  default:
+    stop("Unknown family");
   }
 }
 
 bool valid_mu_(const vec &mu, const FamilyType family_type) {
   switch (family_type) {
-    case GAUSSIAN:
-      return true;
-    case POISSON:
-    case NEG_BIN:
-      return is_finite(mu) && all(mu > 0);
-    case BINOMIAL:
-      return is_finite(mu) && all(mu > 0 && mu < 1);
-    case GAMMA:
-      return is_finite(mu) && all(mu > 0.0);
-    case INV_GAUSSIAN:
-      return true;
-    default:
-      stop("Unknown family");
+  case GAUSSIAN:
+    return true;
+  case POISSON:
+  case NEG_BIN:
+    return is_finite(mu) && all(mu > 0);
+  case BINOMIAL:
+    return is_finite(mu) && all(mu > 0 && mu < 1);
+  case GAMMA:
+    return is_finite(mu) && all(mu > 0.0);
+  case INV_GAUSSIAN:
+    return true;
+  default:
+    stop("Unknown family");
   }
 }
 
@@ -268,6 +266,7 @@ vec variance_(const vec &mu, const double &theta,
                iter_center_max = as_cpp<size_t>(control["iter_center_max"]),
                iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]),
                iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]),
+               iter_ssr = as_cpp<size_t>(control["iter_ssr"]),
                n = y.n_elem, p = MX.n_cols, k = beta.n_elem;
 
   // Auxiliary variables (storage)
@@ -301,9 +300,9 @@ vec variance_(const vec &mu, const double &theta,
     nu_old = nu;
 
     center_variables_(MNU, w, k_list, center_tol, iter_center_max,
-                      iter_interrupt);
+                      iter_interrupt, iter_ssr);
     center_variables_(MX, w, k_list, center_tol, iter_center_max,
-                      iter_interrupt);
+                      iter_interrupt, iter_ssr);
 
     // Compute update step and update eta
 
@@ -388,7 +387,7 @@ vec variance_(const vec &mu, const double &theta,
   if (keep_mx) {
     mat x_cpp = as_Mat(x_r);
     center_variables_(x_cpp, w, k_list, center_tol, iter_center_max,
-                      iter_interrupt);
+                      iter_interrupt, iter_ssr);
     out.push_back({"MX"_nm = as_doubles_matrix(x_cpp)});
   }
 

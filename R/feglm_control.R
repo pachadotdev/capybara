@@ -41,6 +41,9 @@ NULL
 #'  \code{50L}.
 #' @param iter_interrupt unsigned integer indicating the maximum number of
 #' iterations before the algorithm is interrupted. The default is \code{1000L}.
+#' @param iter_ssr unsigned integer indicating the number of iterations
+#' to skip before checking if the sum of squared residuals improves. The default
+#' is \code{10L}.
 #' @param limit unsigned integer indicating the maximum number of iterations of
 #'  \code{\link[MASS]{theta.ml}}. The default is \code{10L}.
 #' @param trace logical indicating if output should be produced in each
@@ -71,6 +74,7 @@ feglm_control <- function(
     iter_center_max = 10000L,
     iter_inner_max = 50L,
     iter_interrupt = 1000L,
+    iter_ssr = 10L,
     limit = 10L,
     trace = FALSE,
     drop_pc = TRUE,
@@ -119,6 +123,15 @@ feglm_control <- function(
     )
   }
 
+  # Check validity of 'iter_ssr'
+  iter_ssr <- as.integer(iter_ssr)
+  if (iter_ssr < 1L) {
+    stop(
+      "Maximum number of iterations for SSR should be at least one.",
+      call. = FALSE
+    )
+  }
+
   # Check validity of 'limit'
   limit <- as.integer(limit)
   if (limit < 1L) {
@@ -133,6 +146,7 @@ feglm_control <- function(
     iter_center_max = iter_center_max,
     iter_inner_max = iter_inner_max,
     iter_interrupt = iter_interrupt,
+    iter_ssr = iter_ssr,
     limit = limit,
     trace = as.logical(trace),
     drop_pc = as.logical(drop_pc),
