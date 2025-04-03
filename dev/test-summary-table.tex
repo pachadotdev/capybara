@@ -1,0 +1,30 @@
+% simple latex template
+
+\documentclass[11pt,a4paper,twoside]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{multicol}
+
+\begin{document}
+
+\begin{tabular}{lcc}
+\toprule
+Variable & m1 & Model II
+\\
+\midrule
+wt & -3.206*** & -0.191*
+\\
+ & (0.295) & (0.089)
+\\
+\midrule Fixed effects  &  &  \\
+cyl & Yes & Yes \\
+am & No & Yes \\
+\midrule N & 32 & 32 \\
+$R^2$ & 0.837 & 0.616 \\
+\bottomrule
+\multicolumn{3}{l}{\footnotesize Standard errors in parentheses} \\ 
+\multicolumn{3}{l}{\footnotesize Significance levels: $^{***}\: p < 0.001;\: ^{**}\: p < 0.01;\: ^{*}\: p < 0.05;\: ^{.}\: p < 0.1$}
+\end{tabular}
+
+\end{document}

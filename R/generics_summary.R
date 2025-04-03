@@ -23,12 +23,12 @@ summary.apes <- function(object, ...) {
   se <- sqrt(diag(object[["vcov"]]))
   z <- est / se
   p <- 2.0 * pnorm(-abs(z))
-  cm <- cbind(est, se, z, p)
-  rownames(cm) <- names(est)
-  colnames(cm) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
+  coefficients <- cbind(est, se, z, p)
+  rownames(coefficients) <- names(est)
+  colnames(coefficients) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
 
   # Return coefficient matrix
-  structure(list(cm = cm), class = "summary.apes")
+  structure(list(coefficients = coefficients), class = "summary.apes")
 }
 
 #' @title Summary method for fixed effects GLMs
@@ -44,20 +44,20 @@ summary.feglm <- function(
   se <- sqrt(diag(vcov(object, type)))
   z <- est / se
   p <- 2.0 * pnorm(-abs(z))
-  cm <- cbind(est, se, z, p)
-  rownames(cm) <- names(est)
-  colnames(cm) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
+  coefficients <- cbind(est, se, z, p)
+  rownames(coefficients) <- names(est)
+  colnames(coefficients) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
 
   # Generate result list
   res <- list(
-    cm            = cm,
-    deviance      = object[["deviance"]],
+    coefficients = coefficients,
+    deviance = object[["deviance"]],
     null_deviance = object[["null_deviance"]],
-    iter          = object[["iter"]],
-    nobs          = object[["nobs"]],
-    lvls_k        = object[["lvls_k"]],
-    formula       = object[["formula"]],
-    family        = object[["family"]]
+    iter = object[["iter"]],
+    nobs = object[["nobs"]],
+    lvls_k = object[["lvls_k"]],
+    formula = object[["formula"]],
+    family = object[["family"]]
   )
 
   if (object[["family"]][["family"]] == "poisson") {
@@ -92,9 +92,9 @@ summary.felm <- function(
   se <- sqrt(diag(vcov(object, type)))
   z <- est / se
   p <- 2.0 * pnorm(-abs(z))
-  cm <- cbind(est, se, z, p)
-  rownames(cm) <- names(est)
-  colnames(cm) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
+  coefficients <- cbind(est, se, z, p)
+  rownames(coefficients) <- names(est)
+  colnames(coefficients) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
 
   y <- unlist(object[["data"]][, 1], use.names = FALSE)
   w <- object[["weights"]]
@@ -109,11 +109,11 @@ summary.felm <- function(
 
   # Generate result list
   res <- list(
-    cm            = cm,
-    nobs          = object[["nobs"]],
-    lvls_k        = object[["lvls_k"]],
-    formula       = object[["formula"]],
-    r.squared     = rsq,
+    coefficients = coefficients,
+    nobs = object[["nobs"]],
+    lvls_k = object[["lvls_k"]],
+    formula = object[["formula"]],
+    r.squared = rsq,
     adj.r.squared = 1 - (1 - rsq) * (n - 1) / (n - k + 1)
   )
 

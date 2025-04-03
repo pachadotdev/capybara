@@ -1,3 +1,10 @@
+# capybara 0.9.3
+
+* Fixes the `tidy()` method for linear models (`felm` class). Now it does not
+  require to load the `tibble` package to work.
+* Adds a wrapper to present multiple models into a single table with the option
+  to export to LaTeX.
+  
 # capybara 0.9.2
 
 * Implements Irons and Tuck acceleration for fast convergence.

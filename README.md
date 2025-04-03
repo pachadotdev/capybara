@@ -70,37 +70,53 @@ code speed deserves neither.” (Wickham, 2014).
 
 ## Benchmarks
 
-Median time for the different models in the book [An Advanced Guide to
-Trade Policy
+Median time and memory footprint for the different models in the book
+[An Advanced Guide to Trade Policy
 Analysis](https://www.wto.org/english/res_e/publications_e/advancedguide2016_e.htm).
 
-| package      |   PPML | Trade Diversion | Endogeneity | Reverse Causality | Non-linear/Phasing Effects | Globalization |
-| :----------- | -----: | --------------: | ----------: | ----------------: | -------------------------: | ------------: |
-| Alpaca       |   0.4s |            2.6s |        1.6s |              2.0s |                       3.1s |          5.3s |
-| Base R       | 120.0s |            2.0m |     1380.0s |           1440.0s |                    1380.0s |       1500.0s |
-| **Capybara** |   0.3s |            2.0s |        1.2s |              1.4s |                       1.7s |          3.4s |
-| Fixest       |   0.1s |            0.5s |        0.1s |              0.2s |                       0.3s |          0.5s |
-
-Memory allocation for the same models
-
-| package      |   PPML | Trade Diversion | Endogeneity | Reverse Causality | Non-linear/Phasing Effects | Globalization |
-| :----------- | -----: | --------------: | ----------: | ----------------: | -------------------------: | ------------: |
-| Alpaca       |  307MB |           341MB |       306MB |             336MB |                      395MB |         541MB |
-| Base R       | 3000MB |          3000MB |     12000MB |           12000GB |                    12000GB |       12000MB |
-| **Capybara** |   27MB |            32MB |        20MB |              23MB |                       29MB |          43MB |
-| Fixest       |   44MB |            36MB |        27MB |              32MB |                       41MB |          63MB |
+| Model             | Package  | Median Time   | Memory        |
+| :---------------- | :------- | :------------ | :------------ |
+| PPML              | Alpaca   | 822.14 ms - 3 | 302.62 MB - 3 |
+| PPML              | Base R   | 45.43 s - 4   | 2.73 GB - 4   |
+| PPML              | Capybara | 404.27 ms - 2 | 23.91 MB - 1  |
+| PPML              | Fixest   | 140.87 ms - 1 | 44.59 MB - 2  |
+|                   |          |               |               |
+| Trade Diversion   | Alpaca   | 3.73 s - 3    | 339.79 MB - 3 |
+| Trade Diversion   | Base R   | 45.91 s - 4   | 2.6 GB - 4    |
+| Trade Diversion   | Capybara | 929.89 ms - 1 | 30.77 MB - 1  |
+| Trade Diversion   | Fixest   | 1.01 s - 2    | 36.59 MB - 2  |
+|                   |          |               |               |
+| Endogeneity       | Alpaca   | 2.9 s - 3     | 306.27 MB - 3 |
+| Endogeneity       | Base R   | 12.19 m - 4   | 11.94 GB - 4  |
+| Endogeneity       | Capybara | 1.3 s - 2     | 16.81 MB - 1  |
+| Endogeneity       | Fixest   | 247.72 ms - 1 | 28.08 MB - 2  |
+|                   |          |               |               |
+| Reverse Causality | Alpaca   | 3.7 s - 3     | 335.61 MB - 3 |
+| Reverse Causality | Base R   | 12.23 m - 4   | 11.94 GB - 4  |
+| Reverse Causality | Capybara | 1.36 s - 2    | 19.86 MB - 1  |
+| Reverse Causality | Fixest   | 329.78 ms - 1 | 32.43 MB - 2  |
+|                   |          |               |               |
+| Phasing Effects   | Alpaca   | 4.78 s - 3    | 393.86 MB - 3 |
+| Phasing Effects   | Base R   | 12.18 m - 4   | 11.95 GB - 4  |
+| Phasing Effects   | Capybara | 1.49 s - 2    | 25.95 MB - 1  |
+| Phasing Effects   | Fixest   | 525.04 ms - 1 | 41.12 MB - 2  |
+|                   |          |               |               |
+| Globalization     | Alpaca   | 7.97 s - 3    | 539.49 MB - 3 |
+| Globalization     | Base R   | 11.59 m - 4   | 11.97 GB - 4  |
+| Globalization     | Capybara | 1.94 s - 2    | 41.19 MB - 1  |
+| Globalization     | Fixest   | 914.51 ms - 1 | 62.87 MB - 2  |
 
 ## Changing the number of cores
 
 Note that you can edit the `Makevars` file to change the number of cores
 that capybara uses, here is an example of how it affects the performance
 
-| cores | PPML | Trade Diversion | Endogeneity | Reverse Causality | Non-linear/Phasing Effects | Globalization |
-| :---- | ---: | --------------: | ----------: | ----------------: | -------------------------: | ------------: |
-| 2     | 1.8s |           16.2s |        7.7s |              9.6s |                      13.0s |         24.0s |
-| 4     | 1.7s |           16.0s |        7.4s |              9.3s |                      12.3s |         23.6s |
-| 6     | 0.7s |            2.4s |        2.0s |              2.0s |                       2.5s |          4.0s |
-| 8     | 0.3s |            2.0s |        1.2s |              1.4s |                       1.7s |          3.4s |
+| cores | PPML | Trade Diversion |
+| :---- | ---: | --------------: |
+| 2     | 1.8s |           16.2s |
+| 4     | 1.5s |           14.0s |
+| 6     | 0.8s |            2.4s |
+| 8     | 0.4s |            0.9s |
 
 ## Testing and debugging
 
@@ -200,3 +216,8 @@ Please note that the capybara project is released with a [Contributor
 Code of
 Conduct](https://contributor-covenant.org/version/2/1/CODE_OF_CONDUCT.html).
 By contributing to this project, you agree to abide by its terms.
+
+## Acknowledgements
+
+Thanks a lot to [Prof. Yoto Yotov](https://yotoyotov.com/) for reviewing
+the summary functions.

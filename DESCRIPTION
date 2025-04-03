@@ -9,7 +9,11 @@ Authors@R: c(
         family = "Vargas Sepulveda",
         role = c("aut", "cre"),
         email = "m.sepulveda@mail.utoronto.ca",
-        comment = c(ORCID = "0000-0003-1017-7574"))
+        comment = c(ORCID = "0000-0003-1017-7574")),
+    person(
+        given = "Yoto",
+        family = "Yotov",
+        role = c("ctb"))
     )
 Imports:
     data.table,

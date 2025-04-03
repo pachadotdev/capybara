@@ -37,7 +37,7 @@ summary_family_ <- function(x) {
 #' @noRd
 summary_estimates_ <- function(x, digits) {
   cat("\nEstimates:\n\n")
-  coefmat <- as.data.frame(x[["cm"]])
+  coefmat <- as.data.frame(x[["coefficients"]])
 
   coefmat <- summary_estimates_signif_(coefmat, digits)
   coefmat <- summary_estimates_cols_(coefmat, digits)
@@ -246,7 +246,7 @@ print.felm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
 print.summary.apes <- function(
     x, digits = max(3L, getOption("digits") - 3L), ...) {
   cat("Estimates:\n")
-  printCoefmat(x[["cm"]], P.values = TRUE, has.Pvalue = TRUE, digits = digits)
+  printCoefmat(x[["coefficients"]], P.values = TRUE, has.Pvalue = TRUE, digits = digits)
 }
 
 #' @title Print method for 'feglm' summary objects
@@ -282,4 +282,14 @@ print.summary.felm <- function(
   summary_r2_(x, digits)
 
   summary_nobs_(x)
+}
+
+#' Print method for regression tables
+#' @param x A summary_table object
+#' @param ... Additional arguments passed to other methods
+#' @export
+#' @noRd
+print.summary_table <- function(x, ...) {
+  cat(x$content, sep = "\n")
+  invisible(x)
 }

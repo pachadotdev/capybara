@@ -16,7 +16,7 @@ NULL
 #' @noRd
 confint.feglm <- function(object, parm, level = 0.95, ...) {
   # Extract the summary of the feglm object
-  res <- summary(object)$cm
+  res <- summary(object)$coefficients
   colnames(res) <- c("estimate", "std.error", "statistic", "p.value")
 
   # Calculate the critical value for the specified confidence level

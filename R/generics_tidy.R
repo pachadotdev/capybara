@@ -18,7 +18,7 @@ NULL
 #' @rdname broom
 #' @export
 tidy.feglm <- function(x, conf_int = FALSE, conf_level = 0.95, ...) {
-  res <- summary(x)$cm
+  res <- summary(x)$coefficients
   colnames(res) <- c("estimate", "std.error", "statistic", "p.value")
 
   if (conf_int) {

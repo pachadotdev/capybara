@@ -41,7 +41,7 @@ glance.feglm <- function(x, ...) {
 glance.felm <- function(x, ...) {
   with(
     summary(x),
-    tibble(
+    data.frame(
       r.squared = r.squared,
       adj.r.squared = adj.r.squared,
       nobs_full = nobs["nobs_full"],
