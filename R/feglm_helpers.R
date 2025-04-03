@@ -129,6 +129,30 @@ check_formula_ <- function(formula) {
   } else if (!inherits(formula, "formula")) {
     stop("'formula' has to be of class 'formula'.", call. = FALSE)
   }
+
+  formula <- Formula(formula)
+
+  if (length(formula[[2L]]) > 1L || length(formula[[3L]]) < 1L) {
+    stop(
+      paste(
+        "'formula' incorrectly specified. You forgot to add the",
+        "dependent or independent variable as 'mpg ~ wt | cyl' or similar."
+      ),
+      call. = FALSE
+    )
+  }
+
+  if (!grepl("\\|", formula[[2L]])) {
+    warning(
+      paste(
+        "'formula' incorrectly specified. Perhaps you forgot to add the",
+        "fixed effects as 'mpg ~ wt | cyl' or similar."
+      ),
+      call. = FALSE
+    )
+  }
+
+  assign("formula", formula, envir = parent.frame())
 }
 
 #' @title Check data
@@ -177,23 +201,6 @@ check_family_ <- function(family) {
       call. = FALSE
     )
   }
-}
-
-#' @title Update formula
-#' @description Updates formula for GLM/NegBin models
-#' @param formula Formula object
-#' @noRd
-update_formula_ <- function(formula) {
-  formula <- Formula(formula)
-
-  if (length(formula)[[2L]] < 2L || length(formula)[[1L]] > 1L) {
-    stop(paste(
-      "'formula' incorrectly specified. Perhaps you forgot to add the",
-      "fixed effects as 'mpg ~ wt | cyl' or similar."
-    ), call. = FALSE)
-  }
-
-  formula
 }
 
 #' @title Column types

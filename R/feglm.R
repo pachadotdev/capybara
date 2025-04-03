@@ -161,9 +161,6 @@ feglm <- function(
   # Check validity of control + Extract control list ----
   control <- check_control_(control)
 
-  # Update formula and do further validity check ----
-  formula <- update_formula_(formula)
-
   # Generate model.frame
   lhs <- NA # just to avoid global variable warning
   nobs_na <- NA
@@ -174,7 +171,12 @@ feglm <- function(
   check_response_(data, lhs, family)
 
   # Get names of the fixed effects variables and sort ----
-  k_vars <- attr(terms(formula, rhs = 2L), "term.labels")
+  # the no FEs warning is printed in the check_formula_ function
+  k_vars <- suppressWarnings(attr(terms(formula, rhs = 2L), "term.labels"))
+  if (length(k_vars) <1L) {
+    k_vars <- "missing_fe"
+    data[, missing_fe := 1L]
+  }
 
   # Generate temporary variable ----
   tmp_var <- temp_var_(data)
@@ -213,10 +215,18 @@ feglm <- function(
 
   # Get names and number of levels in each fixed effects category ----
   nms_fe <- lapply(data[, .SD, .SDcols = k_vars], levels)
-  lvls_k <- vapply(nms_fe, length, integer(1))
+  if (length(nms_fe) > 0L) {
+    lvls_k <- vapply(nms_fe, length, integer(1))
+  } else {
+    lvls_k <- c(missing_fe = 1L)
+  }
 
   # Generate auxiliary list of indexes for different sub panels ----
-  k_list <- get_index_list_(k_vars, data)
+  if (!any(lvls_k %in% "missing_fe")) {
+    k_list <- get_index_list_(k_vars, data)
+  } else {
+    k_list <- list(list(`1` = seq_len(nt) - 1L))
+  }
 
   # Fit generalized linear model ----
   if (is.integer(y)) {
