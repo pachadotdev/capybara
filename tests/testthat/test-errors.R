@@ -114,7 +114,7 @@ test_that("error conditions in GLMs", {
       data = trade_panel_2002,
       control = list(iter_max = 0)
     ),
-    "at least one"
+    "greater than zero"
   )
 
   # bad number of iterations
@@ -125,7 +125,7 @@ test_that("error conditions in GLMs", {
       data = trade_panel_2002,
       control = list(limit = 0)
     ),
-    "at least one"
+    "greater than zero"
   )
 })
 
@@ -216,16 +216,6 @@ test_that("error conditions in helpers", {
       family = MASS::neg.bin(theta = 1)
     ),
     "use 'fenegbin' instead"
-  )
-
-  # not adding fixed effects
-
-  expect_error(
-    fepoisson(
-      trade ~ log_dist,
-      data = trade_panel_2002
-    ),
-    "'formula' incorrectly specified"
   )
 
   # incorrect data + link = bad response

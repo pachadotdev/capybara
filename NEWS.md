@@ -1,3 +1,7 @@
+# capybara 0.9.4
+
+* Allows to estimate models without fixed effects.
+
 # capybara 0.9.3
 
 * Fixes the `tidy()` method for linear models (`felm` class). Now it does not

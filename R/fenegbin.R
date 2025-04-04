@@ -123,9 +123,6 @@ fenegbin <- function(
   # Check validity of control + Extract control list ----
   control <- check_control_(control)
 
-  # Update formula and do further validity check ----
-  formula <- update_formula_(formula)
-
   # Generate model.frame
   lhs <- nobs_na <- nobs_full <- NA
   model_frame_(data, formula, weights)

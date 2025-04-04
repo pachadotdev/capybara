@@ -159,7 +159,7 @@ feglm <- function(
   check_family_(family)
 
   # Check validity of control + Extract control list ----
-  control <- check_control_(control)
+  check_control_(control)
 
   # Generate model.frame
   lhs <- NA # just to avoid global variable warning
@@ -175,7 +175,7 @@ feglm <- function(
   k_vars <- suppressWarnings(attr(terms(formula, rhs = 2L), "term.labels"))
   if (length(k_vars) <1L) {
     k_vars <- "missing_fe"
-    data[, missing_fe := 1L]
+    data[, `:=`("missing_fe", 1L)]
   }
 
   # Generate temporary variable ----
@@ -218,7 +218,7 @@ feglm <- function(
   if (length(nms_fe) > 0L) {
     lvls_k <- vapply(nms_fe, length, integer(1))
   } else {
-    lvls_k <- c(missing_fe = 1L)
+    lvls_k <- c("missing_fe" = 1L)
   }
 
   # Generate auxiliary list of indexes for different sub panels ----
@@ -232,6 +232,7 @@ feglm <- function(
   if (is.integer(y)) {
     y <- as.numeric(y)
   }
+
   fit <- feglm_fit_(
     beta, eta, y, x, wt, 0.0, family[["family"]], control, k_list
   )
