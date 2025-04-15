@@ -25,9 +25,10 @@
   // Center variables
 
   MNU += y;
-  center_variables_(MNU, w, k_list, center_tol, iter_center_max,
-                    iter_interrupt, iter_ssr);
-  center_variables_(X, w, k_list, center_tol, iter_center_max, iter_interrupt, iter_ssr);
+  center_variables_(MNU, w, k_list, center_tol, iter_center_max, iter_interrupt,
+                    iter_ssr);
+  center_variables_(X, w, k_list, center_tol, iter_center_max, iter_interrupt,
+                    iter_ssr);
 
   // Solve the normal equations
 

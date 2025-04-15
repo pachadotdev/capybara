@@ -197,13 +197,22 @@ feglm <- function(
   model_response_(data, formula)
 
   # Check for linear dependence ----
-  # check_linear_dependence_(x, p)
-  check_linear_dependence_(cbind(y, x), p + 1L)
+  check_linear_dependence_(y, x, p + 1L)
 
   # Extract weights if required ----
   if (is.null(weights)) {
     wt <- rep(1.0, nt)
+  } else if (exists("weights_vec")) {
+    # Weights provided as vector
+    wt <- weights_vec
+    if (length(wt) != nrow(data)) {
+      stop("Length of weights vector must equal number of observations.", call. = FALSE)
+    }
+  } else if (exists("weights_col")) {
+    # Weights provided as formula - use the extracted column name
+    wt <- data[[weights_col]]
   } else {
+    # Weights provided as column name
     wt <- data[[weights]]
   }
 

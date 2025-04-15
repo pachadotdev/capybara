@@ -266,8 +266,8 @@ vec variance_(const vec &mu, const double &theta,
                iter_center_max = as_cpp<size_t>(control["iter_center_max"]),
                iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]),
                iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]),
-               iter_ssr = as_cpp<size_t>(control["iter_ssr"]),
-               n = y.n_elem, p = MX.n_cols, k = beta.n_elem;
+               iter_ssr = as_cpp<size_t>(control["iter_ssr"]), n = y.n_elem,
+               p = MX.n_cols, k = beta.n_elem;
 
   // Auxiliary variables (storage)
 

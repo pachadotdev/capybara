@@ -1,11 +1,28 @@
 #include "00_main.h"
 
+// Check if the rank of R is less than p
+// Demmel Ch. 3: If m >> n, QR and SVD have similar cost. Otherwise, QR is a bit
+// cheaper.
+[[cpp11::register]] int check_linear_dependence_svd_(const doubles &y,
+                                                     const doubles_matrix<> &x,
+                                                     const int &p) {
+  mat Y = as_mat(y);
+  mat X = as_mat(x);
+  X = join_rows(Y, X); // paste y and x together
+  int r = rank(X);
+  if (r < p) {
+    return 1;
+  }
+  return 0;
+}
+
 mat crossprod_(const mat &X, const vec &w) {
   mat Y = X;
   Y.each_col() %= sqrt(w);
   return Y.t() * Y;
 }
 
+// replacement: QR to Cholesky (see below)
 // vec solve_beta_(mat MX, const mat &MNU,
 //                         const vec &w) {
 //   const vec sqrt_w = sqrt(w);

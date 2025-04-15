@@ -240,13 +240,37 @@ col_types <- function(data) {
 #' @noRd
 model_frame_ <- function(data, formula, weights) {
   # Necessary columns
-  needed_cols <- c(all.vars(formula), weights)
+  formula_vars <- all.vars(formula)
+
+  # Handle different ways weights might be specified
+  if (is.null(weights)) {
+    # No weights specified
+    weight_col <- NULL
+    needed_cols <- formula_vars
+  } else if (is.character(weights) && length(weights) == 1) {
+    # Weights as column name
+    weight_col <- weights
+    needed_cols <- c(formula_vars, weight_col)
+  } else if (inherits(weights, "formula")) {
+    # Weights as formula like ~cyl
+    weight_col <- all.vars(weights)
+    needed_cols <- c(formula_vars, weight_col)
+    # Store the extracted column name for later use
+    assign("weights_col", weight_col, envir = parent.frame())
+  } else if (is.numeric(weights)) {
+    # Weights as vector - store for later use
+    weight_col <- NULL
+    needed_cols <- formula_vars
+    assign("weights_vec", weights, envir = parent.frame())
+  } else {
+    stop("'weights' must be a column name, formula, or numeric vector", call. = FALSE)
+  }
+
+  # Extract needed columns
   data <- data[, .SD, .SDcols = needed_cols]
 
   lhs <- names(data)[1L]
-
   nobs_full <- nrow(data)
-
   data <- na.omit(data)
 
   # Convert columns of type "units" to numeric
@@ -393,13 +417,20 @@ model_response_ <- function(data, formula) {
 
 #' @title Check weights
 #' @description Checks if weights are valid
-#' @param x Regressor matrix
+#' @param y Dependent variable
+#' @param x Regressors matrix
 #' @param p Number of parameters
 #' @noRd
-check_linear_dependence_ <- function(x, p) {
-  if (qr(x)$rank < p) {
+check_linear_dependence_ <- function(y, x, p) {
+  # if (qr(x)$rank < p) {
+  #   stop("Linear dependent terms detected.", call. = FALSE)
+  # }
+
+  if (check_linear_dependence_svd_(y, x, p) == 1L) {
     stop("Linear dependent terms detected.", call. = FALSE)
   }
+
+  return(TRUE)
 }
 
 #' @title Check weights

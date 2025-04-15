@@ -54,12 +54,13 @@ void center_variables_(mat &V, const vec &w, const list &klist,
         iter_check_interrupt += iter_check_interrupt0;
       }
 
-      x0 = x;  // Save current x
+      x0 = x; // Save current x
 
       // Apply the Halperin projection
       for (l = 0; l < K; ++l) {
         L = group_indices(l).size();
-        if (L == 0) continue;
+        if (L == 0)
+          continue;
 
         for (m = 0; m < L; ++m) {
           const uvec &coords = group_indices(l)(m);
@@ -71,17 +72,19 @@ void center_variables_(mat &V, const vec &w, const list &klist,
 
       // First convergence check
       ratio = dot(abs(x - x0) / (1.0 + abs(x0)), w) * inv_sw;
-      if (ratio < tol) break;
+      if (ratio < tol)
+        break;
 
       // Apply acceleration less frequently - only every 5 iterations instead of
       // 3 This reduces overhead while still getting acceleration benefits
       if (iter > 5 && iter % 5 == 0) {
-        G_x = x;  // G(x) - the result after one projection
+        G_x = x; // G(x) - the result after one projection
 
         // Apply another projection to get G(G(x))
         for (l = 0; l < K; ++l) {
           L = group_indices(l).size();
-          if (L == 0) continue;
+          if (L == 0)
+            continue;
 
           for (m = 0; m < L; ++m) {
             const uvec &coords = group_indices(l)(m);
@@ -90,14 +93,14 @@ void center_variables_(mat &V, const vec &w, const list &klist,
             G_x.elem(coords) -= xbar;
           }
         }
-        G2_x = G_x;  // G²(x)
+        G2_x = G_x; // G²(x)
 
         // Irons & Tuck acceleration formula
         delta_G_x = G2_x - x;
         delta2_x = G2_x - 2 * x + x0;
 
         ssq = dot(delta2_x, delta2_x);
-        if (ssq > 1e-10) {  // Add numerical stability threshold
+        if (ssq > 1e-10) { // Add numerical stability threshold
           vprod = dot(delta_G_x, delta2_x);
           coef = vprod / ssq;
 
@@ -105,7 +108,7 @@ void center_variables_(mat &V, const vec &w, const list &klist,
           if (coef > 0 && coef < 2.0) {
             x = G2_x - coef * delta_G_x;
           } else {
-            x = G2_x;  // Use G2_x if coefficient is out of bounds
+            x = G2_x; // Use G2_x if coefficient is out of bounds
           }
         }
       }
@@ -115,7 +118,8 @@ void center_variables_(mat &V, const vec &w, const list &klist,
         check_user_interrupt();
         iter_check_ssr += iter_check_ssr0;
         ssr = dot(x % x, w) * inv_sw;
-        if (fabs(ssr - ssr0) / (1.0 + fabs(ssr0)) < tol) break;
+        if (fabs(ssr - ssr0) / (1.0 + fabs(ssr0)) < tol)
+          break;
         ssr0 = ssr;
       }
 
@@ -131,10 +135,10 @@ void center_variables_(mat &V, const vec &w, const list &klist,
   }
 }
 
-[[cpp11::register]] doubles_matrix<> center_variables_r_(
-    const doubles_matrix<> &V_r, const doubles &w_r, const list &klist,
-    const double &tol, const int &max_iter, const int &iter_interrupt,
-    const int &iter_ssr) {
+[[cpp11::register]] doubles_matrix<>
+center_variables_r_(const doubles_matrix<> &V_r, const doubles &w_r,
+                    const list &klist, const double &tol, const int &max_iter,
+                    const int &iter_interrupt, const int &iter_ssr) {
   mat V = as_mat(V_r);
   vec w = as_col(w_r);
   center_variables_(V, w, klist, tol, max_iter, iter_interrupt, iter_ssr);

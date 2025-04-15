@@ -1,3 +1,15 @@
+# capybara 0.9.6
+
+* Calculates the rank of matrix X based on singular value decomposition instead
+  of QR decomposition. This is more efficient and numerically stable.
+
+# capybara 0.9.5
+
+* Fixes and expands the 'weights' argument in the `fe*()` functions to allow for
+  different types of weights. The default is still `NULL` (i.e., all weights
+  equal to 1). The argument now admits weights passed as `weights = ~cyl`,
+  `weights = mtcars$cyl`, or `w <- mtcars$cyl; weights = w`.
+
 # capybara 0.9.4
 
 * Allows to estimate models without fixed effects.

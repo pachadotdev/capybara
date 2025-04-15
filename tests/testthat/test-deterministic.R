@@ -17,7 +17,9 @@ test_that("deterministic relations", {
   )
 
   d$x <- 2 * d$y
-  d$x2 <- 2 * d$y
+
+  d$y2 <- d$y + rnorm(100, mean = 0, sd = 1)
+  d$x2 <- 2 * d$x
 
   # the solution is beta = 0.5 but we have the solve() function to
   # solve a linear system of equations!
