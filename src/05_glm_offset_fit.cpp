@@ -9,9 +9,9 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
 
   vec eta = as_Col(eta_r);
   vec y = as_Col(y_r);
-  vec offset = as_Col(offset_r);
+  const vec offset = as_Col(offset_r);
   vec Myadj = vec(y.n_elem, fill::zeros);
-  vec wt = as_Col(wt_r);
+  const vec wt = as_Col(wt_r);
 
   // Auxiliary variables (fixed)
 
@@ -31,7 +31,7 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
   vec mu = link_inv_(eta, family_type);
   double dev = dev_resids_(y, mu, 0.0, wt, family_type);
 
-  const int n = y.n_elem;
+  const size_t n = y.n_elem;
   vec mu_eta(n), yadj(n), w(n);
 
   bool dev_crit, val_crit, imp_crit;

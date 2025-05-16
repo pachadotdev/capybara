@@ -248,12 +248,12 @@ vec variance_(const vec &mu, const double &theta,
                                     const std::string &family,
                                     const list &control, const list &k_list) {
   // Type conversion
+  mat MX = as_Mat(x_r);
   vec beta = as_Col(beta_r);
   vec eta = as_Col(eta_r);
-  vec y = as_Col(y_r);
-  mat MX = as_Mat(x_r);
+  const vec y = as_Col(y_r);
   vec MNU = vec(y.n_elem, fill::zeros);
-  vec wt = as_Col(wt_r);
+  const vec wt = as_Col(wt_r);
 
   // Auxiliary variables (fixed)
 
@@ -361,11 +361,6 @@ vec variance_(const vec &mu, const double &theta,
   if (!conv) {
     stop("Algorithm did not converge.");
   }
-
-  // Update weights and dependent variable
-
-  mu_eta = mu_eta_(eta, family_type);
-  w = (wt % square(mu_eta)) / variance_(mu, theta, family_type);
 
   // Compute Hessian
 

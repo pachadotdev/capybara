@@ -3,7 +3,7 @@
 [[cpp11::register]] list get_alpha_(const doubles_matrix<> &p_r,
                                     const list &klist, const list &control) {
   // Types conversion
-  vec p = as_Mat(p_r);
+  const vec p = as_Mat(p_r);
 
   // Auxiliary variables (fixed)
   const double tol = as_cpp<double>(control["center_tol"]);
@@ -85,7 +85,7 @@
       denom += dot(Alpha0(k), Alpha0(k));
     }
 
-    ratio = sqrt(num / denom);
+    ratio = sqrt(num / denom + 1e-16);
     if (ratio < tol) {
       break;
     }

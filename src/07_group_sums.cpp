@@ -4,8 +4,8 @@
                                                  const doubles_matrix<> &w_r,
                                                  const list &jlist) {
   // Types conversion
-  mat M = as_Mat(M_r);
-  mat w = as_Mat(w_r);
+  const mat M = as_Mat(M_r);
+  const mat w = as_Mat(w_r);
 
   // Auxiliary variables (fixed)
   const size_t J = jlist.size(), P = M.n_cols;
@@ -32,9 +32,9 @@ group_sums_spectral_(const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
                      const doubles_matrix<> &w_r, const int K,
                      const list &jlist) {
   // Types conversion
-  mat M = as_Mat(M_r);
-  mat v = as_Mat(v_r);
-  mat w = as_Mat(w_r);
+  const mat M = as_Mat(M_r);
+  const mat v = as_Mat(v_r);
+  const mat w = as_Mat(w_r);
 
   // Auxiliary variables (fixed)
   const int J = jlist.size();
@@ -72,7 +72,7 @@ group_sums_spectral_(const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
 [[cpp11::register]] doubles_matrix<>
 group_sums_var_(const doubles_matrix<> &M_r, const list &jlist) {
   // Types conversion
-  mat M = as_Mat(M_r);
+  const mat M = as_Mat(M_r);
 
   // Auxiliary variables (fixed)
   const int J = jlist.size();
@@ -99,8 +99,8 @@ group_sums_var_(const doubles_matrix<> &M_r, const list &jlist) {
 group_sums_cov_(const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
                 const list &jlist) {
   // Types conversion
-  mat M = as_Mat(M_r);
-  mat N = as_Mat(N_r);
+  const mat M = as_Mat(M_r);
+  const mat N = as_Mat(N_r);
 
   // Auxiliary variables (fixed)
   const int J = jlist.size();

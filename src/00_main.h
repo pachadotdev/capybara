@@ -1,11 +1,23 @@
+#pragma once
+
 #include <armadillo.hpp>
 #include <cpp11.hpp>
 #include <cpp11armadillo.hpp>
 #include <regex>
 #include <unordered_map>
 
-using namespace arma;
-using namespace cpp11;
+// using namespace arma;
+using arma::field;
+using arma::mat;
+using arma::uvec;
+using arma::uword;
+using arma::vec;
+
+// using namespace cpp11;
+using cpp11::doubles;
+using cpp11::doubles_matrix;
+using cpp11::integers;
+using cpp11::list;
 
 // used across the scripts
 

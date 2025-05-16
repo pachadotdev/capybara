@@ -112,6 +112,8 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   lhs <- NA # just to avoid global variable warning
   nobs_na <- NA
   nobs_full <- NA
+  weights_vec <- NA
+  weights_col <- NA
   model_frame_(data, formula, weights)
 
   # Get names of the fixed effects variables and sort ----
@@ -143,13 +145,13 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   # Extract weights if required ----
   if (is.null(weights)) {
     wt <- rep(1.0, nt)
-  } else if (exists("weights_vec")) {
+  } else if (!all(is.na(weights_vec))) {
     # Weights provided as vector
     wt <- weights_vec
     if (length(wt) != nrow(data)) {
       stop("Length of weights vector must equal number of observations.", call. = FALSE)
     }
-  } else if (exists("weights_col")) {
+  } else if (!all(is.na(weights_col))) {
     # Weights provided as formula - use the extracted column name
     wt <- data[[weights_col]]
   } else {
