@@ -13,3 +13,4 @@ dev/armadillo-codes
 dev/*.rds
 README.html
 pkgdown
+src/Makevars
