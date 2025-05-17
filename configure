@@ -45,6 +45,22 @@ for flag in -fopenmp -qopenmp -openmp -xopenmp; do
   CXXFLAGS="$save_CXXFLAGS"
 done
 
+# Link BLAS/LAPACK against MKL if MKLROOT is set
+R_BLAS_LIBS=$("${R_HOME}/bin/R" CMD config BLAS_LIBS)
+R_LAPACK_LIBS=$("${R_HOME}/bin/R" CMD config LAPACK_LIBS)
+R_FLIBS=$("${R_HOME}/bin/R" CMD config FLIBS)
+
+: ${BLAS_LIBS:="$R_BLAS_LIBS"}
+: ${LAPACK_LIBS:="$R_LAPACK_LIBS"}
+: ${FLIBS:="$R_FLIBS"}
+
+if [ -n "$MKLROOT" ]; then
+  echo "detected MKLROOT=$MKLROOT → linking BLAS/LAPACK via MKL"
+  BLAS_LIBS="-L${MKLROOT}/lib/intel64_lin -lmkl_rt"
+  LAPACK_LIBS="$BLAS_LIBS"
+fi
+
+# Check for OpenMP support
 if [ -n "$OPENMP_FLAG" ]; then
   echo "OpenMP is enabled: $OPENMP_FLAG"
   PKG_CXXFLAGS="$OPENMP_FLAG $PKG_CXXFLAGS"
@@ -100,6 +116,8 @@ fi
 echo "creating src/Makevars"
 sed -e "s|@ncores@|${num_cores}|g" \
     -e "s|@OPTIMIZATION_FLAGS@|${OPTIMIZATION_FLAGS}|g" \
+    -e "s|@PKG_CXXFLAGS@|${PKG_CXXFLAGS}|g" \
+    -e "s|@PKG_LIBS@|${PKG_LIBS}|g" \
     src/Makevars.in > src/Makevars
 
 # Success

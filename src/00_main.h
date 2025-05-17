@@ -1,8 +1,10 @@
 #pragma once
 
 #include <armadillo.hpp>
+#include <cmath>
 #include <cpp11.hpp>
 #include <cpp11armadillo.hpp>
+#include <limits>
 #include <regex>
 #include <unordered_map>
 
