@@ -3,50 +3,35 @@
 // Check if the rank of R is less than p
 // Demmel Ch. 3: If m >> n, QR and SVD have similar cost. Otherwise, QR is a bit
 // cheaper.
-[[cpp11::register]] int check_linear_dependence_svd_(const doubles &y,
-                                                     const doubles_matrix<> &x,
-                                                     const int &p) {
-  const mat Y = as_mat(y);
-  const mat X = as_mat(x);
-  mat Z(Y.n_rows, 1 + X.n_cols);
-  Z.col(0) = Y;
-  Z.cols(1, Z.n_cols - 1) = X;
-  int r = rank(Z);
-  if (r < p) {
-    return 1;
+// Armadillo's rank() uses SVD, here we count non-zero pivots with an econ-QR
+[[cpp11::register]] int check_linear_dependence_qr_(const doubles &y,
+                                                    const doubles_matrix<> &x,
+                                                    const int &p) {
+  const uword n = x.nrow();
+  const uword m = x.ncol();
+  mat X(n, m + 1, fill::none);
+  X.cols(0, m - 1) = as_mat(x);
+  X.col(m) = as_col(y);
+
+  mat Q, R;
+  if (!qr_econ(Q, R, X)) {
+    stop("QR decomposition failed");
   }
-  return 0;
+
+  double tol_qr = std::numeric_limits<double>::epsilon() *
+                  std::max(X.n_rows, X.n_cols) * norm(R, "inf");
+  int r = accu(arma::abs(diagvec(R)) > tol_qr);
+
+  return (r < p) ? 1 : 0;
 }
 
-mat crossprod_(const mat &X, const vec &w) {
-  mat Y = X;
-  Y.each_col() %= sqrt(w);
-  return Y.t() * Y;
-}
-
-// replacement: QR to Cholesky (see below)
-// vec solve_beta_(mat MX, const mat &MNU,
-//                         const vec &w) {
-//   const vec sqrt_w = sqrt(w);
-//   MX.each_col() %= sqrt_w;
-
-//   mat Q, R;
-//   if (!qr_econ(Q, R, MX)) {
-//     stop("QR decomposition failed");
-//   }
-
-//   return solve(trimatu(R), Q.t() * (MNU.each_col() % sqrt_w),
-//   solve_opts::fast);
-// }
+mat crossprod_(const mat &X, const vec &w) { return X.t() * diagmat(w) * X; }
 
 // Cholesky decomposition
-vec solve_beta_(mat MX, const mat &MNU, const vec &w) {
-  const vec sqrt_w = sqrt(w);
-
-  MX.each_col() %= sqrt_w;
-
-  mat XtX = MX.t() * MX;
-  vec XtY = MX.t() * (MNU.each_col() % sqrt_w);
+vec solve_beta_(mat &MX, const mat &MNU, const vec &w) {
+  mat MXW = MX.t() * diagmat(w);
+  mat XtX = MXW * MX;
+  vec XtY = MXW * MNU;
 
   // XtX = L * L.t()
   mat L;

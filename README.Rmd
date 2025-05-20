@@ -126,6 +126,48 @@ capybara uses, here is an example of how it affects the performance
 | 6     |   0.8s |             2.4s |
 | 8     |   0.4s |             0.9s |
 
+## Installing with optimization flags
+
+CRAN does not let developers enforce the use of `-O3` and other optimization
+flags.
+
+In order to use them, you need to clone the repository and install the package
+with
+
+```bash
+R CMD INSTALL --configure-args="--enable-optimization" .
+```
+
+or
+
+```r
+install.packages(".",
+    repos = NULL, type = "source",
+    configure.args = "--enable-optimization"
+)
+```
+
+This will determine if your hardware allows for:
+
+1. `-O3`: The highest standard optimization level in GCC/Clang compilers that enables:
+   - Aggressive function inlining
+   - Loop vectorization
+   - Advanced instruction scheduling
+   - Dead code elimination
+   - Register allocation optimizations
+2. `-funroll-loops`: Tells the compiler to unroll loops where beneficial:
+   - Replaces a loop with multiple copies of its body
+   - Reduces branch prediction overhead
+   - Improves instruction-level parallelism
+   - Works especially well with numerical algorithms with many iterations
+3. `-mavx2`: If AVX2 support if available, the compiler will use it to benefit from advanced SIMD vector instructions.
+4. `-march=native`: Optimizes the code for the specific architecture of the machine:
+   - Enables architecture-specific optimizations
+   - Generates instructions that take advantage of the CPU's capabilities
+   - Can lead to significant performance improvements
+
+These flag can often provide significant performance improvements (sometimes 2-4x faster than unoptimized code).
+
 ## Testing and debugging
 
 ## Testing

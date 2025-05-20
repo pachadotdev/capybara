@@ -11,13 +11,15 @@ void center_variables_(mat &V, const vec &w, const list &klist,
   const double inv_sw = 1.0 / accu(w);
 
   // Auxiliary variables (storage)
-  size_t iter, iint, isr, j, jj, k, n, p, J, JJ;
-  double num, coef, xbar, ratio, ssr, ssq, ratio0, ssr0;
-  vec x(N), x0(N), Gx(N), G2x(N), deltaG(N), delta2(N);
+  size_t iter, iint, isr, j, k, l, p, J, L;
+  double coef, xbar, ratio, ssr, ssq, ratio0, ssr0;
+  vec x(N, fill::none), x0(N, fill::none), Gx(N, fill::none),
+      G2x(N, fill::none), deltaG(N, fill::none), delta2(N, fill::none),
+      diff(N, fill::none);
 
   // Precompute groups into fields
   field<field<uvec>> group_indices(K);
-  field<vec> group_inverse_weights(K);
+  field<vec> group_inv_w(K);
   for (k = 0; k < K; ++k) {
     const list &jlist = klist[k];
     J = jlist.size();
@@ -28,31 +30,33 @@ void center_variables_(mat &V, const vec &w, const list &klist,
       invs(j) = 1.0 / accu(w.elem(idxs(j)));
     }
     group_indices(k) = std::move(idxs);
-    group_inverse_weights(k) = std::move(invs);
+    group_inv_w(k) = std::move(invs);
   }
 
-  // Single nested‐field projection helper
+  // Single projection step (in-place)
   auto project = [&](vec &v) {
-    J = group_indices.n_elem;
-    for (j = 0; j < J; ++j) {
-      auto &idxs = group_indices(j);
-      auto &invs = group_inverse_weights(j);
-      JJ = idxs.n_elem;
-      for (jj = 0; jj < JJ; ++jj) {
-        const uvec &coords = idxs(jj);
-        xbar = dot(w.elem(coords), v.elem(coords)) * invs(jj);
+    for (k = 0; k < K; ++k) {
+      const auto &idxs = group_indices(k);
+      const auto &invs = group_inv_w(k);
+      L = idxs.n_elem;
+      if (L == 0)
+        continue;
+      for (l = 0; l < L; ++l) {
+        const uvec &coords = idxs(l);
+        const uword coord_size = coords.n_elem;
+        if (coord_size <= 1)
+          continue;
+        xbar = dot(w.elem(coords), v.elem(coords)) * invs(l);
         v.elem(coords) -= xbar;
       }
     }
   };
 
-  // Column‐wise centering
+  // Column-wise centering with acceleration and SSR checks
   for (p = 0; p < P; ++p) {
     x = V.col(p);
     ratio0 = std::numeric_limits<double>::infinity();
     ssr0 = std::numeric_limits<double>::infinity();
-
-    // reset per‐column interrupt
     iint = iint0;
     isr = isr0;
 
@@ -63,18 +67,15 @@ void center_variables_(mat &V, const vec &w, const list &klist,
       }
 
       x0 = x;
-
-      // 1) main projection
       project(x);
-      num = 0.0;
-      for (n = 0; n < N; ++n) {
-        num += std::abs(x[n] - x0[n]) / (1.0 + std::abs(x0[n])) * w[n];
-      }
-      ratio = num * inv_sw;
+
+      // 1) convergence via weighted diff
+      diff = abs(x - x0) / (1.0 + abs(x0));
+      ratio = dot(diff, w) * inv_sw;
       if (ratio < tol)
         break;
 
-      // 2) acceleration every 5 iters
+      // 2) Irons-Tuck acceleration every 5 iters
       if (iter >= 5 && (iter % 5) == 0) {
         Gx = x;
         project(Gx);
@@ -84,15 +85,11 @@ void center_variables_(mat &V, const vec &w, const list &klist,
         ssq = dot(delta2, delta2);
         if (ssq > 1e-10) {
           coef = dot(deltaG, delta2) / ssq;
-          if (coef > 0.0 && coef < 2.0) {
-            x = G2x - coef * deltaG;
-          } else {
-            x = G2x;
-          }
+          x = (coef > 0.0 && coef < 2.0) ? (G2x - coef * deltaG) : G2x;
         }
       }
 
-      // 3) SSR‐based early exit
+      // 3) SSR-based early exit
       if (iter == isr && iter > 0) {
         check_user_interrupt();
         isr += isr0;
@@ -102,7 +99,7 @@ void center_variables_(mat &V, const vec &w, const list &klist,
         ssr0 = ssr;
       }
 
-      // 4) early exit
+      // 4) heuristic early exit
       if (iter > 3 && (ratio0 / ratio) < 1.1 && ratio < tol * 20)
         break;
       ratio0 = ratio;
@@ -114,8 +111,8 @@ void center_variables_(mat &V, const vec &w, const list &klist,
 
 [[cpp11::register]] doubles_matrix<>
 center_variables_r_(const doubles_matrix<> &V_r, const doubles &w_r,
-                    const list &klist, const double tol, const int max_iter,
-                    const int iter_interrupt, const int iter_ssr) {
+                    const list &klist, const double &tol, const int &max_iter,
+                    const int &iter_interrupt, const int &iter_ssr) {
   mat V = as_mat(V_r);
   center_variables_(V, as_col(w_r), klist, tol, max_iter, iter_interrupt,
                     iter_ssr);

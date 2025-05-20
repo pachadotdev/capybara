@@ -23,20 +23,17 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
                iter_center_max = as_cpp<size_t>(control["iter_center_max"]),
                iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]),
                iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]),
-               iter_ssr = as_cpp<size_t>(control["iter_ssr"]);
+               iter_ssr = as_cpp<size_t>(control["iter_ssr"]), n = y.n_elem;
 
   // Auxiliary variables (storage)
 
   size_t iter, iter_inner;
-  vec mu = link_inv_(eta, family_type);
-  double dev = dev_resids_(y, mu, 0.0, wt, family_type);
-
-  const size_t n = y.n_elem;
-  vec mu_eta(n), yadj(n), w(n);
-
+  vec mu = link_inv_(eta, family_type), mu_eta(n, fill::none),
+      yadj(n, fill::none), w(n, fill::none), eta_upd(n, fill::none),
+      eta_old(n, fill::none);
+  double dev = dev_resids_(y, mu, 0.0, wt, family_type), dev_old, dev_ratio,
+         dev_ratio_inner, rho;
   bool dev_crit, val_crit, imp_crit;
-  double dev_old, dev_ratio, dev_ratio_inner, rho;
-  vec eta_upd(n), eta_old(n);
 
   // Maximize the log-likelihood
 

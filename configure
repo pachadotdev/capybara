@@ -2,7 +2,7 @@
 
 PKG_CONFIG_NAME="capybara"
 
-# Parse command line arguments
+# This is to adhere to CRAN policy about not forcing -O3 and other optimizations
 for arg in "$@"; do
   case "$arg" in
     --enable-optimization)
@@ -17,33 +17,33 @@ CXXFLAGS=$(${R_HOME}/bin/R CMD config CXXFLAGS)
 CPPFLAGS=$(${R_HOME}/bin/R CMD config CPPFLAGS)
 
 # Set optimization flags if requested
-OPTIMIZATION_FLAGS=""
+OPTFLAGS=""
 if [ "$ENABLE_OPTIMIZATION" = "yes" ]; then
-  OPTIMIZATION_FLAGS="-O3 -funroll-loops"
+  # Test for -O3 support
+  save_CXXFLAGS="$CXXFLAGS"
+  echo 'int main(){return 0;}' > conftest.cpp
+  if $CXX $CXXFLAGS -O3 conftest.cpp -o conftest >/dev/null 2>&1; then 
+    OPTFLAGS="-O3"
+  else
+    echo "Warning: compiler does not support -O3, falling back to -O2"
+    OPTFLAGS="-O2"
+  fi
+  rm -f conftest conftest.cpp
+  CXXFLAGS="$save_CXXFLAGS"
+
+  # 2) Add the rest unconditionally (they typically don’t hurt
+  #    if they’re unsupported, but you could test them similarly)
+  OPTFLAGS="$OPTFLAGS -funroll-loops -march=native"
   
   # Check for AVX2 support
   if grep -q avx2 /proc/cpuinfo 2>/dev/null; then
-    OPTIMIZATION_FLAGS="$OPTIMIZATION_FLAGS -mavx2"
+    OPTFLAGS="$OPTFLAGS -mavx2"
   fi
 
-  echo "Using optimization flags: $OPTIMIZATION_FLAGS"
+  echo "Using optimization flags: $OPTFLAGS"
 else
   echo "Not using optimization flags"
 fi
-
-# Check for OpenMP support
-OPENMP_FLAG=""
-for flag in -fopenmp -qopenmp -openmp -xopenmp; do
-  save_CXXFLAGS="$CXXFLAGS"
-  CXXFLAGS="$CXXFLAGS $flag"
-  
-  echo "int main() { return 0; }" | $CXX -xc++ -E $CXXFLAGS - >/dev/null 2>&1
-  if [ $? -eq 0 ]; then
-    OPENMP_FLAG="$flag"
-    break
-  fi
-  CXXFLAGS="$save_CXXFLAGS"
-done
 
 # Link BLAS/LAPACK against MKL if MKLROOT is set
 R_BLAS_LIBS=$("${R_HOME}/bin/R" CMD config BLAS_LIBS)
@@ -61,13 +61,18 @@ if [ -n "$MKLROOT" ]; then
 fi
 
 # Check for OpenMP support
-if [ -n "$OPENMP_FLAG" ]; then
-  echo "OpenMP is enabled: $OPENMP_FLAG"
-  PKG_CXXFLAGS="$OPENMP_FLAG $PKG_CXXFLAGS"
-  PKG_LIBS="$OPENMP_FLAG $PKG_LIBS"
-else
-  echo "OpenMP is disabled"
-fi
+OPENMP_FLAG=""
+for flag in -fopenmp -qopenmp -openmp -xopenmp; do
+  save_CXXFLAGS="$CXXFLAGS"
+  CXXFLAGS="$CXXFLAGS $flag"
+  
+  echo "int main() { return 0; }" | $CXX -xc++ -E $CXXFLAGS - >/dev/null 2>&1
+  if [ $? -eq 0 ]; then
+    OPENMP_FLAG="$flag"
+    break
+  fi
+  CXXFLAGS="$save_CXXFLAGS"
+done
 
 # Determine number of cores using OpenMP if available
 if [ -n "$CAPYBARA_NCORES" ]; then
@@ -115,7 +120,7 @@ fi
 # Write to Makevars
 echo "creating src/Makevars"
 sed -e "s|@ncores@|${num_cores}|g" \
-    -e "s|@OPTIMIZATION_FLAGS@|${OPTIMIZATION_FLAGS}|g" \
+    -e "s|@OPTFLAGS@|${OPTFLAGS}|g" \
     -e "s|@PKG_CXXFLAGS@|${PKG_CXXFLAGS}|g" \
     -e "s|@PKG_LIBS@|${PKG_LIBS}|g" \
     src/Makevars.in > src/Makevars

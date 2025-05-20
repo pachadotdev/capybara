@@ -1,3 +1,15 @@
+# capybara 1.0.0
+
+* Implements a new approach to obtain the rank with a QR decomposition without
+  loss of stability.
+* Adds different refactors to:
+  * Streamline the code
+  * Pass all large objects by reference
+  * Use BLAS/LAPACK instead of iteration for some operations
+* Uses a new configure file that works nicely with Intel MKL (i.e. the
+  user does not need to export environment variables for the package to
+  detect MKL).
+
 # capybara 0.9.6
 
 * Calculates the rank of matrix X based on singular value decomposition instead

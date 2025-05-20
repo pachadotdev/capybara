@@ -27,7 +27,7 @@ void center_variables_(mat &V, const vec &w, const list &klist,
                        const double &tol, const int &max_iter,
                        const int &iter_interrupt, const int &iter_ssr);
 
-vec solve_beta_(mat MX, const mat &MNU, const vec &w);
+vec solve_beta_(mat &MX, const mat &MNU, const vec &w);
 
 vec solve_eta_(const mat &MX, const mat &MNU, const vec &nu, const vec &beta);
 

@@ -13,13 +13,15 @@
   // Auxiliary variables (storage)
   size_t j;
   uvec indexes;
+  Row<double> groupSum(P, fill::none);
+  double denom;
   mat b(P, 1, fill::zeros);
 
   // Compute sum of weighted group sums
   for (j = 0; j < J; ++j) {
     indexes = as_uvec(as_cpp<integers>(jlist[j]));
-    Row<double> groupSum = sum(M.rows(indexes), 0);
-    double denom = accu(w.elem(indexes));
+    groupSum = sum(M.rows(indexes), 0);
+    denom = accu(w.elem(indexes));
 
     b += groupSum.t() / denom;
   }
@@ -37,28 +39,32 @@ group_sums_spectral_(const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
   const mat w = as_Mat(w_r);
 
   // Auxiliary variables (fixed)
-  const int J = jlist.size();
-  const int P = M.n_cols;
+  const size_t J = jlist.size(), K1 = K, P = M.n_cols;
 
   // Auxiliary variables (storage)
-  int j, I;
+  size_t i, j, k, I;
+  uvec indexes;
+  vec num(P, fill::none), v_shifted;
   mat b(P, 1, fill::zeros);
   double denom;
 
   // Compute sum of weighted group sums
   for (j = 0; j < J; ++j) {
-    uvec indexes = as_uvec(as_cpp<integers>(jlist[j]));
+    indexes = as_uvec(as_cpp<integers>(jlist[j]));
     I = indexes.n_elem;
 
     if (I <= 1)
       continue;
 
-    vec num(P, fill::zeros);
+    num.fill(0.0);
+
     denom = accu(w.elem(indexes));
 
-    vec v_shifted(I, fill::zeros);
-    for (int k = 1; k <= K && k < I; ++k) {
-      v_shifted.subvec(k, I - 1) += v.elem(indexes.subvec(0, I - k - 1));
+    v_shifted.zeros(I);
+    for (k = 1; k <= K1 && k < I; ++k) {
+      for (i = 0; i < I - k; ++i) {
+        v_shifted(i + k) += v(indexes(i));
+      }
     }
 
     num = M.rows(indexes).t() * (v_shifted * (I / (I - 1.0)));
@@ -80,14 +86,14 @@ group_sums_var_(const doubles_matrix<> &M_r, const list &jlist) {
 
   // Auxiliary variables (storage)
   int j;
-  mat v(P, 1);
-  mat V(P, P, fill::zeros);
+  mat v(P, 1, fill::none), V(P, P, fill::zeros);
+  uvec indexes;
 
   // Compute covariance matrix
   for (j = 0; j < J; ++j) {
-    uvec indexes = as_uvec(as_cpp<integers>(jlist[j]));
+    indexes = as_uvec(as_cpp<integers>(jlist[j]));
 
-    vec v = sum(M.rows(indexes), 0).t();
+    v = sum(M.rows(indexes), 0).t();
 
     V += v * v.t();
   }

@@ -272,15 +272,16 @@ vec variance_(const vec &mu, const double &theta,
   // Auxiliary variables (storage)
 
   size_t iter, iter_inner;
-  vec mu = link_inv_(eta, family_type);
-  vec ymean = mean(y) * vec(y.n_elem, fill::ones);
-  double dev = dev_resids_(y, mu, theta, wt, family_type);
-  double null_dev = dev_resids_(y, ymean, theta, wt, family_type);
-  bool dev_crit, val_crit, imp_crit, conv = false;
-  double dev_old, dev_ratio, dev_ratio_inner, rho;
-  vec mu_eta(n), w(n), nu(n), beta_upd(k), eta_upd(n), eta_old(n), beta_old(k),
+  vec mu = link_inv_(eta, family_type),
+      ymean = mean(y) * vec(y.n_elem, fill::ones), mu_eta(n, fill::none),
+      w(n, fill::none), nu(n, fill::none), beta_upd(k, fill::none),
+      eta_upd(n, fill::none), eta_old(n, fill::none), beta_old(k, fill::none),
       nu_old = vec(n, fill::zeros);
-  mat H(p, p);
+  mat H(p, p, fill::none);
+  double dev = dev_resids_(y, mu, theta, wt, family_type),
+         null_dev = dev_resids_(y, ymean, theta, wt, family_type), dev_old,
+         dev_ratio, dev_ratio_inner, rho;
+  bool dev_crit, val_crit, imp_crit, conv = false;
 
   // Maximize the log-likelihood
   for (iter = 0; iter < iter_max; ++iter) {

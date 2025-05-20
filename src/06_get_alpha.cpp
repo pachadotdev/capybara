@@ -13,7 +13,7 @@
   // Auxiliary variables (storage)
   size_t j, k, l, iter, J, J1, J2, interrupt_iter = interrupt_iter0;
   double num, denom, ratio;
-  vec y(p.n_elem);
+  vec y(p.n_elem, fill::none);
 
   // Pre-compute list sizes
   field<int> list_sizes(K);

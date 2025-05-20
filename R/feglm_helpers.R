@@ -426,7 +426,7 @@ check_linear_dependence_ <- function(y, x, p) {
   #   stop("Linear dependent terms detected.", call. = FALSE)
   # }
 
-  if (check_linear_dependence_svd_(y, x, p) == 1L) {
+  if (check_linear_dependence_qr_(y, x, p) == 1L) {
     stop("Linear dependent terms detected.", call. = FALSE)
   }
 

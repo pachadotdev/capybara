@@ -19,12 +19,15 @@
 
   // Auxiliary variables (storage)
 
-  mat H(X.n_cols, X.n_cols);
-  vec MNU(y.n_elem);
+  mat H(X.n_cols, X.n_cols, fill::none);
+  vec MNU(y.n_elem, fill::none), beta(X.n_cols, fill::none),
+      fitted(y.n_elem, fill::none);
 
   // Center variables
 
-  if (k_list.size() > 0) {
+  const bool has_fixed_effects = k_list.size() > 0;
+
+  if (has_fixed_effects) {
     // Initial response + centering for fixed effects
     MNU = y;
     center_variables_(MNU, w, k_list, center_tol, iter_center_max,
@@ -38,12 +41,11 @@
 
   // Solve the normal equations
 
-  vec beta = solve_beta_(X, MNU, w);
+  beta = solve_beta_(X, MNU, w);
 
   // Fitted values
 
-  vec fitted;
-  if (k_list.size() > 0) {
+  if (has_fixed_effects) {
     fitted = y - MNU + X * beta;
   } else {
     fitted = X * beta;
