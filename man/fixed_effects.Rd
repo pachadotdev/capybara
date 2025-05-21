@@ -17,9 +17,9 @@ A named list containing named vectors of estimated fixed effects.
 }
 \description{
 The system might not have a unique solution since we do not take
-collinearity into account. If the solution is not unique, an estimable
-function has to be applied to our solution to get meaningful estimates of
-the fixed effects.
+ collinearity into account. If the solution is not unique, an estimable
+ function has to be applied to our solution to get meaningful estimates of
+ the fixed effects.
 }
 \examples{
 # check the feglm examples for the details about clustered standard errors
@@ -39,10 +39,10 @@ fixed_effects(mod)
 }
 \references{
 Stammann, A. (2018). "Fast and Feasible Estimation of Generalized
-Linear Models with High-Dimensional k-way Fixed Effects". ArXiv e-prints.
+ Linear Models with High-Dimensional k-way Fixed Effects". ArXiv e-prints.
 
 Gaure, S. (n. d.). "Multicollinearity, identification, and
-estimable functions". Unpublished.
+ estimable functions". Unpublished.
 }
 \seealso{
 \code{\link{felm}}, \code{\link{feglm}}

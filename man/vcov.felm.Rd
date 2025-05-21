@@ -27,8 +27,8 @@ A named matrix of covariance estimates.
 }
 \description{
 Covariance matrix for the estimator of the structural parameters
-from objects returned by \code{\link{felm}}. The covariance is computed
-from the hessian, the scores, or a combination of both after convergence.
+ from objects returned by \code{\link{felm}}. The covariance is computed
+ from the hessian, the scores, or a combination of both after convergence.
 }
 \examples{
 # same as the example in felm but extracting the covariance matrix

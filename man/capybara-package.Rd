@@ -5,7 +5,7 @@
 \alias{capybara}
 \alias{capybara-package}
 \title{Generalized Linear Models (GLMs) with high-dimensional k-way fixed
-effects}
+ effects}
 \description{
 Provides a routine to partial out factors with many levels during the
 optimization of the log-likelihood function of the corresponding GLM. The
@@ -16,7 +16,7 @@ errors. Further the package provides analytical bias corrections for binary
 choice models derived by Fernández-Val and Weidner (2016) and Hinz, Stammann,
 and Wanner (2020). This package is a ground up rewrite with multiple
 refactors, optimizations, and new features compared to the original package
-\code{alpaca}. In its current state, the package is stable and future changes will
+`alpaca`. In its current state, the package is stable and future changes will
 be limited to bug fixes and improvements, but not to altering the functions'
 arguments or outputs.
 }

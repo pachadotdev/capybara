@@ -3,7 +3,7 @@
 \name{fenegbin}
 \alias{fenegbin}
 \title{Negative Binomial model fitting with high-dimensional k-way fixed
-effects}
+ effects}
 \usage{
 fenegbin(
   formula = NULL,
@@ -49,28 +49,28 @@ process. See \code{\link{feglm_control}} for details.}
 }
 \value{
 A named list of class \code{"feglm"}. The list contains the following
-eighteen elements:
-\item{coefficients}{a named vector of the estimated coefficients}
-\item{eta}{a vector of the linear predictor}
-\item{weights}{a vector of the weights used in the estimation}
-\item{hessian}{a matrix with the numerical second derivatives}
-\item{deviance}{the deviance of the model}
-\item{null_deviance}{the null deviance of the model}
-\item{conv}{a logical indicating whether the model converged}
-\item{iter}{the number of iterations needed to converge}
-\item{theta}{the estimated theta parameter}
-\item{iter.outer}{the number of outer iterations}
-\item{conv.outer}{a logical indicating whether the outer loop converged}
-\item{nobs}{a named vector with the number of observations used in the
-estimation indicating the dropped and perfectly predicted observations}
-\item{lvls_k}{a named vector with the number of levels in each fixed
-effects}
-\item{nms_fe}{a list with the names of the fixed effects variables}
-\item{formula}{the formula used in the model}
-\item{data}{the data used in the model after dropping non-contributing
-observations}
-\item{family}{the family used in the model}
-\item{control}{the control list used in the model}
+ eighteen elements:
+ \item{coefficients}{a named vector of the estimated coefficients}
+ \item{eta}{a vector of the linear predictor}
+ \item{weights}{a vector of the weights used in the estimation}
+ \item{hessian}{a matrix with the numerical second derivatives}
+ \item{deviance}{the deviance of the model}
+ \item{null_deviance}{the null deviance of the model}
+ \item{conv}{a logical indicating whether the model converged}
+ \item{iter}{the number of iterations needed to converge}
+ \item{theta}{the estimated theta parameter}
+ \item{iter.outer}{the number of outer iterations}
+ \item{conv.outer}{a logical indicating whether the outer loop converged}
+ \item{nobs}{a named vector with the number of observations used in the
+  estimation indicating the dropped and perfectly predicted observations}
+ \item{lvls_k}{a named vector with the number of levels in each fixed
+  effects}
+ \item{nms_fe}{a list with the names of the fixed effects variables}
+ \item{formula}{the formula used in the model}
+ \item{data}{the data used in the model after dropping non-contributing
+  observations}
+ \item{family}{the family used in the model}
+ \item{control}{the control list used in the model}
 }
 \description{
 A routine that uses the same internals as \code{\link{feglm}}.

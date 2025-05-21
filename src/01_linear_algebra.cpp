@@ -9,9 +9,8 @@
                                                     const int &p) {
   const uword n = x.nrow();
   const uword m = x.ncol();
-  mat X(n, m + 1, fill::none);
-  X.cols(0, m - 1) = as_mat(x);
-  X.col(m) = as_col(y);
+  mat X = as_mat(x);
+  X = join_rows(X, as_mat(y));
 
   mat Q, R;
   if (!qr_econ(Q, R, X)) {

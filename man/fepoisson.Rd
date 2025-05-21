@@ -43,7 +43,7 @@ A named list of class \code{"feglm"}.
 }
 \description{
 A wrapper for \code{\link{feglm}} with
-\code{family = poisson()}.
+ \code{family = poisson()}.
 }
 \examples{
 # check the feglm examples for the details about clustered standard errors

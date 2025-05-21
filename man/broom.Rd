@@ -36,18 +36,16 @@ interval.}
 \item{conf_level}{The confidence level for the confidence interval.}
 }
 \value{
-A tibble with the respective information for the \code{augment}, \code{glance},
-and \code{tidy} methods.
+A tibble with the respective information for the `augment`, `glance`,
+ and `tidy` methods.
 }
 \description{
-The provided \code{broom} methods do the following:
-\enumerate{
-\item \code{augment}: Takes the input data and adds additional columns with the
-fitted values and residuals.
-\item \code{glance}: Extracts the deviance, null deviance, and the number of
-observations.`
-\item \code{tidy}: Extracts the estimated coefficients and their standard errors.
-}
+The provided `broom` methods do the following:
+ 1. `augment`: Takes the input data and adds additional columns with the
+     fitted values and residuals.
+ 2. `glance`: Extracts the deviance, null deviance, and the number of
+     observations.`
+ 3. `tidy`: Extracts the estimated coefficients and their standard errors.
 }
 \examples{
 set.seed(123)

@@ -3,7 +3,7 @@
 \name{apes}
 \alias{apes}
 \title{Compute average partial effects after fitting binary choice models
-with a 1,2,3-way error component}
+ with a 1,2,3-way error component}
 \usage{
 apes(
   object = NULL,
@@ -49,18 +49,18 @@ only affects the estimation of the covariance matrix. Default is
 }
 \value{
 The function \code{\link{apes}} returns a named list of class
-\code{"apes"}.
+ \code{"apes"}.
 }
 \description{
 \code{\link{apes}} is a post-estimation routine that can be used
-to estimate average partial effects with respect to all covariates in the
-model and the corresponding covariance matrix. The estimation of the
-covariance is based on a linear approximation (delta method) plus an
-optional finite population correction. Note that the command automatically
-determines which of the regressors are binary or non-binary.
+ to estimate average partial effects with respect to all covariates in the
+ model and the corresponding covariance matrix. The estimation of the
+ covariance is based on a linear approximation (delta method) plus an
+ optional finite population correction. Note that the command automatically
+ determines which of the regressors are binary or non-binary.
 
-\strong{Remark:} The routine currently does not allow to compute average
-partial effects based on functional forms like interactions and polynomials.
+ \strong{Remark:} The routine currently does not allow to compute average
+ partial effects based on functional forms like interactions and polynomials.
 }
 \examples{
 # subset trade flows to avoid fitting time warnings during check
@@ -88,26 +88,26 @@ summary(mod_ape_bc)
 }
 \references{
 Cruz-Gonzalez, M., I. Fernández-Val, and M. Weidner (2017). "Bias
-corrections for probit and logit models with two-way fixed effects". The
-Stata Journal, 17(3), 517-545.
+ corrections for probit and logit models with two-way fixed effects". The
+ Stata Journal, 17(3), 517-545.
 
 Czarnowske, D. and A. Stammann (2020). "Fixed Effects Binary
-Choice Models: Estimation and Inference with Long Panels". ArXiv e-prints.
+ Choice Models: Estimation and Inference with Long Panels". ArXiv e-prints.
 
 Fernández-Val, I. and M. Weidner (2016). "Individual and time
-effects in nonlinear panel models with large N, T". Journal of Econometrics,
-192(1), 291-312.
+ effects in nonlinear panel models with large N, T". Journal of Econometrics,
+ 192(1), 291-312.
 
 Fernández-Val, I. and M. Weidner (2018). "Fixed effects
-estimation of large-t panel data models". Annual Review of Economics, 10,
-109-138.
+ estimation of large-t panel data models". Annual Review of Economics, 10,
+ 109-138.
 
 Hinz, J., A. Stammann, and J. Wanner (2020). "State Dependence
-and Unobserved Heterogeneity in the Extensive Margin of Trade". ArXiv
-e-prints.
+ and Unobserved Heterogeneity in the Extensive Margin of Trade". ArXiv
+ e-prints.
 
 Neyman, J. and E. L. Scott (1948). "Consistent estimates based on
-partially consistent observations". Econometrica, 16(1), 1-32.
+ partially consistent observations". Econometrica, 16(1), 1-32.
 }
 \seealso{
 \code{\link{bias_corr}}, \code{\link{feglm}}

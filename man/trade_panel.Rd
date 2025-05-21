@@ -5,23 +5,21 @@
 \alias{trade_panel}
 \title{Trade Panel 1986-2006}
 \format{
-\subsection{\code{trade_panel}}{
-
+## `trade_panel`
 A data frame with 14,285 rows and 7 columns:
 \describe{
-\item{trade}{Nominal trade flows in current US dollars}
-\item{dist}{Population-weighted bilateral distance between country 'i' and
-'j', in kilometers}
-\item{cntg}{Indicator. Equal to 1 if country 'i' and 'j' share a common
-border}
-\item{lang}{Indicator. Equal to 1 if country 'i' and 'j' speak the same
-official language}
-\item{clny}{Indicator. Equal to 1 if country 'i' and 'j' share a colonial
-relationship}
-\item{year}{Year of observation}
-\item{exp_year}{Exporter ISO country code and year}
-\item{imp_year}{Importer ISO country code and year}
-}
+  \item{trade}{Nominal trade flows in current US dollars}
+  \item{dist}{Population-weighted bilateral distance between country 'i' and
+   'j', in kilometers}
+  \item{cntg}{Indicator. Equal to 1 if country 'i' and 'j' share a common
+   border}
+  \item{lang}{Indicator. Equal to 1 if country 'i' and 'j' speak the same
+   official language}
+  \item{clny}{Indicator. Equal to 1 if country 'i' and 'j' share a colonial
+   relationship}
+  \item{year}{Year of observation}
+  \item{exp_year}{Exporter ISO country code and year}
+  \item{imp_year}{Importer ISO country code and year}
 }
 }
 \source{

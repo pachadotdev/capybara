@@ -13,19 +13,19 @@
 \item{object}{A fitted model object.}
 
 \item{...}{Additional arguments passed to the method. In this case,
-the additional argument is \code{conf_level}, which is the confidence level for
+the additional argument is `conf_level`, which is the confidence level for
 the confidence interval.}
 }
 \value{
 A ggplot object with the estimated coefficients and their confidence
-intervals.
+ intervals.
 
 A ggplot object with the estimated coefficients and their confidence
 intervals.
 }
 \description{
 Extracts the estimated coefficients and their confidence
-intervals.
+ intervals.
 
 Extracts the estimated coefficients and their confidence
 }

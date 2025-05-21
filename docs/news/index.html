@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">capybara</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,6 +35,15 @@
       <small>Source: <a href="https://github.com/pachadotdev/capybara/blob/HEAD/NEWS.md"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.0.0" id="capybara-100">capybara 1.0.0<a class="anchor" aria-label="anchor" href="#capybara-100"></a></h2>
+<ul><li>Implements a new approach to obtain the rank with a QR decomposition without loss of stability.</li>
+<li>Adds different refactors to:<ul><li>Streamline the code</li>
+<li>Pass all large objects by reference</li>
+<li>Use BLAS/LAPACK instead of iteration for some operations</li>
+</ul></li>
+<li>Uses a new configure file that works nicely with Intel MKL (i.e. the user does not need to export environment variables for the package to detect MKL).</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.9.6" id="capybara-096">capybara 0.9.6<a class="anchor" aria-label="anchor" href="#capybara-096"></a></h2>
 <ul><li>Calculates the rank of matrix X based on singular value decomposition instead of QR decomposition. This is more efficient and numerically stable.</li></ul></div>
