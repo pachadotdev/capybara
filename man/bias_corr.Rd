@@ -3,7 +3,7 @@
 \name{bias_corr}
 \alias{bias_corr}
 \title{Asymptotic bias correction after fitting binary choice models with a
- 1,2,3-way error component}
+1,2,3-way error component}
 \usage{
 bias_corr(object = NULL, l = 0L, panel_structure = c("classic", "network"))
 }
@@ -30,22 +30,18 @@ A named list of classes \code{"bias_corr"} and \code{"feglm"}.
 }
 \description{
 Post-estimation routine to substantially reduce the incidental
- parameter bias problem. Applies the analytical bias correction derived by
- Fernández-Val and Weidner (2016) and Hinz, Stammann, and Wanner (2020) to
- obtain bias-corrected estimates of the structural parameters and is
- currently restricted to \code{\link[stats]{binomial}} with 1,2,3-way fixed
- effects.
+parameter bias problem. Applies the analytical bias correction derived by
+Fernández-Val and Weidner (2016) and Hinz, Stammann, and Wanner (2020) to
+obtain bias-corrected estimates of the structural parameters and is
+currently restricted to \code{\link[stats]{binomial}} with 1,2,3-way fixed
+effects.
 }
 \examples{
-# subset trade flows to avoid fitting time warnings during check
-set.seed(123)
-trade_2006 <- trade_panel[trade_panel$year == 2006, ]
-trade_2006 <- trade_2006[sample(nrow(trade_2006), 500), ]
-
-trade_2006$trade <- ifelse(trade_2006$trade > 100, 1L, 0L)
+mtcars2 <- mtcars
+mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
 
 # Fit 'feglm()'
-mod <- feglm(trade ~ lang | year, trade_2006, family = binomial())
+mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial())
 
 # Apply analytical bias correction
 mod_bc <- bias_corr(mod)
@@ -54,26 +50,26 @@ summary(mod_bc)
 }
 \references{
 Czarnowske, D. and A. Stammann (2020). "Fixed Effects Binary
- Choice Models: Estimation and Inference with Long Panels". ArXiv e-prints.
+Choice Models: Estimation and Inference with Long Panels". ArXiv e-prints.
 
 Fernández-Val, I. and M. Weidner (2016). "Individual and time
- effects in nonlinear panel models with large N, T". Journal of Econometrics,
- 192(1), 291-312.
+effects in nonlinear panel models with large N, T". Journal of Econometrics,
+192(1), 291-312.
 
 Fernández-Val, I. and M. Weidner (2018). "Fixed effects
- estimation of large-t panel data models". Annual Review of Economics, 10,
- 109-138.
+estimation of large-t panel data models". Annual Review of Economics, 10,
+109-138.
 
 Hahn, J. and G. Kuersteiner (2011). "Bias reduction for dynamic
- nonlinear panel models with fixed effects". Econometric Theory, 27(6),
- 1152-1191.
+nonlinear panel models with fixed effects". Econometric Theory, 27(6),
+1152-1191.
 
 Hinz, J., A. Stammann, and J. Wanner (2020). "State Dependence
- and Unobserved Heterogeneity in the Extensive Margin of Trade". ArXiv
- e-prints.
+and Unobserved Heterogeneity in the Extensive Margin of Trade". ArXiv
+e-prints.
 
 Neyman, J. and E. L. Scott (1948). "Consistent estimates based on
- partially consistent observations". Econometrica, 16(1), 1-32.
+partially consistent observations". Econometrica, 16(1), 1-32.
 }
 \seealso{
 \code{\link{feglm}}

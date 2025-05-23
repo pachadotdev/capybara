@@ -156,23 +156,8 @@ double dev_resids_(const vec &y, const vec &mu, const double &theta,
   }
 }
 
-bool valid_eta_(const vec &eta, const FamilyType family_type) {
-  switch (family_type) {
-  case GAUSSIAN:
-  case POISSON:
-  case BINOMIAL:
-  case NEG_BIN:
-    return true;
-  case GAMMA:
-    return is_finite(eta) && all(eta != 0.0);
-  case INV_GAUSSIAN:
-    return is_finite(eta) && all(eta > 0.0);
-  default:
-    stop("Unknown family");
-  }
-}
-
-bool valid_mu_(const vec &mu, const FamilyType family_type) {
+bool valid_eta_mu_(const vec &eta, const vec &mu,
+                   const FamilyType family_type) {
   switch (family_type) {
   case GAUSSIAN:
     return true;
@@ -182,9 +167,9 @@ bool valid_mu_(const vec &mu, const FamilyType family_type) {
   case BINOMIAL:
     return is_finite(mu) && all(mu > 0 && mu < 1);
   case GAMMA:
-    return is_finite(mu) && all(mu > 0.0);
+    return is_finite(eta) && all(eta != 0.0) && is_finite(mu) && all(mu > 0.0);
   case INV_GAUSSIAN:
-    return true;
+    return is_finite(eta) && all(eta > 0.0);
   default:
     stop("Unknown family");
   }
@@ -316,14 +301,16 @@ vec variance_(const vec &mu, const double &theta,
     eta_upd = MX * beta_upd + nu - MNU;
 
     for (iter_inner = 0; iter_inner < iter_inner_max; ++iter_inner) {
-      eta = eta_old + rho * eta_upd;
-      beta = beta_old + rho * beta_upd;
+      eta = eta_old;
+      eta += rho * eta_upd;
+      beta = beta_old;
+      beta += rho * beta_upd;
       mu = link_inv_(eta, family_type);
       dev = dev_resids_(y, mu, theta, wt, family_type);
       dev_ratio_inner = (dev - dev_old) / (0.1 + fabs(dev));
 
       dev_crit = is_finite(dev);
-      val_crit = valid_eta_(eta, family_type) && valid_mu_(mu, family_type);
+      val_crit = valid_eta_mu_(eta, mu, family_type);
       imp_crit = (dev_ratio_inner <= -dev_tol);
 
       if (dev_crit && val_crit && imp_crit) {
@@ -365,7 +352,7 @@ vec variance_(const vec &mu, const double &theta,
 
   // Compute Hessian
 
-  H = crossprod_(MX, w);
+  H = crossprod_(std::move(MX), w);
 
   // Generate result list
 

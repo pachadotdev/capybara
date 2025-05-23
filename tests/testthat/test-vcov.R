@@ -7,6 +7,8 @@
 NULL
 
 test_that("vcov works", {
+  skip_on_cran()
+  
   m1 <- fepoisson(mpg ~ wt + disp | cyl, mtcars)
 
   m2 <- fepoisson(mpg ~ wt + disp | cyl | carb, mtcars)

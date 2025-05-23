@@ -27,23 +27,13 @@ A named matrix of covariance estimates.
 }
 \description{
 Covariance matrix for the estimator of the structural parameters
- from objects returned by \code{\link{felm}}. The covariance is computed
- from the hessian, the scores, or a combination of both after convergence.
+from objects returned by \code{\link{felm}}. The covariance is computed
+from the hessian, the scores, or a combination of both after convergence.
 }
 \examples{
 # same as the example in felm but extracting the covariance matrix
-
-# subset trade flows to avoid fitting time warnings during check
-set.seed(123)
-trade_2006 <- trade_panel[trade_panel$year == 2006, ]
-trade_2006 <- trade_2006[sample(nrow(trade_2006), 500), ]
-
-mod <- felm(
-  trade ~ log_dist + lang + cntg + clny | exp_year + imp_year | pair,
-  trade_2006
-)
-
-round(vcov(mod, type = "clustered"), 5)
+mod <- felm(log(mpg) ~ log(wt) | cyl | am, mtcars)
+vcov(mod, type = "clustered")
 
 }
 \seealso{

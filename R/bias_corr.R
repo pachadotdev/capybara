@@ -63,15 +63,11 @@ NULL
 #' @seealso \code{\link{feglm}}
 #'
 #' @examples
-#' # subset trade flows to avoid fitting time warnings during check
-#' set.seed(123)
-#' trade_2006 <- trade_panel[trade_panel$year == 2006, ]
-#' trade_2006 <- trade_2006[sample(nrow(trade_2006), 500), ]
-#'
-#' trade_2006$trade <- ifelse(trade_2006$trade > 100, 1L, 0L)
+#' mtcars2 <- mtcars
+#' mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
 #'
 #' # Fit 'feglm()'
-#' mod <- feglm(trade ~ lang | year, trade_2006, family = binomial())
+#' mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial())
 #'
 #' # Apply analytical bias correction
 #' mod_bc <- bias_corr(mod)

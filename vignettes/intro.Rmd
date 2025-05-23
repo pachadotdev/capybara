@@ -33,7 +33,7 @@ domestic flows, therefore we need to subset the data also with `dplyr`.
 
 Required packages:
 
-```{r}
+```r
 library(capybara)
 ```
 
@@ -42,7 +42,7 @@ and we add the fixed effects as `| exp_year + imp_year` in the formula.
 
 Model estimation:
 
-```{r}
+```r
 fit <- fepoisson(
   trade ~ log_dist + cntg + lang + clny + rta | exp_year + imp_year,
   data = trade_panel
@@ -51,18 +51,67 @@ fit <- fepoisson(
 summary(fit)
 ```
 
+```r
+Formula: trade ~ log_dist + cntg + lang + clny + rta | exp_year + imp_year
+
+Family: Poisson
+
+Estimates:
+
+|          | Estimate | Std. Error | z value    | Pr(>|z|)   |
+|----------|----------|------------|------------|------------|
+| log_dist |  -0.8216 |     0.0004 | -2194.0448 | 0.0000 *** |
+| cntg     |   0.4155 |     0.0009 |   476.0613 | 0.0000 *** |
+| lang     |   0.2499 |     0.0008 |   296.8884 | 0.0000 *** |
+| clny     |  -0.2054 |     0.0010 |  -206.3476 | 0.0000 *** |
+| rta      |   0.1907 |     0.0010 |   191.0964 | 0.0000 *** |
+
+Significance codes: *** 99.9%; ** 99%; * 95%; . 90%
+
+Pseudo R-squared: 0.587 
+
+Number of observations: Full 28152; Missing 0; Perfect classification 0 
+
+Number of Fisher Scoring iterations: 11
+```
+
 The coefficients are almost identical to those in Table 3 from
 @yotov2016advanced that were obtained with Stata. The difference is attributed
 to the different fitting algorithms used by the software. Capybara
 uses the demeaning algorithm proposed by @stammann2018fast.
 
-```{r}
+```r
 fit <- fepoisson(
   trade ~ log_dist + cntg + lang + clny + rta | exp_year + imp_year | pair,
   data = trade_panel
 )
 
 summary(fit, type = "clustered")
+```
+
+```r
+Formula: trade ~ log_dist + cntg + lang + clny + rta | exp_year + imp_year | 
+    pair
+
+Family: Poisson
+
+Estimates:
+
+|          | Estimate | Std. Error | z value | Pr(>|z|)   |
+|----------|----------|------------|---------|------------|
+| log_dist |  -0.8216 |     0.1567 | -5.2437 | 0.0000 *** |
+| cntg     |   0.4155 |     0.4568 |  0.9097 | 0.3630     |
+| lang     |   0.2499 |     0.3997 |  0.6252 | 0.5319     |
+| clny     |  -0.2054 |     0.3287 | -0.6250 | 0.5320     |
+| rta      |   0.1907 |     0.7657 |  0.2491 | 0.8033     |
+
+Significance codes: *** 99.9%; ** 99%; * 95%; . 90%
+
+Pseudo R-squared: 0.587 
+
+Number of observations: Full 28152; Missing 0; Perfect classification 0 
+
+Number of Fisher Scoring iterations: 11
 ```
 
 The result is similar and the numerical difference comes fom the 

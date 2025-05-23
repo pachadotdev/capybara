@@ -348,7 +348,7 @@ drop_by_link_type_ <- function(data, lhs, family, tmp_var, k_vars, control) {
       ncheck <- nrow_data
 
       for (j in k_vars) {
-        data[, (tmp_var) := mean(get(lhs)), by = j]
+        data[, (tmp_var) := mean(as.numeric(get(lhs))), by = j]
 
         # Filter rows based on family type
         if (family[["family"]] == "binomial") {

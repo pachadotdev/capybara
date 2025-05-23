@@ -7,6 +7,8 @@
 NULL
 
 test_that("group_sums_* works", {
+  skip_on_cran()
+  
   set.seed(123)
   m <- matrix(rnorm(9), ncol = 3, nrow = 3)
   w <- matrix(rnorm(3), ncol = 1, nrow = 3)

@@ -69,7 +69,7 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
       dev_ratio_inner = (dev - dev_old) / (0.1 + fabs(dev_old));
 
       dev_crit = is_finite(dev);
-      val_crit = (valid_eta_(eta, family_type) && valid_mu_(mu, family_type));
+      val_crit = valid_eta_mu_(eta, mu, family_type);
       imp_crit = (dev_ratio_inner <= -dev_tol);
 
       if (dev_crit == true && val_crit == true && imp_crit == true) {

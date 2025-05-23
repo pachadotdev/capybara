@@ -26,52 +26,42 @@ process. See \code{\link{feglm_control}} for details.}
 }
 \value{
 A named list of class \code{"felm"}. The list contains the following
- eleven elements:
- \item{coefficients}{a named vector of the estimated coefficients}
- \item{fitted.values}{a vector of the estimated dependent variable}
- \item{weights}{a vector of the weights used in the estimation}
- \item{hessian}{a matrix with the numerical second derivatives}
- \item{null_deviance}{the null deviance of the model}
- \item{nobs}{a named vector with the number of observations used in the
-   estimation indicating the dropped and perfectly predicted observations}
- \item{lvls_k}{a named vector with the number of levels in each fixed
-   effect}
- \item{nms_fe}{a list with the names of the fixed effects variables}
- \item{formula}{the formula used in the model}
- \item{data}{the data used in the model after dropping non-contributing
-  observations}
- \item{control}{the control list used in the model}
+eleven elements:
+\item{coefficients}{a named vector of the estimated coefficients}
+\item{fitted.values}{a vector of the estimated dependent variable}
+\item{weights}{a vector of the weights used in the estimation}
+\item{hessian}{a matrix with the numerical second derivatives}
+\item{null_deviance}{the null deviance of the model}
+\item{nobs}{a named vector with the number of observations used in the
+estimation indicating the dropped and perfectly predicted observations}
+\item{lvls_k}{a named vector with the number of levels in each fixed
+effect}
+\item{nms_fe}{a list with the names of the fixed effects variables}
+\item{formula}{the formula used in the model}
+\item{data}{the data used in the model after dropping non-contributing
+observations}
+\item{control}{the control list used in the model}
 }
 \description{
 A wrapper for \code{\link{feglm}} with
- \code{family = gaussian()}.
+\code{family = gaussian()}.
 }
 \examples{
 # check the feglm examples for the details about clustered standard errors
-
-# subset trade flows to avoid fitting time warnings during check
-set.seed(123)
-trade_2006 <- trade_panel[trade_panel$year == 2006, ]
-trade_2006 <- trade_2006[sample(nrow(trade_2006), 500), ]
-
-mod <- felm(
-  log(trade) ~ log_dist + lang + cntg + clny | exp_year + imp_year,
-  trade_2006
-)
-
+mod <- felm(log(mpg) ~ log(wt) | cyl, mtcars)
 summary(mod)
 
 }
 \references{
 Gaure, S. (2013). "OLS with Multiple High Dimensional Category
- Variables". Computational Statistics and Data Analysis, 66.
+Variables". Computational Statistics and Data Analysis, 66.
 
 Marschner, I. (2011). "glm2: Fitting generalized linear models
- with convergence problems". The R Journal, 3(2).
+with convergence problems". The R Journal, 3(2).
 
 Stammann, A., F. Heiss, and D. McFadden (2016). "Estimating Fixed
- Effects Logit Models with Large Panel Data". Working paper.
+Effects Logit Models with Large Panel Data". Working paper.
 
 Stammann, A. (2018). "Fast and Feasible Estimation of Generalized
- Linear Models with High-Dimensional k-Way Fixed Effects". ArXiv e-prints.
+Linear Models with High-Dimensional k-Way Fixed Effects". ArXiv e-prints.
 }

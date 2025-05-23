@@ -7,6 +7,8 @@
 NULL
 
 test_that("fixed_effects is similar to glm", {
+  skip_on_cran()
+  
   set.seed(200100)
   d <- data.frame(
     y = rnorm(100),

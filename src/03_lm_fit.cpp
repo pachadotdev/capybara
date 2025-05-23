@@ -53,7 +53,7 @@
 
   // Recompute Hessian
 
-  H = crossprod_(X, w);
+  H = crossprod_(std::move(X), w);
 
   // Generate result list
 

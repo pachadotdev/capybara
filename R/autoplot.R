@@ -39,15 +39,7 @@ NULL
 #'  intervals.
 #'
 #' @examples
-#' set.seed(123)
-#' trade_2006 <- trade_panel[trade_panel$year == 2006, ]
-#' trade_2006 <- trade_2006[sample(nrow(trade_2006), 500), ]
-#'
-#' mod <- fepoisson(
-#'   trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
-#'   trade_2006
-#' )
-#'
+#' mod <- fepoisson(mpg ~ wt + drat | cyl, mtcars)
 #' autoplot(mod, conf_level = 0.99)
 #'
 #' @export
@@ -124,17 +116,7 @@ autoplot.feglm <- function(object, ...) {
 #' intervals.
 #'
 #' @examples
-#' set.seed(123)
-#' trade_2006 <- trade_panel[trade_panel$year == 2006, ]
-#' trade_2006 <- trade_2006[trade_2006$trade > 0, ]
-#' trade_2006 <- trade_2006[sample(nrow(trade_2006), 500), ]
-#' trade_2006$log_trade <- log(trade_2006$trade)
-#'
-#' mod <- felm(
-#'   log_trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
-#'   trade_2006
-#' )
-#'
+#' mod <- felm(mpg ~ wt + drat | cyl, mtcars)
 #' autoplot(mod, conf_level = 0.90)
 #'
 #' @export

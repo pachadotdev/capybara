@@ -12,7 +12,7 @@ void center_variables_(mat &V, const vec &w, const list &klist,
 
   // Auxiliary variables (storage)
   size_t iter, iint, isr, j, k, l, p, J, L;
-  double coef, xbar, ratio, ssr, ssq, ratio0, ssr0;
+  double coef, ratio, ssr, ssq, ratio0, ssr0;
   vec x(N, fill::none), x0(N, fill::none), Gx(N, fill::none),
       G2x(N, fill::none), deltaG(N, fill::none), delta2(N, fill::none),
       diff(N, fill::none);
@@ -26,8 +26,8 @@ void center_variables_(mat &V, const vec &w, const list &klist,
     field<uvec> idxs(J);
     vec invs(J);
     for (j = 0; j < J; ++j) {
-      idxs(j) = as_uvec(as_cpp<integers>(jlist[j]));
-      invs(j) = 1.0 / accu(w.elem(idxs(j)));
+      idxs(j) = as_uvec(jlist[j]);
+      invs(j) = 1.0 / accu(w(idxs(j)));
     }
     group_indices(k) = std::move(idxs);
     group_inv_w(k) = std::move(invs);
@@ -41,13 +41,13 @@ void center_variables_(mat &V, const vec &w, const list &klist,
       L = idxs.n_elem;
       if (L == 0)
         continue;
+      vec group_means(L, fill::none);
       for (l = 0; l < L; ++l) {
         const uvec &coords = idxs(l);
-        const uword coord_size = coords.n_elem;
-        if (coord_size <= 1)
-          continue;
-        xbar = dot(w.elem(coords), v.elem(coords)) * invs(l);
-        v.elem(coords) -= xbar;
+        group_means(l) = dot(w(coords), v(coords)) * invs(l);
+      }
+      for (l = 0; l < L; ++l) {
+        v(idxs(l)) -= group_means(l);
       }
     }
   };

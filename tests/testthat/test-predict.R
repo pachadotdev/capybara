@@ -9,6 +9,8 @@
 NULL
 
 test_that("predicted values increase the error outside the inter-quartile range for GLMs", {
+  skip_on_cran()
+
   m1 <- fepoisson(mpg ~ wt + disp | cyl, mtcars)
 
   d1 <- mtcars[mtcars$mpg >= quantile(mtcars$mpg, 0.25) & mtcars$mpg <= quantile(mtcars$mpg, 0.75), ]
@@ -37,6 +39,8 @@ test_that("predicted values increase the error outside the inter-quartile range 
 })
 
 test_that("predicted values increase the error outside the inter-quartile range for LMs", {
+  skip_on_cran()
+  
   m1 <- felm(mpg ~ wt + disp | cyl, mtcars)
 
   d1 <- mtcars[mtcars$mpg >= quantile(mtcars$mpg, 0.25) & mtcars$mpg <= quantile(mtcars$mpg, 0.75), ]

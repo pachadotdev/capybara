@@ -119,25 +119,10 @@ NULL
 #'  Linear Models with High-Dimensional k-Way Fixed Effects". ArXiv e-prints.
 #'
 #' @examples
-#' # subset trade flows to avoid fitting time warnings during check
-#' set.seed(123)
-#' trade_2006 <- trade_panel[trade_panel$year == 2006, ]
-#' trade_2006 <- trade_2006[sample(nrow(trade_2006), 500), ]
-#'
-#' mod <- feglm(
-#'   trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
-#'   trade_2006,
-#'   family = poisson(link = "log")
-#' )
-#'
+#' mod <- feglm(mpg ~ wt | cyl, mtcars, family = poisson(link = "log"))
 #' summary(mod)
 #'
-#' mod <- feglm(
-#'   trade ~ log_dist + lang + cntg + clny | exp_year + imp_year | pair,
-#'   trade_panel,
-#'   family = poisson(link = "log")
-#' )
-#'
+#' mod <- feglm(mpg ~ wt | cyl | am, mtcars, family = poisson(link = "log"))
 #' summary(mod, type = "clustered")
 #'
 #' @export

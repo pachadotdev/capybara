@@ -64,17 +64,7 @@ NULL
 #'
 #' @examples
 #' # check the feglm examples for the details about clustered standard errors
-#'
-#' # subset trade flows to avoid fitting time warnings during check
-#' set.seed(123)
-#' trade_2006 <- trade_panel[trade_panel$year == 2006, ]
-#' trade_2006 <- trade_2006[sample(nrow(trade_2006), 700), ]
-#'
-#' mod <- fenegbin(
-#'   trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
-#'   trade_2006
-#' )
-#'
+#' mod <- fenegbin(mpg ~ wt | cyl, mtcars)
 #' summary(mod)
 #'
 #' @return A named list of class \code{"feglm"}. The list contains the following

@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">capybara</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -87,58 +87,58 @@ X_{ij,t} =&amp; \:\exp\left[\beta_1 \log(DIST)_{i,j} + \beta_2 CNTG_{i,j} +\righ
 <span>  data <span class="op">=</span> <span class="va">trade_panel</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Formula: trade ~ log_dist + cntg + lang + clny + rta | exp_year + imp_year</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Family: Poisson</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Estimates:</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; |          | Estimate | Std. Error | z value    | Pr(&gt;|z|)   |</span></span>
-<span><span class="co">#&gt; |----------|----------|------------|------------|------------|</span></span>
-<span><span class="co">#&gt; | log_dist |  -0.8216 |     0.0004 | -2194.0448 | 0.0000 *** |</span></span>
-<span><span class="co">#&gt; | cntg     |   0.4155 |     0.0009 |   476.0613 | 0.0000 *** |</span></span>
-<span><span class="co">#&gt; | lang     |   0.2499 |     0.0008 |   296.8884 | 0.0000 *** |</span></span>
-<span><span class="co">#&gt; | clny     |  -0.2054 |     0.0010 |  -206.3476 | 0.0000 *** |</span></span>
-<span><span class="co">#&gt; | rta      |   0.1907 |     0.0010 |   191.0964 | 0.0000 *** |</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Significance codes: *** 99.9%; ** 99%; * 95%; . 90%</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Pseudo R-squared: 0.587 </span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Number of observations: Full 28152; Missing 0; Perfect classification 0 </span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Number of Fisher Scoring iterations: 11</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true"></a>Formula<span class="op">:</span><span class="st"> </span>trade <span class="op">~</span><span class="st"> </span>log_dist <span class="op">+</span><span class="st"> </span>cntg <span class="op">+</span><span class="st"> </span>lang <span class="op">+</span><span class="st"> </span>clny <span class="op">+</span><span class="st"> </span>rta <span class="op">|</span><span class="st"> </span>exp_year <span class="op">+</span><span class="st"> </span>imp_year</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true"></a>Family<span class="op">:</span><span class="st"> </span>Poisson</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true"></a>Estimates<span class="op">:</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true"></a><span class="er">|</span><span class="st">          </span><span class="er">|</span><span class="st"> </span>Estimate <span class="op">|</span><span class="st"> </span>Std. Error <span class="op">|</span><span class="st"> </span>z value    <span class="op">|</span><span class="st"> </span><span class="kw">Pr</span>(<span class="op">&gt;</span><span class="er">|</span>z<span class="op">|</span>)   <span class="op">|</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true"></a><span class="er">|</span><span class="op">----------</span><span class="er">|</span><span class="op">----------</span><span class="er">|</span><span class="op">------------</span><span class="er">|</span><span class="op">------------</span><span class="er">|</span><span class="op">------------</span><span class="er">|</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true"></a><span class="er">|</span><span class="st"> </span>log_dist <span class="op">|</span><span class="st">  </span><span class="fl">-0.8216</span> <span class="op">|</span><span class="st">     </span><span class="fl">0.0004</span> <span class="op">|</span><span class="st"> </span><span class="fl">-2194.0448</span> <span class="op">|</span><span class="st"> </span><span class="fl">0.0000</span> <span class="op">**</span><span class="er">*</span><span class="st"> </span><span class="er">|</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true"></a><span class="er">|</span><span class="st"> </span>cntg     <span class="op">|</span><span class="st">   </span><span class="fl">0.4155</span> <span class="op">|</span><span class="st">     </span><span class="fl">0.0009</span> <span class="op">|</span><span class="st">   </span><span class="fl">476.0613</span> <span class="op">|</span><span class="st"> </span><span class="fl">0.0000</span> <span class="op">**</span><span class="er">*</span><span class="st"> </span><span class="er">|</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true"></a><span class="er">|</span><span class="st"> </span>lang     <span class="op">|</span><span class="st">   </span><span class="fl">0.2499</span> <span class="op">|</span><span class="st">     </span><span class="fl">0.0008</span> <span class="op">|</span><span class="st">   </span><span class="fl">296.8884</span> <span class="op">|</span><span class="st"> </span><span class="fl">0.0000</span> <span class="op">**</span><span class="er">*</span><span class="st"> </span><span class="er">|</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true"></a><span class="er">|</span><span class="st"> </span>clny     <span class="op">|</span><span class="st">  </span><span class="fl">-0.2054</span> <span class="op">|</span><span class="st">     </span><span class="fl">0.0010</span> <span class="op">|</span><span class="st">  </span><span class="fl">-206.3476</span> <span class="op">|</span><span class="st"> </span><span class="fl">0.0000</span> <span class="op">**</span><span class="er">*</span><span class="st"> </span><span class="er">|</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true"></a><span class="er">|</span><span class="st"> </span>rta      <span class="op">|</span><span class="st">   </span><span class="fl">0.1907</span> <span class="op">|</span><span class="st">     </span><span class="fl">0.0010</span> <span class="op">|</span><span class="st">   </span><span class="fl">191.0964</span> <span class="op">|</span><span class="st"> </span><span class="fl">0.0000</span> <span class="op">**</span><span class="er">*</span><span class="st"> </span><span class="er">|</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true"></a></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true"></a>Significance codes<span class="op">:</span><span class="st"> </span><span class="er">***</span><span class="st"> </span><span class="fl">99.9</span><span class="op">%; ** 99%</span>; <span class="op">*</span><span class="st"> </span><span class="dv">95</span><span class="op">%; . 90%</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true"></a></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true"></a>Pseudo R<span class="op">-</span>squared<span class="op">:</span><span class="st"> </span><span class="fl">0.587</span> </span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true"></a></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true"></a>Number of observations<span class="op">:</span><span class="st"> </span>Full <span class="dv">28152</span>; Missing <span class="dv">0</span>; Perfect classification <span class="dv">0</span> </span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true"></a></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true"></a>Number of Fisher Scoring iterations<span class="op">:</span><span class="st"> </span><span class="dv">11</span></span></code></pre></div>
 <p>The coefficients are almost identical to those in Table 3 from <span class="citation">Yotov et al. (2016)</span> that were obtained with Stata. The difference is attributed to the different fitting algorithms used by the software. Capybara uses the demeaning algorithm proposed by <span class="citation">Stammann (2018)</span>.</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fepoisson.html">fepoisson</a></span><span class="op">(</span></span>
 <span>  <span class="va">trade</span> <span class="op">~</span> <span class="va">log_dist</span> <span class="op">+</span> <span class="va">cntg</span> <span class="op">+</span> <span class="va">lang</span> <span class="op">+</span> <span class="va">clny</span> <span class="op">+</span> <span class="va">rta</span> <span class="op">|</span> <span class="va">exp_year</span> <span class="op">+</span> <span class="va">imp_year</span> <span class="op">|</span> <span class="va">pair</span>,</span>
 <span>  data <span class="op">=</span> <span class="va">trade_panel</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span>, type <span class="op">=</span> <span class="st">"clustered"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Formula: trade ~ log_dist + cntg + lang + clny + rta | exp_year + imp_year | </span></span>
-<span><span class="co">#&gt;     pair</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Family: Poisson</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Estimates:</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; |          | Estimate | Std. Error | z value | Pr(&gt;|z|)   |</span></span>
-<span><span class="co">#&gt; |----------|----------|------------|---------|------------|</span></span>
-<span><span class="co">#&gt; | log_dist |  -0.8216 |     0.1567 | -5.2437 | 0.0000 *** |</span></span>
-<span><span class="co">#&gt; | cntg     |   0.4155 |     0.4568 |  0.9097 | 0.3630     |</span></span>
-<span><span class="co">#&gt; | lang     |   0.2499 |     0.3997 |  0.6252 | 0.5319     |</span></span>
-<span><span class="co">#&gt; | clny     |  -0.2054 |     0.3287 | -0.6250 | 0.5320     |</span></span>
-<span><span class="co">#&gt; | rta      |   0.1907 |     0.7657 |  0.2491 | 0.8033     |</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Significance codes: *** 99.9%; ** 99%; * 95%; . 90%</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Pseudo R-squared: 0.587 </span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Number of observations: Full 28152; Missing 0; Perfect classification 0 </span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Number of Fisher Scoring iterations: 11</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span>, type <span class="op">=</span> <span class="st">"clustered"</span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true"></a>Formula<span class="op">:</span><span class="st"> </span>trade <span class="op">~</span><span class="st"> </span>log_dist <span class="op">+</span><span class="st"> </span>cntg <span class="op">+</span><span class="st"> </span>lang <span class="op">+</span><span class="st"> </span>clny <span class="op">+</span><span class="st"> </span>rta <span class="op">|</span><span class="st"> </span>exp_year <span class="op">+</span><span class="st"> </span>imp_year <span class="op">|</span><span class="st"> </span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true"></a><span class="st">    </span>pair</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true"></a>Family<span class="op">:</span><span class="st"> </span>Poisson</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true"></a></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true"></a>Estimates<span class="op">:</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true"></a></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true"></a><span class="er">|</span><span class="st">          </span><span class="er">|</span><span class="st"> </span>Estimate <span class="op">|</span><span class="st"> </span>Std. Error <span class="op">|</span><span class="st"> </span>z value <span class="op">|</span><span class="st"> </span><span class="kw">Pr</span>(<span class="op">&gt;</span><span class="er">|</span>z<span class="op">|</span>)   <span class="op">|</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true"></a><span class="er">|</span><span class="op">----------</span><span class="er">|</span><span class="op">----------</span><span class="er">|</span><span class="op">------------</span><span class="er">|</span><span class="op">---------</span><span class="er">|</span><span class="op">------------</span><span class="er">|</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true"></a><span class="er">|</span><span class="st"> </span>log_dist <span class="op">|</span><span class="st">  </span><span class="fl">-0.8216</span> <span class="op">|</span><span class="st">     </span><span class="fl">0.1567</span> <span class="op">|</span><span class="st"> </span><span class="fl">-5.2437</span> <span class="op">|</span><span class="st"> </span><span class="fl">0.0000</span> <span class="op">**</span><span class="er">*</span><span class="st"> </span><span class="er">|</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true"></a><span class="er">|</span><span class="st"> </span>cntg     <span class="op">|</span><span class="st">   </span><span class="fl">0.4155</span> <span class="op">|</span><span class="st">     </span><span class="fl">0.4568</span> <span class="op">|</span><span class="st">  </span><span class="fl">0.9097</span> <span class="op">|</span><span class="st"> </span><span class="fl">0.3630</span>     <span class="op">|</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true"></a><span class="er">|</span><span class="st"> </span>lang     <span class="op">|</span><span class="st">   </span><span class="fl">0.2499</span> <span class="op">|</span><span class="st">     </span><span class="fl">0.3997</span> <span class="op">|</span><span class="st">  </span><span class="fl">0.6252</span> <span class="op">|</span><span class="st"> </span><span class="fl">0.5319</span>     <span class="op">|</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true"></a><span class="er">|</span><span class="st"> </span>clny     <span class="op">|</span><span class="st">  </span><span class="fl">-0.2054</span> <span class="op">|</span><span class="st">     </span><span class="fl">0.3287</span> <span class="op">|</span><span class="st"> </span><span class="fl">-0.6250</span> <span class="op">|</span><span class="st"> </span><span class="fl">0.5320</span>     <span class="op">|</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true"></a><span class="er">|</span><span class="st"> </span>rta      <span class="op">|</span><span class="st">   </span><span class="fl">0.1907</span> <span class="op">|</span><span class="st">     </span><span class="fl">0.7657</span> <span class="op">|</span><span class="st">  </span><span class="fl">0.2491</span> <span class="op">|</span><span class="st"> </span><span class="fl">0.8033</span>     <span class="op">|</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true"></a></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true"></a>Significance codes<span class="op">:</span><span class="st"> </span><span class="er">***</span><span class="st"> </span><span class="fl">99.9</span><span class="op">%; ** 99%</span>; <span class="op">*</span><span class="st"> </span><span class="dv">95</span><span class="op">%; . 90%</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true"></a></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true"></a>Pseudo R<span class="op">-</span>squared<span class="op">:</span><span class="st"> </span><span class="fl">0.587</span> </span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true"></a></span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true"></a>Number of observations<span class="op">:</span><span class="st"> </span>Full <span class="dv">28152</span>; Missing <span class="dv">0</span>; Perfect classification <span class="dv">0</span> </span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true"></a></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true"></a>Number of Fisher Scoring iterations<span class="op">:</span><span class="st"> </span><span class="dv">11</span></span></code></pre></div>
 <p>The result is similar and the numerical difference comes fom the variance-covariance matrix estimation method. Capybara clustering algorithm is based on <span class="citation">Cameron, Gelbach, and Miller (2011)</span>.</p>
 <div class="section level2">
 <h2 class="unnumbered" id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>

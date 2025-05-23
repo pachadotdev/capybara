@@ -83,15 +83,11 @@ NULL
 #' @seealso \code{\link{bias_corr}}, \code{\link{feglm}}
 #'
 #' @examples
-#' # subset trade flows to avoid fitting time warnings during check
-#' set.seed(123)
-#' trade_2006 <- trade_panel[trade_panel$year == 2006, ]
-#' trade_2006 <- trade_2006[sample(nrow(trade_2006), 500), ]
-#'
-#' trade_2006$trade <- ifelse(trade_2006$trade > 100, 1L, 0L)
+#' mtcars2 <- mtcars
+#' mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
 #'
 #' # Fit 'feglm()'
-#' mod <- feglm(trade ~ lang | year, trade_2006, family = binomial())
+#' mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial())
 #'
 #' # Compute average partial effects
 #' mod_ape <- apes(mod)
@@ -139,7 +135,7 @@ apes <- function(
   family <- object[["family"]]
   formula <- object[["formula"]]
   lvls_k <- object[["lvls_k"]]
-  nt <- object[["nobs"]][["nobs"]]
+  nt <- nrow(data)
   nt_full <- object[["nobs"]][["nobs_full"]]
   k <- length(lvls_k)
   k_vars <- names(lvls_k)
@@ -195,8 +191,10 @@ apes <- function(
   delta <- matrix(NA_real_, nt, p)
   delta1 <- matrix(NA_real_, nt, p)
   j <- matrix(NA_real_, p, p)
-  delta[, !binary] <- mu_eta
-  delta1[, !binary] <- partial_mu_eta_(eta, family, 2L)
+  if (any(!binary)) {
+    delta[, !binary] <- mu_eta
+    delta1[, !binary] <- partial_mu_eta_(eta, family, 2L)
+  }
   for (i in seq.int(p)) {
     if (binary[[i]]) {
       eta0 <- eta - x[, i] * beta[[i]]

@@ -17,32 +17,22 @@ A named list containing named vectors of estimated fixed effects.
 }
 \description{
 The system might not have a unique solution since we do not take
- collinearity into account. If the solution is not unique, an estimable
- function has to be applied to our solution to get meaningful estimates of
- the fixed effects.
+collinearity into account. If the solution is not unique, an estimable
+function has to be applied to our solution to get meaningful estimates of
+the fixed effects.
 }
 \examples{
 # check the feglm examples for the details about clustered standard errors
-
-# subset trade flows to avoid fitting time warnings during check
-set.seed(123)
-trade_2006 <- trade_panel[trade_panel$year == 2006, ]
-trade_2006 <- trade_2006[sample(nrow(trade_2006), 500), ]
-
-mod <- fepoisson(
-  trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
-  trade_2006
-)
-
+mod <- fepoisson(mpg ~ wt | cyl, mtcars)
 fixed_effects(mod)
 
 }
 \references{
 Stammann, A. (2018). "Fast and Feasible Estimation of Generalized
- Linear Models with High-Dimensional k-way Fixed Effects". ArXiv e-prints.
+Linear Models with High-Dimensional k-way Fixed Effects". ArXiv e-prints.
 
 Gaure, S. (n. d.). "Multicollinearity, identification, and
- estimable functions". Unpublished.
+estimable functions". Unpublished.
 }
 \seealso{
 \code{\link{felm}}, \code{\link{feglm}}

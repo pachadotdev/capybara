@@ -23,7 +23,7 @@ feglm_control(
 maximization routine. The stopping condition is based on the relative change
 of the deviance in iteration \eqn{r} and can be expressed as follows:
 \eqn{|dev_{r} - dev_{r - 1}| / (0.1 + |dev_{r}|) < tol}{|dev - devold| /
-(0.1 + |dev|) < tol}. The default is \code{1.0e-08}.}
+ (0.1 + |dev|) < tol}. The default is \code{1.0e-08}.}
 
 \item{center_tol}{tolerance level for the stopping condition of the centering
 algorithm. The stopping condition is based on the relative change of the
@@ -70,7 +70,7 @@ A named list of control parameters.
 }
 \description{
 Set and change parameters used for fitting \code{\link{feglm}}.
- Termination conditions are similar to \code{\link[stats]{glm}}.
+Termination conditions are similar to \code{\link[stats]{glm}}.
 }
 \examples{
 feglm_control(0.05, 0.05, 10L, 10L, TRUE, TRUE, TRUE)

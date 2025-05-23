@@ -56,6 +56,4 @@ vec mu_eta_(const vec &eta, const FamilyType family_type);
 
 vec variance_(const vec &mu, const double &theta, const FamilyType family_type);
 
-bool valid_eta_(const vec &eta, const FamilyType family_type);
-
-bool valid_mu_(const vec &mu, const FamilyType family_type);
+bool valid_eta_mu_(const vec &eta, const vec &mu, const FamilyType family_type);

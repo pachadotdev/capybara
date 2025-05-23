@@ -6,6 +6,8 @@
 NULL
 
 test_that("felm/feglm intercept is ok with no FEs", {
+  skip_on_cran()
+  
   m1 <- suppressMessages(felm(mpg ~ wt, mtcars))
   m2 <- suppressMessages(fepoisson(mpg ~ wt, mtcars))
 

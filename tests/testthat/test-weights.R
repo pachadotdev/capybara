@@ -5,6 +5,8 @@
 NULL
 
 test_that("felm with weights works", {
+  skip_on_cran()
+  
   m1 <- felm(mpg ~ wt | am, weights = ~cyl, data = mtcars)
   m2 <- felm(mpg ~ wt | am, weights = mtcars$cyl, data = mtcars)
 

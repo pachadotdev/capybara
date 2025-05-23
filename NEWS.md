@@ -1,3 +1,11 @@
+# capybara 1.0.2
+
+* Small refactors for speed.
+
+# capybara 1.0.1
+
+* The examples now use smaller datasets to avoid CRAN timeouts with Clang-ASAN.
+
 # capybara 1.0.0
 
 * Implements a new approach to obtain the rank with a QR decomposition without

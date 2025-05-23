@@ -29,28 +29,18 @@ A named matrix of covariance estimates.
 }
 \description{
 Covariance matrix for the estimator of the structural parameters
- from objects returned by \code{\link{feglm}}. The covariance is computed
+from objects returned by \code{\link{feglm}}. The covariance is computed
 from the hessian, the scores, or a combination of both after convergence.
 }
 \examples{
 # same as the example in feglm but extracting the covariance matrix
-
-# subset trade flows to avoid fitting time warnings during check
-set.seed(123)
-trade_2006 <- trade_panel[trade_panel$year == 2006, ]
-trade_2006 <- trade_2006[sample(nrow(trade_2006), 500), ]
-
-mod <- fepoisson(
-  trade ~ log_dist + lang + cntg + clny | exp_year + imp_year | pair,
-  trade_2006
-)
-
+mod <- fepoisson(mpg ~ wt | cyl | am, mtcars)
 round(vcov(mod, type = "clustered"), 5)
 
 }
 \references{
 Cameron, C., J. Gelbach, and D. Miller (2011). "Robust Inference
- With Multiway Clustering". Journal of Business & Economic Statistics 29(2).
+With Multiway Clustering". Journal of Business & Economic Statistics 29(2).
 }
 \seealso{
 \code{\link{feglm}}

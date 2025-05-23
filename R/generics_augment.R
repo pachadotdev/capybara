@@ -41,15 +41,7 @@ NULL
 #' @rdname broom
 #'
 #' @examples
-#' set.seed(123)
-#' trade_2006 <- trade_panel[trade_panel$year == 2006, ]
-#' trade_2006 <- trade_2006[sample(nrow(trade_2006), 500), ]
-#'
-#' mod <- fepoisson(
-#'   trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
-#'   trade_2006
-#' )
-#'
+#' mod <- fepoisson(mpg ~ wt | cyl, mtcars)
 #' broom::augment(mod)
 #' broom::glance(mod)
 #' broom::tidy(mod)

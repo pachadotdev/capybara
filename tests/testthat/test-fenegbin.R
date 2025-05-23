@@ -7,6 +7,8 @@
 NULL
 
 test_that("fenegbin is similar to fixest", {
+  skip_on_cran()
+  
   mod <- fenegbin(mpg ~ wt | cyl, mtcars)
 
   mod_base <- glm(

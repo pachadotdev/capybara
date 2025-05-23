@@ -12,6 +12,8 @@
 NULL
 
 test_that("fepoisson is similar to fixest", {
+  skip_on_cran()
+  
   mod <- fepoisson(mpg ~ wt | cyl | am, mtcars)
 
   mod_base <- glm(

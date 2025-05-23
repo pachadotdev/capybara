@@ -43,21 +43,11 @@ A named list of class \code{"feglm"}.
 }
 \description{
 A wrapper for \code{\link{feglm}} with
- \code{family = poisson()}.
+\code{family = poisson()}.
 }
 \examples{
 # check the feglm examples for the details about clustered standard errors
-
-# subset trade flows to avoid fitting time warnings during check
-set.seed(123)
-trade_2006 <- trade_panel[trade_panel$year == 2006, ]
-trade_2006 <- trade_2006[sample(nrow(trade_2006), 500), ]
-
-mod <- fepoisson(
-  trade ~ log_dist + lang + cntg + clny | exp_year + imp_year,
-  trade_2006
-)
-
+mod <- fepoisson(mpg ~ wt | cyl, mtcars)
 summary(mod)
 
 }

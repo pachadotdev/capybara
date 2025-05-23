@@ -76,35 +76,35 @@ Analysis](https://www.wto.org/english/res_e/publications_e/advancedguide2016_e.h
 
 | Model             | Package  | Median Time   | Memory        |
 | :---------------- | :------- | :------------ | :------------ |
-| PPML              | Alpaca   | 822.14 ms - 3 | 302.62 MB - 3 |
-| PPML              | Base R   | 45.43 s - 4   | 2.73 GB - 4   |
-| PPML              | Capybara | 404.27 ms - 2 | 23.91 MB - 1  |
-| PPML              | Fixest   | 140.87 ms - 1 | 44.59 MB - 2  |
+| PPML              | Alpaca   | 720.07 ms - 3 | 302.64 MB - 3 |
+| PPML              | Base R   | 41.72 s - 4   | 2.73 GB - 4   |
+| PPML              | Capybara | 405.89 ms - 2 | 19.22 MB - 1  |
+| PPML              | Fixest   | 130.1 ms - 1  | 44.59 MB - 2  |
 |                   |          |               |               |
-| Trade Diversion   | Alpaca   | 3.73 s - 3    | 339.79 MB - 3 |
-| Trade Diversion   | Base R   | 45.91 s - 4   | 2.6 GB - 4    |
-| Trade Diversion   | Capybara | 929.89 ms - 1 | 30.77 MB - 1  |
-| Trade Diversion   | Fixest   | 1.01 s - 2    | 36.59 MB - 2  |
+| Trade Diversion   | Alpaca   | 3.79 s - 3    | 339.79 MB - 3 |
+| Trade Diversion   | Base R   | 39.84 s - 4   | 2.6 GB - 4    |
+| Trade Diversion   | Capybara | 947.96 ms - 2 | 26.22 MB - 1  |
+| Trade Diversion   | Fixest   | 932.78 ms - 1 | 36.59 MB - 2  |
 |                   |          |               |               |
-| Endogeneity       | Alpaca   | 2.9 s - 3     | 306.27 MB - 3 |
-| Endogeneity       | Base R   | 12.19 m - 4   | 11.94 GB - 4  |
-| Endogeneity       | Capybara | 1.3 s - 2     | 16.81 MB - 1  |
-| Endogeneity       | Fixest   | 247.72 ms - 1 | 28.08 MB - 2  |
+| Endogeneity       | Alpaca   | 2.65 s - 3    | 306.27 MB - 3 |
+| Endogeneity       | Base R   | 10.7 m - 4    | 11.94 GB - 4  |
+| Endogeneity       | Capybara | 1.32 s - 2    | 15.55 MB - 1  |
+| Endogeneity       | Fixest   | 225.64 ms - 1 | 28.08 MB - 2  |
 |                   |          |               |               |
-| Reverse Causality | Alpaca   | 3.7 s - 3     | 335.61 MB - 3 |
-| Reverse Causality | Base R   | 12.23 m - 4   | 11.94 GB - 4  |
-| Reverse Causality | Capybara | 1.36 s - 2    | 19.86 MB - 1  |
-| Reverse Causality | Fixest   | 329.78 ms - 1 | 32.43 MB - 2  |
+| Reverse Causality | Alpaca   | 3.36 s - 3    | 335.61 MB - 3 |
+| Reverse Causality | Base R   | 10.69 m - 4   | 11.94 GB - 4  |
+| Reverse Causality | Capybara | 1.36 s - 2    | 17.73 MB - 1  |
+| Reverse Causality | Fixest   | 296.63 ms - 1 | 32.43 MB - 2  |
 |                   |          |               |               |
-| Phasing Effects   | Alpaca   | 4.78 s - 3    | 393.86 MB - 3 |
-| Phasing Effects   | Base R   | 12.18 m - 4   | 11.95 GB - 4  |
-| Phasing Effects   | Capybara | 1.49 s - 2    | 25.95 MB - 1  |
-| Phasing Effects   | Fixest   | 525.04 ms - 1 | 41.12 MB - 2  |
+| Phasing Effects   | Alpaca   | 4.6 s - 3     | 393.86 MB - 3 |
+| Phasing Effects   | Base R   | 10.75 m - 4   | 11.95 GB - 4  |
+| Phasing Effects   | Capybara | 1.57 s - 2    | 22.08 MB - 1  |
+| Phasing Effects   | Fixest   | 471.1 ms - 1  | 41.12 MB - 2  |
 |                   |          |               |               |
-| Globalization     | Alpaca   | 7.97 s - 3    | 539.49 MB - 3 |
-| Globalization     | Base R   | 11.59 m - 4   | 11.97 GB - 4  |
-| Globalization     | Capybara | 1.94 s - 2    | 41.19 MB - 1  |
-| Globalization     | Fixest   | 914.51 ms - 1 | 62.87 MB - 2  |
+| Globalization     | Alpaca   | 8.2 s - 3     | 539.49 MB - 3 |
+| Globalization     | Base R   | 10.79 m - 4   | 11.97 GB - 4  |
+| Globalization     | Capybara | 2.07 s - 2    | 32.98 MB - 1  |
+| Globalization     | Fixest   | 869.62 ms - 1 | 62.87 MB - 2  |
 
 ## Changing the number of cores
 
@@ -117,6 +117,55 @@ that capybara uses, here is an example of how it affects the performance
 | 4     | 1.5s |           14.0s |
 | 6     | 0.8s |            2.4s |
 | 8     | 0.4s |            0.9s |
+
+## Installing with optimization flags
+
+CRAN does not let developers enforce the use of `-O3` and other
+optimization flags.
+
+In order to use them, you need to clone the repository and install the
+package with
+
+``` bash
+R CMD INSTALL --configure-args="--enable-optimization" .
+```
+
+or
+
+``` r
+install.packages(".",
+    repos = NULL, type = "source",
+    configure.args = "--enable-optimization"
+)
+```
+
+This will determine if your hardware allows for:
+
+1.  `-O3`: The highest standard optimization level in GCC/Clang
+    compilers that enables:
+      - Aggressive function inlining
+      - Loop vectorization
+      - Advanced instruction scheduling
+      - Dead code elimination
+      - Register allocation optimizations
+2.  `-funroll-loops`: Tells the compiler to unroll loops where
+    beneficial:
+      - Replaces a loop with multiple copies of its body
+      - Reduces branch prediction overhead
+      - Improves instruction-level parallelism
+      - Works especially well with numerical algorithms with many
+        iterations
+3.  `-mavx2`: If AVX2 support if available, the compiler will use it to
+    benefit from advanced SIMD vector instructions.
+4.  `-march=native`: Optimizes the code for the specific architecture of
+    the machine:
+      - Enables architecture-specific optimizations
+      - Generates instructions that take advantage of the CPU’s
+        capabilities
+      - Can lead to significant performance improvements
+
+These flag can often provide significant performance improvements
+(sometimes 2-4x faster than unoptimized code).
 
 ## Testing and debugging
 
