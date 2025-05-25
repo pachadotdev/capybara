@@ -3,10 +3,13 @@
 PKG_CONFIG_NAME="capybara"
 
 # This is to adhere to CRAN policy about not forcing -O3 and other optimizations
+ENABLE_OPTIMIZATION=no
 for arg in "$@"; do
+  echo "Processing argument: $arg"
   case "$arg" in
     --enable-optimization)
       ENABLE_OPTIMIZATION=yes
+      echo "Optimization enabled!"
       ;;
   esac
 done
@@ -16,33 +19,46 @@ CXX=$(${R_HOME}/bin/R CMD config CXX)
 CXXFLAGS=$(${R_HOME}/bin/R CMD config CXXFLAGS)
 CPPFLAGS=$(${R_HOME}/bin/R CMD config CPPFLAGS)
 
+# Get R's default pic flags (contains optimization)
+CXXPICFLAGS=$(${R_HOME}/bin/R CMD config CXXPICFLAGS)
+echo "Default CXXPICFLAGS: $CXXPICFLAGS"
+
 # Set optimization flags if requested
 OPTFLAGS=""
+OVERRIDE_CXXPICFLAGS=""
 if [ "$ENABLE_OPTIMIZATION" = "yes" ]; then
+  echo "Setting up optimization flags..."
+  
   # Test for -O3 support
-  save_CXXFLAGS="$CXXFLAGS"
   echo 'int main(){return 0;}' > conftest.cpp
-  if $CXX $CXXFLAGS -O3 conftest.cpp -o conftest >/dev/null 2>&1; then 
+  if $CXX -O3 conftest.cpp -o conftest >/dev/null 2>&1; then 
     OPTFLAGS="-O3"
+    echo "Compiler supports -O3"
   else
     echo "Warning: compiler does not support -O3, falling back to -O2"
     OPTFLAGS="-O2"
   fi
   rm -f conftest conftest.cpp
-  CXXFLAGS="$save_CXXFLAGS"
 
-  # 2) Add the rest unconditionally (they typically don’t hurt
-  #    if they’re unsupported, but you could test them similarly)
+  # Add the rest of optimization flags
   OPTFLAGS="$OPTFLAGS -funroll-loops -march=native"
   
   # Check for AVX2 support
-  if grep -q avx2 /proc/cpuinfo 2>/dev/null; then
+  if grep -q avx2 /proc/cpuinfo 2>/dev/null || sysctl -n machdep.cpu.features 2>/dev/null | grep -q AVX2; then
     OPTFLAGS="$OPTFLAGS -mavx2"
   fi
 
-  echo "Using optimization flags: $OPTFLAGS"
+  # Create override for CXXPICFLAGS (removes default -O2 and adds our flags)
+  OVERRIDE_CXXPICFLAGS=$(echo "$CXXPICFLAGS" | sed -E 's/-O[0-9s]//g')
+  OVERRIDE_CXXPICFLAGS="$OVERRIDE_CXXPICFLAGS $OPTFLAGS"
+
+  echo "OPTFLAGS: $OPTFLAGS"
+  echo "OVERRIDE_CXXPICFLAGS: $OVERRIDE_CXXPICFLAGS"
 else
-  echo "Not using optimization flags"
+  # Use R's defaults
+  OVERRIDE_CXXPICFLAGS="$CXXPICFLAGS"
+  echo "Not using additional optimization flags"
+  echo "OVERRIDE_CXXPICFLAGS: $OVERRIDE_CXXPICFLAGS"
 fi
 
 # Link BLAS/LAPACK against MKL if MKLROOT is set
@@ -117,13 +133,32 @@ EOL
   rm -f nthreads nthreads.cpp
 fi
 
-# Write to Makevars
-echo "creating src/Makevars"
-sed -e "s|@ncores@|${num_cores}|g" \
-    -e "s|@OPTFLAGS@|${OPTFLAGS}|g" \
-    -e "s|@PKG_CXXFLAGS@|${PKG_CXXFLAGS}|g" \
-    -e "s|@PKG_LIBS@|${PKG_LIBS}|g" \
-    src/Makevars.in > src/Makevars
+if [ "$ENABLE_OPTIMIZATION" = "yes" ]; then
+  # Extract R's CXXFLAGS without optimization
+  R_CXXFLAGS=$(${R_HOME}/bin/R CMD config CXXFLAGS | sed -E 's/-O[0-9s]//g')
+  
+  echo "# Override R's CXXFLAGS to remove default optimization" >> src/Makevars.tmp
+  echo "CXXFLAGS = $R_CXXFLAGS" >> src/Makevars.tmp
+  echo "" >> src/Makevars.tmp
+  
+  # Now append the rest of Makevars
+  sed -e "s|@ncores@|${num_cores}|g" \
+      -e "s|@OPTFLAGS@|${OPTFLAGS}|g" \
+      -e "s|@OVERRIDE_CXXPICFLAGS@|${OVERRIDE_CXXPICFLAGS}|g" \
+      -e "s|@PKG_CXXFLAGS@|${PKG_CXXFLAGS}|g" \
+      -e "s|@PKG_LIBS@|${PKG_LIBS}|g" \
+      src/Makevars.in >> src/Makevars.tmp
+  
+  mv src/Makevars.tmp src/Makevars
+else
+  # Standard processing
+  sed -e "s|@ncores@|${num_cores}|g" \
+      -e "s|@OPTFLAGS@|${OPTFLAGS}|g" \
+      -e "s|@OVERRIDE_CXXPICFLAGS@|${OVERRIDE_CXXPICFLAGS}|g" \
+      -e "s|@PKG_CXXFLAGS@|${PKG_CXXFLAGS}|g" \
+      -e "s|@PKG_LIBS@|${PKG_LIBS}|g" \
+      src/Makevars.in > src/Makevars
+fi
 
 # Success
 exit 0

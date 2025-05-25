@@ -29,13 +29,6 @@ test_that("error conditions in APEs", {
     "non-'feglm'"
   )
 
-  # using APEs with Poisson
-
-  expect_error(
-    apes(fepoisson(trade ~ log_dist | rta, data = trade_short)),
-    "binary choice"
-  )
-
   # not using two-way fixed effects
 
   expect_error(

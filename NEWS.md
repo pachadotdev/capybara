@@ -1,3 +1,8 @@
+# capybara 1.0.3
+
+* All the C++ code was moved into a single file to reduce the binary size.
+* Refactored centering function for better performance.
+
 # capybara 1.0.2
 
 * Small refactors for speed.
