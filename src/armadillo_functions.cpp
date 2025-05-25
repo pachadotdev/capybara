@@ -114,14 +114,21 @@ void center_variables_2fe_(mat &V, const vec &w, const list &klist,
   // Auxiliary variables (fixed)
   const list &fe1_list = klist[0], &fe2_list = klist[1];
   const size_t N = V.n_rows, P = V.n_cols, n_fe1 = fe1_list.size(),
-    n_fe2 = fe2_list.size();
+               n_fe2 = fe2_list.size();
   const double inv_sw = 1.0 / accu(w);
 
   // Auxiliary variables (storage)
   field<uvec> fe1_groups(n_fe1), fe2_groups(n_fe2);
   vec fe1_weights(n_fe1, fill::none), fe2_weights(n_fe2, fill::none);
-  size_t j, k, p, check_counter, ssr_counter, accel_counter, iter;
-  double sum_w, mean_val, ratio0, ssr_prev, ratio, ssr, ssr_change, coef, ssq;
+  size_t j, p, check_counter, ssr_counter, ssr40_counter, accel_counter, 
+         grand_counter, grand_acc_count, iter;
+  double sum_w, fe_mean, ratio, ratio0, ssr, ssr0, ssr_prev, ssr_change, 
+         coef, ssq, coef_grand, ssq_grand;
+  vec x(N, fill::none), x_old(N, fill::none), diff(N, fill::none),
+      Gx(N, fill::none), G2x(N, fill::none), deltaG(N, fill::none),
+      delta2(N, fill::none), Y(N, fill::none), GY(N, fill::none),
+      GGY(N, fill::none), deltaG_grand(N, fill::none),
+      delta2_grand(N, fill::none);
 
   // Precompute weights
   for (j = 0; j < n_fe1; ++j) {
@@ -141,61 +148,60 @@ void center_variables_2fe_(mat &V, const vec &w, const list &klist,
     // Demean by FE1
     for (j = 0; j < n_fe1; ++j) {
       if (fe1_weights(j) > 0) {
-        const uvec &idx = fe1_groups(j);
-        mean_val = dot(w(idx), v(idx)) * fe1_weights(j);
-        v(idx) -= mean_val;
+        const uvec &coords = fe1_groups(j);
+        fe_mean = dot(w(coords), v(coords)) * fe1_weights(j);
+        v(coords) -= fe_mean;
       }
     }
 
     // Demean by FE2
     for (j = 0; j < n_fe2; ++j) {
       if (fe2_weights(j) > 0) {
-        const uvec &idx = fe2_groups(j);
-        mean_val = dot(w(idx), v(idx)) * fe2_weights(j);
-        v(idx) -= mean_val;
+        const uvec &coords = fe2_groups(j);
+        fe_mean = dot(w(coords), v(coords)) * fe2_weights(j);
+        v(coords) -= fe_mean;
       }
     }
   };
 
-  // Process all columns with acceleration
-  vec x(N, fill::none), x_old(N, fill::none), diff(N, fill::none),
-      Gx(N, fill::none), G2x(N, fill::none), deltaG(N, fill::none),
-      delta2(N, fill::none);
-
+  // Process all columns
   for (p = 0; p < P; ++p) {
     x = V.col(p);
-    ratio0 = std::numeric_limits<double>::infinity();
-    ssr_prev = std::numeric_limits<double>::infinity();
-    check_counter = iter_interrupt;
-    ssr_counter = 40;
+    
+    // Initialize counters and thresholds
+    check_counter = static_cast<size_t>(iter_interrupt);
     accel_counter = 5;
+    ssr_counter = static_cast<size_t>(iter_ssr);
+    ssr40_counter = 40;
+    grand_counter = 100;
+    grand_acc_count = 0;
+    
+    ratio0 = std::numeric_limits<double>::infinity();
+    ssr0 = std::numeric_limits<double>::infinity();
+    ssr_prev = std::numeric_limits<double>::infinity();
 
     for (iter = 0; iter < max_iter; ++iter) {
-      // Check user interrupt periodically
+      // User interrupt check
       if (--check_counter == 0) {
         check_user_interrupt();
         check_counter = iter_interrupt;
       }
 
       x_old = x;
-
-      // Apply projections
       project_2fe(x);
 
-      // Convergence check using vectorized operations
+      // 1) Convergence check
       diff = abs(x - x_old) / (1.0 + abs(x_old));
       ratio = dot(diff, w) * inv_sw;
-
       if (ratio < tol) break;
 
-      // Irons-Tuck acceleration every 5 iterations
+      // 2) Irons-Tuck acceleration every 5 iterations
       if (iter >= 5 && --accel_counter == 0) {
         accel_counter = 5;
-
         Gx = x;
-        project_2fe(Gx);  // Apply projection again
+        project_2fe(Gx);
         G2x = Gx;
-        project_2fe(G2x);  // Apply projection twice
+        project_2fe(G2x);
 
         deltaG = G2x - x;
         delta2 = G2x - 2.0 * x + x_old;
@@ -205,27 +211,60 @@ void center_variables_2fe_(mat &V, const vec &w, const list &klist,
           coef = dot(deltaG, delta2) / ssq;
           if (coef > 0.0 && coef < 2.0) {
             x = G2x - coef * deltaG;
-            project_2fe(x);  // Apply projection after acceleration
+            project_2fe(x);
           } else {
             x = G2x;
           }
         }
       }
 
-      // Early exit heuristic
-      if (iter > 3 && (ratio0 / ratio) < 1.1 && ratio < tol * 20) break;
-      ratio0 = ratio;
+      // 3) Grand acceleration (every 100 iterations)
+      if (iter > 0 && --grand_counter == 0) {
+        grand_counter = 100;
+        if (grand_acc_count == 0) {
+          Y = x;
+        } else if (grand_acc_count == 1) {
+          GY = x;
+        } else if (grand_acc_count == 2) {
+          GGY = x;
+          // Apply Irons-Tuck to Y, GY, GGY
+          deltaG_grand = GGY - GY;
+          delta2_grand = GGY - 2.0 * GY + Y;
+          ssq_grand = dot(delta2_grand, delta2_grand);
+          if (ssq_grand > 1e-10) {
+            coef_grand = dot(deltaG_grand, delta2_grand) / ssq_grand;
+            if (coef_grand > 0.0 && coef_grand < 2.0) {
+              x = GGY - coef_grand * deltaG_grand;
+              project_2fe(x);
+            }
+          }
+          grand_acc_count = -1;
+        }
+        grand_acc_count++;
+      }
 
-      // SSR-based convergence check
-      if (--ssr_counter == 0) {
-        ssr_counter = 40;
-        ssr = dot(square(x), w) * inv_sw;
-        if (iter >= 80) {
+      // 4) SSR-based convergence check (every 40 iterations)
+      if (iter > 0 && --ssr40_counter == 0) {
+        ssr40_counter = 40;
+        ssr = dot(arma::square(x), w) * inv_sw;
+        if (iter >= 80) {  // Only check after second SSR computation
           ssr_change = std::abs(ssr - ssr_prev) / (1.0 + std::abs(ssr_prev));
           if (ssr_change < tol) break;
         }
         ssr_prev = ssr;
       }
+
+      // 5) Original SSR-based early exit
+      if (iter > 0 && --ssr_counter == 0) {
+        ssr_counter = iter_ssr;
+        ssr = dot(arma::square(x), w) * inv_sw;
+        if (std::abs(ssr - ssr0) / (1.0 + std::abs(ssr0)) < tol) break;
+        ssr0 = ssr;
+      }
+
+      // 6) Heuristic early exit
+      if (iter > 3 && (ratio0 / ratio) < 1.1 && ratio < tol * 20) break;
+      ratio0 = ratio;
     }
 
     V.col(p) = x;
@@ -247,16 +286,20 @@ void center_variables_(mat &V, const vec &w, const list &klist,
   }
 
   // Auxiliary variables (storage)
-  size_t total_groups = 0, k, J, j, p, iter, accel_counter;
+  size_t i, j, k, p, iter, J, total_groups, check_counter, accel_counter,
+      ssr_counter, ssr40_counter, grand_counter, grand_acc_count;
+  double sum_w, fe_mean, ratio, ratio0, ssr, ssr0, ssr_prev, ssr_change, coef,
+      ssq, coef_grand, ssq_grand;
   field<field<uvec>> group_indices(K);
   field<vec> group_weights(K);
-  double sum_w, ratio0, ratio, ssq, coef;
-  vec x(N, fill::none), x_old(N, fill::none), Gx(N, fill::none),
-      G2x(N, fill::none), deltaG(N, fill::none), delta2(N, fill::none),
-      diff(N, fill::none);
+  vec x(N, fill::none), x_old(N, fill::none), diff(N, fill::none),
+      Gx(N, fill::none), G2x(N, fill::none), deltaG(N, fill::none),
+      delta2(N, fill::none), Y(N, fill::none), GY(N, fill::none),
+      GGY(N, fill::none), deltaG_grand(N, fill::none),
+      delta2_grand(N, fill::none);
 
   // Precompute all group information
-
+  total_groups = 0;
   for (k = 0; k < K; ++k) {
     const list &jlist = klist[k];
     total_groups += jlist.size();
@@ -266,7 +309,7 @@ void center_variables_(mat &V, const vec &w, const list &klist,
     const list &jlist = klist[k];
     J = jlist.size();
     field<uvec> idxs(J);
-    vec weights(J);
+    vec weights(J, fill::none);
 
     for (j = 0; j < J; ++j) {
       idxs(j) = as_uvec(jlist[j]);
@@ -285,43 +328,62 @@ void center_variables_(mat &V, const vec &w, const list &klist,
       const auto &weights = group_weights(k);
       J = idxs.n_elem;
 
-      for (j = 0; j < J; ++j) {
-        if (weights(j) > 0) {
-          const uvec &coords = idxs(j);
-          double mean_val = dot(w(coords), v(coords)) * weights(j);
-          v(coords) -= mean_val;
+      // Process groups in batches for better cache usage
+      const size_t batch_size = 64;
+      for (size_t batch_start = 0; batch_start < J; batch_start += batch_size) {
+        size_t batch_end = std::min(batch_start + batch_size, J);
+
+        // Apply demeaning for this batch
+        for (j = batch_start; j < batch_end; ++j) {
+          if (weights(j) > 0) {
+            const uvec &coords = idxs(j);
+            fe_mean = dot(w(coords), v(coords)) * weights(j);
+            v(coords) -= fe_mean;
+          }
         }
       }
     }
   };
 
-  // Process columns with acceleration
-
+  // Process columns
   for (p = 0; p < P; ++p) {
     x = V.col(p);
-    ratio0 = std::numeric_limits<double>::infinity();
+
+    // Initialize counters and thresholds
+    check_counter = iter_interrupt;
     accel_counter = 5;
+    ssr_counter = iter_ssr;
+    ssr40_counter = 40;
+    grand_counter = 100;
+    grand_acc_count = 0;
+
+    ratio0 = std::numeric_limits<double>::infinity();
+    ssr0 = std::numeric_limits<double>::infinity();
+    ssr_prev = std::numeric_limits<double>::infinity();
 
     for (iter = 0; iter < max_iter; ++iter) {
-      x_old = x;
+      // User interrupt check
+      if (--check_counter == 0) {
+        check_user_interrupt();
+        check_counter = iter_interrupt;
+      }
 
-      // Apply projections
+      x_old = x;
       project(x);
 
-      // Check convergence
+      // 1) Convergence check
       diff = abs(x - x_old) / (1.0 + abs(x_old));
       ratio = dot(diff, w) * inv_sw;
-      if (ratio < tol)
-        break;
+      if (ratio < tol) break;
 
-      // Irons-Tuck acceleration every 5 iterations
+      // 2) Irons-Tuck acceleration (every 5 iterations)
       if (iter >= 5 && --accel_counter == 0) {
         accel_counter = 5;
 
         Gx = x;
-        project(Gx); // Apply projection again
+        project(Gx);
         G2x = Gx;
-        project(G2x); // Apply projection twice
+        project(G2x);
 
         deltaG = G2x - x;
         delta2 = G2x - 2.0 * x + x_old;
@@ -338,13 +400,61 @@ void center_variables_(mat &V, const vec &w, const list &klist,
         }
       }
 
-      // Early exit heuristic
-      if (iter > 3 && (ratio0 / ratio) < 1.1 && ratio < tol * 20)
-        break;
+      // 3) Grand acceleration (every 100 iterations)
+      if (iter > 0 && --grand_counter == 0) {
+        grand_counter = 100;
+        if (grand_acc_count == 0) {
+          Y = x;
+        } else if (grand_acc_count == 1) {
+          GY = x;
+        } else if (grand_acc_count == 2) {
+          GGY = x;
+          // Apply Irons-Tuck to Y, GY, GGY
+          deltaG_grand = GGY - GY;
+          delta2_grand = GGY - 2.0 * GY + Y;
+          ssq_grand = dot(delta2_grand, delta2_grand);
+          if (ssq_grand > 1e-10) {
+            coef_grand = dot(deltaG_grand, delta2_grand) / ssq_grand;
+            if (coef_grand > 0.0 && coef_grand < 2.0) {
+              x = GGY - coef_grand * deltaG_grand;
+              project(x);
+            }
+          }
+          grand_acc_count = -1;
+        }
+        grand_acc_count++;
+      }
+
+      // 4) SSR-based convergence check (every 40 iterations)
+      if (iter > 0 && --ssr40_counter == 0) {
+        ssr40_counter = 40;
+        ssr = dot(arma::square(x), w) * inv_sw;
+        if (iter >= 80) {
+          ssr_change = std::abs(ssr - ssr_prev) / (1.0 + std::abs(ssr_prev));
+          if (ssr_change < tol) break;
+        }
+        ssr_prev = ssr;
+      }
+
+      // 5) Original SSR-based early exit
+      if (iter > 0 && --ssr_counter == 0) {
+        ssr_counter = iter_ssr;
+        ssr = dot(arma::square(x), w) * inv_sw;
+        if (std::abs(ssr - ssr0) / (1.0 + std::abs(ssr0)) < tol) break;
+        ssr0 = ssr;
+      }
+
+      // 6) Heuristic early exit
+      if (iter > 3 && (ratio0 / ratio) < 1.1 && ratio < tol * 20) break;
       ratio0 = ratio;
     }
 
-    V.col(p) = x;
+    // Check for perfect collinearity
+    if (dot(arma::square(x), w) * inv_sw < 1e-14) {
+      V.col(p).zeros();
+    } else {
+      V.col(p) = x;
+    }
   }
 }
 

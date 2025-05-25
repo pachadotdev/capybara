@@ -104,7 +104,7 @@ else
 int main() {
   int nthreads;
   #ifdef _OPENMP
-    nthreads = std::max(1, (omp_get_max_threads() + 1) / 2);
+    nthreads = std::max(1, omp_get_max_threads() - 1);
   #else
     nthreads = 1;
   #endif
