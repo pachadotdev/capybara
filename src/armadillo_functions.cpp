@@ -85,21 +85,37 @@ mat crossprod_(const mat &X, const vec &w) { return X.t() * diagmat(w) * X; }
 
 // Cholesky decomposition
 vec solve_beta_(mat &MX, const mat &MNU, const vec &w) {
-  mat MXW = MX.t() * diagmat(w);
-  mat XtX = MXW * MX;
-  vec XtY = MXW * MNU;
+  // Auxiliary variables (storage)
+  mat MXW(MX.n_cols, MX.n_cols, fill::none);
+  mat XtX(MX.n_cols, MX.n_cols, fill::none);
+  vec XtY(MX.n_cols, fill::none);
+  mat L(MX.n_cols, MX.n_cols, fill::none);
+  vec z(MX.n_cols, fill::none);
+  vec beta(MX.n_cols, fill::none);
 
-  // XtX = L * L.t()
-  mat L;
+  // Form weighted cross products
+  MXW = MX.t() * diagmat(w);
+  XtX = MXW * MX;
+  XtY = MXW * MNU;
+
+  // Cholesky decomposition: XtX = L * L.t()
   if (!chol(L, XtX, "lower")) {
-    stop("Cholesky decomposition failed.");
+    // If Cholesky fails, try with regularization
+    double reg = 1e-10 * trace(XtX) / XtX.n_rows;
+    XtX.diag() += reg;
+
+    if (!chol(L, XtX, "lower")) {
+      stop("Cholesky decomposition failed even with regularization.");
+    }
   }
 
-  // Solve L * z = Xty
-  vec z = solve(trimatl(L), XtY, solve_opts::fast);
+  // Solve L * z = XtY using forward substitution
+  z = solve(trimatl(L), XtY, solve_opts::fast);
 
-  // Solve Lt * beta = z
-  return solve(trimatu(L.t()), z, solve_opts::fast);
+  // Solve L.t() * beta = z using backward substitution
+  beta = solve(trimatu(L.t()), z, solve_opts::fast);
+
+  return beta;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
