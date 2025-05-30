@@ -861,7 +861,7 @@ vec variance_(const vec &mu, const double &theta,
       denom += dot(Alpha0(k), Alpha0(k));
     }
 
-    ratio = arma::sqrt(num / denom + 1e-16);
+    ratio = std::sqrt(num / denom + 1e-16);
     if (ratio < tol) {
       break;
     }
