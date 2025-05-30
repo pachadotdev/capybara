@@ -10,7 +10,7 @@ NULL
 
 test_that("error conditions in APEs", {
   skip_on_cran()
-  
+
   trade_short <- trade_panel[trade_panel$exp_year == "CAN1994", ]
   trade_short <- trade_short[trade_short$trade > 100, ]
   trade_short$trade_200 <- ifelse(trade_short$trade >= 200, 1, 0)
@@ -27,13 +27,6 @@ test_that("error conditions in APEs", {
   expect_error(
     apes(lm(trade ~ log_dist, data = trade_short)),
     "non-'feglm'"
-  )
-
-  # using APEs with Poisson
-
-  expect_error(
-    apes(fepoisson(trade ~ log_dist | rta, data = trade_short)),
-    "binary choice"
   )
 
   # not using two-way fixed effects

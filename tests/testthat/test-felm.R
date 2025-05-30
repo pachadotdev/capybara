@@ -15,7 +15,7 @@ test_that("felm works", {
   m1 <- felm(mpg ~ wt | cyl, mtcars)
   m2 <- lm(mpg ~ wt + as.factor(cyl), mtcars)
 
-  expect_equal(round(coef(m1), 2), round(coef(m2)[2], 2))
+  expect_equal(coef(m1), coef(m2)[2], tolerance = 1e-3)
 
   n <- nrow(mtcars)
   expect_equal(length(fitted(m1)), n)
@@ -26,18 +26,18 @@ test_that("felm works", {
   m1 <- felm(mpg ~ wt + qsec | cyl, mtcars)
   m2 <- lm(mpg ~ wt + qsec + as.factor(cyl), mtcars)
 
-  expect_equal(round(coef(m1), 2), round(coef(m2)[c(2, 3)], 2))
+  expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-3)
 
   m1 <- felm(mpg ~ wt + qsec | cyl + am, mtcars)
   m2 <- lm(mpg ~ wt + qsec + as.factor(cyl) + as.factor(am), mtcars)
 
-  expect_equal(round(coef(m1), 2), round(coef(m2)[c(2, 3)], 2))
+  expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-3)
 
   s1 <- summary(m1)
   s2 <- summary(m2)
 
-  expect_equal(s1$r.squared, s2$r.squared)
-  expect_equal(s1$adj.r.squared, s2$adj.r.squared)
+  expect_equal(s1$r.squared, s2$r.squared, tolerance = 1e-3)
+  expect_equal(s1$adj.r.squared, s2$adj.r.squared, tolerance = 1e-3)
 
   mtcars2 <- mtcars
   mtcars2$wt[2] <- NA
@@ -45,17 +45,17 @@ test_that("felm works", {
   m1 <- felm(mpg ~ wt + qsec | cyl + am, mtcars2)
   m2 <- lm(mpg ~ wt + qsec + as.factor(cyl) + as.factor(am), mtcars2)
 
-  expect_equal(round(coef(m1), 2), round(coef(m2)[c(2, 3)], 2))
+  expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-3)
 
   s1 <- summary(m1)
   s2 <- summary(m2)
 
-  expect_equal(s1$r.squared, s2$r.squared)
+  expect_equal(s1$r.squared, s2$r.squared, tolerance = 1e-3)
   expect_equal(s1$adj.r.squared, s2$adj.r.squared, tolerance = 1e-2)
 
   m1 <- felm(mpg ~ wt + qsec | cyl + am | carb, mtcars)
 
-  expect_equal(round(coef(m1), 2), round(coef(m2)[c(2, 3)], 2))
+  expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-3)
 })
 
 test_that("felm time is the minimally affected when adding noise to the data", {

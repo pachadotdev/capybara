@@ -35,13 +35,13 @@ test_that("feglm is similar to glm", {
     family = binomial()
   )
 
-  expect_equal(unname(round(coef(mod) - coef(mod_base)[2:3], 3)), rep(0, 2))
+  expect_equal(unname(coef(mod) - coef(mod_base)[2:3], 3), c(0, 0), tolerance = 1e-3)
 
   fe <- unname(drop(fixed_effects(mod)$cyl))
   fe_base <- coef(mod_base)[c(1, 4, 5)]
   fe_base <- unname(fe_base + c(0, rep(fe_base[1], 2)))
 
-  expect_equal(round(fe - fe_base, 2), rep(0, 3))
+  expect_equal(fe - fe_base, c(0, 0, 0), tolerance = 1e-2)
 
   # Gamma ----
 
@@ -57,13 +57,13 @@ test_that("feglm is similar to glm", {
     family = Gamma()
   )
 
-  expect_equal(unname(round(coef(mod) - coef(mod_base)[2:3], 3)), rep(0, 2))
+  expect_equal(unname(coef(mod) - coef(mod_base)[2:3]), c(0, 0), tolerance = 1e-3)
 
   fe <- unname(drop(fixed_effects(mod)$cyl))
   fe_base <- coef(mod_base)[c(1, 4, 5)]
   fe_base <- unname(fe_base + c(0, rep(fe_base[1], 2)))
 
-  expect_equal(round(fe - fe_base, 2), rep(0, 3))
+  expect_equal(fe - fe_base, c(0, 0, 0), tolerance = 1e-2)
 
   # Inverse Gaussian ----
 
@@ -79,11 +79,11 @@ test_that("feglm is similar to glm", {
     family = inverse.gaussian()
   )
 
-  expect_equal(unname(round(coef(mod) - coef(mod_base)[2:3], 3)), rep(0, 2))
+  expect_equal(unname(coef(mod) - coef(mod_base)[2:3]), c(0, 0), tolerance = 1e-3)
 
   fe <- unname(drop(fixed_effects(mod)$cyl))
   fe_base <- coef(mod_base)[c(1, 4, 5)]
   fe_base <- unname(fe_base + c(0, rep(fe_base[1], 2)))
 
-  expect_equal(round(fe - fe_base, 2), rep(0, 3))
+  expect_equal(fe - fe_base, c(0, 0, 0), tolerance = 1e-2)
 })

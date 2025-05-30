@@ -34,13 +34,13 @@ test_that("predicted values increase the error outside the inter-quartile range 
   pred1_base <- predict(m2, newdata = d1, type = "response")
   pred2_base <- predict(m2, newdata = d2, type = "response")
 
-  expect_equal(round(pred1, 3), round(unname(pred1_base), 3))
-  expect_equal(round(pred2, 3), round(unname(pred2_base), 3))
+  expect_equal(pred1, unname(pred1_base), tolerance = 1e-3)
+  expect_equal(pred2, unname(pred2_base), tolerance = 1e-3)
 })
 
 test_that("predicted values increase the error outside the inter-quartile range for LMs", {
   skip_on_cran()
-  
+
   m1 <- felm(mpg ~ wt + disp | cyl, mtcars)
 
   d1 <- mtcars[mtcars$mpg >= quantile(mtcars$mpg, 0.25) & mtcars$mpg <= quantile(mtcars$mpg, 0.75), ]
@@ -64,6 +64,6 @@ test_that("predicted values increase the error outside the inter-quartile range 
   pred1_base <- predict(m2, newdata = d1)
   pred2_base <- predict(m2, newdata = d2)
 
-  expect_equal(round(pred1, 3), round(unname(pred1_base), 3))
-  expect_equal(round(pred2, 3), round(unname(pred2_base), 3))
+  expect_equal(pred1, unname(pred1_base), tolerance = 1e-3)
+  expect_equal(pred2, unname(pred2_base), tolerance = 1e-3)
 })

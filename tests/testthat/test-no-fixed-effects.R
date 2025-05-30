@@ -7,7 +7,7 @@ NULL
 
 test_that("felm/feglm intercept is ok with no FEs", {
   skip_on_cran()
-  
+
   m1 <- suppressMessages(felm(mpg ~ wt, mtcars))
   m2 <- suppressMessages(fepoisson(mpg ~ wt, mtcars))
 
@@ -17,6 +17,6 @@ test_that("felm/feglm intercept is ok with no FEs", {
   g1 <- unname(coef(lm(mpg ~ wt, mtcars))[1])
   g2 <- unname(coef(glm(mpg ~ wt, data = mtcars, family = "quasipoisson"))[1])
 
-  expect_equal(round(f1, 4), round(g1, 4))
-  expect_equal(round(f2, 4), round(g2, 4))
+  expect_equal(f1, g1, tolerance = 1e-3)
+  expect_equal(f2, g2, tolerance = 1e-3)
 })

@@ -13,7 +13,7 @@ NULL
 
 test_that("fepoisson is similar to fixest", {
   skip_on_cran()
-  
+
   mod <- fepoisson(mpg ~ wt | cyl | am, mtcars)
 
   mod_base <- glm(
@@ -41,8 +41,9 @@ test_that("fepoisson is similar to fixest", {
   expect_equal(length(fes), 1)
 
   expect_equal(
-    round(fes[["cyl"]][1], 2),
-    unname(round(coef(glm(mpg ~ wt + as.factor(cyl), mtcars, family = quasipoisson(link = "log")))[1], 2))
+    fes[["cyl"]][1],
+    unname(coef(glm(mpg ~ wt + as.factor(cyl), mtcars, family = quasipoisson(link = "log")))[1]),
+    tolerance = 1e-3
   )
 
   smod <- summary(mod)
