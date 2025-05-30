@@ -82,7 +82,13 @@ bool valid_eta_mu_(const vec &eta, const vec &mu, const FamilyType family_type);
   return (r < p) ? 1 : 0;
 }
 
-mat crossprod_(const mat &X, const vec &w) { return X.t() * diagmat(w) * X; }
+mat crossprod_(const mat &X, const vec &w) {
+  if (w.n_elem == 1) {
+    return X.t() * X;
+  } else {
+    return X.t() * diagmat(w) * X;
+  }
+}
 
 // Cholesky decomposition
 vec solve_beta_(mat &MX, const mat &MNU, const vec &w) {
@@ -118,18 +124,19 @@ void center_variables_(mat &V, const vec &w, const list &klist,
   const double inv_sw = 1.0 / accu(w);
 
   // Auxiliary variables (storage)
-  size_t iter, iint, isr, j, k, l, p, J, L;
-  double coef, ratio, ssr, ssq, ratio0, ssr0;
+  size_t iter, iint, isr, j, k, l, p, J, L, group_size, max_groups = 0;
+  double coef, ratio, ssr, ssq, ratio0, ssr0, dx_norm, x0_norm, mean_val;
   vec x(N, fill::none), x0(N, fill::none), Gx(N, fill::none),
       G2x(N, fill::none), deltaG(N, fill::none), delta2(N, fill::none),
-      diff(N, fill::none);
-
-  // Precompute groups into fields
+      diff(N, fill::none), group_means;
   field<field<uvec>> group_indices(K);
   field<vec> group_inv_w(K);
+
+  // Precompute groups into fields
   for (k = 0; k < K; ++k) {
     const list &jlist = klist[k];
     J = jlist.size();
+    max_groups = std::max(max_groups, J);
     field<uvec> idxs(J);
     vec invs(J);
     for (j = 0; j < J; ++j) {
@@ -140,20 +147,33 @@ void center_variables_(mat &V, const vec &w, const list &klist,
     group_inv_w(k) = std::move(invs);
   }
 
-  // Single projection step (in-place)
+  // Pre-allocate group means vector with maximum size needed
+  group_means.set_size(max_groups);
+
+  // Projection step
   auto project = [&](vec &v) {
+    // Create a map of group sizes to indices
+    std::unordered_map<size_t, std::vector<std::pair<size_t, size_t>>>
+        size_groups;
+
     for (k = 0; k < K; ++k) {
       const auto &idxs = group_indices(k);
-      const auto &invs = group_inv_w(k);
       L = idxs.n_elem;
-      if (L == 0) continue;
-      vec group_means(L, fill::none);
+      if (L == 0)
+        continue;
       for (l = 0; l < L; ++l) {
-        const uvec &coords = idxs(l);
-        group_means(l) = dot(w(coords), v(coords)) * invs(l);
+        group_size = idxs(l).n_elem;
+        size_groups[group_size].push_back({k, l});
       }
-      for (l = 0; l < L; ++l) {
-        v(idxs(l)) -= group_means(l);
+    }
+
+    // Process groups of the same size together
+    for (const auto &[size, groups] : size_groups) {
+      // Batch process all groups of this size
+      for (const auto &[k, l] : groups) {
+        const uvec &coords = group_indices(k)(l);
+        mean_val = as_scalar(w(coords).t() * v(coords)) * group_inv_w(k)(l);
+        v(coords) -= mean_val;
       }
     }
   };
@@ -175,22 +195,32 @@ void center_variables_(mat &V, const vec &w, const list &klist,
       x0 = x;
       project(x);
 
-      // 1) convergence via weighted diff
-      diff = abs(x - x0) / (1.0 + abs(x0));
-      ratio = dot(diff, w) * inv_sw;
-      if (ratio < tol) break;
+      // 1) convergence via L2 norm
+      dx_norm = norm(x - x0, 2);
+      x0_norm = norm(x0, 2);
+      ratio = dx_norm / (1.0 + x0_norm);
+
+      if (ratio < tol)
+        break;
 
       // 2) Irons-Tuck acceleration every 5 iters
       if (iter >= 5 && (iter % 5) == 0) {
         Gx = x;
         project(Gx);
         G2x = Gx;
+        project(G2x);
+
         deltaG = G2x - x;
         delta2 = G2x - 2.0 * x + x0;
         ssq = dot(delta2, delta2);
+
         if (ssq > 1e-10) {
           coef = dot(deltaG, delta2) / ssq;
-          x = (coef > 0.0 && coef < 2.0) ? (G2x - coef * deltaG) : G2x;
+          if (coef > 0.0 && coef < 2.0) {
+            x = G2x - coef * deltaG;
+          } else {
+            x = G2x;
+          }
         }
       }
 
@@ -199,12 +229,14 @@ void center_variables_(mat &V, const vec &w, const list &klist,
         check_user_interrupt();
         isr += isr0;
         ssr = dot(x % x, w) * inv_sw;
-        if (std::fabs(ssr - ssr0) / (1.0 + std::fabs(ssr0)) < tol) break;
+        if (std::fabs(ssr - ssr0) / (1.0 + std::fabs(ssr0)) < tol)
+          break;
         ssr0 = ssr;
       }
 
       // 4) heuristic early exit
-      if (iter > 3 && (ratio0 / ratio) < 1.1 && ratio < tol * 20) break;
+      if (iter > 3 && (ratio0 / ratio) < 1.1 && ratio < tol * 20)
+        break;
       ratio0 = ratio;
     }
 
@@ -212,10 +244,10 @@ void center_variables_(mat &V, const vec &w, const list &klist,
   }
 }
 
-[[cpp11::register]] doubles_matrix<> center_variables_r_(
-    const doubles_matrix<> &V_r, const doubles &w_r, const list &klist,
-    const double &tol, const int &max_iter, const int &iter_interrupt,
-    const int &iter_ssr) {
+[[cpp11::register]] doubles_matrix<>
+center_variables_r_(const doubles_matrix<> &V_r, const doubles &w_r,
+                    const list &klist, const double &tol, const int &max_iter,
+                    const int &iter_interrupt, const int &iter_ssr) {
   mat V = as_mat(V_r);
   center_variables_(V, as_col(w_r), klist, tol, max_iter, iter_interrupt,
                     iter_ssr);
@@ -362,22 +394,23 @@ double dev_resids_poisson_(const vec &y, const vec &mu, const vec &wt) {
 // in R base it can be found in src/library/stats/src/family.c
 // unfortunately the functions that work with a SEXP won't work with a Col<>
 double dev_resids_logit_(const vec &y, const vec &mu, const vec &wt) {
-  vec r(y.n_elem, fill::zeros);
-  vec s(y.n_elem, fill::zeros);
+  vec r(y.n_elem, fill::none);
 
   uvec p = find(y == 1);
   uvec q = find(y == 0);
-  r(p) = y(p) % log(y(p) / mu(p));
-  s(q) = (1 - y(q)) % log((1 - y(q)) / (1 - mu(q)));
+  vec y_p = y(p), y_q = y(q);
 
-  return 2 * dot(wt, r + s);
+  r(p) = y_p % log(y_p / mu(p));
+  r(q) = (1 - y_q) % log((1 - y_q) / (1 - mu(q)));
+
+  return 2 * dot(wt, r);
 }
 
 double dev_resids_gamma_(const vec &y, const vec &mu, const vec &wt) {
   vec r = y / mu;
 
   uvec p = find(y == 0);
-  r.elem(p).fill(1.0);
+  r(p).fill(1.0);
   r = wt % (log(r) - (y - mu) / mu);
 
   return -2 * accu(r);
@@ -392,7 +425,7 @@ double dev_resids_negbin_(const vec &y, const vec &mu, const double &theta,
   vec r = y;
 
   uvec p = find(y < 1);
-  r.elem(p).fill(1.0);
+  r(p).fill(1.0);
   r = wt % (y % log(r / mu) - (y + theta) % log((y + theta) / (mu + theta)));
 
   return 2 * accu(r);
@@ -404,26 +437,26 @@ vec link_inv_(const vec &eta, const FamilyType family_type) {
   vec result(eta.n_elem);
 
   switch (family_type) {
-    case GAUSSIAN:
-      result = link_inv_gaussian_(eta);
-      break;
-    case POISSON:
-      result = link_inv_poisson_(eta);
-      break;
-    case BINOMIAL:
-      result = link_inv_logit_(eta);
-      break;
-    case GAMMA:
-      result = link_inv_gamma_(eta);
-      break;
-    case INV_GAUSSIAN:
-      result = link_inv_invgaussian_(eta);
-      break;
-    case NEG_BIN:
-      result = link_inv_negbin_(eta);
-      break;
-    default:
-      stop("Unknown family");
+  case GAUSSIAN:
+    result = link_inv_gaussian_(eta);
+    break;
+  case POISSON:
+    result = link_inv_poisson_(eta);
+    break;
+  case BINOMIAL:
+    result = link_inv_logit_(eta);
+    break;
+  case GAMMA:
+    result = link_inv_gamma_(eta);
+    break;
+  case INV_GAUSSIAN:
+    result = link_inv_invgaussian_(eta);
+    break;
+  case NEG_BIN:
+    result = link_inv_negbin_(eta);
+    break;
+  default:
+    stop("Unknown family");
   }
 
   return result;
@@ -432,40 +465,39 @@ vec link_inv_(const vec &eta, const FamilyType family_type) {
 double dev_resids_(const vec &y, const vec &mu, const double &theta,
                    const vec &wt, const FamilyType family_type) {
   switch (family_type) {
-    case GAUSSIAN:
-      return dev_resids_gaussian_(y, mu, wt);
-    case POISSON:
-      return dev_resids_poisson_(y, mu, wt);
-    case BINOMIAL:
-      return dev_resids_logit_(y, mu, wt);
-    case GAMMA:
-      return dev_resids_gamma_(y, mu, wt);
-    case INV_GAUSSIAN:
-      return dev_resids_invgaussian_(y, mu, wt);
-    case NEG_BIN:
-      return dev_resids_negbin_(y, mu, theta, wt);
-    default:
-      stop("Unknown family");
+  case GAUSSIAN:
+    return dev_resids_gaussian_(y, mu, wt);
+  case POISSON:
+    return dev_resids_poisson_(y, mu, wt);
+  case BINOMIAL:
+    return dev_resids_logit_(y, mu, wt);
+  case GAMMA:
+    return dev_resids_gamma_(y, mu, wt);
+  case INV_GAUSSIAN:
+    return dev_resids_invgaussian_(y, mu, wt);
+  case NEG_BIN:
+    return dev_resids_negbin_(y, mu, theta, wt);
+  default:
+    stop("Unknown family");
   }
 }
 
 bool valid_eta_mu_(const vec &eta, const vec &mu,
                    const FamilyType family_type) {
   switch (family_type) {
-    case GAUSSIAN:
-      return true;
-    case POISSON:
-    case NEG_BIN:
-      return is_finite(mu) && all(mu > 0);
-    case BINOMIAL:
-      return is_finite(mu) && all(mu > 0 && mu < 1);
-    case GAMMA:
-      return is_finite(eta) && all(eta != 0.0) && is_finite(mu) &&
-             all(mu > 0.0);
-    case INV_GAUSSIAN:
-      return is_finite(eta) && all(eta > 0.0);
-    default:
-      stop("Unknown family");
+  case GAUSSIAN:
+    return true;
+  case POISSON:
+  case NEG_BIN:
+    return is_finite(mu) && all(mu > 0);
+  case BINOMIAL:
+    return is_finite(mu) && all(mu > 0 && mu < 1);
+  case GAMMA:
+    return is_finite(eta) && all(eta != 0.0) && is_finite(mu) && all(mu > 0.0);
+  case INV_GAUSSIAN:
+    return is_finite(eta) && all(eta > 0.0);
+  default:
+    stop("Unknown family");
   }
 }
 
@@ -475,26 +507,26 @@ vec mu_eta_(const vec &eta, const FamilyType family_type) {
   vec result(eta.n_elem);
 
   switch (family_type) {
-    case GAUSSIAN:
-      result.ones();
-      break;
-    case POISSON:
-    case NEG_BIN:
-      result = arma::exp(eta);
-      break;
-    case BINOMIAL: {
-      vec exp_eta = arma::exp(eta);
-      result = exp_eta / arma::square(1 + exp_eta);
-      break;
-    }
-    case GAMMA:
-      result = -1 / arma::square(eta);
-      break;
-    case INV_GAUSSIAN:
-      result = -1 / (2 * arma::pow(eta, 1.5));
-      break;
-    default:
-      stop("Unknown family");
+  case GAUSSIAN:
+    result.ones();
+    break;
+  case POISSON:
+  case NEG_BIN:
+    result = arma::exp(eta);
+    break;
+  case BINOMIAL: {
+    vec exp_eta = arma::exp(eta);
+    result = exp_eta / arma::square(1 + exp_eta);
+    break;
+  }
+  case GAMMA:
+    result = -1 / arma::square(eta);
+    break;
+  case INV_GAUSSIAN:
+    result = -1 / (2 * arma::pow(eta, 1.5));
+    break;
+  default:
+    stop("Unknown family");
   }
 
   return result;
@@ -503,20 +535,20 @@ vec mu_eta_(const vec &eta, const FamilyType family_type) {
 vec variance_(const vec &mu, const double &theta,
               const FamilyType family_type) {
   switch (family_type) {
-    case GAUSSIAN:
-      return ones<vec>(mu.n_elem);
-    case POISSON:
-      return mu;
-    case BINOMIAL:
-      return mu % (1 - mu);
-    case GAMMA:
-      return square(mu);
-    case INV_GAUSSIAN:
-      return pow(mu, 3.0);
-    case NEG_BIN:
-      return mu + square(mu) / theta;
-    default:
-      stop("Unknown family");
+  case GAUSSIAN:
+    return ones<vec>(mu.n_elem);
+  case POISSON:
+    return mu;
+  case BINOMIAL:
+    return mu % (1 - mu);
+  case GAMMA:
+    return square(mu);
+  case INV_GAUSSIAN:
+    return pow(mu, 3.0);
+  case NEG_BIN:
+    return mu + square(mu) / theta;
+  default:
+    stop("Unknown family");
   }
 }
 
@@ -675,10 +707,11 @@ vec variance_(const vec &mu, const double &theta,
 // SECTION: GLM OFFSET
 ////////////////////////////////////////////////////////////////////////////////
 
-[[cpp11::register]] doubles feglm_offset_fit_(
-    const doubles &eta_r, const doubles &y_r, const doubles &offset_r,
-    const doubles &wt_r, const std::string &family, const list &control,
-    const list &k_list) {
+[[cpp11::register]] doubles
+feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
+                  const doubles &offset_r, const doubles &wt_r,
+                  const std::string &family, const list &control,
+                  const list &k_list) {
   // Type conversion
 
   vec eta = as_Col(eta_r);
@@ -792,7 +825,7 @@ vec variance_(const vec &mu, const double &theta,
   // Auxiliary variables (storage)
   size_t j, k, l, iter, J, J1, J2, interrupt_iter = interrupt_iter0;
   double num, denom, ratio;
-  vec y(p.n_elem, fill::none);
+  vec y(p.n_elem, fill::none), subtract_vec(p.n_elem, fill::none);
 
   // Pre-compute list sizes
   field<int> list_sizes(K);
@@ -804,7 +837,7 @@ vec variance_(const vec &mu, const double &theta,
     list_sizes(k) = J;
     group_indices(k).set_size(J);
     for (j = 0; j < J; ++j) {
-      group_indices(k)(j) = as_uvec(as_cpp<integers>(jlist[j]));
+      group_indices(k)(j) = as_uvec(jlist[j]);
     }
   }
 
@@ -828,26 +861,29 @@ vec variance_(const vec &mu, const double &theta,
     Alpha0 = Alpha;
 
     for (k = 0; k < K; ++k) {
-      if (list_sizes(k) == 0) continue;  // Skip empty groups
+      if (list_sizes(k) == 0)
+        continue;
 
       // Compute adjusted dependent variable
       y = p;
+
       for (l = 0; l < K; ++l) {
+        if (l == k || list_sizes(l) == 0)
+          continue;
+
+        const field<uvec> &indices_l = group_indices(l);
+        const vec &alpha_l = Alpha0(l);
+
         J1 = list_sizes(l);
-        if (l == k || J1 == 0) continue;
         for (j = 0; j < J1; ++j) {
-          const uvec &indexes = group_indices(l)(j);
-          y.elem(indexes) -= Alpha0(l)(j);
+          subtract_vec(indices_l(j)).fill(alpha_l(j));
         }
+        y -= subtract_vec;
       }
 
       J2 = list_sizes(k);
       for (j = 0; j < J2; ++j) {
-        // Subset the j-th group of category k
-        const uvec &indexes = group_indices(k)(j);
-
-        // Store group mean
-        Alpha(k)(j) = mean(y.elem(indexes));
+        Alpha(k)(j) = mean(y(group_indices(k)(j)));
       }
     }
 
@@ -855,7 +891,8 @@ vec variance_(const vec &mu, const double &theta,
     num = 0.0, denom = 0.0;
 
     for (k = 0; k < K; ++k) {
-      if (list_sizes(k) == 0) continue;  // Skip empty groups
+      if (list_sizes(k) == 0)
+        continue; // Skip empty groups
       const vec &diff = Alpha(k) - Alpha0(k);
       num += dot(diff, diff);
       denom += dot(Alpha0(k), Alpha0(k));
@@ -870,7 +907,7 @@ vec variance_(const vec &mu, const double &theta,
   // Return alpha
   writable::list Alpha_r(K);
   for (k = 0; k < K; ++k) {
-    Alpha_r[k] = as_doubles_matrix(Alpha(k).eval());  // Ensure materialization
+    Alpha_r[k] = as_doubles_matrix(Alpha(k).eval()); // Ensure materialization
   }
 
   return Alpha_r;
@@ -893,25 +930,28 @@ vec variance_(const vec &mu, const double &theta,
   // Auxiliary variables (storage)
   size_t j;
   uvec indexes;
-  Row<double> groupSum(P, fill::none);
-  double denom;
-  mat b(P, 1, fill::zeros);
+  mat b(P, 1, fill::zeros), groupSum(P, 1, fill::none);
+  double w_sum;
 
   // Compute sum of weighted group sums
   for (j = 0; j < J; ++j) {
-    indexes = as_uvec(as_cpp<integers>(jlist[j]));
-    groupSum = sum(M.rows(indexes), 0);
-    denom = accu(w.elem(indexes));
+    indexes = as_uvec(jlist[j]);
 
-    b += groupSum.t() / denom;
+    if (indexes.n_elem > 0) {
+      groupSum = M.rows(indexes).t() * ones(indexes.n_elem);
+
+      w_sum = accu(w(indexes));
+      b += groupSum / w_sum;
+    }
   }
 
   return as_doubles_matrix(b);
 }
 
-[[cpp11::register]] doubles_matrix<> group_sums_spectral_(
-    const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
-    const doubles_matrix<> &w_r, const int K, const list &jlist) {
+[[cpp11::register]] doubles_matrix<>
+group_sums_spectral_(const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
+                     const doubles_matrix<> &w_r, const int K,
+                     const list &jlist) {
   // Types conversion
   const mat M = as_Mat(M_r);
   const mat v = as_Mat(v_r);
@@ -921,7 +961,7 @@ vec variance_(const vec &mu, const double &theta,
   const size_t J = jlist.size(), K1 = K, P = M.n_cols;
 
   // Auxiliary variables (storage)
-  size_t i, j, k, I;
+  size_t j, k, I;
   uvec indexes;
   vec num(P, fill::none), v_shifted;
   mat b(P, 1, fill::zeros);
@@ -929,20 +969,20 @@ vec variance_(const vec &mu, const double &theta,
 
   // Compute sum of weighted group sums
   for (j = 0; j < J; ++j) {
-    indexes = as_uvec(as_cpp<integers>(jlist[j]));
+    indexes = as_uvec(jlist[j]);
     I = indexes.n_elem;
 
-    if (I <= 1) continue;
+    if (I <= 1)
+      continue;
 
     num.fill(0.0);
 
-    denom = accu(w.elem(indexes));
+    denom = accu(w(indexes));
 
     v_shifted.zeros(I);
+    vec v_indexed = v(indexes);
     for (k = 1; k <= K1 && k < I; ++k) {
-      for (i = 0; i < I - k; ++i) {
-        v_shifted(i + k) += v(indexes(i));
-      }
+      v_shifted.subvec(k, I - 1) += v_indexed.subvec(0, I - k - 1);
     }
 
     num = M.rows(indexes).t() * (v_shifted * (I / (I - 1.0)));
@@ -953,8 +993,8 @@ vec variance_(const vec &mu, const double &theta,
   return as_doubles_matrix(b);
 }
 
-[[cpp11::register]] doubles_matrix<> group_sums_var_(
-    const doubles_matrix<> &M_r, const list &jlist) {
+[[cpp11::register]] doubles_matrix<>
+group_sums_var_(const doubles_matrix<> &M_r, const list &jlist) {
   // Types conversion
   const mat M = as_Mat(M_r);
 
@@ -969,7 +1009,7 @@ vec variance_(const vec &mu, const double &theta,
 
   // Compute covariance matrix
   for (j = 0; j < J; ++j) {
-    indexes = as_uvec(as_cpp<integers>(jlist[j]));
+    indexes = as_uvec(jlist[j]);
 
     v = sum(M.rows(indexes), 0).t();
 
@@ -979,9 +1019,9 @@ vec variance_(const vec &mu, const double &theta,
   return as_doubles_matrix(V);
 }
 
-[[cpp11::register]] doubles_matrix<> group_sums_cov_(
-    const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
-    const list &jlist) {
+[[cpp11::register]] doubles_matrix<>
+group_sums_cov_(const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
+                const list &jlist) {
   // Types conversion
   const mat M = as_Mat(M_r);
   const mat N = as_Mat(N_r);
@@ -997,7 +1037,7 @@ vec variance_(const vec &mu, const double &theta,
 
   // Compute covariance matrix
   for (j = 0; j < J; ++j) {
-    indexes = as_uvec(as_cpp<integers>(jlist[j]));
+    indexes = as_uvec(jlist[j]);
 
     if (indexes.n_elem < 2) {
       continue;
