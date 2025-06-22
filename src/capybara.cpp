@@ -27,8 +27,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   vec w = as_col(w_r);
   indices_info indices = list_to_indices_info(k_list);
 
-  vec dummy_y(V.n_rows, fill::ones);
-  center_variables(V, dummy_y, w, indices, tol, max_iter);
+  center_variables(V, w, indices, tol, max_iter, iter_interrupt);
 
   return as_doubles_matrix(V);
 }
@@ -87,6 +86,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   const size_t iter_center_max = as_cpp<size_t>(control["iter_center_max"]);
   const size_t iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]);
   const size_t iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]);
+  const size_t iter_ssr = as_cpp<size_t>(control["iter_ssr"]);
   const bool use_acceleration = as_cpp<bool>(control["use_acceleration"]);
 
   indices_info indices = list_to_indices_info(k_list);
@@ -98,7 +98,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
 
   feglm_results results =
       feglm(MX, beta, eta, y, wt, theta, family_type, center_tol, dev_tol,
-            iter_max, iter_center_max, iter_inner_max, iter_interrupt, indices,
+            iter_max, iter_center_max, iter_inner_max, iter_interrupt, iter_ssr, indices,
             ws, use_acceleration);
 
   if (keep_mx) {
@@ -144,6 +144,7 @@ feglm_offset_(const doubles &eta_r, const doubles &y_r, const doubles &offset_r,
   const size_t iter_center_max = as_cpp<size_t>(control["iter_center_max"]);
   const size_t iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]);
   const size_t iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]);
+  const size_t iter_ssr = as_cpp<size_t>(control["iter_ssr"]);
   const bool use_acceleration = as_cpp<bool>(control["use_acceleration"]);
 
   indices_info indices = list_to_indices_info(k_list);
@@ -156,7 +157,7 @@ feglm_offset_(const doubles &eta_r, const doubles &y_r, const doubles &offset_r,
   feglm_offset_results result =
       feglm_offset(eta, y, offset, wt, family_type, center_tol, dev_tol,
                    iter_max, iter_center_max, iter_inner_max, iter_interrupt,
-                   indices, ws, use_acceleration);
+                   iter_ssr, indices, ws, use_acceleration);
 
   if (!any(result.valid_coefficients == 0)) {
     return as_doubles(result.coefficients);

@@ -19,3 +19,4 @@
 ^penmp$
 ^CRAN-SUBMISSION$
 ^cran-comments\.md$
+^benchmarks$

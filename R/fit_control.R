@@ -32,15 +32,18 @@ NULL
 #'  algorithm. The stopping condition is based on the relative change of the
 #'  centered variable similar to the \code{'lfe'} package. The default is
 #'  \code{1.0e-06}.
-#' @param iter_max unsigned integer indicating the maximum number of iterations
+#' @param iter_max integer indicating the maximum number of iterations
 #'  in the maximization routine. The default is \code{25L}.
-#' @param iter_center_max unsigned integer indicating the maximum number of
+#' @param iter_center_max integer indicating the maximum number of
 #'  iterations in the centering algorithm. The default is \code{10000L}.
-#' @param iter_inner_max unsigned integer indicating the maximum number of
+#' @param iter_inner_max integer indicating the maximum number of
 #'  iterations in the inner loop of the centering algorithm. The default is
 #'  \code{50L}.
-#' @param iter_interrupt unsigned integer indicating the maximum number of
+#' @param iter_interrupt integer indicating the maximum number of
 #' iterations before the algorithm is interrupted. The default is \code{1000L}.
+#' @param iter_ssr integer indicating the number of iterations
+#'  to skip before checking if the sum of squared residuals improves. The
+#'  default is \code{10L}.
 #' @param limit integer indicating the maximum number of iterations of
 #'  \code{\link[MASS]{theta.ml}}. The default is \code{10L}.
 #' @param trace logical indicating if output should be produced in each
@@ -75,6 +78,7 @@ fit_control <- function(
     iter_center_max = 10000L,
     iter_inner_max = 50L,
     iter_interrupt = 1000L,
+    iter_ssr = 10L,
     limit = 10L,
     trace = FALSE,
     drop_pc = TRUE,
@@ -124,6 +128,15 @@ fit_control <- function(
     )
   }
 
+  # Check validity of 'iter_ssr'
+  iter_ssr <- as.integer(iter_ssr)
+  if (iter_ssr < 1L) {
+    stop(
+      "Number of iterations to skip before checking SSR should be at least one.",
+      call. = FALSE
+    )
+  }
+
   # Check validity of 'limit'
   limit <- as.integer(limit)
   if (limit < 1L) {
@@ -158,6 +171,7 @@ fit_control <- function(
     iter_center_max = iter_center_max,
     iter_inner_max = iter_inner_max,
     iter_interrupt = iter_interrupt,
+    iter_ssr = iter_ssr,
     limit = limit,
     trace = trace,
     drop_pc = drop_pc,

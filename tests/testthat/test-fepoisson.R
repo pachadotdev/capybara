@@ -45,7 +45,7 @@ test_that("fepoisson is similar to fixest", {
   expect_equal(
     unname(fes[["cyl"]][1]),
     unname(coef(glm(mpg ~ wt + as.factor(cyl), mtcars, family = quasipoisson(link = "log")))[1]),
-    tolerance = 1e-1
+    tolerance = 1e-2
   )
 
   smod <- summary(mod)

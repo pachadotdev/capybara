@@ -43,7 +43,7 @@ test_that("feglm handles unit-type columns", {
     family = gaussian()
   )
 
-  expect_equal(coef(mod)["log_m"], coef(mod_base)["log_m"], tolerance = 1e-1)
+  expect_equal(coef(mod)["log_m"], coef(mod_base)["log_m"], tolerance = 1e-2)
 
-  expect_equal(coef(mod)["log_a"], coef(mod_base)["log_a"], tolerance = 1e-1)
+  expect_equal(coef(mod)["log_a"], coef(mod_base)["log_a"], tolerance = 1e-2)
 })

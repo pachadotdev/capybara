@@ -5,8 +5,8 @@
 \title{Set \code{feglm} Control Parameters}
 \usage{
 fit_control(
-  dev_tol = 1e-06,
-  center_tol = 1e-06,
+  dev_tol = 1e-05,
+  center_tol = 1e-05,
   iter_max = 25L,
   iter_center_max = 10000L,
   iter_inner_max = 50L,
@@ -14,7 +14,8 @@ fit_control(
   limit = 10L,
   trace = FALSE,
   drop_pc = TRUE,
-  keep_mx = FALSE
+  keep_mx = FALSE,
+  use_acceleration = TRUE
 )
 }
 \arguments{
@@ -59,6 +60,11 @@ The default is \code{TRUE}.}
 stored. The centered regressor matrix is required for some covariance
 estimators, bias corrections, and average partial effects. This option saves
 some computation time at the cost of memory. The default is \code{TRUE}.}
+
+\item{use_acceleration}{logical indicating if the algorithm should use
+acceleration techniques to speed up convergence. This option is useful for
+large datasets and complex models. The default is \code{TRUE} for datasets
+with more than 1000 observations and two or more fixed effects.}
 }
 \value{
 A named list of control parameters.

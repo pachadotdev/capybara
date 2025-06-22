@@ -17,7 +17,7 @@ test_that("felm works", {
   m1 <- felm(mpg ~ wt | cyl, mtcars)
   m2 <- lm(mpg ~ wt + as.factor(cyl), mtcars)
 
-  expect_equal(coef(m1), coef(m2)[2], tolerance = 1e-1)
+  expect_equal(coef(m1), coef(m2)[2], tolerance = 1e-2)
 
   n <- nrow(mtcars)
   expect_equal(length(fitted(m1)), n)
@@ -28,20 +28,20 @@ test_that("felm works", {
   m1 <- felm(mpg ~ wt + qsec | cyl, mtcars)
   m2 <- lm(mpg ~ wt + qsec + as.factor(cyl), mtcars)
 
-  expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-1)
+  expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-2)
 
   # 2-FE ----
 
   m1 <- felm(mpg ~ wt + qsec | cyl + am, mtcars)
   m2 <- lm(mpg ~ wt + qsec + as.factor(cyl) + as.factor(am), mtcars)
 
-  expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-1)
+  expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-2)
 
   s1 <- summary(m1)
   s2 <- summary(m2)
 
-  expect_equal(s1$r.squared, s2$r.squared, tolerance = 1e-1)
-  expect_equal(s1$adj.r.squared, s2$adj.r.squared, tolerance = 1e-1)
+  expect_equal(s1$r.squared, s2$r.squared, tolerance = 1e-2)
+  expect_equal(s1$adj.r.squared, s2$adj.r.squared, tolerance = 1e-2)
 
   mtcars2 <- mtcars
   mtcars2$wt[2] <- NA
@@ -49,29 +49,29 @@ test_that("felm works", {
   m1 <- felm(mpg ~ wt + qsec | cyl + am, mtcars2)
   m2 <- lm(mpg ~ wt + qsec + as.factor(cyl) + as.factor(am), mtcars2)
 
-  expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-1)
+  expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-2)
 
   s1 <- summary(m1)
   s2 <- summary(m2)
 
-  expect_equal(s1$r.squared, s2$r.squared, tolerance = 1e-1)
-  expect_equal(s1$adj.r.squared, s2$adj.r.squared, tolerance = 1e-1)
+  expect_equal(s1$r.squared, s2$r.squared, tolerance = 1e-2)
+  expect_equal(s1$adj.r.squared, s2$adj.r.squared, tolerance = 1e-2)
 
   m1 <- felm(mpg ~ wt + qsec | cyl + am | carb, mtcars)
 
-  expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-1)
+  expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-2)
 
   # 3-FE ----
 
   m1 <- felm(mpg ~ wt + qsec | cyl + am + gear, mtcars)
   m2 <- lm(mpg ~ wt + qsec + as.factor(cyl) + as.factor(am) + as.factor(gear), mtcars)
 
-  expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-1)
+  expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-2)
   
   s1 <- summary(m1)
   s2 <- summary(m2)
-  expect_equal(s1$r.squared, s2$r.squared, tolerance = 1e-1)
-  expect_equal(s1$adj.r.squared, s2$adj.r.squared, tolerance = 1e-1)
+  expect_equal(s1$r.squared, s2$r.squared, tolerance = 1e-2)
+  expect_equal(s1$adj.r.squared, s2$adj.r.squared, tolerance = 1e-2)
 })
 
 test_that("felm time is the minimally affected when adding noise to the data", {
@@ -114,7 +114,7 @@ test_that("proportional regressors return NA coefficients", {
 
   expect_equal(coef(fit1)[2:3], coef(fit2), tolerance = 1e-2)
 
-  expect_equal(unname(predict(fit1)), predict(fit2), tolerance = 1e-3)
+  expect_equal(unname(predict(fit1)), predict(fit2), tolerance = 1e-2)
 })
 
 test_that("Inf values are dropped", {

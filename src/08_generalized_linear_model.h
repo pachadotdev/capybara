@@ -131,7 +131,9 @@ feglm_results feglm_poisson(mat &MX, vec &beta, vec &eta, const vec &y,
                             const vec &wt, const double &center_tol,
                             const double &dev_tol, size_t iter_max,
                             size_t iter_center_max, size_t iter_inner_max,
-                            size_t iter_interrupt, const indices_info &indices,
+                            size_t iter_interrupt,
+                            size_t iter_ssr,
+                            const indices_info &indices,
                             glm_workspace &ws, uword N, uword P,
                             const bool &use_acceleration) {
   reserve_glm_workspace(ws, N, P);
@@ -139,7 +141,6 @@ feglm_results feglm_poisson(mat &MX, vec &beta, vec &eta, const vec &y,
   // Keep original matrix for later
   mat MX0 = MX;
   bool has_fe = (indices.fe_sizes.n_elem > 0);
-  bool use_w = !all(wt == 1.0);
 
   if (eta.is_empty() || all(eta == 0.0)) {
     eta.set_size(N);
@@ -188,8 +189,8 @@ feglm_results feglm_poisson(mat &MX, vec &beta, vec &eta, const vec &y,
       MX = MX0; // Restore original matrix
 
       vec MNU(ws.MNU.colptr(0), N, false, false);
-      center_variables_batch(MX, MNU, ws.w, MX0, indices, center_tol,
-                             iter_center_max, iter_interrupt, use_w,
+      center_variables(MX, MNU, ws.w, MX0, indices, center_tol,
+                             iter_center_max, iter_interrupt, iter_ssr,
                              use_acceleration);
     }
 
@@ -267,15 +268,15 @@ feglm_results feglm(mat &MX, vec &beta, vec &eta, const vec &y, const vec &wt,
                     double theta, family_type family, double center_tol,
                     double dev_tol, size_t iter_max, size_t iter_center_max,
                     size_t iter_inner_max, size_t iter_interrupt,
-                    const indices_info &indices, glm_workspace &ws,
-                    const bool &use_acceleration) {
+                    size_t iter_ssr, const indices_info &indices,
+                    glm_workspace &ws, const bool &use_acceleration) {
   uword N = y.n_elem;
   uword P = MX.n_cols;
 
   if (family == POISSON) {
     return feglm_poisson(MX, beta, eta, y, wt, center_tol, dev_tol, iter_max,
                          iter_center_max, iter_inner_max, iter_interrupt,
-                         indices, ws, N, P, use_acceleration);
+                         iter_ssr, indices, ws, N, P, use_acceleration);
   }
 
   reserve_glm_workspace(ws, N, P);
@@ -283,7 +284,6 @@ feglm_results feglm(mat &MX, vec &beta, vec &eta, const vec &y, const vec &wt,
   // Store const reference to original matrix
   const mat &MX_orig = MX;
   bool has_fe = (indices.fe_sizes.n_elem > 0);
-  bool use_w = !all(wt == 1.0);
 
   if (eta.is_empty()) {
     eta.set_size(N);
@@ -323,8 +323,8 @@ feglm_results feglm(mat &MX, vec &beta, vec &eta, const vec &y, const vec &wt,
     if (has_fe) {
       MX = MX_orig;
       vec MNU(ws.MNU.colptr(0), N, false, false);
-      center_variables_batch(MX, MNU, ws.w, MX_orig, indices, center_tol,
-                             iter_center_max, iter_interrupt, use_w,
+      center_variables(MX, MNU, ws.w, MX_orig, indices, center_tol,
+                             iter_center_max, iter_interrupt, iter_ssr,
                              use_acceleration);
     }
 
@@ -394,17 +394,18 @@ feglm_results feglm(mat &MX, vec &beta, vec &eta, const vec &y, const vec &wt,
                        wt, std::move(H), dev, null_dev, conv, actual_iters);
 }
 
-feglm_offset_results
-feglm_offset(vec eta, const vec &y, const vec &offset, const vec &wt,
-             family_type family, double center_tol, double dev_tol,
-             size_t iter_max, size_t iter_center_max, size_t iter_inner_max,
-             size_t iter_interrupt, const indices_info &indices,
-             glm_workspace &ws, const bool &use_acceleration) {
+feglm_offset_results feglm_offset(vec eta, const vec &y, const vec &offset,
+                                  const vec &wt, family_type family,
+                                  double center_tol, double dev_tol,
+                                  size_t iter_max, size_t iter_center_max,
+                                  size_t iter_inner_max, size_t iter_interrupt,
+                                  size_t iter_ssr, const indices_info &indices,
+                                  glm_workspace &ws,
+                                  const bool &use_acceleration) {
   uword N = y.n_elem;
   reserve_glm_workspace(ws, N, 1); // P=1
 
   const bool has_fe = (indices.fe_sizes.n_elem > 0);
-  const bool use_w = !all(wt == 1.0);
 
   if (eta.is_empty() || all(eta == 0.0)) {
     smart_initialize_glm(eta, y, family);
@@ -437,13 +438,11 @@ feglm_offset(vec eta, const vec &y, const vec &offset, const vec &wt,
 
     // Center variables if needed
     if (has_fe) {
-      mat Ymat = reshape(ws.yadj, N, 1);
-      vec dummy_y = vec(N, 1, fill::zeros);
-      // Fixed function call with proper arguments
-      center_variables_batch(Ymat, dummy_y, ws.w, Ymat, indices, center_tol,
-                             iter_center_max, iter_interrupt, use_w,
+      vec yc = ws.yadj;
+      center_variables(yc, ws.w, indices, center_tol,
+                             iter_center_max, iter_interrupt, iter_ssr,
                              use_acceleration);
-      ws.yadj = Ymat.col(0);      // Update yadj with centered values
+      ws.yadj = yc;      // Update yadj with centered values
       ws.eta_upd = ws.yadj - eta; // Simplified calculation
     } else {
       ws.eta_upd = offset - eta;
