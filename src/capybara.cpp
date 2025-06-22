@@ -27,8 +27,8 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   vec w = as_col(w_r);
   indices_info indices = list_to_indices_info(k_list);
 
-  const bool use_weights = !all(w == 1.0);
-  center_variables(V, w, indices, tol, max_iter, iter_interrupt, use_weights);
+  vec dummy_y(V.n_rows, fill::ones);
+  center_variables(V, dummy_y, w, indices, tol, max_iter);
 
   return as_doubles_matrix(V);
 }

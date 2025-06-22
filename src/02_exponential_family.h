@@ -66,6 +66,26 @@ inline double dev_resids_poisson(const vec &y, const vec &mu, const vec &wt,
   return 2.0 * dot(wt, dev_vec_work);
 }
 
+// inline double dev_resids_logit(const vec &y, const vec &mu, const vec &wt) {
+//   const uword n = y.n_elem;
+//   vec dev_vec(n, fill::zeros);
+
+//   // Create binary mask (0 for y=0, 1 for y=1)
+//   uvec mask(n, fill::zeros);
+//   uvec idx1 = find(y == 1);
+
+//   // y=1 cases: log(1.0/mu)
+//   // y=0 cases: log(1.0/(1.0-mu))
+//   if (!idx1.is_empty()) {
+//     mask.elem(idx1).ones();
+//     dev_vec = mask % log(1.0 / mu) + (1.0 - mask) % log(1.0 / (1.0 - mu));
+//   } else {
+//     dev_vec = log(1.0 / (1.0 - mu));
+//   }
+
+//   return 2.0 * dot(wt, dev_vec);
+// }
+
 inline double dev_resids_logit(const vec &y, const vec &mu, const vec &wt) {
   const uword n = y.n_elem;
   vec mu_safe(n, fill::none);

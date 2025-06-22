@@ -235,7 +235,6 @@ inline void accelerate_cg(const indices_info &indices, vec &y, vec &result,
   result = y;
 }
 
-// Main solver function - now uses MAP by default for K >= 2
 inline void center_variables(mat &X, vec &y, const vec &weights,
                              const indices_info &indices, double tolerance,
                              size_t max_iter) {
@@ -270,9 +269,9 @@ inline void center_variables(mat &X, vec &y, const vec &weights,
 
       // Center each column of X
       for (uword j = 0; j < X.n_cols; ++j) {
-        vec x_col = X.col(j);
+        vec x(X.colptr(j), N, false, false); // Non-owning view
         vec result;
-        accelerate_cg(cached_indices, x_col, result, weights, ws, transform);
+        accelerate_cg(cached_indices, x, result, weights, ws, transform);
         X.col(j) = result;
       }
 
@@ -359,10 +358,7 @@ inline void center_variables(mat &X, vec &y, const vec &weights,
   }
 }
 
-// Updated batch version that handles both X and y together with automatic
-// acceleration
-// Updated batch version with acceleration control
-inline void center_variables_batch(mat &X_work, mat &y_mat, const vec &w,
+inline void center_variables_batch(mat &X_work, vec &y, const vec &w,
                                    const mat &X_orig,
                                    const indices_info &indices, double tol,
                                    size_t max_iter, size_t iter_interrupt,
@@ -381,9 +377,7 @@ inline void center_variables_batch(mat &X_work, mat &y_mat, const vec &w,
   // For K >= 2, try to use MAP acceleration only if enabled
   if (N >= 5000 && K >= 2 && use_acceleration) {
     try {
-      vec y_col = y_mat.col(0);
-      center_variables(X_work, y_col, w, indices, tol, max_iter);
-      y_mat.col(0) = y_col;
+      center_variables(X_work, y, w, indices, tol, max_iter);
       return;
     } catch (const std::exception &e) {
       cpp11::warning(
@@ -398,7 +392,6 @@ inline void center_variables_batch(mat &X_work, mat &y_mat, const vec &w,
   const uword P = X_work.n_cols;
   const double sw = use_weights ? accu(w) : N;
 
-  vec y_col(y_mat.colptr(0), N, false, false);  // Non-owning view
   vec y_old(N, fill::none);
   mat X_old(N, P, fill::none);
 
@@ -409,7 +402,7 @@ inline void center_variables_batch(mat &X_work, mat &y_mat, const vec &w,
   for (uword iter = 0; iter < max_iter; ++iter) {
     if (iter % iter_interrupt == 0 && iter > 0) check_user_interrupt();
 
-    if (!y_converged) y_old = y_col;
+    if (!y_converged) y_old = y;
     for (uword p = 0; p < P; ++p) {
       if (!x_converged(p)) X_old.col(p) = X_work.col(p);
     }
@@ -425,19 +418,19 @@ inline void center_variables_batch(mat &X_work, mat &y_mat, const vec &w,
         if (!y_converged) {
           if (use_weights) {
             vec w_grp = w.elem(grp);
-            vec y_grp = y_col.elem(grp);
+            vec y_grp = y.elem(grp);
             double num = dot(w_grp, y_grp);
             double denom = accu(w_grp);
             if (denom > 0) {
               double meanj = num / denom;
-              y_col.elem(grp) -= meanj;
+              y.elem(grp) -= meanj;
             }
           } else {
-            double num = accu(y_col.elem(grp));
+            double num = accu(y.elem(grp));
             double denom = grp.n_elem;
             if (denom > 0) {
               double meanj = num / denom;
-              y_col.elem(grp) -= meanj;
+              y.elem(grp) -= meanj;
             }
           }
         }
@@ -471,7 +464,7 @@ inline void center_variables_batch(mat &X_work, mat &y_mat, const vec &w,
     // Check convergence
     if (!y_converged) {
       double delta =
-          accu(abs(y_col - y_old) / (1.0 + abs(y_old)) % weights_vec) / sw;
+          accu(abs(y - y_old) / (1.0 + abs(y_old)) % weights_vec) / sw;
       if (delta < tol) y_converged = true;
     }
 
@@ -491,18 +484,6 @@ inline void center_variables_batch(mat &X_work, mat &y_mat, const vec &w,
 
     if (y_converged && all_x_converged) break;
   }
-}
-
-// Legacy interface for backward compatibility
-inline void center_variables(mat &X, const vec &w, const indices_info &indices,
-                             double tol, size_t max_iter, size_t iter_interrupt,
-                             bool use_weights) {
-  // Create a temporary vector for y (not used but needed for interface)
-  vec temp_y(X.n_rows);
-  temp_y.zeros();
-
-  // Call the main implementation
-  center_variables(X, temp_y, w, indices, tol, max_iter);
 }
 
 #endif // CAPYBARA_CENTER_H

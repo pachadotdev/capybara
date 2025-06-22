@@ -187,19 +187,9 @@ feglm_results feglm_poisson(mat &MX, vec &beta, vec &eta, const vec &y,
     if (has_fe) {
       MX = MX0; // Restore original matrix
 
-      // Try using acceleration based on problem characteristics
-      // Only accelerate for multiple FEs and sufficiently large problems
-      bool can_accelerate = indices.fe_sizes.n_elem > 1 && N > 1000;
-
-      if (can_accelerate) {
-        vec MNU_vec = ws.MNU;
-        center_variables(MX, MNU_vec, ws.w, indices, center_tol,
-                         iter_center_max);
-        ws.MNU = MNU_vec;
-      } else {
-        center_variables_batch(MX, ws.MNU, ws.w, MX0, indices, center_tol,
+      vec MNU(ws.MNU.colptr(0), N, false, false);
+      center_variables_batch(MX, MNU, ws.w, MX0, indices, center_tol,
                                iter_center_max, iter_interrupt, use_w, use_acceleration);
-      }
     }
 
     // Solve for beta update
@@ -331,7 +321,8 @@ feglm_results feglm(mat &MX, vec &beta, vec &eta, const vec &y, const vec &wt,
 
     if (has_fe) {
       MX = MX_orig;
-      center_variables_batch(MX, ws.MNU, ws.w, MX_orig, indices, center_tol,
+      vec MNU(ws.MNU.colptr(0), N, false, false);
+      center_variables_batch(MX, MNU, ws.w, MX_orig, indices, center_tol,
                              iter_center_max, iter_interrupt, use_w, use_acceleration);
     }
 

@@ -36,14 +36,8 @@ inline felm_results felm(mat &X, const vec &y, const vec &w, double center_tol,
   if (has_fe) {
     mat X0 = X;
     vec yc = y;  // Make a copy since it will be modified
-
-    // Convert to matrix for center_variables_batch
-    mat yc_mat = reshape(yc, N, 1);
-    center_variables_batch(X, yc_mat, w, X0, indices, center_tol,
-                           iter_center_max, iter_interrupt, use_w,
-                           use_acceleration);
-    yc = yc_mat.col(0);  // Extract back as vector
-
+    center_variables_batch(X, yc, w, X0, indices, center_tol, iter_center_max,
+                           iter_interrupt, use_w, use_acceleration);
     solve_beta(X, yc, w, N, P, beta_ws, use_w);
     fitted = compute_fitted(X, y, yc, beta_ws);
   } else {
