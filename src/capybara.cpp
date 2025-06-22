@@ -37,17 +37,18 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
                                const doubles &wt_r, const list &control,
                                const list &k_list) {
   mat X = as_mat(x_r);
-  const vec y = as_mat(y_r);
+  const vec y = as_col(y_r);
   const vec w = as_col(wt_r);
 
   const double center_tol = as_cpp<double>(control["center_tol"]);
   const size_t iter_center_max = as_cpp<size_t>(control["iter_center_max"]);
   const size_t iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]);
+  const bool use_acceleration = as_cpp<bool>(control["use_acceleration"]);
 
   indices_info indices = list_to_indices_info(k_list);
 
-  felm_results results =
-      felm(X, y, w, center_tol, iter_center_max, iter_interrupt, indices);
+  felm_results results = felm(X, y, w, center_tol, iter_center_max,
+                              iter_interrupt, indices, use_acceleration);
 
   if (!any(results.valid_coefficients == 0)) {
     return results.to_list();
@@ -86,6 +87,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   const size_t iter_center_max = as_cpp<size_t>(control["iter_center_max"]);
   const size_t iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]);
   const size_t iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]);
+  const bool use_acceleration = as_cpp<bool>(control["use_acceleration"]);
 
   indices_info indices = list_to_indices_info(k_list);
 
@@ -96,7 +98,8 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
 
   feglm_results results = feglm(MX, beta, eta, y, wt, theta, family_type,
                                 center_tol, dev_tol, iter_max, iter_center_max,
-                                iter_inner_max, iter_interrupt, indices, ws);
+                                iter_inner_max, iter_interrupt, indices, ws,
+                                use_acceleration);
 
   if (keep_mx) {
     results.centered_matrix = std::move(MX);
@@ -141,6 +144,7 @@ feglm_offset_(const doubles &eta_r, const doubles &y_r, const doubles &offset_r,
   const size_t iter_center_max = as_cpp<size_t>(control["iter_center_max"]);
   const size_t iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]);
   const size_t iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]);
+  const bool use_acceleration = as_cpp<bool>(control["use_acceleration"]);
 
   indices_info indices = list_to_indices_info(k_list);
 
@@ -151,7 +155,8 @@ feglm_offset_(const doubles &eta_r, const doubles &y_r, const doubles &offset_r,
 
   feglm_offset_results result = feglm_offset(
       eta, y, offset, wt, family_type, center_tol, dev_tol, iter_max,
-      iter_center_max, iter_inner_max, iter_interrupt, indices, ws);
+      iter_center_max, iter_inner_max, iter_interrupt, indices, ws,
+      use_acceleration);
 
   if (!any(result.valid_coefficients == 0)) {
     return as_doubles(result.coefficients);

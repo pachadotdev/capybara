@@ -20,9 +20,10 @@ inline vec compute_fitted(const mat &X, const vec &orig_y,
   return fitted;
 }
 
-inline felm_results felm(mat &X, const mat &y_mat, const vec &w,
-                         double center_tol, size_t iter_center_max,
-                         size_t iter_interrupt, const indices_info &indices) {
+inline felm_results felm(mat &X, const vec &y, const vec &w, double center_tol,
+                         size_t iter_center_max, size_t iter_interrupt,
+                         const indices_info &indices,
+                         const bool &use_acceleration) {
   const uword N = X.n_rows;
   const uword P = X.n_cols;
 
@@ -30,18 +31,24 @@ inline felm_results felm(mat &X, const mat &y_mat, const vec &w,
   bool use_w = !all(w == 1.0);
 
   beta_results beta_ws(N, P);
-
   vec fitted(N, fill::none);
 
   if (has_fe) {
-    vec yc = y_mat;
-    center_variables_batch(X, yc, w, X, indices, center_tol, iter_center_max,
-                           iter_interrupt, use_w);
+    mat X0 = X;
+    vec yc = y;  // Make a copy since it will be modified
+
+    // Convert to matrix for center_variables_batch
+    mat yc_mat = reshape(yc, N, 1);
+    center_variables_batch(X, yc_mat, w, X0, indices, center_tol,
+                           iter_center_max, iter_interrupt, use_w,
+                           use_acceleration);
+    yc = yc_mat.col(0);  // Extract back as vector
+
     solve_beta(X, yc, w, N, P, beta_ws, use_w);
-    fitted = compute_fitted(X, y_mat, yc, beta_ws);
+    fitted = compute_fitted(X, y, yc, beta_ws);
   } else {
-    solve_beta(X, y_mat, w, N, P, beta_ws, use_w);
-    fitted = compute_fitted(X, y_mat, vec(), beta_ws);
+    solve_beta(X, y, w, N, P, beta_ws, use_w);
+    fitted = compute_fitted(X, y, vec(), beta_ws);
   }
 
   crossproduct_results cross_ws(N, P);

@@ -16,6 +16,7 @@ inline double adaptive_damping(const std::vector<double> &dev_hist) {
   return (d1 * d2 < 0.0) ? 0.8 : 1.0;
 }
 
+// Update line_search_poisson to use workspace
 inline bool line_search_poisson(double &dev, double dev_old, double &damping,
                                 double dev_tol, size_t inner_max, vec &eta,
                                 vec &beta, const vec &eta_old,
@@ -74,6 +75,7 @@ inline bool line_search_poisson(double &dev, double dev_old, double &damping,
   return false;
 }
 
+// Update GLM line search
 inline bool line_search_glm(double &dev, double dev_old, double &damping,
                             double dev_tol, size_t inner_max, vec &eta,
                             vec &beta, const vec &eta_old, const vec &beta_old,
@@ -124,17 +126,20 @@ inline bool line_search_glm(double &dev, double dev_old, double &damping,
   return false;
 }
 
+// Fix Poisson GLM to use the updated centering functions
 feglm_results feglm_poisson(mat &MX, vec &beta, vec &eta, const vec &y,
                             const vec &wt, const double &center_tol,
                             const double &dev_tol, size_t iter_max,
                             size_t iter_center_max, size_t iter_inner_max,
                             size_t iter_interrupt, const indices_info &indices,
-                            glm_workspace &ws, uword N, uword P) {
+                            glm_workspace &ws, uword N, uword P,
+                            const bool &use_acceleration) {
   reserve_glm_workspace(ws, N, P);
 
-  // Store const reference to original matrix - NO COPY
-  const mat &MX_orig = MX;
+  // Keep original matrix for later
+  mat MX0 = MX;
   bool has_fe = (indices.fe_sizes.n_elem > 0);
+  bool use_w = !all(wt == 1.0);
 
   if (eta.is_empty() || all(eta == 0.0)) {
     eta.set_size(N);
@@ -142,18 +147,26 @@ feglm_results feglm_poisson(mat &MX, vec &beta, vec &eta, const vec &y,
   }
 
   vec ymean(N, fill::value(mean(y)));
-
   ws.exp_eta = exp(eta);
   ws.mu = ws.exp_eta;
+
+  // Create temporary vectors for the calculation if needed
+  if (ws.dev_vec_work.n_elem != N) {
+    ws.dev_vec_work.set_size(N);
+    ws.ratio_work.set_size(N);
+  }
+
   double dev = dev_resids_poisson(y, ws.mu, wt, ws.dev_vec_work, ws.ratio_work);
   double null_dev =
       dev_resids_poisson(y, ymean, wt, ws.dev_vec_work, ws.ratio_work);
 
+  // Convergence tracking
   bool conv = false;
   double best_dev = dev;
   size_t no_imp = 0;
   size_t actual_iters = 0;
 
+  // Main iteration loop
   for (size_t it = 0; it < iter_max; ++it) {
     actual_iters = it + 1;
     double dev_old = dev;
@@ -170,41 +183,42 @@ feglm_results feglm_poisson(mat &MX, vec &beta, vec &eta, const vec &y,
     ws.nu_old = ws.nu;
     ws.MNU = ws.MNU_accum;
 
+    // Center variables - conditionally using MAP acceleration
     if (has_fe) {
-      // KEY CHANGE: Pass original matrix to avoid copying in main loop
-      center_variables_batch(ws.MX_work, ws.MNU, ws.w, MX_orig, indices,
-                             center_tol, iter_center_max, iter_interrupt, true);
-      // Use the working matrix for beta solving
-      ws.beta_upd =
-          solve_beta(ws.MX_work, ws.MNU, ws.w, N, P, ws.beta_ws, true);
-    } else {
-      // No fixed effects - work directly with original matrix
-      ws.beta_upd = solve_beta(MX, ws.MNU, ws.w, N, P, ws.beta_ws, true);
+      MX = MX0; // Restore original matrix
+
+      // Try using acceleration based on problem characteristics
+      // Only accelerate for multiple FEs and sufficiently large problems
+      bool can_accelerate = indices.fe_sizes.n_elem > 1 && N > 1000;
+
+      if (can_accelerate) {
+        vec MNU_vec = ws.MNU;
+        center_variables(MX, MNU_vec, ws.w, indices, center_tol,
+                         iter_center_max);
+        ws.MNU = MNU_vec;
+      } else {
+        center_variables_batch(MX, ws.MNU, ws.w, MX0, indices, center_tol,
+                               iter_center_max, iter_interrupt, use_w, use_acceleration);
+      }
     }
 
+    // Solve for beta update
+    ws.beta_upd = solve_beta(MX, ws.MNU, ws.w, N, P, ws.beta_ws, true);
+
+    // Compute eta update
     uvec valid = find(ws.beta_ws.valid_coefficients);
-    if (has_fe) {
-      // Use working matrix for prediction
-      if (valid.n_elem < P)
-        ws.eta_upd =
-            ws.MX_work.cols(valid) * ws.beta_upd.elem(valid) + (ws.nu - ws.MNU);
-      else
-        ws.eta_upd = ws.MX_work * ws.beta_upd + (ws.nu - ws.MNU);
-    } else {
-      if (valid.n_elem < P)
-        ws.eta_upd =
-            MX.cols(valid) * ws.beta_upd.elem(valid) + (ws.nu - ws.MNU);
-      else
-        ws.eta_upd = MX * ws.beta_upd + (ws.nu - ws.MNU);
-    }
+    if (valid.n_elem < P)
+      ws.eta_upd = MX.cols(valid) * ws.beta_upd.elem(valid) + (ws.nu - ws.MNU);
+    else
+      ws.eta_upd = MX * ws.beta_upd + (ws.nu - ws.MNU);
 
+    // Line search
     double damping = 1.0;
     bool ok = line_search_poisson(
         dev, dev_old, damping, dev_tol, iter_inner_max, eta, beta, eta_old,
         beta_old, ws.eta_upd, ws.beta_upd, ws.mu, ws.exp_eta, y, wt, ws);
 
     if (!ok) {
-      // Revert to previous values
       eta = eta_old;
       beta = beta_old;
       ws.exp_eta = exp(eta);
@@ -216,6 +230,7 @@ feglm_results feglm_poisson(mat &MX, vec &beta, vec &eta, const vec &y,
         break;
       }
     } else {
+      // Track improvement
       if (dev < best_dev - dev_tol * std::fabs(best_dev)) {
         best_dev = dev;
         no_imp = 0;
@@ -228,6 +243,7 @@ feglm_results feglm_poisson(mat &MX, vec &beta, vec &eta, const vec &y,
       }
     }
 
+    // Convergence check
     double diff = std::fabs(dev - dev_old) / (0.1 + std::fabs(dev));
     if (diff < dev_tol) {
       conv = true;
@@ -241,10 +257,9 @@ feglm_results feglm_poisson(mat &MX, vec &beta, vec &eta, const vec &y,
   if (!conv)
     stop("Poisson FE-GLM failed to converge");
 
-  // Use the appropriate matrix for final Hessian calculation
-  mat &final_matrix = has_fe ? ws.MX_work : MX;
-  mat H = crossproduct(final_matrix, ws.w, ws.cross_ws, true);
+  mat H = crossproduct(MX, ws.w, ws.cross_ws, true);
 
+  // Set invalid coefficients to NaN
   for (uword j = 0; j < P; ++j) {
     if (!ws.beta_ws.valid_coefficients(j)) {
       beta(j) = arma::datum::nan;
@@ -256,18 +271,20 @@ feglm_results feglm_poisson(mat &MX, vec &beta, vec &eta, const vec &y,
                        wt, std::move(H), dev, null_dev, conv, actual_iters);
 }
 
+// General FE-GLM for any family - using updated centering
 feglm_results feglm(mat &MX, vec &beta, vec &eta, const vec &y, const vec &wt,
                     double theta, family_type family, double center_tol,
                     double dev_tol, size_t iter_max, size_t iter_center_max,
                     size_t iter_inner_max, size_t iter_interrupt,
-                    const indices_info &indices, glm_workspace &ws) {
+                    const indices_info &indices, glm_workspace &ws,
+                    const bool &use_acceleration) {
   uword N = y.n_elem;
   uword P = MX.n_cols;
 
   if (family == POISSON) {
     return feglm_poisson(MX, beta, eta, y, wt, center_tol, dev_tol, iter_max,
                          iter_center_max, iter_inner_max, iter_interrupt,
-                         indices, ws, N, P);
+                         indices, ws, N, P, use_acceleration);
   }
 
   reserve_glm_workspace(ws, N, P);
@@ -275,6 +292,7 @@ feglm_results feglm(mat &MX, vec &beta, vec &eta, const vec &y, const vec &wt,
   // Store const reference to original matrix - NO COPY
   const mat &MX_orig = MX;
   bool has_fe = (indices.fe_sizes.n_elem > 0);
+  bool use_w = !all(wt == 1.0);
 
   if (eta.is_empty()) {
     eta.set_size(N);
@@ -312,22 +330,20 @@ feglm_results feglm(mat &MX, vec &beta, vec &eta, const vec &y, const vec &wt,
     ws.MNU = ws.MNU_accum;
 
     if (has_fe) {
-      // Use the optimized centering approach
-      center_variables_batch(ws.MX_work, ws.MNU, ws.w, MX_orig, indices,
-                             center_tol, iter_center_max, iter_interrupt, true);
-      ws.beta_upd =
-          solve_beta(ws.MX_work, ws.MNU, ws.w, N, P, ws.beta_ws, true);
-    } else {
-      ws.beta_upd = solve_beta(MX, ws.MNU, ws.w, N, P, ws.beta_ws, true);
+      MX = MX_orig;
+      center_variables_batch(MX, ws.MNU, ws.w, MX_orig, indices, center_tol,
+                             iter_center_max, iter_interrupt, use_w, use_acceleration);
     }
+
+    ws.beta_upd = solve_beta(MX, ws.MNU, ws.w, N, P, ws.beta_ws, true);
 
     uvec valid = find(ws.beta_ws.valid_coefficients);
     if (has_fe) {
       if (valid.n_elem < P)
         ws.eta_upd =
-            ws.MX_work.cols(valid) * ws.beta_upd.elem(valid) + (ws.nu - ws.MNU);
+            MX.cols(valid) * ws.beta_upd.elem(valid) + (ws.nu - ws.MNU);
       else
-        ws.eta_upd = ws.MX_work * ws.beta_upd + (ws.nu - ws.MNU);
+        ws.eta_upd = MX * ws.beta_upd + (ws.nu - ws.MNU);
     } else {
       if (valid.n_elem < P)
         ws.eta_upd =
@@ -371,8 +387,7 @@ feglm_results feglm(mat &MX, vec &beta, vec &eta, const vec &y, const vec &wt,
     stop("FE-GLM failed to converge");
 
   // Use the appropriate matrix for final Hessian calculation
-  mat &final_matrix = has_fe ? ws.MX_work : MX;
-  mat H = crossproduct(final_matrix, ws.w, ws.cross_ws, true);
+  mat H = crossproduct(MX, ws.w, ws.cross_ws, true);
 
   // Set invalid coefficients to NaN
   for (uword j = 0; j < P; ++j) {
@@ -386,15 +401,16 @@ feglm_results feglm(mat &MX, vec &beta, vec &eta, const vec &y, const vec &wt,
                        wt, std::move(H), dev, null_dev, conv, actual_iters);
 }
 
-feglm_offset_results feglm_offset(vec eta, const vec &y, const vec &offset,
-                                  const vec &wt, family_type family,
-                                  double center_tol, double dev_tol,
-                                  size_t iter_max, size_t iter_center_max,
-                                  size_t iter_inner_max, size_t iter_interrupt,
-                                  const indices_info &indices,
-                                  glm_workspace &ws) {
+feglm_offset_results feglm_offset(
+    vec eta, const vec &y, const vec &offset, const vec &wt, family_type family,
+    double center_tol, double dev_tol, size_t iter_max, size_t iter_center_max,
+    size_t iter_inner_max, size_t iter_interrupt, const indices_info &indices,
+    glm_workspace &ws, const bool &use_acceleration) {
   uword N = y.n_elem;
   reserve_glm_workspace(ws, N, 1); // P=1
+
+  const bool has_fe = (indices.fe_sizes.n_elem > 0);
+  const bool use_w = !all(wt == 1.0);
 
   if (eta.is_empty() || all(eta == 0.0)) {
     smart_initialize_glm(eta, y, family);
@@ -412,8 +428,6 @@ feglm_offset_results feglm_offset(vec eta, const vec &y, const vec &offset,
     double dev_old = dev;
     vec eta_old = eta;
 
-    // Calculate working weights and adjusted response with original
-    // calculations
     get_mu(ws.xi, eta, family);
     variance(ws.var_mu, ws.mu, 0.0, family);
     ws.w = wt % square(ws.xi) / ws.var_mu;
@@ -428,11 +442,15 @@ feglm_offset_results feglm_offset(vec eta, const vec &y, const vec &offset,
     ws.yadj = (y - ws.mu) / ws.xi + eta - offset;
 
     // Center variables if needed
-    if (indices.fe_sizes.n_elem > 0) {
+    if (has_fe) {
       mat Ymat = reshape(ws.yadj, N, 1);
-      center_variables(Ymat, ws.w, indices, center_tol, iter_center_max,
-                       iter_interrupt, true);
-      ws.eta_upd = ws.yadj - Ymat.col(0) + offset - eta;
+      vec dummy_y = vec(N, 1, fill::zeros);
+      // Fixed function call with proper arguments
+      center_variables_batch(Ymat, dummy_y, ws.w, Ymat, indices, center_tol,
+                             iter_center_max, iter_interrupt, use_w,
+                             use_acceleration);
+      ws.yadj = Ymat.col(0);       // Update yadj with centered values
+      ws.eta_upd = ws.yadj - eta;  // Simplified calculation
     } else {
       ws.eta_upd = offset - eta;
     }

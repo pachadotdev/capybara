@@ -55,6 +55,10 @@ NULL
 #'  stored. The centered regressor matrix is required for some covariance
 #'  estimators, bias corrections, and average partial effects. This option saves
 #'  some computation time at the cost of memory. The default is \code{TRUE}.
+#' @param use_acceleration logical indicating if the algorithm should use
+#'  acceleration techniques to speed up convergence. This option is useful for
+#'  large datasets and complex models. The default is \code{TRUE} for datasets
+#'  with more than 1000 observations and two or more fixed effects.
 #' @return A named list of control parameters.
 #'
 #' @examples
@@ -74,7 +78,8 @@ fit_control <- function(
     limit = 10L,
     trace = FALSE,
     drop_pc = TRUE,
-    keep_mx = FALSE) {
+    keep_mx = FALSE,
+    use_acceleration = TRUE) {
   # Check validity of tolerance parameters
   if (dev_tol <= 0.0 || center_tol <= 0.0) {
     stop(
@@ -140,6 +145,11 @@ fit_control <- function(
     stop("'keep_mx' should be a single logical value.", call. = FALSE)
   }
 
+  # Check validity of 'use_acceleration'
+  if (!is.logical(use_acceleration) || length(use_acceleration) != 1L) {
+    stop("'use_acceleration' should be a single logical value.", call. = FALSE)
+  }
+
   # Return list with control parameters
   list(
     dev_tol = dev_tol,
@@ -151,6 +161,7 @@ fit_control <- function(
     limit = limit,
     trace = trace,
     drop_pc = drop_pc,
-    keep_mx = keep_mx
+    keep_mx = keep_mx,
+    use_acceleration = use_acceleration
   )
 }
