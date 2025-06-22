@@ -362,12 +362,12 @@ inline void center_variables_batch(mat &X_work, vec &y, const vec &w,
                                    const mat &X_orig,
                                    const indices_info &indices, double tol,
                                    size_t max_iter, size_t iter_interrupt,
-                                   bool use_weights,
-                                   bool use_acceleration) {
+                                   bool use_weights, bool use_acceleration) {
   const uword N = X_orig.n_rows;
   const uword K = indices.fe_sizes.n_elem;
 
-  if (K == 0) return;
+  if (K == 0)
+    return;
 
   // Copy from original to avoid external matrix copying
   if (&X_work != &X_orig) {
@@ -380,10 +380,9 @@ inline void center_variables_batch(mat &X_work, vec &y, const vec &w,
       center_variables(X_work, y, w, indices, tol, max_iter);
       return;
     } catch (const std::exception &e) {
-      cpp11::warning(
-          "MAP batch acceleration failed, falling back to standard "
-          "algorithm: %s",
-          e.what());
+      cpp11::warning("MAP batch acceleration failed, falling back to standard "
+                     "algorithm: %s",
+                     e.what());
       // Continue to fallback implementation
     }
   }
@@ -400,11 +399,14 @@ inline void center_variables_batch(mat &X_work, vec &y, const vec &w,
   vec weights_vec = use_weights ? w : vec(N, fill::ones);
 
   for (uword iter = 0; iter < max_iter; ++iter) {
-    if (iter % iter_interrupt == 0 && iter > 0) check_user_interrupt();
+    if (iter % iter_interrupt == 0 && iter > 0)
+      check_user_interrupt();
 
-    if (!y_converged) y_old = y;
+    if (!y_converged)
+      y_old = y;
     for (uword p = 0; p < P; ++p) {
-      if (!x_converged(p)) X_old.col(p) = X_work.col(p);
+      if (!x_converged(p))
+        X_old.col(p) = X_work.col(p);
     }
 
     // Alternate between categories
@@ -412,7 +414,8 @@ inline void center_variables_batch(mat &X_work, vec &y, const vec &w,
       const uword J = indices.fe_sizes(k);
       for (uword j = 0; j < J; ++j) {
         uvec grp = indices.get_group(k, j);
-        if (grp.is_empty()) continue;
+        if (grp.is_empty())
+          continue;
 
         // Center y
         if (!y_converged) {
@@ -437,7 +440,8 @@ inline void center_variables_batch(mat &X_work, vec &y, const vec &w,
 
         // Center each X column
         for (uword p = 0; p < P; ++p) {
-          if (x_converged(p)) continue;
+          if (x_converged(p))
+            continue;
 
           vec x_col(X_work.colptr(p), N, false, false);
           if (use_weights) {
@@ -465,7 +469,8 @@ inline void center_variables_batch(mat &X_work, vec &y, const vec &w,
     if (!y_converged) {
       double delta =
           accu(abs(y - y_old) / (1.0 + abs(y_old)) % weights_vec) / sw;
-      if (delta < tol) y_converged = true;
+      if (delta < tol)
+        y_converged = true;
     }
 
     bool all_x_converged = true;
@@ -482,7 +487,8 @@ inline void center_variables_batch(mat &X_work, vec &y, const vec &w,
       }
     }
 
-    if (y_converged && all_x_converged) break;
+    if (y_converged && all_x_converged)
+      break;
   }
 }
 

@@ -242,9 +242,13 @@ inline void variance(vec &result, const vec &mu, const double &theta,
   case POISSON:
     result = mu;
     break;
-  case BINOMIAL:
-    result = mu % (1.0 - mu);
+  case BINOMIAL: {
+    // result = mu % (1.0 - mu);
+    // This avoids numerical issues with extreme probabilities
+    vec mu_safe = clamp(mu, datum::eps, 1.0 - datum::eps);
+    result = mu_safe % (1.0 - mu_safe);
     break;
+  }
   case GAMMA:
     result = square(mu);
     break;

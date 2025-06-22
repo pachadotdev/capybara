@@ -96,10 +96,10 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   const size_t p = MX.n_cols;
   glm_workspace ws(n, p);
 
-  feglm_results results = feglm(MX, beta, eta, y, wt, theta, family_type,
-                                center_tol, dev_tol, iter_max, iter_center_max,
-                                iter_inner_max, iter_interrupt, indices, ws,
-                                use_acceleration);
+  feglm_results results =
+      feglm(MX, beta, eta, y, wt, theta, family_type, center_tol, dev_tol,
+            iter_max, iter_center_max, iter_inner_max, iter_interrupt, indices,
+            ws, use_acceleration);
 
   if (keep_mx) {
     results.centered_matrix = std::move(MX);
@@ -153,10 +153,10 @@ feglm_offset_(const doubles &eta_r, const doubles &y_r, const doubles &offset_r,
   const size_t p = 1; // Single column for offset GLM
   glm_workspace ws(n, p);
 
-  feglm_offset_results result = feglm_offset(
-      eta, y, offset, wt, family_type, center_tol, dev_tol, iter_max,
-      iter_center_max, iter_inner_max, iter_interrupt, indices, ws,
-      use_acceleration);
+  feglm_offset_results result =
+      feglm_offset(eta, y, offset, wt, family_type, center_tol, dev_tol,
+                   iter_max, iter_center_max, iter_inner_max, iter_interrupt,
+                   indices, ws, use_acceleration);
 
   if (!any(result.valid_coefficients == 0)) {
     return as_doubles(result.coefficients);

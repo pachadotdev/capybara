@@ -35,7 +35,7 @@ inline felm_results felm(mat &X, const vec &y, const vec &w, double center_tol,
 
   if (has_fe) {
     mat X0 = X;
-    vec yc = y;  // Make a copy since it will be modified
+    vec yc = y; // Make a copy since it will be modified
     center_variables_batch(X, yc, w, X0, indices, center_tol, iter_center_max,
                            iter_interrupt, use_w, use_acceleration);
     solve_beta(X, yc, w, N, P, beta_ws, use_w);

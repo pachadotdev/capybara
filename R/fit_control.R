@@ -69,8 +69,8 @@ NULL
 #'
 #' @export
 fit_control <- function(
-    dev_tol = 1.0e-06,
-    center_tol = 1.0e-06,
+    dev_tol = 1.0e-05,
+    center_tol = 1.0e-05,
     iter_max = 25L,
     iter_center_max = 10000L,
     iter_inner_max = 50L,

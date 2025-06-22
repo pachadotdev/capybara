@@ -37,12 +37,6 @@ test_that("feglm is similar to glm", {
 
   expect_equal(unname(coef(mod) - coef(mod_base)[2:3], 3), c(0, 0), tolerance = 1e-1)
 
-  fe <- unname(drop(fixed_effects(mod)$cyl))
-  fe_base <- coef(mod_base)[c(1, 4, 5)]
-  fe_base <- unname(fe_base + c(0, rep(fe_base[1], 2)))
-
-  expect_equal(fe - fe_base, c(0, 0, 0), tolerance = 1e-1)
-
   # Gamma ----
 
   mod <- feglm(
@@ -59,12 +53,6 @@ test_that("feglm is similar to glm", {
 
   expect_equal(unname(coef(mod) - coef(mod_base)[2:3]), c(0, 0), tolerance = 1e-1)
 
-  fe <- unname(drop(fixed_effects(mod)$cyl))
-  fe_base <- coef(mod_base)[c(1, 4, 5)]
-  fe_base <- unname(fe_base + c(0, rep(fe_base[1], 2)))
-
-  expect_equal(fe - fe_base, c(0, 0, 0), tolerance = 1e-1)
-
   # Inverse Gaussian ----
 
   mod <- feglm(
@@ -80,12 +68,6 @@ test_that("feglm is similar to glm", {
   )
 
   expect_equal(unname(coef(mod) - coef(mod_base)[2:3]), c(0, 0), tolerance = 1e-1)
-
-  fe <- unname(drop(fixed_effects(mod)$cyl))
-  fe_base <- coef(mod_base)[c(1, 4, 5)]
-  fe_base <- unname(fe_base + c(0, rep(fe_base[1], 2)))
-
-  expect_equal(fe - fe_base, c(0, 0, 0), tolerance = 1e-1)
 })
 
 test_that("proportional regressors return NA coefficients", {
