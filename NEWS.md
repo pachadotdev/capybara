@@ -1,3 +1,40 @@
+# capybara 1.5.0
+
+* Handles collinearities in the model matrix by using a QR decomposition
+  when Cholesky fails. Otherwise, the estimation fails, and now it can return
+  NA coefficients.
+
+# capybara 1.4.0
+
+* Adds an extended battery of optional tests for the Poisson model.
+* Modular code for easier maintenance.
+
+# capybara 1.3.0
+
+* Explicitly avoids Intel MKL and fallbacks to OpenBLAS to avoid issues with
+  non reproducible results.
+* Uses OpenMP to parallelize the demeaning functions, which can lead to
+  significant speedups in large datasets.
+* Uses Irons-Tuck acceleration for fast convergence in the demeaning functions.
+
+# capybara 1.2.0
+
+* Changes to fit and summary functions to report perfectly classified
+  observations.
+* Dropped linear dependence checks, leaving it to the Cholesky decomposition
+  to handle it.
+
+# capybara 1.1.0
+
+* The workhorse demeaning functions were rewritten towards a more efficient
+  implementation. This is based on ppmlhdfe and fixest code.
+* Loops were avoided and replace with efficient matrix operations.
+
+# capybara 1.0.3
+
+* Implements some ideas from reghdfe/ppmlhdfe to improve the centering/demeaning
+  functions.
+
 # capybara 1.0.2
 
 * Small refactors for speed.

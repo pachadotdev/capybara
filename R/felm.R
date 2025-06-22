@@ -120,17 +120,12 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   # Transform fixed effects and clusters to factors ----
   data <- transform_fe_(data, formula, k_vars)
 
-  # Determine the number of dropped observations ----
   nt <- nrow(data)
-  nobs <- nobs_(nobs_full, nobs_na, nt)
 
   # Extract model response and regressor matrix ----
   nms_sp <- NA
   p <- NA
   model_response_(data, formula)
-
-  # Check for linear dependence ----
-  check_linear_dependence_(y, x, p + 1L)
 
   # Extract weights if required ----
   if (is.null(weights)) {
@@ -171,7 +166,11 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   if (is.integer(y)) {
     y <- as.numeric(y)
   }
-  fit <- felm_fit_(y, x, wt, control, k_list)
+
+  fit <- structure(felm_(y, x, wt, control, k_list), class = "felm")
+
+  # Determine the number of dropped observations ----
+  nobs <- nobs_(nobs_full, nobs_na, y, predict(fit, type = "response"))
 
   y <- NULL
   x <- NULL
@@ -191,5 +190,5 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   fit[["control"]] <- control
 
   # Return result list ----
-  structure(fit, class = "felm")
+  fit
 }

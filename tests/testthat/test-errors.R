@@ -299,6 +299,6 @@ test_that("error conditions in helpers", {
       data = trade_short,
       weights = "bad_weights"
     ),
-    "Linear dependent terms detected"
+    "Weights must be numeric"
   )
 })

@@ -165,7 +165,7 @@ apes <- function(
   k_list <- get_index_list_(k_vars, data)
 
   # Compute derivatives and weights
-  eta <- object[["eta"]]
+  eta <- object[["linear.predictors"]]
   mu <- family[["linkinv"]](eta)
   mu_eta <- family[["mu.eta"]](eta)
   v <- wt * (y - mu)
@@ -183,7 +183,8 @@ apes <- function(
   if (control[["keep_mx"]]) {
     mx <- object[["mx"]]
   } else {
-    mx <- center_variables_r_(x, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]])
+    mx <- center_variables_(x, w, k_list, control[["center_tol"]],
+      control[["iter_max"]], control[["iter_interrupt"]])
   }
 
   # Compute average partial effects, derivatives, and Jacobian
@@ -220,7 +221,8 @@ apes <- function(
 
   # Compute projection and residual projection of \psi
   psi <- -delta1 / w
-  mpsi <- center_variables_r_(psi, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]])
+  mpsi <- center_variables_(psi, w, k_list, control[["center_tol"]],
+    control[["iter_max"]], control[["iter_interrupt"]])
   ppsi <- psi - mpsi
   rm(delta1, psi)
 

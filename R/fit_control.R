@@ -27,11 +27,11 @@ NULL
 #'  maximization routine. The stopping condition is based on the relative change
 #'  of the deviance in iteration \eqn{r} and can be expressed as follows:
 #'  \eqn{|dev_{r} - dev_{r - 1}| / (0.1 + |dev_{r}|) < tol}{|dev - devold| /
-#'  (0.1 + |dev|) < tol}. The default is \code{1.0e-08}.
+#'  (0.1 + |dev|) < tol}. The default is \code{1.0e-06}.
 #' @param center_tol tolerance level for the stopping condition of the centering
 #'  algorithm. The stopping condition is based on the relative change of the
 #'  centered variable similar to the \code{'lfe'} package. The default is
-#'  \code{1.0e-08}.
+#'  \code{1.0e-06}.
 #' @param iter_max unsigned integer indicating the maximum number of iterations
 #'  in the maximization routine. The default is \code{25L}.
 #' @param iter_center_max unsigned integer indicating the maximum number of
@@ -41,10 +41,7 @@ NULL
 #'  \code{50L}.
 #' @param iter_interrupt unsigned integer indicating the maximum number of
 #' iterations before the algorithm is interrupted. The default is \code{1000L}.
-#' @param iter_ssr unsigned integer indicating the number of iterations
-#' to skip before checking if the sum of squared residuals improves. The default
-#' is \code{10L}.
-#' @param limit unsigned integer indicating the maximum number of iterations of
+#' @param limit integer indicating the maximum number of iterations of
 #'  \code{\link[MASS]{theta.ml}}. The default is \code{10L}.
 #' @param trace logical indicating if output should be produced in each
 #'  iteration. Default is \code{FALSE}.
@@ -58,23 +55,22 @@ NULL
 #'  stored. The centered regressor matrix is required for some covariance
 #'  estimators, bias corrections, and average partial effects. This option saves
 #'  some computation time at the cost of memory. The default is \code{TRUE}.
-#'
 #' @return A named list of control parameters.
 #'
 #' @examples
-#' feglm_control(0.05, 0.05, 10L, 10L, TRUE, TRUE, TRUE)
+#' felm(mpg ~ wt + hp | cyl, data = mtcars,
+#'  control = fit_control(center_tol = 1.0e-03))
 #'
 #' @seealso \code{\link{feglm}}
 #'
 #' @export
-feglm_control <- function(
+fit_control <- function(
     dev_tol = 1.0e-06,
     center_tol = 1.0e-06,
     iter_max = 25L,
     iter_center_max = 10000L,
     iter_inner_max = 50L,
     iter_interrupt = 1000L,
-    iter_ssr = 10L,
     limit = 10L,
     trace = FALSE,
     drop_pc = TRUE,
@@ -123,19 +119,25 @@ feglm_control <- function(
     )
   }
 
-  # Check validity of 'iter_ssr'
-  iter_ssr <- as.integer(iter_ssr)
-  if (iter_ssr < 1L) {
-    stop(
-      "Maximum number of iterations for SSR should be at least one.",
-      call. = FALSE
-    )
-  }
-
   # Check validity of 'limit'
   limit <- as.integer(limit)
   if (limit < 1L) {
     stop("Maximum number of iterations should be at least one.", call. = FALSE)
+  }
+
+  # Check validity of 'trace'
+  if (!is.logical(trace) || length(trace) != 1L) {
+    stop("'trace' should be a single logical value.", call. = FALSE)
+  }
+
+  # Check validity of 'drop_pc'
+  if (!is.logical(drop_pc) || length(drop_pc) != 1L) {
+    stop("'drop_pc' should be a single logical value.", call. = FALSE)
+  }
+
+  # Check validity of 'keep_mx'
+  if (!is.logical(keep_mx) || length(keep_mx) != 1L) {
+    stop("'keep_mx' should be a single logical value.", call. = FALSE)
   }
 
   # Return list with control parameters
@@ -146,10 +148,9 @@ feglm_control <- function(
     iter_center_max = iter_center_max,
     iter_inner_max = iter_inner_max,
     iter_interrupt = iter_interrupt,
-    iter_ssr = iter_ssr,
     limit = limit,
-    trace = as.logical(trace),
-    drop_pc = as.logical(drop_pc),
-    keep_mx = as.logical(keep_mx)
+    trace = trace,
+    drop_pc = drop_pc,
+    keep_mx = keep_mx
   )
 }

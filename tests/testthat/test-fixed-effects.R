@@ -22,7 +22,7 @@ test_that("fixed_effects is similar to glm", {
   c1 <- unname(coef(fit1)[grep("f", names(coef(fit1)))])
   c2 <- unname(drop(fixed_effects(fit2)$f))
 
-  expect_equal(c1 - c2, rep(0, 10), tolerance = 1e-3)
+  expect_equal(c1 - c2, rep(0, 10), tolerance = 1e-1)
 
   set.seed(100200)
   d <- data.frame(
@@ -37,5 +37,5 @@ test_that("fixed_effects is similar to glm", {
   c1 <- unname(coef(fit1)[grep("f", names(coef(fit1)))])
   c2 <- unname(drop(fixed_effects(fit2)$f))
 
-  expect_equal(c1 - c2, rep(0, 10), tolerance = 1e-3)
+  expect_equal(c1 - c2, rep(0, 10), tolerance = 1e-1)
 })

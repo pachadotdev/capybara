@@ -31,18 +31,6 @@
 #' @noRd
 NULL
 
-#' @title Transform factor
-#' @description Checks if variable is a factor and transforms if necessary
-#' @param x Variable to be checked
-#' @noRd
-check_factor_ <- function(x) {
-  if (is.factor(x)) {
-    droplevels(x)
-  } else {
-    factor(x)
-  }
-}
-
 #' @title Second order derivative
 #' @description Helper for the partial_mu_eta function
 #' @param eta Eta value
@@ -107,101 +95,6 @@ partial_mu_eta_ <- function(eta, family, order) {
   }
 }
 
-#' @title Temporary variable
-#' @description Generates a temporary variable name
-#' @param data Data frame
-#' @noRd
-temp_var_ <- function(data) {
-  tmp_var <- "capybara_temp12345"
-  while (tmp_var %in% colnames(data)) {
-    tmp_var <- paste0("capybara_temp", sample(letters, 5, replace = TRUE))
-  }
-  tmp_var
-}
-
-#' @title Check formula
-#' @description Checks formulas for LM/GLM/NegBin models
-#' @param formula Formula object
-#' @noRd
-check_formula_ <- function(formula) {
-  if (is.null(formula)) {
-    stop("'formula' has to be specified.", call. = FALSE)
-  } else if (!inherits(formula, "formula")) {
-    stop("'formula' has to be of class 'formula'.", call. = FALSE)
-  }
-
-  formula <- Formula(formula)
-
-  if (!any(grepl("\\|", formula[[3L]]))) {
-    message(
-      paste(
-        "Perhaps you forgot to add the fixed effects like 'mpg ~ wt | cyl'",
-        "You are better off using the 'lm()' function from base R."
-      )
-    )
-  }
-
-  assign("formula", formula, envir = parent.frame())
-}
-
-#' @title Check data
-#' @description Checks data for GLM/NegBin models
-#' @param data Data frame
-#' @noRd
-check_data_ <- function(data) {
-  if (is.null(data)) stop("'data' must be specified.", call. = FALSE)
-  if (!is.data.frame(data)) stop("'data' must be a data.frame.", call. = FALSE)
-  if (nrow(data) == 0L) stop("'data' has zero observations.", call. = FALSE)
-
-  setDT(data) # Convert to data.table
-}
-
-#' @title Check control
-#' @description Checks control for GLM/NegBin models and merges with defaults
-#' @param control Control list
-#' @noRd
-check_control_ <- function(control) {
-  default_control <- do.call(feglm_control, list())
-
-  if (is.null(control)) {
-    assign("control", default_control, envir = parent.frame())
-  } else if (!inherits(control, "list")) {
-    stop("'control' has to be a list.", call. = FALSE)
-  } else {
-    # merge user-provided values with defaults
-    merged_control <- default_control
-
-    for (param_name in names(control)) {
-      if (param_name %in% names(default_control)) {
-        merged_control[[param_name]] <- control[[param_name]]
-      } else {
-        warning(sprintf("Unknown control parameter: '%s'", param_name), call. = FALSE)
-      }
-    }
-
-    # checks
-    # 1. non-negative params
-    non_neg_params <- c(
-      "dev_tol", "center_tol", "iter_max", "iter_center_max",
-      "iter_inner_max", "iter_interrupt", "iter_ssr", "limit"
-    )
-    for (param_name in non_neg_params) {
-      if (merged_control[[param_name]] <= 0) {
-        stop(sprintf("'%s' must be greater than zero.", param_name), call. = FALSE)
-      }
-    }
-    # 2. logical params
-    logical_params <- c("trace", "drop_pc", "keep_mx")
-    for (param_name in logical_params) {
-      if (!is.logical(merged_control[[param_name]])) {
-        stop(sprintf("'%s' must be logical.", param_name), call. = FALSE)
-      }
-    }
-
-    assign("control", merged_control, envir = parent.frame())
-  }
-}
-
 #' @title Check family
 #' @description Checks family for GLM/NegBin models
 #' @param family Family object
@@ -222,69 +115,6 @@ check_family_ <- function(family) {
       call. = FALSE
     )
   }
-}
-
-#' @title Column types
-#' @description Returns the column types of a data frame
-#' @param data Data frame
-#' @noRd
-col_types <- function(data) {
-  vapply(data, class, character(1L), USE.NAMES = FALSE)
-}
-
-#' @title Model frame
-#' @description Creates model frame for GLM/NegBin models
-#' @param data Data frame
-#' @param formula Formula object
-#' @param weights Weights
-#' @noRd
-model_frame_ <- function(data, formula, weights) {
-  # Necessary columns
-  formula_vars <- all.vars(formula)
-
-  # Handle different ways weights might be specified
-  if (is.null(weights)) {
-    # No weights specified
-    weight_col <- NULL
-    needed_cols <- formula_vars
-  } else if (is.character(weights) && length(weights) == 1) {
-    # Weights as column name
-    weight_col <- weights
-    needed_cols <- c(formula_vars, weight_col)
-  } else if (inherits(weights, "formula")) {
-    # Weights as formula like ~cyl
-    weight_col <- all.vars(weights)
-    needed_cols <- c(formula_vars, weight_col)
-    # Store the extracted column name for later use
-    assign("weights_col", weight_col, envir = parent.frame())
-  } else if (is.numeric(weights)) {
-    # Weights as vector - store for later use
-    weight_col <- NULL
-    needed_cols <- formula_vars
-    assign("weights_vec", weights, envir = parent.frame())
-  } else {
-    stop("'weights' must be a column name, formula, or numeric vector", call. = FALSE)
-  }
-
-  # Extract needed columns
-  data <- data[, .SD, .SDcols = needed_cols]
-
-  lhs <- names(data)[1L]
-  nobs_full <- nrow(data)
-  data <- na.omit(data)
-
-  # Convert columns of type "units" to numeric
-  unit_cols <- names(data)[vapply(data, inherits, what = "units", logical(1))]
-  if (length(unit_cols) > 0) {
-    data[, (unit_cols) := lapply(.SD, as.numeric), .SDcols = unit_cols]
-  }
-
-  nobs_na <- nobs_full - nrow(data)
-
-  assign("data", data, envir = parent.frame())
-  assign("lhs", lhs, envir = parent.frame())
-  assign("nobs_na", nobs_na, envir = parent.frame())
-  assign("nobs_full", nobs_full, envir = parent.frame())
 }
 
 #' @title Check response
@@ -335,115 +165,42 @@ check_response_ <- function(data, lhs, family) {
 #' @param control Control list
 #' @noRd
 drop_by_link_type_ <- function(data, lhs, family, tmp_var, k_vars, control) {
-  if (family[["family"]] %in% c("binomial", "poisson") && isTRUE(control[["drop_pc"]])) {
-    # Convert response to numeric if it's an integer
-    if (is.integer(data[[lhs]])) {
-      data[, (lhs) := as.numeric(get(lhs))]
-    }
+  if (!family[["family"]] %in% c("binomial", "poisson") || !isTRUE(control[["drop_pc"]])) {
+    return(data)
+  }
 
-    ncheck <- 0
-    nrow_data <- nrow(data)
+  # Convert response to numeric if it's an integer
+  if (is.integer(data[[lhs]])) {
+    set(data, j = lhs, value = as.numeric(data[[lhs]]))
+  }
 
-    while (ncheck != nrow_data) {
-      ncheck <- nrow_data
+  ncheck <- 0L
+  nrow_data <- nrow(data)
+  iter <- 0L
 
-      for (j in k_vars) {
-        data[, (tmp_var) := mean(as.numeric(get(lhs))), by = j]
+  while (ncheck != nrow_data) {
+    ncheck <- nrow_data
 
-        # Filter rows based on family type
-        if (family[["family"]] == "binomial") {
-          data <- data[get(tmp_var) > 0 & get(tmp_var) < 1]
-        } else {
-          data <- data[get(tmp_var) > 0]
-        }
+    for (j in k_vars) {
+      # Compute means by group
+      data[, (tmp_var) := mean(get(lhs)), by = get(j)]
 
-        data[, (tmp_var) := NULL]
+      # Filter rows based on family type
+      if (family[["family"]] == "binomial") {
+        data <- data[get(tmp_var) > 0 & get(tmp_var) < 1]
+      } else {
+        data <- data[get(tmp_var) > 0]
       }
 
-      nrow_data <- nrow(data)
+      # Remove temporary column
+      data[, (tmp_var) := NULL]
     }
+
+    nrow_data <- nrow(data)
+    iter <- iter + 1L
   }
 
   data
-}
-
-#' @title Transform fixed effects
-#' @description Transforms fixed effects that are factors
-#' @param data Data frame
-#' @param formula Formula object
-#' @param k_vars Fixed effects
-#' @noRd
-transform_fe_ <- function(data, formula, k_vars) {
-  data[, (k_vars) := lapply(.SD, check_factor_), .SDcols = k_vars]
-
-  if (length(formula)[[2L]] > 2L) {
-    add_vars <- attr(terms(formula, rhs = 3L), "term.labels")
-    data[, (add_vars) := lapply(.SD, check_factor_), .SDcols = add_vars]
-  }
-
-  return(data)
-}
-
-#' @title Number of observations
-#' @description Computes the number of observations
-#' @param nobs_full Number of observations in the full data set
-#' @param nobs_na Number of observations with missing values
-#' @param nt Number of observations after dropping
-#' @noRd
-nobs_ <- function(nobs_full, nobs_na, nt) {
-  c(
-    nobs_full = nobs_full,
-    nobs_na   = nobs_na,
-    nobs_pc   = nobs_full - nt,
-    nobs      = nobs_full + nobs_na
-  )
-}
-
-#' @title Model response
-#' @description Computes the model response
-#' @param data Data frame
-#' @param formula Formula object
-#' @noRd
-model_response_ <- function(data, formula) {
-  x <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
-  nms_sp <- colnames(x)
-  attr(x, "dimnames") <- NULL
-
-  assign("y", data[[1L]], envir = parent.frame())
-  assign("x", x, envir = parent.frame())
-  assign("nms_sp", nms_sp, envir = parent.frame())
-  assign("p", ncol(x), envir = parent.frame())
-}
-
-#' @title Check weights
-#' @description Checks if weights are valid
-#' @param y Dependent variable
-#' @param x Regressors matrix
-#' @param p Number of parameters
-#' @noRd
-check_linear_dependence_ <- function(y, x, p) {
-  # if (qr(x)$rank < p) {
-  #   stop("Linear dependent terms detected.", call. = FALSE)
-  # }
-
-  if (check_linear_dependence_qr_(y, x, p) == 1L) {
-    stop("Linear dependent terms detected.", call. = FALSE)
-  }
-
-  return(TRUE)
-}
-
-#' @title Check weights
-#' @description Checks if weights are valid
-#' @param wt Weights
-#' @noRd
-check_weights_ <- function(wt) {
-  if (!is.numeric(wt) || anyNA(wt)) {
-    stop("Weights must be numeric and non-missing.", call. = FALSE)
-  }
-  if (any(wt < 0)) {
-    stop("Negative weights are not allowed.", call. = FALSE)
-  }
 }
 
 #' @title Check starting theta
@@ -538,19 +295,6 @@ start_guesses_ <- function(
   assign("eta", eta, envir = parent.frame())
 }
 
-#' @title Get index list
-#' @description Generates an auxiliary list of indexes to project out the fixed
-#'  effects
-#' @param k_vars Fixed effects
-#' @param data Data frame
-#' @noRd
-get_index_list_ <- function(k_vars, data) {
-  indexes <- seq.int(0L, nrow(data) - 1L)
-  lapply(k_vars, function(x, indexes, data) {
-    split(indexes, data[[x]])
-  }, indexes = indexes, data = data)
-}
-
 #' @title Get score matrix
 #' @description Computes the score matrix
 #' @param object Result list
@@ -587,7 +331,7 @@ get_score_matrix_feglm_ <- function(object) {
     attr(x, "dimnames") <- NULL
 
     # Center variables
-    x <- center_variables_r_(x, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["interrupt_iter"]], control[["iter_ssr"]])
+    x <- center_variables_(x, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["interrupt_iter"]])
     colnames(x) <- nms_sp
   }
 

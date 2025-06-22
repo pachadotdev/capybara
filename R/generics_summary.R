@@ -100,8 +100,13 @@ summary.felm <- function(
   w <- object[["weights"]]
   ydemeaned_sq <- (y - mean(y))^2
   e_sq <- (y - object[["fitted.values"]])^2
-  tss <- sum(w * ydemeaned_sq)
-  rss <- sum(w * e_sq)
+  if (length(unique(w)) == 1 && w[1] == 1) {
+    tss <- sum(ydemeaned_sq)
+    rss <- sum(e_sq)
+  } else {
+    tss <- sum(w * ydemeaned_sq)
+    rss <- sum(w * e_sq)
+  }
   n <- unname(object[["nobs"]]["nobs_full"])
   k <- length(object[["coefficients"]]) +
     sum(vapply(object[["nms_fe"]], length, integer(1)))

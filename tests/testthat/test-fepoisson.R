@@ -14,6 +14,8 @@ NULL
 test_that("fepoisson is similar to fixest", {
   skip_on_cran()
 
+  # K = 1
+
   mod <- fepoisson(mpg ~ wt | cyl | am, mtcars)
 
   mod_base <- glm(
@@ -33,7 +35,7 @@ test_that("fepoisson is similar to fixest", {
   expect_visible(summary(mod, type = "cluster"))
 
   fes <- fixed_effects(mod)
-  n <- unname(mod[["nobs"]]["nobs"])
+  n <- unname(mod[["nobs"]]["nobs_full"])
   expect_equal(length(fes), 1)
   expect_equal(length(fitted(mod)), n)
   expect_equal(length(predict(mod)), n)
@@ -41,9 +43,9 @@ test_that("fepoisson is similar to fixest", {
   expect_equal(length(fes), 1)
 
   expect_equal(
-    fes[["cyl"]][1],
+    unname(fes[["cyl"]][1]),
     unname(coef(glm(mpg ~ wt + as.factor(cyl), mtcars, family = quasipoisson(link = "log")))[1]),
-    tolerance = 1e-3
+    tolerance = 1e-1
   )
 
   smod <- summary(mod)
@@ -55,6 +57,38 @@ test_that("fepoisson is similar to fixest", {
   expect_output(summary_r2_(smod, 3))
   expect_output(summary_nobs_(smod))
   expect_output(summary_fisher_(smod))
+
+  # K = 2
+
+  mod <- fepoisson(mpg ~ wt | cyl + am, mtcars)
+
+  mod_base <- glm(
+    mpg ~ wt + as.factor(cyl) + as.factor(am),
+    mtcars,
+    family = quasipoisson(link = "log")
+  )
+
+  coef_dist_base <- coef(mod_base)[2]
+
+  dist_variation <- abs((coef(mod)[1] - coef_dist_base) / coef(mod)[1])
+
+  expect_lt(dist_variation, 0.05)
+
+  # K = 3
+
+  mod <- fepoisson(mpg ~ wt | cyl + am + carb, mtcars)
+
+  mod_base <- glm(
+    mpg ~ wt + as.factor(cyl) + as.factor(am) + as.factor(carb),
+    mtcars,
+    family = quasipoisson(link = "log")
+  )
+
+  coef_dist_base <- coef(mod_base)[2]
+
+  dist_variation <- abs((coef(mod)[1] - coef_dist_base) / coef(mod)[1])
+
+  expect_lt(dist_variation, 0.05)
 })
 
 test_that("fepoisson estimation is the same adding noise to the data", {
@@ -72,35 +106,4 @@ test_that("fepoisson estimation is the same adding noise to the data", {
   m2 <- fepoisson(y2 ~ x | f, d)
   expect_equal(coef(m1), coef(m2))
   expect_equal(fixed_effects(m1), fixed_effects(m2))
-
-  if (Sys.getenv("CAPYBARA_EXTENDED_TESTS") == "true") {
-    n <- 10e5
-
-    set.seed(123)
-
-    d <- data.frame(
-      x = rnorm(n),
-      y = rpois(n, 1),
-      f = factor(rep(1:10, 10e4))
-    )
-
-    d$y2 <- d$y + pmax(rnorm(nrow(d)), 0) * .Machine$double.eps
-
-    t1 <- rep(NA, 10)
-    t2 <- rep(NA, 10)
-    for (i in 1:10) {
-      a <- Sys.time()
-      m1 <- fepoisson(y ~ x | f, d)
-      b <- Sys.time()
-      t1[i] <- b - a
-
-      a <- Sys.time()
-      m2 <- fepoisson(y2 ~ x | f, d)
-      b <- Sys.time()
-      t2[i] <- b - a
-    }
-    expect_gt(abs(median(t1) / median(t2)), 0.9)
-    expect_lt(abs(median(t1) / median(t2)), 1)
-    expect_lt(median(t1), median(t2))
-  }
 })

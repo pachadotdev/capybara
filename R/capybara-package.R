@@ -57,15 +57,16 @@ NULL
 #' arguments or outputs.
 #'
 #' @name capybara-package
-#' @importFrom data.table setDT := .SD
+#' @importFrom data.table set setDT := .SD
 #' @importFrom Formula Formula
 #' @importFrom ggplot2 ggplot aes geom_point geom_errorbar labs theme_minimal
 #'  coord_flip autoplot
 #' @importFrom kendallknight kendall_cor kendall_cor_test
 #' @importFrom MASS negative.binomial theta.ml
-#' @importFrom stats as.formula fitted.values gaussian model.matrix na.omit
-#'  pnorm poisson predict printCoefmat qnorm terms vcov
-#' @importFrom utils combn
+#' @importFrom stats as.formula fitted.values gaussian model.matrix model.frame
+#'  model.response complete.cases pnorm poisson predict printCoefmat qnorm terms
+#'  vcov
+#' @importFrom utils combn sessionInfo
 #' @useDynLib capybara, .registration = TRUE
 "_PACKAGE"
 

@@ -46,12 +46,12 @@ predict.feglm <- function(object, newdata = NULL, type = c("link", "response"), 
     for (name in names(fes)) {
       # # match the FE rownames and replace each level in the data with the FE
       fe <- fes[[name]]
-      fes2[[name]] <- fe[match(data[[name]], rownames(fe)), ]
+      fes2[[name]] <- fe[match(data[[name]], names(fe))]
     }
 
     eta <- x %*% object$coefficients + Reduce("+", fes2)
   } else {
-    eta <- object[["eta"]]
+    eta <- object[["linear.predictors"]]
   }
 
   if (type == "response") {
@@ -90,7 +90,7 @@ predict.felm <- function(object, newdata = NULL, type = c("response", "terms"), 
     for (name in names(fes)) {
       # # match the FE rownames and replace each level in the data with the FE
       fe <- fes[[name]]
-      fes2[[name]] <- fe[match(data[[name]], rownames(fe)), ]
+      fes2[[name]] <- fe[match(data[[name]], names(fe))]
     }
 
     yhat <- x %*% object$coefficients + Reduce("+", fes2)

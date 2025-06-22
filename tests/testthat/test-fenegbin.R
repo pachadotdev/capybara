@@ -11,6 +11,13 @@ test_that("fenegbin is similar to fixest", {
 
   mod <- fenegbin(mpg ~ wt | cyl, mtcars)
 
+  # MASS::glm.nb for negative binomial will return warning because of
+  # lack of overdispersion
+  # mod_mass <- MASS::glm.nb(
+  #   mpg ~ wt + as.factor(cyl),
+  #   mtcars
+  # )
+
   mod_base <- glm(
     mpg ~ wt + as.factor(cyl),
     mtcars,

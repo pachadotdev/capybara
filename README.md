@@ -118,54 +118,47 @@ that capybara uses, here is an example of how it affects the performance
 | 6     | 0.8s |            2.4s |
 | 8     | 0.4s |            0.9s |
 
-## Installing with optimization flags
+## Installing with compiler optimizations
 
-CRAN does not let developers enforce the use of `-O3` and other
-optimization flags.
+CRAN packages are built with the `-O2` compiler flag, which is
+sufficient for most packages, including capybara. However, if you want
+to use the maximum compiler optimizations, you can do so by setting the
+`-O3` compiler flag.
 
-In order to use them, you need to clone the repository and install the
-package with
+To do that, create a user Makevars file in your home directory
+(`~/.R/Makevars`) and add the following lines:
 
-``` bash
-R CMD INSTALL --configure-args="--enable-optimization" .
+``` makefile
+# Copy to ~/.R/Makevars if you want to override R's default optimization
+CXXFLAGS = -O3
+CXX11FLAGS = -O3
+CXX14FLAGS = -O3
+CXX17FLAGS = -O3
+CXX20FLAGS = -O3
 ```
 
-or
+Additional optimizations can be enabled by setting the
+`CAPYBARA_PORTABLE` environment variable to `"no"` before installing the
+package. This will enable hardware-specific compiler flags that can
+significantly improve performance (sometimes 2-4x faster than just using
+portable flags).
 
 ``` r
-install.packages(".",
-    repos = NULL, type = "source",
-    configure.args = "--enable-optimization"
-)
+Sys.setenv(CAPYBARA_PORTABLE = "no")
+Sys.setenv(CAPYBARA_USE_FAST_MATH = "yes")
+
+# CRAN version
+install.packages("capybara", type = "source")
+
+# Local version
+install.packages(".", repos = NULL, type = "source")
+# or
+devtools::install()
 ```
 
-This will determine if your hardware allows for:
-
-1.  `-O3`: The highest standard optimization level in GCC/Clang
-    compilers that enables:
-      - Aggressive function inlining
-      - Loop vectorization
-      - Advanced instruction scheduling
-      - Dead code elimination
-      - Register allocation optimizations
-2.  `-funroll-loops`: Tells the compiler to unroll loops where
-    beneficial:
-      - Replaces a loop with multiple copies of its body
-      - Reduces branch prediction overhead
-      - Improves instruction-level parallelism
-      - Works especially well with numerical algorithms with many
-        iterations
-3.  `-mavx2`: If AVX2 support if available, the compiler will use it to
-    benefit from advanced SIMD vector instructions.
-4.  `-march=native`: Optimizes the code for the specific architecture of
-    the machine:
-      - Enables architecture-specific optimizations
-      - Generates instructions that take advantage of the CPU’s
-        capabilities
-      - Can lead to significant performance improvements
-
-These flag can often provide significant performance improvements
-(sometimes 2-4x faster than unoptimized code).
+This will determine if your hardware allows hardware-specific compiler
+flags that provide significant performance improvements (sometimes 2-4x
+faster than just using portable flags).
 
 ## Testing and debugging
 

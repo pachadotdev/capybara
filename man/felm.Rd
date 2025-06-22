@@ -22,7 +22,7 @@ variables in the model.}
 variable in \code{data}.}
 
 \item{control}{a named list of parameters for controlling the fitting
-process. See \code{\link{feglm_control}} for details.}
+process. See \code{\link{fit_control}} for details.}
 }
 \value{
 A named list of class \code{"felm"}. The list contains the following

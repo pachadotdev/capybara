@@ -1,129 +1,210 @@
-# Anticonf script by Pacha (2025)
+#!/bin/sh
+# Capybara's anticonf script by Pacha (2025)
 
-PKG_CONFIG_NAME="capybara"
+CAPYBARA_ADVANCED_BUILD="${CAPYBARA_ADVANCED_BUILD:-no}"
+CAPYBARA_PORTABLE="${CAPYBARA_PORTABLE:-yes}"
 
-# This is to adhere to CRAN policy about not forcing -O3 and other optimizations
-for arg in "$@"; do
-  case "$arg" in
-    --enable-optimization)
-      ENABLE_OPTIMIZATION=yes
-      ;;
-  esac
-done
+WARNINGS=""
 
-# Find compiler
+add_warning() {
+  if [ -z "$WARNINGS" ]; then
+    WARNINGS="$1"
+  else
+    WARNINGS="$WARNINGS\n$1"
+  fi
+}
+
+# Get R configuration ----------------------------------------------------------
 CXX=$(${R_HOME}/bin/R CMD config CXX)
 CXXFLAGS=$(${R_HOME}/bin/R CMD config CXXFLAGS)
-CPPFLAGS=$(${R_HOME}/bin/R CMD config CPPFLAGS)
 
-# Set optimization flags if requested
-OPTFLAGS=""
-if [ "$ENABLE_OPTIMIZATION" = "yes" ]; then
-  # Test for -O3 support
-  save_CXXFLAGS="$CXXFLAGS"
-  echo 'int main(){return 0;}' > conftest.cpp
-  if $CXX $CXXFLAGS -O3 conftest.cpp -o conftest >/dev/null 2>&1; then 
-    OPTFLAGS="-O3"
-  else
-    echo "Warning: compiler does not support -O3, falling back to -O2"
-    OPTFLAGS="-O2"
-  fi
-  rm -f conftest conftest.cpp
-  CXXFLAGS="$save_CXXFLAGS"
+# Try to get SHLIB_OPENMP_CXXFLAGS (may not exist in older R versions)
+SHLIB_OPENMP_CXXFLAGS=$(${R_HOME}/bin/R CMD config SHLIB_OPENMP_CXXFLAGS 2>/dev/null || echo "")
 
-  # 2) Add the rest unconditionally (they typically don’t hurt
-  #    if they’re unsupported, but you could test them similarly)
-  OPTFLAGS="$OPTFLAGS -funroll-loops -march=native"
-  
-  # Check for AVX2 support
-  if grep -q avx2 /proc/cpuinfo 2>/dev/null; then
-    OPTFLAGS="$OPTFLAGS -mavx2"
-  fi
-
-  echo "Using optimization flags: $OPTFLAGS"
+# Determine number of cores ----------------------------------------------------
+if [ -n "$CAPYBARA_NCORES" ]; then
+  # User-specified number of cores
+  num_cores="$CAPYBARA_NCORES"
 else
-  echo "Not using optimization flags"
+  # Try to get number of cores from R's parallel package
+  num_cores=$(${R_HOME}/bin/Rscript -e "cat(as.integer(parallel::detectCores()/2))" 2>/dev/null || echo 0)
+  
+  # Fallback methods if R script fails
+  if [ "$num_cores" = "0" ] || [ -z "$num_cores" ]; then
+    if [ -f /proc/cpuinfo ]; then
+      # Linux
+      num_cores=$(grep -c "^processor" /proc/cpuinfo 2>/dev/null || echo 1)
+    elif [ "$(uname)" = "Darwin" ]; then
+      # macOS
+      num_cores=$(sysctl -n hw.ncpu 2>/dev/null || echo 1)
+    else
+      # Default to 1 if we can't determine
+      num_cores=1
+    fi
+    
+    # Use 50% of cores by default, minimum 1
+    num_cores=$(($((num_cores / 2)) > 1 ? $((num_cores / 2)) : 1))
+  fi
 fi
 
-# Link BLAS/LAPACK against MKL if MKLROOT is set
-R_BLAS_LIBS=$("${R_HOME}/bin/R" CMD config BLAS_LIBS)
-R_LAPACK_LIBS=$("${R_HOME}/bin/R" CMD config LAPACK_LIBS)
-R_FLIBS=$("${R_HOME}/bin/R" CMD config FLIBS)
+# Test compiler flag
+test_flag() {
+  echo 'int main(){return 0;}' > testrconf.cpp
+  if $CXX $CXXFLAGS $1 testrconf.cpp -o testrconf >/dev/null 2>&1; then
+    rm -f testrconf testrconf.cpp
+    return 0
+  else
+    rm -f testrconf testrconf.cpp
+    return 1
+  fi
+}
 
-: ${BLAS_LIBS:="$R_BLAS_LIBS"}
-: ${LAPACK_LIBS:="$R_LAPACK_LIBS"}
-: ${FLIBS:="$R_FLIBS"}
+# Test OpenMP support
+test_openmp() {
+  cat > testomp.cpp <<EOF
+#include <omp.h>
+int main() {
+  #pragma omp parallel
+  {
+    int tid = omp_get_thread_num();
+  }
+  return 0;
+}
+EOF
+  
+  # Try with -fopenmp
+  if $CXX $CXXFLAGS -fopenmp testomp.cpp -o testomp >/dev/null 2>&1; then
+    rm -f testomp testomp.cpp
+    return 0
+  fi
+  
+  rm -f testomp testomp.cpp
+  return 1
+}
 
-if [ -n "$MKLROOT" ]; then
-  echo "detected MKLROOT=$MKLROOT → linking BLAS/LAPACK via MKL"
-  BLAS_LIBS="-L${MKLROOT}/lib/intel64_lin -lmkl_rt"
-  LAPACK_LIBS="$BLAS_LIBS"
+# C++ standard -----------------------------------------------------------------
+CXX_STD="CXX11"  # Default fallback
+
+if test_flag "-std=c++20"; then
+  CXX_STD="CXX20"
+elif test_flag "-std=c++17"; then
+  CXX_STD="CXX17"
+elif test_flag "-std=c++14"; then
+  CXX_STD="CXX14"
+elif test_flag "-std=c++11"; then
+  CXX_STD="CXX11"
+else
+  add_warning "  No suitable C++ standard found, defaulting to CXX11."
+fi
+
+# Check for BLAS/LAPACK availability
+BLAS_LIBS=$(${R_HOME}/bin/R CMD config BLAS_LIBS)
+LAPACK_LIBS=$(${R_HOME}/bin/R CMD config LAPACK_LIBS)
+
+# Base flags to use in both modes
+BASE_FLAGS=""
+
+# Add BLAS/LAPACK flags if available
+if [ -n "$BLAS_LIBS" ]; then
+  BASE_FLAGS="$BASE_FLAGS -DARMA_USE_BLAS -DARMA_DONT_USE_WRAPPER"
+else
+  add_warning "  BLAS not found, Armadillo will use built-in routines (slower)"
+fi
+
+if [ -n "$LAPACK_LIBS" ]; then
+  BASE_FLAGS="$BASE_FLAGS -DARMA_USE_LAPACK"
+else
+  add_warning "  LAPACK not found, some Armadillo functions will be unavailable"
 fi
 
 # Check for OpenMP support
-OPENMP_FLAG=""
-for flag in -fopenmp -qopenmp -openmp -xopenmp; do
-  save_CXXFLAGS="$CXXFLAGS"
-  CXXFLAGS="$CXXFLAGS $flag"
-  
-  echo "int main() { return 0; }" | $CXX -xc++ -E $CXXFLAGS - >/dev/null 2>&1
-  if [ $? -eq 0 ]; then
-    OPENMP_FLAG="$flag"
-    break
-  fi
-  CXXFLAGS="$save_CXXFLAGS"
-done
+OPENMP_SUPPORT="no"
 
-# Determine number of cores using OpenMP if available
-if [ -n "$CAPYBARA_NCORES" ]; then
-  num_cores="$CAPYBARA_NCORES"
-  echo "using environment value: $num_cores"
+# Simple OpenMP test
+if test_openmp; then
+  OPENMP_SUPPORT="yes"
+  BASE_FLAGS="$BASE_FLAGS -DARMA_USE_OPENMP=1 -DARMA_OPENMP_THREADS=${num_cores}"
+  
+  # If R doesn't provide OpenMP flags, add -fopenmp manually
+  if [ -z "$SHLIB_OPENMP_CXXFLAGS" ]; then
+    BASE_FLAGS="$BASE_FLAGS -fopenmp"
+  fi
+  
+  # echo "OpenMP support detected, using $num_cores threads"
 else
-  cat > nthreads.cpp << 'EOL'
-#include <iostream>
-#ifdef _OPENMP
-  #include <omp.h>
-#endif
-
-int main() {
-  int nthreads;
-  #ifdef _OPENMP
-    nthreads = std::max(1, (omp_get_max_threads() + 1) / 2);
-  #else
-    nthreads = 1;
-  #endif
-  std::cout << nthreads << std::endl;
-  return 0;
-}
-EOL
-
-  # Need to compile WITH the OpenMP flag
-  if [ -n "$OPENMP_FLAG" ]; then
-    $CXX nthreads.cpp -o nthreads $OPENMP_FLAG
-  else
-    $CXX nthreads.cpp -o nthreads
-  fi
-  
-  # Check if compilation succeeded
-  if [ $? -eq 0 ] && [ -x ./nthreads ]; then
-    num_cores=$(./nthreads)
-    echo "Number of available cores: $num_cores"
-  else
-    echo "OpenMP test failed, defaulting to 1"
-    num_cores=1
-  fi
-
-  # Clean up
-  rm -f nthreads nthreads.cpp
+  add_warning "  OpenMP not supported, parallel centering will be disabled"
 fi
 
-# Write to Makevars
-echo "creating src/Makevars"
-sed -e "s|@ncores@|${num_cores}|g" \
-    -e "s|@OPTFLAGS@|${OPTFLAGS}|g" \
-    -e "s|@PKG_CXXFLAGS@|${PKG_CXXFLAGS}|g" \
-    -e "s|@PKG_LIBS@|${PKG_LIBS}|g" \
+# If advanced build requested, do the full configuration
+if [ "$CAPYBARA_ADVANCED_BUILD" = "yes" ]; then
+  add_warning "  Using the advanced mode may cause numerical stability issues with Intel MKL"
+  
+  # Define additional flags for advanced build
+  EXTRA_FLAGS="$BASE_FLAGS -DARMA_WARN_LEVEL=1 -DARMA_DONT_PRINT_FAST_MATH_WARNING"
+  
+  if test_flag "-march=native"; then
+    EXTRA_FLAGS="$EXTRA_FLAGS -march=native"
+  fi
+    
+  # Check for AVX2 support
+  if test_flag "-mavx2"; then
+    EXTRA_FLAGS="$EXTRA_FLAGS -mavx2"
+  fi
+    
+  # Check for fast-math support
+  if test_flag "-ffast-math"; then
+    EXTRA_FLAGS="$EXTRA_FLAGS -ffast-math"
+  fi
+else
+  # Simple build - just use the base flags
+  EXTRA_FLAGS="$BASE_FLAGS"
+  echo "Using standard build mode for maximum numerical stability"
+fi
+
+# Create Makevars from template ------------------------------------------------
+if [ ! -f "src/Makevars.in" ]; then
+  echo "ERROR: src/Makevars.in template not found"
+  exit 1
+fi
+
+sed -e "s|@CXX_STD@|${CXX_STD}|g" \
+    -e "s|@EXTRA_FLAGS@|${EXTRA_FLAGS}|g" \
     src/Makevars.in > src/Makevars
 
-# Success
+# Configuration Summary --------------------------------------------------------
+echo ""
+echo "=========================================================================="
+echo "Configuration Summary"
+echo ""
+echo "Build Configuration"
+echo "  C++ Standard:            $CXX_STD"
+echo "  Build Mode:              $([ "$CAPYBARA_ADVANCED_BUILD" = "yes" ] && echo "ADVANCED" || echo "SIMPLE")"
+echo "  OpenMP Support:          $OPENMP_SUPPORT"
+if [ "$OPENMP_SUPPORT" = "yes" ]; then
+  echo "  OpenMP Threads:          $num_cores"
+fi
+echo ""
+if [ "$CAPYBARA_ADVANCED_BUILD" = "no" ]; then
+  echo "For advanced optimizations, set CAPYBARA_ADVANCED_BUILD=\"yes\" before installation."
+fi
+echo "See inst/Makevars.example to instruct R to use the highest compiler optimizations."
+if [ "$OPENMP_SUPPORT" = "yes" ]; then
+  echo ""
+  echo "To change thread count, set CAPYBARA_NCORES=<number> before installation."
+fi
+echo ""
+
+# Print collected warnings if any
+if [ -n "$WARNINGS" ]; then
+  echo ""
+  echo "Warnings"
+  echo ""
+  printf '%b\n' "$WARNINGS"
+fi
+
+echo "=========================================================================="
+
+# Clean up
+rm -f testrconf testrconf.cpp testomp testomp.cpp
+
 exit 0

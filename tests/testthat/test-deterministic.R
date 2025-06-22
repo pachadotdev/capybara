@@ -18,13 +18,12 @@ test_that("deterministic relations", {
 
   d$x <- 2 * d$y
 
-  d$y2 <- d$y + rnorm(100, mean = 0, sd = 1)
-  d$x2 <- 2 * d$x
+  d$x2 <- d$x
+
+  d$x2[1] <- NA
 
   # the solution is beta = 0.5 but we have the solve() function to
   # solve a linear system of equations!
-  expect_error(coef(feglm(y ~ x | f, d)), "Linear dependent terms")
-
-  # error because we check linear dependency in the data
-  expect_error(feglm(y ~ x + x2 | f, d), "Linear dependent terms")
+  s <- summary(feglm(y ~ x2 | f, d))
+  expect_equal(s[["nobs"]][["nobs_full"]] - 1L, s[["nobs"]][["nobs"]])
 })
