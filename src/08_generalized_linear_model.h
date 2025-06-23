@@ -143,7 +143,7 @@ feglm_results feglm_poisson(mat &MX, vec &beta, vec &eta, const vec &y,
                             uword N, uword P, const bool &use_acceleration) {
   reserve_glm_workspace(ws, N, P);
 
-  ws.MX_work = MX;                 // Avoid reallocation
+  ws.MX_work = MX; // Avoid reallocation
   const mat MX_orig = ws.MX_work;
   const bool has_fe = (indices.fe_sizes.n_elem > 0);
 
@@ -196,8 +196,9 @@ feglm_results feglm_poisson(mat &MX, vec &beta, vec &eta, const vec &y,
       ws.MX_work = MX_orig;
 
       vec MNU(ws.MNU.colptr(0), N, false, false);
-      center_variables(ws.MX_work, MNU, ws.w, MX_orig, indices, center_tol, iter_center_max,
-        iter_interrupt, iter_ssr, use_acceleration);
+      center_variables(ws.MX_work, MNU, ws.w, MX_orig, indices, center_tol,
+                       iter_center_max, iter_interrupt, iter_ssr,
+                       use_acceleration);
     }
 
     ws.beta_upd = solve_beta(ws.MX_work, ws.MNU, ws.w, N, P, ws.beta_ws, true);

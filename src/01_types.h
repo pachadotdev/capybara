@@ -14,9 +14,9 @@ enum family_type {
 
 // Structure for single fixed effect group indices
 struct single_fe_indices {
-  uvec all_indices;         // All observation indices
-  uvec group_offsets;       // Start of each group in all_indices
-  uvec group_sizes;         // Size of each group
+  uvec all_indices;   // All observation indices
+  uvec group_offsets; // Start of each group in all_indices
+  uvec group_sizes;   // Size of each group
 
   // Get indices for group j
   inline subview_col<uword> get_group(size_t j) const {
@@ -31,12 +31,12 @@ struct single_fe_indices {
 
 // Structure for multiple fixed effects group indices and cache optimization
 struct indices_info {
-  uvec all_indices;                // All observation indices
-  uvec group_offsets;              // Start of each group in all_indices
-  uvec group_sizes;                // Size of each group
-  uvec fe_offsets;                 // Start of each FE in group arrays
-  uvec fe_sizes;                   // Number of groups per FE
-  field<uvec> nonempty_groups;     // Indices of nonempty groups per FE
+  uvec all_indices;                      // All observation indices
+  uvec group_offsets;                    // Start of each group in all_indices
+  uvec group_sizes;                      // Size of each group
+  uvec fe_offsets;                       // Start of each FE in group arrays
+  uvec fe_sizes;                         // Number of groups per FE
+  field<uvec> nonempty_groups;           // Indices of nonempty groups per FE
   field<field<uvec>> precomputed_groups; // Precomputed group indices
 
   field<field<uvec>> sorted_groups; // Cache-optimized group indices

@@ -65,7 +65,8 @@ inline indices_info list_to_indices_info(const list &k_list) {
   return info;
 }
 
-// Convert a single-level R list of group indices to a single_fe_indices structure
+// Convert a single-level R list of group indices to a single_fe_indices
+// structure
 inline single_fe_indices list_to_single_fe_indices(const list &jlist) {
   const uword J = static_cast<uword>(jlist.size());
   single_fe_indices info;

@@ -1,7 +1,8 @@
 #ifndef CAPYBARA_BETA_OPTIMIZED_H
 #define CAPYBARA_BETA_OPTIMIZED_H
 
-// Solve for regression coefficients using QR decomposition (handles collinearity)
+// Solve for regression coefficients using QR decomposition (handles
+// collinearity)
 inline void solve_beta_qr(mat &MX, const vec &MNU, const vec &w,
                           beta_results &ws, const uword p, bool use_weights) {
   if (use_weights) {

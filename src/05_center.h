@@ -3,29 +3,31 @@
 
 struct center_workspace {
   // Basic projection workspace vectors
-  vec x;        // Current iterate
-  vec x0;       // Previous iterate  
-  vec Gx;       // Single projection step G(x)
-  vec G2x;      // Double projection step G(G(x))
-  vec deltaG;   // Difference for acceleration
-  vec delta2;   // Second difference for acceleration
-  
+  vec x;      // Current iterate
+  vec x0;     // Previous iterate
+  vec Gx;     // Single projection step G(x)
+  vec G2x;    // Double projection step G(G(x))
+  vec deltaG; // Difference for acceleration
+  vec delta2; // Second difference for acceleration
+
   // Group structure storage
-  field<field<uvec>> group_indices;  // Indices for each group in each FE
+  field<field<uvec>> group_indices; // Indices for each group in each FE
   field<vec> group_inv_w;           // Inverse weights for each group
   vec group_means;                  // Temporary storage for group means
   double ratio0;                    // Convergence ratio tracking
   double ssr0;                      // Sum of squares tracking
-  size_t max_groups;               // Maximum number of groups across FEs
+  size_t max_groups;                // Maximum number of groups across FEs
 
   // Irons-Tuck acceleration workspace for K>=2 systems
-  mat acceleration_history;        // Store last few iterations for enhanced acceleration
-  vec acceleration_weights;        // Adaptive weights for combining history
+  mat acceleration_history;       // Store last few iterations for enhanced
+                                  // acceleration
+  vec acceleration_weights;       // Adaptive weights for combining history
   size_t history_size;            // Number of previous iterates to store
   size_t history_pos;             // Current position in circular buffer
-  bool use_enhanced_acceleration;  // Whether to use enhanced vs memory-efficient mode
-  double acceleration_damping;     // Damping factor for stability (0.7-0.8)
-  double min_acceleration_norm;    // Minimum norm threshold for acceleration
+  bool use_enhanced_acceleration; // Whether to use enhanced vs memory-efficient
+                                  // mode
+  double acceleration_damping;    // Damping factor for stability (0.7-0.8)
+  double min_acceleration_norm;   // Minimum norm threshold for acceleration
 
   center_workspace()
       : ratio0(datum::inf), ssr0(datum::inf), max_groups(0), history_size(3),
@@ -40,20 +42,20 @@ inline void select_acceleration_strategy(center_workspace &ws,
   // Use enhanced acceleration for large systems with many fixed effects
   if (K >= 3 && N >= 2000) {
     ws.use_enhanced_acceleration = true;
-    ws.acceleration_damping = 0.7;  // More conservative for complex systems
-    ws.history_size = 2;            // Smaller history for memory efficiency
+    ws.acceleration_damping = 0.7; // More conservative for complex systems
+    ws.history_size = 2;           // Smaller history for memory efficiency
   } else if (K >= 2 && N >= 1000) {
     ws.use_enhanced_acceleration = true;
     ws.acceleration_damping = 0.8;
     ws.history_size = 3;
   } else {
-    ws.use_enhanced_acceleration = false;  // Use memory-efficient version
+    ws.use_enhanced_acceleration = false; // Use memory-efficient version
   }
 
   // Adjust damping based on cache optimization
   if (indices.cache_optimized) {
     ws.acceleration_damping *=
-        1.1;  // Slightly more aggressive with optimized access
+        1.1; // Slightly more aggressive with optimized access
   }
 }
 
@@ -245,7 +247,8 @@ inline bool apply_enhanced_acceleration(vec &v, center_workspace &ws,
   return false;
 }
 
-// Memory-efficient acceleration for large systems (Anderson acceleration variant)
+// Memory-efficient acceleration for large systems (Anderson acceleration
+// variant)
 inline bool apply_memory_efficient_acceleration(vec &v, center_workspace &ws,
                                                 const vec &v_old, size_t iter,
                                                 const vec &w,
