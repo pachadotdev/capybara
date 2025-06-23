@@ -1,6 +1,7 @@
 #ifndef CAPYBARA_TYPES_H
 #define CAPYBARA_TYPES_H
 
+// Enum for supported GLM family types
 enum family_type {
   GAUSSIAN,
   POISSON,
@@ -11,11 +12,13 @@ enum family_type {
   UNKNOWN
 };
 
+// Structure for single fixed effect group indices
 struct single_fe_indices {
-  uvec all_indices;
-  uvec group_offsets;
-  uvec group_sizes;
+  uvec all_indices;         // All observation indices
+  uvec group_offsets;       // Start of each group in all_indices
+  uvec group_sizes;         // Size of each group
 
+  // Get indices for group j
   inline subview_col<uword> get_group(size_t j) const {
     if (group_sizes(j) == 0) {
       return all_indices.head(0);
@@ -26,22 +29,24 @@ struct single_fe_indices {
   }
 };
 
+// Structure for multiple fixed effects group indices and cache optimization
 struct indices_info {
-  uvec all_indices;
-  uvec group_offsets;
-  uvec group_sizes;
-  uvec fe_offsets;
-  uvec fe_sizes;
-  field<uvec> nonempty_groups;
-  field<field<uvec>> precomputed_groups;
+  uvec all_indices;                // All observation indices
+  uvec group_offsets;              // Start of each group in all_indices
+  uvec group_sizes;                // Size of each group
+  uvec fe_offsets;                 // Start of each FE in group arrays
+  uvec fe_sizes;                   // Number of groups per FE
+  field<uvec> nonempty_groups;     // Indices of nonempty groups per FE
+  field<field<uvec>> precomputed_groups; // Precomputed group indices
 
-  field<field<uvec>> sorted_groups;
-  field<uvec> group_order;
-  bool cache_optimized = false;
+  field<field<uvec>> sorted_groups; // Cache-optimized group indices
+  field<uvec> group_order;          // Cache-optimized group order
+  bool cache_optimized = false;     // Whether cache optimization is enabled
 
   static constexpr size_t cache_line_size = 64;
   static constexpr size_t optimal_chunk = cache_line_size / sizeof(uword);
 
+  // Get group indices for FE k, group j
   inline const uvec &get_group(size_t k, size_t j) const {
     if (cache_optimized) {
       if (j + 1 < sorted_groups(k).n_elem) {
@@ -52,6 +57,7 @@ struct indices_info {
     return precomputed_groups(k)(j);
   }
 
+  // Get sorted group indices for FE k, group j
   inline const uvec &get_sorted_group(size_t k, size_t j) const {
     if (cache_optimized && k < sorted_groups.n_elem &&
         j < sorted_groups(k).n_elem) {
@@ -60,6 +66,7 @@ struct indices_info {
     return precomputed_groups(k)(j);
   }
 
+  // Get group processing order for FE k
   inline const uvec &get_group_processing_order(size_t k) const {
     if (cache_optimized && k < group_order.n_elem &&
         !group_order(k).is_empty()) {
@@ -76,6 +83,7 @@ struct indices_info {
     return empty_vec;
   }
 
+  // Compute nonempty groups for each FE
   void compute_nonempty_groups() {
     nonempty_groups = field<uvec>(fe_sizes.n_elem);
     for (size_t k = 0; k < fe_sizes.n_elem; ++k) {
@@ -85,6 +93,7 @@ struct indices_info {
     }
   }
 
+  // Precompute all group indices for each FE
   void precompute_all_groups() {
     precomputed_groups = field<field<uvec>>(fe_sizes.n_elem);
 
@@ -108,8 +117,10 @@ struct indices_info {
     optimize_cache_access_internal();
   }
 
+  // Enable cache optimization for group access
   void optimize_cache_access() { optimize_cache_access_internal(); }
 
+  // Iterate over groups in cache-optimized order
   template <typename Func>
   void iterate_groups_cached(size_t k, Func &&func) const {
     if (cache_optimized && k < group_order.n_elem) {
@@ -128,6 +139,7 @@ struct indices_info {
   }
 
 private:
+  // Helper struct for cache optimization
   struct GroupInfo {
     uword idx;
     uword min_val;
@@ -136,6 +148,7 @@ private:
     double density;
   };
 
+  // Internal: optimize group access for cache
   void optimize_cache_access_internal() {
     if (cache_optimized)
       return;
@@ -191,9 +204,10 @@ private:
   }
 };
 
+// M is either XtX, (XW)t(XW), H
 struct crossproduct_results {
-  mat XW;
-  crossproduct_results(size_t n, size_t p) : XW(n, p, fill::none) {}
+  mat M;
+  crossproduct_results(size_t n, size_t p) : M(n, p, fill::none) {}
 };
 
 struct beta_results {

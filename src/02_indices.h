@@ -1,6 +1,7 @@
 #ifndef CAPYBARA_INDICES_H
 #define CAPYBARA_INDICES_H
 
+// Convert a nested R list of group indices to an indices_info structure
 inline indices_info list_to_indices_info(const list &k_list) {
   const uword K = static_cast<uword>(k_list.size());
   indices_info info;
@@ -64,6 +65,7 @@ inline indices_info list_to_indices_info(const list &k_list) {
   return info;
 }
 
+// Convert a single-level R list of group indices to a single_fe_indices structure
 inline single_fe_indices list_to_single_fe_indices(const list &jlist) {
   const uword J = static_cast<uword>(jlist.size());
   single_fe_indices info;

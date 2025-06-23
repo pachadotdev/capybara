@@ -4,8 +4,8 @@ using namespace arma;
 using namespace cpp11;
 
 #include "01_types.h"
-#include "02_exponential_family.h"
-#include "03_indices.h"
+#include "02_indices.h"
+#include "03_exponential_family.h"
 #include "04_linear_algebra.h"
 #include "05_center.h"
 #include "06_beta.h"

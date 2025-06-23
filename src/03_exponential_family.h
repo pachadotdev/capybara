@@ -1,6 +1,7 @@
 #ifndef CAPYBARA_FAMILY_H
 #define CAPYBARA_FAMILY_H
 
+// Map string to family_type enum
 inline family_type get_family_type(const std::string &fam) {
   static const std::unordered_map<std::string, family_type> family_map = {
       {"gaussian", GAUSSIAN},
@@ -16,6 +17,7 @@ inline family_type get_family_type(const std::string &fam) {
   return (it != family_map.end()) ? it->second : UNKNOWN;
 }
 
+// Normalize and clean up family string
 inline std::string tidy_family(const std::string &family) {
   std::string fam;
   fam.reserve(family.size());
@@ -49,14 +51,15 @@ inline std::string tidy_family(const std::string &family) {
   return fam;
 }
 
+// Deviance residuals for Gaussian family
 inline double dev_resids_gaussian(const vec &y, const vec &mu, const vec &wt) {
   return dot(wt, square(y - mu));
 }
 
+// Deviance residuals for Poisson family
 inline double dev_resids_poisson(const vec &y, const vec &mu, const vec &wt,
                                  vec &dev_vec_work, vec &ratio_work) {
   const uword n = y.n_elem;
-  const double y_max = y.max();
   double result = 0.0;
 
   for (uword i = 0; i < n; ++i) {
@@ -77,6 +80,7 @@ inline double dev_resids_poisson(const vec &y, const vec &mu, const vec &wt,
   return 2.0 * result;
 }
 
+// Deviance residuals for Binomial family
 inline double dev_resids_binomial(const vec &y, const vec &mu, const vec &wt) {
   const uword n = y.n_elem;
   vec mu_safe(n, fill::none);
@@ -90,6 +94,7 @@ inline double dev_resids_binomial(const vec &y, const vec &mu, const vec &wt) {
   return 2.0 * dot(wt, dev_vec);
 }
 
+// Deviance residuals for Gamma family
 inline double dev_resids_gamma(const vec &y, const vec &mu, const vec &wt) {
   const uword n = y.n_elem;
   vec dev_vec(n, fill::none);
@@ -101,11 +106,13 @@ inline double dev_resids_gamma(const vec &y, const vec &mu, const vec &wt) {
   return -2.0 * dot(wt, dev_vec);
 }
 
+// Deviance residuals for Inverse Gaussian family
 inline double dev_resids_invgaussian(const vec &y, const vec &mu,
                                      const vec &wt) {
   return dot(wt, square(y - mu) / (y % square(mu)));
 }
 
+// Deviance residuals for Negative Binomial family
 inline double dev_resids_negbin(const vec &y, const vec &mu,
                                 const double &theta, const vec &wt) {
   const uword n = y.n_elem;
@@ -125,6 +132,7 @@ inline double dev_resids_negbin(const vec &y, const vec &mu,
   return 2.0 * dot(wt, dev_vec);
 }
 
+// Inverse link function for each family
 inline void link_inv(vec &mu, const vec &eta, const family_type family) {
   const uword n = eta.n_elem;
   mu.set_size(n);
@@ -151,6 +159,7 @@ inline void link_inv(vec &mu, const vec &eta, const family_type family) {
   }
 }
 
+// Dispatch to correct deviance residuals for a family
 inline double dev_resids(const vec &y, const vec &mu, const double &theta,
                          const vec &wt, const family_type family_type) {
   switch (family_type) {
@@ -174,6 +183,7 @@ inline double dev_resids(const vec &y, const vec &mu, const double &theta,
   }
 }
 
+// Check if eta/mu are valid for a family
 inline bool valid_eta_mu(const vec &eta, const vec &mu,
                          const family_type family_type) {
   switch (family_type) {
@@ -193,6 +203,7 @@ inline bool valid_eta_mu(const vec &eta, const vec &mu,
   }
 }
 
+// Derivative of inverse link (dmu/deta) for each family
 inline void get_mu(vec &result, const vec &eta, const family_type family) {
   const uword n = eta.n_elem;
   result.set_size(n);
@@ -219,6 +230,7 @@ inline void get_mu(vec &result, const vec &eta, const family_type family) {
   }
 }
 
+// Variance function for each family
 inline void variance(vec &result, const vec &mu, const double &theta,
                      const family_type family) {
   const uword n = mu.n_elem;
@@ -249,6 +261,7 @@ inline void variance(vec &result, const vec &mu, const double &theta,
   }
 }
 
+// Smart initialization of eta for each family
 inline void smart_initialize_glm(vec &eta, const vec &y,
                                  const family_type family) {
   const uword n = y.n_elem;

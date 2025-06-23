@@ -3,11 +3,13 @@
 
 #include "01_types.h"
 
+// Indices of groups with at least min_size members
 inline uvec get_valid_groups(const single_fe_indices &indices,
                              size_t min_size = 1) {
   return find(indices.group_sizes >= min_size);
 }
 
+// Weighted group means
 mat group_sums(const mat &M, const vec &w, const single_fe_indices &indices) {
   const size_t P = M.n_cols;
   mat result(P, 1, fill::zeros);
@@ -34,6 +36,7 @@ mat group_sums(const mat &M, const vec &w, const single_fe_indices &indices) {
   return result;
 }
 
+// Group-wise spectral/lagged sums
 mat group_sums_spectral(const mat &M, const vec &v, const vec &w, size_t K,
                         const single_fe_indices &indices) {
   const size_t P = M.n_cols;
@@ -69,6 +72,7 @@ mat group_sums_spectral(const mat &M, const vec &v, const vec &w, size_t K,
   return result;
 }
 
+// Sum of outer products of group means (group variance)
 mat group_sums_var(const mat &M, const single_fe_indices &indices) {
   const size_t P = M.n_cols;
   mat V(P, P, fill::zeros);
@@ -83,6 +87,7 @@ mat group_sums_var(const mat &M, const single_fe_indices &indices) {
   return V;
 }
 
+// Sum of cross-products within each group (group covariance)
 mat group_sums_cov(const mat &M, const mat &N,
                    const single_fe_indices &indices) {
   const size_t P = M.n_cols;

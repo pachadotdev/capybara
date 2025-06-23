@@ -4,6 +4,7 @@
 #include <armadillo>
 using namespace arma;
 
+// Subtract all other fixed effects from y except the k_idx-th effect
 inline void subtract_other_effects(vec &y, const vec &p,
                                    const field<vec> &alpha,
                                    const uvec &active_fes, size_t k_idx,
@@ -23,6 +24,7 @@ inline void subtract_other_effects(vec &y, const vec &p,
   }
 }
 
+// Update alpha_k for the k-th fixed effect by averaging over its groups
 inline void update_alpha_k(vec &alpha_k, const vec &y,
                            const indices_info &indices, size_t k) {
   alpha_k.zeros();
@@ -33,6 +35,7 @@ inline void update_alpha_k(vec &alpha_k, const vec &y,
   }
 }
 
+// Main solver for all fixed effects (alpha)
 inline solve_alpha_results solve_alpha(const vec &p,
                                        const indices_info &indices, double tol,
                                        size_t iter_max,

@@ -8,6 +8,7 @@
 
 using namespace arma;
 
+// Compute adaptive damping factor for line search based on deviance history
 inline double adaptive_damping(const std::vector<double> &dev_hist) {
   if (dev_hist.size() < 3)
     return 1.0;
@@ -18,6 +19,7 @@ inline double adaptive_damping(const std::vector<double> &dev_hist) {
   return (d1 * d2 < 0.0) ? 0.8 : 1.0;
 }
 
+// Line search for Poisson GLM step, with damping and deviance checks
 inline bool line_search_poisson(double &dev, double dev_old, double &damping,
                                 double dev_tol, size_t inner_max, vec &eta,
                                 vec &beta, const vec &eta_old,
@@ -76,6 +78,7 @@ inline bool line_search_poisson(double &dev, double dev_old, double &damping,
   return false;
 }
 
+// Line search for general GLM step, with damping and deviance checks
 inline bool line_search_glm(double &dev, double dev_old, double &damping,
                             double dev_tol, size_t inner_max, vec &eta,
                             vec &beta, const vec &eta_old, const vec &beta_old,
@@ -130,6 +133,7 @@ inline bool line_search_glm(double &dev, double dev_old, double &damping,
   return false;
 }
 
+// Main Poisson FE-GLM fitting routine (with centering and line search)
 feglm_results feglm_poisson(mat &MX, vec &beta, vec &eta, const vec &y,
                             const vec &wt, const double &center_tol,
                             const double &dev_tol, size_t iter_max,
@@ -139,7 +143,8 @@ feglm_results feglm_poisson(mat &MX, vec &beta, vec &eta, const vec &y,
                             uword N, uword P, const bool &use_acceleration) {
   reserve_glm_workspace(ws, N, P);
 
-  const mat MX0 = MX;
+  ws.MX_work = MX;                 // Avoid reallocation
+  const mat MX_orig = ws.MX_work;
   const bool has_fe = (indices.fe_sizes.n_elem > 0);
 
   if (eta.is_empty() || all(eta == 0.0)) {
@@ -188,20 +193,20 @@ feglm_results feglm_poisson(mat &MX, vec &beta, vec &eta, const vec &y,
     ws.MNU = ws.MNU_accum;
 
     if (has_fe) {
-      MX = MX0;
+      ws.MX_work = MX_orig;
 
       vec MNU(ws.MNU.colptr(0), N, false, false);
-      center_variables(MX, MNU, ws.w, MX0, indices, center_tol, iter_center_max,
-                       iter_interrupt, iter_ssr, use_acceleration);
+      center_variables(ws.MX_work, MNU, ws.w, MX_orig, indices, center_tol, iter_center_max,
+        iter_interrupt, iter_ssr, use_acceleration);
     }
 
-    ws.beta_upd = solve_beta(MX, ws.MNU, ws.w, N, P, ws.beta_ws, true);
+    ws.beta_upd = solve_beta(ws.MX_work, ws.MNU, ws.w, N, P, ws.beta_ws, true);
 
     const uvec valid = find(ws.beta_ws.valid_coefficients);
     if (valid.n_elem < P) {
-      ws.eta_upd = MX.cols(valid) * ws.beta_upd.elem(valid);
+      ws.eta_upd = ws.MX_work.cols(valid) * ws.beta_upd.elem(valid);
     } else {
-      ws.eta_upd = MX * ws.beta_upd;
+      ws.eta_upd = ws.MX_work * ws.beta_upd;
     }
     ws.eta_upd += ws.nu;
     ws.eta_upd -= ws.MNU;
@@ -248,7 +253,9 @@ feglm_results feglm_poisson(mat &MX, vec &beta, vec &eta, const vec &y,
   if (!conv)
     stop("Poisson FE-GLM failed to converge");
 
-  mat H = crossproduct(MX, ws.w, ws.cross_ws, true);
+  crossproduct_results cross_ws(N, P);
+  crossproduct(ws.MX_work, ws.w, cross_ws, true);
+  mat &H = cross_ws.M;
 
   for (uword j = 0; j < P; ++j) {
     if (!ws.beta_ws.valid_coefficients(j)) {
@@ -261,6 +268,7 @@ feglm_results feglm_poisson(mat &MX, vec &beta, vec &eta, const vec &y,
                        wt, std::move(H), dev, null_dev, conv, actual_iters);
 }
 
+// Main FE-GLM fitting routine for all families
 feglm_results feglm(mat &MX, vec &beta, vec &eta, const vec &y, const vec &wt,
                     double theta, family_type family, double center_tol,
                     double dev_tol, size_t iter_max, size_t iter_center_max,
@@ -393,6 +401,7 @@ feglm_results feglm(mat &MX, vec &beta, vec &eta, const vec &y, const vec &wt,
                        wt, std::move(H), dev, null_dev, conv, actual_iters);
 }
 
+// FE-GLM offset-only routine (for models with only offset and FEs)
 feglm_offset_results feglm_offset(vec eta, const vec &y, const vec &offset,
                                   const vec &wt, family_type family,
                                   double center_tol, double dev_tol,

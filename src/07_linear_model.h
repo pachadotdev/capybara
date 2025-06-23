@@ -1,6 +1,7 @@
 #ifndef CAPYBARA_LM_H
 #define CAPYBARA_LM_H
 
+// Compute fitted values from coefficients, handling collinearity and centering
 inline vec compute_fitted(const mat &X, const vec &orig_y,
                           const vec &centered_y, const beta_results &beta_ws) {
   vec fitted(X.n_rows, fill::none);
@@ -19,6 +20,7 @@ inline vec compute_fitted(const mat &X, const vec &orig_y,
   return fitted;
 }
 
+// Main linear model fitting routine (with or without fixed effects)
 inline felm_results felm(mat &X, const vec &y, const vec &w, double center_tol,
                          size_t iter_center_max, size_t iter_interrupt,
                          const indices_info &indices,
@@ -35,17 +37,24 @@ inline felm_results felm(mat &X, const vec &y, const vec &w, double center_tol,
   if (has_fe) {
     const mat X0 = X;
     vec yc = y;
+    // Center variables for fixed effects
     center_variables(X, yc, w, X0, indices, center_tol, iter_center_max,
                      iter_interrupt, use_w, use_acceleration);
+    // Solve for beta coefficients
     solve_beta(X, yc, w, N, P, beta_ws, use_w);
+    // Compute fitted values
     fitted = compute_fitted(X, y, yc, beta_ws);
   } else {
+    // Solve for beta coefficients without fixed effects
     solve_beta(X, y, w, N, P, beta_ws, use_w);
+    // Compute fitted values
     fitted = compute_fitted(X, y, vec(), beta_ws);
   }
 
+  // Compute Hessian
   crossproduct_results cross_ws(N, P);
-  mat H = crossproduct(X, w, cross_ws, use_w);
+  crossproduct(X, w, cross_ws, use_w);
+  mat &H = cross_ws.M;
 
   return felm_results(std::move(beta_ws.coefficients),
                       std::move(beta_ws.valid_coefficients), std::move(fitted),

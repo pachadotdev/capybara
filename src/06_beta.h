@@ -1,6 +1,7 @@
 #ifndef CAPYBARA_BETA_OPTIMIZED_H
 #define CAPYBARA_BETA_OPTIMIZED_H
 
+// Solve for regression coefficients using QR decomposition (handles collinearity)
 inline void solve_beta_qr(mat &MX, const vec &MNU, const vec &w,
                           beta_results &ws, const uword p, bool use_weights) {
   if (use_weights) {
@@ -35,6 +36,7 @@ inline void solve_beta_qr(mat &MX, const vec &MNU, const vec &w,
   }
 }
 
+// Main beta solver: uses Cholesky if possible, otherwise falls back to QR
 inline vec solve_beta(mat &MX, const vec &MNU, const vec &w, const uword n,
                       const uword p, beta_results &ws, bool use_weights) {
   ws.coefficients.zeros(p);
