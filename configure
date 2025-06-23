@@ -133,6 +133,7 @@ if test_openmp; then
   # echo "OpenMP support detected, using $num_cores threads"
 else
   add_warning "  OpenMP not supported, parallel centering will be disabled"
+  BASE_FLAGS="$BASE_FLAGS -DARMA_DONT_USE_OPENMP=1"
 fi
 
 # If advanced build requested, do the full configuration

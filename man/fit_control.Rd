@@ -11,6 +11,7 @@ fit_control(
   iter_center_max = 10000L,
   iter_inner_max = 50L,
   iter_interrupt = 1000L,
+  iter_ssr = 10L,
   limit = 10L,
   trace = FALSE,
   drop_pc = TRUE,
@@ -30,18 +31,22 @@ algorithm. The stopping condition is based on the relative change of the
 centered variable similar to the \code{'lfe'} package. The default is
 \code{1.0e-06}.}
 
-\item{iter_max}{unsigned integer indicating the maximum number of iterations
+\item{iter_max}{integer indicating the maximum number of iterations
 in the maximization routine. The default is \code{25L}.}
 
-\item{iter_center_max}{unsigned integer indicating the maximum number of
+\item{iter_center_max}{integer indicating the maximum number of
 iterations in the centering algorithm. The default is \code{10000L}.}
 
-\item{iter_inner_max}{unsigned integer indicating the maximum number of
+\item{iter_inner_max}{integer indicating the maximum number of
 iterations in the inner loop of the centering algorithm. The default is
 \code{50L}.}
 
-\item{iter_interrupt}{unsigned integer indicating the maximum number of
+\item{iter_interrupt}{integer indicating the maximum number of
 iterations before the algorithm is interrupted. The default is \code{1000L}.}
+
+\item{iter_ssr}{integer indicating the number of iterations
+to skip before checking if the sum of squared residuals improves. The
+default is \code{10L}.}
 
 \item{limit}{integer indicating the maximum number of iterations of
 \code{\link[MASS]{theta.ml}}. The default is \code{10L}.}
