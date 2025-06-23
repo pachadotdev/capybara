@@ -18,10 +18,10 @@ struct single_fe_indices {
 
   inline subview_col<uword> get_group(size_t j) const {
     if (group_sizes(j) == 0) {
-      return all_indices.head(0); // empty subview
+      return all_indices.head(0);
     }
-    size_t start = group_offsets(j);
-    size_t count = group_sizes(j);
+    const size_t start = group_offsets(j);
+    const size_t count = group_sizes(j);
     return all_indices.subvec(start, start + count - 1);
   }
 };
@@ -35,7 +35,6 @@ struct indices_info {
   field<uvec> nonempty_groups;
   field<field<uvec>> precomputed_groups;
 
-  // Cache-optimized sorted indices
   field<field<uvec>> sorted_groups;
   field<uvec> group_order;
   bool cache_optimized = false;
@@ -47,32 +46,26 @@ struct indices_info {
     return precomputed_groups(k)(j);
   }
 
-  // Cache-optimized group access methods
   inline const uvec &get_sorted_group(size_t k, size_t j) const {
-    // Check bounds
     if (cache_optimized && k < sorted_groups.n_elem &&
         j < sorted_groups(k).n_elem) {
       return sorted_groups(k)(j);
     }
-    // Fallback to regular precomputed groups
     return precomputed_groups(k)(j);
   }
 
   inline const uvec &get_group_processing_order(size_t k) const {
-    // Check bounds before accessing cache-optimized fields
     if (cache_optimized && k < group_order.n_elem &&
         !group_order(k).is_empty()) {
       return group_order(k);
     }
 
-    // Fallback: create sequential order
     static thread_local uvec fallback_order;
     if (k < fe_sizes.n_elem && fe_sizes(k) > 0) {
       fallback_order = regspace<uvec>(0, fe_sizes(k) - 1);
       return fallback_order;
     }
 
-    // Return empty if no groups
     static const uvec empty_vec;
     return empty_vec;
   }
@@ -90,16 +83,17 @@ struct indices_info {
     precomputed_groups = field<field<uvec>>(fe_sizes.n_elem);
     for (size_t k = 0; k < fe_sizes.n_elem; ++k) {
       precomputed_groups(k) = field<uvec>(fe_sizes(k));
+      const size_t fe_start = fe_offsets(k);
+
       for (size_t j = 0; j < fe_sizes(k); ++j) {
-        size_t fe_start = fe_offsets(k);
-        size_t group_idx = fe_start + j;
-        size_t start = group_offsets(group_idx);
-        size_t count = group_sizes(group_idx);
+        const size_t group_idx = fe_start + j;
+        const size_t start = group_offsets(group_idx);
+        const size_t count = group_sizes(group_idx);
         if (count > 0) {
           precomputed_groups(k)(j) =
               all_indices.subvec(start, start + count - 1);
         } else {
-          precomputed_groups(k)(j) = uvec(); // empty
+          precomputed_groups(k)(j) = uvec();
         }
       }
     }
@@ -107,7 +101,7 @@ struct indices_info {
 
   void optimize_cache_access() {
     if (cache_optimized)
-      return; // Already optimized
+      return;
 
     const uword K = fe_sizes.n_elem;
     sorted_groups = field<field<uvec>>(K);
@@ -117,14 +111,12 @@ struct indices_info {
       const uword J = fe_sizes(k);
       sorted_groups(k) = field<uvec>(J);
 
-      // Create (first_index, group_id) pairs for sorting
       std::vector<std::pair<uword, uword>> group_starts;
       group_starts.reserve(J);
 
       for (uword j = 0; j < J; ++j) {
-        uvec grp = precomputed_groups(k)(j);
+        const uvec &grp = precomputed_groups(k)(j);
         if (!grp.is_empty()) {
-          // Sort indices within group for sequential access
           sorted_groups(k)(j) = sort(grp);
           group_starts.emplace_back(grp.min(), j);
         } else {
@@ -132,10 +124,8 @@ struct indices_info {
         }
       }
 
-      // Sort groups by their first memory location
       std::sort(group_starts.begin(), group_starts.end());
 
-      // Create processing order
       group_order(k).set_size(group_starts.size());
       for (size_t i = 0; i < group_starts.size(); ++i) {
         group_order(k)(i) = group_starts[i].second;
@@ -154,11 +144,11 @@ struct crossproduct_results {
 struct beta_results {
   mat XtX;
   vec XtY;
-  mat decomp; // either L (Cholesky) or R (QR)
-  vec work;   // either z (Cholesky) or QtY (QR)
-  mat Xt;     // avoid repeated transposes
-  mat Q;      // for QR
-  mat XW;     // weighted X
+  mat decomp;
+  vec work;
+  mat Xt;
+  mat Q;
+  mat XW;
   vec coefficients;
   uvec valid_coefficients;
 
@@ -192,7 +182,6 @@ struct felm_results {
 };
 
 struct glm_workspace {
-  // Work vectors
   vec exp_eta;
   vec w;
   vec nu;
@@ -207,17 +196,14 @@ struct glm_workspace {
   vec mu_full;
   vec yadj;
 
-  // Work matrices
   mat MNU_accum;
   mat MNU;
   mat H;
-  mat MX_work; // avoid copies
+  mat MX_work;
 
-  // Sub-workspaces
   beta_results beta_ws;
   crossproduct_results cross_ws;
 
-  // Line search working vectors
   vec eta_candidate;
   vec beta_candidate;
   vec mu_candidate;
@@ -225,7 +211,6 @@ struct glm_workspace {
   vec dev_vec_work;
   vec ratio_work;
 
-  // Reusable index vectors
   uvec valid_idx;
   uvec invalid_idx;
 
@@ -244,7 +229,6 @@ struct glm_workspace {
 };
 
 static inline void reserve_glm_workspace(glm_workspace &ws, uword N, uword P) {
-  // Pre-allocate workspace once
   ws.xi.set_size(N);
   ws.var_mu.set_size(N);
   ws.w.set_size(N);

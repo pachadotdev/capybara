@@ -3,7 +3,6 @@
 using namespace arma;
 using namespace cpp11;
 
-// Include all header files
 #include "01_types.h"
 #include "02_exponential_family.h"
 #include "03_indices.h"
@@ -15,17 +14,13 @@ using namespace cpp11;
 #include "09_alpha.h"
 #include "10_groups.h"
 
-////////////////////////////////////////////////////////////////////////////////
-// R wrappers
-////////////////////////////////////////////////////////////////////////////////
-
 [[cpp11::register]] doubles_matrix<>
 center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
                   const list &k_list, const double &tol, const size_t &max_iter,
                   const size_t &iter_interrupt) {
   mat V = as_mat(V_r);
-  vec w = as_col(w_r);
-  indices_info indices = list_to_indices_info(k_list);
+  const vec w = as_col(w_r);
+  const indices_info indices = list_to_indices_info(k_list);
 
   center_variables(V, w, indices, tol, max_iter, iter_interrupt);
 
@@ -44,10 +39,10 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   const size_t iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]);
   const bool use_acceleration = as_cpp<bool>(control["use_acceleration"]);
 
-  indices_info indices = list_to_indices_info(k_list);
+  const indices_info indices = list_to_indices_info(k_list);
 
-  felm_results results = felm(X, y, w, center_tol, iter_center_max,
-                              iter_interrupt, indices, use_acceleration);
+  const felm_results results = felm(X, y, w, center_tol, iter_center_max,
+                                    iter_interrupt, indices, use_acceleration);
 
   if (!any(results.valid_coefficients == 0)) {
     return results.to_list();
@@ -55,7 +50,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
     writable::list res = results.to_list();
 
     writable::doubles coefs = as_cpp<doubles>(res["coefficients"]);
-    writable::integers invalid_positions =
+    const writable::integers invalid_positions =
         as_integers(find(results.valid_coefficients == 0));
     for (int i = 0; i < invalid_positions.size(); ++i) {
       coefs[invalid_positions[i]] = datum::nan;
@@ -89,29 +84,26 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   const size_t iter_ssr = as_cpp<size_t>(control["iter_ssr"]);
   const bool use_acceleration = as_cpp<bool>(control["use_acceleration"]);
 
-  indices_info indices = list_to_indices_info(k_list);
+  const indices_info indices = list_to_indices_info(k_list);
 
-  // Create workspace
   const size_t n = y.n_elem;
   const size_t p = MX.n_cols;
   glm_workspace ws(n, p);
 
   feglm_results results =
       feglm(MX, beta, eta, y, wt, theta, family_type, center_tol, dev_tol,
-            iter_max, iter_center_max, iter_inner_max, iter_interrupt, iter_ssr, indices,
-            ws, use_acceleration);
+            iter_max, iter_center_max, iter_inner_max, iter_interrupt, iter_ssr,
+            indices, ws, use_acceleration);
 
   if (keep_mx) {
     results.centered_matrix = std::move(MX);
   }
 
-  // Check if we have invalid coefficients
   if (!any(results.valid_coefficients == 0)) {
     return results.to_list(keep_mx);
   } else {
     writable::list res = results.to_list(keep_mx);
 
-    // Create coefficients with NA values for invalid ones
     writable::doubles coefs(results.coefficients.n_elem);
     const size_t I = results.coefficients.n_elem;
     for (size_t i = 0; i < I; ++i) {
@@ -147,14 +139,13 @@ feglm_offset_(const doubles &eta_r, const doubles &y_r, const doubles &offset_r,
   const size_t iter_ssr = as_cpp<size_t>(control["iter_ssr"]);
   const bool use_acceleration = as_cpp<bool>(control["use_acceleration"]);
 
-  indices_info indices = list_to_indices_info(k_list);
+  const indices_info indices = list_to_indices_info(k_list);
 
-  // Create workspace
   const size_t n = y.n_elem;
-  const size_t p = 1; // Single column for offset GLM
+  const size_t p = 1;
   glm_workspace ws(n, p);
 
-  feglm_offset_results result =
+  const feglm_offset_results result =
       feglm_offset(eta, y, offset, wt, family_type, center_tol, dev_tol,
                    iter_max, iter_center_max, iter_inner_max, iter_interrupt,
                    iter_ssr, indices, ws, use_acceleration);
@@ -181,9 +172,9 @@ feglm_offset_(const doubles &eta_r, const doubles &y_r, const doubles &offset_r,
   const size_t iter_max = as_cpp<size_t>(control["iter_max"]);
   const size_t interrupt_iter0 = as_cpp<size_t>(control["iter_interrupt"]);
 
-  indices_info indices = list_to_indices_info(k_list);
+  const indices_info indices = list_to_indices_info(k_list);
 
-  solve_alpha_results results =
+  const solve_alpha_results results =
       solve_alpha(p, indices, tol, iter_max, interrupt_iter0);
 
   return results.to_list();
@@ -194,8 +185,8 @@ feglm_offset_(const doubles &eta_r, const doubles &y_r, const doubles &offset_r,
                                                  const list &jlist) {
   const mat M = as_mat(M_r);
   const vec w = as_col(w_r);
-  single_fe_indices indices = list_to_single_fe_indices(jlist);
-  mat result = group_sums(M, w, indices);
+  const single_fe_indices indices = list_to_single_fe_indices(jlist);
+  const mat result = group_sums(M, w, indices);
   return as_doubles_matrix(result);
 }
 
@@ -206,16 +197,16 @@ group_sums_spectral_(const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
   const mat M = as_mat(M_r);
   const vec v = as_col(v_r);
   const vec w = as_col(w_r);
-  single_fe_indices indices = list_to_single_fe_indices(jlist);
-  mat result = group_sums_spectral(M, v, w, K, indices);
+  const single_fe_indices indices = list_to_single_fe_indices(jlist);
+  const mat result = group_sums_spectral(M, v, w, K, indices);
   return as_doubles_matrix(result);
 }
 
 [[cpp11::register]] doubles_matrix<>
 group_sums_var_(const doubles_matrix<> &M_r, const list &jlist) {
   const mat M = as_mat(M_r);
-  single_fe_indices indices = list_to_single_fe_indices(jlist);
-  mat result = group_sums_var(M, indices);
+  const single_fe_indices indices = list_to_single_fe_indices(jlist);
+  const mat result = group_sums_var(M, indices);
   return as_doubles_matrix(result);
 }
 
@@ -224,7 +215,7 @@ group_sums_cov_(const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
                 const list &jlist) {
   const mat M = as_mat(M_r);
   const mat N = as_mat(N_r);
-  single_fe_indices indices = list_to_single_fe_indices(jlist);
-  mat result = group_sums_cov(M, N, indices);
+  const single_fe_indices indices = list_to_single_fe_indices(jlist);
+  const mat result = group_sums_cov(M, N, indices);
   return as_doubles_matrix(result);
 }

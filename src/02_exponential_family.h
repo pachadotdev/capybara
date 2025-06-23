@@ -12,34 +12,34 @@ inline family_type get_family_type(const std::string &fam) {
       {"negbinomial", NEG_BIN},
       {"negative binomial", NEG_BIN}};
 
-  auto it = family_map.find(fam);
+  const auto it = family_map.find(fam);
   return (it != family_map.end()) ? it->second : UNKNOWN;
 }
 
 inline std::string tidy_family(const std::string &family) {
   std::string fam;
   fam.reserve(family.size());
-  // 1. Lowercase copy
+
   for (unsigned char c : family) {
     fam.push_back(std::tolower(c));
   }
-  // 2. Remove digits
+
   fam.erase(std::remove_if(fam.begin(), fam.end(),
                            [](char c) {
                              return std::isdigit(static_cast<unsigned char>(c));
                            }),
             fam.end());
-  // 3. Truncate at '('
-  if (auto pos = fam.find('('); pos != std::string::npos) {
+
+  if (const auto pos = fam.find('('); pos != std::string::npos) {
     fam.resize(pos);
   }
-  // 4. Replace spaces and dots with underscores
+
   for (char &c : fam) {
     if (c == ' ' || c == '.') {
       c = '_';
     }
   }
-  // 5. Remove any remaining whitespace
+
   fam.erase(std::remove_if(fam.begin(), fam.end(),
                            [](char c) {
                              return std::isspace(static_cast<unsigned char>(c));
@@ -48,6 +48,7 @@ inline std::string tidy_family(const std::string &family) {
 
   return fam;
 }
+
 inline double dev_resids_gaussian(const vec &y, const vec &mu, const vec &wt) {
   return dot(wt, square(y - mu));
 }
@@ -57,8 +58,7 @@ inline double dev_resids_poisson(const vec &y, const vec &mu, const vec &wt,
   ratio_work = clamp(y, datum::eps, y.max()) / mu;
   dev_vec_work = y % log(ratio_work) - y + mu;
 
-  // y == 0 case
-  uvec y0 = find(y == 0);
+  const uvec y0 = find(y == 0);
   if (!y0.is_empty()) {
     dev_vec_work.elem(y0) = mu.elem(y0);
   }
@@ -66,27 +66,7 @@ inline double dev_resids_poisson(const vec &y, const vec &mu, const vec &wt,
   return 2.0 * dot(wt, dev_vec_work);
 }
 
-// inline double dev_resids_logit(const vec &y, const vec &mu, const vec &wt) {
-//   const uword n = y.n_elem;
-//   vec dev_vec(n, fill::zeros);
-
-//   // Create binary mask (0 for y=0, 1 for y=1)
-//   uvec mask(n, fill::zeros);
-//   uvec idx1 = find(y == 1);
-
-//   // y=1 cases: log(1.0/mu)
-//   // y=0 cases: log(1.0/(1.0-mu))
-//   if (!idx1.is_empty()) {
-//     mask.elem(idx1).ones();
-//     dev_vec = mask % log(1.0 / mu) + (1.0 - mask) % log(1.0 / (1.0 - mu));
-//   } else {
-//     dev_vec = log(1.0 / (1.0 - mu));
-//   }
-
-//   return 2.0 * dot(wt, dev_vec);
-// }
-
-inline double dev_resids_logit(const vec &y, const vec &mu, const vec &wt) {
+inline double dev_resids_binomial(const vec &y, const vec &mu, const vec &wt) {
   const uword n = y.n_elem;
   vec mu_safe(n, fill::none);
   vec y_safe(n, fill::none);
@@ -103,7 +83,7 @@ inline double dev_resids_gamma(const vec &y, const vec &mu, const vec &wt) {
   const uword n = y.n_elem;
   vec dev_vec(n, fill::none);
   dev_vec = -log(y / mu) + (y - mu) / mu;
-  uvec zero_idx = find(y == 0);
+  const uvec zero_idx = find(y == 0);
   if (!zero_idx.is_empty()) {
     dev_vec.elem(zero_idx).ones();
   }
@@ -127,7 +107,7 @@ inline double dev_resids_negbin(const vec &y, const vec &mu,
   dev_vec = y % log(clamp(y, datum::eps, y.max()) / mu) -
             y_theta % log(clamp(y_theta, datum::eps, y_theta.max()) / mu_theta);
 
-  uvec idx = find(y < 1);
+  const uvec idx = find(y < 1);
   if (!idx.is_empty()) {
     dev_vec.elem(idx) = log(1.0 + mu.elem(idx) / theta);
   }
@@ -166,13 +146,12 @@ inline double dev_resids(const vec &y, const vec &mu, const double &theta,
   case GAUSSIAN:
     return dev_resids_gaussian(y, mu, wt);
   case POISSON: {
-    const uword n = y.n_elem;
-    vec dev_vec_work(n, fill::none);
-    vec ratio_work(n, fill::none);
+    vec dev_vec_work(y.n_elem, fill::none);
+    vec ratio_work(y.n_elem, fill::none);
     return dev_resids_poisson(y, mu, wt, dev_vec_work, ratio_work);
   }
   case BINOMIAL:
-    return dev_resids_logit(y, mu, wt);
+    return dev_resids_binomial(y, mu, wt);
   case GAMMA:
     return dev_resids_gamma(y, mu, wt);
   case INV_GAUSSIAN:
@@ -215,9 +194,7 @@ inline void get_mu(vec &result, const vec &eta, const family_type family) {
     result = exp(eta);
     break;
   case BINOMIAL: {
-    vec exp_eta(n, fill::none);
-    exp_eta = exp(eta);
-    result.set_size(n);
+    const vec exp_eta = exp(eta);
     result = exp_eta / square(1.0 + exp_eta);
   } break;
   case GAMMA:
@@ -243,9 +220,7 @@ inline void variance(vec &result, const vec &mu, const double &theta,
     result = mu;
     break;
   case BINOMIAL: {
-    // result = mu % (1.0 - mu);
-    // This avoids numerical issues with extreme probabilities
-    vec mu_safe = clamp(mu, datum::eps, 1.0 - datum::eps);
+    const vec mu_safe = clamp(mu, datum::eps, 1.0 - datum::eps);
     result = mu_safe % (1.0 - mu_safe);
     break;
   }
