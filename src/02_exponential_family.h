@@ -55,15 +55,26 @@ inline double dev_resids_gaussian(const vec &y, const vec &mu, const vec &wt) {
 
 inline double dev_resids_poisson(const vec &y, const vec &mu, const vec &wt,
                                  vec &dev_vec_work, vec &ratio_work) {
-  ratio_work = clamp(y, datum::eps, y.max()) / mu;
-  dev_vec_work = y % log(ratio_work) - y + mu;
+  const uword n = y.n_elem;
+  const double y_max = y.max();
+  double result = 0.0;
 
-  const uvec y0 = find(y == 0);
-  if (!y0.is_empty()) {
-    dev_vec_work.elem(y0) = mu.elem(y0);
+  for (uword i = 0; i < n; ++i) {
+    const double yi = y(i);
+    const double mui = mu(i);
+
+    ratio_work(i) = (yi > datum::eps ? yi : datum::eps) / mui;
+
+    if (yi > 0) {
+      dev_vec_work(i) = yi * std::log(ratio_work(i)) - yi + mui;
+    } else {
+      dev_vec_work(i) = mui;
+    }
+
+    result += wt(i) * dev_vec_work(i);
   }
 
-  return 2.0 * dot(wt, dev_vec_work);
+  return 2.0 * result;
 }
 
 inline double dev_resids_binomial(const vec &y, const vec &mu, const vec &wt) {

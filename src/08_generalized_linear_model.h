@@ -34,11 +34,15 @@ inline bool line_search_poisson(double &dev, double dev_old, double &damping,
     }
 
     if (i == 0) {
-      ws.eta_candidate = eta_old + eta_upd;
-      ws.beta_candidate = beta_old + beta_upd;
+      ws.eta_candidate = eta_old;
+      ws.eta_candidate += eta_upd;
+      ws.beta_candidate = beta_old;
+      ws.beta_candidate += beta_upd;
     } else {
-      ws.eta_candidate = eta_old + damping * eta_upd;
-      ws.beta_candidate = beta_old + damping * beta_upd;
+      ws.eta_candidate = eta_old;
+      ws.eta_candidate += damping * eta_upd;
+      ws.beta_candidate = beta_old;
+      ws.beta_candidate += damping * beta_upd;
     }
 
     ws.exp_eta_candidate = exp(ws.eta_candidate);
@@ -88,12 +92,16 @@ inline bool line_search_glm(double &dev, double dev_old, double &damping,
     }
 
     if (i == 0) {
-      ws.eta_candidate = eta_old + eta_upd;
-      ws.beta_candidate = beta_old + beta_upd;
+      ws.eta_candidate = eta_old;
+      ws.eta_candidate += eta_upd;
+      ws.beta_candidate = beta_old;
+      ws.beta_candidate += beta_upd;
       ws.mu_candidate = mu_full;
     } else {
-      ws.eta_candidate = eta_old + damping * eta_upd;
-      ws.beta_candidate = beta_old + damping * beta_upd;
+      ws.eta_candidate = eta_old;
+      ws.eta_candidate += damping * eta_upd;
+      ws.beta_candidate = beta_old;
+      ws.beta_candidate += damping * beta_upd;
       link_inv(ws.mu_candidate, ws.eta_candidate, family);
     }
 
@@ -163,13 +171,19 @@ feglm_results feglm_poisson(mat &MX, vec &beta, vec &eta, const vec &y,
     const vec eta_old = eta;
     const vec beta_old = beta;
 
-    ws.w = wt % ws.exp_eta;
-    ws.nu = (y - ws.mu) / ws.mu;
+    ws.w = wt;
+    ws.w %= ws.exp_eta;
 
-    if (it == 0)
+    ws.nu = y;
+    ws.nu -= ws.mu;
+    ws.nu /= ws.mu;
+
+    if (it == 0) {
       ws.MNU_accum = ws.nu;
-    else
-      ws.MNU_accum += (ws.nu - ws.nu_old);
+    } else {
+      ws.MNU_accum += ws.nu;
+      ws.MNU_accum -= ws.nu_old;
+    }
     ws.nu_old = ws.nu;
     ws.MNU = ws.MNU_accum;
 
@@ -184,10 +198,13 @@ feglm_results feglm_poisson(mat &MX, vec &beta, vec &eta, const vec &y,
     ws.beta_upd = solve_beta(MX, ws.MNU, ws.w, N, P, ws.beta_ws, true);
 
     const uvec valid = find(ws.beta_ws.valid_coefficients);
-    if (valid.n_elem < P)
-      ws.eta_upd = MX.cols(valid) * ws.beta_upd.elem(valid) + (ws.nu - ws.MNU);
-    else
-      ws.eta_upd = MX * ws.beta_upd + (ws.nu - ws.MNU);
+    if (valid.n_elem < P) {
+      ws.eta_upd = MX.cols(valid) * ws.beta_upd.elem(valid);
+    } else {
+      ws.eta_upd = MX * ws.beta_upd;
+    }
+    ws.eta_upd += ws.nu;
+    ws.eta_upd -= ws.MNU;
 
     double damping = 1.0;
     const bool ok = line_search_poisson(
@@ -289,13 +306,21 @@ feglm_results feglm(mat &MX, vec &beta, vec &eta, const vec &y, const vec &wt,
 
     get_mu(ws.xi, eta, family);
     variance(ws.var_mu, ws.mu, theta, family);
-    ws.w = wt % square(ws.xi) / ws.var_mu;
-    ws.nu = (y - ws.mu) / ws.xi;
 
-    if (it == 0)
+    ws.w = wt;
+    ws.w %= square(ws.xi);
+    ws.w /= ws.var_mu;
+
+    ws.nu = y;
+    ws.nu -= ws.mu;
+    ws.nu /= ws.xi;
+
+    if (it == 0) {
       ws.MNU_accum = ws.nu;
-    else
-      ws.MNU_accum += (ws.nu - ws.nu_old);
+    } else {
+      ws.MNU_accum += ws.nu;
+      ws.MNU_accum -= ws.nu_old;
+    }
     ws.nu_old = ws.nu;
     ws.MNU = ws.MNU_accum;
 
@@ -310,23 +335,20 @@ feglm_results feglm(mat &MX, vec &beta, vec &eta, const vec &y, const vec &wt,
     ws.beta_upd = solve_beta(MX, ws.MNU, ws.w, N, P, ws.beta_ws, true);
 
     const uvec valid = find(ws.beta_ws.valid_coefficients);
-    if (has_fe) {
-      if (valid.n_elem < P)
-        ws.eta_upd =
-            MX.cols(valid) * ws.beta_upd.elem(valid) + (ws.nu - ws.MNU);
-      else
-        ws.eta_upd = MX * ws.beta_upd + (ws.nu - ws.MNU);
+    if (valid.n_elem < P) {
+      ws.eta_upd = MX.cols(valid) * ws.beta_upd.elem(valid);
     } else {
-      if (valid.n_elem < P)
-        ws.eta_upd =
-            MX.cols(valid) * ws.beta_upd.elem(valid) + (ws.nu - ws.MNU);
-      else
-        ws.eta_upd = MX * ws.beta_upd + (ws.nu - ws.MNU);
+      ws.eta_upd = MX * ws.beta_upd;
     }
+    ws.eta_upd += ws.nu;
+    ws.eta_upd -= ws.MNU;
 
     double damping = adaptive_damping(hist);
-    ws.eta_full = eta_old + ws.eta_upd;
-    ws.beta_full = beta_old + ws.beta_upd;
+
+    ws.eta_full = eta_old;
+    ws.eta_full += ws.eta_upd;
+    ws.beta_full = beta_old;
+    ws.beta_full += ws.beta_upd;
     link_inv(ws.mu_full, ws.eta_full, family);
 
     const bool ok =
@@ -402,39 +424,49 @@ feglm_offset_results feglm_offset(vec eta, const vec &y, const vec &offset,
 
     get_mu(ws.xi, eta, family);
     variance(ws.var_mu, ws.mu, 0.0, family);
-    ws.w = wt % square(ws.xi) / ws.var_mu;
-    ws.nu = (y - ws.mu) / ws.xi;
+
+    ws.w = wt;
+    ws.w %= square(ws.xi);
+    ws.w /= ws.var_mu;
+
+    ws.yadj = y;
+    ws.yadj -= ws.mu;
+    ws.yadj /= ws.xi;
+    ws.yadj += eta;
+    ws.yadj -= offset;
 
     const uvec bad = find_nonfinite(ws.w);
     if (!bad.is_empty()) {
       valid_eta.elem(bad).zeros();
       ws.w.elem(bad).zeros();
     }
-    ws.yadj = (y - ws.mu) / ws.xi + eta - offset;
 
     if (has_fe) {
       vec yc = ws.yadj;
       center_variables(yc, ws.w, indices, center_tol, iter_center_max,
                        iter_interrupt, iter_ssr, use_acceleration);
       ws.yadj = yc;
-      ws.eta_upd = ws.yadj - eta;
+      ws.eta_upd = ws.yadj;
+      ws.eta_upd -= eta;
     } else {
-      ws.eta_upd = offset - eta;
+      ws.eta_upd = offset;
+      ws.eta_upd -= eta;
     }
 
     double damping = adaptive_damping(dev_hist);
     bool ok = false;
 
     for (size_t inner = 0; inner < iter_inner_max; ++inner) {
-      vec cand;
       if (inner == 0) {
-        cand = eta + ws.eta_upd;
+        ws.eta_candidate = eta;
+        ws.eta_candidate += ws.eta_upd;
       } else {
-        cand = eta + damping * ws.eta_upd;
+        ws.eta_candidate = eta;
+        ws.eta_candidate += damping * ws.eta_upd;
       }
 
-      link_inv(ws.mu, cand, family);
-      if (!valid_eta_mu(cand, ws.mu, family)) {
+      link_inv(ws.mu, ws.eta_candidate, family);
+      if (!valid_eta_mu(ws.eta_candidate, ws.mu, family)) {
         damping *= 0.5;
         continue;
       }
@@ -447,7 +479,7 @@ feglm_offset_results feglm_offset(vec eta, const vec &y, const vec &offset,
 
       const double ratio = (tmp - dev_old) / (0.1 + std::fabs(tmp));
       if (ratio <= -dev_tol) {
-        eta = cand;
+        eta = ws.eta_candidate;
         dev = tmp;
         ok = true;
         break;

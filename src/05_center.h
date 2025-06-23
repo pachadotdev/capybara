@@ -66,16 +66,17 @@ inline void project_1fe(vec &v, const vec &w, const field<uvec> &groups,
       const uvec &coords = groups(l);
       if (coords.is_empty())
         continue;
-      const double mean_val = dot(w(coords), v(coords)) * group_inv_w(l);
-      v(coords) -= mean_val;
+      const double mean_val =
+          dot(w.elem(coords), v.elem(coords)) * group_inv_w(l);
+      v.elem(coords) -= mean_val;
     }
   } else {
     for (size_t l = 0; l < L; ++l) {
       const uvec &coords = groups(l);
       if (coords.is_empty())
         continue;
-      const double mean_val = mean(v(coords));
-      v(coords) -= mean_val;
+      const double mean_val = mean(v.elem(coords));
+      v.elem(coords) -= mean_val;
     }
   }
 }

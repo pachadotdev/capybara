@@ -39,8 +39,14 @@ struct indices_info {
   field<uvec> group_order;
   bool cache_optimized = false;
 
+  static constexpr size_t cache_line_size = 64;
+  static constexpr size_t optimal_chunk = cache_line_size / sizeof(uword);
+
   inline const uvec &get_group(size_t k, size_t j) const {
     if (cache_optimized) {
+      if (j + 1 < sorted_groups(k).n_elem) {
+        __builtin_prefetch(&sorted_groups(k)(j + 1), 0, 1);
+      }
       return sorted_groups(k)(j);
     }
     return precomputed_groups(k)(j);
@@ -81,6 +87,7 @@ struct indices_info {
 
   void precompute_all_groups() {
     precomputed_groups = field<field<uvec>>(fe_sizes.n_elem);
+
     for (size_t k = 0; k < fe_sizes.n_elem; ++k) {
       precomputed_groups(k) = field<uvec>(fe_sizes(k));
       const size_t fe_start = fe_offsets(k);
@@ -97,9 +104,39 @@ struct indices_info {
         }
       }
     }
+
+    optimize_cache_access_internal();
   }
 
-  void optimize_cache_access() {
+  void optimize_cache_access() { optimize_cache_access_internal(); }
+
+  template <typename Func>
+  void iterate_groups_cached(size_t k, Func &&func) const {
+    if (cache_optimized && k < group_order.n_elem) {
+      const uvec &order = group_order(k);
+      for (uword i = 0; i < order.n_elem; ++i) {
+        const uword j = order(i);
+        func(j, sorted_groups(k)(j));
+      }
+    } else {
+      for (size_t j = 0; j < fe_sizes(k); ++j) {
+        if (!precomputed_groups(k)(j).is_empty()) {
+          func(j, precomputed_groups(k)(j));
+        }
+      }
+    }
+  }
+
+private:
+  struct GroupInfo {
+    uword idx;
+    uword min_val;
+    uword max_val;
+    uword size;
+    double density;
+  };
+
+  void optimize_cache_access_internal() {
     if (cache_optimized)
       return;
 
@@ -111,24 +148,42 @@ struct indices_info {
       const uword J = fe_sizes(k);
       sorted_groups(k) = field<uvec>(J);
 
-      std::vector<std::pair<uword, uword>> group_starts;
-      group_starts.reserve(J);
+      std::vector<GroupInfo> group_infos;
+      group_infos.reserve(J);
 
       for (uword j = 0; j < J; ++j) {
         const uvec &grp = precomputed_groups(k)(j);
         if (!grp.is_empty()) {
+          const uword min_idx = grp.min();
+          const uword max_idx = grp.max();
+          const uword range = max_idx - min_idx + 1;
+
           sorted_groups(k)(j) = sort(grp);
-          group_starts.emplace_back(grp.min(), j);
+
+          group_infos.push_back({j, min_idx, max_idx, grp.n_elem,
+                                 static_cast<double>(grp.n_elem) / range});
         } else {
           sorted_groups(k)(j) = uvec();
         }
       }
 
-      std::sort(group_starts.begin(), group_starts.end());
+      std::sort(group_infos.begin(), group_infos.end(),
+                [](const GroupInfo &a, const GroupInfo &b) {
+                  const uword block_a = a.min_val / optimal_chunk;
+                  const uword block_b = b.min_val / optimal_chunk;
+                  if (block_a != block_b)
+                    return block_a < block_b;
 
-      group_order(k).set_size(group_starts.size());
-      for (size_t i = 0; i < group_starts.size(); ++i) {
-        group_order(k)(i) = group_starts[i].second;
+                  if (std::abs(a.density - b.density) > 0.1) {
+                    return a.density > b.density;
+                  }
+
+                  return a.size < b.size;
+                });
+
+      group_order(k).set_size(group_infos.size());
+      for (size_t i = 0; i < group_infos.size(); ++i) {
+        group_order(k)(i) = group_infos[i].idx;
       }
     }
 
