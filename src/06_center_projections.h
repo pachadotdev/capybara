@@ -122,11 +122,52 @@ inline void project_1_to_K_fe(vec &v, const vec &w, const indices_info &indices,
   }
 }
 
+inline void absorb_2fe(arma::vec &y, const arma::uvec &fe1, const arma::uvec &fe2, const arma::vec &w) {
+  const size_t N = y.n_elem;
+  const size_t G1 = fe1.max() + 1;
+  const size_t G2 = fe2.max() + 1;
+  const bool weighted = (w.n_elem == N);
+
+  arma::vec mean1 = arma::zeros<arma::vec>(G1);
+  arma::vec mean2 = arma::zeros<arma::vec>(G2);
+  arma::vec wsum1 = arma::zeros<arma::vec>(G1);
+  arma::vec wsum2 = arma::zeros<arma::vec>(G2);
+
+  double grand_sum = 0.0, grand_wsum = 0.0;
+  for (size_t i = 0; i < N; ++i) {
+    double wi = weighted ? w(i) : 1.0;
+    mean1(fe1(i)) += wi * y(i);
+    mean2(fe2(i)) += wi * y(i);
+    wsum1(fe1(i)) += wi;
+    wsum2(fe2(i)) += wi;
+    grand_sum += wi * y(i);
+    grand_wsum += wi;
+  }
+  for (size_t g = 0; g < G1; ++g)
+    if (wsum1(g) > 0) mean1(g) /= wsum1(g);
+  for (size_t g = 0; g < G2; ++g)
+    if (wsum2(g) > 0) mean2(g) /= wsum2(g);
+  double grand_mean = grand_sum / grand_wsum;
+
+  for (size_t i = 0; i < N; ++i)
+    y(i) = y(i) - mean1(fe1(i)) - mean2(fe2(i)) + grand_mean;
+}
+
 inline void project_2fe(vec &v, const vec &w, const field<uvec> &groups1,
                         const vec &group_inv_w1, const field<uvec> &groups2,
                         const vec &group_inv_w2, bool use_weights) {
-  project_1fe(v, w, groups1, group_inv_w1, use_weights);
-  project_1fe(v, w, groups2, group_inv_w2, use_weights);
+  // Build group id vectors for each FE
+  size_t N = v.n_elem;
+  arma::uvec fe1(N), fe2(N);
+  for (size_t g = 0; g < groups1.n_elem; ++g) {
+    const arma::uvec &idx = groups1(g);
+    for (size_t i = 0; i < idx.n_elem; ++i) fe1(idx(i)) = g;
+  }
+  for (size_t g = 0; g < groups2.n_elem; ++g) {
+    const arma::uvec &idx = groups2(g);
+    for (size_t i = 0; i < idx.n_elem; ++i) fe2(idx(i)) = g;
+  }
+  absorb_2fe(v, fe1, fe2, w);
 }
 
 // Optimized projection for K fixed effects using cache structure
