@@ -1,6 +1,8 @@
 #ifndef CAPYBARA_LM_H
 #define CAPYBARA_LM_H
 
+// #include "timing.h" // development only, for profiling
+
 // Compute fitted values from coefficients, handling collinearity and centering
 inline vec compute_fitted(const mat &X, const vec &orig_y,
                           const vec &centered_y, const beta_results &beta_ws) {
@@ -25,6 +27,8 @@ inline felm_results felm(mat &X, const vec &y, const vec &w, double center_tol,
                          size_t iter_center_max, size_t iter_interrupt,
                          const indices_info &indices,
                          const bool &use_acceleration) {
+  // TIME_FUNCTION;
+
   const uword N = X.n_rows;
   const uword P = X.n_cols;
 

@@ -1,6 +1,8 @@
 #ifndef CAPYBARA_ALPHA_H
 #define CAPYBARA_ALPHA_H
 
+// #include "timing.h" // development only, for profiling
+
 // Subtract all other fixed effects from y except the k_idx-th effect
 inline void subtract_other_effects(vec &y, const vec &p,
                                    const field<vec> &alpha,
@@ -37,6 +39,7 @@ inline solve_alpha_results solve_alpha(const vec &p,
                                        const indices_info &indices, double tol,
                                        size_t iter_max,
                                        size_t interrupt_iter0) {
+  // TIME_FUNCTION;
   const uword K = indices.fe_sizes.n_elem;
   const uvec active = find(indices.fe_sizes > 0);
   const size_t n_active = active.n_elem;

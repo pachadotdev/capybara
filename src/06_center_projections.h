@@ -1,6 +1,8 @@
 #ifndef CAPYBARA_CENTER_PROJECTIONS_H
 #define CAPYBARA_CENTER_PROJECTIONS_H
 
+// #include "timing.h" // development only, for profiling
+
 // Adaptive acceleration strategy selection based on system size and complexity
 inline void select_acceleration_strategy(center_workspace &ws,
                                          const indices_info &indices, size_t N,
@@ -132,6 +134,7 @@ inline void project_Kfe_optimized(vec &v, const vec &w,
                                   const indices_info &indices,
                                   const field<vec> &group_inv_w,
                                   bool use_weights) {
+  // TIME_FUNCTION;
   const size_t K = indices.fe_sizes.n_elem;
   for (size_t k = 0; k < K; ++k) {
     project_1_to_K_fe(v, w, indices, k, group_inv_w(k), use_weights);

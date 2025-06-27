@@ -1,6 +1,8 @@
 #ifndef CAPYBARA_GLM_POISSON_H
 #define CAPYBARA_GLM_POISSON_H
 
+// #include "timing.h" // development only, for profiling
+
 // Compute adaptive damping factor for line search based on deviance history
 inline double adaptive_damping(const std::vector<double> &dev_hist) {
   if (dev_hist.size() < 3)
@@ -79,6 +81,8 @@ feglm_results feglm_poisson(mat &MX, vec &beta, vec &eta, const vec &y,
                             size_t iter_interrupt, size_t iter_ssr,
                             const indices_info &indices, glm_workspace &ws,
                             uword N, uword P, const bool &use_acceleration) {
+  // TIME_FUNCTION;
+
   reserve_glm_workspace(ws, N, P);
 
   ws.MX_work = MX; // Avoid reallocation
