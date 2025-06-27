@@ -7,12 +7,16 @@ using namespace cpp11;
 #include "02_indices.h"
 #include "03_exponential_family.h"
 #include "04_linear_algebra.h"
-#include "05_center.h"
-#include "06_beta.h"
-#include "07_linear_model.h"
-#include "08_generalized_linear_model.h"
-#include "09_alpha.h"
-#include "10_groups.h"
+#include "05_center_workspace.h"
+#include "06_center_projections.h"
+#include "07_center_variables.h"
+#include "08_beta.h"
+#include "09_linear_model.h"
+#include "10_glm_poisson.h"
+#include "11_glm.h"
+#include "12_glm_offset.h"
+#include "13_alpha.h"
+#include "14_groups.h"
 
 [[cpp11::register]] doubles_matrix<>
 center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,

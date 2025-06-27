@@ -1,9 +1,6 @@
 #ifndef CAPYBARA_ALPHA_H
 #define CAPYBARA_ALPHA_H
 
-#include <armadillo>
-using namespace arma;
-
 // Subtract all other fixed effects from y except the k_idx-th effect
 inline void subtract_other_effects(vec &y, const vec &p,
                                    const field<vec> &alpha,

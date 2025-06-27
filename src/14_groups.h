@@ -1,8 +1,6 @@
 #ifndef CAPYBARA_GROUPS_H
 #define CAPYBARA_GROUPS_H
 
-#include "01_types.h"
-
 // Indices of groups with at least min_size members
 inline uvec get_valid_groups(const single_fe_indices &indices,
                              size_t min_size = 1) {
