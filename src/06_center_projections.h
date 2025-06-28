@@ -122,17 +122,17 @@ inline void project_1_to_K_fe(vec &v, const vec &w, const indices_info &indices,
   }
 }
 
-inline void absorb_2fe(arma::vec &y, const arma::uvec &fe1,
-                       const arma::uvec &fe2, const arma::vec &w) {
+inline void absorb_2fe(vec &y, const uvec &fe1,
+                       const uvec &fe2, const vec &w) {
   const size_t N = y.n_elem;
   const size_t G1 = fe1.max() + 1;
   const size_t G2 = fe2.max() + 1;
   const bool weighted = (w.n_elem == N);
 
-  arma::vec mean1 = arma::zeros<arma::vec>(G1);
-  arma::vec mean2 = arma::zeros<arma::vec>(G2);
-  arma::vec wsum1 = arma::zeros<arma::vec>(G1);
-  arma::vec wsum2 = arma::zeros<arma::vec>(G2);
+  vec mean1 = zeros<vec>(G1);
+  vec mean2 = zeros<vec>(G2);
+  vec wsum1 = zeros<vec>(G1);
+  vec wsum2 = zeros<vec>(G2);
 
   double grand_sum = 0.0, grand_wsum = 0.0;
   for (size_t i = 0; i < N; ++i) {
@@ -161,14 +161,14 @@ inline void project_2fe(vec &v, const vec &w, const field<uvec> &groups1,
                         const vec &group_inv_w2, bool use_weights) {
   // Build group id vectors for each FE
   size_t N = v.n_elem;
-  arma::uvec fe1(N), fe2(N);
+  uvec fe1(N), fe2(N);
   for (size_t g = 0; g < groups1.n_elem; ++g) {
-    const arma::uvec &idx = groups1(g);
+    const uvec &idx = groups1(g);
     for (size_t i = 0; i < idx.n_elem; ++i)
       fe1(idx(i)) = g;
   }
   for (size_t g = 0; g < groups2.n_elem; ++g) {
-    const arma::uvec &idx = groups2(g);
+    const uvec &idx = groups2(g);
     for (size_t i = 0; i < idx.n_elem; ++i)
       fe2(idx(i)) = g;
   }

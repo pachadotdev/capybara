@@ -180,7 +180,7 @@ feglm_results feglm(mat &MX, vec &beta, vec &eta, const vec &y, const vec &wt,
 
   for (uword j = 0; j < P; ++j) {
     if (!ws.beta_ws.valid_coefficients(j)) {
-      beta(j) = arma::datum::nan;
+      beta(j) = datum::nan;
     }
   }
 
