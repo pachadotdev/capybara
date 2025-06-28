@@ -1,3 +1,8 @@
+# capybara 1.6.0
+
+* Uses the same Poisson separation property and closed-form 2 FE solutions
+  as in `ppmlhdfe`.
+
 # capybara 1.5.0
 
 * Handles collinearities in the model matrix by using a QR decomposition

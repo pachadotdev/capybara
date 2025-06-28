@@ -10,20 +10,20 @@ inline void select_acceleration_strategy(center_workspace &ws,
   // Use enhanced acceleration for large systems with many fixed effects
   if (K >= 3 && N >= 2000) {
     ws.use_enhanced_acceleration = true;
-    ws.acceleration_damping = 0.7;  // More conservative for complex systems
-    ws.history_size = 2;            // Smaller history for memory efficiency
+    ws.acceleration_damping = 0.7; // More conservative for complex systems
+    ws.history_size = 2;           // Smaller history for memory efficiency
   } else if (K >= 2 && N >= 1000) {
     ws.use_enhanced_acceleration = true;
     ws.acceleration_damping = 0.8;
     ws.history_size = 3;
   } else {
-    ws.use_enhanced_acceleration = false;  // Use memory-efficient version
+    ws.use_enhanced_acceleration = false; // Use memory-efficient version
   }
 
   // Adjust damping based on cache optimization
   if (indices.cache_optimized) {
     ws.acceleration_damping *=
-        1.1;  // Slightly more aggressive with optimized access
+        1.1; // Slightly more aggressive with optimized access
   }
 }
 
@@ -122,7 +122,8 @@ inline void project_1_to_K_fe(vec &v, const vec &w, const indices_info &indices,
   }
 }
 
-inline void absorb_2fe(arma::vec &y, const arma::uvec &fe1, const arma::uvec &fe2, const arma::vec &w) {
+inline void absorb_2fe(arma::vec &y, const arma::uvec &fe1,
+                       const arma::uvec &fe2, const arma::vec &w) {
   const size_t N = y.n_elem;
   const size_t G1 = fe1.max() + 1;
   const size_t G2 = fe2.max() + 1;
@@ -144,9 +145,11 @@ inline void absorb_2fe(arma::vec &y, const arma::uvec &fe1, const arma::uvec &fe
     grand_wsum += wi;
   }
   for (size_t g = 0; g < G1; ++g)
-    if (wsum1(g) > 0) mean1(g) /= wsum1(g);
+    if (wsum1(g) > 0)
+      mean1(g) /= wsum1(g);
   for (size_t g = 0; g < G2; ++g)
-    if (wsum2(g) > 0) mean2(g) /= wsum2(g);
+    if (wsum2(g) > 0)
+      mean2(g) /= wsum2(g);
   double grand_mean = grand_sum / grand_wsum;
 
   for (size_t i = 0; i < N; ++i)
@@ -161,11 +164,13 @@ inline void project_2fe(vec &v, const vec &w, const field<uvec> &groups1,
   arma::uvec fe1(N), fe2(N);
   for (size_t g = 0; g < groups1.n_elem; ++g) {
     const arma::uvec &idx = groups1(g);
-    for (size_t i = 0; i < idx.n_elem; ++i) fe1(idx(i)) = g;
+    for (size_t i = 0; i < idx.n_elem; ++i)
+      fe1(idx(i)) = g;
   }
   for (size_t g = 0; g < groups2.n_elem; ++g) {
     const arma::uvec &idx = groups2(g);
-    for (size_t i = 0; i < idx.n_elem; ++i) fe2(idx(i)) = g;
+    for (size_t i = 0; i < idx.n_elem; ++i)
+      fe2(idx(i)) = g;
   }
   absorb_2fe(v, fe1, fe2, w);
 }

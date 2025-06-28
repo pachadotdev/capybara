@@ -73,6 +73,28 @@ inline bool line_search_poisson(double &dev, double dev_old, double &damping,
   return false;
 }
 
+// Detect separated FE groups: returns a uvec of length J (groups), 1 if
+// separated (all y==0), 0 otherwise
+inline arma::uvec detect_separated_groups(const arma::field<arma::uvec> &groups,
+                                          const arma::vec &y) {
+  const size_t J = groups.n_elem;
+  arma::uvec separated = arma::zeros<arma::uvec>(J);
+  for (size_t j = 0; j < J; ++j) {
+    const arma::uvec &idx = groups(j);
+    if (idx.is_empty())
+      continue;
+    bool all_zero = true;
+    for (size_t i = 0; i < idx.n_elem; ++i) {
+      if (y(idx(i)) != 0.0) {
+        all_zero = false;
+        break;
+      }
+    }
+    separated(j) = all_zero ? 1 : 0;
+  }
+  return separated;
+}
+
 // Main Poisson FE-GLM fitting routine (with centering and line search)
 feglm_results feglm_poisson(mat &MX, vec &beta, vec &eta, const vec &y,
                             const vec &wt, const double &center_tol,
@@ -88,6 +110,24 @@ feglm_results feglm_poisson(mat &MX, vec &beta, vec &eta, const vec &y,
   ws.MX_work = MX; // Avoid reallocation
   const mat MX_orig = ws.MX_work;
   const bool has_fe = (indices.fe_sizes.n_elem > 0);
+
+  // Separation detection: drop separated FE groups (all y==0)
+  if (has_fe) {
+    for (size_t k = 0; k < indices.fe_sizes.n_elem; ++k) {
+      const size_t J = indices.fe_sizes(k);
+      arma::field<arma::uvec> groups(J);
+      for (size_t j = 0; j < J; ++j) {
+        groups(j) = indices.get_group(k, j);
+      }
+      arma::uvec separated = detect_separated_groups(groups, y);
+      for (size_t j = 0; j < groups.n_elem; ++j) {
+        if (separated(j)) {
+          ws.w.elem(groups(j))
+              .zeros(); // set weights to zero for separated group
+        }
+      }
+    }
+  }
 
   if (eta.is_empty() || all(eta == 0.0)) {
     eta.set_size(N);
