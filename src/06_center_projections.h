@@ -122,8 +122,7 @@ inline void project_1_to_K_fe(vec &v, const vec &w, const indices_info &indices,
   }
 }
 
-inline void absorb_2fe(vec &y, const uvec &fe1,
-                       const uvec &fe2, const vec &w) {
+inline void absorb_2fe(vec &y, const uvec &fe1, const uvec &fe2, const vec &w) {
   const size_t N = y.n_elem;
   const size_t G1 = fe1.max() + 1;
   const size_t G2 = fe2.max() + 1;

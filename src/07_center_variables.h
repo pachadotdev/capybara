@@ -52,7 +52,7 @@ inline void map_partial_out(mat *X, vec *y, const vec &w,
         const uvec &idx = indices.get_group(k, j);
         if (idx.is_empty())
           continue;
-        double inv_sumw = 0.0;
+        double inv_sumw;
         if (use_weights) {
           double sumw = accu(w(idx));
           inv_sumw = (sumw > 0) ? (1.0 / sumw) : 0.0;
@@ -61,37 +61,20 @@ inline void map_partial_out(mat *X, vec *y, const vec &w,
         }
         if (has_X) {
           for (size_t p = 0; p < P; ++p) {
-            double mean = 0.0;
-            if (use_weights) {
-              double sum = 0.0;
-              for (size_t ii = 0; ii < idx.n_elem; ++ii)
-                sum += w(idx[ii]) * (*X)(idx[ii], p);
-              mean = sum * inv_sumw;
-            } else {
-              double sum = 0.0;
-              for (size_t ii = 0; ii < idx.n_elem; ++ii)
-                sum += (*X)(idx[ii], p);
-              mean = (idx.n_elem > 0) ? sum / idx.n_elem : 0.0;
-            }
-            for (size_t ii = 0; ii < idx.n_elem; ++ii)
-              (*X)(idx[ii], p) -= mean;
+            vec col_vals = X->col(p);
+            uvec idxu = idx;
+            vec group_vals = col_vals.elem(idxu);
+            double xbar = use_weights ? dot(w(idxu), group_vals) * inv_sumw : mean(group_vals);
+            col_vals.elem(idxu) -= xbar;
+            X->submat(idxu, uvec{p}) = col_vals.elem(idxu);
           }
         }
         if (has_y) {
-          double mean = 0.0;
-          if (use_weights) {
-            double sum = 0.0;
-            for (size_t ii = 0; ii < idx.n_elem; ++ii)
-              sum += w(idx[ii]) * (*y)(idx[ii]);
-            mean = sum * inv_sumw;
-          } else {
-            double sum = 0.0;
-            for (size_t ii = 0; ii < idx.n_elem; ++ii)
-              sum += (*y)(idx[ii]);
-            mean = (idx.n_elem > 0) ? sum / idx.n_elem : 0.0;
-          }
-          for (size_t ii = 0; ii < idx.n_elem; ++ii)
-            (*y)(idx[ii]) -= mean;
+          uvec idxu = idx;
+          vec group_vals = (*y).elem(idxu);
+          double xbar = use_weights ? dot(w(idxu), group_vals) * inv_sumw : mean(group_vals);
+          group_vals -= xbar;
+          (*y).elem(idxu) = group_vals;
         }
       }
     }

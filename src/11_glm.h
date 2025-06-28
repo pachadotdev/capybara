@@ -106,10 +106,8 @@ feglm_results feglm(mat &MX, vec &beta, vec &eta, const vec &y, const vec &wt,
     ws.w = wt;
     ws.w %= square(ws.xi);
     ws.w /= ws.var_mu;
-
-    ws.nu = y;
-    ws.nu -= ws.mu;
-    ws.nu /= ws.xi;
+    // Combine elementwise operations for ws.nu
+    ws.nu = (y - ws.mu) / ws.xi;
 
     if (it == 0) {
       ws.MNU_accum = ws.nu;

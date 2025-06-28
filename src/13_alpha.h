@@ -26,11 +26,10 @@ inline void subtract_other_effects(vec &y, const vec &p,
 // Update alpha_k for the k-th fixed effect by averaging over its groups
 inline void update_alpha_k(vec &alpha_k, const vec &y,
                            const indices_info &indices, size_t k) {
-  alpha_k.zeros();
-  const uvec &groups_k = indices.nonempty_groups(k);
-  for (uword j : groups_k) {
-    const uvec grp = indices.get_group(k, j);
-    alpha_k(j) = mean(y.elem(grp));
+  const size_t J = indices.fe_sizes(k);
+  for (size_t j = 0; j < J; ++j) {
+    const uvec &idx = indices.get_group(k, j);
+    alpha_k(j) = idx.is_empty() ? 0.0 : mean(y.elem(idx));
   }
 }
 

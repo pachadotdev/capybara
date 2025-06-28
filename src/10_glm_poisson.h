@@ -75,22 +75,14 @@ inline bool line_search_poisson(double &dev, double dev_old, double &damping,
 
 // Detect separated FE groups: returns a uvec of length J (groups), 1 if
 // separated (all y==0), 0 otherwise
-inline uvec detect_separated_groups(const field<uvec> &groups,
-                                          const vec &y) {
+inline uvec detect_separated_groups(const field<uvec> &groups, const vec &y) {
   const size_t J = groups.n_elem;
   uvec separated = zeros<uvec>(J);
   for (size_t j = 0; j < J; ++j) {
     const uvec &idx = groups(j);
     if (idx.is_empty())
       continue;
-    bool all_zero = true;
-    for (size_t i = 0; i < idx.n_elem; ++i) {
-      if (y(idx(i)) != 0.0) {
-        all_zero = false;
-        break;
-      }
-    }
-    separated(j) = all_zero ? 1 : 0;
+    separated(j) = all(y.elem(idx) == 0.0) ? 1 : 0;
   }
   return separated;
 }
