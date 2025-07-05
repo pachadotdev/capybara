@@ -27,41 +27,34 @@ inline void project_fe(mat *X, vec *y, size_t k, const indices_info &indices,
     // Project matrix columns if present
     if (X != nullptr) {
       const size_t P = X->n_cols;
-      for (size_t p = 0; p < P; ++p) {
-        double xbar = 0.0;
-        if (use_weights) {
-          for (size_t i = 0; i < n_idx; ++i) {
-            xbar += (*X)(idx(i), p) * w(idx(i));
-          }
-        } else {
-          for (size_t i = 0; i < n_idx; ++i) {
-            xbar += (*X)(idx(i), p);
-          }
+      
+      if (use_weights) {
+        const vec w_subset = w(idx);
+        for (size_t p = 0; p < P; ++p) {
+          vec x_subset = X->submat(idx, uvec{p});
+          double xbar = dot(x_subset, w_subset) * inv_sumw;
+          X->submat(idx, uvec{p}) -= xbar;
         }
-        xbar *= inv_sumw;
-
-        for (size_t i = 0; i < n_idx; ++i) {
-          (*X)(idx(i), p) -= xbar;
+      } else {
+        for (size_t p = 0; p < P; ++p) {
+          vec x_subset = X->submat(idx, uvec{p});
+          double xbar = mean(x_subset);
+          X->submat(idx, uvec{p}) -= xbar;
         }
       }
     }
 
     // Project vector if present
     if (y != nullptr) {
-      double ybar = 0.0;
       if (use_weights) {
-        for (size_t i = 0; i < n_idx; ++i) {
-          ybar += (*y)(idx(i)) * w(idx(i));
-        }
+        const vec w_subset = w(idx);
+        const vec y_subset = y->elem(idx);
+        double ybar = dot(y_subset, w_subset) * inv_sumw;
+        y->elem(idx) -= ybar;
       } else {
-        for (size_t i = 0; i < n_idx; ++i) {
-          ybar += (*y)(idx(i));
-        }
-      }
-      ybar *= inv_sumw;
-
-      for (size_t i = 0; i < n_idx; ++i) {
-        (*y)(idx(i)) -= ybar;
+        vec y_subset = y->elem(idx);
+        double ybar = mean(y_subset);
+        y->elem(idx) -= ybar;
       }
     }
   }
@@ -121,19 +114,31 @@ inline double weighted_quadsum_vec(const vec &x, const vec &y, const vec &w) {
   }
 }
 
-// Helper to compute weighted quadratic sum for matrices (column-wise)
+// Helper to compute weighted quadratic sum for matrices (column-wise) - optimized
 inline rowvec weighted_quadsum_mat(const mat &x, const mat &y, const vec &w) {
-  const size_t P = x.n_cols;
-  rowvec result(P);
-
-  for (size_t p = 0; p < P; ++p) {
-    if (w.n_elem > 1) {
-      result(p) = dot(x.col(p) % y.col(p), w);
+  if (w.n_elem > 1) {
+    // Use the same approach as reghdfe's weighted_quadcolsum
+    const size_t P = x.n_cols;
+    if (P < 14) {
+      // For thin matrices, use quadcross approach
+      return diagvec(trans(x % y) * diagmat(w)).t();
     } else {
-      result(p) = dot(x.col(p), y.col(p));
+      // For wide matrices, use column-wise computation
+      rowvec result(P);
+      for (size_t p = 0; p < P; ++p) {
+        result(p) = dot(x.col(p) % y.col(p), w);
+      }
+      return result;
+    }
+  } else {
+    // Unweighted case - use different thresholds like reghdfe
+    const size_t P = x.n_cols;
+    if (P < 25) {
+      return diagvec(trans(x) * y).t();
+    } else {
+      return sum(x % y, 0);
     }
   }
-  return result;
 }
 
 // Conjugate gradient acceleration
@@ -211,11 +216,11 @@ inline void center_variables_cg(mat *X, vec *y, const vec &w,
       iint += iter_interrupt;
     }
 
-    // Apply transformation to u: v = T(u)
+    // Apply transformation to u: v = T(u) - reuse existing matrices
     if (has_X) {
       v_X = u_X;
       transform_symmetric_kaczmarz(&v_X, nullptr, w, indices, use_weights);
-      v_X = u_X - v_X; // Get residual
+      v_X = u_X - v_X; // Get residual in-place
 
       // Compute alpha = ssr / (u'v)
       rowvec uv = weighted_quadsum_mat(u_X, v_X, w);
@@ -223,17 +228,14 @@ inline void center_variables_cg(mat *X, vec *y, const vec &w,
         alpha_X(p) = (uv(p) > 0) ? ssr_X(p) / uv(p) : 0.0;
       }
 
-      // Update: y = y - alpha * u, r = r - alpha * v
-      for (size_t p = 0; p < X->n_cols; ++p) {
-        X->col(p) -= alpha_X(p) * u_X.col(p);
-        r_X.col(p) -= alpha_X(p) * v_X.col(p);
-      }
+      // Update: x = x - alpha * u, r = r - alpha * v
+      *X -= u_X.each_row() % alpha_X;
+      r_X -= v_X.each_row() % alpha_X;
 
-      // Store recent SSR for convergence check
-      for (size_t p = 0; p < alpha_X.n_elem; ++p) {
-        recent_ssr_X(iter % d, p) = alpha_X(p) * ssr_X(p);
-        improvement_potential_X(p) -= alpha_X(p) * ssr_X(p);
-      }
+      // SSR for convergence check
+      rowvec alpha_ssr = alpha_X % ssr_X;
+      recent_ssr_X.row(iter % d) = alpha_ssr;
+      improvement_potential_X -= alpha_ssr;
     }
 
     if (has_y) {
@@ -241,7 +243,7 @@ inline void center_variables_cg(mat *X, vec *y, const vec &w,
       transform_symmetric_kaczmarz(nullptr, &v_y, w, indices, use_weights);
       v_y = u_y - v_y; // Get residual
 
-      // Compute alpha = ssr / (u'v)
+      // alpha = ssr / (u'v)
       double uv = weighted_quadsum_vec(u_y, v_y, w);
       alpha_y = (uv > 0) ? ssr_y / uv : 0.0;
 
@@ -254,20 +256,17 @@ inline void center_variables_cg(mat *X, vec *y, const vec &w,
       improvement_potential_y -= alpha_y * ssr_y;
     }
 
-    // Update SSR
+    // Update SSR and compute beta
     if (has_X) {
       ssr_old_X = ssr_X;
       ssr_X = weighted_quadsum_mat(r_X, r_X, w);
 
       // Compute beta = ssr / ssr_old (Fletcher-Reeves)
-      for (size_t p = 0; p < beta_X.n_elem; ++p) {
-        beta_X(p) = (ssr_old_X(p) > 0) ? ssr_X(p) / ssr_old_X(p) : 0.0;
-      }
+      // Add small epsilon to avoid division by zero
+      beta_X = ssr_X / (ssr_old_X + 1e-16);
 
       // Update u = r + beta * u
-      for (size_t p = 0; p < u_X.n_cols; ++p) {
-        u_X.col(p) = r_X.col(p) + beta_X(p) * u_X.col(p);
-      }
+      u_X = r_X + u_X.each_row() % beta_X;
     }
 
     if (has_y) {
@@ -310,19 +309,132 @@ inline void center_variables_cg(mat *X, vec *y, const vec &w,
   }
 }
 
+// Hybrid acceleration: start with simple Kaczmarz, then switch to CG
+// This follows reghdfe's accelerate_hybrid approach
+inline void center_variables_hybrid(mat *X, vec *y, const vec &w,
+                                    const indices_info &indices, double tol,
+                                    size_t max_iter, size_t iter_interrupt) {
+  const size_t K = indices.fe_sizes.n_elem;
+  if (K == 0) return;
+  
+  const bool has_X = (X != nullptr);
+  const bool has_y = (y != nullptr);
+  const bool use_weights = (w.n_elem > 1);
+  
+  const size_t accel_start = 6; // Start CG after 6 iterations, like reghdfe
+  size_t iint = iter_interrupt;
+  
+  // First phase: simple symmetric Kaczmarz
+  for (size_t iter = 1; iter <= std::min(accel_start, max_iter); ++iter) {
+    if (iter == iint) {
+      check_user_interrupt();
+      iint += iter_interrupt;
+    }
+    
+    // Store previous state for convergence check
+    mat X_old;
+    vec y_old;
+    if (has_X) X_old = *X;
+    if (has_y) y_old = *y;
+    
+    // Apply symmetric Kaczmarz transformation
+    transform_symmetric_kaczmarz(X, y, w, indices, use_weights);
+    
+    // Check convergence
+    bool converged = true;
+    if (has_X) {
+      double rel_change = norm(*X - X_old, "fro") / (1.0 + norm(X_old, "fro"));
+      if (rel_change > tol) converged = false;
+    }
+    if (has_y) {
+      double rel_change = norm(*y - y_old) / (1.0 + norm(y_old));
+      if (rel_change > tol) converged = false;
+    }
+    
+    if (converged) return;
+  }
+  
+  // Second phase: switch to CG if not converged
+  if (accel_start < max_iter) {
+    // Adjust remaining iterations
+    size_t remaining_iter = max_iter - accel_start;
+    center_variables_cg(X, y, w, indices, tol, remaining_iter, iter_interrupt);
+  }
+}
+
+// Main centering function following reghdfe's MAP solver
 inline void center_variables(mat &V, const vec &w, const indices_info &indices,
                              double tol, size_t max_iter,
                              size_t iter_interrupt) {
   const size_t K = indices.fe_sizes.n_elem;
   if (K == 0)
     return;
-  center_variables_cg(&V, nullptr, w, indices, tol, max_iter, iter_interrupt);
+    
+  // Handle constant-only case (no fixed effects)
+  if (K == 1) {
+    // Check if this is a trivial case with only one group
+    const size_t J = indices.fe_sizes(0);
+    if (J == 1) {
+      // Single group
+      const bool use_weights = (w.n_elem > 1);
+      if (use_weights) {
+        double weight_sum = accu(w);
+        rowvec means(V.n_cols);
+        for (size_t p = 0; p < V.n_cols; ++p) {
+          means(p) = dot(V.col(p), w) / weight_sum;
+        }
+        V.each_row() -= means;
+      } else {
+        rowvec means = mean(V, 0);
+        V.each_row() -= means;
+      }
+      return;
+    }
+  }
+  
+  // Follow reghdfe's poolsize logic
+  const size_t P = V.n_cols;
+  const size_t poolsize = P; // all columns at once
+  
+  if (poolsize >= P) {
+    // Process all columns together - hybrid method
+    center_variables_hybrid(&V, nullptr, w, indices, tol, max_iter, iter_interrupt);
+  } else {
+    // Process columns individually
+    for (size_t p = 0; p < P; ++p) {
+      vec col_p = V.col(p);
+      center_variables_hybrid(nullptr, &col_p, w, indices, tol, max_iter, iter_interrupt);
+      V.col(p) = col_p;
+    }
+  }
 }
 
 inline void center_variables(vec &y, const vec &w, const indices_info &indices,
                              double tol, size_t max_iter,
                              size_t iter_interrupt) {
-  center_variables_cg(nullptr, &y, w, indices, tol, max_iter, iter_interrupt);
+  const size_t K = indices.fe_sizes.n_elem;
+  if (K == 0)
+    return;
+    
+  // Handle constant-only case (no fixed effects)
+  if (K == 1) {
+    const size_t J = indices.fe_sizes(0);
+    if (J == 1) {
+      // Single group
+      const bool use_weights = (w.n_elem > 1);
+      if (use_weights) {
+        double mean_y = dot(y, w) / accu(w);
+        y -= mean_y;
+      } else {
+        double mean_y = mean(y);
+        y -= mean_y;
+      }
+      return;
+    }
+  }
+  
+  // Use hybrid method for vector
+  center_variables_hybrid(nullptr, &y, w, indices, tol, max_iter, iter_interrupt);
 }
 
 inline void center_variables(mat &X_work, vec &y, const vec &w,
@@ -332,10 +444,48 @@ inline void center_variables(mat &X_work, vec &y, const vec &w,
   const size_t K = indices.fe_sizes.n_elem;
   if (K == 0)
     return;
+    
   if (&X_work != &X_orig) {
     X_work = X_orig;
   }
-  center_variables_cg(&X_work, &y, w, indices, tol, max_iter, iter_interrupt);
+  
+  // Handle constant-only case (no fixed effects)
+  if (K == 1) {
+    const size_t J = indices.fe_sizes(0);
+    if (J == 1) {
+      // Single group
+      const bool use_weights = (w.n_elem > 1);
+      if (use_weights) {
+        double weight_sum = accu(w);
+        rowvec means_X(X_work.n_cols);
+        for (size_t p = 0; p < X_work.n_cols; ++p) {
+          means_X(p) = dot(X_work.col(p), w) / weight_sum;
+        }
+        double mean_y = dot(y, w) / weight_sum;
+        X_work.each_row() -= means_X;
+        y -= mean_y;
+      } else {
+        rowvec means_X = mean(X_work, 0);
+        double mean_y = mean(y);
+        X_work.each_row() -= means_X;
+        y -= mean_y;
+      }
+      return;
+    }
+  }
+  
+  // Follow reghdfe's poolsize logic for joint processing
+  const size_t P = X_work.n_cols;
+  const size_t poolsize = P + 1; // X columns + y vector
+  
+  if (poolsize >= P + 1) {
+    // Process X and y together
+    center_variables_hybrid(&X_work, &y, w, indices, tol, max_iter, iter_interrupt);
+  } else {
+    // Process separately
+    center_variables_hybrid(&X_work, nullptr, w, indices, tol, max_iter, iter_interrupt);
+    center_variables_hybrid(nullptr, &y, w, indices, tol, max_iter, iter_interrupt);
+  }
 }
 
 #endif // CAPYBARA_CENTER_VARIABLES_H
