@@ -24,9 +24,5 @@ test_that("fenegbin is similar to fixest", {
     family = quasipoisson(link = "log")
   )
 
-  coef_dist_base <- coef(mod_base)[2]
-
-  dist_variation <- abs((coef(mod)[1] - coef_dist_base) / coef(mod)[1])
-
-  expect_lt(dist_variation, 0.05)
+  expect_equal(coef(mod_base)[2], coef(mod)[1], tolerance = 1e-2)
 })

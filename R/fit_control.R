@@ -31,7 +31,7 @@ NULL
 #' @param center_tol tolerance level for the stopping condition of the centering
 #'  algorithm. The stopping condition is based on the relative change of the
 #'  centered variable similar to the \code{'lfe'} package. The default is
-#'  \code{1.0e-06}.
+#'  \code{1.0e-04}.
 #' @param iter_max integer indicating the maximum number of iterations
 #'  in the maximization routine. The default is \code{25L}.
 #' @param iter_center_max integer indicating the maximum number of
@@ -65,15 +65,17 @@ NULL
 #' @return A named list of control parameters.
 #'
 #' @examples
-#' felm(mpg ~ wt + hp | cyl, data = mtcars,
-#'  control = fit_control(center_tol = 1.0e-03))
+#' felm(mpg ~ wt + hp | cyl,
+#'   data = mtcars,
+#'   control = fit_control(center_tol = 1.0e-03)
+#' )
 #'
 #' @seealso \code{\link{feglm}}
 #'
 #' @export
 fit_control <- function(
-    dev_tol = 1.0e-05,
-    center_tol = 1.0e-05,
+    dev_tol = 1.0e-04,
+    center_tol = 1.0e-04,
     iter_max = 25L,
     iter_center_max = 10000L,
     iter_inner_max = 50L,

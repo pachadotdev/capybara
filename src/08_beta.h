@@ -20,10 +20,11 @@ inline void solve_beta_qr(mat &MX, const vec &MNU, const vec &w,
 
   const vec diag_abs = abs(ws.decomp.diag());
   const double max_diag = diag_abs.max();
+  // Use R's default tolerance for collinearity detection
   const double tol = 1e-7 * max_diag;
   const uvec indep = find(diag_abs > tol);
 
-  ws.coefficients.zeros();
+  ws.coefficients.fill(datum::nan);
   ws.valid_coefficients.zeros();
   ws.valid_coefficients(indep).ones();
 
@@ -34,14 +35,17 @@ inline void solve_beta_qr(mat &MX, const vec &MNU, const vec &w,
     const vec Yr = ws.work.elem(indep);
     const vec br = solve(trimatu(Rr), Yr, solve_opts::fast);
     ws.coefficients(indep) = br;
+    // Keep NaN for invalid coefficients
   }
 }
 
 // Main beta solver: uses Cholesky if possible, otherwise falls back to QR
 inline vec solve_beta(mat &MX, const vec &MNU, const vec &w, const uword n,
                       const uword p, beta_results &ws, bool use_weights) {
-  ws.coefficients.zeros(p);
-  ws.valid_coefficients.ones(p);
+  ws.coefficients.set_size(p);
+  ws.coefficients.fill(datum::nan);
+  ws.valid_coefficients.zeros(
+      p); // Initialize all as invalid, will be set to 1 for valid ones
 
   if (ws.work.n_elem != p) {
     ws.work.set_size(p);
@@ -77,6 +81,8 @@ inline vec solve_beta(mat &MX, const vec &MNU, const vec &w, const uword n,
       ws.work = solve(trimatl(ws.decomp), ws.XtY, solve_opts::fast);
       ws.coefficients =
           solve(trimatu(ws.decomp.t()), ws.work, solve_opts::fast);
+      ws.valid_coefficients
+          .ones(); // All coefficients are valid in Cholesky path
       return ws.coefficients;
     }
   }

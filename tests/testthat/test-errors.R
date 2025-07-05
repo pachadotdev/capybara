@@ -134,9 +134,7 @@ test_that("error conditions in helpers", {
 
   # no formula
 
-  expect_error(
-    feglm(data = trade_short), "'formula' has to be specified"
-  )
+  expect_error(feglm(data = trade_short), "'formula' has to be specified")
 
   # incorrect formula
 
@@ -150,23 +148,11 @@ test_that("error conditions in helpers", {
 
   # null data
 
-  expect_error(
-    fepoisson(
-      trade ~ log_dist | rta,
-      data = NULL
-    ),
-    "'data' must be specified"
-  )
+  expect_error(fepoisson(trade ~ log_dist | rta, data = NULL), "'data' must be specified")
 
   # empty data
 
-  expect_error(
-    fepoisson(
-      trade ~ log_dist | rta,
-      data = list()
-    ),
-    "'data' must be a data.frame"
-  )
+  expect_error(fepoisson(trade ~ log_dist | rta, data = list()), "'data' must be a data.frame")
 
   # incorrect control
 

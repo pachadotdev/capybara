@@ -28,7 +28,7 @@ test_that("fepoisson is similar to fixest", {
 
   dist_variation <- abs((coef(mod)[1] - coef_dist_base) / coef(mod)[1])
 
-  expect_lt(dist_variation, 0.05)
+  expect_gt(0.05, dist_variation)
 
   expect_output(print(mod))
 
@@ -43,8 +43,8 @@ test_that("fepoisson is similar to fixest", {
   expect_equal(length(fes), 1)
 
   expect_equal(
-    unname(fes[["cyl"]][1]),
     unname(coef(glm(mpg ~ wt + as.factor(cyl), mtcars, family = quasipoisson(link = "log")))[1]),
+    unname(fes[["cyl"]][1]),
     tolerance = 1e-2
   )
 

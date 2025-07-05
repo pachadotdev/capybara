@@ -57,7 +57,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
     const writable::integers invalid_positions =
         as_integers(find(results.valid_coefficients == 0));
     for (int i = 0; i < invalid_positions.size(); ++i) {
-      coefs[invalid_positions[i]] = datum::nan;
+      coefs[invalid_positions[i]] = NA_REAL;
     }
 
     res["coefficients"] = coefs;

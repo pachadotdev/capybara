@@ -13,13 +13,13 @@ test_that("felm with weights works", {
   w <- mtcars$cyl
   m3 <- felm(mpg ~ wt | am, weights = w, data = mtcars)
 
-  expect_equal(coef(m1), coef(m2))
-  expect_equal(coef(m1), coef(m3))
+  expect_equal(coef(m2), coef(m1))
+  expect_equal(coef(m3), coef(m1))
 
   w <- NULL
   m4 <- felm(mpg ~ wt | am, weights = w, data = mtcars)
 
-  expect_gt(coef(m1), coef(m4))
+  expect_lt(coef(m4), coef(m1))
 })
 
 test_that("feglm with weights works", {
@@ -29,11 +29,11 @@ test_that("feglm with weights works", {
   w <- mtcars$cyl
   m3 <- feglm(mpg ~ wt | am, weights = w, data = mtcars)
 
-  expect_equal(coef(m1), coef(m2))
-  expect_equal(coef(m1), coef(m3))
+  expect_equal(coef(m2), coef(m1))
+  expect_equal(coef(m3), coef(m1))
 
   w <- NULL
   m4 <- feglm(mpg ~ wt | am, weights = w, data = mtcars)
 
-  expect_gt(coef(m1), coef(m4))
+  expect_lt(coef(m4), coef(m1))
 })

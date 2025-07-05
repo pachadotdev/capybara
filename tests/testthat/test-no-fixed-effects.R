@@ -17,6 +17,6 @@ test_that("felm/feglm intercept is ok with no FEs", {
   g1 <- unname(coef(lm(mpg ~ wt, mtcars))[1])
   g2 <- unname(coef(glm(mpg ~ wt, data = mtcars, family = "quasipoisson"))[1])
 
-  expect_equal(f1, g1, tolerance = 1e-2)
-  expect_equal(f2, g2, tolerance = 1e-2)
+  expect_equal(g1, f1, tolerance = 1e-2)
+  expect_equal(g2, f2, tolerance = 1e-2)
 })

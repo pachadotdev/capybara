@@ -53,7 +53,7 @@ test_that("feglm is similar to glm", {
     family = Gamma()
   )
 
-  expect_equal(unname(coef(mod) - coef(mod_base)[2:3]), c(0, 0), tolerance = 1e-2)
+  expect_equal(coef(mod_base)[2:3], coef(mod), tolerance = 1e-2)
 
   # Inverse Gaussian ----
 
@@ -69,7 +69,7 @@ test_that("feglm is similar to glm", {
     family = inverse.gaussian()
   )
 
-  expect_equal(unname(coef(mod) - coef(mod_base)[2:3]), c(0, 0), tolerance = 1e-2)
+  expect_equal(coef(mod_base)[2:3], coef(mod), tolerance = 1e-2)
 })
 
 test_that("proportional regressors return NA coefficients", {
@@ -84,7 +84,7 @@ test_that("proportional regressors return NA coefficients", {
   fit1 <- glm(y ~ x1 + x2 + as.factor(f), data = d, family = gaussian())
   fit2 <- feglm(y ~ x1 + x2 | f, data = d, family = gaussian())
 
-  expect_equal(coef(fit1)[2:3], coef(fit2), tolerance = 1e-2)
+  expect_equal(coef(fit2), coef(fit1)[2:3], tolerance = 1e-2)
 
-  expect_equal(unname(predict(fit1)), predict(fit2), tolerance = 1e-2)
+  expect_equal(predict(fit2), unname(predict(fit1)), tolerance = 1e-2)
 })

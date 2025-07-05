@@ -53,7 +53,7 @@ feglm_offset_results feglm_offset(vec eta, const vec &y, const vec &offset,
     if (has_fe) {
       vec yc = ws.yadj;
       center_variables(yc, ws.w, indices, center_tol, iter_center_max,
-                       iter_interrupt, iter_ssr, use_acceleration);
+                       iter_interrupt);
       ws.yadj = yc;
       ws.eta_upd = ws.yadj;
       ws.eta_upd -= eta;

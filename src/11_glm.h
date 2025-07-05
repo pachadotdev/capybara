@@ -122,8 +122,7 @@ feglm_results feglm(mat &MX, vec &beta, vec &eta, const vec &y, const vec &wt,
       MX = MX_orig;
       vec MNU(ws.MNU.colptr(0), N, false, false);
       center_variables(MX, MNU, ws.w, MX_orig, indices, center_tol,
-                       iter_center_max, iter_interrupt, iter_ssr,
-                       use_acceleration);
+                       iter_center_max, iter_interrupt);
     }
 
     ws.beta_upd = solve_beta(MX, ws.MNU, ws.w, N, P, ws.beta_ws, true);

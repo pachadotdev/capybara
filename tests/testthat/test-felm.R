@@ -67,7 +67,7 @@ test_that("felm works", {
   m2 <- lm(mpg ~ wt + qsec + as.factor(cyl) + as.factor(am) + as.factor(gear), mtcars)
 
   expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-2)
-  
+
   s1 <- summary(m1)
   s2 <- summary(m2)
   expect_equal(s1$r.squared, s2$r.squared, tolerance = 1e-2)
@@ -97,7 +97,7 @@ test_that("felm time is the minimally affected when adding noise to the data", {
     b <- Sys.time()
     t2[i] <- b - a
   }
-  expect_lte(abs(median(t1) - median(t2)), 0.05)
+  expect_gte(0.05, abs(median(t1) - median(t2)))
 })
 
 test_that("proportional regressors return NA coefficients", {
@@ -105,21 +105,20 @@ test_that("proportional regressors return NA coefficients", {
   d <- data.frame(
     y = rnorm(100),
     x1 = rnorm(100),
-    f = factor(sample(1:2, 1000, replace = TRUE))
+    f = factor(sample(1:2, 100, replace = TRUE))
   )
-  d$x2 <- 2 * d$x1
 
+  d$x2 <- 2 * d$x1
   fit1 <- lm(y ~ x1 + x2 + as.factor(f), data = d)
   fit2 <- felm(y ~ x1 + x2 | f, data = d)
 
-  expect_equal(coef(fit1)[2:3], coef(fit2), tolerance = 1e-2)
-
-  expect_equal(unname(predict(fit1)), predict(fit2), tolerance = 1e-2)
+  expect_equal(coef(fit2), coef(fit1)[2:3], tolerance = 1e-2)
+  expect_equal(predict(fit2), unname(predict(fit1)), tolerance = 1e-2)
 })
 
 test_that("Inf values are dropped", {
   mtcars2 <- mtcars[, c("mpg", "wt", "cyl")]
-  
+
   mtcars2$mpg[1] <- 0
   expect_error(felm(log(mpg) ~ log(wt) | cyl, mtcars2), "Infinite values")
 
@@ -130,5 +129,5 @@ test_that("Inf values are dropped", {
   mtcars2$wt[2] <- 1
   m1 <- felm(log(mpg) ~ log(wt) | cyl, mtcars2)
   m2 <- lm(log(mpg) ~ log(wt) + as.factor(cyl), mtcars2)
-  expect_equal(coef(m1), coef(m2)[2], tolerance = 1e-2)
+  expect_equal(coef(m2)[2], coef(m1), tolerance = 1e-2)
 })

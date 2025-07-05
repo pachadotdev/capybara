@@ -43,7 +43,7 @@ inline felm_results felm(mat &X, const vec &y, const vec &w, double center_tol,
     vec yc = y;
     // Center variables for fixed effects
     center_variables(X, yc, w, X0, indices, center_tol, iter_center_max,
-                     iter_interrupt, use_w, use_acceleration);
+                     iter_interrupt);
     // Solve for beta coefficients
     solve_beta(X, yc, w, N, P, beta_ws, use_w);
     // Compute fitted values

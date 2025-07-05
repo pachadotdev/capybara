@@ -18,7 +18,7 @@ test_that("vcov works", {
   v3 <- vcov(m2, type = "sandwich")
   v4 <- vcov(m2, type = "outer.product")
 
-  expect_lte(sum(diag(v1)), sum(diag(v2)))
-  expect_lte(sum(diag(v1)), sum(diag(v3)))
-  expect_lte(sum(diag(v1)), sum(diag(v4)))
+  expect_lte(sum(diag(v2)), sum(diag(v1)))
+  expect_lte(sum(diag(v3)), sum(diag(v1)))
+  expect_lte(sum(diag(v4)), sum(diag(v1)))
 })

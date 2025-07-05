@@ -28,7 +28,7 @@ test_that("predicted values increase the error outside the inter-quartile range 
   mape1 <- mape(d1$mpg, pred1)
   mape2 <- mape(d2$mpg, pred2)
 
-  expect_lt(mape1, mape2)
+  expect_gt(mape2, mape1)
 
   # verify prediction compared to base R
   m2 <- glm(mpg ~ wt + disp + as.factor(cyl), mtcars, family = quasipoisson())
@@ -36,13 +36,13 @@ test_that("predicted values increase the error outside the inter-quartile range 
   pred1_base <- predict(m2, newdata = d1, type = "response")
   pred2_base <- predict(m2, newdata = d2, type = "response")
 
-  expect_equal(pred1, unname(pred1_base), tolerance = 1e-2)
-  expect_equal(pred2, unname(pred2_base), tolerance = 1e-2)
+  expect_equal(unname(pred1_base), pred1, tolerance = 1e-2)
+  expect_equal(unname(pred2_base), pred2, tolerance = 1e-2)
 
   # Binomial ----
 
   m1 <- feglm(am ~ wt + disp | cyl, mtcars, family = binomial())
-  
+
   d1 <- mtcars[mtcars$mpg >= quantile(mtcars$mpg, 0.25) & mtcars$mpg <= quantile(mtcars$mpg, 0.75), ]
   d2 <- mtcars[mtcars$mpg < quantile(mtcars$mpg, 0.25) | mtcars$mpg > quantile(mtcars$mpg, 0.75), ]
 
@@ -57,7 +57,7 @@ test_that("predicted values increase the error outside the inter-quartile range 
   # verify prediction compared to base R
 
   # TODO: check these numerical differences
-  
+
   # m2 <- glm(am ~ wt + disp + as.factor(cyl), mtcars, family = binomial())
 
   # pred1_base <- predict(m2, newdata = d1, type = "response")
@@ -115,7 +115,7 @@ test_that("predicted values increase the error outside the inter-quartile range 
   # TODO: check these numerical differences
 
   # m2 <- glm(am ~ wt + disp + as.factor(cyl), mtcars, family = binomial())
-  
+
   # pred1_base <- predict(m2, newdata = d1, type = "response")
   # pred2_base <- predict(m2, newdata = d2, type = "response")
 

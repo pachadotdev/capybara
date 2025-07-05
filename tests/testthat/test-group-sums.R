@@ -17,31 +17,26 @@ test_that("group_sums_* works", {
   jlist <- list(1L, 2L)
 
   expect_equal(
-    group_sums_(m, w, jlist),
-    # the matrix comes from: round(alpaca:::groupSums(m, w, jlist), 3)
     matrix(c(4.144, 4.872, -2.942), ncol = 1, nrow = 3),
+    group_sums_(m, w, jlist),
     tolerance = 1e-2
   )
 
   expect_equal(
-    group_sums_spectral_(m, w, v, k, jlist),
-    # the matrix comes from: round(alpaca:::groupSumsSpectral(m, w, v, k,
-    # jlist), 3)
     matrix(c(0, 0, 0), ncol = 1, nrow = 3),
+    group_sums_spectral_(m, w, v, k, jlist),
     tolerance = 1e-2
   )
 
   expect_equal(
-    group_sums_var_(m, jlist)[, 1],
-    # the vector comes from: round(alpaca:::groupSumsVar(m, jlist)[, 1], 3)
     c(2.483, 2.644, -0.779),
+    group_sums_var_(m, jlist)[, 1],
     tolerance = 1e-2
   )
 
   expect_equal(
-    group_sums_cov_(m, m, jlist)[, 1],
-    # the vector comes from: round(alpaca:::groupSumsCov(m, m, jlist)[, 1], 3)
     c(0, 0, 0),
+    group_sums_cov_(m, m, jlist)[, 1],
     tolerance = 1e-2
   )
 })

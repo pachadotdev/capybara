@@ -171,8 +171,7 @@ feglm_results feglm_poisson(mat &MX, vec &beta, vec &eta, const vec &y,
 
       vec MNU(ws.MNU.colptr(0), N, false, false);
       center_variables(ws.MX_work, MNU, ws.w, MX_orig, indices, center_tol,
-                       iter_center_max, iter_interrupt, iter_ssr,
-                       use_acceleration);
+                       iter_center_max, iter_interrupt);
     }
 
     ws.beta_upd = solve_beta(ws.MX_work, ws.MNU, ws.w, N, P, ws.beta_ws, true);
