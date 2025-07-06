@@ -25,8 +25,7 @@ inline vec compute_fitted(const mat &X, const vec &orig_y,
 // Main linear model fitting routine (with or without fixed effects)
 inline felm_results felm(mat &X, const vec &y, const vec &w, double center_tol,
                          size_t iter_center_max, size_t iter_interrupt,
-                         const indices_info &indices,
-                         const bool &use_acceleration) {
+                         const indices_info &indices) {
   // TIME_FUNCTION;
 
   const uword N = X.n_rows;

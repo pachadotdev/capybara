@@ -331,7 +331,8 @@ get_score_matrix_feglm_ <- function(object) {
     attr(x, "dimnames") <- NULL
 
     # Center variables
-    x <- center_variables_(x, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["interrupt_iter"]])
+    x <- center_variables_(x, w, k_list, control[["center_tol"]],
+      control[["iter_max"]], control[["iter_interrupt"]])
     colnames(x) <- nms_sp
   }
 

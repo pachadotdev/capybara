@@ -94,7 +94,7 @@ feglm_results feglm_poisson(mat &MX, vec &beta, vec &eta, const vec &y,
                             size_t iter_center_max, size_t iter_inner_max,
                             size_t iter_interrupt, size_t iter_ssr,
                             const indices_info &indices, glm_workspace &ws,
-                            uword N, uword P, const bool &use_acceleration) {
+                            uword N, uword P) {
   // TIME_FUNCTION;
 
   reserve_glm_workspace(ws, N, P);

@@ -62,14 +62,14 @@ feglm_results feglm(mat &MX, vec &beta, vec &eta, const vec &y, const vec &wt,
                     double dev_tol, size_t iter_max, size_t iter_center_max,
                     size_t iter_inner_max, size_t iter_interrupt,
                     size_t iter_ssr, const indices_info &indices,
-                    glm_workspace &ws, const bool &use_acceleration) {
+                    glm_workspace &ws) {
   const uword N = y.n_elem;
   const uword P = MX.n_cols;
 
   if (family == POISSON) {
     return feglm_poisson(MX, beta, eta, y, wt, center_tol, dev_tol, iter_max,
                          iter_center_max, iter_inner_max, iter_interrupt,
-                         iter_ssr, indices, ws, N, P, use_acceleration);
+                         iter_ssr, indices, ws, N, P);
   }
 
   reserve_glm_workspace(ws, N, P);

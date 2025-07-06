@@ -362,7 +362,7 @@ inline void center_variables_hybrid(mat *X, vec *y, const vec &w,
   }
 }
 
-// Main centering function following reghdfe's MAP solver
+// Main centering function
 inline void center_variables(mat &V, const vec &w, const indices_info &indices,
                              double tol, size_t max_iter,
                              size_t iter_interrupt) {

@@ -15,8 +15,7 @@ fit_control(
   limit = 10L,
   trace = FALSE,
   drop_pc = TRUE,
-  keep_mx = FALSE,
-  use_acceleration = TRUE
+  keep_mx = FALSE
 )
 }
 \arguments{
@@ -65,11 +64,6 @@ The default is \code{TRUE}.}
 stored. The centered regressor matrix is required for some covariance
 estimators, bias corrections, and average partial effects. This option saves
 some computation time at the cost of memory. The default is \code{TRUE}.}
-
-\item{use_acceleration}{logical indicating if the algorithm should use
-acceleration techniques to speed up convergence. This option is useful for
-large datasets and complex models. The default is \code{TRUE} for datasets
-with more than 1000 observations and two or more fixed effects.}
 }
 \value{
 A named list of control parameters.

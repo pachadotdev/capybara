@@ -8,8 +8,7 @@ feglm_offset_results feglm_offset(vec eta, const vec &y, const vec &offset,
                                   size_t iter_max, size_t iter_center_max,
                                   size_t iter_inner_max, size_t iter_interrupt,
                                   size_t iter_ssr, const indices_info &indices,
-                                  glm_workspace &ws,
-                                  const bool &use_acceleration) {
+                                  glm_workspace &ws) {
   const uword N = y.n_elem;
   reserve_glm_workspace(ws, N, 1);
 
