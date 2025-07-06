@@ -59,25 +59,26 @@ inline double dev_resids_gaussian(const vec &y, const vec &mu, const vec &wt) {
 // Deviance residuals for Poisson family
 inline double dev_resids_poisson(const vec &y, const vec &mu, const vec &wt,
                                  vec &dev_vec_work, vec &ratio_work) {
-  const uword n = y.n_elem;
-  double result = 0.0;
-
-  for (uword i = 0; i < n; ++i) {
-    const double yi = y(i);
-    const double mui = mu(i);
-
-    ratio_work(i) = (yi > datum::eps ? yi : datum::eps) / mui;
-
-    if (yi > 0) {
-      dev_vec_work(i) = yi * std::log(ratio_work(i)) - yi + mui;
-    } else {
-      dev_vec_work(i) = mui;
-    }
-
-    result += wt(i) * dev_vec_work(i);
+  ratio_work = y / mu;
+  
+  const uvec zero_indices = find(y <= datum::eps);
+  if (!zero_indices.is_empty()) {
+    ratio_work(zero_indices) = vec(zero_indices.n_elem, fill::value(datum::eps)) / mu(zero_indices);
   }
-
-  return 2.0 * result;
+  
+  const uvec positive_indices = find(y > 0);
+  const uvec zero_y_indices = find(y == 0);
+  
+  if (!positive_indices.is_empty()) {
+    dev_vec_work(positive_indices) = y(positive_indices) % log(ratio_work(positive_indices)) - 
+                                     y(positive_indices) + mu(positive_indices);
+  }
+  
+  if (!zero_y_indices.is_empty()) {
+    dev_vec_work(zero_y_indices) = mu(zero_y_indices);
+  }
+  
+  return 2.0 * dot(wt, dev_vec_work);
 }
 
 // Deviance residuals for Binomial family

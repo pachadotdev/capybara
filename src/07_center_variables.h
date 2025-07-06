@@ -114,24 +114,24 @@ inline double weighted_quadsum_vec(const vec &x, const vec &y, const vec &w) {
   }
 }
 
-// Helper to compute weighted quadratic sum for matrices (column-wise) - optimized
+// Helper to compute weighted quadratic sum for matrices (column-wise)
 inline rowvec weighted_quadsum_mat(const mat &x, const mat &y, const vec &w) {
   if (w.n_elem > 1) {
-    // Use the same approach as reghdfe's weighted_quadcolsum
     const size_t P = x.n_cols;
     if (P < 14) {
-      // For thin matrices, use quadcross approach
-      return diagvec(trans(x % y) * diagmat(w)).t();
+      // For thin matrices, use more efficient computation
+      const mat xy = x % y;
+      return sum(xy.each_col() % w, 0);
     } else {
-      // For wide matrices, use column-wise computation
+      // For wide matrices, use optimized column-wise computation
       rowvec result(P);
       for (size_t p = 0; p < P; ++p) {
-        result(p) = dot(x.col(p) % y.col(p), w);
+        result(p) = accu((x.col(p) % y.col(p)) % w);
       }
       return result;
     }
   } else {
-    // Unweighted case - use different thresholds like reghdfe
+    // Unweighted case
     const size_t P = x.n_cols;
     if (P < 25) {
       return diagvec(trans(x) * y).t();
