@@ -39,16 +39,16 @@ struct indices_info {
   field<uvec> nonempty_groups;           // Indices of nonempty groups per FE
   field<field<uvec>> precomputed_groups; // Precomputed group indices
 
-  field<field<uvec>> sorted_groups; // Cache-optimized group indices
-  field<uvec> group_order;          // Cache-optimized group order
-  bool cache_optimized = false;     // Whether cache optimization is enabled
+  field<field<uvec>> sorted_groups; // Cache-efficient group indices
+  field<uvec> group_order;          // Cache-efficient group order
+  bool cache = false;     // Whether cache optimization is enabled
 
   static constexpr size_t cache_line_size = 64;
   static constexpr size_t optimal_chunk = cache_line_size / sizeof(uword);
 
   // Get group indices for FE k, group j
   inline const uvec &get_group(size_t k, size_t j) const {
-    if (cache_optimized) {
+    if (cache) {
       if (j + 1 < sorted_groups(k).n_elem) {
         __builtin_prefetch(&sorted_groups(k)(j + 1), 0, 1);
       }
@@ -59,7 +59,7 @@ struct indices_info {
 
   // Get sorted group indices for FE k, group j
   inline const uvec &get_sorted_group(size_t k, size_t j) const {
-    if (cache_optimized && k < sorted_groups.n_elem &&
+    if (cache && k < sorted_groups.n_elem &&
         j < sorted_groups(k).n_elem) {
       return sorted_groups(k)(j);
     }
@@ -68,7 +68,7 @@ struct indices_info {
 
   // Get group processing order for FE k
   inline const uvec &get_group_processing_order(size_t k) const {
-    if (cache_optimized && k < group_order.n_elem &&
+    if (cache && k < group_order.n_elem &&
         !group_order(k).is_empty()) {
       return group_order(k);
     }
@@ -120,10 +120,10 @@ struct indices_info {
   // Enable cache optimization for group access
   void optimize_cache_access() { optimize_cache_access_internal(); }
 
-  // Iterate over groups in cache-optimized order
+  // Iterate over groups in cache-efficient order
   template <typename Func>
   void iterate_groups_cached(size_t k, Func &&func) const {
-    if (cache_optimized && k < group_order.n_elem) {
+    if (cache && k < group_order.n_elem) {
       const uvec &order = group_order(k);
       for (uword i = 0; i < order.n_elem; ++i) {
         const uword j = order(i);
@@ -150,7 +150,7 @@ private:
 
   // Internal: optimize group access for cache
   void optimize_cache_access_internal() {
-    if (cache_optimized)
+    if (cache)
       return;
 
     const uword K = fe_sizes.n_elem;
@@ -200,7 +200,7 @@ private:
       }
     }
 
-    cache_optimized = true;
+    cache = true;
   }
 };
 
@@ -283,18 +283,28 @@ struct glm_workspace {
   uvec valid_idx;
   uvec invalid_idx;
 
-  glm_workspace(size_t n, size_t p)
-      : exp_eta(n, fill::none), w(n, fill::none), nu(n, fill::none),
-        nu_old(n, fill::zeros), mu(n, fill::none), xi(n, fill::none),
-        var_mu(n, fill::none), beta_upd(p, fill::none), eta_upd(n, fill::none),
-        eta_full(n, fill::none), beta_full(p, fill::none),
-        mu_full(n, fill::none), yadj(n, fill::none),
-        MNU_accum(n, 1, fill::zeros), MNU(n, 1, fill::none),
-        H(p, p, fill::none), MX_work(n, p, fill::none), beta_ws(n, p),
-        cross_ws(n, p), eta_candidate(n, fill::none),
-        beta_candidate(p, fill::none), mu_candidate(n, fill::none),
-        exp_eta_candidate(n, fill::none), dev_vec_work(n, fill::none),
-        ratio_work(n, fill::none) {}
+  glm_workspace(size_t n, size_t p) 
+      : beta_ws(n, p), cross_ws(n, p) {
+    // Only allocate essential vectors, others allocated on demand
+    exp_eta.set_size(n);
+    w.set_size(n);
+    nu.set_size(n);
+    nu_old.zeros(n);
+    mu.set_size(n);
+    beta_upd.set_size(p);
+    eta_upd.set_size(n);
+    H.set_size(p, p);
+    // Other vectors allocated when needed
+  }
+  
+  // Helper to ensure vector is allocated
+  void ensure_size(vec &v, size_t n) {
+    if (v.n_elem != n) v.set_size(n);
+  }
+  
+  void ensure_size(mat &m, size_t n, size_t p) {
+    if (m.n_rows != n || m.n_cols != p) m.set_size(n, p);
+  }
 };
 
 static inline void reserve_glm_workspace(glm_workspace &ws, uword N, uword P) {

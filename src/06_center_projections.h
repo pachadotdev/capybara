@@ -21,22 +21,22 @@ inline void select_acceleration_strategy(center_workspace &ws,
   }
 
   // Adjust damping based on cache optimization
-  if (indices.cache_optimized) {
-    ws.acceleration_damping *=
-        1.1; // Slightly more aggressive with optimized access
+  if (indices.cache) {
+    ws.acceleration_damping *= 1.1;
   }
 }
 
 inline void init_center_workspace(center_workspace &ws,
                                   const indices_info &indices, const vec &w,
-                                  size_t N) {
+                                  size_t N, size_t P) {
   const size_t K = indices.fe_sizes.n_elem;
-  ws.x.set_size(N);
-  ws.x0.set_size(N);
-  ws.Gx.set_size(N);
-  ws.G2x.set_size(N);
-  ws.deltaG.set_size(N);
-  ws.delta2.set_size(N);
+  const size_t Z_cols = (P == 0) ? 1 : P + 1;  // P+1 columns, or 1 if P=0
+  ws.z.set_size(N, Z_cols);
+  ws.z0.set_size(N, Z_cols);
+  ws.Gz.set_size(N, Z_cols);
+  ws.G2z.set_size(N, Z_cols);
+  ws.deltaG.set_size(N, Z_cols);
+  ws.delta2.set_size(N, Z_cols);
 
   ws.group_indices.set_size(K);
   ws.group_inv_w.set_size(K);
@@ -77,89 +77,84 @@ inline void init_center_workspace(center_workspace &ws,
   ws.group_means.set_size(ws.max_groups);
 }
 
-inline void project_1fe(vec &v, const vec &w, const field<uvec> &groups,
+// Projections
+// 1-way, 2-way, and K-way fixed effects
+
+inline void project_1fe(mat &Z, const vec &w, const field<uvec> &groups,
                         const vec &group_inv_w, bool use_weights) {
   const size_t L = groups.n_elem;
+  
   if (use_weights) {
     for (size_t l = 0; l < L; ++l) {
       const uvec &coords = groups(l);
       if (coords.is_empty())
         continue;
-      const double mean_val =
-          dot(w.elem(coords), v.elem(coords)) * group_inv_w(l);
-      v.elem(coords) -= mean_val;
+      
+      // Projection across all columns - avoid temporary allocations
+      const vec w_subset = w.elem(coords);
+      mat Z_subset = Z.rows(coords);
+      rowvec means = sum(Z_subset.each_col() % w_subset, 0) * group_inv_w(l);
+      Z.rows(coords) -= ones<vec>(coords.n_elem) * means;
     }
   } else {
     for (size_t l = 0; l < L; ++l) {
       const uvec &coords = groups(l);
       if (coords.is_empty())
         continue;
-      const double mean_val = mean(v.elem(coords));
-      v.elem(coords) -= mean_val;
+      
+      // Projection across all columns
+      mat Z_subset = Z.rows(coords);
+      rowvec means = mean(Z_subset, 0);
+      Z.rows(coords) -= ones<vec>(coords.n_elem) * means;
     }
   }
 }
 
-// Cache-optimized projection using indices_info structure
-inline void project_1_to_K_fe(vec &v, const vec &w, const indices_info &indices,
-                              size_t k, const vec &group_inv_w,
-                              bool use_weights) {
-  if (use_weights) {
-    indices.iterate_groups_cached(k, [&](size_t j, const uvec &coords) {
-      if (!coords.is_empty()) {
-        const double mean_val =
-            dot(w.elem(coords), v.elem(coords)) * group_inv_w(j);
-        v.elem(coords) -= mean_val;
-      }
-    });
-  } else {
-    indices.iterate_groups_cached(k, [&](size_t j, const uvec &coords) {
-      if (!coords.is_empty()) {
-        const double mean_val = mean(v.elem(coords));
-        v.elem(coords) -= mean_val;
-      }
-    });
-  }
-}
+// Specialization (i.e., "trick") for 2-way fixed effects
 
-inline void absorb_2fe(vec &y, const uvec &fe1, const uvec &fe2, const vec &w) {
-  const size_t N = y.n_elem;
+inline void absorb_2fe(mat &Z, const uvec &fe1, const uvec &fe2, const vec &w) {
+  const size_t N = Z.n_rows;
+  const size_t P_cols = Z.n_cols;
   const size_t G1 = fe1.max() + 1;
   const size_t G2 = fe2.max() + 1;
   const bool weighted = (w.n_elem == N);
 
-  vec mean1 = zeros<vec>(G1);
-  vec mean2 = zeros<vec>(G2);
-  vec wsum1 = zeros<vec>(G1);
-  vec wsum2 = zeros<vec>(G2);
+  // Process each column (X cols + y col)
+  for (size_t p = 0; p < P_cols; ++p) {
+    vec mean1 = zeros<vec>(G1);
+    vec mean2 = zeros<vec>(G2);
+    vec wsum1 = zeros<vec>(G1);
+    vec wsum2 = zeros<vec>(G2);
 
-  double grand_sum = 0.0, grand_wsum = 0.0;
-  for (size_t i = 0; i < N; ++i) {
-    double wi = weighted ? w(i) : 1.0;
-    mean1(fe1(i)) += wi * y(i);
-    mean2(fe2(i)) += wi * y(i);
-    wsum1(fe1(i)) += wi;
-    wsum2(fe2(i)) += wi;
-    grand_sum += wi * y(i);
-    grand_wsum += wi;
+    double grand_sum = 0.0, grand_wsum = 0.0;
+    for (size_t i = 0; i < N; ++i) {
+      double wi = weighted ? w(i) : 1.0;
+      double zi = Z(i, p);
+      mean1(fe1(i)) += wi * zi;
+      mean2(fe2(i)) += wi * zi;
+      wsum1(fe1(i)) += wi;
+      wsum2(fe2(i)) += wi;
+      grand_sum += wi * zi;
+      grand_wsum += wi;
+    }
+    for (size_t g = 0; g < G1; ++g)
+      if (wsum1(g) > 0)
+        mean1(g) /= wsum1(g);
+    for (size_t g = 0; g < G2; ++g)
+      if (wsum2(g) > 0)
+        mean2(g) /= wsum2(g);
+    double grand_mean = grand_sum / grand_wsum;
+
+    for (size_t i = 0; i < N; ++i)
+      Z(i, p) = Z(i, p) - mean1(fe1(i)) - mean2(fe2(i)) + grand_mean;
   }
-  for (size_t g = 0; g < G1; ++g)
-    if (wsum1(g) > 0)
-      mean1(g) /= wsum1(g);
-  for (size_t g = 0; g < G2; ++g)
-    if (wsum2(g) > 0)
-      mean2(g) /= wsum2(g);
-  double grand_mean = grand_sum / grand_wsum;
-
-  for (size_t i = 0; i < N; ++i)
-    y(i) = y(i) - mean1(fe1(i)) - mean2(fe2(i)) + grand_mean;
 }
 
-inline void project_2fe(vec &v, const vec &w, const field<uvec> &groups1,
+inline void project_2fe(mat &Z, const vec &w, const field<uvec> &groups1,
                         const vec &group_inv_w1, const field<uvec> &groups2,
                         const vec &group_inv_w2, bool use_weights) {
   // Build group id vectors for each FE
-  size_t N = v.n_elem;
+  size_t N = Z.n_rows;
   uvec fe1(N), fe2(N);
   for (size_t g = 0; g < groups1.n_elem; ++g) {
     const uvec &idx = groups1(g);
@@ -171,27 +166,41 @@ inline void project_2fe(vec &v, const vec &w, const field<uvec> &groups1,
     for (size_t i = 0; i < idx.n_elem; ++i)
       fe2(idx(i)) = g;
   }
-  absorb_2fe(v, fe1, fe2, w);
+  absorb_2fe(Z, fe1, fe2, w);
 }
 
-// Optimized projection for K fixed effects using cache structure
-inline void project_Kfe_optimized(vec &v, const vec &w,
-                                  const indices_info &indices,
-                                  const field<vec> &group_inv_w,
-                                  bool use_weights) {
-  // TIME_FUNCTION;
-  const size_t K = indices.fe_sizes.n_elem;
-  for (size_t k = 0; k < K; ++k) {
-    project_1_to_K_fe(v, w, indices, k, group_inv_w(k), use_weights);
+inline void project_1_to_K_fe(mat &Z, const vec &w, const indices_info &indices,
+                              size_t k, const vec &group_inv_w,
+                              bool use_weights) {
+  if (use_weights) {
+    indices.iterate_groups_cached(k, [&](size_t j, const uvec &coords) {
+      if (!coords.is_empty()) {
+        // Projection across all columns
+        const vec w_subset = w.elem(coords);
+        mat Z_subset = Z.rows(coords);
+        rowvec means = sum(Z_subset.each_col() % w_subset, 0) * group_inv_w(j);
+        Z.rows(coords) -= ones<vec>(coords.n_elem) * means;
+      }
+    });
+  } else {
+    indices.iterate_groups_cached(k, [&](size_t j, const uvec &coords) {
+      if (!coords.is_empty()) {
+        // Projection across all columns
+        mat Z_subset = Z.rows(coords);
+        rowvec means = mean(Z_subset, 0);
+        Z.rows(coords) -= ones<vec>(coords.n_elem) * means;
+      }
+    });
   }
 }
 
-inline void project_Kfe(vec &v, const vec &w,
-                        const field<field<uvec>> &group_indices,
-                        const field<vec> &group_inv_w, bool use_weights) {
-  const size_t K = group_indices.n_elem;
+inline void project_Kfe(mat &Z, const vec &w,
+                        const indices_info &indices,
+                        const field<vec> &group_inv_w,
+                        bool use_weights) {
+  const size_t K = indices.fe_sizes.n_elem;
   for (size_t k = 0; k < K; ++k) {
-    project_1fe(v, w, group_indices(k), group_inv_w(k), use_weights);
+    project_1_to_K_fe(Z, w, indices, k, group_inv_w(k), use_weights);
   }
 }
 

@@ -11,6 +11,7 @@ inst/doc
 dev/1-s2.0-S0014292116300630-mmc1
 dev/armadillo-codes
 dev/*.rds
+dev/fixest*
 dev/reghdfe
 dev/ppmlhdfe
 dev/article

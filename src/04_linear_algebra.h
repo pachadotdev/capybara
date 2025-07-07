@@ -15,7 +15,7 @@ inline mat crossproduct(const mat &X, const vec &w, crossproduct_results &ws,
       }
       return XtWX;
     } else {
-      // For other cases, use vectorized weighted multiplication
+      // For other cases, use weighted multiplication
       const vec sqrt_w = sqrt(w);
       const mat Xw = X.each_col() % sqrt_w;
       return Xw.t() * Xw;

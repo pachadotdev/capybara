@@ -1,5 +1,5 @@
-#ifndef CAPYBARA_BETA_OPTIMIZED_H
-#define CAPYBARA_BETA_OPTIMIZED_H
+#ifndef CAPYBARA_BETA_H
+#define CAPYBARA_BETA_H
 
 // Solve for regression coefficients using QR decomposition (handles
 // collinearity)
@@ -70,14 +70,16 @@ inline vec solve_beta(mat &MX, const vec &MNU, const vec &w, const uword n,
     ws.XtY = MX.t() * MNU;
   }
 
+  // Try Cholesky with better conditioning check
   const bool chol_ok = chol(ws.decomp, ws.XtX, "lower");
 
   if (chol_ok) {
     const vec d = abs(ws.decomp.diag());
     const double mind = d.min();
-    const double avgd = mean(d);
-
-    if (mind > 1e-12 * avgd) {
+    const double maxd = d.max();
+    
+    // More lenient conditioning check - most real problems don't need QR
+    if (mind > 1e-14 * maxd && mind > 1e-16) {
       ws.work = solve(trimatl(ws.decomp), ws.XtY, solve_opts::fast);
       ws.coefficients =
           solve(trimatu(ws.decomp.t()), ws.work, solve_opts::fast);
@@ -92,4 +94,4 @@ inline vec solve_beta(mat &MX, const vec &MNU, const vec &w, const uword n,
   return ws.coefficients;
 }
 
-#endif // CAPYBARA_BETA_OPTIMIZED_H
+#endif // CAPYBARA_BETA_H

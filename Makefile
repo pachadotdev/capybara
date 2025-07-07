@@ -8,13 +8,18 @@ test:
 	@Rscript -e 'devtools::document()'
 	@Rscript -e 'devtools::load_all(); devtools::test()'
 
-test2:
+test-long:
 	clear
 	@echo "Testing R code with extended tests"
 	@export CAPYBARA_EXTENDED_TESTS="yes"; \
   Rscript -e 'devtools::document()'; \
   Rscript -e 'devtools::load_all(); devtools::test()'; \
   unset CAPYBARA_EXTENDED_TESTS
+
+bench-ppml:
+	clear
+	@echo "Benchmark - PPML"
+	Rscript dev/article/benchmark-ppml.r; \
 
 check:
 	clear

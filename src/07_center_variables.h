@@ -4,8 +4,8 @@
 // This implements the fastest MAP from reghdfe:
 // symmetric Kaczmarz + conjugate gradient
 
-// Projection for a single fixed effect
-inline void project_fe(mat *X, vec *y, size_t k, const indices_info &indices,
+// Projection for a single fixed effect using unified Z matrix
+inline void project_fe(mat &Z, size_t k, const indices_info &indices,
                        const vec &w, bool use_weights) {
   const size_t J = indices.fe_sizes(k);
 
@@ -24,44 +24,24 @@ inline void project_fe(mat *X, vec *y, size_t k, const indices_info &indices,
       inv_sumw = 1.0 / n_idx;
     }
 
-    // Project matrix columns if present
-    if (X != nullptr) {
-      const size_t P = X->n_cols;
-      
-      if (use_weights) {
-        const vec w_subset = w(idx);
-        for (size_t p = 0; p < P; ++p) {
-          vec x_subset = X->submat(idx, uvec{p});
-          double xbar = dot(x_subset, w_subset) * inv_sumw;
-          X->submat(idx, uvec{p}) -= xbar;
-        }
-      } else {
-        for (size_t p = 0; p < P; ++p) {
-          vec x_subset = X->submat(idx, uvec{p});
-          double xbar = mean(x_subset);
-          X->submat(idx, uvec{p}) -= xbar;
-        }
-      }
-    }
-
-    // Project vector if present
-    if (y != nullptr) {
-      if (use_weights) {
-        const vec w_subset = w(idx);
-        const vec y_subset = y->elem(idx);
-        double ybar = dot(y_subset, w_subset) * inv_sumw;
-        y->elem(idx) -= ybar;
-      } else {
-        vec y_subset = y->elem(idx);
-        double ybar = mean(y_subset);
-        y->elem(idx) -= ybar;
-      }
+    // Project all columns (X cols + y col) in unified Z matrix
+    if (use_weights) {
+      const vec w_subset = w(idx);
+      // Computation across all columns
+      mat Z_subset = Z.rows(idx);
+      rowvec zbars = sum(Z_subset.each_col() % w_subset, 0) * inv_sumw;
+      Z.rows(idx) -= ones<vec>(idx.n_elem) * zbars;
+    } else {
+      // Computation across all columns
+      mat Z_subset = Z.rows(idx);
+      rowvec zbars = mean(Z_subset, 0);
+      Z.rows(idx) -= ones<vec>(idx.n_elem) * zbars;
     }
   }
 }
 
 // Symmetric Kaczmarz transformation (forward + backward pass)
-inline void transform_symmetric_kaczmarz(mat *X, vec *y, const vec &w,
+inline void transform_symmetric_kaczmarz(mat &Z, const vec &w,
                                          const indices_info &indices,
                                          bool use_weights) {
   const size_t K = indices.fe_sizes.n_elem;
@@ -70,39 +50,28 @@ inline void transform_symmetric_kaczmarz(mat *X, vec *y, const vec &w,
 
   // Forward pass
   for (size_t k = 0; k < K; ++k) {
-    project_fe(X, y, k, indices, w, use_weights);
+    project_fe(Z, k, indices, w, use_weights);
   }
 
   // Backward pass
   for (int k = static_cast<int>(K) - 1; k >= 0; --k) {
-    project_fe(X, y, static_cast<size_t>(k), indices, w, use_weights);
+    project_fe(Z, static_cast<size_t>(k), indices, w, use_weights);
   }
 }
 
-// Weighted sum of squares for convergence check
-inline double weighted_ssr(const mat *X, const vec *y, const vec &w) {
-  double ssr = 0.0;
-
-  if (X != nullptr) {
-    const size_t N = X->n_rows;
-    const size_t P = X->n_cols;
-    for (size_t p = 0; p < P; ++p) {
-      for (size_t i = 0; i < N; ++i) {
-        double val = (*X)(i, p);
-        ssr += w.n_elem > 1 ? w(i) * val * val : val * val;
-      }
+// Weighted sum of squares for convergence check using unified Z matrix
+inline double weighted_ssr(const mat &Z, const vec &w) {
+  if (w.n_elem > 1) {
+    // Weighted computation - column-wise
+    double ssr = 0.0;
+    for (size_t p = 0; p < Z.n_cols; ++p) {
+      ssr += dot(w, Z.col(p) % Z.col(p));
     }
+    return ssr;
+  } else {
+    // Unweighted computation
+    return accu(Z % Z);
   }
-
-  if (y != nullptr) {
-    const size_t N = y->n_elem;
-    for (size_t i = 0; i < N; ++i) {
-      double val = (*y)(i);
-      ssr += w.n_elem > 1 ? w(i) * val * val : val * val;
-    }
-  }
-
-  return ssr;
 }
 
 // Helper to compute weighted quadratic sum for vectors
@@ -123,7 +92,7 @@ inline rowvec weighted_quadsum_mat(const mat &x, const mat &y, const vec &w) {
       const mat xy = x % y;
       return sum(xy.each_col() % w, 0);
     } else {
-      // For wide matrices, use optimized column-wise computation
+      // For wide matrices, use column-wise computation
       rowvec result(P);
       for (size_t p = 0; p < P; ++p) {
         result(p) = accu((x.col(p) % y.col(p)) % w);
@@ -141,73 +110,45 @@ inline rowvec weighted_quadsum_mat(const mat &x, const mat &y, const vec &w) {
   }
 }
 
-// Conjugate gradient acceleration
-inline void center_variables_cg(mat *X, vec *y, const vec &w,
+// Conjugate gradient acceleration using unified Z matrix
+inline void center_variables_cg(mat &Z, const vec &w,
                                 const indices_info &indices, double tol,
                                 size_t max_iter, size_t iter_interrupt) {
   const size_t K = indices.fe_sizes.n_elem;
   if (K == 0)
     return;
 
-  const bool has_X = (X != nullptr);
-  const bool has_y = (y != nullptr);
   const bool use_weights = (w.n_elem > 1);
   size_t iint = iter_interrupt;
 
   // Workspace for CG
-  mat r_X, u_X, v_X;
-  vec r_y, u_y, v_y;
-  rowvec ssr_X, ssr_old_X, alpha_X, beta_X, improvement_potential_X;
-  double ssr_y, ssr_old_y, alpha_y, beta_y, improvement_potential_y;
+  const size_t N = Z.n_rows;
+  const size_t P_cols = Z.n_cols;
+  mat r_Z, u_Z, v_Z;
+  rowvec ssr_Z, ssr_old_Z, alpha_Z, beta_Z, improvement_potential_Z;
 
   const size_t d = 1; // Number of recent SSR values for convergence
-  mat recent_ssr_X;
-  vec recent_ssr_y;
+  mat recent_ssr_Z;
 
-  if (has_X) {
-    const size_t N = X->n_rows;
-    const size_t P = X->n_cols;
-    r_X.set_size(N, P);
-    u_X.set_size(N, P);
-    v_X.set_size(N, P);
-    ssr_X.set_size(P);
-    ssr_old_X.set_size(P);
-    alpha_X.set_size(P);
-    beta_X.set_size(P);
-    improvement_potential_X.set_size(P);
-    recent_ssr_X.set_size(d, P);
+  r_Z.set_size(N, P_cols);
+  u_Z.set_size(N, P_cols);
+  v_Z.set_size(N, P_cols);
+  ssr_Z.set_size(P_cols);
+  ssr_old_Z.set_size(P_cols);
+  alpha_Z.set_size(P_cols);
+  beta_Z.set_size(P_cols);
+  improvement_potential_Z.set_size(P_cols);
+  recent_ssr_Z.set_size(d, P_cols);
 
-    // Initialize improvement potential
-    improvement_potential_X = weighted_quadsum_mat(*X, *X, w);
-  }
+  // Initialize improvement potential
+  improvement_potential_Z = weighted_quadsum_mat(Z, Z, w);
 
-  if (has_y) {
-    const size_t N = y->n_elem;
-    r_y.set_size(N);
-    u_y.set_size(N);
-    v_y.set_size(N);
-    recent_ssr_y.set_size(d);
-
-    // Initialize improvement potential
-    improvement_potential_y = weighted_quadsum_vec(*y, *y, w);
-  }
-
-  // Initialize: r = T(X,y) (first transformation)
-  if (has_X) {
-    r_X = *X;
-    transform_symmetric_kaczmarz(&r_X, nullptr, w, indices, use_weights);
-    r_X = *X - r_X; // Get residual
-    ssr_X = weighted_quadsum_mat(r_X, r_X, w);
-    u_X = r_X;
-  }
-
-  if (has_y) {
-    r_y = *y;
-    transform_symmetric_kaczmarz(nullptr, &r_y, w, indices, use_weights);
-    r_y = *y - r_y; // Get residual
-    ssr_y = weighted_quadsum_vec(r_y, r_y, w);
-    u_y = r_y;
-  }
+  // Initialize: r = T(Z) (first transformation)
+  r_Z = Z;
+  transform_symmetric_kaczmarz(r_Z, w, indices, use_weights);
+  r_Z = Z - r_Z; // Get residual
+  ssr_Z = weighted_quadsum_mat(r_Z, r_Z, w);
+  u_Z = r_Z;
 
   // Main CG loop
   for (size_t iter = 1; iter <= max_iter; ++iter) {
@@ -217,90 +158,46 @@ inline void center_variables_cg(mat *X, vec *y, const vec &w,
     }
 
     // Apply transformation to u: v = T(u) - reuse existing matrices
-    if (has_X) {
-      v_X = u_X;
-      transform_symmetric_kaczmarz(&v_X, nullptr, w, indices, use_weights);
-      v_X = u_X - v_X; // Get residual in-place
+    v_Z = u_Z;
+    transform_symmetric_kaczmarz(v_Z, w, indices, use_weights);
+    v_Z = u_Z - v_Z; // Get residual in-place
 
-      // Compute alpha = ssr / (u'v)
-      rowvec uv = weighted_quadsum_mat(u_X, v_X, w);
-      for (size_t p = 0; p < alpha_X.n_elem; ++p) {
-        alpha_X(p) = (uv(p) > 0) ? ssr_X(p) / uv(p) : 0.0;
-      }
-
-      // Update: x = x - alpha * u, r = r - alpha * v
-      *X -= u_X.each_row() % alpha_X;
-      r_X -= v_X.each_row() % alpha_X;
-
-      // SSR for convergence check
-      rowvec alpha_ssr = alpha_X % ssr_X;
-      recent_ssr_X.row(iter % d) = alpha_ssr;
-      improvement_potential_X -= alpha_ssr;
+    // Compute alpha = ssr / (u'v)
+    rowvec uv = weighted_quadsum_mat(u_Z, v_Z, w);
+    for (size_t p = 0; p < alpha_Z.n_elem; ++p) {
+      alpha_Z(p) = (uv(p) > 0) ? ssr_Z(p) / uv(p) : 0.0;
     }
 
-    if (has_y) {
-      v_y = u_y;
-      transform_symmetric_kaczmarz(nullptr, &v_y, w, indices, use_weights);
-      v_y = u_y - v_y; // Get residual
+    // Update: Z = Z - alpha * u, r = r - alpha * v
+    Z -= u_Z.each_row() % alpha_Z;
+    r_Z -= v_Z.each_row() % alpha_Z;
 
-      // alpha = ssr / (u'v)
-      double uv = weighted_quadsum_vec(u_y, v_y, w);
-      alpha_y = (uv > 0) ? ssr_y / uv : 0.0;
-
-      // Update: y = y - alpha * u, r = r - alpha * v
-      *y -= alpha_y * u_y;
-      r_y -= alpha_y * v_y;
-
-      // Store recent SSR for convergence check
-      recent_ssr_y(iter % d) = alpha_y * ssr_y;
-      improvement_potential_y -= alpha_y * ssr_y;
-    }
+    // SSR for convergence check
+    rowvec alpha_ssr = alpha_Z % ssr_Z;
+    recent_ssr_Z.row(iter % d) = alpha_ssr;
+    improvement_potential_Z -= alpha_ssr;
 
     // Update SSR and compute beta
-    if (has_X) {
-      ssr_old_X = ssr_X;
-      ssr_X = weighted_quadsum_mat(r_X, r_X, w);
+    ssr_old_Z = ssr_Z;
+    ssr_Z = weighted_quadsum_mat(r_Z, r_Z, w);
 
-      // Compute beta = ssr / ssr_old (Fletcher-Reeves)
-      // Add small epsilon to avoid division by zero
-      beta_X = ssr_X / (ssr_old_X + 1e-16);
+    // Compute beta = ssr / ssr_old (Fletcher-Reeves)
+    // Add small epsilon to avoid division by zero
+    beta_Z = ssr_Z / (ssr_old_Z + 1e-16);
 
-      // Update u = r + beta * u
-      u_X = r_X + u_X.each_row() % beta_X;
-    }
-
-    if (has_y) {
-      ssr_old_y = ssr_y;
-      ssr_y = weighted_quadsum_vec(r_y, r_y, w);
-
-      // Compute beta = ssr / ssr_old (Fletcher-Reeves)
-      beta_y = (ssr_old_y > 0) ? ssr_y / ssr_old_y : 0.0;
-
-      // Update u = r + beta * u
-      u_y = r_y + beta_y * u_y;
-    }
+    // Update u = r + beta * u
+    u_Z = r_Z + u_Z.each_row() % beta_Z;
 
     // Check convergence (Hestenes-Stiefel)
     bool converged = false;
-    if (has_X) {
-      rowvec recent_sum = sum(recent_ssr_X.rows(0, std::min(iter, d) - 1), 0);
-      for (size_t p = 0; p < recent_sum.n_elem; ++p) {
-        double eps_threshold = 1e-15;
-        double ratio =
-            recent_sum(p) / (improvement_potential_X(p) + eps_threshold);
-        if (sqrt(ratio) <= tol) {
-          converged = true;
-          break;
-        }
-      }
-    }
-
-    if (has_y && !converged) {
-      double recent_sum = sum(recent_ssr_y.rows(0, std::min(iter, d) - 1));
+    rowvec recent_sum = sum(recent_ssr_Z.rows(0, std::min(iter, d) - 1), 0);
+    for (size_t p = 0; p < recent_sum.n_elem; ++p) {
       double eps_threshold = 1e-15;
-      double ratio = recent_sum / (improvement_potential_y + eps_threshold);
+      double ratio =
+          recent_sum(p) / (improvement_potential_Z(p) + eps_threshold);
       if (sqrt(ratio) <= tol) {
         converged = true;
+        break;
       }
     }
 
@@ -311,58 +208,45 @@ inline void center_variables_cg(mat *X, vec *y, const vec &w,
 
 // Hybrid acceleration: start with simple Kaczmarz, then switch to CG
 // This follows reghdfe's accelerate_hybrid approach
-inline void center_variables_hybrid(mat *X, vec *y, const vec &w,
+inline void center_variables_hybrid(mat &Z, const vec &w,
                                     const indices_info &indices, double tol,
                                     size_t max_iter, size_t iter_interrupt) {
   const size_t K = indices.fe_sizes.n_elem;
   if (K == 0) return;
   
-  const bool has_X = (X != nullptr);
-  const bool has_y = (y != nullptr);
   const bool use_weights = (w.n_elem > 1);
   
   const size_t accel_start = 6; // Start CG after 6 iterations, like reghdfe
   size_t iint = iter_interrupt;
   
   // First phase: simple symmetric Kaczmarz
+  double prev_ssr = weighted_ssr(Z, w);
+  
   for (size_t iter = 1; iter <= std::min(accel_start, max_iter); ++iter) {
     if (iter == iint) {
       check_user_interrupt();
       iint += iter_interrupt;
     }
     
-    // Store previous state for convergence check
-    mat X_old;
-    vec y_old;
-    if (has_X) X_old = *X;
-    if (has_y) y_old = *y;
-    
     // Apply symmetric Kaczmarz transformation
-    transform_symmetric_kaczmarz(X, y, w, indices, use_weights);
+    transform_symmetric_kaczmarz(Z, w, indices, use_weights);
     
-    // Check convergence
-    bool converged = true;
-    if (has_X) {
-      double rel_change = norm(*X - X_old, "fro") / (1.0 + norm(X_old, "fro"));
-      if (rel_change > tol) converged = false;
-    }
-    if (has_y) {
-      double rel_change = norm(*y - y_old) / (1.0 + norm(y_old));
-      if (rel_change > tol) converged = false;
-    }
-    
-    if (converged) return;
+    // Check convergence using SSR (avoid matrix copy)
+    double curr_ssr = weighted_ssr(Z, w);
+    double rel_change = std::abs(curr_ssr - prev_ssr) / (1.0 + prev_ssr);
+    if (rel_change <= tol * tol) return;  // Square tolerance since we're comparing SSR
+    prev_ssr = curr_ssr;
   }
   
   // Second phase: switch to CG if not converged
   if (accel_start < max_iter) {
     // Adjust remaining iterations
     size_t remaining_iter = max_iter - accel_start;
-    center_variables_cg(X, y, w, indices, tol, remaining_iter, iter_interrupt);
+    center_variables_cg(Z, w, indices, tol, remaining_iter, iter_interrupt);
   }
 }
 
-// Main centering function
+// Main centering function for matrix (X only, no y)
 inline void center_variables(mat &V, const vec &w, const indices_info &indices,
                              double tol, size_t max_iter,
                              size_t iter_interrupt) {
@@ -392,23 +276,11 @@ inline void center_variables(mat &V, const vec &w, const indices_info &indices,
     }
   }
   
-  // Follow reghdfe's poolsize logic
-  const size_t P = V.n_cols;
-  const size_t poolsize = P; // all columns at once
-  
-  if (poolsize >= P) {
-    // Process all columns together - hybrid method
-    center_variables_hybrid(&V, nullptr, w, indices, tol, max_iter, iter_interrupt);
-  } else {
-    // Process columns individually
-    for (size_t p = 0; p < P; ++p) {
-      vec col_p = V.col(p);
-      center_variables_hybrid(nullptr, &col_p, w, indices, tol, max_iter, iter_interrupt);
-      V.col(p) = col_p;
-    }
-  }
+  // Use unified Z matrix approach - V is already our Z matrix
+  center_variables_hybrid(V, w, indices, tol, max_iter, iter_interrupt);
 }
 
+// Main centering function for vector (y only, no X)
 inline void center_variables(vec &y, const vec &w, const indices_info &indices,
                              double tol, size_t max_iter,
                              size_t iter_interrupt) {
@@ -433,10 +305,14 @@ inline void center_variables(vec &y, const vec &w, const indices_info &indices,
     }
   }
   
-  // Use hybrid method for vector
-  center_variables_hybrid(nullptr, &y, w, indices, tol, max_iter, iter_interrupt);
+  // Convert y to Z matrix (P=0 case, single column)
+  mat Z(y.n_elem, 1);
+  Z.col(0) = y;
+  center_variables_hybrid(Z, w, indices, tol, max_iter, iter_interrupt);
+  y = Z.col(0);
 }
 
+// Main centering function for both X and y using unified Z matrix
 inline void center_variables(mat &X_work, vec &y, const vec &w,
                              const mat &X_orig, const indices_info &indices,
                              double tol, size_t max_iter,
@@ -474,18 +350,20 @@ inline void center_variables(mat &X_work, vec &y, const vec &w,
     }
   }
   
-  // Follow reghdfe's poolsize logic for joint processing
+  // Use in-place operations to avoid copying - resize X_work to include y
   const size_t P = X_work.n_cols;
-  const size_t poolsize = P + 1; // X columns + y vector
+  const size_t N = X_work.n_rows;
   
-  if (poolsize >= P + 1) {
-    // Process X and y together
-    center_variables_hybrid(&X_work, &y, w, indices, tol, max_iter, iter_interrupt);
-  } else {
-    // Process separately
-    center_variables_hybrid(&X_work, nullptr, w, indices, tol, max_iter, iter_interrupt);
-    center_variables_hybrid(nullptr, &y, w, indices, tol, max_iter, iter_interrupt);
-  }
+  // Resize X_work to P+1 columns and copy y into the last column
+  X_work.resize(N, P + 1);
+  X_work.col(P) = y;
+  
+  // Apply centering to unified matrix in-place
+  center_variables_hybrid(X_work, w, indices, tol, max_iter, iter_interrupt);
+  
+  // Extract y back and resize X_work
+  y = X_work.col(P);
+  X_work.resize(N, P);
 }
 
 #endif // CAPYBARA_CENTER_VARIABLES_H

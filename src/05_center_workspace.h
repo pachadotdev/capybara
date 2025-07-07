@@ -2,13 +2,13 @@
 #define CAPYBARA_CENTER_WORKSPACE_H
 
 struct center_workspace {
-  // Basic projection workspace vectors
-  vec x;      // Current iterate
-  vec x0;     // Previous iterate
-  vec Gx;     // Single projection step G(x)
-  vec G2x;    // Double projection step G(G(x))
-  vec deltaG; // Difference for acceleration
-  vec delta2; // Second difference for acceleration
+  // Basic projection workspace for unified Z matrix [X, y]
+  mat z;      // Current iterate (P+1 columns: X cols + y col)
+  mat z0;     // Previous iterate
+  mat Gz;     // Single projection step G(z)
+  mat G2z;    // Double projection step G(G(z))
+  mat deltaG; // Difference for acceleration
+  mat delta2; // Second difference for acceleration
 
   // Group structure storage
   field<field<uvec>> group_indices; // Indices for each group in each FE
