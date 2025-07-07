@@ -37,7 +37,8 @@ site:
 
 install:
 	clear
-	@Rscript -e 'devtools::install()'
+	@export CAPYBARA_ADVANCED_BUILD="yes"
+	@Rscript -e 'devtools::install(upgrade = "never")'
 
 clang_format=`which clang-format-14`
 

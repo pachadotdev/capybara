@@ -68,13 +68,37 @@ extern "C" SEXP _capybara_group_sums_cov_(SEXP M_r, SEXP N_r, SEXP jlist) {
     return cpp11::as_sexp(group_sums_cov_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(M_r), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(N_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(jlist)));
   END_CPP11
 }
+// capybara.cpp
+list feglm_ml_(const doubles & beta_r, const doubles & eta_r, const doubles & y_r, const doubles_matrix<> & x_r, const doubles & wt_r, const double & theta, const std::string & family, const list & control, const list & k_list);
+extern "C" SEXP _capybara_feglm_ml_(SEXP beta_r, SEXP eta_r, SEXP y_r, SEXP x_r, SEXP wt_r, SEXP theta, SEXP family, SEXP control, SEXP k_list) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(feglm_ml_(cpp11::as_cpp<cpp11::decay_t<const doubles &>>(beta_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(eta_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(y_r), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(x_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(wt_r), cpp11::as_cpp<cpp11::decay_t<const double &>>(theta), cpp11::as_cpp<cpp11::decay_t<const std::string &>>(family), cpp11::as_cpp<cpp11::decay_t<const list &>>(control), cpp11::as_cpp<cpp11::decay_t<const list &>>(k_list)));
+  END_CPP11
+}
+// capybara.cpp
+doubles_matrix<> center_variables_ml_(const doubles_matrix<> & V_r, const doubles & w_r, const list & k_list, const double & tol, const size_t & max_iter);
+extern "C" SEXP _capybara_center_variables_ml_(SEXP V_r, SEXP w_r, SEXP k_list, SEXP tol, SEXP max_iter) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(center_variables_ml_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(V_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(w_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(k_list), cpp11::as_cpp<cpp11::decay_t<const double &>>(tol), cpp11::as_cpp<cpp11::decay_t<const size_t &>>(max_iter)));
+  END_CPP11
+}
+// capybara.cpp
+list felm_ml_(const doubles & y_r, const doubles_matrix<> & x_r, const doubles & wt_r, const list & control, const list & k_list);
+extern "C" SEXP _capybara_felm_ml_(SEXP y_r, SEXP x_r, SEXP wt_r, SEXP control, SEXP k_list) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(felm_ml_(cpp11::as_cpp<cpp11::decay_t<const doubles &>>(y_r), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(x_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(wt_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(control), cpp11::as_cpp<cpp11::decay_t<const list &>>(k_list)));
+  END_CPP11
+}
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
     {"_capybara_center_variables_",    (DL_FUNC) &_capybara_center_variables_,    6},
+    {"_capybara_center_variables_ml_", (DL_FUNC) &_capybara_center_variables_ml_, 5},
     {"_capybara_feglm_",               (DL_FUNC) &_capybara_feglm_,               9},
+    {"_capybara_feglm_ml_",            (DL_FUNC) &_capybara_feglm_ml_,            9},
     {"_capybara_feglm_offset_",        (DL_FUNC) &_capybara_feglm_offset_,        7},
     {"_capybara_felm_",                (DL_FUNC) &_capybara_felm_,                5},
+    {"_capybara_felm_ml_",             (DL_FUNC) &_capybara_felm_ml_,             5},
     {"_capybara_group_sums_",          (DL_FUNC) &_capybara_group_sums_,          3},
     {"_capybara_group_sums_cov_",      (DL_FUNC) &_capybara_group_sums_cov_,      3},
     {"_capybara_group_sums_spectral_", (DL_FUNC) &_capybara_group_sums_spectral_, 5},

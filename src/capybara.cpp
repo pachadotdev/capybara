@@ -17,6 +17,8 @@ using namespace cpp11;
 #include "12_glm_offset.h"
 #include "13_alpha.h"
 #include "14_groups.h"
+#include "15_center_ml.h"
+#include "16_glm_ml.h"
 
 [[cpp11::register]] doubles_matrix<>
 center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
@@ -219,4 +221,132 @@ group_sums_cov_(const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
   const single_fe_indices indices = list_to_single_fe_indices(jlist);
   const mat result = group_sums_cov(M, N, indices);
   return as_doubles_matrix(result);
+}
+
+[[cpp11::register]] list feglm_ml_(const doubles &beta_r, const doubles &eta_r,
+                                   const doubles &y_r, const doubles_matrix<> &x_r,
+                                   const doubles &wt_r, const double &theta,
+                                   const std::string &family, const list &control,
+                                   const list &k_list) {
+  mat MX = as_mat(x_r);
+  vec beta = as_col(beta_r);
+  vec eta = as_col(eta_r);
+  const vec y = as_col(y_r);
+  const vec wt = as_col(wt_r);
+
+  const std::string fam = tidy_family(family);
+  const family_type family_type = get_family_type(fam);
+  const double center_tol = as_cpp<double>(control["center_tol"]);
+  const double dev_tol = as_cpp<double>(control["dev_tol"]);
+  const size_t iter_max = as_cpp<size_t>(control["iter_max"]);
+  const size_t iter_center_max = as_cpp<size_t>(control["iter_center_max"]);
+
+  const indices_info indices = list_to_indices_info(k_list);
+
+  const size_t n = y.n_elem;
+  const size_t p = MX.n_cols;
+  
+  // Use the new ML workspace
+  glm_ml_workspace ws;
+
+  try {
+    // Try ML implementation first
+    const feglm_results results = feglm_ml(MX, beta, eta, y, wt, theta, family_type, 
+                                           center_tol, dev_tol, iter_max, iter_center_max,
+                                           indices, ws);
+    
+    if (!any(results.valid_coefficients == 0)) {
+      return results.to_list();
+    } else {
+      writable::list res = results.to_list();
+
+      writable::doubles coefs(results.coefficients.n_elem);
+      const size_t I = results.coefficients.n_elem;
+      for (size_t i = 0; i < I; ++i) {
+        if (results.valid_coefficients[i] == 0) {
+          coefs[i] = NA_REAL;
+        } else {
+          coefs[i] = results.coefficients[i];
+        }
+      }
+
+      res["coefficients"] = coefs;
+      return res;
+    }
+  } catch (...) {
+    // Fallback to regular implementation if ML fails
+    glm_workspace regular_ws(n, p);
+    const feglm_results results = feglm(MX, beta, eta, y, wt, theta, family_type, center_tol, dev_tol,
+                                        iter_max, iter_center_max, 50, 1000, 10, indices, regular_ws);
+    
+    if (!any(results.valid_coefficients == 0)) {
+      return results.to_list();
+    } else {
+      writable::list res = results.to_list();
+
+      writable::doubles coefs(results.coefficients.n_elem);
+      const size_t I = results.coefficients.n_elem;
+      for (size_t i = 0; i < I; ++i) {
+        if (results.valid_coefficients[i] == 0) {
+          coefs[i] = NA_REAL;
+        } else {
+          coefs[i] = results.coefficients[i];
+        }
+      }
+
+      res["coefficients"] = coefs;
+      return res;
+    }
+  }
+}
+
+[[cpp11::register]] doubles_matrix<>
+center_variables_ml_(const doubles_matrix<> &V_r, const doubles &w_r,
+                     const list &k_list, const double &tol, const size_t &max_iter) {
+  mat V = as_mat(V_r);
+  const vec w = as_col(w_r);
+  const indices_info indices = list_to_indices_info(k_list);
+
+  ml_center_workspace ws;
+  center_variables_ml(V, w, indices, tol, max_iter, ws);
+
+  return as_doubles_matrix(V);
+}
+
+[[cpp11::register]] list felm_ml_(const doubles &y_r, const doubles_matrix<> &x_r,
+                                  const doubles &wt_r, const list &control,
+                                  const list &k_list) {
+  mat X = as_mat(x_r);
+  const vec y = as_col(y_r);
+  const vec w = as_col(wt_r);
+
+  const double center_tol = as_cpp<double>(control["center_tol"]);
+  const size_t iter_center_max = as_cpp<size_t>(control["iter_center_max"]);
+
+  const indices_info indices = list_to_indices_info(k_list);
+
+  // For linear models, use the Gaussian ML approach
+  vec beta(X.n_cols, fill::zeros);
+  vec eta(y.n_elem, fill::zeros);
+  
+  glm_ml_workspace ws;
+  const feglm_results results = feglm_ml_gaussian(X, beta, eta, y, w,
+                                                  center_tol, 1e-8, 1, iter_center_max,
+                                                  indices, ws);
+
+  if (!any(results.valid_coefficients == 0)) {
+    return results.to_list();
+  } else {
+    writable::list res = results.to_list();
+
+    writable::doubles coefs = as_cpp<doubles>(res["coefficients"]);
+    const writable::integers invalid_positions =
+        as_integers(find(results.valid_coefficients == 0));
+    for (int i = 0; i < invalid_positions.size(); ++i) {
+      coefs[invalid_positions[i]] = NA_REAL;
+    }
+
+    res["coefficients"] = coefs;
+    return res;
+  }
 }
