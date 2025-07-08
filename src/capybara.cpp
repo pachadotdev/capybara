@@ -5,11 +5,16 @@
 #endif
 #endif
 
+#include <algorithm>
 #include <cmath>
 #include <cpp11armadillo.hpp>
+#include <cstdint>
+#include <cstring>
 #include <limits>
 #include <regex>
 #include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 using arma::field;
 using arma::mat;
@@ -21,14 +26,16 @@ using cpp11::doubles;
 using cpp11::doubles_matrix;
 using cpp11::integers;
 using cpp11::list;
+using cpp11::strings;
 
 #include "01_get_beta.h"
-#include "02_center_variables.h"
-#include "03_lm_fit.h"
-#include "04_glm_fit.h"
-#include "05_glm_offset_fit.h"
-#include "06_get_alpha.h"
-#include "07_group_sums.h"
+#include "02_group_ops.h"
+#include "03_center_variables.h"
+#include "04_lm_fit.h"
+#include "05_glm_fit.h"
+#include "06_glm_offset_fit.h"
+#include "07_get_alpha.h"
+#include "08_group_sums.h"
 
 [[cpp11::register]] doubles_matrix<>
 center_variables_r_(const doubles_matrix<> &V_r, const doubles &w_r,

@@ -17,12 +17,12 @@ struct GetAlphaResult {
 struct AlphaGroupInfo {
   field<uvec> indices;
   size_t n_groups;
-  
+
   AlphaGroupInfo() = default;
   AlphaGroupInfo(const list &jlist) {
     n_groups = jlist.size();
     indices.set_size(n_groups);
-    
+
     for (size_t j = 0; j < n_groups; ++j) {
       indices(j) = as_uvec(as_cpp<integers>(jlist[j]));
     }
@@ -52,28 +52,38 @@ inline GetAlphaResult get_alpha(const vec &p, const list &klist, double tol,
   }
   double ratio = 0.0;
   if (K == 2) {
-    // K=2 specialization
-    vec resid = p;
+    // Ultra-optimized 2-way FE recovery: direct alternating (no acceleration
+    // needed)
+    const AlphaGroupInfo &gi0 = group_info(0);
+    const AlphaGroupInfo &gi1 = group_info(1);
+
     for (size_t iter = 0; iter < iter_max; ++iter) {
       Alpha0 = Alpha;
-      for (size_t k = 0; k < 2; ++k) {
-        resid = p;
-        size_t other = 1 - k;
-        const AlphaGroupInfo &gi_other = group_info(other);
-        const AlphaGroupInfo &gi_k = group_info(k);
-        
-        // Subtract other FE
-        for (size_t j = 0; j < gi_other.n_groups; ++j) {
-          resid.elem(gi_other.indices(j)) -= Alpha(other)(j);
-        }
-        // Update current FE
-        for (size_t j = 0; j < gi_k.n_groups; ++j) {
-          const uvec &idx = gi_k.indices(j);
-          if (idx.n_elem == 0)
-            continue;
-          Alpha(k)(j) = mean(resid.elem(idx));
-        }
+
+      // Update Alpha0: residual = p - Alpha1
+      vec resid = p;
+      for (size_t j = 0; j < gi1.n_groups; ++j) {
+        resid.elem(gi1.indices(j)) -= Alpha(1)(j);
       }
+      for (size_t j = 0; j < gi0.n_groups; ++j) {
+        const uvec &idx = gi0.indices(j);
+        if (idx.n_elem == 0)
+          continue;
+        Alpha(0)(j) = mean(resid.elem(idx));
+      }
+
+      // Update Alpha1: residual = p - Alpha0
+      resid = p;
+      for (size_t j = 0; j < gi0.n_groups; ++j) {
+        resid.elem(gi0.indices(j)) -= Alpha(0)(j);
+      }
+      for (size_t j = 0; j < gi1.n_groups; ++j) {
+        const uvec &idx = gi1.indices(j);
+        if (idx.n_elem == 0)
+          continue;
+        Alpha(1)(j) = mean(resid.elem(idx));
+      }
+
       // Convergence check
       double num = 0.0, denom = 0.0;
       for (size_t k = 0; k < 2; ++k) {
@@ -90,13 +100,13 @@ inline GetAlphaResult get_alpha(const vec &p, const list &klist, double tol,
     const int warmup = 15;
     const int grand_acc = 40;
     size_t iter = 0;
-    
+
     for (; iter < std::min<size_t>(warmup, iter_max); ++iter) {
       Alpha0 = Alpha;
       for (size_t k = 0; k < K; ++k) {
         vec resid = p;
         const AlphaGroupInfo &gi_k = group_info(k);
-        
+
         // Subtract other FEs
         for (size_t l = 0; l < K; ++l) {
           if (l == k || group_info(l).n_groups == 0)
@@ -106,7 +116,7 @@ inline GetAlphaResult get_alpha(const vec &p, const list &klist, double tol,
             resid.elem(gi_l.indices(j)) -= Alpha(l)(j);
           }
         }
-        
+
         // Update current FE
         for (size_t j = 0; j < gi_k.n_groups; ++j) {
           const uvec &idx = gi_k.indices(j);
@@ -115,7 +125,7 @@ inline GetAlphaResult get_alpha(const vec &p, const list &klist, double tol,
           Alpha(k)(j) = mean(resid.elem(idx));
         }
       }
-      
+
       // Convergence check
       double num = 0.0, denom = 0.0;
       for (size_t k = 0; k < K; ++k) {
@@ -127,7 +137,7 @@ inline GetAlphaResult get_alpha(const vec &p, const list &klist, double tol,
       if (ratio < tol)
         break;
     }
-    
+
     // Main loop - Alternate projections with Irons-Tuck acceleration
     int acc_count = 0;
     while (iter < iter_max && ratio >= tol) {
@@ -135,12 +145,12 @@ inline GetAlphaResult get_alpha(const vec &p, const list &klist, double tol,
       Alpha2 = Alpha1;
       Alpha1 = Alpha0;
       Alpha0 = Alpha;
-      
+
       // Simple projection
       for (size_t k = 0; k < K; ++k) {
         vec resid = p;
         const AlphaGroupInfo &gi_k = group_info(k);
-        
+
         for (size_t l = 0; l < K; ++l) {
           if (l == k || group_info(l).n_groups == 0)
             continue;
@@ -149,7 +159,7 @@ inline GetAlphaResult get_alpha(const vec &p, const list &klist, double tol,
             resid.elem(gi_l.indices(j)) -= Alpha(l)(j);
           }
         }
-        
+
         for (size_t j = 0; j < gi_k.n_groups; ++j) {
           const uvec &idx = gi_k.indices(j);
           if (idx.n_elem == 0)
@@ -158,7 +168,7 @@ inline GetAlphaResult get_alpha(const vec &p, const list &klist, double tol,
         }
       }
       ++iter;
-      
+
       // Irons-Tuck acceleration every grand_acc iterations
       if (++acc_count == grand_acc) {
         acc_count = 0;
@@ -175,7 +185,7 @@ inline GetAlphaResult get_alpha(const vec &p, const list &klist, double tol,
           }
         }
       }
-      
+
       // Convergence check
       double num = 0.0, denom = 0.0;
       for (size_t k = 0; k < K; ++k) {
