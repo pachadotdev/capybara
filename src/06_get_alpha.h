@@ -36,10 +36,13 @@ inline GetAlphaResult get_alpha(const vec &p, const list &klist, double tol,
       Alpha(k).zeros(list_sizes(k));
     }
   }
-  field<vec> Alpha0(K);
+  field<vec> Alpha0(K), Alpha1(K), Alpha2(K);
   for (size_t k = 0; k < K; ++k) {
-    if (list_sizes(k) > 0)
+    if (list_sizes(k) > 0) {
       Alpha0(k).zeros(list_sizes(k));
+      Alpha1(k).zeros(list_sizes(k));
+      Alpha2(k).zeros(list_sizes(k));
+    }
   }
   double ratio = 0.0;
   if (K == 2) {
@@ -73,12 +76,15 @@ inline GetAlphaResult get_alpha(const vec &p, const list &klist, double tol,
         break;
     }
   } else {
-    // General k-way FE
-    vec resid = p;
-    for (size_t iter = 0; iter < iter_max; ++iter) {
+    // General k-way FE with Irons-Tuck acceleration
+    const int warmup = 10;    // fixest default warmup
+    const int grand_acc = 15; // fixest default grand acceleration
+    size_t iter = 0;
+    // Warmup: simple projections
+    for (; iter < std::min<size_t>(warmup, iter_max); ++iter) {
       Alpha0 = Alpha;
       for (size_t k = 0; k < K; ++k) {
-        resid = p;
+        vec resid = p;
         for (size_t l = 0; l < K; ++l) {
           if (l == k || list_sizes(l) == 0)
             continue;
@@ -102,6 +108,50 @@ inline GetAlphaResult get_alpha(const vec &p, const list &klist, double tol,
       ratio = sqrt(num / (denom + 1e-16));
       if (ratio < tol)
         break;
+    }
+    // Main loop: alternate projections and Irons-Tuck acceleration
+    int acc_count = 0;
+    while (iter < iter_max && ratio >= tol) {
+      // Save previous states
+      Alpha2 = Alpha1;
+      Alpha1 = Alpha0;
+      Alpha0 = Alpha;
+      // Simple projection
+      for (size_t k = 0; k < K; ++k) {
+        vec resid = p;
+        for (size_t l = 0; l < K; ++l) {
+          if (l == k || list_sizes(l) == 0)
+            continue;
+          for (size_t j = 0; j < list_sizes(l); ++j) {
+            resid.elem(group_indices(l)(j)) -= Alpha(l)(j);
+          }
+        }
+        for (size_t j = 0; j < list_sizes(k); ++j) {
+          const uvec &idx = group_indices(k)(j);
+          if (idx.n_elem == 0)
+            continue;
+          Alpha(k)(j) = mean(resid.elem(idx));
+        }
+      }
+      ++iter;
+      // Irons-Tuck acceleration every grand_acc iterations
+      if (++acc_count == grand_acc) {
+        acc_count = 0;
+        // Irons-Tuck step: Alpha = Alpha0 - 2*Alpha1 + Alpha2
+        for (size_t k = 0; k < K; ++k) {
+          if (list_sizes(k) == 0)
+            continue;
+          Alpha(k) = Alpha0(k) - 2 * Alpha1(k) + Alpha2(k);
+        }
+      }
+      // Convergence check
+      double num = 0.0, denom = 0.0;
+      for (size_t k = 0; k < K; ++k) {
+        const vec &diff = Alpha(k) - Alpha0(k);
+        num += dot(diff, diff);
+        denom += dot(Alpha0(k), Alpha0(k));
+      }
+      ratio = sqrt(num / (denom + 1e-16));
     }
   }
   GetAlphaResult res;
