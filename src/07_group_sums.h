@@ -8,7 +8,8 @@ struct GroupSumsResult {
   }
 };
 
-inline GroupSumsResult group_sums(const mat &M, const mat &w, const list &jlist) {
+inline GroupSumsResult group_sums(const mat &M, const mat &w,
+                                  const list &jlist) {
   const size_t J = jlist.size(), P = M.n_cols;
   size_t j;
   uvec indexes;
@@ -26,7 +27,9 @@ inline GroupSumsResult group_sums(const mat &M, const mat &w, const list &jlist)
   return res;
 }
 
-inline GroupSumsResult group_sums_spectral(const mat &M, const mat &v, const mat &w, int K, const list &jlist) {
+inline GroupSumsResult group_sums_spectral(const mat &M, const mat &v,
+                                           const mat &w, int K,
+                                           const list &jlist) {
   const size_t J = jlist.size(), K1 = K, P = M.n_cols;
   size_t i, j, k, I;
   uvec indexes;
@@ -36,7 +39,8 @@ inline GroupSumsResult group_sums_spectral(const mat &M, const mat &v, const mat
   for (j = 0; j < J; ++j) {
     indexes = as_uvec(as_cpp<integers>(jlist[j]));
     I = indexes.n_elem;
-    if (I <= 1) continue;
+    if (I <= 1)
+      continue;
     num.fill(0.0);
     denom = accu(w.elem(indexes));
     v_shifted.zeros(I);
@@ -69,7 +73,8 @@ inline GroupSumsResult group_sums_var(const mat &M, const list &jlist) {
   return res;
 }
 
-inline GroupSumsResult group_sums_cov(const mat &M, const mat &N, const list &jlist) {
+inline GroupSumsResult group_sums_cov(const mat &M, const mat &N,
+                                      const list &jlist) {
   const int J = jlist.size();
   const int P = M.n_cols;
   int j;
@@ -77,7 +82,8 @@ inline GroupSumsResult group_sums_cov(const mat &M, const mat &N, const list &jl
   mat V(P, P, fill::zeros);
   for (j = 0; j < J; ++j) {
     indexes = as_uvec(as_cpp<integers>(jlist[j]));
-    if (indexes.n_elem < 2) continue;
+    if (indexes.n_elem < 2)
+      continue;
     V += M.rows(indexes).t() * N.rows(indexes);
   }
   GroupSumsResult res;

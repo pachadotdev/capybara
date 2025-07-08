@@ -9,13 +9,12 @@ struct FelmFitResult {
   uvec coef_status; // 1 = estimable, 0 = collinear
 
   cpp11::list to_list() const {
-    return writable::list({
-      "coefficients"_nm = as_doubles(coefficients),
-      "fitted.values"_nm = as_doubles(fitted),
-      "weights"_nm = as_doubles(weights),
-      "hessian"_nm = as_doubles_matrix(hessian),
-      "coef_status"_nm = as_integers(arma::conv_to<ivec>::from(coef_status))
-    });
+    return writable::list({"coefficients"_nm = as_doubles(coefficients),
+                           "fitted.values"_nm = as_doubles(fitted),
+                           "weights"_nm = as_doubles(weights),
+                           "hessian"_nm = as_doubles_matrix(hessian),
+                           "coef_status"_nm = as_integers(
+                               arma::conv_to<ivec>::from(coef_status))});
   }
 };
 
@@ -28,7 +27,10 @@ mat crossprod_(const mat &X, const vec &w) {
 }
 
 // Core function: pure Armadillo types
-inline FelmFitResult felm_fit(const mat &X, const vec &y, const vec &w, const list &k_list, double center_tol, size_t iter_center_max, size_t iter_interrupt, size_t iter_ssr) {
+inline FelmFitResult felm_fit(const mat &X, const vec &y, const vec &w,
+                              const list &k_list, double center_tol,
+                              size_t iter_center_max, size_t iter_interrupt,
+                              size_t iter_ssr) {
   FelmFitResult res;
   mat Xc = X;
   vec MNU, beta, fitted;
@@ -36,8 +38,10 @@ inline FelmFitResult felm_fit(const mat &X, const vec &y, const vec &w, const li
 
   if (has_fixed_effects) {
     MNU = y;
-    center_variables_(MNU, w, k_list, center_tol, iter_center_max, iter_interrupt, iter_ssr);
-    center_variables_(Xc, w, k_list, center_tol, iter_center_max, iter_interrupt, iter_ssr);
+    center_variables_(MNU, w, k_list, center_tol, iter_center_max,
+                      iter_interrupt, iter_ssr);
+    center_variables_(Xc, w, k_list, center_tol, iter_center_max,
+                      iter_interrupt, iter_ssr);
   } else {
     MNU = vec(y.n_elem, fill::zeros);
   }

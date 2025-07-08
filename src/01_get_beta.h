@@ -21,8 +21,8 @@ struct beta_results {
 
 // Solve for regression coefficients using QR decomposition (handles
 // collinearity)
-inline void get_beta_qr(mat &MX, const vec &MNU, const vec &w,
-                          beta_results &ws, const uword p, bool use_weights) {
+inline void get_beta_qr(mat &MX, const vec &MNU, const vec &w, beta_results &ws,
+                        const uword p, bool use_weights) {
   if (use_weights) {
     if (ws.XW.n_rows != MX.n_rows || ws.XW.n_cols != MX.n_cols) {
       ws.XW.set_size(MX.n_rows, MX.n_cols);
@@ -59,11 +59,11 @@ inline void get_beta_qr(mat &MX, const vec &MNU, const vec &w,
 
 // Main beta solver: uses Cholesky if possible, otherwise falls back to QR
 inline vec get_beta(mat &MX, const vec &MNU, const vec &w, const uword n,
-                      const uword p, beta_results &ws, bool use_weights) {
+                    const uword p, beta_results &ws, bool use_weights) {
   ws.coefficients.set_size(p);
   ws.coefficients.fill(datum::nan);
   ws.valid_coefficients.zeros(
-      p);  // Initialize all as invalid, will be set to 1 for valid ones
+      p); // Initialize all as invalid, will be set to 1 for valid ones
 
   if (ws.work.n_elem != p) {
     ws.work.set_size(p);
@@ -100,7 +100,7 @@ inline vec get_beta(mat &MX, const vec &MNU, const vec &w, const uword n,
       ws.coefficients =
           solve(trimatu(ws.decomp.t()), ws.work, solve_opts::fast);
       ws.valid_coefficients
-          .ones();  // All coefficients are valid in Cholesky path
+          .ones(); // All coefficients are valid in Cholesky path
       return ws.coefficients;
     }
   }
@@ -110,4 +110,4 @@ inline vec get_beta(mat &MX, const vec &MNU, const vec &w, const uword n,
   return ws.coefficients;
 }
 
-#endif  // CAPYBARA_BETA
+#endif // CAPYBARA_BETA

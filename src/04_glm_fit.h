@@ -266,17 +266,16 @@ struct FeglmFitResult {
   uvec coef_status; // 1 = valid, 0 = collinear
 
   cpp11::list to_list(bool keep_mx = false) const {
-    auto out = writable::list({
-      "coefficients"_nm = as_doubles(coefficients),
-      "eta"_nm = as_doubles(eta),
-      "weights"_nm = as_doubles(weights),
-      "hessian"_nm = as_doubles_matrix(hessian),
-      "deviance"_nm = writable::doubles({deviance}),
-      "null_deviance"_nm = writable::doubles({null_deviance}),
-      "conv"_nm = writable::logicals({conv}),
-      "iter"_nm = writable::integers({iter}),
-      "coef_status"_nm = as_integers(arma::conv_to<ivec>::from(coef_status))
-    });
+    auto out = writable::list(
+        {"coefficients"_nm = as_doubles(coefficients),
+         "eta"_nm = as_doubles(eta), "weights"_nm = as_doubles(weights),
+         "hessian"_nm = as_doubles_matrix(hessian),
+         "deviance"_nm = writable::doubles({deviance}),
+         "null_deviance"_nm = writable::doubles({null_deviance}),
+         "conv"_nm = writable::logicals({conv}),
+         "iter"_nm = writable::integers({iter}),
+         "coef_status"_nm =
+             as_integers(arma::conv_to<ivec>::from(coef_status))});
     if (keep_mx && has_mx) {
       out.push_back({"MX"_nm = as_doubles_matrix(mx)});
     }
@@ -285,31 +284,25 @@ struct FeglmFitResult {
 };
 
 // Core function: pure Armadillo types
-inline FeglmFitResult feglm_fit(
-  mat MX, // copy for in-place centering
-  vec beta,
-  vec eta,
-  const vec &y,
-  const vec &wt,
-  double theta,
-  const list &k_list,
-  double center_tol,
-  double dev_tol,
-  bool keep_mx,
-  size_t iter_max,
-  size_t iter_center_max,
-  size_t iter_inner_max,
-  size_t iter_interrupt,
-  size_t iter_ssr,
-  const std::string &fam,
-  FamilyType family_type
-) {
+inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
+                                vec beta, vec eta, const vec &y, const vec &wt,
+                                double theta, const list &k_list,
+                                double center_tol, double dev_tol, bool keep_mx,
+                                size_t iter_max, size_t iter_center_max,
+                                size_t iter_inner_max, size_t iter_interrupt,
+                                size_t iter_ssr, const std::string &fam,
+                                FamilyType family_type) {
   FeglmFitResult res;
   size_t n = y.n_elem, p = MX.n_cols, k = beta.n_elem;
   vec MNU = vec(n, fill::zeros);
-  vec mu = link_inv_(eta, family_type), ymean = mean(y) * vec(n, fill::ones), mu_eta(n, fill::none), w(n, fill::none), nu(n, fill::none), beta_upd(k, fill::none), eta_upd(n, fill::none), eta_old(n, fill::none), beta_old(k, fill::none), nu_old = vec(n, fill::zeros);
+  vec mu = link_inv_(eta, family_type), ymean = mean(y) * vec(n, fill::ones),
+      mu_eta(n, fill::none), w(n, fill::none), nu(n, fill::none),
+      beta_upd(k, fill::none), eta_upd(n, fill::none), eta_old(n, fill::none),
+      beta_old(k, fill::none), nu_old = vec(n, fill::zeros);
   mat H(p, p, fill::none);
-  double dev = dev_resids_(y, mu, theta, wt, family_type), null_dev = dev_resids_(y, ymean, theta, wt, family_type), dev_old, dev_ratio, dev_ratio_inner, rho;
+  double dev = dev_resids_(y, mu, theta, wt, family_type),
+         null_dev = dev_resids_(y, ymean, theta, wt, family_type), dev_old,
+         dev_ratio, dev_ratio_inner, rho;
   bool dev_crit, val_crit, imp_crit, conv = false;
   size_t iter, iter_inner;
 
@@ -325,8 +318,10 @@ inline FeglmFitResult feglm_fit(
     nu = (y - mu) / mu_eta;
     MNU += (nu - nu_old);
     nu_old = nu;
-    center_variables_(MNU, w, k_list, center_tol, iter_center_max, iter_interrupt, iter_ssr);
-    center_variables_(MX, w, k_list, center_tol, iter_center_max, iter_interrupt, iter_ssr);
+    center_variables_(MNU, w, k_list, center_tol, iter_center_max,
+                      iter_interrupt, iter_ssr);
+    center_variables_(MX, w, k_list, center_tol, iter_center_max,
+                      iter_interrupt, iter_ssr);
     beta_upd = get_beta(MX, MNU, w, n, p, ws, /*use_weights=*/true);
     // Set collinear coefficients to 0 for prediction, and build status vector
     uvec coef_status = ws.valid_coefficients;
@@ -341,10 +336,12 @@ inline FeglmFitResult feglm_fit(
       dev_crit = is_finite(dev);
       val_crit = valid_eta_(eta, family_type) && valid_mu_(mu, family_type);
       imp_crit = (dev_ratio_inner <= -dev_tol);
-      if (dev_crit && val_crit && imp_crit) break;
+      if (dev_crit && val_crit && imp_crit)
+        break;
       rho *= 0.5;
     }
-    if (!dev_crit || !val_crit) stop("Inner loop failed; cannot correct step size.");
+    if (!dev_crit || !val_crit)
+      stop("Inner loop failed; cannot correct step size.");
     if (!imp_crit) {
       eta = eta_old;
       beta = beta_old;
@@ -357,7 +354,8 @@ inline FeglmFitResult feglm_fit(
       break;
     }
   }
-  if (!conv) stop("Algorithm did not converge.");
+  if (!conv)
+    stop("Algorithm did not converge.");
   H = crossprod_(MX, w);
   // Set collinear coefficients to 0 in the result
   uvec coef_status = ws.valid_coefficients;
