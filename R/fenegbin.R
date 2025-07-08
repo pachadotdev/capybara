@@ -138,14 +138,11 @@ fenegbin <- function(
 
   # Determine the number of dropped observations ----
   nt <- nrow(data)
-  nobs <- nobs_(nobs_full, nobs_na, nt)
-
+  # Compute nobs using y and fitted values
+  # nobs <- nobs_(nobs_full, nobs_na, nt) # old
   # Extract model response and regressor matrix ----
   nms_sp <- p <- NA
   model_response_(data, formula)
-
-  # Check for linear dependence in 'x' ----
-  check_linear_dependence_(y, x, p + 1L)
 
   # Extract weights if required ----
   if (is.null(weights)) {
@@ -185,9 +182,18 @@ fenegbin <- function(
     )
   )
 
-  fit <- feglm_fit_(
+  fit <- structure(feglm_fit_(
     beta, eta, y, x, wt, theta, family[["family"]], control, k_list
-  )
+  ), class = c("feglm", "fenegbin"))
+
+  # Replace collinear coefficients with NA
+  if (!is.null(fit$coef_status)) {
+    fit$coefficients[fit$coef_status == 0] <- NA_real_
+    fit$coef_status <- NULL
+  }
+
+  # Compute nobs using y and fitted values
+  nobs <- nobs_(nobs_full, nobs_na, y, predict(fit))
 
   beta <- fit[["coefficients"]]
   eta <- fit[["eta"]]
@@ -209,10 +215,9 @@ fenegbin <- function(
         trace = trace
       )
     )
-    fit <- feglm_fit_(
-      beta, eta, y, x, wt, theta, family[["family"]], control,
-      k_list
-    )
+    fit <- structure(feglm_fit_(
+      beta, eta, y, x, wt, theta, family[["family"]], control, k_list
+    ), class = c("feglm", "fenegbin"))
     beta <- fit[["coefficients"]]
     eta <- fit[["eta"]]
     dev <- fit[["deviance"]]
@@ -247,9 +252,11 @@ fenegbin <- function(
   }
   dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
 
+  # Add to fit list ----
+  fit[["family"]] <- family
+
   fenegbin_result_list_(
-    fit, theta, iter, conv, nobs, lvls_k, nms_fe,
-    formula, data, family, control
+    fit, theta, iter, conv, nobs, lvls_k, nms_fe, formula, data, family, control
   )
 }
 

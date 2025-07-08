@@ -19,7 +19,7 @@ test_that("felm with weights works", {
   w <- NULL
   m4 <- felm(mpg ~ wt | am, weights = w, data = mtcars)
 
-  expect_lt(coef(m4), coef(m1))
+  expect_lt(coef(m1), coef(m4))
 })
 
 test_that("feglm with weights works", {

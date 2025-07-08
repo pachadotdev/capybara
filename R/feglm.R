@@ -176,15 +176,12 @@ feglm <- function(
 
   # Determine the number of dropped observations ----
   nt <- nrow(data)
-  nobs <- nobs_(nobs_full, nobs_na, nt)
-
+  # Compute nobs using y and fitted values
+  # nobs <- nobs_(nobs_full, nobs_na, nt) # old
   # Extract model response and regressor matrix ----
   nms_sp <- NA
   p <- NA
   model_response_(data, formula)
-
-  # Check for linear dependence ----
-  check_linear_dependence_(y, x, p + 1L)
 
   # Extract weights if required ----
   if (is.null(weights)) {
@@ -229,9 +226,12 @@ feglm <- function(
     y <- as.numeric(y)
   }
 
-  fit <- feglm_fit_(
+  fit <- structure(feglm_fit_(
     beta, eta, y, x, wt, 0.0, family[["family"]], control, k_list
-  )
+  ), class = "feglm")
+
+  # Compute nobs using y and fitted values
+  nobs <- nobs_(nobs_full, nobs_na, y, predict(fit))
 
   y <- NULL
   x <- NULL
@@ -253,6 +253,6 @@ feglm <- function(
   fit[["family"]] <- family
   fit[["control"]] <- control
 
-  # Return result list ----
-  structure(fit, class = "feglm")
+  # Return result ----
+  fit
 }

@@ -93,9 +93,17 @@ predict.felm <- function(object, newdata = NULL, type = c("response", "terms"), 
       fes2[[name]] <- fe[match(data[[name]], rownames(fe)), ]
     }
 
-    yhat <- x %*% object$coefficients + Reduce("+", fes2)
+    # Replace NA coefficients with 0 for prediction
+    coef0 <- object$coefficients
+    coef0[is.na(coef0)] <- 0
+    yhat <- x %*% coef0 + Reduce("+", fes2)
   } else {
-    yhat <- object[["fitted.values"]]
+    # Replace NA coefficients with 0 for prediction
+    coef0 <- object$coefficients
+    coef0[is.na(coef0)] <- 0
+    # fitted.values is already computed in C++ with correct handling, but for safety:
+    # If fitted.values is recomputed elsewhere, ensure NA coefficients are 0
+    yhat <- as.numeric(object[["fitted.values"]])
   }
 
   as.numeric(yhat)

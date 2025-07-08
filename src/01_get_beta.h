@@ -1,0 +1,113 @@
+#ifndef CAPYBARA_BETA
+#define CAPYBARA_BETA
+
+struct beta_results {
+  mat XtX;
+  vec XtY;
+  mat decomp;
+  vec work;
+  mat Xt;
+  mat Q;
+  mat XW;
+  vec coefficients;
+  uvec valid_coefficients;
+
+  beta_results(size_t n, size_t p)
+      : XtX(p, p, fill::none), XtY(p, fill::none), decomp(p, p, fill::none),
+        work(p, fill::none), Xt(p, n, fill::none), Q(p, 0, fill::none),
+        XW(n, 0, fill::none), coefficients(p, fill::zeros),
+        valid_coefficients(p, fill::ones) {}
+};
+
+// Solve for regression coefficients using QR decomposition (handles
+// collinearity)
+inline void get_beta_qr(mat &MX, const vec &MNU, const vec &w,
+                          beta_results &ws, const uword p, bool use_weights) {
+  if (use_weights) {
+    if (ws.XW.n_rows != MX.n_rows || ws.XW.n_cols != MX.n_cols) {
+      ws.XW.set_size(MX.n_rows, MX.n_cols);
+    }
+
+    ws.XW = MX.each_col() % sqrt(w);
+    qr_econ(ws.Q, ws.decomp, ws.XW);
+  } else {
+    qr_econ(ws.Q, ws.decomp, MX);
+  }
+
+  ws.work = ws.Q.t() * MNU;
+
+  const vec diag_abs = abs(ws.decomp.diag());
+  const double max_diag = diag_abs.max();
+  // Use R's default tolerance for collinearity detection
+  const double tol = 1e-7 * max_diag;
+  const uvec indep = find(diag_abs > tol);
+
+  ws.coefficients.fill(datum::nan);
+  ws.valid_coefficients.zeros();
+  ws.valid_coefficients(indep).ones();
+
+  if (indep.n_elem == p) {
+    ws.coefficients = solve(trimatu(ws.decomp), ws.work, solve_opts::fast);
+  } else if (!indep.is_empty()) {
+    const mat Rr = ws.decomp.submat(indep, indep);
+    const vec Yr = ws.work.elem(indep);
+    const vec br = solve(trimatu(Rr), Yr, solve_opts::fast);
+    ws.coefficients(indep) = br;
+    // Keep NaN for invalid coefficients
+  }
+}
+
+// Main beta solver: uses Cholesky if possible, otherwise falls back to QR
+inline vec get_beta(mat &MX, const vec &MNU, const vec &w, const uword n,
+                      const uword p, beta_results &ws, bool use_weights) {
+  ws.coefficients.set_size(p);
+  ws.coefficients.fill(datum::nan);
+  ws.valid_coefficients.zeros(
+      p);  // Initialize all as invalid, will be set to 1 for valid ones
+
+  if (ws.work.n_elem != p) {
+    ws.work.set_size(p);
+  }
+
+  const bool direct_qr = (p > 0.9 * n);
+
+  if (direct_qr) {
+    get_beta_qr(MX, MNU, w, ws, p, use_weights);
+    return ws.coefficients;
+  }
+
+  if (use_weights) {
+    const vec sqrt_w = sqrt(w);
+    ws.XW = MX.each_col() % sqrt_w;
+    ws.XtX = ws.XW.t() * ws.XW;
+
+    const vec MNU_weighted = MNU % sqrt_w;
+    ws.XtY = ws.XW.t() * MNU_weighted;
+  } else {
+    ws.XtX = MX.t() * MX;
+    ws.XtY = MX.t() * MNU;
+  }
+
+  const bool chol_ok = chol(ws.decomp, ws.XtX, "lower");
+
+  if (chol_ok) {
+    const vec d = abs(ws.decomp.diag());
+    const double mind = d.min();
+    const double avgd = mean(d);
+
+    if (mind > 1e-12 * avgd) {
+      ws.work = solve(trimatl(ws.decomp), ws.XtY, solve_opts::fast);
+      ws.coefficients =
+          solve(trimatu(ws.decomp.t()), ws.work, solve_opts::fast);
+      ws.valid_coefficients
+          .ones();  // All coefficients are valid in Cholesky path
+      return ws.coefficients;
+    }
+  }
+
+  get_beta_qr(MX, MNU, w, ws, p, use_weights);
+
+  return ws.coefficients;
+}
+
+#endif  // CAPYBARA_BETA

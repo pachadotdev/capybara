@@ -1,0 +1,5 @@
+devtools::load_all()
+coef(glm(mpg ~ wt + as.factor(cyl), mtcars, family = quasipoisson(link = "log")))
+mod <- fepoisson(mpg ~ wt | cyl | am, mtcars)
+coef(mod)
+fixed_effects(mod)
