@@ -19,7 +19,7 @@ NULL
 #' @return an object of class \code{feglm}
 #'
 #' @noRd
-feglm_offset <- function(object, offset) {
+feglm_offset_ <- function(object, offset) {
   # Check validity of 'object'
   if (!inherits(object, "feglm")) {
     stop("'feglm_offset_' called on a non-'feglm' object.")
@@ -31,7 +31,7 @@ feglm_offset <- function(object, offset) {
   wt <- object[["weights"]]
   family <- object[["family"]]
   lvls_k <- object[["lvls_k"]]
-  nt <- object[["nobs"]][["nobs"]] - object[["nobs"]][["nobs_pc"]]
+  nt <- object[["nobs"]][["nobs_full"]] - object[["nobs"]][["nobs_pc"]]
   k_vars <- names(lvls_k)
 
   # Extract dependent variable
@@ -53,7 +53,7 @@ feglm_offset <- function(object, offset) {
   if (is.integer(y)) {
     y <- as.numeric(y)
   }
-  feglm_offset_(
+  feglm_offset_fit_(
     eta, y, offset, wt, family[["family"]], control, k_list
   )
 }

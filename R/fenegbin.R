@@ -136,11 +136,16 @@ fenegbin <- function(
   # Transform fixed effects and clusters to factors ----
   data <- transform_fe_(data, formula, k_vars)
 
+  # Determine the number of dropped observations ----
   nt <- nrow(data)
+  nobs <- nobs_(nobs_full, nobs_na, nt)
 
   # Extract model response and regressor matrix ----
   nms_sp <- p <- NA
   model_response_(data, formula)
+
+  # Check for linear dependence in 'x' ----
+  check_linear_dependence_(y, x, p + 1L)
 
   # Extract weights if required ----
   if (is.null(weights)) {
@@ -180,12 +185,12 @@ fenegbin <- function(
     )
   )
 
-  fit <- feglm_(
+  fit <- feglm_fit_(
     beta, eta, y, x, wt, theta, family[["family"]], control, k_list
   )
 
   beta <- fit[["coefficients"]]
-  eta <- fit[["linear.predictors"]]
+  eta <- fit[["eta"]]
   dev <- fit[["deviance"]]
 
   # Alternate between fitting glm and \theta ----
@@ -204,12 +209,12 @@ fenegbin <- function(
         trace = trace
       )
     )
-    fit <- feglm_(
+    fit <- feglm_fit_(
       beta, eta, y, x, wt, theta, family[["family"]], control,
       k_list
     )
     beta <- fit[["coefficients"]]
-    eta <- fit[["linear.predictors"]]
+    eta <- fit[["eta"]]
     dev <- fit[["deviance"]]
 
     # Progress information
@@ -230,11 +235,6 @@ fenegbin <- function(
     }
   }
 
-  fit <- structure(fit, class = c("feglm", "fenegbin"))
-
-  # Determine the number of dropped observations ----
-  nobs <- nobs_(nobs_full, nobs_na, y, predict(fit))
-
   y <- x <- eta <- NULL
 
   # Information if convergence failed ----
@@ -247,7 +247,26 @@ fenegbin <- function(
   }
   dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
 
-  c(
+  fenegbin_result_list_(
+    fit, theta, iter, conv, nobs, lvls_k, nms_fe,
+    formula, data, family, control
+  )
+}
+
+# Convergence Check ----
+
+fenegbin_check_convergence_ <- function(dev, dev_old, theta, theta_old, tol) {
+  dev_crit <- abs(dev - dev_old) / (0.1 + abs(dev))
+  theta_crit <- abs(theta - theta_old) / (0.1 + abs(theta_old))
+  dev_crit <= tol && theta_crit <= tol
+}
+
+# Generate result list ----
+
+fenegbin_result_list_ <- function(
+    fit, theta, iter, conv, nobs, lvls_k,
+    nms_fe, formula, data, family, control) {
+  reslist <- c(
     fit, list(
       theta      = theta,
       iter.outer = iter,
@@ -261,12 +280,7 @@ fenegbin <- function(
       control    = control
     )
   )
-}
 
-# Convergence Check ----
-
-fenegbin_check_convergence_ <- function(dev, dev_old, theta, theta_old, tol) {
-  dev_crit <- abs(dev - dev_old) / (0.1 + abs(dev))
-  theta_crit <- abs(theta - theta_old) / (0.1 + abs(theta_old))
-  dev_crit <= tol && theta_crit <= tol
+  # Return result list ----
+  structure(reslist, class = c("feglm", "fenegbin"))
 }

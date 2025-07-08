@@ -81,7 +81,7 @@ NULL
 #' @param eta_start an optional vector of starting values for the linear
 #'  predictor.
 #' @param control a named list of parameters for controlling the fitting
-#'  process. See \code{\link{fit_control}} for details.
+#'  process. See \code{\link{feglm_control}} for details.
 #'
 #' @details If \code{\link{feglm}} does not converge this is often a sign of
 #'  linear dependence between one or more regressors and a fixed effects
@@ -160,7 +160,7 @@ feglm <- function(
   # Get names of the fixed effects variables and sort ----
   # the no FEs warning is printed in the check_formula_ function
   k_vars <- suppressWarnings(attr(terms(formula, rhs = 2L), "term.labels"))
-  if (length(k_vars) < 1L) {
+  if (length(k_vars) <1L) {
     k_vars <- "missing_fe"
     data[, `:=`("missing_fe", 1L)]
   }
@@ -174,12 +174,17 @@ feglm <- function(
   # Transform fixed effects and clusters to factors ----
   data <- transform_fe_(data, formula, k_vars)
 
+  # Determine the number of dropped observations ----
   nt <- nrow(data)
+  nobs <- nobs_(nobs_full, nobs_na, nt)
 
   # Extract model response and regressor matrix ----
   nms_sp <- NA
   p <- NA
   model_response_(data, formula)
+
+  # Check for linear dependence ----
+  check_linear_dependence_(y, x, p + 1L)
 
   # Extract weights if required ----
   if (is.null(weights)) {
@@ -224,12 +229,9 @@ feglm <- function(
     y <- as.numeric(y)
   }
 
-  fit <- structure(feglm_(
+  fit <- feglm_fit_(
     beta, eta, y, x, wt, 0.0, family[["family"]], control, k_list
-  ), class = "feglm")
-
-  # Determine the number of dropped observations ----
-  nobs <- nobs_(nobs_full, nobs_na, y, predict(fit))
+  )
 
   y <- NULL
   x <- NULL
@@ -240,7 +242,7 @@ feglm <- function(
   if (control[["keep_mx"]]) {
     colnames(fit[["mx"]]) <- nms_sp
   }
-  # dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
+  dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
 
   # Add to fit list ----
   fit[["nobs"]] <- nobs
@@ -252,5 +254,5 @@ feglm <- function(
   fit[["control"]] <- control
 
   # Return result list ----
-  fit
+  structure(fit, class = "feglm")
 }

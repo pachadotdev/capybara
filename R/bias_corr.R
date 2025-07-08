@@ -92,7 +92,7 @@ bias_corr <- function(
   formula <- object[["formula"]]
   lvls_k <- object[["lvls_k"]]
   nms_sp <- names(beta_uncorr)
-  nt <- object[["nobs"]][["nobs"]] + object[["nobs"]][["nobs_na"]]
+  nt <- object[["nobs"]][["nobs"]]
   k_vars <- names(lvls_k)
   k <- length(lvls_k)
 
@@ -115,7 +115,7 @@ bias_corr <- function(
   k_list <- get_index_list_(k_vars, data)
 
   # Compute derivatives and weights
-  eta <- object[["linear.predictors"]]
+  eta <- object[["eta"]]
   mu <- family[["linkinv"]](eta)
   mu_eta <- family[["mu.eta"]](eta)
   v <- wt * (y - mu)
@@ -133,10 +133,7 @@ bias_corr <- function(
   if (control[["keep_mx"]]) {
     x <- object[["mx"]]
   } else {
-    x <- center_variables_(
-      x, w, k_list, control[["center_tol"]],
-      control[["iter_max"]], control[["iter_interrupt"]]
-    )
+    x <- center_variables_r_(x, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]])
   }
 
   # Compute bias terms for requested bias correction
@@ -170,7 +167,7 @@ bias_corr <- function(
   names(beta) <- nms_sp
 
   # Update \eta and first- and second-order derivatives
-  eta <- feglm_offset(object, x %*% beta)
+  eta <- feglm_offset_(object, x %*% beta)
   mu <- family[["linkinv"]](eta)
   mu_eta <- family[["mu.eta"]](eta)
   v <- wt * (y - mu)
@@ -183,10 +180,7 @@ bias_corr <- function(
   }
 
   # Update centered regressor matrix
-  x <- center_variables_(
-    x, w, k_list, control[["center_tol"]],
-    control[["iter_max"]], control[["iter_interrupt"]]
-  )
+  x <- center_variables_r_(x, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]])
   colnames(x) <- nms_sp
 
   # Update hessian

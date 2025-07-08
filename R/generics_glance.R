@@ -37,6 +37,7 @@ glance.feglm <- function(x, ...) {
 
 #' @rdname broom
 #' @export
+#' @export
 glance.felm <- function(x, ...) {
   with(
     summary(x),

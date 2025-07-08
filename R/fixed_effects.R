@@ -61,6 +61,7 @@ fixed_effects <- function(object = NULL, control = NULL) {
   nms_fe <- object[["nms_fe"]]
   k_vars <- names(lvls_k)
   k <- length(lvls_k)
+  eta <- object[["eta"]]
 
   # Extract regressor matrix ----
   x <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
@@ -71,16 +72,16 @@ fixed_effects <- function(object = NULL, control = NULL) {
 
   # Recover fixed effects by alternating the solutions of normal equations ----
   if (inherits(object, "feglm")) {
-    eta <- object[["linear.predictors"]]
     pie <- eta - x %*% beta
   } else {
-    pie <- as.numeric(fitted.values(object) - x %*% beta)
+    pie <- fitted.values(object) - x %*% beta
   }
-  fe_list <- solve_alpha_(pie, k_list, control)
+  fe_list <- get_alpha_(pie, k_list, control)
 
   # Assign names to the different fixed effects categories ----
   for (i in seq.int(k)) {
-    names(fe_list[[i]]) <- nms_fe[[i]]
+    colnames(fe_list[[i]]) <- k_vars[i]
+    rownames(fe_list[[i]]) <- nms_fe[[i]]
   }
   names(fe_list) <- k_vars
 

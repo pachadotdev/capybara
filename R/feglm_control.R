@@ -27,24 +27,24 @@ NULL
 #'  maximization routine. The stopping condition is based on the relative change
 #'  of the deviance in iteration \eqn{r} and can be expressed as follows:
 #'  \eqn{|dev_{r} - dev_{r - 1}| / (0.1 + |dev_{r}|) < tol}{|dev - devold| /
-#'  (0.1 + |dev|) < tol}. The default is \code{1.0e-06}.
+#'  (0.1 + |dev|) < tol}. The default is \code{1.0e-08}.
 #' @param center_tol tolerance level for the stopping condition of the centering
 #'  algorithm. The stopping condition is based on the relative change of the
 #'  centered variable similar to the \code{'lfe'} package. The default is
-#'  \code{1.0e-04}.
-#' @param iter_max integer indicating the maximum number of iterations
+#'  \code{1.0e-08}.
+#' @param iter_max unsigned integer indicating the maximum number of iterations
 #'  in the maximization routine. The default is \code{25L}.
-#' @param iter_center_max integer indicating the maximum number of
+#' @param iter_center_max unsigned integer indicating the maximum number of
 #'  iterations in the centering algorithm. The default is \code{10000L}.
-#' @param iter_inner_max integer indicating the maximum number of
+#' @param iter_inner_max unsigned integer indicating the maximum number of
 #'  iterations in the inner loop of the centering algorithm. The default is
 #'  \code{50L}.
-#' @param iter_interrupt integer indicating the maximum number of
+#' @param iter_interrupt unsigned integer indicating the maximum number of
 #' iterations before the algorithm is interrupted. The default is \code{1000L}.
-#' @param iter_ssr integer indicating the number of iterations
-#'  to skip before checking if the sum of squared residuals improves. The
-#'  default is \code{10L}.
-#' @param limit integer indicating the maximum number of iterations of
+#' @param iter_ssr unsigned integer indicating the number of iterations
+#' to skip before checking if the sum of squared residuals improves. The default
+#' is \code{10L}.
+#' @param limit unsigned integer indicating the maximum number of iterations of
 #'  \code{\link[MASS]{theta.ml}}. The default is \code{10L}.
 #' @param trace logical indicating if output should be produced in each
 #'  iteration. Default is \code{FALSE}.
@@ -58,21 +58,18 @@ NULL
 #'  stored. The centered regressor matrix is required for some covariance
 #'  estimators, bias corrections, and average partial effects. This option saves
 #'  some computation time at the cost of memory. The default is \code{TRUE}.
-
+#'
 #' @return A named list of control parameters.
 #'
 #' @examples
-#' felm(mpg ~ wt + hp | cyl,
-#'   data = mtcars,
-#'   control = fit_control(center_tol = 1.0e-03)
-#' )
+#' feglm_control(0.05, 0.05, 10L, 10L, TRUE, TRUE, TRUE)
 #'
 #' @seealso \code{\link{feglm}}
 #'
 #' @export
-fit_control <- function(
-    dev_tol = 1.0e-04,
-    center_tol = 1.0e-04,
+feglm_control <- function(
+    dev_tol = 1.0e-06,
+    center_tol = 1.0e-06,
     iter_max = 25L,
     iter_center_max = 10000L,
     iter_inner_max = 50L,
@@ -130,7 +127,7 @@ fit_control <- function(
   iter_ssr <- as.integer(iter_ssr)
   if (iter_ssr < 1L) {
     stop(
-      "Number of iterations to skip before checking SSR should be at least one.",
+      "Maximum number of iterations for SSR should be at least one.",
       call. = FALSE
     )
   }
@@ -139,21 +136,6 @@ fit_control <- function(
   limit <- as.integer(limit)
   if (limit < 1L) {
     stop("Maximum number of iterations should be at least one.", call. = FALSE)
-  }
-
-  # Check validity of 'trace'
-  if (!is.logical(trace) || length(trace) != 1L) {
-    stop("'trace' should be a single logical value.", call. = FALSE)
-  }
-
-  # Check validity of 'drop_pc'
-  if (!is.logical(drop_pc) || length(drop_pc) != 1L) {
-    stop("'drop_pc' should be a single logical value.", call. = FALSE)
-  }
-
-  # Check validity of 'keep_mx'
-  if (!is.logical(keep_mx) || length(keep_mx) != 1L) {
-    stop("'keep_mx' should be a single logical value.", call. = FALSE)
   }
 
   # Return list with control parameters
@@ -166,8 +148,8 @@ fit_control <- function(
     iter_interrupt = iter_interrupt,
     iter_ssr = iter_ssr,
     limit = limit,
-    trace = trace,
-    drop_pc = drop_pc,
-    keep_mx = keep_mx
+    trace = as.logical(trace),
+    drop_pc = as.logical(drop_pc),
+    keep_mx = as.logical(keep_mx)
   )
 }

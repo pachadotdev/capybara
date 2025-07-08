@@ -183,11 +183,9 @@ summary_pseudo_rsq_ <- function(x, digits) {
 summary_nobs_ <- function(x) {
   cat(
     "\nNumber of observations:",
-    paste0("Full ", x[["nobs"]][["nobs_full"]], ";"),
-    paste0("Dropped ", x[["nobs"]][["nobs_na"]], ";"),
-    paste0("Used in estimation ", x[["nobs"]][["nobs"]], ";"),
-    paste0("Perfect classification ", x[["nobs"]][["nobs_pc"]]),
-    "\n"
+    paste0("Full ", x[["nobs"]][["nobs"]], ";"),
+    paste0("Missing ", x[["nobs"]][["nobs_na"]], ";"),
+    paste0("Perfect classification ", x[["nobs"]][["nobs_pc"]]), "\n"
   )
 }
 
