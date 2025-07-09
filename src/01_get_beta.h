@@ -1,6 +1,27 @@
 #ifndef CAPYBARA_BETA
 #define CAPYBARA_BETA
 
+// Cache for storing precomputed matrices for 2-way models
+struct TwoWayBetaCache {
+  mat cached_XtX;
+  uvec cached_group_i;
+  uvec cached_group_j;
+  bool is_valid = false;
+  
+  void invalidate() { is_valid = false; }
+  
+  bool matches_structure(const uvec &group_i, const uvec &group_j) {
+    return is_valid && 
+           group_i.n_elem == cached_group_i.n_elem &&
+           group_j.n_elem == cached_group_j.n_elem &&
+           all(group_i == cached_group_i) &&
+           all(group_j == cached_group_j);
+  }
+};
+
+// Global cache instance (one per thread would be better for parallel use)
+static TwoWayBetaCache g_twoway_cache;
+
 struct beta_results {
   mat XtX;
   vec XtY;
@@ -108,6 +129,78 @@ inline vec get_beta(mat &MX, const vec &MNU, const vec &w, const uword n,
   get_beta_qr(MX, MNU, w, ws, p, use_weights);
 
   return ws.coefficients;
+}
+
+// Optimized beta computation for 2-way fixed effects models
+// This avoids recomputing X'X when the fixed effects structure hasn't changed
+inline vec get_beta_twoway_optimized(mat &MX, const vec &MNU, const vec &w, 
+                                      const list &k_list, beta_results &ws, 
+                                      bool use_weights) {
+  const uword n = MX.n_rows, p = MX.n_cols;
+  
+  // Extract group structure
+  uvec group_i = as_uvec(as_cpp<integers>(k_list[0])) - 1;
+  uvec group_j = as_uvec(as_cpp<integers>(k_list[1])) - 1;
+  
+  // Check if we can reuse cached X'X computation
+  bool can_reuse_XtX = g_twoway_cache.matches_structure(group_i, group_j);
+  
+  if (!can_reuse_XtX) {
+    // Recompute and cache X'X
+    if (use_weights) {
+      mat sqrt_w_diag = diagmat(sqrt(w));
+      mat WX = sqrt_w_diag * MX;
+      ws.XtX = WX.t() * WX;
+    } else {
+      ws.XtX = MX.t() * MX;
+    }
+    
+    // Update cache
+    g_twoway_cache.cached_XtX = ws.XtX;
+    g_twoway_cache.cached_group_i = group_i;
+    g_twoway_cache.cached_group_j = group_j;
+    g_twoway_cache.is_valid = true;
+  } else {
+    // Reuse cached X'X
+    ws.XtX = g_twoway_cache.cached_XtX;
+  }
+  
+  // Always recompute X'Y (this changes every iteration)
+  if (use_weights) {
+    ws.XtY = MX.t() * (w % MNU);
+  } else {
+    ws.XtY = MX.t() * MNU;
+  }
+  
+  // Solve system efficiently
+  const double rcond = 1e-14;
+  ws.decomp = chol(ws.XtX, "lower");
+  
+  if (ws.decomp.is_empty()) {
+    // Fall back to QR for rank-deficient cases
+    get_beta_qr(MX, MNU, w, ws, p, use_weights);
+  } else {
+    // Use Cholesky solver (fastest path)
+    ws.work = solve(trimatl(ws.decomp), ws.XtY, solve_opts::fast);
+    ws.coefficients = solve(trimatu(ws.decomp.t()), ws.work, solve_opts::fast);
+    ws.valid_coefficients.ones();
+  }
+  
+  return ws.coefficients;
+}
+
+// Enhanced get_beta function that uses optimizations when appropriate
+inline vec get_beta_fast(mat &MX, const vec &MNU, const vec &w, uword n, uword p, 
+                         beta_results &ws, bool use_weights, 
+                         const list *k_list = nullptr) {
+  
+  // Use specialized 2-way optimization if applicable
+  if (k_list != nullptr && k_list->size() == 2 && p > 1) {
+    return get_beta_twoway_optimized(MX, MNU, w, *k_list, ws, use_weights);
+  }
+  
+  // Fall back to standard computation
+  return get_beta(MX, MNU, w, n, p, ws, use_weights);
 }
 
 #endif // CAPYBARA_BETA

@@ -1,6 +1,12 @@
 #ifndef CAPYBARA_CENTER
 #define CAPYBARA_CENTER
 
+// Forward declarations
+inline void center_gaussian_2way_optimized(mat &V, const vec &w, const list &klist,
+                                            const double &tol, const int &max_iter);
+inline void center_poisson_2way_optimized(mat &V, const vec &w, const list &klist,
+                                           const double &tol, const int &max_iter);
+
 double update_negbin(const arma::vec &y, const arma::vec &mu,
                      const arma::vec &w, double theta, double prev_alpha,
                      double tol = 1e-8, int max_iter = 100) {
@@ -85,6 +91,19 @@ void center_variables_(mat &V, const vec &w, const list &klist,
                        const int &iter_interrupt, const int &iter_ssr,
                        const std::string &family = "gaussian") {
   const size_t N = V.n_rows, P = V.n_cols, K = klist.size();
+  
+  // Use specialized algorithms for 2-way models (disabled for debugging)
+  if (false && K == 2) {
+    if (family == "gaussian") {
+      center_gaussian_2way_optimized(V, w, klist, tol, max_iter);
+      return;
+    } else if (family == "poisson") {
+      center_poisson_2way_optimized(V, w, klist, tol, max_iter);
+      return;
+    }
+  }
+  
+  // Fall back to general algorithm for other cases
   const double inv_sw = 1.0 / accu(w);
 
   // Precompute group information
@@ -332,5 +351,174 @@ void center_variables_(mat &V, const vec &w, const list &klist,
     V.col(p) = x;
   }
 }
+
+// Optimized 2-way Gaussian centering with closed-form solutions
+inline void center_gaussian_2way_optimized(mat &V, const vec &w, const list &klist,
+                                            const double &tol, const int &max_iter) {
+  const size_t N = V.n_rows, P = V.n_cols;
+  
+  // Use GroupInfo structure like the general algorithm
+  GroupInfo gi0(klist[0], w);
+  GroupInfo gi1(klist[1], w);
+  
+  for (size_t p = 0; p < P; ++p) {
+    const vec x_orig = V.col(p);
+    vec x = x_orig;
+    vec alpha_i(gi0.n_groups, fill::zeros);
+    vec alpha_j(gi1.n_groups, fill::zeros);
+    
+    // Alternating projections with closed-form updates
+    for (int iter = 0; iter < max_iter; ++iter) {
+      vec x_prev = x;
+      
+      // Update alpha_i given alpha_j
+      alpha_i.zeros();
+      for (size_t l = 0; l < gi0.n_groups; ++l) {
+        const uvec &coords = gi0.indices(l);
+        if (coords.n_elem == 0) continue;
+        
+        double sum_weighted = 0.0;
+        for (size_t idx = 0; idx < coords.n_elem; ++idx) {
+          size_t obs = coords(idx);
+          // Subtract current alpha_j contributions
+          double residual = x_orig(obs);
+          for (size_t k = 0; k < gi1.n_groups; ++k) {
+            const uvec &coords_j = gi1.indices(k);
+            for (size_t idx_j = 0; idx_j < coords_j.n_elem; ++idx_j) {
+              if (coords_j(idx_j) == obs) {
+                residual -= alpha_j(k);
+                break;
+              }
+            }
+          }
+          sum_weighted += w(obs) * residual;
+        }
+        alpha_i(l) = sum_weighted * gi0.inv_weights(l);
+      }
+      
+      // Update alpha_j given alpha_i  
+      alpha_j.zeros();
+      for (size_t l = 0; l < gi1.n_groups; ++l) {
+        const uvec &coords = gi1.indices(l);
+        if (coords.n_elem == 0) continue;
+        
+        double sum_weighted = 0.0;
+        for (size_t idx = 0; idx < coords.n_elem; ++idx) {
+          size_t obs = coords(idx);
+          // Subtract current alpha_i contributions
+          double residual = x_orig(obs);
+          for (size_t k = 0; k < gi0.n_groups; ++k) {
+            const uvec &coords_i = gi0.indices(k);
+            for (size_t idx_i = 0; idx_i < coords_i.n_elem; ++idx_i) {
+              if (coords_i(idx_i) == obs) {
+                residual -= alpha_i(k);
+                break;
+              }
+            }
+          }
+          sum_weighted += w(obs) * residual;
+        }
+        alpha_j(l) = sum_weighted * gi1.inv_weights(l);
+      }
+      
+      // Compute final centered values
+      x = x_orig;
+      for (size_t l = 0; l < gi0.n_groups; ++l) {
+        const uvec &coords = gi0.indices(l);
+        if (coords.n_elem == 0) continue;
+        x.elem(coords) -= alpha_i(l);
+      }
+      for (size_t l = 0; l < gi1.n_groups; ++l) {
+        const uvec &coords = gi1.indices(l);
+        if (coords.n_elem == 0) continue;
+        x.elem(coords) -= alpha_j(l);
+      }
+      
+      // Check convergence
+      double diff = dot(abs(x - x_prev), w) / accu(w);
+      if (diff < tol) break;
+    }
+    
+    V.col(p) = x;
+  }
+}
+
+// Optimized 2-way Poisson centering using log-space computations
+inline void center_poisson_2way_optimized(mat &V, const vec &w, const list &klist,
+                                           const double &tol, const int &max_iter) {
+  const size_t N = V.n_rows, P = V.n_cols;
+  
+  // Use GroupInfo structure like the general algorithm
+  GroupInfo gi0(klist[0], w);
+  GroupInfo gi1(klist[1], w);
+  
+  for (size_t p = 0; p < P; ++p) {
+    const vec x_orig = V.col(p);
+    vec x = x_orig;
+    vec alpha0(gi0.n_groups, fill::zeros);
+    vec alpha1(gi1.n_groups, fill::zeros);
+    
+    for (int iter = 0; iter < max_iter; ++iter) {
+      vec x0 = x;
+      
+      // Update FE 1: x = x_orig - alpha1, solve for alpha0
+      x = x_orig;
+      for (size_t l = 0; l < gi1.n_groups; ++l) {
+        const uvec &coords = gi1.indices(l);
+        if (coords.n_elem == 0) continue;
+        x.elem(coords) -= alpha1(l);
+      }
+      
+      // Solve for alpha0 given x
+      for (size_t l = 0; l < gi0.n_groups; ++l) {
+        const uvec &coords = gi0.indices(l);
+        if (coords.n_elem == 0) continue;
+        
+        double maxval = x.elem(coords).max();
+        double sum_exp = accu(w.elem(coords) % exp(x.elem(coords) - maxval));
+        alpha0(l) = log(gi0.sum_weights(l)) - log(sum_exp) + maxval;
+      }
+      
+      // Update FE 2: x = x_orig - alpha0, solve for alpha1
+      x = x_orig;
+      for (size_t l = 0; l < gi0.n_groups; ++l) {
+        const uvec &coords = gi0.indices(l);
+        if (coords.n_elem == 0) continue;
+        x.elem(coords) -= alpha0(l);
+      }
+      
+      // Solve for alpha1 given x
+      for (size_t l = 0; l < gi1.n_groups; ++l) {
+        const uvec &coords = gi1.indices(l);
+        if (coords.n_elem == 0) continue;
+        
+        double maxval = x.elem(coords).max();
+        double sum_exp = accu(w.elem(coords) % exp(x.elem(coords) - maxval));
+        alpha1(l) = log(gi1.sum_weights(l)) - log(sum_exp) + maxval;
+      }
+      
+      // Final residual computation
+      x = x_orig;
+      for (size_t l = 0; l < gi0.n_groups; ++l) {
+        const uvec &coords = gi0.indices(l);
+        if (coords.n_elem == 0) continue;
+        x.elem(coords) -= alpha0(l);
+      }
+      for (size_t l = 0; l < gi1.n_groups; ++l) {
+        const uvec &coords = gi1.indices(l);
+        if (coords.n_elem == 0) continue;
+        x.elem(coords) -= alpha1(l);
+      }
+      
+      // Check convergence using SSR-based criterion
+      double ssr = dot(w, square(x));
+      double ssr_prev = dot(w, square(x0));
+      if (std::abs(ssr - ssr_prev) / (0.1 + std::abs(ssr)) < tol) break;
+    }
+    
+    V.col(p) = x;
+  }
+}
+
 
 #endif // CAPYBARA_CENTER

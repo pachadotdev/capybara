@@ -39,9 +39,9 @@ inline FelmFitResult felm_fit(const mat &X, const vec &y, const vec &w,
   if (has_fixed_effects) {
     MNU = y;
     center_variables_(MNU, w, k_list, center_tol, iter_center_max,
-                      iter_interrupt, iter_ssr);
+                      iter_interrupt, iter_ssr, "gaussian");
     center_variables_(Xc, w, k_list, center_tol, iter_center_max,
-                      iter_interrupt, iter_ssr);
+                      iter_interrupt, iter_ssr, "gaussian");
   } else {
     MNU = vec(y.n_elem, fill::zeros);
   }

@@ -4,6 +4,10 @@ center_variables_r_ <- function(V_r, w_r, klist, tol, max_iter, iter_interrupt, 
   .Call(`_capybara_center_variables_r_`, V_r, w_r, klist, tol, max_iter, iter_interrupt, iter_ssr)
 }
 
+center_variables_family_r_ <- function(V_r, w_r, klist, tol, max_iter, iter_interrupt, iter_ssr, family) {
+  .Call(`_capybara_center_variables_family_r_`, V_r, w_r, klist, tol, max_iter, iter_interrupt, iter_ssr, family)
+}
+
 felm_fit_ <- function(y_r, x_r, wt_r, control, k_list) {
   .Call(`_capybara_felm_fit_`, y_r, x_r, wt_r, control, k_list)
 }
