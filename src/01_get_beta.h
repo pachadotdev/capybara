@@ -136,7 +136,7 @@ inline vec get_beta(mat &MX, const vec &MNU, const vec &w, const uword n,
 inline vec get_beta_twoway_optimized(mat &MX, const vec &MNU, const vec &w, 
                                       const list &k_list, beta_results &ws, 
                                       bool use_weights) {
-  const uword n = MX.n_rows, p = MX.n_cols;
+  const uword p = MX.n_cols;
   
   // Extract group structure
   uvec group_i = as_uvec(as_cpp<integers>(k_list[0])) - 1;
@@ -173,7 +173,6 @@ inline vec get_beta_twoway_optimized(mat &MX, const vec &MNU, const vec &w,
   }
   
   // Solve system efficiently
-  const double rcond = 1e-14;
   ws.decomp = chol(ws.XtX, "lower");
   
   if (ws.decomp.is_empty()) {
