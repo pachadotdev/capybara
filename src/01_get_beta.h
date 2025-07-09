@@ -7,15 +7,13 @@ struct TwoWayBetaCache {
   uvec cached_group_i;
   uvec cached_group_j;
   bool is_valid = false;
-  
+
   void invalidate() { is_valid = false; }
-  
+
   bool matches_structure(const uvec &group_i, const uvec &group_j) {
-    return is_valid && 
-           group_i.n_elem == cached_group_i.n_elem &&
+    return is_valid && group_i.n_elem == cached_group_i.n_elem &&
            group_j.n_elem == cached_group_j.n_elem &&
-           all(group_i == cached_group_i) &&
-           all(group_j == cached_group_j);
+           all(group_i == cached_group_i) && all(group_j == cached_group_j);
   }
 };
 
@@ -81,6 +79,7 @@ inline void get_beta_qr(mat &MX, const vec &MNU, const vec &w, beta_results &ws,
 // Main beta solver: uses Cholesky if possible, otherwise falls back to QR
 inline vec get_beta(mat &MX, const vec &MNU, const vec &w, const uword n,
                     const uword p, beta_results &ws, bool use_weights) {
+  // TIME_FUNCTION;
   ws.coefficients.set_size(p);
   ws.coefficients.fill(datum::nan);
   ws.valid_coefficients.zeros(
@@ -102,8 +101,7 @@ inline vec get_beta(mat &MX, const vec &MNU, const vec &w, const uword n,
     ws.XW = MX.each_col() % sqrt_w;
     ws.XtX = ws.XW.t() * ws.XW;
 
-    const vec MNU_weighted = MNU % sqrt_w;
-    ws.XtY = ws.XW.t() * MNU_weighted;
+    ws.XtY = MX.t() * (w % MNU);
   } else {
     ws.XtX = MX.t() * MX;
     ws.XtY = MX.t() * MNU;
@@ -133,18 +131,18 @@ inline vec get_beta(mat &MX, const vec &MNU, const vec &w, const uword n,
 
 // Optimized beta computation for 2-way fixed effects models
 // This avoids recomputing X'X when the fixed effects structure hasn't changed
-inline vec get_beta_twoway_optimized(mat &MX, const vec &MNU, const vec &w, 
-                                      const list &k_list, beta_results &ws, 
-                                      bool use_weights) {
+inline vec get_beta_twoway_optimized(mat &MX, const vec &MNU, const vec &w,
+                                     const list &k_list, beta_results &ws,
+                                     bool use_weights) {
   const uword p = MX.n_cols;
-  
+
   // Extract group structure
   uvec group_i = as_uvec(as_cpp<integers>(k_list[0])) - 1;
   uvec group_j = as_uvec(as_cpp<integers>(k_list[1])) - 1;
-  
+
   // Check if we can reuse cached X'X computation
   bool can_reuse_XtX = g_twoway_cache.matches_structure(group_i, group_j);
-  
+
   if (!can_reuse_XtX) {
     // Recompute and cache X'X
     if (use_weights) {
@@ -154,7 +152,7 @@ inline vec get_beta_twoway_optimized(mat &MX, const vec &MNU, const vec &w,
     } else {
       ws.XtX = MX.t() * MX;
     }
-    
+
     // Update cache
     g_twoway_cache.cached_XtX = ws.XtX;
     g_twoway_cache.cached_group_i = group_i;
@@ -164,17 +162,17 @@ inline vec get_beta_twoway_optimized(mat &MX, const vec &MNU, const vec &w,
     // Reuse cached X'X
     ws.XtX = g_twoway_cache.cached_XtX;
   }
-  
+
   // Always recompute X'Y (this changes every iteration)
   if (use_weights) {
     ws.XtY = MX.t() * (w % MNU);
   } else {
     ws.XtY = MX.t() * MNU;
   }
-  
+
   // Solve system efficiently
   ws.decomp = chol(ws.XtX, "lower");
-  
+
   if (ws.decomp.is_empty()) {
     // Fall back to QR for rank-deficient cases
     get_beta_qr(MX, MNU, w, ws, p, use_weights);
@@ -184,20 +182,20 @@ inline vec get_beta_twoway_optimized(mat &MX, const vec &MNU, const vec &w,
     ws.coefficients = solve(trimatu(ws.decomp.t()), ws.work, solve_opts::fast);
     ws.valid_coefficients.ones();
   }
-  
+
   return ws.coefficients;
 }
 
 // Enhanced get_beta function that uses optimizations when appropriate
-inline vec get_beta_fast(mat &MX, const vec &MNU, const vec &w, uword n, uword p, 
-                         beta_results &ws, bool use_weights, 
+inline vec get_beta_fast(mat &MX, const vec &MNU, const vec &w, uword n,
+                         uword p, beta_results &ws, bool use_weights,
                          const list *k_list = nullptr) {
-  
+
   // Use specialized 2-way optimization if applicable
   if (k_list != nullptr && k_list->size() == 2 && p > 1) {
     return get_beta_twoway_optimized(MX, MNU, w, *k_list, ws, use_weights);
   }
-  
+
   // Fall back to standard computation
   return get_beta(MX, MNU, w, n, p, ws, use_weights);
 }

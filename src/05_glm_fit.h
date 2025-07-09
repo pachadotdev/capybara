@@ -292,6 +292,7 @@ inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
                                 size_t iter_inner_max, size_t iter_interrupt,
                                 size_t iter_ssr, const std::string &fam,
                                 FamilyType family_type) {
+  // TIME_FUNCTION;
   FeglmFitResult res;
   size_t n = y.n_elem, p = MX.n_cols, k = beta.n_elem;
   vec MNU = vec(n, fill::zeros);
@@ -318,9 +319,9 @@ inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
     nu = (y - mu) / mu_eta;
     MNU += (nu - nu_old);
     nu_old = nu;
-    center_variables_(MNU, w, k_list, center_tol, iter_center_max,
+    center_variables(MNU, w, k_list, center_tol, iter_center_max,
                       iter_interrupt, iter_ssr);
-    center_variables_(MX, w, k_list, center_tol, iter_center_max,
+    center_variables(MX, w, k_list, center_tol, iter_center_max,
                       iter_interrupt, iter_ssr);
     beta_upd = get_beta(MX, MNU, w, n, p, ws, /*use_weights=*/true);
     // Set collinear coefficients to 0 for prediction, and build status vector

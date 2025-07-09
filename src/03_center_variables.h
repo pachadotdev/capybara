@@ -6,107 +6,125 @@ struct GroupInfo {
   field<uvec> indices;
   vec sum_weights;
   vec inv_weights;
+  uvec group_map; // Direct observation -> group mapping
   size_t n_groups;
+  size_t n_obs;
 
   GroupInfo() = default;
   GroupInfo(const list &jlist, const vec &w) {
     n_groups = jlist.size();
+    n_obs = w.n_elem;
     indices.set_size(n_groups);
     sum_weights.set_size(n_groups);
     inv_weights.set_size(n_groups);
+    group_map.set_size(n_obs);
 
     for (size_t j = 0; j < n_groups; ++j) {
       indices(j) = as_uvec(as_cpp<integers>(jlist[j]));
       sum_weights(j) = accu(w.elem(indices(j)));
       inv_weights(j) = 1.0 / sum_weights(j);
+
+      // Direct lookup map
+      const uvec &coords = indices(j);
+      for (size_t i = 0; i < coords.n_elem; ++i) {
+        group_map(coords(i)) = j;
+      }
     }
   }
 };
 
 inline void center_gaussian_2way(mat &V, const vec &w, const list &klist,
                                  const double &tol, const int &max_iter) {
+  // TIME_FUNCTION;
   const size_t P = V.n_cols;
 
   // Use GroupInfo structure like the general algorithm
   GroupInfo gi0(klist[0], w);
   GroupInfo gi1(klist[1], w);
 
+// Parallelize across variables
+#pragma omp parallel for schedule(static)
   for (size_t p = 0; p < P; ++p) {
     const vec x_orig = V.col(p);
     vec x = x_orig;
     vec alpha_i(gi0.n_groups, fill::zeros);
     vec alpha_j(gi1.n_groups, fill::zeros);
 
-    // Alternating projections with closed-form updates
-    for (int iter = 0; iter < max_iter; ++iter) {
-      vec x_prev = x;
+    // Alternating projections with Irons-Tuck acceleration
+    vec x_prev(x.n_elem), x_prev2(x.n_elem);
+    const int warmup_iter = 5;
+    const int accel_freq = 3;
 
-      // Update alpha_i given alpha_j
+    for (int iter = 0; iter < max_iter; ++iter) {
+      if (iter >= 2)
+        x_prev2 = x_prev;
+      if (iter >= 1)
+        x_prev = x;
+
+      // Update alpha_i given alpha_j - optimized memory access
       alpha_i.zeros();
       for (size_t l = 0; l < gi0.n_groups; ++l) {
         const uvec &coords = gi0.indices(l);
-        if (coords.n_elem == 0) continue;
+        if (coords.n_elem == 0)
+          continue;
 
-        double sum_weighted = 0.0;
+        double weighted_sum = 0.0;
+#pragma omp simd reduction(+ : weighted_sum)
         for (size_t idx = 0; idx < coords.n_elem; ++idx) {
           size_t obs = coords(idx);
-          // Subtract current alpha_j contributions
-          double residual = x_orig(obs);
-          for (size_t k = 0; k < gi1.n_groups; ++k) {
-            const uvec &coords_j = gi1.indices(k);
-            for (size_t idx_j = 0; idx_j < coords_j.n_elem; ++idx_j) {
-              if (coords_j(idx_j) == obs) {
-                residual -= alpha_j(k);
-                break;
-              }
-            }
-          }
-          sum_weighted += w(obs) * residual;
+          double residual = x_orig(obs) - alpha_j(gi1.group_map(obs));
+          weighted_sum += w(obs) * residual;
         }
-        alpha_i(l) = sum_weighted * gi0.inv_weights(l);
+
+        alpha_i(l) = weighted_sum * gi0.inv_weights(l);
       }
 
-      // Update alpha_j given alpha_i
+      // Update alpha_j given alpha_i - optimized memory access
       alpha_j.zeros();
       for (size_t l = 0; l < gi1.n_groups; ++l) {
         const uvec &coords = gi1.indices(l);
-        if (coords.n_elem == 0) continue;
+        if (coords.n_elem == 0)
+          continue;
 
-        double sum_weighted = 0.0;
+        double weighted_sum = 0.0;
+#pragma omp simd reduction(+ : weighted_sum)
         for (size_t idx = 0; idx < coords.n_elem; ++idx) {
           size_t obs = coords(idx);
-          // Subtract current alpha_i contributions
-          double residual = x_orig(obs);
-          for (size_t k = 0; k < gi0.n_groups; ++k) {
-            const uvec &coords_i = gi0.indices(k);
-            for (size_t idx_i = 0; idx_i < coords_i.n_elem; ++idx_i) {
-              if (coords_i(idx_i) == obs) {
-                residual -= alpha_i(k);
-                break;
-              }
-            }
-          }
-          sum_weighted += w(obs) * residual;
+          double residual = x_orig(obs) - alpha_i(gi0.group_map(obs));
+          weighted_sum += w(obs) * residual;
         }
-        alpha_j(l) = sum_weighted * gi1.inv_weights(l);
+
+        alpha_j(l) = weighted_sum * gi1.inv_weights(l);
       }
 
-      // Compute final centered values
-      x = x_orig;
-      for (size_t l = 0; l < gi0.n_groups; ++l) {
-        const uvec &coords = gi0.indices(l);
-        if (coords.n_elem == 0) continue;
-        x.elem(coords) -= alpha_i(l);
+// Compute new x - vectorized final centering
+#pragma omp simd
+      for (size_t obs = 0; obs < x.n_elem; ++obs) {
+        x(obs) = x_orig(obs) - alpha_i(gi0.group_map(obs)) -
+                 alpha_j(gi1.group_map(obs));
       }
-      for (size_t l = 0; l < gi1.n_groups; ++l) {
-        const uvec &coords = gi1.indices(l);
-        if (coords.n_elem == 0) continue;
-        x.elem(coords) -= alpha_j(l);
+
+      // Apply Irons-Tuck acceleration after warmup
+      if (iter >= warmup_iter && iter % accel_freq == 0) {
+        vec delta1 = x - x_prev;
+        vec delta2 = x_prev - x_prev2;
+        vec delta_diff = delta1 - delta2;
+        double denom = dot(delta_diff, delta_diff);
+
+        if (denom > 1e-16) {
+          double coef = dot(delta1, delta_diff) / denom;
+          if (coef > 0 && coef < 1) {
+            x = x - coef * delta1;
+          }
+        }
       }
 
       // Check convergence
-      double diff = dot(abs(x - x_prev), w) / accu(w);
-      if (diff < tol) break;
+      if (iter >= 1) {
+        double diff = dot(abs(x - x_prev), w) / accu(w);
+        if (diff < tol)
+          break;
+      }
     }
 
     V.col(p) = x;
@@ -115,12 +133,15 @@ inline void center_gaussian_2way(mat &V, const vec &w, const list &klist,
 
 inline void center_poisson_2way(mat &V, const vec &w, const list &klist,
                                 const double &tol, const int &max_iter) {
+  // TIME_FUNCTION;
   const size_t P = V.n_cols;
 
   // Use GroupInfo structure like the general algorithm
   GroupInfo gi0(klist[0], w);
   GroupInfo gi1(klist[1], w);
 
+// Parallelize across variables
+#pragma omp parallel for schedule(static)
   for (size_t p = 0; p < P; ++p) {
     const vec x_orig = V.col(p);
     vec x = x_orig;
@@ -134,14 +155,16 @@ inline void center_poisson_2way(mat &V, const vec &w, const list &klist,
       x = x_orig;
       for (size_t l = 0; l < gi1.n_groups; ++l) {
         const uvec &coords = gi1.indices(l);
-        if (coords.n_elem == 0) continue;
+        if (coords.n_elem == 0)
+          continue;
         x.elem(coords) -= alpha1(l);
       }
 
       // Solve for alpha0 given x
       for (size_t l = 0; l < gi0.n_groups; ++l) {
         const uvec &coords = gi0.indices(l);
-        if (coords.n_elem == 0) continue;
+        if (coords.n_elem == 0)
+          continue;
 
         double maxval = x.elem(coords).max();
         double sum_exp = accu(w.elem(coords) % exp(x.elem(coords) - maxval));
@@ -152,14 +175,16 @@ inline void center_poisson_2way(mat &V, const vec &w, const list &klist,
       x = x_orig;
       for (size_t l = 0; l < gi0.n_groups; ++l) {
         const uvec &coords = gi0.indices(l);
-        if (coords.n_elem == 0) continue;
+        if (coords.n_elem == 0)
+          continue;
         x.elem(coords) -= alpha0(l);
       }
 
       // Solve for alpha1 given x
       for (size_t l = 0; l < gi1.n_groups; ++l) {
         const uvec &coords = gi1.indices(l);
-        if (coords.n_elem == 0) continue;
+        if (coords.n_elem == 0)
+          continue;
 
         double maxval = x.elem(coords).max();
         double sum_exp = accu(w.elem(coords) % exp(x.elem(coords) - maxval));
@@ -170,19 +195,22 @@ inline void center_poisson_2way(mat &V, const vec &w, const list &klist,
       x = x_orig;
       for (size_t l = 0; l < gi0.n_groups; ++l) {
         const uvec &coords = gi0.indices(l);
-        if (coords.n_elem == 0) continue;
+        if (coords.n_elem == 0)
+          continue;
         x.elem(coords) -= alpha0(l);
       }
       for (size_t l = 0; l < gi1.n_groups; ++l) {
         const uvec &coords = gi1.indices(l);
-        if (coords.n_elem == 0) continue;
+        if (coords.n_elem == 0)
+          continue;
         x.elem(coords) -= alpha1(l);
       }
 
       // Check convergence using SSR-based criterion
       double ssr = dot(w, square(x));
       double ssr_prev = dot(w, square(x0));
-      if (std::abs(ssr - ssr_prev) / (0.1 + std::abs(ssr)) < tol) break;
+      if (std::abs(ssr - ssr_prev) / (0.1 + std::abs(ssr)) < tol)
+        break;
     }
 
     V.col(p) = x;
@@ -246,14 +274,15 @@ double update_logit(const arma::vec &y, const arma::vec &mu, const arma::vec &w,
 }
 
 // Group mean subtraction
-void center_variables_(mat &V, const vec &w, const list &klist,
-                       const double &tol, const int &max_iter,
-                       const int &iter_interrupt, const int &iter_ssr,
-                       const std::string &family = "gaussian") {
+void center_variables(mat &V, const vec &w, const list &klist,
+                      const double &tol, const int &max_iter,
+                      const int &iter_interrupt, const int &iter_ssr,
+                      const std::string &family = "gaussian") {
+  // TIME_FUNCTION;
   const size_t N = V.n_rows, P = V.n_cols, K = klist.size();
-  
-  // Use specialized algorithms for 2-way models (disabled for debugging)
-  if (false && K == 2) {
+
+  // Use specialized algorithms for 2-way models
+  if (K == 2) {
     if (family == "gaussian") {
       center_gaussian_2way(V, w, klist, tol, max_iter);
       return;
@@ -262,7 +291,7 @@ void center_variables_(mat &V, const vec &w, const list &klist,
       return;
     }
   }
-  
+
   // Fall back to general algorithm for other cases
   const double inv_sw = 1.0 / accu(w);
 
@@ -272,6 +301,9 @@ void center_variables_(mat &V, const vec &w, const list &klist,
     group_info(k) = GroupInfo(klist[k], w);
   }
 
+  // Pre-allocate convergence check temporaries
+  vec diff_vec(N);
+
   auto convergence_check = [&](const vec &x, const vec &x0, const vec &w,
                                double tol) {
     if (family == "poisson") {
@@ -279,12 +311,16 @@ void center_variables_(mat &V, const vec &w, const list &klist,
       double ssr0 = dot(w, square(x0));
       return std::abs(ssr - ssr0) / (0.1 + std::abs(ssr)) < tol;
     } else if (family == "gaussian") {
-      return dot(abs(x - x0), w) * inv_sw < tol;
+      diff_vec = abs(x - x0);
+      return dot(diff_vec, w) * inv_sw < tol;
     } else {
-      return dot(abs(x - x0), w) * inv_sw < tol;
+      diff_vec = abs(x - x0);
+      return dot(diff_vec, w) * inv_sw < tol;
     }
   };
 
+// Parallelize across variables for general K>2 case
+#pragma omp parallel for schedule(static)
   for (size_t p = 0; p < P; ++p) {
     const vec x_orig = V.col(p);
     vec x = x_orig;

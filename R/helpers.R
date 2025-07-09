@@ -259,3 +259,20 @@ get_index_list_ <- function(k_vars, data) {
     split(indexes, data[[x]])
   }, indexes = indexes, data = data)
 }
+
+# time_function <- function(func, func_name, ...) {
+#   start_time <- Sys.time()
+#   result <- tryCatch(
+#     {
+#       func(...)
+#     },
+#     error = function(e) {
+#       # If timing wrapper causes issues, call directly
+#       func(...)
+#     }
+#   )
+#   end_time <- Sys.time()
+#   elapsed_ms <- as.numeric(difftime(end_time, start_time, units = "secs")) * 1000
+#   cat(sprintf("[R timing] %s: %.0f ms\n", func_name, elapsed_ms), file = stderr())
+#   return(result)
+# }

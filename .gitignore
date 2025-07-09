@@ -15,6 +15,7 @@ dev/fixest*
 dev/reghdfe
 dev/FEN*
 dev/ppmlhdfe
+dev/pyfixest
 dev/article
 README.html
 pkgdown

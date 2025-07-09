@@ -6,17 +6,10 @@
 #include <R_ext/Visibility.h>
 
 // capybara.cpp
-doubles_matrix<> center_variables_r_(const doubles_matrix<> & V_r, const doubles & w_r, const list & klist, const double & tol, const int & max_iter, const int & iter_interrupt, const int & iter_ssr);
-extern "C" SEXP _capybara_center_variables_r_(SEXP V_r, SEXP w_r, SEXP klist, SEXP tol, SEXP max_iter, SEXP iter_interrupt, SEXP iter_ssr) {
+doubles_matrix<> center_variables_(const doubles_matrix<> & V_r, const doubles & w_r, const list & klist, const double & tol, const int & max_iter, const int & iter_interrupt, const int & iter_ssr, const std::string & family);
+extern "C" SEXP _capybara_center_variables_(SEXP V_r, SEXP w_r, SEXP klist, SEXP tol, SEXP max_iter, SEXP iter_interrupt, SEXP iter_ssr, SEXP family) {
   BEGIN_CPP11
-    return cpp11::as_sexp(center_variables_r_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(V_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(w_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(klist), cpp11::as_cpp<cpp11::decay_t<const double &>>(tol), cpp11::as_cpp<cpp11::decay_t<const int &>>(max_iter), cpp11::as_cpp<cpp11::decay_t<const int &>>(iter_interrupt), cpp11::as_cpp<cpp11::decay_t<const int &>>(iter_ssr)));
-  END_CPP11
-}
-// capybara.cpp
-doubles_matrix<> center_variables_family_r_(const doubles_matrix<> & V_r, const doubles & w_r, const list & klist, const double & tol, const int & max_iter, const int & iter_interrupt, const int & iter_ssr, const std::string & family);
-extern "C" SEXP _capybara_center_variables_family_r_(SEXP V_r, SEXP w_r, SEXP klist, SEXP tol, SEXP max_iter, SEXP iter_interrupt, SEXP iter_ssr, SEXP family) {
-  BEGIN_CPP11
-    return cpp11::as_sexp(center_variables_family_r_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(V_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(w_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(klist), cpp11::as_cpp<cpp11::decay_t<const double &>>(tol), cpp11::as_cpp<cpp11::decay_t<const int &>>(max_iter), cpp11::as_cpp<cpp11::decay_t<const int &>>(iter_interrupt), cpp11::as_cpp<cpp11::decay_t<const int &>>(iter_ssr), cpp11::as_cpp<cpp11::decay_t<const std::string &>>(family)));
+    return cpp11::as_sexp(center_variables_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(V_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(w_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(klist), cpp11::as_cpp<cpp11::decay_t<const double &>>(tol), cpp11::as_cpp<cpp11::decay_t<const int &>>(max_iter), cpp11::as_cpp<cpp11::decay_t<const int &>>(iter_interrupt), cpp11::as_cpp<cpp11::decay_t<const int &>>(iter_ssr), cpp11::as_cpp<cpp11::decay_t<const std::string &>>(family)));
   END_CPP11
 }
 // capybara.cpp
@@ -78,16 +71,15 @@ extern "C" SEXP _capybara_group_sums_cov_(SEXP M_r, SEXP N_r, SEXP jlist) {
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
-    {"_capybara_center_variables_family_r_", (DL_FUNC) &_capybara_center_variables_family_r_, 8},
-    {"_capybara_center_variables_r_",        (DL_FUNC) &_capybara_center_variables_r_,        7},
-    {"_capybara_feglm_fit_",                 (DL_FUNC) &_capybara_feglm_fit_,                 9},
-    {"_capybara_feglm_offset_fit_",          (DL_FUNC) &_capybara_feglm_offset_fit_,          7},
-    {"_capybara_felm_fit_",                  (DL_FUNC) &_capybara_felm_fit_,                  5},
-    {"_capybara_get_alpha_",                 (DL_FUNC) &_capybara_get_alpha_,                 3},
-    {"_capybara_group_sums_",                (DL_FUNC) &_capybara_group_sums_,                3},
-    {"_capybara_group_sums_cov_",            (DL_FUNC) &_capybara_group_sums_cov_,            3},
-    {"_capybara_group_sums_spectral_",       (DL_FUNC) &_capybara_group_sums_spectral_,       5},
-    {"_capybara_group_sums_var_",            (DL_FUNC) &_capybara_group_sums_var_,            2},
+    {"_capybara_center_variables_",    (DL_FUNC) &_capybara_center_variables_,    8},
+    {"_capybara_feglm_fit_",           (DL_FUNC) &_capybara_feglm_fit_,           9},
+    {"_capybara_feglm_offset_fit_",    (DL_FUNC) &_capybara_feglm_offset_fit_,    7},
+    {"_capybara_felm_fit_",            (DL_FUNC) &_capybara_felm_fit_,            5},
+    {"_capybara_get_alpha_",           (DL_FUNC) &_capybara_get_alpha_,           3},
+    {"_capybara_group_sums_",          (DL_FUNC) &_capybara_group_sums_,          3},
+    {"_capybara_group_sums_cov_",      (DL_FUNC) &_capybara_group_sums_cov_,      3},
+    {"_capybara_group_sums_spectral_", (DL_FUNC) &_capybara_group_sums_spectral_, 5},
+    {"_capybara_group_sums_var_",      (DL_FUNC) &_capybara_group_sums_var_,      2},
     {NULL, NULL, 0}
 };
 }

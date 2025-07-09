@@ -22,7 +22,8 @@ mat crossprod_(const mat &X, const vec &w) {
   if (all(w == 1.0)) {
     return X.t() * X;
   } else {
-    return X.t() * diagmat(w) * X;
+    mat wX = X.each_col() % w;
+    return X.t() * wX;
   }
 }
 
@@ -31,6 +32,7 @@ inline FelmFitResult felm_fit(const mat &X, const vec &y, const vec &w,
                               const list &k_list, double center_tol,
                               size_t iter_center_max, size_t iter_interrupt,
                               size_t iter_ssr) {
+  // TIME_FUNCTION;
   FelmFitResult res;
   mat Xc = X;
   vec MNU, beta, fitted;
@@ -38,9 +40,9 @@ inline FelmFitResult felm_fit(const mat &X, const vec &y, const vec &w,
 
   if (has_fixed_effects) {
     MNU = y;
-    center_variables_(MNU, w, k_list, center_tol, iter_center_max,
+    center_variables(MNU, w, k_list, center_tol, iter_center_max,
                       iter_interrupt, iter_ssr, "gaussian");
-    center_variables_(Xc, w, k_list, center_tol, iter_center_max,
+    center_variables(Xc, w, k_list, center_tol, iter_center_max,
                       iter_interrupt, iter_ssr, "gaussian");
   } else {
     MNU = vec(y.n_elem, fill::zeros);

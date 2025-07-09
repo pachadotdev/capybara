@@ -33,7 +33,7 @@ feglm_offset_fit(vec eta, const vec &y, const vec &offset, const vec &wt,
     w = (wt % square(mu_eta)) / variance_(mu, 0.0, family_type);
     yadj = (y - mu) / mu_eta + eta - offset;
     Myadj += yadj;
-    center_variables_(Myadj, w, k_list, center_tol, iter_center_max,
+    center_variables(Myadj, w, k_list, center_tol, iter_center_max,
                       iter_interrupt, iter_ssr);
     eta_upd = yadj - Myadj + offset - eta;
     for (iter_inner = 0; iter_inner < iter_inner_max; ++iter_inner) {

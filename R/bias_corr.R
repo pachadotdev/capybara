@@ -133,7 +133,7 @@ bias_corr <- function(
   if (control[["keep_mx"]]) {
     x <- object[["mx"]]
   } else {
-    x <- center_variables_family_r_(x, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]], "gaussian")
+    x <- center_variables_(x, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]], "gaussian")
   }
 
   # Compute bias terms for requested bias correction
@@ -180,7 +180,7 @@ bias_corr <- function(
   }
 
   # Update centered regressor matrix
-  x <- center_variables_family_r_(x, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]], "gaussian")
+  x <- center_variables_(x, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]], "gaussian")
   colnames(x) <- nms_sp
 
   # Update hessian

@@ -28,6 +28,8 @@ using cpp11::integers;
 using cpp11::list;
 using cpp11::strings;
 
+// #include "timing.h"
+
 #include "01_get_beta.h"
 #include "02_group_ops.h"
 #include "03_center_variables.h"
@@ -38,26 +40,15 @@ using cpp11::strings;
 #include "08_group_sums.h"
 
 [[cpp11::register]] doubles_matrix<>
-center_variables_r_(const doubles_matrix<> &V_r, const doubles &w_r,
-                    const list &klist, const double &tol, const int &max_iter,
-                    const int &iter_interrupt, const int &iter_ssr) {
+center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
+                  const list &klist, const double &tol, const int &max_iter,
+                  const int &iter_interrupt, const int &iter_ssr,
+                  const std::string &family) {
   mat V = as_mat(V_r);
-  center_variables_(V, as_col(w_r), klist, tol, max_iter, iter_interrupt,
-                    iter_ssr);
-  return as_doubles_matrix(V);
-}
-
-[[cpp11::register]] doubles_matrix<>
-center_variables_family_r_(const doubles_matrix<> &V_r, const doubles &w_r,
-                           const list &klist, const double &tol, const int &max_iter,
-                           const int &iter_interrupt, const int &iter_ssr,
-                           const std::string &family) {
-  mat V = as_mat(V_r);
-  center_variables_(V, as_col(w_r), klist, tol, max_iter, iter_interrupt,
+  center_variables(V, as_col(w_r), klist, tol, max_iter, iter_interrupt,
                     iter_ssr, family);
   return as_doubles_matrix(V);
 }
-
 
 [[cpp11::register]] list felm_fit_(const doubles &y_r,
                                    const doubles_matrix<> &x_r,
