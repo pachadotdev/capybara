@@ -1,5 +1,4 @@
 #' srr_stats
-#' @srrstats {G1.0} Provides modular helper functions for internal checks and computations in generalized linear models with fixed effects.
 #' @srrstats {G2.0} Validates the integrity of inputs such as factors, formulas, data, and control parameters.
 #' @srrstats {G2.1a} Ensures inputs have expected types and structures, such as formulas being of class `formula` and data being a `data.frame`.
 #' @srrstats {G2.3a} Implements strict argument validation for ranges and constraints (e.g., numeric weights must be non-negative).
@@ -22,12 +21,7 @@
 #' @srrstats {G5.4a} Includes tests for edge cases, such as binary and continuous response variables, and validates all input arguments.
 #' @srrstats {RE4.4} The model is specified using a formula object, or a character-type object convertible to a formula, which is then used to create the design matrix.
 #' @srrstats {RE4.5} Fitted models have an nobs element that can be called with `nobs()`.
-#' @srrstats {RE4.8} The response variable is checked and some observations are dropped if the response is not compatible with the link (i.e., negative values and log-link).
 #' @srrstats {RE4.12} The `check_data_()` function drops observations that are not useable with link function or that do not contribute to the log-likelihood.
-#' @srrstats {RE4.13} Observations with a dependent variable that is incompatible with the link function are removed.
-#' @srrstats {RE5.0} Supports internal optimizations, including centering variables and reducing computational redundancy.
-#' @srrstats {RE5.1} Implements computational safeguards for iterative processes, such as weight validation and convergence checks.
-#' @srrstats {RE5.2} Provides utilities for scalable and efficient computation of GLM derivatives and score matrices.
 #' @noRd
 NULL
 
@@ -81,7 +75,7 @@ check_formula_ <- function(formula) {
 }
 
 #' @title Check data
-#' @description Checks data for GLM/NegBin models
+#' @description Checks data for LM/GLM/NegBin models
 #' @param data Data frame
 #' @noRd
 check_data_ <- function(data) {

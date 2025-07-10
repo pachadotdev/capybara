@@ -42,72 +42,35 @@ test_that("fixed_effects is similar to glm", {
   expect_equal(rep(0, 10), c1 - c2, tolerance = 1e-2)
 
   # Binomial ----
-
-  # TODO: check these numerical differences
-
-  #  mod <- feglm(
-  #    am ~ wt + mpg | cyl,
-  #    mtcars,
-  #    family = binomial()
-  #  )
-
-  #  mod_base <- glm(
-  #    am ~ wt + mpg + as.factor(cyl),
-  #    mtcars,
-  #    family = binomial()
-  #  )
-
-  #  expect_equal(unname(coef(mod) - coef(mod_base)[2:3], 3), c(0, 0), tolerance = 1e-2)
-
-  #  fe <- unname(drop(fixed_effects(mod)$cyl))
-  #  fe_base <- coef(mod_base)[c(1, 4, 5)]
-  #  fe_base <- unname(fe_base + c(0, rep(fe_base[1], 2)))
-
-  #  expect_equal(fe - fe_base, c(0, 0, 0), tolerance = 1e-2)
+  mod_binom <- feglm(am ~ wt + mpg | cyl, mtcars, family = binomial())
+  mod_binom_base <- glm(am ~ wt + mpg + as.factor(cyl), mtcars, family = binomial())
+  
+  expect_equal(unname(coef(mod_binom) - coef(mod_binom_base)[2:3]), c(0, 0), tolerance = 1e-2)
+  
+  fe_binom <- unname(drop(fixed_effects(mod_binom)$cyl))
+  fe_binom_base <- coef(mod_binom_base)[c(1, 4, 5)]
+  fe_binom_base <- unname(fe_binom_base + c(0, rep(fe_binom_base[1], 2)))
+  expect_equal(fe_binom - fe_binom_base, c(0, 0, 0), tolerance = 1e-2)
 
   # Gamma ----
-
-  mod <- feglm(
-    mpg ~ wt + am | cyl,
-    mtcars,
-    family = Gamma()
-  )
-
-  mod_base <- glm(
-    mpg ~ wt + am + as.factor(cyl),
-    mtcars,
-    family = Gamma()
-  )
-
-  expect_equal(unname(coef(mod) - coef(mod_base)[2:3]), c(0, 0), tolerance = 1e-2)
-
-  # TODO: check these numerical differences
-
-  #  fe <- unname(drop(fixed_effects(mod)$cyl))
-  #  fe_base <- coef(mod_base)[c(1, 4, 5)]
-  #  fe_base <- unname(fe_base + c(0, rep(fe_base[1], 2)))
-
-  #  expect_equal(fe - fe_base, c(0, 0, 0), tolerance = 1e-2)
+  mod_gamma <- feglm(mpg ~ wt + am | cyl, mtcars, family = Gamma())
+  mod_gamma_base <- glm(mpg ~ wt + am + as.factor(cyl), mtcars, family = Gamma())
+  
+  expect_equal(unname(coef(mod_gamma) - coef(mod_gamma_base)[2:3]), c(0, 0), tolerance = 1e-2)
+  
+  fe_gamma <- unname(drop(fixed_effects(mod_gamma)$cyl))
+  fe_gamma_base <- coef(mod_gamma_base)[c(1, 4, 5)]
+  fe_gamma_base <- unname(fe_gamma_base + c(0, rep(fe_gamma_base[1], 2)))
+  expect_equal(fe_gamma - fe_gamma_base, c(0, 0, 0), tolerance = 1e-2)
 
   # Inverse Gaussian ----
-
-  mod <- feglm(
-    mpg ~ wt + am | cyl,
-    mtcars,
-    family = inverse.gaussian()
-  )
-
-  mod_base <- glm(
-    mpg ~ wt + am + as.factor(cyl),
-    mtcars,
-    family = inverse.gaussian()
-  )
-
-  expect_equal(unname(coef(mod) - coef(mod_base)[2:3]), c(0, 0), tolerance = 1e-2)
-
-  fe <- unname(drop(fixed_effects(mod)$cyl))
-  fe_base <- coef(mod_base)[c(1, 4, 5)]
-  fe_base <- unname(fe_base + c(0, rep(fe_base[1], 2)))
-
-  expect_equal(fe - fe_base, c(0, 0, 0), tolerance = 1e-2)
+  mod_invgauss <- feglm(mpg ~ wt + am | cyl, mtcars, family = inverse.gaussian())
+  mod_invgauss_base <- glm(mpg ~ wt + am + as.factor(cyl), mtcars, family = inverse.gaussian())
+  
+  expect_equal(unname(coef(mod_invgauss) - coef(mod_invgauss_base)[2:3]), c(0, 0), tolerance = 1e-2)
+  
+  fe_invgauss <- unname(drop(fixed_effects(mod_invgauss)$cyl))
+  fe_invgauss_base <- coef(mod_invgauss_base)[c(1, 4, 5)]
+  fe_invgauss_base <- unname(fe_invgauss_base + c(0, rep(fe_invgauss_base[1], 2)))
+  expect_equal(fe_invgauss - fe_invgauss_base, c(0, 0, 0), tolerance = 1e-2)
 })

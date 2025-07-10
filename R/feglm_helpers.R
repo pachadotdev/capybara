@@ -1,27 +1,5 @@
 #' srr_stats
 #' @srrstats {G1.0} Provides modular helper functions for internal checks and computations in generalized linear models with fixed effects.
-#' @srrstats {G2.0} Validates the integrity of inputs such as factors, formulas, data, and control parameters.
-#' @srrstats {G2.1a} Ensures inputs have expected types and structures, such as formulas being of class `formula` and data being a `data.frame`.
-#' @srrstats {G2.3a} Implements strict argument validation for ranges and constraints (e.g., numeric weights must be non-negative).
-#' @srrstats {G2.3b} Converts inputs (e.g., character vectors) to appropriate formats when required, ensuring consistency.
-#' @srrstats {G2.4a} Validates input arguments to ensure they meet expected formats and values, providing meaningful error messages for invalid inputs to guide users.
-#' @srrstats {G2.4b} Implements checks to detect incompatible parameter combinations, preventing runtime errors and ensuring consistent function behavior.
-#' @srrstats {G2.4c} Ensures numeric inputs (e.g., convergence thresholds, tolerances) are within acceptable ranges to avoid unexpected results.
-#' @srrstats {G2.4d} Verifies the structure and completeness of input data, including the absence of missing values and correct dimensionality for matrices.
-#' @srrstats {G2.4e} Issues warnings when deprecated or redundant arguments are used, encouraging users to adopt updated practices while maintaining backward compatibility.
-#' @srrstats {G2.7} The input accepts data frames, tibbles and data table objects, from which it creates the design matrix.
-#' @srrstats {G2.8} The pre-processing for all main functions (e.g., `feglm`, `felm`, `fepois`, `fenegbin`) is the same. The helper functions discard unusable observations dependening on the link function, and then create the design matrix.
-#' @srrstats {G2.10} For data frames, tibbles and data tables the column-extraction operations are consistent.
-#' @srrstats {G2.11} `data.frame`-like tabular objects which have can have atypical columns (i.e., `vector`) do not error without reason.
-#' @srrstats {G2.13} Checks for and handles missing data in input datasets.
-#' @srrstats {G2.14a} Issues informative errors for invalid inputs, such as incorrect link functions or missing data.
-#' @srrstats {G2.14b} Provides clear error messages when the data structure is incompatible with the model requirements.
-#' @srrstats {G2.15} The functions check for unusable observations (i.e., one column has an NA), and these are discarded before creating the design matrix.
-#' @srrstats {G2.16} `NaN`, `Inf` and `-Inf` cannot be used for the design matrix, and all observations with these values are removed.
-#' @srrstats {G5.2a} Ensures that all error and warning messages are unique and descriptive.
-#' @srrstats {G5.4a} Includes tests for edge cases, such as binary and continuous response variables, and validates all input arguments.
-#' @srrstats {RE4.4} The model is specified using a formula object, or a character-type object convertible to a formula, which is then used to create the design matrix.
-#' @srrstats {RE4.5} Fitted models have an nobs element that can be called with `nobs()`.
 #' @srrstats {RE4.8} The response variable is checked and some observations are dropped if the response is not compatible with the link (i.e., negative values and log-link).
 #' @srrstats {RE4.13} Observations with a dependent variable that is incompatible with the link function are removed.
 #' @srrstats {RE5.0} Supports internal optimizations, including centering variables and reducing computational redundancy.

@@ -31,7 +31,7 @@ feglm_offset_ <- function(object, offset) {
   wt <- object[["weights"]]
   family <- object[["family"]]
   lvls_k <- object[["lvls_k"]]
-  nt <- object[["nobs"]][["nobs_full"]] - object[["nobs"]][["nobs_pc"]]
+  nt <- object[["nobs"]][["nobs"]]
   k_vars <- names(lvls_k)
 
   # Extract dependent variable
