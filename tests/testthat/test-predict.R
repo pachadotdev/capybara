@@ -54,17 +54,13 @@ test_that("predicted values increase the error outside the inter-quartile range 
 
   expect_lt(mape1, mape2)
 
-  # verify prediction compared to base R
+  m2 <- glm(am ~ wt + disp + as.factor(cyl), mtcars, family = binomial())
 
-  # TODO: check these numerical differences
+  pred1_base <- predict(m2, newdata = d1, type = "response")
+  pred2_base <- predict(m2, newdata = d2, type = "response")
 
-  # m2 <- glm(am ~ wt + disp + as.factor(cyl), mtcars, family = binomial())
-
-  # pred1_base <- predict(m2, newdata = d1, type = "response")
-  # pred2_base <- predict(m2, newdata = d2, type = "response")
-
-  # expect_equal(pred1, unname(pred1_base), tolerance = 1e-1)
-  # expect_equal(pred2, unname(pred2_base), tolerance = 1e-1)
+  expect_equal(pred1, unname(pred1_base), tolerance = 1e-2)
+  expect_equal(pred2, unname(pred2_base), tolerance = 1e-2)
 })
 
 test_that("predicted values increase the error outside the inter-quartile range for LMs", {
@@ -112,13 +108,11 @@ test_that("predicted values increase the error outside the inter-quartile range 
 
   # verify prediction compared to base R
 
-  # TODO: check these numerical differences
+  m2 <- glm(am ~ wt + disp + as.factor(cyl), mtcars, family = binomial())
 
-  # m2 <- glm(am ~ wt + disp + as.factor(cyl), mtcars, family = binomial())
+  pred1_base <- predict(m2, newdata = d1, type = "response")
+  pred2_base <- predict(m2, newdata = d2, type = "response")
 
-  # pred1_base <- predict(m2, newdata = d1, type = "response")
-  # pred2_base <- predict(m2, newdata = d2, type = "response")
-
-  # expect_equal(pred1, unname(pred1_base), tolerance = 1e-2)
-  # expect_equal(pred2, unname(pred2_base), tolerance = 1e-2)
+  expect_equal(pred1, unname(pred1_base), tolerance = 1e-2)
+  expect_equal(pred2, unname(pred2_base), tolerance = 1e-2)
 })

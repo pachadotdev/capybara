@@ -40,10 +40,10 @@ inline FelmFitResult felm_fit(const mat &X, const vec &y, const vec &w,
 
   if (has_fixed_effects) {
     MNU = y;
-    center_variables(MNU, w, k_list, center_tol, iter_center_max,
-                      iter_interrupt, iter_ssr, "gaussian");
-    center_variables(Xc, w, k_list, center_tol, iter_center_max,
-                      iter_interrupt, iter_ssr, "gaussian");
+    mat MNU_mat = MNU;
+    demean_variables(MNU_mat, w, k_list, center_tol, iter_center_max, "gaussian");
+    MNU = MNU_mat.col(0);
+    demean_variables(Xc, w, k_list, center_tol, iter_center_max, "gaussian");
   } else {
     MNU = vec(y.n_elem, fill::zeros);
   }

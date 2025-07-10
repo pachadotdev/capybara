@@ -32,12 +32,14 @@ using cpp11::strings;
 
 #include "01_get_beta.h"
 #include "02_group_ops.h"
-#include "03_center_variables.h"
+#include "03_demean_variables.h"
 #include "04_lm_fit.h"
 #include "05_glm_fit.h"
 #include "06_glm_offset_fit.h"
 #include "07_get_alpha.h"
 #include "08_group_sums.h"
+
+// Concentration algorithm implementation is now in 03_center_variables.h
 
 [[cpp11::register]] doubles_matrix<>
 center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
@@ -45,8 +47,10 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
                   const int &iter_interrupt, const int &iter_ssr,
                   const std::string &family) {
   mat V = as_mat(V_r);
-  center_variables(V, as_col(w_r), klist, tol, max_iter, iter_interrupt,
-                    iter_ssr, family);
+  
+  // Use the original efficient center_variables function
+  demean_variables(V, as_col(w_r), klist, tol, max_iter, family);
+  
   return as_doubles_matrix(V);
 }
 

@@ -11,6 +11,9 @@ enum FamilyType {
   UNKNOWN
 };
 
+// Forward declaration for concentration function
+
+
 std::string tidy_family_(const std::string &family) {
   // tidy family param
   std::string fam = family;
@@ -319,10 +322,10 @@ inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
     nu = (y - mu) / mu_eta;
     MNU += (nu - nu_old);
     nu_old = nu;
-    center_variables(MNU, w, k_list, center_tol, iter_center_max,
-                      iter_interrupt, iter_ssr);
-    center_variables(MX, w, k_list, center_tol, iter_center_max,
-                      iter_interrupt, iter_ssr);
+    
+    // FIXEST-style concentration: single call instead of dual center_variables
+    demean_glm_step(MX, MNU, w, k_list, center_tol, iter_center_max, fam);
+    
     beta_upd = get_beta(MX, MNU, w, n, p, ws, /*use_weights=*/true);
     // Set collinear coefficients to 0 for prediction, and build status vector
     uvec coef_status = ws.valid_coefficients;

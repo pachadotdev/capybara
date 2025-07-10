@@ -24,6 +24,11 @@ test_that("fepoisson is similar to fixest", {
     family = quasipoisson(link = "log")
   )
 
+  # mod
+  # fixed_effects(mod)
+
+  # mod_base
+
   coef_dist_base <- coef(mod_base)[2]
 
   dist_variation <- abs((coef(mod)[1] - coef_dist_base) / coef(mod)[1])
@@ -43,8 +48,8 @@ test_that("fepoisson is similar to fixest", {
   expect_equal(length(fes), 1)
 
   expect_equal(
-    unname(coef(glm(mpg ~ wt + as.factor(cyl), mtcars, family = quasipoisson(link = "log")))[1]),
     unname(fes[["cyl"]][1]),
+    unname(coef(glm(mpg ~ wt + as.factor(cyl), mtcars, family = quasipoisson(link = "log")))[1]),
     tolerance = 1e-2
   )
 
