@@ -5,8 +5,8 @@
 \title{Set \code{feglm} Control Parameters}
 \usage{
 feglm_control(
-  dev_tol = 1e-07,
-  center_tol = 1e-07,
+  dev_tol = 1e-08,
+  center_tol = 1e-08,
   iter_max = 25L,
   iter_center_max = 10000L,
   iter_inner_max = 50L,
@@ -23,12 +23,12 @@ feglm_control(
 maximization routine. The stopping condition is based on the relative change
 of the deviance in iteration \eqn{r} and can be expressed as follows:
 \eqn{|dev_{r} - dev_{r - 1}| / (0.1 + |dev_{r}|) < tol}{|dev - devold| /
- (0.1 + |dev|) < tol}. The default is \code{1.0e-07}.}
+ (0.1 + |dev|) < tol}. The default is \code{1.0e-08}.}
 
 \item{center_tol}{tolerance level for the stopping condition of the centering
 algorithm. The stopping condition is based on the relative change of the
 centered variable similar to the \code{'lfe'} package. The default is
-\code{1.0e-07}.}
+\code{1.0e-08}.}
 
 \item{iter_max}{unsigned integer indicating the maximum number of iterations
 in the maximization routine. The default is \code{25L}.}

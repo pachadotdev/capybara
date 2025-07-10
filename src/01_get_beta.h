@@ -113,13 +113,11 @@ inline vec get_beta(mat &MX, const vec &MNU, const vec &w, const uword n,
     const vec d = abs(ws.decomp.diag());
     const double mind = d.min();
     const double avgd = mean(d);
-
+    
     if (mind > 1e-12 * avgd) {
       ws.work = solve(trimatl(ws.decomp), ws.XtY, solve_opts::fast);
-      ws.coefficients =
-          solve(trimatu(ws.decomp.t()), ws.work, solve_opts::fast);
-      ws.valid_coefficients
-          .ones(); // All coefficients are valid in Cholesky path
+      ws.coefficients = solve(trimatu(ws.decomp.t()), ws.work, solve_opts::fast);
+      ws.valid_coefficients.ones();
       return ws.coefficients;
     }
   }
@@ -129,61 +127,15 @@ inline vec get_beta(mat &MX, const vec &MNU, const vec &w, const uword n,
   return ws.coefficients;
 }
 
-// Optimized beta computation for 2-way fixed effects models
+// Optimized beta computation for 2-way fixed effects models (disabled for now due to type issues)
 // This avoids recomputing X'X when the fixed effects structure hasn't changed
 inline vec get_beta_twoway_optimized(mat &MX, const vec &MNU, const vec &w,
                                      const list &k_list, beta_results &ws,
                                      bool use_weights) {
+  // For now, fall back to standard computation to avoid type issues
   const uword p = MX.n_cols;
-
-  // Extract group structure
-  uvec group_i = as_uvec(as_cpp<integers>(k_list[0])) - 1;
-  uvec group_j = as_uvec(as_cpp<integers>(k_list[1])) - 1;
-
-  // Check if we can reuse cached X'X computation
-  bool can_reuse_XtX = g_twoway_cache.matches_structure(group_i, group_j);
-
-  if (!can_reuse_XtX) {
-    // Recompute and cache X'X
-    if (use_weights) {
-      mat sqrt_w_diag = diagmat(sqrt(w));
-      mat WX = sqrt_w_diag * MX;
-      ws.XtX = WX.t() * WX;
-    } else {
-      ws.XtX = MX.t() * MX;
-    }
-
-    // Update cache
-    g_twoway_cache.cached_XtX = ws.XtX;
-    g_twoway_cache.cached_group_i = group_i;
-    g_twoway_cache.cached_group_j = group_j;
-    g_twoway_cache.is_valid = true;
-  } else {
-    // Reuse cached X'X
-    ws.XtX = g_twoway_cache.cached_XtX;
-  }
-
-  // Always recompute X'Y (this changes every iteration)
-  if (use_weights) {
-    ws.XtY = MX.t() * (w % MNU);
-  } else {
-    ws.XtY = MX.t() * MNU;
-  }
-
-  // Solve system efficiently
-  ws.decomp = chol(ws.XtX, "lower");
-
-  if (ws.decomp.is_empty()) {
-    // Fall back to QR for rank-deficient cases
-    get_beta_qr(MX, MNU, w, ws, p, use_weights);
-  } else {
-    // Use Cholesky solver (fastest path)
-    ws.work = solve(trimatl(ws.decomp), ws.XtY, solve_opts::fast);
-    ws.coefficients = solve(trimatu(ws.decomp.t()), ws.work, solve_opts::fast);
-    ws.valid_coefficients.ones();
-  }
-
-  return ws.coefficients;
+  const uword n = MX.n_rows;
+  return get_beta(MX, MNU, w, n, p, ws, use_weights);
 }
 
 // Enhanced get_beta function that uses optimizations when appropriate

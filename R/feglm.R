@@ -261,13 +261,9 @@ feglm <- function(
     y <- as.numeric(y)
   }
 
-  # cpp_start_time <- Sys.time()
   fit <- structure(feglm_fit_(
     beta, eta, y, x, wt, 0.0, family[["family"]], control, k_list
   ), class = "feglm")
-  # cpp_end_time <- Sys.time()
-  # cpp_elapsed_ms <- as.numeric(difftime(cpp_end_time, cpp_start_time, units = "secs")) * 1000
-  # cat(sprintf("[R timing] feglm_fit_ (C++): %.0f ms\n", cpp_elapsed_ms), file = stderr())
 
   # Compute nobs using y and fitted values
   nobs <- nobs_(nobs_full, nobs_na, y, predict(fit))

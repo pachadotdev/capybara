@@ -29,21 +29,21 @@ mat crossprod_(const mat &X, const vec &w) {
 
 // Core function: pure Armadillo types
 inline FelmFitResult felm_fit(const mat &X, const vec &y, const vec &w,
-                              const list &k_list, double center_tol,
+                              const field<field<uvec>> &group_indices, double center_tol,
                               size_t iter_center_max, size_t iter_interrupt,
                               size_t iter_ssr) {
   // TIME_FUNCTION;
   FelmFitResult res;
   mat Xc = X;
   vec MNU, beta, fitted;
-  bool has_fixed_effects = k_list.size() > 0;
+  bool has_fixed_effects = group_indices.n_elem > 0;
 
   if (has_fixed_effects) {
     MNU = y;
     mat MNU_mat = MNU;
-    demean_variables(MNU_mat, w, k_list, center_tol, iter_center_max, "gaussian");
+    demean_variables(MNU_mat, w, group_indices, center_tol, iter_center_max, "gaussian");
     MNU = MNU_mat.col(0);
-    demean_variables(Xc, w, k_list, center_tol, iter_center_max, "gaussian");
+    demean_variables(Xc, w, group_indices, center_tol, iter_center_max, "gaussian");
   } else {
     MNU = vec(y.n_elem, fill::zeros);
   }

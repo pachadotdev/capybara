@@ -10,7 +10,7 @@ struct FeglmOffsetFitResult {
 // Core function: pure Armadillo types
 inline FeglmOffsetFitResult
 feglm_offset_fit(vec eta, const vec &y, const vec &offset, const vec &wt,
-                 const list &k_list, double center_tol, double dev_tol,
+                 const field<field<uvec>> &group_indices, double center_tol, double dev_tol,
                  size_t iter_max, size_t iter_center_max, size_t iter_inner_max,
                  size_t iter_interrupt, size_t iter_ssr, const std::string &fam,
                  FamilyType family_type) {
@@ -34,7 +34,7 @@ feglm_offset_fit(vec eta, const vec &y, const vec &offset, const vec &wt,
     yadj = (y - mu) / mu_eta + eta - offset;
     Myadj += yadj;
     mat Myadj_mat = Myadj;
-    demean_variables(Myadj_mat, w, k_list, center_tol, iter_center_max, "gaussian");
+    demean_variables(Myadj_mat, w, group_indices, center_tol, iter_center_max, "gaussian");
     Myadj = Myadj_mat.col(0);
     eta_upd = yadj - Myadj + offset - eta;
     for (iter_inner = 0; iter_inner < iter_inner_max; ++iter_inner) {

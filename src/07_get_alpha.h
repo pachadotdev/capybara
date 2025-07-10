@@ -19,22 +19,18 @@ struct AlphaGroupInfo {
   size_t n_groups;
 
   AlphaGroupInfo() = default;
-  AlphaGroupInfo(const list &jlist) {
-    n_groups = jlist.size();
-    indices.set_size(n_groups);
-
-    for (size_t j = 0; j < n_groups; ++j) {
-      indices(j) = as_uvec(as_cpp<integers>(jlist[j]));
-    }
+  AlphaGroupInfo(const field<uvec> &group_field) {
+    n_groups = group_field.n_elem;
+    indices = group_field;
   }
 };
 
-inline GetAlphaResult get_alpha(const vec &p, const list &klist, double tol,
+inline GetAlphaResult get_alpha(const vec &p, const field<field<uvec>> &group_indices, double tol,
                                 size_t iter_max) {
-  const size_t K = klist.size();
+  const size_t K = group_indices.n_elem;
   field<AlphaGroupInfo> group_info(K);
   for (size_t k = 0; k < K; ++k) {
-    group_info(k) = AlphaGroupInfo(as_cpp<list>(klist[k]));
+    group_info(k) = AlphaGroupInfo(group_indices(k));
   }
   field<vec> Alpha(K);
   for (size_t k = 0; k < K; ++k) {

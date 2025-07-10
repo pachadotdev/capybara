@@ -286,16 +286,15 @@ struct FeglmFitResult {
   }
 };
 
-// Core function: pure Armadillo types
+// Core function: portable with Armadillo interface
 inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
                                 vec beta, vec eta, const vec &y, const vec &wt,
-                                double theta, const list &k_list,
+                                double theta, const field<field<uvec>> &group_indices,
                                 double center_tol, double dev_tol, bool keep_mx,
                                 size_t iter_max, size_t iter_center_max,
                                 size_t iter_inner_max, size_t iter_interrupt,
                                 size_t iter_ssr, const std::string &fam,
                                 FamilyType family_type) {
-  // TIME_FUNCTION;
   FeglmFitResult res;
   size_t n = y.n_elem, p = MX.n_cols, k = beta.n_elem;
   vec MNU = vec(n, fill::zeros);
@@ -324,13 +323,17 @@ inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
     nu_old = nu;
     
     // FIXEST-style concentration: single call instead of dual center_variables
-    demean_glm_step(MX, MNU, w, k_list, center_tol, iter_center_max, fam);
-    
+    demean_glm_step(MX, MNU, w, group_indices, center_tol, iter_center_max, fam);
+
     beta_upd = get_beta(MX, MNU, w, n, p, ws, /*use_weights=*/true);
-    // Set collinear coefficients to 0 for prediction, and build status vector
+
+    // Set collinear coefficients to 0 for prediction
     uvec coef_status = ws.valid_coefficients;
     beta_upd.elem(find(coef_status == 0)).zeros();
+
     eta_upd = MX * beta_upd + nu - MNU;
+
+    // Step halving loop
     for (iter_inner = 0; iter_inner < iter_inner_max; ++iter_inner) {
       eta = eta_old + rho * eta_upd;
       beta = beta_old + rho * beta_upd;
@@ -340,10 +343,13 @@ inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
       dev_crit = is_finite(dev);
       val_crit = valid_eta_(eta, family_type) && valid_mu_(mu, family_type);
       imp_crit = (dev_ratio_inner <= -dev_tol);
-      if (dev_crit && val_crit && imp_crit)
-        break;
+
+      if (dev_crit && val_crit && imp_crit) break;
+
       rho *= 0.5;
+      if (rho < 1e-8) break;
     }
+
     if (!dev_crit || !val_crit)
       stop("Inner loop failed; cannot correct step size.");
     if (!imp_crit) {
@@ -352,18 +358,23 @@ inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
       dev = dev_old;
       mu = link_inv_(eta, family_type);
     }
+
     dev_ratio = fabs(dev - dev_old) / (0.1 + fabs(dev));
+
     if (dev_ratio < dev_tol) {
       conv = true;
       break;
     }
   }
-  if (!conv)
-    stop("Algorithm did not converge.");
+
+  if (!conv) stop("Algorithm did not converge.");
+
   H = crossprod_(MX, w);
+
   // Set collinear coefficients to 0 in the result
   uvec coef_status = ws.valid_coefficients;
   beta.elem(find(coef_status == 0)).zeros();
+
   res.coefficients = beta;
   res.eta = eta;
   res.weights = wt;
@@ -373,11 +384,12 @@ inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
   res.conv = conv;
   res.iter = static_cast<int>(iter + 1);
   res.coef_status = coef_status;
+
   if (keep_mx) {
-    mat x_cpp = MX; // already centered
-    res.mx = x_cpp;
+    res.mx = MX;
     res.has_mx = true;
   }
+
   return res;
 }
 

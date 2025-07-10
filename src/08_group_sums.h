@@ -9,15 +9,14 @@ struct GroupSumsResult {
 };
 
 inline GroupSumsResult group_sums(const mat &M, const mat &w,
-                                  const list &jlist) {
-  const size_t J = jlist.size(), P = M.n_cols;
+                                  const field<uvec> &group_indices) {
+  const size_t J = group_indices.n_elem, P = M.n_cols;
   size_t j;
-  uvec indexes;
   Row<double> groupSum(P, fill::none);
   double denom;
   mat b(P, 1, fill::zeros);
   for (j = 0; j < J; ++j) {
-    indexes = as_uvec(as_cpp<integers>(jlist[j]));
+    const uvec &indexes = group_indices(j);
     groupSum = sum(M.rows(indexes), 0);
     denom = accu(w.elem(indexes));
     b += groupSum.t() / denom;
@@ -29,15 +28,14 @@ inline GroupSumsResult group_sums(const mat &M, const mat &w,
 
 inline GroupSumsResult group_sums_spectral(const mat &M, const mat &v,
                                            const mat &w, int K,
-                                           const list &jlist) {
-  const size_t J = jlist.size(), K1 = K, P = M.n_cols;
+                                           const field<uvec> &group_indices) {
+  const size_t J = group_indices.n_elem, K1 = K, P = M.n_cols;
   size_t i, j, k, I;
-  uvec indexes;
   vec num(P, fill::none), v_shifted;
   mat b(P, 1, fill::zeros);
   double denom;
   for (j = 0; j < J; ++j) {
-    indexes = as_uvec(as_cpp<integers>(jlist[j]));
+    const uvec &indexes = group_indices(j);
     I = indexes.n_elem;
     if (I <= 1)
       continue;
@@ -57,14 +55,13 @@ inline GroupSumsResult group_sums_spectral(const mat &M, const mat &v,
   return res;
 }
 
-inline GroupSumsResult group_sums_var(const mat &M, const list &jlist) {
-  const int J = jlist.size();
+inline GroupSumsResult group_sums_var(const mat &M, const field<uvec> &group_indices) {
+  const int J = group_indices.n_elem;
   const int P = M.n_cols;
   int j;
   mat v(P, 1, fill::none), V(P, P, fill::zeros);
-  uvec indexes;
   for (j = 0; j < J; ++j) {
-    indexes = as_uvec(as_cpp<integers>(jlist[j]));
+    const uvec &indexes = group_indices(j);
     v = sum(M.rows(indexes), 0).t();
     V += v * v.t();
   }
@@ -74,14 +71,13 @@ inline GroupSumsResult group_sums_var(const mat &M, const list &jlist) {
 }
 
 inline GroupSumsResult group_sums_cov(const mat &M, const mat &N,
-                                      const list &jlist) {
-  const int J = jlist.size();
+                                      const field<uvec> &group_indices) {
+  const int J = group_indices.n_elem;
   const int P = M.n_cols;
   int j;
-  uvec indexes;
   mat V(P, P, fill::zeros);
   for (j = 0; j < J; ++j) {
-    indexes = as_uvec(as_cpp<integers>(jlist[j]));
+    const uvec &indexes = group_indices(j);
     if (indexes.n_elem < 2)
       continue;
     V += M.rows(indexes).t() * N.rows(indexes);
