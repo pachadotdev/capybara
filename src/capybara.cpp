@@ -54,8 +54,9 @@ inline field<field<uvec>> convert_klist_to_field(const list &k_list) {
     for (size_t g = 0; g < n_groups; ++g) {
       const integers group_obs = as_cpp<integers>(group_list[g]);
       uvec obs_indices(group_obs.size());
-      
-      for (size_t i = 0; i < group_obs.size(); ++i) {
+
+      size_t I = static_cast<size_t>(group_obs.size());
+      for (size_t i = 0; i < I; ++i) {
         obs_indices(i) = static_cast<uword>(group_obs[i]);
       }
       

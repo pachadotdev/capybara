@@ -322,10 +322,7 @@ inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
     MNU += (nu - nu_old);
     nu_old = nu;
     
-    // FIXEST-style concentration: single call instead of dual center_variables
-    demean_glm_step(MX, MNU, w, group_indices, center_tol, iter_center_max, fam);
-
-    beta_upd = get_beta(MX, MNU, w, n, p, ws, /*use_weights=*/true);
+    beta_upd = demean_and_solve_wls(MX, MNU, w, group_indices, center_tol, iter_center_max, fam, &ws.valid_coefficients);
 
     // Set collinear coefficients to 0 for prediction
     uvec coef_status = ws.valid_coefficients;
