@@ -302,8 +302,8 @@ inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
       beta_upd(k, fill::none), eta_upd(n, fill::none), eta_old(n, fill::none),
       beta_old(k, fill::none);
   mat H(p, p, fill::none);
-  double dev, null_dev, dev_old, rho;
-  bool dev_crit, val_crit, imp_crit, conv = false;
+  double dev, null_dev, rho;
+  bool dev_crit, val_crit, conv = false;
   size_t iter, iter_inner;
 
   beta_results ws(n, p);
@@ -346,7 +346,6 @@ inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
     rho = 1.0;
     eta_old = eta;
     beta_old = beta;
-    dev_old = devold;
     
     // Compute mu.eta and variance
     mu_eta = mu_eta_(eta, family_type);

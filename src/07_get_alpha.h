@@ -201,13 +201,9 @@ inline GetAlphaResult get_alpha(const vec &p, const field<field<uvec>> &group_in
     Alpha(0) = vec(1);
     Alpha(0)(0) = mean(p);
   } else {
-    // Apply fixest-style normalization to ensure identifiability
-    // fixest normalizes so that the first level of the first FE is 0
-    // This ensures that the fixed effects are identified
-    if (K > 0 && Alpha(0).n_elem > 0) {
-      double first_level = Alpha(0)(0);
-      Alpha(0) = Alpha(0) - first_level;
-    }
+    // Keep the actual fixed effect values like fixest does
+    // Do not normalize to make the first level 0, as this changes the interpretation
+    // The fixed effects represent the actual level effects
   }
   
   GetAlphaResult res;
