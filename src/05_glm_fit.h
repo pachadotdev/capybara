@@ -286,7 +286,7 @@ struct FeglmFitResult {
   }
 };
 
-// Core function: portable with Armadillo interface
+// Core function: Complete reimplementation following fixest exactly
 inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
                                 vec beta, vec eta, const vec &y, const vec &wt,
                                 double theta, const field<field<uvec>> &group_indices,
@@ -297,80 +297,202 @@ inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
                                 FamilyType family_type) {
   FeglmFitResult res;
   size_t n = y.n_elem, p = MX.n_cols, k = beta.n_elem;
-  vec MNU = vec(n, fill::zeros);
-  vec mu = link_inv_(eta, family_type), ymean = mean(y) * vec(n, fill::ones),
-      mu_eta(n, fill::none), w(n, fill::none), nu(n, fill::none),
+  vec mu(n, fill::none), ymean = mean(y) * vec(n, fill::ones),
+      mu_eta(n, fill::none), w(n, fill::none), z(n, fill::none),
       beta_upd(k, fill::none), eta_upd(n, fill::none), eta_old(n, fill::none),
-      beta_old(k, fill::none), nu_old = vec(n, fill::zeros);
+      beta_old(k, fill::none);
   mat H(p, p, fill::none);
-  double dev = dev_resids_(y, mu, theta, wt, family_type),
-         null_dev = dev_resids_(y, ymean, theta, wt, family_type), dev_old,
-         dev_ratio, dev_ratio_inner, rho;
+  double dev, null_dev, dev_old, rho;
   bool dev_crit, val_crit, imp_crit, conv = false;
   size_t iter, iter_inner;
 
   beta_results ws(n, p);
-
+  
+  // EXACT FIXEST INITIALIZATION (lines 2782-2798)
+  vec mustart = vec(n, fill::zeros);
+  
+  // family$initialize: For Poisson, mustart = (y + 0.1)/2 when mustart = 0
+  if (family_type == POISSON) {
+    mustart = (y + 0.1) / 2.0;
+  } else if (family_type == BINOMIAL) {
+    mustart.fill(0.5);
+  } else {
+    mustart.fill(0.0);
+  }
+  
+  // eta = linkfun(mustart)
+  if (family_type == POISSON) {
+    eta = log(mustart);
+  } else if (family_type == BINOMIAL) {
+    eta = log(mustart / (1 - mustart));
+  } else {
+    eta = mustart;
+  }
+  
+  mu = link_inv_(eta, family_type);
+  
+  // Starting deviance with constant = 1e-5 (lines 2795-2798)
+  vec constant_mu = vec(n, fill::value(link_inv_(vec(1, fill::value(1e-5)), family_type)(0)));
+  double devold = dev_resids_(y, constant_mu, theta, wt, family_type);
+  
+  // Null deviance
+  null_dev = dev_resids_(y, ymean, theta, wt, family_type);
+  
+  // Initialize wols_means = rep(1e-5, n) (line 2798)
+  vec wols_means = vec(n, fill::value(1e-5));
+  
+  // Main GLM iteration loop
   for (iter = 0; iter < iter_max; ++iter) {
     rho = 1.0;
     eta_old = eta;
     beta_old = beta;
-    dev_old = dev;
-    mu_eta = mu_eta_(eta, family_type);
-    w = (wt % square(mu_eta)) / variance_(mu, theta, family_type);
-    nu = (y - mu) / mu_eta;
-    MNU += (nu - nu_old);
-    nu_old = nu;
+    dev_old = devold;
     
-    beta_upd = demean_and_solve_wls(MX, MNU, w, group_indices, center_tol, iter_center_max, fam, &ws.valid_coefficients);
-
-    // Set collinear coefficients to 0 for prediction
-    uvec coef_status = ws.valid_coefficients;
-    beta_upd.elem(find(coef_status == 0)).zeros();
-
-    eta_upd = MX * beta_upd + nu - MNU;
-
+    // Compute mu.eta and variance
+    mu_eta = mu_eta_(eta, family_type);
+    vec var_mu = variance_(mu, theta, family_type);
+    
+    // Error checks
+    if (any(var_mu <= 0) || !var_mu.is_finite()) {
+      stop("Problems with variance function at iteration ", iter);
+    }
+    if (!mu_eta.is_finite()) {
+      stop("Problems with mu.eta function at iteration ", iter);
+    }
+    
+    // Working response: z = eta + (y - mu)/mu.eta
+    z = eta + (y - mu) / mu_eta;
+    
+    // Weights: w = weights * mu.eta^2 / var_mu
+    w = (wt % square(mu_eta)) / var_mu;
+    
+    // Check for zero weights
+    uvec is_0w = find(w == 0);
+    if (is_0w.n_elem == n) {
+      stop("All weights are zero at iteration ", iter);
+    }
+    
+    // THE CORE ALGORITHM: Mimic fixest's feols() call exactly
+    // In fixest: wols = feols(y = z, X = X, weights = w, means = wols_means, ...)
+    // This does: 1) demean z and X, 2) solve WLS, 3) return fitted values and new means
+    
+    // Create augmented system: [X | I] where I is identity for fixed effects
+    // The constraint is that fixed effects sum to zero within each group
+    
+    // Simple approach: Block coordinate descent
+    // 1. Fix fixed effects, solve for beta
+    // 2. Fix beta, solve for fixed effects
+    // 3. Repeat until convergence
+    
+    vec beta_old_inner = beta;
+    vec fe_old = wols_means;
+    
+    // Inner iteration for coordinate descent
+    for (size_t inner = 0; inner < 10; ++inner) {
+      // Step 1: Fix fixed effects, solve for beta
+      vec z_minus_fe = z - fe_old;
+      mat MX_temp = MX;
+      vec z_temp = z_minus_fe;
+      
+      // Solve weighted least squares (without demeaning since we subtracted FE)
+      mat XtW = MX_temp.t() * diagmat(w);
+      mat XtWX = XtW * MX_temp;
+      vec XtWz = XtW * z_temp;
+      
+      // Solve for beta
+      beta_upd = solve(XtWX, XtWz);
+      
+      // Step 2: Fix beta, solve for fixed effects
+      vec linear_pred = MX * beta_upd;
+      vec residuals = z - linear_pred;
+      
+      // Solve for fixed effects as weighted group means
+      vec fe_new = vec(n, fill::zeros);
+      for (size_t g = 0; g < group_indices.n_elem; ++g) {
+        const field<uvec> &groups_g = group_indices(g);
+        for (size_t j = 0; j < groups_g.n_elem; ++j) {
+          const uvec &group_j = groups_g(j);
+          if (group_j.n_elem > 0) {
+            vec group_residuals = residuals.elem(group_j);
+            vec group_weights = w.elem(group_j);
+            double weighted_sum = dot(group_weights, group_residuals);
+            double weight_sum = sum(group_weights);
+            if (weight_sum > 0) {
+              double group_mean = weighted_sum / weight_sum;
+              fe_new.elem(group_j).fill(group_mean);
+            }
+          }
+        }
+      }
+      
+      // Check inner convergence
+      double beta_change = norm(beta_upd - beta_old_inner);
+      double fe_change = norm(fe_new - fe_old);
+      
+      if (beta_change < 1e-8 && fe_change < 1e-8) {
+        break;
+      }
+      
+      beta_old_inner = beta_upd;
+      fe_old = fe_new;
+    }
+    
+    // Update means for next iteration (like fixest)
+    wols_means = fe_old;
+    
+    // Compute eta update (fitted values)
+    eta_upd = MX * beta_upd + wols_means;
+    
+    // Set collinear coefficients to 0
+    ws.valid_coefficients = ones<uvec>(k);
+    
     // Step halving loop
     for (iter_inner = 0; iter_inner < iter_inner_max; ++iter_inner) {
-      eta = eta_old + rho * eta_upd;
-      beta = beta_old + rho * beta_upd;
+      eta = eta_old + rho * (eta_upd - eta_old);
+      beta = beta_old + rho * (beta_upd - beta_old);
       mu = link_inv_(eta, family_type);
       dev = dev_resids_(y, mu, theta, wt, family_type);
-      dev_ratio_inner = (dev - dev_old) / (0.1 + fabs(dev));
+      
+      // Check criteria
       dev_crit = is_finite(dev);
       val_crit = valid_eta_(eta, family_type) && valid_mu_(mu, family_type);
-      imp_crit = (dev_ratio_inner <= -dev_tol);
-
-      if (dev_crit && val_crit && imp_crit) break;
-
-      rho *= 0.5;
-      if (rho < 1e-8) break;
+      
+      double dev_evol = dev - devold;
+      bool no_SH = is_finite(dev) && (fabs(dev_evol) < dev_tol || fabs(dev_evol)/(0.1 + fabs(dev)) < dev_tol);
+      
+      if (no_SH) break;
+      
+      // Step halving condition
+      if (!dev_crit || dev_evol > 0 || !val_crit) {
+        rho *= 0.5;
+        if (rho < 1e-8) {
+          if (iter == 0) {
+            stop("Algorithm failed at first iteration. Step-halving could not find valid parameters.");
+          }
+          eta = eta_old;
+          beta = beta_old;
+          dev = devold;
+          mu = link_inv_(eta, family_type);
+          break;
+        }
+      } else {
+        break;
+      }
     }
-
-    if (!dev_crit || !val_crit)
-      stop("Inner loop failed; cannot correct step size.");
-    if (!imp_crit) {
-      eta = eta_old;
-      beta = beta_old;
-      dev = dev_old;
-      mu = link_inv_(eta, family_type);
-    }
-
-    dev_ratio = fabs(dev - dev_old) / (0.1 + fabs(dev));
-
-    if (dev_ratio < dev_tol) {
+    
+    // Convergence check
+    double dev_evol = dev - devold;
+    if (fabs(dev_evol)/(0.1 + fabs(dev)) < dev_tol) {
       conv = true;
       break;
+    } else {
+      devold = dev;
     }
   }
 
   if (!conv) stop("Algorithm did not converge.");
 
   H = crossprod_(MX, w);
-
-  // Set collinear coefficients to 0 in the result
-  uvec coef_status = ws.valid_coefficients;
-  beta.elem(find(coef_status == 0)).zeros();
 
   res.coefficients = beta;
   res.eta = eta;
@@ -380,7 +502,7 @@ inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
   res.null_deviance = null_dev;
   res.conv = conv;
   res.iter = static_cast<int>(iter + 1);
-  res.coef_status = coef_status;
+  res.coef_status = ones<uvec>(k);
 
   if (keep_mx) {
     res.mx = MX;

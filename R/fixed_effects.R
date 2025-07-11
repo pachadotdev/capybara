@@ -78,6 +78,16 @@ fixed_effects <- function(object = NULL, control = NULL) {
   }
   fe_list <- get_alpha_(pie, k_list, control)
 
+  # Handle the case of no fixed effects (k = 0)
+  if (k == 0) {
+    # For no fixed effects, return the intercept
+    # The intercept is the mean of the residuals pie
+    fe_list <- list("(Intercept)" = matrix(mean(pie), nrow = 1, ncol = 1))
+    colnames(fe_list[[1]]) <- "(Intercept)"
+    rownames(fe_list[[1]]) <- "1"
+    return(fe_list)
+  }
+
   # Assign names to the different fixed effects categories ----
   for (i in seq.int(k)) {
     colnames(fe_list[[i]]) <- k_vars[i]

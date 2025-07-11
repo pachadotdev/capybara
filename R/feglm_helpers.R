@@ -303,6 +303,29 @@ start_guesses_ <- function(
       eta <- rep(family[["linkfun"]](sum(wt * (y + 0.5) / 2.0) / sum(wt)), nt)
     } else if (family[["family"]] %in% c("Gamma", "inverse.gaussian")) {
       eta <- rep(family[["linkfun"]](sum(wt * y) / sum(wt)), nt)
+    } else if (family[["family"]] == "poisson") {
+      # Better starting values for Poisson regression
+      # Use a small offset to avoid log(0)
+      y_mean <- sum(wt * y) / sum(wt)
+      y_offset <- pmax(y, 0.1)  # Avoid log(0)
+      eta <- family[["linkfun"]](y_offset)
+      
+      # If we have a regressor matrix, try to get better starting values
+      if (p > 0) {
+        # Simple linear regression on log scale as starting point
+        tryCatch({
+          lm_fit <- lm(log(y_offset) ~ x - 1, weights = wt)
+          beta <- as.numeric(coef(lm_fit))
+          beta[is.na(beta)] <- 0  # Replace NA with 0
+          eta <- x %*% beta
+        }, error = function(e) {
+          # Fall back to simple mean if lm fails
+          beta <- numeric(p)
+          eta <- rep(family[["linkfun"]](y_mean + 0.1), nt)
+        })
+      } else {
+        eta <- rep(family[["linkfun"]](y_mean + 0.1), nt)
+      }
     } else {
       eta <- rep(family[["linkfun"]](sum(wt * (y + 0.1)) / sum(wt)), nt)
     }

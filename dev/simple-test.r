@@ -1,16 +1,10 @@
-# Simple test
-devtools::load_all()
+load_all()
+  
+capybara_pois <- fepoisson(mpg ~ wt + disp | cyl, mtcars)
+fixest_pois <- fixest::fepois(mpg ~ wt + disp | cyl, mtcars)
 
-# Base R
-base_mod <- glm(mpg ~ wt + as.factor(cyl), mtcars, family = quasipoisson(link = "log"))
-print("Base R:")
-print(coef(base_mod))
+coef(capybara_pois)
+coef(fixest_pois)
 
-# Your implementation  
-your_mod <- fepoisson(mpg ~ wt | cyl | am, mtcars)
-print("Your implementation:")
-print(coef(your_mod))
-
-# Fixed effects
-print("Fixed effects:")
-print(fixed_effects(your_mod))
+fixed_effects(capybara_pois)
+fixest::fixef(fixest_pois)

@@ -192,6 +192,24 @@ inline GetAlphaResult get_alpha(const vec &p, const field<field<uvec>> &group_in
       ratio = sqrt(num / (denom + 1e-16));
     }
   }
+  
+  // Handle the case of no fixed effects (K = 0)
+  if (K == 0) {
+    // For no fixed effects, we need to return the intercept
+    // The intercept is the mean of the residuals p
+    Alpha.set_size(1);
+    Alpha(0) = vec(1);
+    Alpha(0)(0) = mean(p);
+  } else {
+    // Apply fixest-style normalization to ensure identifiability
+    // fixest normalizes so that the first level of the first FE is 0
+    // This ensures that the fixed effects are identified
+    if (K > 0 && Alpha(0).n_elem > 0) {
+      double first_level = Alpha(0)(0);
+      Alpha(0) = Alpha(0) - first_level;
+    }
+  }
+  
   GetAlphaResult res;
   res.Alpha = Alpha;
   return res;

@@ -70,7 +70,7 @@ NULL
 feglm_control <- function(
     dev_tol = 1.0e-8,
     center_tol = 1.0e-8,
-    iter_max = 25L,
+    iter_max = 100L,
     iter_center_max = 10000L,
     iter_inner_max = 50L,
     iter_interrupt = 1000L,
