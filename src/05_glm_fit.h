@@ -75,7 +75,7 @@ vec link_inv_logit_(const vec &eta) {
 
 vec link_inv_gamma_(const vec &eta) { return 1 / eta; }
 
-vec link_inv_invgaussian_(const vec &eta) { return 1 / sqrt(eta); }
+vec link_inv_invgaussian_(const vec &eta) { return 1 / sqrt(abs(eta)); }
 
 vec link_inv_negbin_(const vec &eta) { return exp(eta); }
 
@@ -391,6 +391,7 @@ inline void ccc_logit_fixest(vec &cluster_coef, const vec &mu, const vec &sum_y,
 struct FeglmFitResult {
   vec coefficients;
   vec eta;
+  vec fitted_values;  // mu values (response scale)
   vec weights;
   mat hessian;
   double deviance;
@@ -404,7 +405,9 @@ struct FeglmFitResult {
   cpp11::list to_list(bool keep_mx = false) const {
     auto out = writable::list(
         {"coefficients"_nm = as_doubles(coefficients),
-         "eta"_nm = as_doubles(eta), "weights"_nm = as_doubles(weights),
+         "eta"_nm = as_doubles(eta), 
+         "fitted.values"_nm = as_doubles(fitted_values),
+         "weights"_nm = as_doubles(weights),
          "hessian"_nm = as_doubles_matrix(hessian),
          "deviance"_nm = writable::doubles({deviance}),
          "null_deviance"_nm = writable::doubles({null_deviance}),
@@ -446,6 +449,10 @@ inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
     mustart = (y + 0.1) / 2.0;
   } else if (family_type == BINOMIAL) {
     mustart = (wt % y + 0.5) / (wt + 1.0);
+  } else if (family_type == GAMMA) {
+    mustart = y;  // Gamma family: mustart = y
+  } else if (family_type == INV_GAUSSIAN) {
+    mustart = clamp(abs(y), 0.1, 100.0);  // Inverse Gaussian: bounded positive values
   } else {
     mustart.fill(0.0);
   }
@@ -454,6 +461,10 @@ inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
     eta = log(mustart);
   } else if (family_type == BINOMIAL) {
     eta = log(mustart / (1 - mustart));  // logit link
+  } else if (family_type == GAMMA) {
+    eta = 1.0 / mustart;  // Gamma inverse link
+  } else if (family_type == INV_GAUSSIAN) {
+    eta = 1.0 / square(mustart);  // Inverse Gaussian link: 1/mu^2
   } else {
     eta = mustart;
   }
@@ -540,11 +551,59 @@ inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
     mat XtWX = XtW * MX_demean;
     vec XtWz = XtW * z_demean;
     
-    try {
-      beta_upd = solve(XtWX, XtWz);
-    } catch (...) {
-      beta_upd = pinv(XtWX) * XtWz;
+    // Collinearity detection via Cholesky decomposition (like fixest)
+    mat L;
+    bool chol_success = chol(L, XtWX);
+    uvec is_excluded = zeros<uvec>(p);  // Use p (MX.n_cols) not k (beta.n_elem)
+    
+    if (chol_success) {
+      // Check diagonal elements for collinearity
+      vec diag_L = L.diag();
+      double collin_tol = 1e-10;  // Same as fixest default
+      for (size_t i = 0; i < p; ++i) {
+        if (diag_L(i) < collin_tol) {
+          is_excluded(i) = 1;
+        }
+      }
+    } else {
+      // Cholesky failed, use SVD fallback
+      mat U, V;
+      vec s;
+      bool svd_success = svd(U, s, V, XtWX);
+      if (svd_success) {
+        double collin_tol = 1e-10;
+        for (size_t i = 0; i < p; ++i) {
+          if (s(i) < collin_tol) {
+            is_excluded(i) = 1;
+          }
+        }
+      }
     }
+    
+    // Solve with collinearity handling
+    beta_upd = zeros<vec>(p);  // Use p to match MX dimensions
+    if (any(is_excluded == 0)) {  // If any variables are not excluded
+      uvec good_vars = find(is_excluded == 0);
+      mat XtWX_good = XtWX.submat(good_vars, good_vars);
+      vec XtWz_good = XtWz.elem(good_vars);
+      
+      try {
+        vec beta_good = solve(XtWX_good, XtWz_good);
+        beta_upd.elem(good_vars) = beta_good;
+      } catch (...) {
+        vec beta_good = pinv(XtWX_good) * XtWz_good;
+        beta_upd.elem(good_vars) = beta_good;
+      }
+    }
+    
+    // Ensure beta is properly sized and copy relevant coefficients
+    if (beta.n_elem != p) {
+      beta.resize(p);
+    }
+    beta = beta_upd;
+    
+    // Store collinearity info
+    ws.valid_coefficients = 1 - is_excluded;  // 1 for valid, 0 for excluded
     
     // Update fixed effects by computing residuals and taking weighted group means
     vec residuals = z - MX * beta_upd;
@@ -571,9 +630,6 @@ inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
     
     // Compute eta update (fitted values)
     eta_upd = MX * beta_upd + wols_means;
-    
-    // Set collinear coefficients to 0
-    ws.valid_coefficients = ones<uvec>(k);
     
     // Step halving loop
     for (iter_inner = 0; iter_inner < iter_inner_max; ++iter_inner) {
@@ -625,15 +681,23 @@ inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
 
   H = crossprod_(MX, w);
 
+  // Set excluded coefficients to NaN (will become NA in R)
+  for (size_t i = 0; i < p; ++i) {
+    if (ws.valid_coefficients(i) == 0) {
+      beta(i) = datum::nan;
+    }
+  }
+  
   res.coefficients = beta;
   res.eta = eta;
+  res.fitted_values = mu;  // Store final mu values (response scale)
   res.weights = wt;
   res.hessian = H;
   res.deviance = dev;
   res.null_deviance = null_dev;
   res.conv = conv;
   res.iter = static_cast<int>(iter + 1);
-  res.coef_status = ones<uvec>(k);
+  res.coef_status = ws.valid_coefficients;
 
   if (keep_mx) {
     res.mx = MX;

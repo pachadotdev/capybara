@@ -49,12 +49,19 @@ predict.feglm <- function(object, newdata = NULL, type = c("link", "response"), 
       fes2[[name]] <- fe[match(data[[name]], rownames(fe)), ]
     }
 
-    eta <- x %*% object$coefficients + Reduce("+", fes2)
+    # Replace NA coefficients with 0 for prediction
+    coef0 <- object$coefficients
+    coef0[is.na(coef0)] <- 0
+    eta <- x %*% coef0 + Reduce("+", fes2)
   } else {
-    eta <- object[["eta"]]
+    if (type == "response") {
+      eta <- object[["fitted.values"]]  # Already on response scale
+    } else {
+      eta <- object[["eta"]]  # Linear predictor (link scale)
+    }
   }
 
-  if (type == "response") {
+  if (type == "response" && !is.null(newdata)) {
     eta <- object[["family"]][["linkinv"]](eta)
   }
 
