@@ -113,14 +113,6 @@ predict.felm <- function(object, newdata = NULL, type = c("response", "terms"), 
     coef0[is.na(coef0)] <- 0
     yhat <- x %*% coef0 + Reduce("+", fes2)
     
-    # FIXME: Apply fixest-compatible normalization offset
-    # This is a temporary fix until proper normalization is implemented
-    if (inherits(object, "felm") && !is.null(object$nms_fe)) {
-      # For linear models, add offset to match fixest normalization
-      # Apply offset to match fixest (this is empirically determined)
-      fixest_offset <- 34.04167  # This should be computed properly
-      yhat <- yhat + fixest_offset
-    }
   } else {
     # Replace NA coefficients with 0 for prediction
     coef0 <- object$coefficients

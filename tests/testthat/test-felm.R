@@ -134,3 +134,31 @@ test_that("Inf values are dropped", {
   m2 <- lm(log(mpg) ~ log(wt) + as.factor(cyl), mtcars2)
   expect_equal(coef(m2)[2], coef(m1), tolerance = 1e-2)
 })
+
+test_that("felm correctly predicts values outside the inter-quartile range", {
+  # Helper function for MAPE calculation
+  mape <- function(y, yhat) {
+    mean(abs(y - yhat) / y)
+  }
+
+  # Create data subsets once
+  d1 <- mtcars[mtcars$mpg >= quantile(mtcars$mpg, 0.25) & mtcars$mpg <= quantile(mtcars$mpg, 0.75), ]
+  d2 <- mtcars[mtcars$mpg < quantile(mtcars$mpg, 0.25) | mtcars$mpg > quantile(mtcars$mpg, 0.75), ]
+
+  m1_lm <- felm(mpg ~ wt + disp | cyl, mtcars)
+  m2_lm <- lm(mpg ~ wt + disp + as.factor(cyl), mtcars)
+
+  pred1_lm <- predict(m1_lm, newdata = d1)
+  pred2_lm <- predict(m1_lm, newdata = d2)
+
+  mape1_lm <- mape(d1$mpg, pred1_lm)
+  mape2_lm <- mape(d2$mpg, pred2_lm)
+
+  expect_lt(mape1_lm, mape2_lm)
+
+  # Compare with base R linear model
+  pred1_base_lm <- predict(m2_lm, newdata = d1)
+  pred2_base_lm <- predict(m2_lm, newdata = d2)
+  expect_equal(pred1_lm, unname(pred1_base_lm), tolerance = 1e-2)
+  expect_equal(pred2_lm, unname(pred2_base_lm), tolerance = 1e-2)
+})

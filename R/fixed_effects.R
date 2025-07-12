@@ -88,14 +88,6 @@ fixed_effects <- function(object = NULL, control = NULL) {
     return(fe_list)
   }
 
-  # Transform fixed effects to match fixest interpretation for GLMs
-  if (inherits(object, "feglm") && k > 0) {
-    # For GLMs, add back the intercept-like term to match fixest output
-    # This reverses the normalization applied in C++ for numerical stability
-    # while maintaining the proper interpretation
-    intercept_adjustment <- mean(pie) - sum(sapply(fe_list, function(x) mean(x)))
-    fe_list[[1]] <- fe_list[[1]] + intercept_adjustment
-  }
 
   # Assign names to the different fixed effects categories ----
   for (i in seq.int(k)) {

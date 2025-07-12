@@ -200,19 +200,6 @@ inline GetAlphaResult get_alpha(const vec &p, const field<field<uvec>> &group_in
     Alpha.set_size(1);
     Alpha(0) = vec(1);
     Alpha(0)(0) = mean(p);
-  } else {
-    // Apply normalization for numerical stability in GLMs
-    // This ensures convergence while maintaining interpretability
-    // For GLMs, we need to normalize to prevent numerical overflow
-    if (K > 0 && Alpha(0).n_elem > 0) {
-      // Normalize by subtracting the first level to ensure identifiability
-      double first_level = Alpha(0)(0);
-      for (size_t k = 0; k < K; ++k) {
-        if (Alpha(k).n_elem > 0) {
-          Alpha(k) = Alpha(k) - first_level;
-        }
-      }
-    }
   }
   
   GetAlphaResult res;

@@ -471,15 +471,14 @@ inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
   
   mu = link_inv_(eta, family_type);
   
-  // Starting deviance with constant = 1e-5 (lines 2795-2798)
-  vec constant_mu = vec(n, fill::value(link_inv_(vec(1, fill::value(1e-5)), family_type)(0)));
-  double devold = dev_resids_(y, constant_mu, theta, wt, family_type);
+  // Starting deviance with mu values computed from eta
+  double devold = dev_resids_(y, mu, theta, wt, family_type);
   
   // Null deviance
   null_dev = dev_resids_(y, ymean, theta, wt, family_type);
   
-  // Initialize wols_means = rep(1e-5, n) (line 2798)
-  vec wols_means = vec(n, fill::value(1e-5));
+  // Initialize wols_means to zeros
+  vec wols_means = vec(n, fill::zeros);
   
   // Main GLM iteration loop
   for (iter = 0; iter < iter_max; ++iter) {
