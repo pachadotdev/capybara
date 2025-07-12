@@ -1,12 +1,12 @@
 #ifndef CAPYBARA_CENTER
 #define CAPYBARA_CENTER
 
-// Fixest-style Irons-Tuck acceleration
-struct FixestIronsTuckAcceleration {
+// Irons-Tuck acceleration
+struct IronsTuckAcceleration {
   vec GX, GGX, delta_GX, delta2_X;
   bool has_history = false;
   
-  FixestIronsTuckAcceleration(size_t dim) {
+  IronsTuckAcceleration(size_t dim) {
     GX.zeros(dim);
     GGX.zeros(dim);
     delta_GX.zeros(dim);
@@ -22,7 +22,7 @@ struct FixestIronsTuckAcceleration {
       return false;
     }
     
-    // Update using fixest's exact algorithm
+    // Update
     for (size_t i = 0; i < X.n_elem; ++i) {
       delta_GX(i) = GGX_new(i) - GX_new(i);
       delta2_X(i) = delta_GX(i) - GX_new(i) + X(i);
@@ -42,7 +42,7 @@ struct FixestIronsTuckAcceleration {
     
     double coef = vprod / ssq;
     
-    // Update X using fixest's formula: X[i] = GGX[i] - coef * delta_GX[i]
+    // Update X: X[i] = GGX[i] - coef * delta_GX[i]
     for (size_t i = 0; i < X.n_elem; ++i) {
       X(i) = GGX_new(i) - coef * delta_GX(i);
     }
@@ -240,7 +240,7 @@ struct GroupInfo {
   }
 };
 
-// Specialized Poisson cluster coefficient computation (following fixest's CCC_poisson)
+// Specialized Poisson cluster coefficient computation
 inline void CCC_poisson(size_t n_obs, size_t nb_cluster, vec &cluster_coef,
                         const vec &exp_mu, const vec &sum_y, const uvec &cluster_indices) {
   // Initialize cluster coefficients to zero
@@ -327,7 +327,7 @@ inline DemeanResult demean_variables_with_init(mat &V, const vec &weights,
     return result;
   }
   
-  // Initialize fixed effects with init_means (like fixest's r_init)
+  // Initialize fixed effects with init_means
   vec current_means = init_means;
   
   // Apply initial fixed effects to each variable
@@ -335,13 +335,7 @@ inline DemeanResult demean_variables_with_init(mat &V, const vec &weights,
     V.col(p) -= current_means;
   }
   
-  // Now perform the standard demeaning algorithm
-  // Need to implement the demeaning logic here since the function is not yet declared
-  
-  // Use the same nested structure that fixest uses - field<field<uvec>>
-  // This matches fixest's approach exactly
-  
-  // Perform demeaning iterations (like fixest's cpp_demean)
+  // Demeaning iterations
   for (int iter = 0; iter < max_iter; ++iter) {    
     for (size_t k = 0; k < K; ++k) {
       const field<uvec> &groups_k = group_indices(k);
@@ -371,14 +365,14 @@ inline DemeanResult demean_variables_with_init(mat &V, const vec &weights,
     }
     
     // Simple convergence check
-    if (iter > 10) break; // For now, just limit iterations
+    if (iter > 10) break; // TODO: For now, just limit iterations
   }
-  
+
+  // Recover the fixed effects
   // The updated means should be computed from the final demeaned variables
-  // Following fixest's approach, we need to recover the fixed effects
   vec updated_means = vec(V.n_rows, fill::zeros);
   
-  // Compute the updated fixed effects for each group (like fixest does)
+  // Updated fixed effects for each group
   for (size_t k = 0; k < K; ++k) {
     const field<uvec> &groups_k = group_indices(k);
     for (size_t g = 0; g < groups_k.n_elem; ++g) {
@@ -432,7 +426,7 @@ inline void demean_variables(mat &V, const vec &weights,
     }
   };
 
-  // Main demeaning loop - sequential like fixest for better performance
+  // Main demeaning loop
   #pragma omp parallel for schedule(static, 1) if(P > 4)
   for (size_t p = 0; p < P; ++p) {
     const vec v_orig = V.col(p);
@@ -534,8 +528,7 @@ inline void demean_glm_step(mat &X, vec &y, const vec &weights, const field<fiel
   }
   
   // Enable acceleration for Poisson models like fixest does
-  // (fixest uses acceleration for all GLM models)
-  // Now using fixest's exact algorithm which handles all K
+  // TODO: fixest uses acceleration for all GLM models
   bool enable_acceleration = use_acceleration;
 
   // Create combined matrix for efficient demeaning
@@ -543,7 +536,6 @@ inline void demean_glm_step(mat &X, vec &y, const vec &weights, const field<fiel
   combined_vars.cols(0, P - 1) = X;
   combined_vars.col(P) = y;
   
-  // Use the optimized demean_variables function with acceleration enabled
   demean_variables(combined_vars, weights, group_indices, adaptive_tol, max_iter, family, enable_acceleration);
   
   // Extract results
@@ -572,8 +564,6 @@ inline vec demean_and_solve_wls(mat &X, vec &y, const vec &weights, const field<
     return solve(XtWX, XtWy, solve_opts::fast);
   }
   
-  // Enable acceleration for all GLM models like fixest does
-  // Now using fixest's exact algorithm which handles all K
   bool use_acceleration = true;
   
   // Adaptive tolerance for GLM
@@ -740,7 +730,7 @@ inline std::pair<vec, vec> demean_and_solve_wls_with_fitted(mat &X, vec &y, cons
   return std::make_pair(beta, fitted);
 }
 
-// Version that uses initial fixed effects (means) like fixest does
+// Use initial fixed effects (means)
 inline std::pair<vec, vec> demean_and_solve_wls_with_fitted_and_means(mat &X, vec &y, const vec &weights, 
                                                                       const field<field<uvec>> &group_indices,
                                                                       const vec &initial_means,
@@ -770,7 +760,7 @@ inline std::pair<vec, vec> demean_and_solve_wls_with_fitted_and_means(mat &X, ve
   mat X_copy = X;
   vec y_copy = y;
   
-  // Initialize fixed effects with initial_means (like fixest does)
+  // Initialize fixed effects with initial_means
   vec current_means = initial_means;
   
   // Subtract initial fixed effects from y before demeaning
@@ -810,13 +800,12 @@ inline std::pair<vec, vec> demean_and_solve_wls_with_fitted_and_means(mat &X, ve
   return std::make_pair(beta, fitted);
 }
 
-// Specialized Poisson demean and solve using cluster coefficient computation
-// This mimics fixest's approach for single fixed effects with Poisson regression
+// Poisson demean and solve using cluster coefficient computation
 inline vec demean_and_solve_wls_poisson(mat &X, vec &y, const vec &weights, 
                                         const field<field<uvec>> &group_indices,
                                         double tol = 1e-8, int max_iter = 1000,
                                         uvec* valid_coefficients = nullptr) {
-  // For now, fall back to the general approach to avoid breaking existing functionality
+  // TODO: fall back to the general approach to avoid breaking existing functionality
   // The specialized Poisson cluster computation needs more careful integration
   // with the GLM working response handling
   return demean_and_solve_wls(X, y, weights, group_indices, tol, max_iter, "poisson", valid_coefficients);

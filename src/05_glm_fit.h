@@ -58,7 +58,20 @@ vec link_inv_gaussian_(const vec &eta) { return eta; }
 
 vec link_inv_poisson_(const vec &eta) { return exp(eta); }
 
-vec link_inv_logit_(const vec &eta) { return 1.0 / (1.0 + exp(-eta)); }
+vec link_inv_logit_(const vec &eta) { 
+  vec result(eta.n_elem);
+  for (size_t i = 0; i < eta.n_elem; ++i) {
+    double x = eta(i);
+    if (x < -30) {
+      result(i) = std::numeric_limits<double>::epsilon();
+    } else if (x > 30) {
+      result(i) = 1 - std::numeric_limits<double>::epsilon();
+    } else {
+      result(i) = 1.0 / (1.0 + 1.0 / exp(x));
+    }
+  }
+  return result;
+}
 
 vec link_inv_gamma_(const vec &eta) { return 1 / eta; }
 
@@ -218,8 +231,15 @@ vec mu_eta_(const vec &eta, const FamilyType family_type) {
     result = arma::exp(eta);
     break;
   case BINOMIAL: {
-    vec exp_eta = arma::exp(eta);
-    result = exp_eta / arma::square(1 + exp_eta);
+    for (size_t i = 0; i < eta.n_elem; ++i) {
+      double x = eta(i);
+      if (std::abs(x) > 30) {
+        result(i) = std::numeric_limits<double>::epsilon();
+      } else {
+        double exp_x = exp(x);
+        result(i) = 1.0 / ((1.0 + 1.0 / exp_x) * (1.0 + exp_x));
+      }
+    }
     break;
   }
   case GAMMA:
@@ -255,6 +275,119 @@ vec variance_(const vec &mu, const double &theta,
   }
 }
 
+inline bool stopping_criterion(double a, double b, double diffMax) {
+  double diff = fabs(a - b);
+  return ((diff < diffMax) || (diff / (0.1 + fabs(a)) < diffMax));
+}
+
+// TODO: Direct port of fixest CCC_logit to Armadillo
+inline void ccc_logit_fixest(vec &cluster_coef, const vec &mu, const vec &sum_y, 
+                             const field<uvec> &group_indices, double diff_max_nr = 1e-6) {
+  const int iter_max = 100, iter_full_dicho = 10;
+  const size_t nb_cluster = group_indices.n_elem;
+  
+  // First find the min/max values of mu for each cluster to get the bounds
+  std::vector<double> borne_inf(nb_cluster);
+  std::vector<double> borne_sup(nb_cluster);
+  
+  for (size_t m = 0; m < nb_cluster; ++m) {
+    const uvec &group_m = group_indices(m);
+    if (group_m.n_elem == 0) continue;
+    
+    // Find min/max of mu
+    double mu_min = mu(group_m(0));
+    double mu_max = mu(group_m(0));
+    for (size_t u = 1; u < group_m.n_elem; ++u) {
+      double value = mu(group_m(u));
+      if (value < mu_min) {
+        mu_min = value;
+      } else if (value > mu_max) {
+        mu_max = value;
+      }
+    }
+    
+    // Computing the bounds (protecting against log(0))
+    double sum_y_m = sum_y(m);
+    double table_m = static_cast<double>(group_m.n_elem);
+    borne_inf[m] = log(std::max(sum_y_m, 1e-10)) - log(std::max(table_m - sum_y_m, 1e-10)) - mu_max;
+    borne_sup[m] = borne_inf[m] + (mu_max - mu_min);
+  }
+  
+  // Main loop over each cluster
+  for (size_t m = 0; m < nb_cluster; ++m) {
+    const uvec &group_m = group_indices(m);
+    if (group_m.n_elem == 0) continue;
+    
+    // Initialize the cluster coefficient at 0
+    double x1 = 0;
+    bool keepGoing = true;
+    int iter = 0;
+    
+    double value, x0, derivee = 0, exp_mu;
+    
+    // The bounds
+    double lower_bound = borne_inf[m];
+    double upper_bound = borne_sup[m];
+    
+    // Update if x1 goes out of boundaries
+    if (x1 >= upper_bound || x1 <= lower_bound) {
+      x1 = (lower_bound + upper_bound) / 2;
+    }
+    
+    while (keepGoing) {
+      ++iter;
+      
+      // Computing the value of f(x)
+      value = sum_y(m);
+      for (size_t u = 0; u < group_m.n_elem; ++u) {
+        value -= 1.0 / (1.0 + exp(-x1 - mu(group_m(u))));
+      }
+      
+      // Update of the bounds
+      if (value > 0) {
+        lower_bound = x1;
+      } else {
+        upper_bound = x1;
+      }
+      
+      // Newton-Raphson iteration or Dichotomy
+      x0 = x1;
+      if (value == 0) {
+        keepGoing = false;
+      } else if (iter <= iter_full_dicho) {
+        // Computing the derivative
+        derivee = 0;
+        for (size_t u = 0; u < group_m.n_elem; ++u) {
+          exp_mu = exp(x1 + mu(group_m(u)));
+          derivee -= 1.0 / ((1.0 / exp_mu + 1.0) * (1.0 + exp_mu));
+        }
+        
+        x1 = x0 - value / derivee;
+        
+        // Dichotomy if necessary
+        if (x1 >= upper_bound || x1 <= lower_bound) {
+          x1 = (lower_bound + upper_bound) / 2;
+        }
+      } else {
+        x1 = (lower_bound + upper_bound) / 2;
+      }
+      
+      // Stopping criteria
+      if (iter == iter_max) {
+        keepGoing = false;
+        // TODO: Could add warning here like fixest does
+      }
+      
+      if (stopping_criterion(x0, x1, diff_max_nr)) {
+        keepGoing = false;
+      }
+    }
+    
+    // After convergence: update cluster coefficient
+    cluster_coef(m) = x1;
+  }
+}
+
 struct FeglmFitResult {
   vec coefficients;
   vec eta;
@@ -286,7 +419,6 @@ struct FeglmFitResult {
   }
 };
 
-// Core function: Complete reimplementation following fixest exactly
 inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
                                 vec beta, vec eta, const vec &y, const vec &wt,
                                 double theta, const field<field<uvec>> &group_indices,
@@ -308,23 +440,20 @@ inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
 
   beta_results ws(n, p);
   
-  // EXACT FIXEST INITIALIZATION (lines 2782-2798)
   vec mustart = vec(n, fill::zeros);
   
-  // family$initialize: For Poisson, mustart = (y + 0.1)/2 when mustart = 0
   if (family_type == POISSON) {
     mustart = (y + 0.1) / 2.0;
   } else if (family_type == BINOMIAL) {
-    mustart.fill(0.5);
+    mustart = (wt % y + 0.5) / (wt + 1.0);
   } else {
     mustart.fill(0.0);
   }
   
-  // eta = linkfun(mustart)
   if (family_type == POISSON) {
     eta = log(mustart);
   } else if (family_type == BINOMIAL) {
-    eta = log(mustart / (1 - mustart));
+    eta = log(mustart / (1 - mustart));  // logit link
   } else {
     eta = mustart;
   }
@@ -371,73 +500,74 @@ inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
       stop("All weights are zero at iteration ", iter);
     }
     
-    // THE CORE ALGORITHM: Mimic fixest's feols() call exactly
-    // In fixest: wols = feols(y = z, X = X, weights = w, means = wols_means, ...)
-    // This does: 1) demean z and X, 2) solve WLS, 3) return fitted values and new means
+    // Solve weighted least squares
+    // This solves: min_beta,fe sum(w * (z - X*beta - fe)^2)
     
-    // Create augmented system: [X | I] where I is identity for fixed effects
-    // The constraint is that fixed effects sum to zero within each group
+    vec z_demean = z - wols_means;  // subtract previous fixed effects
+    mat MX_demean = MX;
     
-    // Simple approach: Block coordinate descent
-    // 1. Fix fixed effects, solve for beta
-    // 2. Fix beta, solve for fixed effects
-    // 3. Repeat until convergence
-    
-    vec beta_old_inner = beta;
-    vec fe_old = wols_means;
-    
-    // Inner iteration for coordinate descent
-    for (size_t inner = 0; inner < 10; ++inner) {
-      // Step 1: Fix fixed effects, solve for beta
-      vec z_minus_fe = z - fe_old;
-      mat MX_temp = MX;
-      vec z_temp = z_minus_fe;
-      
-      // Solve weighted least squares (without demeaning since we subtracted FE)
-      mat XtW = MX_temp.t() * diagmat(w);
-      mat XtWX = XtW * MX_temp;
-      vec XtWz = XtW * z_temp;
-      
-      // Solve for beta
-      beta_upd = solve(XtWX, XtWz);
-      
-      // Step 2: Fix beta, solve for fixed effects
-      vec linear_pred = MX * beta_upd;
-      vec residuals = z - linear_pred;
-      
-      // Solve for fixed effects as weighted group means
-      vec fe_new = vec(n, fill::zeros);
+    // Simple iterative weighted demeaning
+    for (size_t iter_demean = 0; iter_demean < 10; ++iter_demean) {
+      // Demean X and z using current weights
       for (size_t g = 0; g < group_indices.n_elem; ++g) {
         const field<uvec> &groups_g = group_indices(g);
+        
         for (size_t j = 0; j < groups_g.n_elem; ++j) {
           const uvec &group_j = groups_g(j);
           if (group_j.n_elem > 0) {
-            vec group_residuals = residuals.elem(group_j);
             vec group_weights = w.elem(group_j);
-            double weighted_sum = dot(group_weights, group_residuals);
             double weight_sum = sum(group_weights);
             if (weight_sum > 0) {
-              double group_mean = weighted_sum / weight_sum;
-              fe_new.elem(group_j).fill(group_mean);
+              // Weighted mean for z
+              double z_wmean = dot(group_weights, z_demean.elem(group_j)) / weight_sum;
+              z_demean.elem(group_j) -= z_wmean;
+              
+              // Weighted mean for each column of X
+              for (size_t col = 0; col < MX.n_cols; ++col) {
+                vec x_col = MX_demean.col(col);
+                double x_wmean = dot(group_weights, x_col.elem(group_j)) / weight_sum;
+                x_col.elem(group_j) -= x_wmean;
+                MX_demean.col(col) = x_col;
+              }
             }
           }
         }
       }
-      
-      // Check inner convergence
-      double beta_change = norm(beta_upd - beta_old_inner);
-      double fe_change = norm(fe_new - fe_old);
-      
-      if (beta_change < 1e-8 && fe_change < 1e-8) {
-        break;
-      }
-      
-      beta_old_inner = beta_upd;
-      fe_old = fe_new;
     }
     
-    // Update means for next iteration (like fixest)
-    wols_means = fe_old;
+    // Solve weighted regression on demeaned data
+    mat XtW = MX_demean.t() * diagmat(w);
+    mat XtWX = XtW * MX_demean;
+    vec XtWz = XtW * z_demean;
+    
+    try {
+      beta_upd = solve(XtWX, XtWz);
+    } catch (...) {
+      beta_upd = pinv(XtWX) * XtWz;
+    }
+    
+    // Update fixed effects by computing residuals and taking weighted group means
+    vec residuals = z - MX * beta_upd;
+    vec fe_new = vec(n, fill::zeros);
+    
+    for (size_t g = 0; g < group_indices.n_elem; ++g) {
+      const field<uvec> &groups_g = group_indices(g);
+      
+      for (size_t j = 0; j < groups_g.n_elem; ++j) {
+        const uvec &group_j = groups_g(j);
+        if (group_j.n_elem > 0) {
+          vec group_weights = w.elem(group_j);
+          vec group_residuals = residuals.elem(group_j);
+          double weight_sum = sum(group_weights);
+          if (weight_sum > 0) {
+            double fe_value = dot(group_weights, group_residuals) / weight_sum;
+            fe_new.elem(group_j).fill(fe_value);
+          }
+        }
+      }
+    }
+    
+    wols_means = fe_new;
     
     // Compute eta update (fitted values)
     eta_upd = MX * beta_upd + wols_means;
@@ -481,7 +611,9 @@ inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
     
     // Convergence check
     double dev_evol = dev - devold;
-    if (fabs(dev_evol)/(0.1 + fabs(dev)) < dev_tol) {
+    double rel_dev_change = fabs(dev_evol)/(0.1 + fabs(dev));
+    
+    if (rel_dev_change < dev_tol) {
       conv = true;
       break;
     } else {

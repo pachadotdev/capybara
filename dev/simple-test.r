@@ -1,10 +1,9 @@
 load_all()
   
-capybara_pois <- fepoisson(mpg ~ wt + disp | cyl, mtcars)
-fixest_pois <- fixest::fepois(mpg ~ wt + disp | cyl, mtcars)
+mod_binom <- feglm(am ~ wt + mpg | cyl, mtcars, family = binomial())
+mod_binom_fixest <- fixest::feglm(am ~ wt + mpg | cyl, mtcars, family = binomial())
+coef(mod_binom)
+coef(mod_binom_fixest)
 
-coef(capybara_pois)
-coef(fixest_pois)
-
-fixed_effects(capybara_pois)
-fixest::fixef(fixest_pois)
+fixed_effects(mod_binom)
+fixest::fixef(mod_binom_fixest)
