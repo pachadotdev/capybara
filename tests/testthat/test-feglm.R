@@ -54,9 +54,11 @@ test_that("predicted values increase the error outside the inter-quartile range 
   # Poisson ----
   m1_pois <- fepoisson(mpg ~ wt + disp | cyl, mtcars)
   m2_pois <- glm(mpg ~ wt + disp + as.factor(cyl), mtcars, family = quasipoisson())
+  # m3_pois <- fixest::fepois(mpg ~ wt + disp | cyl, mtcars)
 
   pred1_pois <- predict(m1_pois, newdata = d1, type = "response")
   pred2_pois <- predict(m1_pois, newdata = d2, type = "response")
+  # pred3_pois <- predict(m3_pois, newdata = d1, type = "response")
 
   mape1_pois <- mape(d1$mpg, pred1_pois)
   mape2_pois <- mape(d2$mpg, pred2_pois)
@@ -68,6 +70,12 @@ test_that("predicted values increase the error outside the inter-quartile range 
   pred2_base_pois <- predict(m2_pois, newdata = d2, type = "response")
   expect_equal(unname(pred1_base_pois), pred1_pois, tolerance = 1e-2)
   expect_equal(unname(pred2_base_pois), pred2_pois, tolerance = 1e-2)
+
+  # Compare with fixest Poisson
+  # pred1_fixest_pois <- predict(m3_pois, newdata = d1, type = "response")
+  # pred2_fixest_pois <- predict(m3_pois, newdata = d2, type = "response")
+  # expect_equal(unname(pred1_fixest_pois), pred1_pois, tolerance = 1e-2)
+  # expect_equal(unname(pred2_fixest_pois), pred2_pois, tolerance = 1e-2)
 
   # Binomial ----
   m1_binom <- feglm(am ~ wt + disp | cyl, mtcars, family = binomial())

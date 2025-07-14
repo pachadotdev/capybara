@@ -142,24 +142,16 @@ feglm <- function(
   # })
   
   # Check validity of formula ----
-  # t1 <- Sys.time()
   check_formula_(formula)
-  # cat(sprintf("[R timing] check_formula_: %.0f ms\n", as.numeric(difftime(Sys.time(), t1, units = "secs")) * 1000), file = stderr())
 
   # Check validity of data ----
-  # t1 <- Sys.time()
   check_data_(data)
-  # cat(sprintf("[R timing] check_data_: %.0f ms\n", as.numeric(difftime(Sys.time(), t1, units = "secs")) * 1000), file = stderr())
 
   # Check validity of family ----
-  # t1 <- Sys.time()
   check_family_(family)
-  # cat(sprintf("[R timing] check_family_: %.0f ms\n", as.numeric(difftime(Sys.time(), t1, units = "secs")) * 1000), file = stderr())
 
   # Check validity of control ----
-  # t1 <- Sys.time()
   check_control_(control)
-  # cat(sprintf("[R timing] check_control_: %.0f ms\n", as.numeric(difftime(Sys.time(), t1, units = "secs")) * 1000), file = stderr())
 
   # Generate model.frame
   lhs <- NA # just to avoid global variable warning
@@ -168,14 +160,10 @@ feglm <- function(
   weights_vec <- NA
   weights_col <- NA
   
-  # t1 <- Sys.time()
   model_frame_(data, formula, weights)
-  # cat(sprintf("[R timing] model_frame_: %.0f ms\n", as.numeric(difftime(Sys.time(), t1, units = "secs")) * 1000), file = stderr())
 
   # Ensure that model response is in line with the chosen model ----
-  # t1 <- Sys.time()
   check_response_(data, lhs, family)
-  # cat(sprintf("[R timing] check_response_: %.0f ms\n", as.numeric(difftime(Sys.time(), t1, units = "secs")) * 1000), file = stderr())
 
   # Get names of the fixed effects variables and sort ----
   # the no FEs warning is printed in the check_formula_ function
@@ -186,31 +174,22 @@ feglm <- function(
   }
 
   # Generate temporary variable ----
-  # t1 <- Sys.time()
   tmp_var <- temp_var_(data)
-  # cat(sprintf("[R timing] temp_var_: %.0f ms\n", as.numeric(difftime(Sys.time(), t1, units = "secs")) * 1000), file = stderr())
 
   # Drop observations that do not contribute to the log likelihood ----
-  # t1 <- Sys.time()
   data <- drop_by_link_type_(data, lhs, family, tmp_var, k_vars, control)
-  # cat(sprintf("[R timing] drop_by_link_type_: %.0f ms\n", as.numeric(difftime(Sys.time(), t1, units = "secs")) * 1000), file = stderr())
 
   # Transform fixed effects and clusters to factors ----
-  # t1 <- Sys.time()
   data <- transform_fe_(data, formula, k_vars)
-  # cat(sprintf("[R timing] transform_fe_: %.0f ms\n", as.numeric(difftime(Sys.time(), t1, units = "secs")) * 1000), file = stderr())
 
   # Determine the number of dropped observations ----
   nt <- nrow(data)
-  # Compute nobs using y and fitted values
-  # nobs <- nobs_(nobs_full, nobs_na, nt) # old
+
   # Extract model response and regressor matrix ----
   nms_sp <- NA
   p <- NA
   
-  # t1 <- Sys.time()
   model_response_(data, formula)
-  # cat(sprintf("[R timing] model_response_: %.0f ms\n", as.numeric(difftime(Sys.time(), t1, units = "secs")) * 1000), file = stderr())
 
   # Extract weights if required ----
   if (is.null(weights)) {
@@ -230,14 +209,10 @@ feglm <- function(
   }
 
   # Check validity of weights ----
-  # t1 <- Sys.time()
   check_weights_(wt)
-  # cat(sprintf("[R timing] check_weights_: %.0f ms\n", as.numeric(difftime(Sys.time(), t1, units = "secs")) * 1000), file = stderr())
 
   # Compute and check starting guesses ----
-  # t1 <- Sys.time()
   start_guesses_(beta_start, eta_start, y, x, beta, nt, wt, p, family)
-  # cat(sprintf("[R timing] start_guesses_: %.0f ms\n", as.numeric(difftime(Sys.time(), t1, units = "secs")) * 1000), file = stderr())
 
   # Get names and number of levels in each fixed effects category ----
   nms_fe <- lapply(data[, .SD, .SDcols = k_vars], levels)
@@ -249,9 +224,7 @@ feglm <- function(
 
   # Generate auxiliary list of indexes for different sub panels ----
   if (!any(lvls_k %in% "missing_fe")) {
-    # t1 <- Sys.time()
     k_list <- get_index_list_(k_vars, data)
-    # cat(sprintf("[R timing] get_index_list_: %.0f ms\n", as.numeric(difftime(Sys.time(), t1, units = "secs")) * 1000), file = stderr())
   } else {
     k_list <- list(list(`1` = seq_len(nt) - 1L))
   }
