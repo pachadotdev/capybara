@@ -1,3 +1,7 @@
+# capybara 2.0.0
+
+* Uses `fixest` demeaning approach.
+
 # capybara 1.6.0
 
 * Uses the same Poisson separation property and closed-form 2 FE solutions

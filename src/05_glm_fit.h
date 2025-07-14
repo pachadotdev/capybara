@@ -414,18 +414,57 @@ inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
                                 size_t iter_ssr, const std::string &fam,
                                 FamilyType family_type) {
   FeglmFitResult res;
-  size_t n = y.n_elem, p = MX.n_cols, k = beta.n_elem;
+  size_t n = y.n_elem, p = MX.n_cols;
+  
+  // Initialize starting values properly for each family (following fixest approach)
+  if (p > 0) {
+    if (family_type == POISSON) {
+      // For Poisson with regressors: fit simple OLS on log scale as starting values
+      vec y_offset = y + 0.1;  // add small offset to avoid log(0)
+      vec log_y = arma::log(y_offset);
+      
+      // Simple weighted least squares for starting values
+      mat XtWX = MX.t() * diagmat(wt) * MX;
+      vec XtWy = MX.t() * (wt % log_y);
+      beta = solve(XtWX, XtWy);
+      eta = MX * beta;
+    } else if (family_type == BINOMIAL) {
+      // For binomial with regressors: use more conservative starting values
+      // Start with simple mean-based initialization like base R
+      double y_mean = arma::mean(y);
+      double mu_start = std::max(0.01, std::min(0.99, y_mean));
+      double eta_start = std::log(mu_start / (1.0 - mu_start));
+      eta.fill(eta_start);
+      beta.zeros();  // Start with zero coefficients for binomial
+    } else {
+      // For other families: use simple mean-based starting values
+      double y_mean = arma::mean(y);
+      eta.fill(y_mean);
+      if (p > 0) {
+        beta.zeros();  // Start with zero coefficients for other families
+      }
+    }
+  } else {
+    // For cases without regressors, use simple starting values
+    double y_mean = arma::mean(y);
+    if (family_type == POISSON) {
+      eta.fill(std::log(std::max(y_mean, 0.1)));
+    } else if (family_type == BINOMIAL) {
+      double mu_start = std::max(0.001, std::min(0.999, y_mean));
+      eta.fill(std::log(mu_start / (1.0 - mu_start)));
+    } else {
+      eta.fill(y_mean);
+    }
+  }
+  
   vec mu = link_inv_(eta, family_type), 
       ymean = mean(y) * vec(y.n_elem, fill::ones), 
-      mu_eta(n, fill::none), w(n, fill::none), nu(n, fill::none), 
-      beta_upd(k, fill::none), eta_upd(n, fill::none), 
-      eta_old(n, fill::none), beta_old(k, fill::none),
-      nu_old = vec(n, fill::zeros);
-  vec MNU = vec(n, fill::zeros);
+      mu_eta(n, fill::none), w(n, fill::none), z(n, fill::none), eta_old(n, fill::none);
   mat H(p, p, fill::none);
+  uvec coef_status; // Will be set from first iteration's collinearity detection
   double dev = dev_resids_(y, mu, theta, wt, family_type),
          null_dev = dev_resids_(y, ymean, theta, wt, family_type), 
-         dev_old, dev_ratio, dev_ratio_inner, rho;
+         dev_old, dev_ratio, rho;
   bool dev_crit, val_crit, imp_crit, conv = false;
   size_t iter, iter_inner;
 
@@ -436,60 +475,62 @@ inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
   for (iter = 0; iter < iter_max; ++iter) {
     rho = 1.0;
     eta_old = eta;
-    beta_old = beta;
     dev_old = dev;
-
-    // Compute weights and dependent variable  
+    
+    // Step 1: Compute working weights and working response (exact fixest algorithm)
     mu_eta = mu_eta_(eta, family_type);
-    w = (wt % square(mu_eta)) / variance_(mu, theta, family_type);
-    nu = (y - mu) / mu_eta;
-
-    // Center variables
-    MNU += (nu - nu_old);
-    nu_old = nu;
-
-    // Use our existing center_variables_ function that matches the old implementation
-    mat MNU_mat = MNU;
-    demean_variables(MNU_mat, w, k_list, center_tol, iter_center_max, fam);
-    MNU = MNU_mat.col(0);
-    demean_variables(MX, w, k_list, center_tol, iter_center_max, fam);
-
-    // Compute update step and update eta
-    // Use get_beta instead of solve_beta_ but with similar logic
-    beta_results ws(n, p);
-    beta_upd = get_beta(MX, MNU, w, n, p, ws, true);
-    eta_upd = MX * beta_upd + nu - MNU;
+    vec var_mu = variance_(mu, theta, family_type);
+    w = wt % square(mu_eta) / var_mu;  // fixest: weights * mu.eta.val^2 / var_mu
+    z = eta + (y - mu) / mu_eta;  // fixest: eta + (y - mu)/mu.eta.val (no offset)
+    
+    // Step 2: EXACT fixest algorithm: wols = feols(y = z, X = X, weights = w, ...)
+    // Use felm_fit which is equivalent to feols - weighted fixed effects OLS
+    FelmFitResult wols = felm_fit(MX, z, w, group_indices, center_tol, 
+                                  iter_center_max, iter_interrupt, iter_ssr);
+    
+    // Step 3: Extract results from weighted OLS (exact fixest approach)
+    beta = wols.coefficients;
+    eta = wols.fitted;  // fixest: eta = wols$fitted.values
+    
+    // Important: capture collinearity information from the weighted OLS step
+    // This is set only in the first iteration and preserved afterward
+    if (iter == 0) {
+      coef_status = wols.coef_status;
+    }
+    
+    // Step 4: Update mu and compute deviance  
+    mu = link_inv_(eta, family_type);
+    dev = dev_resids_(y, mu, theta, wt, family_type);
 
     // Step-halving with three checks:
     // 1. finite deviance  
     // 2. valid eta and mu
     // 3. improvement as in glm2
-    for (iter_inner = 0; iter_inner < iter_inner_max; ++iter_inner) {
-      eta = eta_old;
-      eta += rho * eta_upd;
-      beta = beta_old;
-      beta += rho * beta_upd;
-      mu = link_inv_(eta, family_type);
-      dev = dev_resids_(y, mu, theta, wt, family_type);
-      dev_ratio_inner = (dev - dev_old) / (0.1 + fabs(dev));
+    if (!is_finite(dev) || dev > dev_old || !valid_eta_(eta, family_type) || !valid_mu_(mu, family_type)) {
+      vec eta_sh = eta;
+      for (iter_inner = 0; iter_inner < iter_inner_max; ++iter_inner) {
+        rho *= 0.5;
+        eta_sh = eta_old + rho * (eta - eta_old);
+        mu = link_inv_(eta_sh, family_type);
+        dev = dev_resids_(y, mu, theta, wt, family_type);
+        
+        dev_crit = is_finite(dev);
+        val_crit = valid_eta_(eta_sh, family_type) && valid_mu_(mu, family_type);
+        imp_crit = (dev <= dev_old);
 
-      dev_crit = is_finite(dev);
-      val_crit = valid_eta_(eta, family_type) && valid_mu_(mu, family_type);
-      imp_crit = (dev_ratio_inner <= -dev_tol);
-
-      if (dev_crit && val_crit && imp_crit) {
-        break;
+        if (dev_crit && val_crit && imp_crit) {
+          eta = eta_sh;
+          break;
+        }
       }
 
-      rho *= 0.5;
-    }
-
-    // Check if step-halving failed (deviance and invalid eta or mu)
-    if (!dev_crit || !val_crit) {
-      if (iter == 0) {
-        stop("Algorithm failed at first iteration. Step-halving could not find valid parameters.");
+      // Check if step-halving failed
+      if (!dev_crit || !val_crit || !imp_crit) {
+        if (iter == 0) {
+          stop("Algorithm failed at first iteration. Step-halving could not find valid parameters.");
+        }
+        stop("Algorithm could not find valid parameters.");
       }
-      stop("Algorithm could not find valid parameters.");
     }
 
     // Check convergence
@@ -509,15 +550,6 @@ inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
   // Compute Hessian  
   H = crossprod_(MX, w);
 
-  // Set excluded coefficients to NaN (will become NA in R)
-  beta_results ws_final(n, p);
-  get_beta(MX, MNU, w, n, p, ws_final, true);
-  for (size_t i = 0; i < p; ++i) {
-    if (ws_final.valid_coefficients(i) == 0) {
-      beta(i) = datum::nan;
-    }
-  }
-
   res.coefficients = beta;
   res.eta = eta;
   res.fitted_values = mu;
@@ -527,7 +559,7 @@ inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
   res.null_deviance = null_dev;
   res.conv = conv;
   res.iter = static_cast<int>(iter + 1);
-  res.coef_status = ws_final.valid_coefficients;
+  res.coef_status = coef_status; // Use captured collinearity information
 
   if (keep_mx) {
     res.mx = MX;

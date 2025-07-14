@@ -16,6 +16,8 @@ test_that("fepoisson is similar to fixest", {
 
   # K = 1
 
+  # load_all()
+
   mod <- fepoisson(mpg ~ wt | cyl | am, mtcars)
 
   mod_base <- glm(
@@ -24,10 +26,15 @@ test_that("fepoisson is similar to fixest", {
     family = quasipoisson(link = "log")
   )
 
-  # mod
-  # fixed_effects(mod)
+  # mod_fixest <- fixest::fepois(mpg ~ wt | cyl, mtcars)
 
-  # mod_base
+  mod
+  fixed_effects(mod)
+
+  mod_base
+
+  # mod_fixest
+  # fixest::fixef(mod_fixest)
 
   coef_dist_base <- coef(mod_base)[2]
 
