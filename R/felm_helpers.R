@@ -7,7 +7,7 @@ NULL
 #' @description Computes the score matrix
 #' @param object Result list
 #' @noRd
-get_score_matrix_felm_ <- function(object) {
+get_score_matrix_feols_ <- function(object) {
   # Extract required quantities from result list
   control <- object[["control"]]
   data <- object[["data"]]

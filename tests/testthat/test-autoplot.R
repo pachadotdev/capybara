@@ -9,7 +9,7 @@
 NULL
 
 test_that("autoplot works", {
-  mod <- felm(mpg ~ wt + qsec | cyl, mtcars)
+  mod <- feols(mpg ~ wt + qsec | cyl, mtcars)
 
   expect_s3_class(autoplot(mod, conf_level = 0.99), "ggplot")
   expect_s3_class(autoplot(mod), "ggplot")

@@ -404,112 +404,75 @@ inline void demean_variables(mat &V, const vec &weights,
                                       const field<field<uvec>> &group_indices,
                                       double tol = 1e-8, int max_iter = 1000,
                                       const std::string &family = "gaussian", bool use_acceleration = false) {
-  const size_t N = V.n_rows, P = V.n_cols, K = group_indices.n_elem;
-
-  // Build GroupInfo structures for each fixed effect using portable constructor
-  std::vector<GroupInfo> group_info(K);
-  for (size_t k = 0; k < K; ++k) {
-    group_info[k] = GroupInfo(group_indices(k), weights);
+  const size_t P = V.n_cols, K = group_indices.n_elem;
+  
+  if (K == 0) {
+    return; // No fixed effects to demean
   }
 
-  // TODO: check this later
-  // Conservative convergence check
-  auto convergence_check = [&](const vec &v, const vec &v0, const vec &w,
-                               double tol) {
-    if (family == "poisson") {
-      double ssr = dot(w, square(v));
-      double ssr0 = dot(w, square(v0));
-      return std::abs(ssr - ssr0) / (0.1 + std::abs(ssr)) < tol;
-    } else {
-      const double inv_sw = 1.0 / accu(w);
-      return dot(abs(v - v0), w) * inv_sw < tol;
+  // Convergence check matching Python: abs(a[i] - b[i]) >= tol for any i
+  auto converged_check = [](const vec &a, const vec &b, double tol) -> bool {
+    for (size_t i = 0; i < a.n_elem; ++i) {
+      if (std::abs(a(i) - b(i)) >= tol) {
+        return false;
+      }
     }
+    return true;
   };
 
-  // Main demeaning loop
-  #pragma omp parallel for schedule(static, 1) if(P > 4)
-  for (size_t p = 0; p < P; ++p) {
-    const vec v_orig = V.col(p);
-    vec v = v_orig;
-    field<vec> alpha(K);
-    for (size_t k = 0; k < K; ++k) {
-      alpha(k).zeros(group_info[k].n_groups);
+  // Compute group weights once (matching Python _calc_group_weights)
+  std::vector<vec> group_weights(K);
+  for (size_t k = 0; k < K; ++k) {
+    const field<uvec> &groups_k = group_indices(k);
+    group_weights[k].zeros(groups_k.n_elem);
+    
+    for (size_t g = 0; g < groups_k.n_elem; ++g) {
+      const uvec &group_g = groups_k(g);
+      for (size_t i = 0; i < group_g.n_elem; ++i) {
+        group_weights[k](g) += weights(group_g(i));
+      }
     }
-    vec alpha_sum = zeros<vec>(N);
-    vec v0(N, fill::none);
+  }
 
-    // Simple alternating projections loop with enabled acceleration for Poisson
+  // Process each variable separately (matching Python parallel structure)
+  for (size_t p = 0; p < P; ++p) {
+    vec x_curr = V.col(p);
+    vec x_prev = x_curr - 1.0; // Initialize as different to ensure first iteration runs
+    
+    // Alternating projections loop (matching Python demean function)
     for (int iter = 0; iter < max_iter; ++iter) {
-      v0 = v;
-      
-      // Alternating projections step
+      // For each fixed effect factor
       for (size_t k = 0; k < K; ++k) {
-        const auto &gi = group_info[k];
-
-        // Remove current FE from alpha_sum
-        gi.subtract_group_effects(alpha_sum, alpha(k));
-
-        // Compute residual
-        v = v_orig - alpha_sum;
-
-        // Update alpha - use specialized Poisson computation for single FE
-        if (family == "poisson" && K == 1) {
-          // Create cluster indices for efficient computation
-          uvec cluster_indices(N);
-          for (size_t g = 0; g < gi.n_groups; ++g) {
-            const size_t start = gi.group_starts(g);
-            const size_t size = gi.group_sizes(g);
-            for (size_t i = 0; i < size; ++i) {
-              cluster_indices(gi.flat_indices(start + i)) = g;
-            }
+        const field<uvec> &groups_k = group_indices(k);
+        
+        // For each group in this fixed effect
+        for (size_t g = 0; g < groups_k.n_elem; ++g) {
+          const uvec &group_g = groups_k(g);
+          if (group_g.n_elem == 0 || group_weights[k](g) == 0) continue;
+          
+          // Compute weighted group sum (matching Python _subtract_weighted_group_mean)
+          double group_weighted_sum = 0.0;
+          for (size_t i = 0; i < group_g.n_elem; ++i) {
+            group_weighted_sum += weights(group_g(i)) * x_curr(group_g(i));
           }
           
-          // Use specialized Poisson cluster coefficient computation
-          vec cluster_coef(gi.n_groups);
-          bool use_log_space = any(v > 20);
-          
-          // Compute sum_y for each cluster
-          vec sum_y(gi.n_groups, fill::zeros);
-          for (size_t i = 0; i < N; ++i) {
-            sum_y(cluster_indices(i)) += v(i);
-          }
-          
-          if (use_log_space) {
-            CCC_poisson_log(N, gi.n_groups, cluster_coef, v, sum_y, cluster_indices);
-          } else {
-            vec exp_v = exp(v);
-            CCC_poisson(N, gi.n_groups, cluster_coef, exp_v, sum_y, cluster_indices);
-          }
-          
-          alpha(k) = cluster_coef;
-        } else {
-          // Standard weighted mean computation for other families
-          for (size_t l = 0; l < gi.n_groups; ++l) {
-            const size_t start = gi.group_starts(l);
-            const size_t size = gi.group_sizes(l);
-            if (size == 0) continue;
-
-            double w_sum = 0.0;
-            
-            for (size_t i = 0; i < size; ++i) {
-              const size_t idx = gi.flat_indices(start + i);
-              w_sum += weights(idx) * v(idx);
-            }
-            
-            alpha(k)(l) = w_sum * gi.inv_weights(l);
+          // Compute group mean and subtract from all group members
+          double group_mean = group_weighted_sum / group_weights[k](g);
+          for (size_t i = 0; i < group_g.n_elem; ++i) {
+            x_curr(group_g(i)) -= group_mean;
           }
         }
-
-        // Add back new FE
-        gi.add_group_effects(alpha_sum, alpha(k));
       }
       
-      v = v_orig - alpha_sum;
+      // Check convergence (matching Python _sad_converged)
+      if (converged_check(x_curr, x_prev, tol)) {
+        break;
+      }
       
-      // Convergence check
-      if (convergence_check(v, v0, weights, tol)) break;
+      x_prev = x_curr;
     }
-    V.col(p) = v;
+    
+    V.col(p) = x_curr;
   }
 }
 

@@ -7,7 +7,7 @@
 feglm_control(
   dev_tol = 1e-08,
   center_tol = 1e-08,
-  iter_max = 100L,
+  iter_max = 25L,
   iter_center_max = 10000L,
   iter_inner_max = 50L,
   iter_interrupt = 1000L,

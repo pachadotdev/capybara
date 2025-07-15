@@ -56,7 +56,7 @@ NULL
 #'
 #' @inheritParams feglm
 #'
-#' @return A named list of class \code{"felm"}. The list contains the following
+#' @return A named list of class \code{"feols"}. The list contains the following
 #'  eleven elements:
 #'  \item{coefficients}{a named vector of the estimated coefficients}
 #'  \item{fitted.values}{a vector of the estimated dependent variable}
@@ -84,11 +84,11 @@ NULL
 #'
 #' @examples
 #' # check the feglm examples for the details about clustered standard errors
-#' mod <- felm(log(mpg) ~ log(wt) | cyl, mtcars)
+#' mod <- feols(log(mpg) ~ log(wt) | cyl, mtcars)
 #' summary(mod)
 #'
 #' @export
-felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
+feols <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   # Check validity of formula ----
   check_formula_(formula)
 
@@ -167,7 +167,7 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   if (is.integer(y)) {
     y <- as.numeric(y)
   }
-  fit <- structure(felm_fit_(y, x, wt, control, k_list), class = "felm")
+  fit <- structure(feols_fit_(y, x, wt, control, k_list), class = "feols")
 
   # Compute nobs using y and fitted values
   nobs <- nobs_(nobs_full, nobs_na, y, predict(fit))

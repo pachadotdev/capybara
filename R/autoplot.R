@@ -5,8 +5,8 @@ utils::globalVariables(c("term", "estimate", "conf_low", "conf_high"))
 ggplot2::autoplot
 
 #' srr_stats
-#' @srrstats {G1.0} Adheres to R standards for extending methods like `autoplot` for custom classes (`feglm` and `felm`).
-#' @srrstats {G2.1a} Ensures input objects are of the expected classes (`feglm` or `felm`), stopping otherwise.
+#' @srrstats {G1.0} Adheres to R standards for extending methods like `autoplot` for custom classes (`feglm` and `feols`).
+#' @srrstats {G2.1a} Ensures input objects are of the expected classes (`feglm` or `feols`), stopping otherwise.
 #' @srrstats {G2.3a} Provides validation for optional arguments like `conf_level`, ensuring their correctness.
 #' @srrstats {G2.3b} Handles potential case sensitivity issues for user-specified arguments.
 #' @srrstats {G2.14a} Issues errors if required packages (`ggplot2`) are missing, ensuring dependencies are installed.
@@ -49,7 +49,7 @@ autoplot.feglm <- function(object, ...) {
     stop("The 'ggplot2' package is required to use this function")
   }
 
-  # stop if the object is not of class feglm or felm
+  # stop if the object is not of class feglm or feols
   if (!inherits(object, "feglm")) {
     stop("The object must be of class 'feglm'")
   }
@@ -106,7 +106,7 @@ autoplot.feglm <- function(object, ...) {
   p
 }
 
-#' @title Autoplot method for felm objects
+#' @title Autoplot method for feols objects
 #'
 #' @description Extracts the estimated coefficients and their confidence
 #'
@@ -116,19 +116,19 @@ autoplot.feglm <- function(object, ...) {
 #' intervals.
 #'
 #' @examples
-#' mod <- felm(mpg ~ wt + drat | cyl, mtcars)
+#' mod <- feols(mpg ~ wt + drat | cyl, mtcars)
 #' autoplot(mod, conf_level = 0.90)
 #'
 #' @export
-autoplot.felm <- function(object, ...) {
+autoplot.feols <- function(object, ...) {
   # stop if ggplot2 is not installed
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
     stop("The 'ggplot2' package is required to use this function")
   }
 
-  # stop if the object is not of class feglm or felm
-  if (!inherits(object, "felm")) {
-    stop("The object must be of class 'felm'")
+  # stop if the object is not of class feglm or feols
+  if (!inherits(object, "feols")) {
+    stop("The object must be of class 'feols'")
   }
 
   # if conf_level is not provided, set it to 0.95
@@ -143,7 +143,7 @@ autoplot.felm <- function(object, ...) {
     stop("The confidence level must be between 0 and 1")
   }
 
-  # Extract the summary of the felm object
+  # Extract the summary of the feols object
   res <- summary(object)$coefficients
   colnames(res) <- c("estimate", "std.error", "statistic", "p.value")
 

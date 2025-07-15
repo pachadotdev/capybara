@@ -1,6 +1,6 @@
 #' srr_stats
-#' @srrstats {G1.0} Implements `summary` methods for various model objects (`apes`, `feglm`, `felm`) to provide detailed post-estimation statistics.
-#' @srrstats {G2.1a} Ensures that input objects are of the expected class (`apes`, `feglm`, `felm`).
+#' @srrstats {G1.0} Implements `summary` methods for various model objects (`apes`, `feglm`, `feols`) to provide detailed post-estimation statistics.
+#' @srrstats {G2.1a} Ensures that input objects are of the expected class (`apes`, `feglm`, `feols`).
 #' @srrstats {G2.3} Accurately computes standard errors, z-values, and p-values for model coefficients.
 #' @srrstats {G3.1} Includes residual statistics, deviance measures, and (where applicable) pseudo R-squared values for Poisson models.
 #' @srrstats {G5.2a} Outputs include well-structured coefficient matrices with appropriate column headers and row names.
@@ -88,10 +88,10 @@ summary.feglm <- function(
 }
 
 #' @title Summary method for fixed effects LMs
-#' @inherit vcov.felm
+#' @inherit vcov.feols
 #' @export
 #' @noRd
-summary.felm <- function(
+summary.feols <- function(
     object,
     type = "hessian",
     ...) {
@@ -126,5 +126,5 @@ summary.felm <- function(
   )
 
   # Return list
-  structure(res, class = "summary.felm")
+  structure(res, class = "summary.feols")
 }

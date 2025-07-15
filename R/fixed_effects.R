@@ -1,6 +1,6 @@
 #' srr_stats
 #' @srrstats {G1.0} Implements recovery of fixed effects for models estimated with high-dimensional k-way fixed effects.
-#' @srrstats {G2.1a} Ensures that the input object is of the expected class (`felm` or `feglm`).
+#' @srrstats {G2.1a} Ensures that the input object is of the expected class (`feols` or `feglm`).
 #' @srrstats {G2.2} Checks for valid tolerance levels (`alpha_tol`) to control convergence.
 #' @srrstats {G3.1a} Outputs include named vectors of estimated fixed effects for interpretability.
 #' @srrstats {G3.3} Handles multiple high-dimensional fixed effect categories by iterative computation.
@@ -30,7 +30,7 @@ NULL
 #' @references Gaure, S. (n. d.). "Multicollinearity, identification, and
 #'  estimable functions". Unpublished.
 #'
-#' @seealso \code{\link{felm}}, \code{\link{feglm}}
+#' @seealso \code{\link{feols}}, \code{\link{feglm}}
 #'
 #' @examples
 #' # check the feglm examples for the details about clustered standard errors
@@ -42,10 +42,10 @@ fixed_effects <- function(object = NULL, control = NULL) {
   # Check validity of 'object' ----
   if (is.null(object)) {
     stop("'object' has to be specified.", call. = FALSE)
-  } else if (isFALSE(inherits(object, "felm")) &&
+  } else if (isFALSE(inherits(object, "feols")) &&
     isFALSE(inherits(object, "feglm"))) {
     stop(
-      "'fixed_effects' called on a non-'felm' or non-'feglm' object.",
+      "'fixed_effects' called on a non-'feols' or non-'feglm' object.",
       call. = FALSE
     )
   }

@@ -35,5 +35,5 @@ Gaure, S. (n. d.). "Multicollinearity, identification, and
 estimable functions". Unpublished.
 }
 \seealso{
-\code{\link{felm}}, \code{\link{feglm}}
+\code{\link{feols}}, \code{\link{feglm}}
 }

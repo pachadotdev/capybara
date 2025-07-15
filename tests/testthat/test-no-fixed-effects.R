@@ -1,14 +1,14 @@
 #' srr_stats (tests)
-#' @srrstats {RE3.1} Validates consistency between `felm`-`feglm` and base R
+#' @srrstats {RE3.1} Validates consistency between `feols`-`feglm` and base R
 #' `lm`-`glm` in terms of coefficients when there are no fixed effects of the
 #' form `y ~x | f`.
 #' @noRd
 NULL
 
-test_that("felm/feglm intercept is ok with no FEs", {
+test_that("feols/feglm intercept is ok with no FEs", {
   skip_on_cran()
 
-  m1 <- suppressMessages(felm(mpg ~ wt, mtcars))
+  m1 <- suppressMessages(feols(mpg ~ wt, mtcars))
   m2 <- suppressMessages(fepoisson(mpg ~ wt, mtcars))
 
   f1 <- unname(unlist(fixed_effects(m1)))

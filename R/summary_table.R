@@ -1,13 +1,13 @@
 #' Generate formatted regression tables
 #'
-#' @param ... One or more model objects of \code{felm} or \code{feglm} class.
+#' @param ... One or more model objects of \code{feols} or \code{feglm} class.
 #' @param coef_digits Number of digits for coefficients. The default is 3.
 #' @param se_digits Number of digits for standard errors. The default is 3.
 #' @param stars Whether to include significance stars. The default is \code{TRUE}.
 #' @param latex Whether to output as LaTeX code. The default is \code{FALSE}.
 #' @param model_names Optional vector of custom model names
 #' @examples
-#' m1 <- felm(mpg ~ wt | cyl, mtcars)
+#' m1 <- feols(mpg ~ wt | cyl, mtcars)
 #' m2 <- fepoisson(mpg ~ wt | cyl, mtcars)
 #' summary_table(m1, m2, model_names = c("Linear", "Poisson"))
 #' @return A formatted table
@@ -21,11 +21,11 @@ summary_table <- function(...,
   # Collect models
   models <- list(...)
 
-  # Check that all models are felm or feglm
-  valid_classes <- c("felm", "feglm")
+  # Check that all models are feols or feglm
+  valid_classes <- c("feols", "feglm")
   for (i in seq_along(models)) {
     if (!inherits(models[[i]], valid_classes)) {
-      stop("Model ", i, " is not a felm or feglm object")
+      stop("Model ", i, " is not a feols or feglm object")
     }
   }
 
@@ -112,7 +112,7 @@ summary_table <- function(...,
   stats_rows <- list()
 
   obs_row <- c("N", sapply(models, function(m) {
-    if (inherits(m, "felm")) {
+    if (inherits(m, "feols")) {
       format(as.numeric(m$nobs["nobs_full"]), big.mark = ",")
     } else {
       if (is.vector(m$nobs) && length(m$nobs) > 1) {
@@ -128,7 +128,7 @@ summary_table <- function(...,
   }))
 
   r2_row <- c(if (latex) "$R^2$" else "R-squared", sapply(models, function(m) {
-    if (inherits(m, "felm")) {
+    if (inherits(m, "feols")) {
       formatC(summary(m)$r.squared, digits = 3, format = "f")
     } else if (inherits(m, "feglm") && !is.null(summary(m)$pseudo.rsq)) {
       formatC(summary(m)$pseudo.rsq, digits = 3, format = "f")

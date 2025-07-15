@@ -1,6 +1,6 @@
 #' srr_stats
-#' @srrstats {G1.0} Implements covariance matrix extraction methods for `apes`, `feglm`, and `felm` objects.
-#' @srrstats {G2.1a} Validates input objects as instances of `apes`, `feglm`, or `felm`.
+#' @srrstats {G1.0} Implements covariance matrix extraction methods for `apes`, `feglm`, and `feols` objects.
+#' @srrstats {G2.1a} Validates input objects as instances of `apes`, `feglm`, or `feols`.
 #' @srrstats {G2.2} Provides various covariance estimation types including `hessian`, `outer.product`, `sandwich`, and `clustered`.
 #' @srrstats {G2.3} Handles cases with or without clustering variables, ensuring flexibility for diverse use cases.
 #' @srrstats {G3.0} Handles edge cases such as non-invertible hessians or missing cluster variables gracefully with informative errors.
@@ -87,7 +87,7 @@ vcov.feglm <- function(
     # If the hessian is invertible, compute its inverse
     v <- vcov_feglm_hessian_covariance_(h, p)
   } else {
-    g <- get_score_matrix_felm_(object)
+    g <- get_score_matrix_feols_(object)
     if (type == "outer.product") {
       # Check if the OP is invertible and compute its inverse
       v <- vcov_feglm_outer_covariance_(g, p)
@@ -218,10 +218,10 @@ vcov_feglm_clustered_cov_ <- function(g, cl_vars, sp_vars, p) {
 #' @title Covariance matrix for LMs
 #'
 #' @description Covariance matrix for the estimator of the structural parameters
-#'  from objects returned by \code{\link{felm}}. The covariance is computed
+#'  from objects returned by \code{\link{feols}}. The covariance is computed
 #'  from the hessian, the scores, or a combination of both after convergence.
 #'
-#' @param object an object of class \code{"felm"}.
+#' @param object an object of class \code{"feols"}.
 #' @param type the type of covariance estimate required. \code{"hessian"} refers
 #'  to the inverse of the negative expected hessian after convergence and is the
 #'  default option. \code{"outer.product"} is the outer-product-of-the-gradient
@@ -233,15 +233,15 @@ vcov_feglm_clustered_cov_ <- function(g, cl_vars, sp_vars, p) {
 #'
 #' @return A named matrix of covariance estimates.
 #'
-#' @seealso \code{\link{felm}}
+#' @seealso \code{\link{feols}}
 #'
 #' @examples
-#' # same as the example in felm but extracting the covariance matrix
-#' mod <- felm(log(mpg) ~ log(wt) | cyl | am, mtcars)
+#' # same as the example in feols but extracting the covariance matrix
+#' mod <- feols(log(mpg) ~ log(wt) | cyl | am, mtcars)
 #' vcov(mod, type = "clustered")
 #'
 #' @export
-vcov.felm <- function(
+vcov.feols <- function(
     object,
     type = c("hessian", "outer.product", "sandwich", "clustered"),
     ...) {
@@ -250,7 +250,7 @@ vcov.felm <- function(
 
   # Extract cluster from formula
   # it is totally fine not to have a cluster variable
-  cl_vars <- vcov_felm_vars_(object)
+  cl_vars <- vcov_feols_vars_(object)
   k <- length(cl_vars)
 
   if (isTRUE(k >= 1L) && type != "clustered") {
@@ -265,12 +265,12 @@ vcov.felm <- function(
     # If the hessian is invertible, compute its inverse
     v <- vcov_feglm_hessian_covariance_(h, p)
   } else {
-    g <- get_score_matrix_felm_(object)
+    g <- get_score_matrix_feols_(object)
     if (type == "outer.product") {
       # Check if the OP is invertible and compute its inverse
       v <- vcov_feglm_outer_covariance_(g, p)
     } else {
-      v <- vcov_felm_covmat_(
+      v <- vcov_feols_covmat_(
         object, type, h, g,
         cl_vars, k, p
       )
@@ -280,13 +280,13 @@ vcov.felm <- function(
   v
 }
 
-vcov_felm_vars_ <- function(object) {
+vcov_feols_vars_ <- function(object) {
   suppressWarnings({
     attr(terms(object[["formula"]], rhs = 3L), "term.labels")
   })
 }
 
-vcov_felm_covmat_ <- function(
+vcov_feols_covmat_ <- function(
     object, type, h, g,
     cl_vars, k, p) {
   # Check if the hessian is invertible and compute its inverse
@@ -301,7 +301,7 @@ vcov_felm_covmat_ <- function(
       if (isFALSE(k >= 1L)) {
         vcov_feglm_cluster_nocluster_()
       }
-      d <- vcov_feglm_cluster_data_(object, cl_vars, "felm")
+      d <- vcov_feglm_cluster_data_(object, cl_vars, "feols")
       d[, (cl_vars) := lapply(.SD, check_factor_), .SDcols = cl_vars]
       sp_vars <- colnames(g)
       g <- cbind(d, g)

@@ -11,9 +11,6 @@ enum FamilyType {
   UNKNOWN
 };
 
-// Forward declaration for concentration function
-
-
 std::string tidy_family_(const std::string &family) {
   // tidy family param
   std::string fam = family;
@@ -405,150 +402,310 @@ struct FeglmFitResult {
   }
 };
 
-inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
-                                vec beta, vec eta, const vec &y, const vec &wt,
-                                double theta, const field<field<uvec>> &group_indices,
-                                double center_tol, double dev_tol, bool keep_mx,
-                                size_t iter_max, size_t iter_center_max,
-                                size_t iter_inner_max, size_t iter_interrupt,
-                                size_t iter_ssr, const std::string &fam,
-                                FamilyType family_type) {
+// Family-specific GLM algorithms matching Python pyfixest EXACTLY
+// Poisson uses specialized PPML algorithm (fepois_.py)
+// Binomial and others use standard GLM IRLS (feglm_.py, felogit_.py)
+
+inline FeglmFitResult feglm_poisson(mat MX, vec beta, vec eta, const vec &y, const vec &wt,
+                                             const field<field<uvec>> &group_indices,
+                                             double center_tol, double dev_tol, bool keep_mx,
+                                             size_t iter_max, size_t iter_center_max,
+                                             size_t iter_interrupt, size_t iter_ssr, const std::string &fam) {
   FeglmFitResult res;
-  size_t n = y.n_elem, p = MX.n_cols;
+  size_t p = MX.n_cols;  // Remove unused n variable
+  bool has_fixed_effects = group_indices.n_elem > 0;
   
-  // Initialize starting values properly for each family (following fixest approach)
-  if (p > 0) {
-    if (family_type == POISSON) {
-      // For Poisson with regressors: fit simple OLS on log scale as starting values
-      vec y_offset = y + 0.1;  // add small offset to avoid log(0)
-      vec log_y = arma::log(y_offset);
-      
-      // Simple weighted least squares for starting values
-      mat XtWX = MX.t() * diagmat(wt) * MX;
-      vec XtWy = MX.t() * (wt % log_y);
-      beta = solve(XtWX, XtWy);
-      eta = MX * beta;
-    } else if (family_type == BINOMIAL) {
-      // For binomial with regressors: use more conservative starting values
-      // Start with simple mean-based initialization like base R
-      double y_mean = arma::mean(y);
-      double mu_start = std::max(0.01, std::min(0.99, y_mean));
-      double eta_start = std::log(mu_start / (1.0 - mu_start));
-      eta.fill(eta_start);
-      beta.zeros();  // Start with zero coefficients for binomial
-    } else {
-      // For other families: use simple mean-based starting values
-      double y_mean = arma::mean(y);
-      eta.fill(y_mean);
-      if (p > 0) {
-        beta.zeros();  // Start with zero coefficients for other families
-      }
-    }
-  } else {
-    // For cases without regressors, use simple starting values
-    double y_mean = arma::mean(y);
-    if (family_type == POISSON) {
-      eta.fill(std::log(std::max(y_mean, 0.1)));
-    } else if (family_type == BINOMIAL) {
-      double mu_start = std::max(0.001, std::min(0.999, y_mean));
-      eta.fill(std::log(mu_start / (1.0 - mu_start)));
-    } else {
-      eta.fill(y_mean);
-    }
-  }
+  // Initialize starting values for Poisson PPML (Python fepois_.py approach)
+  beta.zeros();
+  double y_mean = mean(y);
+  vec mu = (y + y_mean) / 2.0;  // Python: mu = (_Y + _mean) / 2
+  eta = log(mu);                // Python: eta = np.log(mu)
+  vec Z = eta + y / mu - 1.0;   // Python: Z = eta + _Y / mu - 1
+  vec reg_Z = Z;                // Python: reg_Z = Z.copy()
   
-  vec mu = link_inv_(eta, family_type), 
-      ymean = mean(y) * vec(y.n_elem, fill::ones), 
-      mu_eta(n, fill::none), w(n, fill::none), z(n, fill::none), eta_old(n, fill::none);
-  mat H(p, p, fill::none);
-  uvec coef_status; // Will be set from first iteration's collinearity detection
-  double dev = dev_resids_(y, mu, theta, wt, family_type),
-         null_dev = dev_resids_(y, ymean, theta, wt, family_type), 
-         dev_old, dev_ratio, rho;
-  bool dev_crit, val_crit, imp_crit, conv = false;
-  size_t iter, iter_inner;
+  double last_deviance = 2.0 * sum(y % (log(y / mu) - 1.0) + mu); // Poisson deviance
+  bool conv = false;
+  size_t iter;
+  
+  // Declare variables outside loop to use after convergence
+  vec delta_new(p, fill::zeros);
+  mat final_WX;
 
-  // Convert k_list to field format
-  field<field<uvec>> k_list = group_indices;
-
-  // Maximize the log-likelihood
+  // PPML algorithm (Python fepois_.py get_fit method)
   for (iter = 0; iter < iter_max; ++iter) {
-    rho = 1.0;
-    eta_old = eta;
-    dev_old = dev;
-    
-    // Step 1: Compute working weights and working response (exact fixest algorithm)
-    mu_eta = mu_eta_(eta, family_type);
-    vec var_mu = variance_(mu, theta, family_type);
-    w = wt % square(mu_eta) / var_mu;  // fixest: weights * mu.eta.val^2 / var_mu
-    z = eta + (y - mu) / mu_eta;  // fixest: eta + (y - mu)/mu.eta.val (no offset)
-    
-    // Step 2: EXACT fixest algorithm: wols = feols(y = z, X = X, weights = w, ...)
-    // Use felm_fit which is equivalent to feols - weighted fixed effects OLS
-    FelmFitResult wols = felm_fit(MX, z, w, group_indices, center_tol, 
-                                  iter_center_max, iter_interrupt, iter_ssr);
-    
-    // Step 3: Extract results from weighted OLS (exact fixest approach)
-    beta = wols.coefficients;
-    eta = wols.fitted;  // fixest: eta = wols$fitted.values
-    
-    // Important: capture collinearity information from the weighted OLS step
-    // This is set only in the first iteration and preserved afterward
-    if (iter == 0) {
-      coef_status = wols.coef_status;
-    }
-    
-    // Step 4: Update mu and compute deviance  
-    mu = link_inv_(eta, family_type);
-    dev = dev_resids_(y, mu, theta, wt, family_type);
-
-    // Step-halving with three checks:
-    // 1. finite deviance  
-    // 2. valid eta and mu
-    // 3. improvement as in glm2
-    if (!is_finite(dev) || dev > dev_old || !valid_eta_(eta, family_type) || !valid_mu_(mu, family_type)) {
-      vec eta_sh = eta;
-      for (iter_inner = 0; iter_inner < iter_inner_max; ++iter_inner) {
-        rho *= 0.5;
-        eta_sh = eta_old + rho * (eta - eta_old);
-        mu = link_inv_(eta_sh, family_type);
-        dev = dev_resids_(y, mu, theta, wt, family_type);
-        
-        dev_crit = is_finite(dev);
-        val_crit = valid_eta_(eta_sh, family_type) && valid_mu_(mu, family_type);
-        imp_crit = (dev <= dev_old);
-
-        if (dev_crit && val_crit && imp_crit) {
-          eta = eta_sh;
-          break;
-        }
-      }
-
-      // Check if step-halving failed
-      if (!dev_crit || !val_crit || !imp_crit) {
-        if (iter == 0) {
-          stop("Algorithm failed at first iteration. Step-halving could not find valid parameters.");
-        }
-        stop("Algorithm could not find valid parameters.");
-      }
+    if (iter > 0) {
+      Z = eta + y / mu - 1.0;   // eq (8) in Python
+      reg_Z = Z;                // eq (9) in Python
     }
 
-    // Check convergence
-    dev_ratio = fabs(dev - dev_old) / (0.1 + fabs(dev));
+    // Step 1: weighted demeaning (Python fepois_.py)
+    mat ZX;
+    if (MX.n_cols > 0) {
+      ZX = join_horiz(reg_Z, MX);
+    } else {
+      ZX = reg_Z;  // Only Z column if no covariates
+    }
+    vec mu_weights = mu;  // Python: weights=mu.flatten() (mu is already a vector)
+    
+    if (has_fixed_effects) {
+      demean_variables(ZX, mu_weights, group_indices, center_tol, iter_center_max, fam);
+    }
+    
+    vec Z_resid = ZX.col(0);
+    mat X_resid;
+    // Python: X_resid = ZX_resid[:, 1:]  # takes all columns from index 1 onwards
+    if (ZX.n_cols > 1) {
+      X_resid = ZX.cols(1, ZX.n_cols - 1);
+    } else {
+      X_resid = mat(ZX.n_rows, 0);  // Empty matrix with correct number of rows
+    }
 
-    if (dev_ratio < dev_tol) {
+    // Step 2: estimate WLS (Python fepois_.py)
+    if (X_resid.n_cols > 0) {  // Has covariates
+      mat WX = X_resid.each_col() % sqrt(mu_weights);  // Python: WX = np.sqrt(mu) * X_resid
+      vec WZ = Z_resid % sqrt(mu_weights);             // Python: WZ = np.sqrt(mu) * Z_resid
+      final_WX = WX;  // Store for Hessian computation
+
+      mat XWX = WX.t() * WX;  // Python: XWX = WX.transpose() @ WX
+      vec XWZ = WX.t() * WZ;  // Python: XWZ = WX.transpose() @ WZ
+
+      try {
+        delta_new = solve(XWX, XWZ, solve_opts::fast);  // Python: delta_new = solve_ols(XWX, XWZ)
+        if (!is_finite(delta_new)) {
+          delta_new = solve(XWX, XWZ, solve_opts::likely_sympd);
+        }
+      } catch (...) {
+        delta_new.zeros();
+      }
+
+      vec resid = Z_resid - X_resid * delta_new;  // Python: resid = Z_resid - X_resid @ delta_new
+      
+      // Update eta and mu (Python fepois_.py)
+      eta = Z - resid;    // Python: eta = Z - resid
+      mu = exp(eta);      // Python: mu = np.exp(eta)
+    } else {
+      // No covariates case
+      final_WX = mat(mu_weights.n_elem, 0);  // Empty matrix for Hessian
+      delta_new.zeros();
+      
+      // For intercept-only model, use the demeaned Z directly
+      eta = Z - Z_resid;
+      mu = exp(eta);
+    }
+
+    // Convergence check (same criterion as fixest)
+    double deviance = 2.0 * sum(y % (log(y / mu) - 1.0) + mu);
+    double crit = fabs(deviance - last_deviance) / (0.1 + fabs(last_deviance));
+    last_deviance = deviance;
+
+    if (crit < dev_tol) {
       conv = true;
       break;
     }
   }
 
-  // Information if convergence failed
-  if (!conv) {
-    // Just mark as not converged, don't stop
+  // Final results (Python fepois_.py style)
+  beta = delta_new;
+  
+  // Compute Hessian (Python: _hessian = XWX)
+  mat H;
+  if (final_WX.n_cols > 0) {
+    H = final_WX.t() * final_WX;
+  } else {
+    H = mat(0, 0, fill::zeros);
   }
 
-  // Compute Hessian  
-  H = crossprod_(MX, w);
+  res.coefficients = beta;
+  res.eta = eta;
+  res.fitted_values = mu;
+  res.weights = wt;
+  res.hessian = H;
+  res.deviance = last_deviance;
+  res.null_deviance = 0.0; // Will be computed elsewhere if needed
+  res.conv = conv;
+  res.iter = static_cast<int>(iter + 1);
+  res.coef_status = ones<uvec>(p);  // All coefficients are valid in Poisson
+  if (keep_mx) {
+    res.mx = MX;
+    res.has_mx = true;
+  }
+
+  return res;
+}
+
+inline FeglmFitResult feglm_irls(mat MX, vec beta, vec eta, const vec &y, const vec &wt,
+                                     double theta, const field<field<uvec>> &group_indices,
+                                     double center_tol, double dev_tol, bool keep_mx,
+                                     size_t iter_max, size_t iter_center_max,
+                                     size_t iter_inner_max, size_t iter_interrupt,
+                                     size_t iter_ssr, const std::string &fam,
+                                     FamilyType family_type) {
+  FeglmFitResult res;
+  size_t n = MX.n_rows, p = MX.n_cols;
+  bool has_fixed_effects = group_indices.n_elem > 0;
+  
+  // Initialize starting values following Python pyfixest feglm_.py EXACTLY
+  beta.zeros(); // Start with zero coefficients (Python: beta = np.zeros(_X.shape[1]))
+  
+  // For families that don't allow eta=0, use valid starting values
+  if (family_type == GAMMA) {
+    eta.fill(1.0 / mean(y));  // For Gamma: eta = 1/mu, start with mu = mean(y)
+  } else if (family_type == INV_GAUSSIAN) {
+    eta.fill(1.0 / sqrt(mean(y)));  // For Inverse Gaussian: eta = 1/sqrt(mu)
+  } else {
+    eta.zeros();  // Start with zero eta for other families (Python: eta = np.zeros(_N))
+  }
+  
+  vec mu = link_inv_(eta, family_type); // mu = self._get_mu(theta=eta)
+  
+  vec ymean = mean(y) * vec(y.n_elem, fill::ones);
+  mat H(p, p, fill::none);
+  uvec coef_status; // Will be set from first iteration's collinearity detection
+  double dev = dev_resids_(y, mu, theta, wt, family_type),
+         null_dev = dev_resids_(y, ymean, theta, wt, family_type), 
+         dev_old, dev_evol;
+  bool conv = false;
+  size_t iter;
+
+  // Standard GLM IRLS iterations following Python pyfixest feglm_.py EXACTLY
+  for (iter = 0; iter < iter_max; ++iter) {
+    dev_old = dev;
+
+    // Step 1: Compute GLM quantities (following Python pyfixest _update_W method)
+    vec detadmu = mu_eta_(eta, family_type);    // mu.eta in Python
+    vec V = variance_(mu, theta, family_type);  // V in Python
+    vec W = ones<vec>(n) / (square(detadmu) % V); // Pure IRLS weights (W in Python, no user weights!)
+    
+    // Step 2: Compute working residuals and transformed quantities 
+    vec v = (y - mu) % detadmu;                 // Working residuals: v = (y - mu) * mu.eta (Python formula!)
+    
+    // W_tilde computation (Python _update_W_tilde)
+    vec W_tilde = sqrt(W);  // Python: W_tilde = np.sqrt(W) (no user weights in base GLM)
+    
+    vec v_tilde = W_tilde % v;                  // v_tilde = W_tilde * v (Python: W_tilde * ((y - mu) * detadmu))
+    mat X_tilde = MX.each_col() % W_tilde;      // X_tilde = X * W_tilde
+    
+    // Step 3: Demean v_tilde and X_tilde using W_tilde weights
+    vec v_dotdot = v_tilde;  // v_dotdot in Python (will be demeaned)
+    mat X_dotdot = X_tilde;  // X_dotdot in Python (will be demeaned)
+    
+    if (has_fixed_effects) {
+      // Use W_tilde for demeaning weights (Python approach)
+      vec demean_weights = W_tilde;
+      
+      // Demean v_tilde 
+      mat v_mat = v_dotdot;
+      demean_variables(v_mat, demean_weights, group_indices, center_tol, iter_center_max, fam);
+      v_dotdot = v_mat.col(0);
+      
+      // Demean X_tilde 
+      demean_variables(X_dotdot, demean_weights, group_indices, center_tol, iter_center_max, fam);
+    }
+    
+    // Step 4: Solve WLS on demeaned data 
+    vec beta_diff(p, fill::zeros);
+    if (p > 0) {
+      // Collinearity detection (only on first iteration)
+      if (iter == 0) {
+        mat Q, R;
+        qr(Q, R, X_dotdot);
+        double tol = 1e-10;
+        coef_status = ones<uvec>(p);
+        for (uword j = 0; j < R.n_cols && j < R.n_rows; ++j) {
+          if (std::abs(R(j, j)) < tol) {
+            coef_status(j) = 0;
+          }
+        }
+      }
+      
+      // Python approach: X_dotdot and v_dotdot are already weighted by W_tilde
+      mat XtX = X_dotdot.t() * X_dotdot;  // Python: _update_beta_diff uses lstsq
+      vec Xty = X_dotdot.t() * v_dotdot;
+      
+      try {
+        beta_diff = solve(XtX, Xty, solve_opts::fast);
+        if (!is_finite(beta_diff)) {
+          beta_diff = solve(XtX, Xty, solve_opts::likely_sympd);
+        }
+      } catch (...) {
+        beta_diff = vec(p, fill::zeros);
+      }
+    }
+    
+    // Step 5: Update using step-halving (Python _update_eta_step_halfing)
+    double alpha = 1.0;
+    double step_halfing_tolerance = 1e-12;  // Python uses 1e-12
+    bool step_accepted = false;
+    
+    // If beta_diff is all zeros, no update needed - accept step immediately
+    if (p == 0 || norm(beta_diff) < 1e-15) {
+      step_accepted = true;
+    } else {
+      while (alpha > step_halfing_tolerance) {
+        vec beta_try = beta + alpha * beta_diff;
+        
+        // Python exact formula: eta = eta + X_dotdot @ (alpha * beta_diff) / W_tilde
+        vec eta_try = eta;
+        if (p > 0) {
+          vec eta_increment = X_dotdot * (alpha * beta_diff);
+          eta_increment /= W_tilde; // Element-wise division by W_tilde (Python formula!)
+          eta_try += eta_increment;
+        }
+        
+        // Check validity
+        if (!valid_eta_(eta_try, family_type)) {
+          alpha /= 2.0;
+          continue;
+        }
+        
+        vec mu_try = link_inv_(eta_try, family_type);
+        
+        if (!valid_mu_(mu_try, family_type)) {
+          alpha /= 2.0;
+          continue;
+        }
+        
+        double dev_try = dev_resids_(y, mu_try, theta, wt, family_type);
+        
+        // Accept step if deviance improves (Python's criterion)
+        if (is_finite(dev_try) && dev_try < dev_old) {
+          beta = beta_try;
+          eta = eta_try;
+          mu = mu_try;
+          dev = dev_try;
+          step_accepted = true;
+          break;
+        } else {
+          alpha /= 2.0;
+        }
+      }
+    }
+    
+    if (!step_accepted) {
+      // Python raises RuntimeError("Step-halving failed to find improvement.")
+      conv = false;
+      break;
+    }
+
+    // Convergence check (Python style)
+    dev_evol = dev - dev_old;
+    double crit = fabs(dev_evol) / (0.1 + fabs(dev_old));
+    if (crit < dev_tol) {
+      conv = true;
+      break;
+    }
+  }
+
+  // Compute final Hessian using standard IRLS approach
+  vec final_detadmu = mu_eta_(eta, family_type);
+  vec final_V = variance_(mu, theta, family_type);
+  vec final_W = (ones<vec>(n) / (square(final_detadmu) % final_V)) % wt;  // IRLS weights * user weights
+  
+  if (p > 0) {
+    H = MX.t() * diagmat(final_W) * MX;
+  } else {
+    H = mat(0, 0, fill::zeros);
+  }
 
   res.coefficients = beta;
   res.eta = eta;
@@ -559,7 +716,7 @@ inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
   res.null_deviance = null_dev;
   res.conv = conv;
   res.iter = static_cast<int>(iter + 1);
-  res.coef_status = coef_status; // Use captured collinearity information
+  res.coef_status = coef_status;
 
   if (keep_mx) {
     res.mx = MX;
@@ -567,6 +724,30 @@ inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
   }
 
   return res;
+}
+
+// Main dispatcher function - uses family-specific algorithms like Python pyfixest
+inline FeglmFitResult feglm_fit(mat MX, // copy for in-place centering
+                                vec beta, vec eta, const vec &y, const vec &wt,
+                                double theta, const field<field<uvec>> &group_indices,
+                                double center_tol, double dev_tol, bool keep_mx,
+                                size_t iter_max, size_t iter_center_max,
+                                size_t iter_inner_max, size_t iter_interrupt,
+                                size_t iter_ssr, const std::string &fam,
+                                FamilyType family_type) {
+  
+  // Family-specific algorithm dispatch matching Python pyfixest structure
+  if (family_type == POISSON) {
+    // Use specialized PPML algorithm like Python fepois_.py
+    return feglm_poisson(MX, beta, eta, y, wt, group_indices,
+                                  center_tol, dev_tol, keep_mx, iter_max, iter_center_max,
+                                  iter_interrupt, iter_ssr, fam);
+  } else {
+    // Use standard GLM IRLS like Python feglm_.py (for binomial, gamma, etc.)
+    return feglm_irls(MX, beta, eta, y, wt, theta, group_indices,
+                          center_tol, dev_tol, keep_mx, iter_max, iter_center_max,
+                          iter_inner_max, iter_interrupt, iter_ssr, fam, family_type);
+  }
 }
 
 #endif // CAPYBARA_GLM

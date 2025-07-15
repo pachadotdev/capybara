@@ -1,6 +1,6 @@
 #' srr_stats
-#' @srrstats {G1.0} Implements `print` methods for various model objects (`apes`, `feglm`, `felm`) and their summaries.
-#' @srrstats {G2.1a} Ensures that input objects are of the expected class (`apes`, `feglm`, `felm`, or summaries of these classes).
+#' @srrstats {G1.0} Implements `print` methods for various model objects (`apes`, `feglm`, `feols`) and their summaries.
+#' @srrstats {G2.1a} Ensures that input objects are of the expected class (`apes`, `feglm`, `feols`, or summaries of these classes).
 #' @srrstats {G3.2} Provides detailed output, including coefficients, significance levels, and iteration counts, tailored to the model type.
 #' @srrstats {G3.3} Includes well-structured significance indicators (`***`, `**`, `*`, `.`) for coefficient p-values.
 #' @srrstats {G5.2a} Outputs are formatted for clarity, with aligned columns and headers.
@@ -231,11 +231,11 @@ print.feglm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
   print(x[["coefficients"]], digits = digits)
 }
 
-#' @title Print method for 'felm' objects
+#' @title Print method for 'feols' objects
 #' @description Similar to the 'print' method for 'lm' objects
 #' @export
 #' @noRd
-print.felm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
+print.feols <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
   print(x[["coefficients"]], digits = digits)
 }
 
@@ -269,11 +269,11 @@ print.summary.feglm <- function(
   summary_fisher_(x, digits)
 }
 
-#' @title Print method for 'felm' summary objects
+#' @title Print method for 'feols' summary objects
 #' @description Similar to the 'print' method for 'lm' objects
 #' @export
 #' @noRd
-print.summary.felm <- function(
+print.summary.feols <- function(
     x, digits = max(3L, getOption("digits") - 3L), ...) {
   summary_formula_(x)
 

@@ -2,12 +2,12 @@
 % Please edit documentation in R/autoplot.R
 \name{autoplot.feglm}
 \alias{autoplot.feglm}
-\alias{autoplot.felm}
+\alias{autoplot.feols}
 \title{Autoplot method for feglm objects}
 \usage{
 \method{autoplot}{feglm}(object, ...)
 
-\method{autoplot}{felm}(object, ...)
+\method{autoplot}{feols}(object, ...)
 }
 \arguments{
 \item{object}{A fitted model object.}
@@ -33,7 +33,7 @@ Extracts the estimated coefficients and their confidence
 mod <- fepoisson(mpg ~ wt + drat | cyl, mtcars)
 autoplot(mod, conf_level = 0.99)
 
-mod <- felm(mpg ~ wt + drat | cyl, mtcars)
+mod <- feols(mpg ~ wt + drat | cyl, mtcars)
 autoplot(mod, conf_level = 0.90)
 
 }

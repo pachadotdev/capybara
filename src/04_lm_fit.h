@@ -1,7 +1,7 @@
 #ifndef CAPYBARA_LM
 #define CAPYBARA_LM
 
-struct FelmFitResult {
+struct FeolsFitResult {
   vec coefficients;
   vec fitted;
   vec weights;
@@ -28,12 +28,12 @@ mat crossprod_(const mat &X, const vec &w) {
 }
 
 // Core function: pure Armadillo types
-inline FelmFitResult felm_fit(const mat &X, const vec &y, const vec &w,
+inline FeolsFitResult feols_fit(const mat &X, const vec &y, const vec &w,
                               const field<field<uvec>> &group_indices, double center_tol,
                               size_t iter_center_max, size_t iter_interrupt,
                               size_t iter_ssr) {
   // TIME_FUNCTION;
-  FelmFitResult res;
+  FeolsFitResult res;
   mat Xc = X;
   vec MNU, beta, fitted;
   bool has_fixed_effects = group_indices.n_elem > 0;

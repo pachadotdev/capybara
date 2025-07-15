@@ -81,7 +81,7 @@ demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   return as_doubles_matrix(V);
 }
 
-[[cpp11::register]] list felm_fit_(const doubles &y_r,
+[[cpp11::register]] list feols_fit_(const doubles &y_r,
                                    const doubles_matrix<> &x_r,
                                    const doubles &wt_r, const list &control,
                                    const list &k_list) {
@@ -96,7 +96,7 @@ demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   // Convert R list to portable Armadillo structure
   field<field<uvec>> group_indices = convert_klist_to_field(k_list);
   
-  FelmFitResult res = felm_fit(X, y, w, group_indices, center_tol, iter_center_max,
+  FeolsFitResult res = feols_fit(X, y, w, group_indices, center_tol, iter_center_max,
                                iter_interrupt, iter_ssr);
   // Replace collinear coefficients with R's NA_REAL
   for (arma::uword i = 0; i < res.coefficients.n_elem; ++i) {
