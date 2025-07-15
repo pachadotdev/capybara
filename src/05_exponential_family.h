@@ -114,8 +114,6 @@ double dev_resids_negbin_(const vec &y, const vec &mu, const double &theta,
   return 2 * accu(r);
 }
 
-vec variance_gaussian_(const vec &mu) { return ones<vec>(mu.n_elem); }
-
 vec link_inv_(const vec &eta, const FamilyType family_type) {
   vec result(eta.n_elem);
 

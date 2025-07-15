@@ -41,7 +41,7 @@ struct beta_results {
 // Solve for regression coefficients using QR decomposition (handles
 // collinearity)
 inline void get_beta_qr(mat &MX, const vec &MNU, const vec &w, beta_results &ws,
-                        const uword p, bool use_weights) {
+                        const uword p, bool use_weights, double collin_tol) {
   if (use_weights) {
     if (ws.XW.n_rows != MX.n_rows || ws.XW.n_cols != MX.n_cols) {
       ws.XW.set_size(MX.n_rows, MX.n_cols);
@@ -57,8 +57,8 @@ inline void get_beta_qr(mat &MX, const vec &MNU, const vec &w, beta_results &ws,
 
   const vec diag_abs = abs(ws.decomp.diag());
   const double max_diag = diag_abs.max();
-  // Use R's default tolerance for collinearity detection
-  const double tol = 1e-7 * max_diag;
+  // Use tolerance passed from R
+  const double tol = collin_tol * max_diag;
   const uvec indep = find(diag_abs > tol);
 
   ws.coefficients.fill(datum::nan);
@@ -78,21 +78,22 @@ inline void get_beta_qr(mat &MX, const vec &MNU, const vec &w, beta_results &ws,
 
 // Main beta solver: uses Cholesky if possible, otherwise falls back to QR
 inline vec get_beta(mat &MX, const vec &MNU, const vec &w, const uword n,
-                    const uword p, beta_results &ws, bool use_weights) {
+                    const uword p, beta_results &ws, bool use_weights,
+                    double collin_tol) {
   // TIME_FUNCTION;
   ws.coefficients.set_size(p);
   ws.coefficients.fill(datum::nan);
   ws.valid_coefficients.zeros(
       p); // Initialize all as invalid, will be set to 1 for valid ones
 
-  if (ws.work.n_elem != p) {
-    ws.work.set_size(p);
-  }
+  // if (ws.work.n_elem != p) {
+  //   ws.work.set_size(p);
+  // }
 
   const bool direct_qr = (p > 0.9 * n);
 
   if (direct_qr) {
-    get_beta_qr(MX, MNU, w, ws, p, use_weights);
+    get_beta_qr(MX, MNU, w, ws, p, use_weights, collin_tol);
     return ws.coefficients;
   }
 
@@ -123,35 +124,9 @@ inline vec get_beta(mat &MX, const vec &MNU, const vec &w, const uword n,
     }
   }
 
-  get_beta_qr(MX, MNU, w, ws, p, use_weights);
+  get_beta_qr(MX, MNU, w, ws, p, use_weights, collin_tol);
 
   return ws.coefficients;
-}
-
-// Optimized beta computation for 2-way fixed effects models (disabled for now
-// due to type issues) This avoids recomputing X'X when the fixed effects
-// structure hasn't changed
-inline vec get_beta_twoway_optimized(mat &MX, const vec &MNU, const vec &w,
-                                     const list &k_list, beta_results &ws,
-                                     bool use_weights) {
-  // For now, fall back to standard computation to avoid type issues
-  const uword p = MX.n_cols;
-  const uword n = MX.n_rows;
-  return get_beta(MX, MNU, w, n, p, ws, use_weights);
-}
-
-// Enhanced get_beta function that uses optimizations when appropriate
-inline vec get_beta_fast(mat &MX, const vec &MNU, const vec &w, uword n,
-                         uword p, beta_results &ws, bool use_weights,
-                         const list *k_list = nullptr) {
-
-  // Use specialized 2-way optimization if applicable
-  if (k_list != nullptr && k_list->size() == 2 && p > 1) {
-    return get_beta_twoway_optimized(MX, MNU, w, *k_list, ws, use_weights);
-  }
-
-  // Fall back to standard computation
-  return get_beta(MX, MNU, w, n, p, ws, use_weights);
 }
 
 #endif // CAPYBARA_BETA

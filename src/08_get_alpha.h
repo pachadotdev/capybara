@@ -94,8 +94,7 @@ inline GetAlphaResult get_alpha(const vec &p,
     }
   } else {
     // K>2
-    const int warmup = 15;
-    const int grand_acc = 40;
+    const size_t warmup = 15, grand_acc = 40;
     size_t iter = 0;
 
     for (; iter < std::min<size_t>(warmup, iter_max); ++iter) {
@@ -136,7 +135,7 @@ inline GetAlphaResult get_alpha(const vec &p,
     }
 
     // Main loop - Alternate projections with Irons-Tuck acceleration
-    int acc_count = 0;
+    size_t acc_count = 0;
     while (iter < iter_max && ratio >= tol) {
       // Save previous states
       Alpha2 = Alpha1;

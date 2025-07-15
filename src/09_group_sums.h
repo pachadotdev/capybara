@@ -27,10 +27,10 @@ inline GroupSumsResult group_sums(const mat &M, const mat &w,
 }
 
 inline GroupSumsResult group_sums_spectral(const mat &M, const mat &v,
-                                           const mat &w, int K,
+                                           const mat &w, size_t K,
                                            const field<uvec> &group_indices) {
-  const size_t J = group_indices.n_elem, K1 = K, P = M.n_cols;
-  size_t i, j, k, I;
+  const size_t J = group_indices.n_elem, P = M.n_cols;
+  size_t j, k, I;
   vec num(P, fill::none), v_shifted;
   mat b(P, 1, fill::zeros);
   double denom;
@@ -42,10 +42,10 @@ inline GroupSumsResult group_sums_spectral(const mat &M, const mat &v,
     num.fill(0.0);
     denom = accu(w.elem(indexes));
     v_shifted.zeros(I);
-    for (k = 1; k <= K1 && k < I; ++k) {
-      for (i = 0; i < I - k; ++i) {
-        v_shifted(i + k) += v(indexes(i));
-      }
+    vec v_indexed = v.elem(indexes);
+    for (k = 1; k <= K && k < I; ++k) {
+      // Vectorized subvector operations
+      v_shifted.subvec(k, I - 1) += v_indexed.subvec(0, I - k - 1);
     }
     num = M.rows(indexes).t() * (v_shifted * (I / (I - 1.0)));
     b += num / denom;
@@ -57,9 +57,8 @@ inline GroupSumsResult group_sums_spectral(const mat &M, const mat &v,
 
 inline GroupSumsResult group_sums_var(const mat &M,
                                       const field<uvec> &group_indices) {
-  const int J = group_indices.n_elem;
-  const int P = M.n_cols;
-  int j;
+  const size_t J = group_indices.n_elem, P = M.n_cols;
+  size_t j;
   mat v(P, 1, fill::none), V(P, P, fill::zeros);
   for (j = 0; j < J; ++j) {
     const uvec &indexes = group_indices(j);
@@ -73,9 +72,8 @@ inline GroupSumsResult group_sums_var(const mat &M,
 
 inline GroupSumsResult group_sums_cov(const mat &M, const mat &N,
                                       const field<uvec> &group_indices) {
-  const int J = group_indices.n_elem;
-  const int P = M.n_cols;
-  int j;
+  const size_t J = group_indices.n_elem, P = M.n_cols;
+  size_t j;
   mat V(P, P, fill::zeros);
   for (j = 0; j < J; ++j) {
     const uvec &indexes = group_indices(j);

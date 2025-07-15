@@ -30,9 +30,10 @@ inline mat crossprod_(const mat &X, const vec &w) {
 
 // Core function: pure Armadillo types
 inline LMResult felm_fit(const mat &X, const vec &y, const vec &w,
-                                const field<field<uvec>> &group_indices,
-                                double center_tol, size_t iter_center_max,
-                                size_t iter_interrupt, size_t iter_ssr) {
+                         const field<field<uvec>> &group_indices,
+                         double center_tol, size_t iter_center_max,
+                         size_t iter_interrupt, size_t iter_ssr,
+                         double collin_tol) {
   // TIME_FUNCTION;
   LMResult res;
   mat Xc = X;
@@ -52,18 +53,23 @@ inline LMResult felm_fit(const mat &X, const vec &y, const vec &w,
   }
 
   beta_results ws(Xc.n_rows, Xc.n_cols);
-  beta = get_beta(Xc, MNU, w, Xc.n_rows, Xc.n_cols, ws, false);
+  beta = get_beta(Xc, MNU, w, Xc.n_rows, Xc.n_cols, ws, false, collin_tol);
 
   // Collinearity detection using QR decomposition
   uvec coef_status = ones<uvec>(beta.n_elem);
   mat Q, R;
   qr(Q, R, Xc);
-  double tol = 1e-10;
-  for (uword j = 0; j < R.n_cols && j < R.n_rows; ++j) {
-    if (std::abs(R(j, j)) < tol) {
-      beta(j) = 0.0;
-      coef_status(j) = 0;
-    }
+
+  vec diag_R = R.diag();
+  double max_diag = max(abs(diag_R));
+  double tol_scaled = collin_tol * max_diag;
+  uvec collinear_mask = (abs(diag_R) < tol_scaled);
+
+  // Set collinear coefficients to zero
+  if (any(collinear_mask)) {
+    uvec collinear_indices = find(collinear_mask);
+    beta.elem(collinear_indices).zeros();
+    coef_status.elem(collinear_indices).zeros();
   }
 
   if (has_fixed_effects) {

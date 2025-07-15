@@ -32,6 +32,8 @@ NULL
 #'  algorithm. The stopping condition is based on the relative change of the
 #'  centered variable similar to the \code{'lfe'} package. The default is
 #'  \code{1.0e-08}.
+#' @param collin_tol tolerance level for detecting collinearity when computing
+#'  regression coefficients. The default is \code{1.0e-07}.
 #' @param iter_max unsigned integer indicating the maximum number of iterations
 #'  in the maximization routine. The default is \code{25L}.
 #' @param iter_center_max unsigned integer indicating the maximum number of
@@ -70,6 +72,7 @@ NULL
 feglm_control <- function(
     dev_tol = 1.0e-8,
     center_tol = 1.0e-8,
+    collin_tol = 1.0e-7,
     iter_max = 25L,
     iter_center_max = 10000L,
     iter_inner_max = 50L,
@@ -80,7 +83,7 @@ feglm_control <- function(
     drop_pc = TRUE,
     keep_mx = FALSE) {
   # Check validity of tolerance parameters
-  if (dev_tol <= 0.0 || center_tol <= 0.0) {
+  if (dev_tol <= 0.0 || center_tol <= 0.0 || collin_tol <= 0.0) {
     stop(
       "All tolerance parameters should be greater than zero.",
       call. = FALSE
@@ -142,6 +145,7 @@ feglm_control <- function(
   list(
     dev_tol = dev_tol,
     center_tol = center_tol,
+    collin_tol = collin_tol,
     iter_max = iter_max,
     iter_center_max = iter_center_max,
     iter_inner_max = iter_inner_max,

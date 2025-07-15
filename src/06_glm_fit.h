@@ -4,7 +4,7 @@
 struct SeparationResult {
   uvec separated_indices;
   bool has_separation;
-  int n_separated;
+  size_t n_separated;
 };
 
 struct GLMResult {
@@ -16,56 +16,34 @@ struct GLMResult {
   double deviance;
   double null_deviance;
   bool conv;
-  int iter;
+  size_t iter;
   mat mx; // only if keep_mx = true
   bool has_mx = false;
   uvec coef_status; // 1 = valid, 0 = collinear
-  
+
   // PPML-only
   vec residuals_working;
   vec residuals_response;
   mat scores;
 
   cpp11::list to_list(bool keep_mx = false) const {
-    auto out =
-        writable::list({"coefficients"_nm = as_doubles(coefficients),
-                        "eta"_nm = as_doubles(eta),
-                        "fitted.values"_nm = as_doubles(fitted_values),
-                        "weights"_nm = as_doubles(weights),
-                        "hessian"_nm = as_doubles_matrix(hessian),
-                        "deviance"_nm = writable::doubles({deviance}),
-                        "null_deviance"_nm = writable::doubles({null_deviance}),
-                        "conv"_nm = writable::logicals({conv}),
-                        "iter"_nm = writable::integers({iter}),
-                        "coef_status"_nm = as_integers({coef_status})});
+    auto out = writable::list(
+        {"coefficients"_nm = as_doubles(coefficients),
+         "eta"_nm = as_doubles(eta),
+         "fitted.values"_nm = as_doubles(fitted_values),
+         "weights"_nm = as_doubles(weights),
+         "hessian"_nm = as_doubles_matrix(hessian),
+         "deviance"_nm = writable::doubles({deviance}),
+         "null_deviance"_nm = writable::doubles({null_deviance}),
+         "conv"_nm = writable::logicals({conv}),
+         "iter"_nm = writable::integers({static_cast<int>(iter)}),
+         "coef_status"_nm = as_integers({coef_status})});
     if (keep_mx && has_mx) {
       out.push_back({"MX"_nm = as_doubles_matrix(mx)});
     }
     return out;
   }
 };
-
-inline bool stopping_criterion(double a, double b, double diffMax) {
-  double diff = fabs(a - b);
-  return ((diff < diffMax) || (diff / (0.1 + fabs(a)) < diffMax));
-}
-
-inline bool convergence_check(const vec &x_new, const vec &x_old,
-                              const vec &weights, double tol,
-                              const std::string &family = "gaussian") {
-  if (family == "poisson") {
-    double ssr_new = dot(weights, square(x_new));
-    double ssr_old = dot(weights, square(x_old));
-    return std::abs(ssr_new - ssr_old) / (0.1 + std::abs(ssr_new)) < tol;
-  } else {
-    // Gaussian and others: weighted absolute difference
-    double diff = dot(abs(x_new - x_old), weights);
-    double total_weight = accu(weights);
-    return (diff / total_weight) < tol;
-  }
-}
-
-// Note: Binomial GLM helpers are in 05_exponential_family.h
 
 // PPML separation helpers
 
@@ -94,7 +72,8 @@ inline uvec check_separation_fe(const vec &y,
     for (size_t level = 0; level < current_fe.n_elem; ++level) {
       const uvec &group_obs = current_fe(level);
 
-      if (group_obs.n_elem == 0) continue;
+      if (group_obs.n_elem == 0)
+        continue;
 
       // Check if this group has only positive y values
       uvec y_group = y_positive.elem(group_obs);
@@ -150,8 +129,8 @@ SeparationResult check_separation_fe(const vec &y, const mat &X, const umat &fe,
       uvec fe_mask = (fe_col == fe_level);
 
       // Count observations with y=0 and y>0 for this FE level
-      int n_zero = sum(fe_mask % (1 - y_positive));
-      int n_positive = sum(fe_mask % y_positive);
+      size_t n_zero = sum(fe_mask % (1 - y_positive));
+      size_t n_positive = sum(fe_mask % y_positive);
 
       // Separation occurs if FE level has only y=0 or only y>0 observations
       if ((n_zero > 0 && n_positive == 0) || (n_zero == 0 && n_positive > 0)) {
@@ -173,98 +152,100 @@ SeparationResult check_separation_fe(const vec &y, const mat &X, const umat &fe,
 }
 
 // Iterative Rectifier separation check
-SeparationResult check_separation_ir(const vec &y, const mat &X, const umat &fe,
-                                     double tol = 1e-4, int maxiter = 100) {
-  SeparationResult result;
-  result.has_separation = false;
-  result.n_separated = 0;
+// SeparationResult check_separation_ir(const vec &y, const mat &X, const umat
+// &fe,
+//                                      double tol, size_t maxiter) {
+//   SeparationResult result;
+//   result.has_separation = false;
+//   result.n_separated = 0;
 
-  // Check if all Y > 0 (no boundary observations)
-  uvec is_interior = (y > 0);
-  if (all(is_interior)) {
-    return result;
-  }
-  vec U = conv_to<vec>::from(1 - is_interior);  // U = (y == 0)
+//   // Check if all Y > 0 (no boundary observations)
+//   uvec is_interior = (y > 0);
+//   if (all(is_interior)) {
+//     return result;
+//   }
+//   vec U = conv_to<vec>::from(1 - is_interior);  // U = (y == 0)
 
-  // Initialize weights using vectorized operations
-  int N0 = sum(is_interior);
-  double K = static_cast<double>(N0) / (tol * tol);
-  vec omega = conv_to<vec>::from(is_interior) * K +
-              (1.0 - conv_to<vec>::from(is_interior));
+//   // Initialize weights using vectorized operations
+//   size_t N0 = sum(is_interior);
+//   double K = static_cast<double>(N0) / (tol * tol);
+//   vec omega = conv_to<vec>::from(is_interior) * K +
+//               (1.0 - conv_to<vec>::from(is_interior));
 
-  bool has_converged = false;
+//   bool has_converged = false;
 
-  for (int iter = 0; iter < maxiter; iter++) {
-    // Solve weighted regression: U ~ X + fe with weights omega
-    // This is a simplified version - in practice would need full FE solver
-    mat X_weighted = X.each_col() % sqrt(omega);
-    vec U_weighted = U % sqrt(omega);
+//   for (size_t iter = 0; iter < maxiter; iter++) {
+//     // Solve weighted regression: U ~ X + fe with weights omega
+//     // This is a simplified version - in practice would need full FE solver
+//     mat X_weighted = X.each_col() % sqrt(omega);
+//     vec U_weighted = U % sqrt(omega);
 
-    // Simple OLS solution (ignoring FE for now - would need proper FE solver)
-    vec beta_hat;
-    if (X.n_cols > 0) {
-      beta_hat =
-          solve(X_weighted.t() * X_weighted, X_weighted.t() * U_weighted);
-    } else {
-      beta_hat = vec(0, fill::none);
-    }
+//     // Simple OLS solution (ignoring FE for now - would need proper FE
+//     solver) vec beta_hat; if (X.n_cols > 0) {
+//       beta_hat =
+//           solve(X_weighted.t() * X_weighted, X_weighted.t() * U_weighted);
+//     } else {
+//       beta_hat = vec(0, fill::none);
+//     }
 
-    // Predict U_hat
-    vec U_hat = X * beta_hat;
+//     // Predict U_hat
+//     vec U_hat = X * beta_hat;
 
-    // Update U_hat based on tolerance
-    uvec within_zero = (U_hat > -0.1 * tol) && (U_hat < tol);
-    for (size_t i = 0; i < U_hat.n_elem; i++) {
-      if (is_interior(i) || within_zero(i)) {
-        U_hat(i) = 0;
-      }
-    }
+//     // Update U_hat based on tolerance
+//     uvec within_zero = (U_hat > -0.1 * tol) && (U_hat < tol);
+//     uvec should_zero = is_interior || within_zero;
+//     U_hat.elem(find(should_zero)).zeros();
 
-    // Check convergence
-    if (all(U_hat >= 0)) {
-      has_converged = true;
+//     // Check convergence
+//     if (all(U_hat >= 0)) {
+//       has_converged = true;
 
-      // Find separated observations using Armadillo
-      uvec separated_obs = find(U_hat > 0);
-      result.separated_indices = separated_obs;
-      result.has_separation = !separated_obs.is_empty();
-      break;
-    }
+//       // Find separated observations using Armadillo
+//       uvec separated_obs = find(U_hat > 0);
+//       result.separated_indices = separated_obs;
+//       result.has_separation = !separated_obs.is_empty();
+//       break;
+//     }
 
-    // Update U with ReLU activation using vectorized operations
-    uvec exterior_mask = (1 - is_interior);
-    U = U % conv_to<vec>::from(is_interior) +
-        clamp(U_hat, 0.0, datum::inf) % conv_to<vec>::from(exterior_mask);
-  }
+//     // Update U with ReLU activation using vectorized operations
+//     uvec exterior_mask = (1 - is_interior);
+//     U = U % conv_to<vec>::from(is_interior) +
+//         clamp(U_hat, 0.0, datum::inf) % conv_to<vec>::from(exterior_mask);
+//   }
 
-  if (!has_converged) {
-    // TODO: could add logging here
-  }
+//   // TODO: could add logging here
+//   if (!has_converged) { }
 
-  result.n_separated = result.separated_indices.n_elem;
-  return result;
-}
+//   result.n_separated = result.separated_indices.n_elem;
+//   return result;
+// }
 
 // Combined separation checking function
-SeparationResult check_for_separation(
-    const vec &y, const mat &X, const umat &fe,
-    const std::vector<std::string> &fe_names,
-    const std::vector<std::string> &methods = {"fe", "ir"}) {
+SeparationResult
+check_for_separation(const vec &y, const mat &X, const umat &fe,
+                     const std::vector<std::string> &fe_names,
+                     // const std::vector<std::string> &methods = {"fe", "ir"},
+                     const std::vector<std::string> &methods = {"fe"},
+                     double tol = 1e-8, size_t maxiter = 100) {
   SeparationResult combined_result;
   combined_result.has_separation = false;
   combined_result.n_separated = 0;
 
-  uvec all_separated;  // Use uvec instead of std::vector
+  uvec all_separated;
 
   for (const std::string &method : methods) {
     SeparationResult method_result;
 
+    // if (method == "fe") {
+    //   method_result = check_separation_fe(y, X, fe, fe_names);
+    // } else if (method == "ir") {
+    //   method_result = check_separation_ir(y, X, fe, tol, maxiter);
+    // } else {
+    //   continue;  // Skip unknown methods
+    // }
+
     if (method == "fe") {
       method_result = check_separation_fe(y, X, fe, fe_names);
-    } else if (method == "ir") {
-      method_result = check_separation_ir(y, X, fe);
-    } else {
-      continue;  // Skip unknown methods
     }
 
     // Combine results using Armadillo join
@@ -312,26 +293,25 @@ inline uvec check_separation(const vec &y,
 
 // Compute PPML deviance (porting compute_deviance from fepois_.py)
 double compute_ppml_deviance(const vec &y, const vec &mu) {
-  vec dev_terms(y.n_elem);
+  // Log terms for non-zero y values
+  uvec nonzero_mask = (y > 0);
+  vec dev_terms = zeros<vec>(y.n_elem);
 
-  for (size_t i = 0; i < y.n_elem; i++) {
-    if (y(i) == 0) {
-      dev_terms(i) = 0;
-    } else {
-      dev_terms(i) = y(i) * std::log(y(i) / mu(i));
-    }
-    dev_terms(i) -= (y(i) - mu(i));
-  }
+  dev_terms.elem(find(nonzero_mask)) =
+      y.elem(find(nonzero_mask)) %
+      log(y.elem(find(nonzero_mask)) / mu.elem(find(nonzero_mask)));
+
+  dev_terms -= (y - mu);
 
   return 2.0 * sum(dev_terms);
 }
 
 // Core PPML IRLS algorithm based on ppmlhdfe
-GLMResult
-fit_ppml_irls(const vec &y, const mat &X, const umat &fe,
-              const std::vector<std::string> &fe_names, double tol, int maxiter,
-              double fixef_tol, int fixef_maxiter,
-              const std::vector<std::string> &separation_methods = {}) {
+GLMResult feppml_fit(const vec &y, const mat &X, const umat &fe,
+                     const std::vector<std::string> &fe_names, double tol,
+                     size_t maxiter, double fixef_tol, size_t fixef_maxiter,
+                     const std::vector<std::string> &separation_methods,
+                     double collin_tol) {
   GLMResult result;
   result.conv = false;
   result.iter = 0;
@@ -342,10 +322,10 @@ fit_ppml_irls(const vec &y, const mat &X, const umat &fe,
 
   // Check for separation
   if (!separation_methods.empty()) {
-    SeparationResult sep_result =
-        check_for_separation(y, X, fe, fe_names, separation_methods);
+    SeparationResult sep_result = check_for_separation(
+        y, X, fe, fe_names, separation_methods, tol, maxiter);
+    // TODO: would need to remove separated observations
     if (sep_result.has_separation) {
-      // TODO: would need to remove separated observations
     }
   }
 
@@ -363,7 +343,7 @@ fit_ppml_irls(const vec &y, const mat &X, const umat &fe,
   bool stop_iterating = false;
 
   // IRLS loop
-  for (int iter = 0; iter < maxiter; iter++) {
+  for (size_t iter = 0; iter < maxiter; iter++) {
     result.iter = iter + 1;
 
     if (stop_iterating) {
@@ -373,7 +353,7 @@ fit_ppml_irls(const vec &y, const mat &X, const umat &fe,
 
     // Step 1: Compute working dependent variable Z
     vec Z = eta + y / fitted_values - 1.0;
-    vec reg_Z = Z;             
+    vec reg_Z = Z;
 
     // Step 2: Weighted demeaning
     mat ZX = join_rows(reg_Z, X); // Concatenate Z and X
@@ -390,22 +370,20 @@ fit_ppml_irls(const vec &y, const mat &X, const umat &fe,
 
     // Step 3: Weighted least squares estimation
     mat WX = X_resid.each_col() % sqrt(fitted_values);
-    vec WZ = Z_resid % sqrt(fitted_values);           
+    vec WZ = Z_resid % sqrt(fitted_values);
 
     mat XWX = WX.t() * WX;
     vec XWZ = WX.t() * WZ;
 
     // Solve for coefficient update
     beta_results ws(WX.n_rows, WX.n_cols);
-    vec delta_new = get_beta(WX, WZ, fitted_values, WX.n_rows, WX.n_cols, ws, true);
+    vec delta_new = get_beta(WX, WZ, fitted_values, WX.n_rows, WX.n_cols, ws,
+                             true, collin_tol);
 
     // Track collinearity status
-    for (size_t i = 0; i < coef_status.n_elem; ++i) {
-      if (ws.valid_coefficients(i) == 0) {
-        coef_status(i) = 0;
-        result.coefficients(i) = 0.0;
-      }
-    }
+    uvec invalid_mask = (ws.valid_coefficients == 0);
+    coef_status.elem(find(invalid_mask)).zeros();
+    result.coefficients.elem(find(invalid_mask)).zeros();
 
     vec resid = Z_resid - X_resid * delta_new;
 
@@ -436,8 +414,8 @@ fit_ppml_irls(const vec &y, const mat &X, const umat &fe,
     result.scores = WX.each_col() % result.residuals_working;
   }
 
+  // TODO: add algorithm did not converge warning
   if (!result.conv && result.iter == maxiter) {
-    // TODO: add algorithm did not converge warning
   }
 
   // Set final collinearity status
@@ -477,16 +455,17 @@ fit_ppml_irls(const vec &y, const mat &X, const umat &fe,
 // GLM fitting
 
 // Main GLM fitting function with family-specific algorithm dispatch
-inline GLMResult
-feglm_fit(mat &MX, vec &beta, vec &eta, const vec &y, const vec &wt,
-          const double &theta, const field<field<uvec>> &group_indices,
-          double center_tol, double dev_tol, bool keep_mx, size_t iter_max,
-          size_t iter_center_max, size_t iter_inner_max, size_t iter_interrupt,
-          size_t iter_ssr, const std::string &fam, FamilyType family_type) {
+inline GLMResult feglm_fit(mat &MX, vec &beta, vec &eta, const vec &y,
+                           const vec &wt, const double &theta,
+                           const field<field<uvec>> &group_indices,
+                           double center_tol, double dev_tol, bool keep_mx,
+                           size_t iter_max, size_t iter_center_max,
+                           size_t iter_inner_max, size_t iter_interrupt,
+                           size_t iter_ssr, const std::string &fam,
+                           FamilyType family_type, double collin_tol) {
   GLMResult result;
 
   if (family_type == POISSON) {
-    // Convert group_indices to format expected by PPML functions
     std::vector<std::string> fe_names;
     umat fe_matrix;
 
@@ -498,23 +477,20 @@ feglm_fit(mat &MX, vec &beta, vec &eta, const vec &y, const vec &wt,
       for (size_t k = 0; k < group_indices.n_elem; k++) {
         fe_names.push_back("fe_" + std::to_string(k));
 
-        // Initialize this FE dimension to 0
-        fe_matrix.col(k).fill(0);
-
         // Set FE levels based on group indices
         for (size_t g = 0; g < group_indices(k).n_elem; g++) {
           const uvec &group_obs = group_indices(k)(g);
-          for (size_t i = 0; i < group_obs.n_elem; i++) {
-            fe_matrix(group_obs(i), k) = g;
+          if (group_obs.n_elem > 0) {
+            fe_matrix.submat(group_obs, uvec{k}).fill(g);
           }
         }
       }
     }
 
     // Run PPML algorithm and return result directly
-    GLMResult result = fit_ppml_irls(
-        y, MX, fe_matrix, fe_names, dev_tol, static_cast<int>(iter_max),
-        center_tol, static_cast<int>(iter_center_max));
+    GLMResult result = feppml_fit(
+        y, MX, fe_matrix, fe_names, dev_tol, static_cast<size_t>(iter_max),
+        center_tol, static_cast<size_t>(iter_center_max), {"fe"}, collin_tol);
 
     if (keep_mx) {
       result.mx = MX;
@@ -567,15 +543,13 @@ feglm_fit(mat &MX, vec &beta, vec &eta, const vec &y, const vec &wt,
 
       // Compute coefficient update
       beta_results ws(MX.n_rows, MX.n_cols);
-      beta_upd = get_beta(MX, MNU, w, MX.n_rows, MX.n_cols, ws, true);
+      beta_upd =
+          get_beta(MX, MNU, w, MX.n_rows, MX.n_cols, ws, true, collin_tol);
 
-      // Track collinearity status - consistent with PPML approach
-      for (size_t i = 0; i < coef_status.n_elem; ++i) {
-        if (ws.valid_coefficients(i) == 0) {
-          coef_status(i) = 0;
-          beta_upd(i) = 0.0;
-        }
-      }
+      // Track collinearity status
+      uvec invalid_mask = (ws.valid_coefficients == 0);
+      coef_status.elem(find(invalid_mask)).zeros();
+      beta_upd.elem(find(invalid_mask)).zeros();
 
       eta_upd = MX * beta_upd + nu - MNU;
 
@@ -625,7 +599,7 @@ feglm_fit(mat &MX, vec &beta, vec &eta, const vec &y, const vec &wt,
     result.deviance = dev;
     result.null_deviance = null_dev;
     result.conv = conv;
-    result.iter = static_cast<int>(iter);
+    result.iter = static_cast<size_t>(iter);
     result.coef_status = coef_status;
 
     if (keep_mx) {

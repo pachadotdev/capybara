@@ -13,7 +13,8 @@ feglm_offset_fit(vec eta, const vec &y, const vec &offset, const vec &wt,
                  const field<field<uvec>> &group_indices, double center_tol,
                  double dev_tol, size_t iter_max, size_t iter_center_max,
                  size_t iter_inner_max, size_t iter_interrupt, size_t iter_ssr,
-                 const std::string &fam, FamilyType family_type) {
+                 const std::string &fam, FamilyType family_type,
+                 double collin_tol) {
   FeglmOffsetFitResult res;
   size_t n = y.n_elem;
   vec Myadj = vec(n, fill::zeros);

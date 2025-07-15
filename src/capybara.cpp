@@ -56,12 +56,10 @@ inline field<field<uvec>> convert_klist_to_field(const list &k_list) {
 
     for (size_t g = 0; g < n_groups; ++g) {
       const integers group_obs = as_cpp<integers>(group_list[g]);
-      uvec obs_indices(group_obs.size());
 
-      size_t I = static_cast<size_t>(group_obs.size());
-      for (size_t i = 0; i < I; ++i) {
-        obs_indices(i) = static_cast<uword>(group_obs[i]);
-      }
+      uvec obs_indices(group_obs.size());
+      std::transform(group_obs.begin(), group_obs.end(), obs_indices.begin(),
+                     [](int val) { return static_cast<uword>(val); });
 
       group_indices(k)(g) = obs_indices;
     }
@@ -79,19 +77,24 @@ demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
 
   field<field<uvec>> group_indices = convert_klist_to_field(klist);
 
-  demean_variables(V, as_col(w_r), group_indices, tol, max_iter, family);
+  // Pass the parameters that demean_variables actually uses
+  // Note: iter_interrupt and iter_ssr are control parameters but not used in
+  // the basic demean_variables function The max_iter parameter corresponds to
+  // the centering iteration limit
+  demean_variables(V, as_col(w_r), group_indices, tol, max_iter, family, true);
 
   return as_doubles_matrix(V);
 }
 
 [[cpp11::register]] list felm_fit_(const doubles &y_r,
-                                    const doubles_matrix<> &x_r,
-                                    const doubles &wt_r, const list &control,
-                                    const list &k_list) {
+                                   const doubles_matrix<> &x_r,
+                                   const doubles &wt_r, const list &control,
+                                   const list &k_list) {
   mat X = as_Mat(x_r);
   const vec y = as_Col(y_r);
   const vec w = as_Col(wt_r);
   const double center_tol = as_cpp<double>(control["center_tol"]);
+  const double collin_tol = as_cpp<double>(control["collin_tol"]);
   const size_t iter_center_max = as_cpp<size_t>(control["iter_center_max"]),
                iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]),
                iter_ssr = as_cpp<size_t>(control["iter_ssr"]);
@@ -99,13 +102,12 @@ demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   // Convert R list to portable Armadillo structure
   field<field<uvec>> group_indices = convert_klist_to_field(k_list);
 
-  LMResult res = felm_fit(X, y, w, group_indices, center_tol,
-                                 iter_center_max, iter_interrupt, iter_ssr);
-  // Replace collinear coefficients with R's NA_REAL
-  for (arma::uword i = 0; i < res.coefficients.n_elem; ++i) {
-    if (res.coef_status(i) == 0) {
-      res.coefficients(i) = NA_REAL;
-    }
+  LMResult res = felm_fit(X, y, w, group_indices, center_tol, iter_center_max,
+                          iter_interrupt, iter_ssr, collin_tol);
+  // Replace collinear coefficients with R's NA_REAL using vectorized approach
+  uvec collinear_mask = (res.coef_status == 0);
+  if (any(collinear_mask)) {
+    res.coefficients.elem(find(collinear_mask)).fill(NA_REAL);
   }
   return res.to_list();
 }
@@ -125,6 +127,7 @@ demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   const FamilyType family_type = get_family_type(fam);
   const double center_tol = as_cpp<double>(control["center_tol"]),
                dev_tol = as_cpp<double>(control["dev_tol"]);
+  const double collin_tol = as_cpp<double>(control["collin_tol"]);
   const bool keep_mx = as_cpp<bool>(control["keep_mx"]);
   const size_t iter_max = as_cpp<size_t>(control["iter_max"]),
                iter_center_max = as_cpp<size_t>(control["iter_center_max"]),
@@ -138,13 +141,12 @@ demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   GLMResult res =
       feglm_fit(MX, beta, eta, y, wt, theta, group_indices, center_tol, dev_tol,
                 keep_mx, iter_max, iter_center_max, iter_inner_max,
-                iter_interrupt, iter_ssr, fam, family_type);
+                iter_interrupt, iter_ssr, fam, family_type, collin_tol);
 
-  // Replace collinear coefficients with R's NA_REAL
-  for (arma::uword i = 0; i < res.coefficients.n_elem; ++i) {
-    if (res.coef_status(i) == 0) {
-      res.coefficients(i) = NA_REAL;
-    }
+  // Replace collinear coefficients with R's NA_REAL using vectorized approach
+  uvec collinear_mask = (res.coef_status == 0);
+  if (any(collinear_mask)) {
+    res.coefficients.elem(find(collinear_mask)).fill(NA_REAL);
   }
   return res.to_list(keep_mx);
 }
@@ -162,6 +164,7 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
   const FamilyType family_type = get_family_type(fam);
   const double center_tol = as_cpp<double>(control["center_tol"]),
                dev_tol = as_cpp<double>(control["dev_tol"]);
+  const double collin_tol = as_cpp<double>(control["collin_tol"]);
   const size_t iter_max = as_cpp<int>(control["iter_max"]),
                iter_center_max = as_cpp<size_t>(control["iter_center_max"]),
                iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]),
@@ -173,7 +176,7 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
   FeglmOffsetFitResult res =
       feglm_offset_fit(eta, y, offset, wt, group_indices, center_tol, dev_tol,
                        iter_max, iter_center_max, iter_inner_max,
-                       iter_interrupt, iter_ssr, fam, family_type);
+                       iter_interrupt, iter_ssr, fam, family_type, collin_tol);
   return res.to_doubles();
 }
 
