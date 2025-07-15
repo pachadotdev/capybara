@@ -126,18 +126,4 @@ void block_group_sums(const vec &values, const vec &weights,
   }
 }
 
-bool convergence_check(const vec &x_new, const vec &x_old, const vec &weights,
-                       double tol, const std::string &family = "gaussian") {
-  if (family == "poisson") {
-    double ssr_new = dot(weights, square(x_new));
-    double ssr_old = dot(weights, square(x_old));
-    return std::abs(ssr_new - ssr_old) / (0.1 + std::abs(ssr_new)) < tol;
-  } else {
-    // Gaussian and others: weighted absolute difference
-    double diff = dot(abs(x_new - x_old), weights);
-    double total_weight = accu(weights);
-    return (diff / total_weight) < tol;
-  }
-}
-
 #endif // CAPYBARA_GROUP_OPS

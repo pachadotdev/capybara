@@ -24,9 +24,22 @@ test_that("feglm is similar to glm", {
   # see test-fepoisson.R
 
   # Binomial ----
+  load_all()
   mod_binom <- feglm(am ~ wt + mpg | cyl, mtcars, family = binomial())
   mod_binom_base <- glm(am ~ wt + mpg + as.factor(cyl), mtcars, family = binomial())
+  mod_binom
+  mod_binom_base
+
   expect_equal(unname(coef(mod_binom) - coef(mod_binom_base)[2:3]), c(0, 0), tolerance = 1e-2)
+
+  mod_binom <- feglm(am ~ wt + mpg | cyl, mtcars, family = binomial())
+  mod_binom_fixest <- fixest::feglm(am ~ wt + mpg | cyl, mtcars, family = binomial())
+
+  mod_binom
+  mod_binom_fixest
+
+  predict(mod_binom)
+  predict(mod_binom_fixest)
 
   # Gamma ----
   mod_gamma <- feglm(mpg ~ wt + am | cyl, mtcars, family = Gamma())

@@ -35,10 +35,11 @@ using cpp11::strings;
 #include "02_group_ops.h"
 #include "03_demean_variables.h"
 #include "04_lm_fit.h"
-#include "05_glm_fit.h"
-#include "06_glm_offset_fit.h"
-#include "07_get_alpha.h"
-#include "08_group_sums.h"
+#include "05_exponential_family.h"
+#include "06_glm_fit.h"
+#include "07_glm_offset_fit.h"
+#include "08_get_alpha.h"
+#include "09_group_sums.h"
 
 // Convert R k_list to portable Armadillo field structure
 // Each element in k_list is a list of groups, each group contains observation indices

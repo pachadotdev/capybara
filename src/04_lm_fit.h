@@ -18,7 +18,8 @@ struct FeolsFitResult {
   }
 };
 
-mat crossprod_(const mat &X, const vec &w) {
+// Weighted cross-product computation
+inline mat crossprod_(const mat &X, const vec &w) {
   if (all(w == 1.0)) {
     return X.t() * X;
   } else {
