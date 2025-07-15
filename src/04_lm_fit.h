@@ -1,7 +1,7 @@
 #ifndef CAPYBARA_LM
 #define CAPYBARA_LM
 
-struct FeolsFitResult {
+struct LMResult {
   vec coefficients;
   vec fitted;
   vec weights;
@@ -29,12 +29,12 @@ inline mat crossprod_(const mat &X, const vec &w) {
 }
 
 // Core function: pure Armadillo types
-inline FeolsFitResult feols_fit(const mat &X, const vec &y, const vec &w,
-                              const field<field<uvec>> &group_indices, double center_tol,
-                              size_t iter_center_max, size_t iter_interrupt,
-                              size_t iter_ssr) {
+inline LMResult feols_fit(const mat &X, const vec &y, const vec &w,
+                                const field<field<uvec>> &group_indices,
+                                double center_tol, size_t iter_center_max,
+                                size_t iter_interrupt, size_t iter_ssr) {
   // TIME_FUNCTION;
-  FeolsFitResult res;
+  LMResult res;
   mat Xc = X;
   vec MNU, beta, fitted;
   bool has_fixed_effects = group_indices.n_elem > 0;
@@ -42,9 +42,11 @@ inline FeolsFitResult feols_fit(const mat &X, const vec &y, const vec &w,
   if (has_fixed_effects) {
     MNU = y;
     mat MNU_mat = MNU;
-    demean_variables(MNU_mat, w, group_indices, center_tol, iter_center_max, "gaussian");
+    demean_variables(MNU_mat, w, group_indices, center_tol, iter_center_max,
+                     "gaussian");
     MNU = MNU_mat.col(0);
-    demean_variables(Xc, w, group_indices, center_tol, iter_center_max, "gaussian");
+    demean_variables(Xc, w, group_indices, center_tol, iter_center_max,
+                     "gaussian");
   } else {
     MNU = vec(y.n_elem, fill::zeros);
   }

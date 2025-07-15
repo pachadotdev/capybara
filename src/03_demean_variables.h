@@ -1,52 +1,59 @@
 #ifndef CAPYBARA_CENTER
 #define CAPYBARA_CENTER
 
+// PPML weighted demeaning helper
+struct WeightedDemeanResult {
+  mat demeaned_data;
+  bool success;
+};
+
 // Irons-Tuck acceleration
 struct IronsTuckAcceleration {
   vec GX, GGX, delta_GX, delta2_X;
   bool has_history = false;
-  
+
   IronsTuckAcceleration(size_t dim) {
     GX.zeros(dim);
     GGX.zeros(dim);
     delta_GX.zeros(dim);
     delta2_X.zeros(dim);
   }
-  
+
   // Returns true if numerical convergence achieved
-  bool accelerate(vec& X, const vec& GX_new, const vec& GGX_new, const std::string& family) {
+  bool accelerate(vec &X, const vec &GX_new, const vec &GGX_new,
+                  const std::string &family) {
     if (!has_history) {
       GX = GX_new;
       GGX = GGX_new;
       has_history = true;
       return false;
     }
-    
+
     // Update
     for (size_t i = 0; i < X.n_elem; ++i) {
       delta_GX(i) = GGX_new(i) - GX_new(i);
       delta2_X(i) = delta_GX(i) - GX_new(i) + X(i);
     }
-    
+
     // Compute acceleration coefficient
     double vprod = 0, ssq = 0;
     for (size_t i = 0; i < X.n_elem; ++i) {
       vprod += delta_GX(i) * delta2_X(i);
       ssq += delta2_X(i) * delta2_X(i);
     }
-    
+
     // Check for numerical convergence
     if (ssq == 0) {
       return true;
     }
-    
+
     double coef = vprod / ssq;
-    
+
     // Update X: X[i] = GGX[i] - coef * delta_GX[i]
     for (size_t i = 0; i < X.n_elem; ++i) {
       X(i) = GGX_new(i) - coef * delta_GX(i);
     }
-    
+
     // Special handling for Poisson models - avoid negative coefficients
     if (family == "poisson") {
       for (size_t i = 0; i < X.n_elem; ++i) {
@@ -57,17 +64,18 @@ struct IronsTuckAcceleration {
         }
       }
     }
-    
+
     // Update history
     GX = GX_new;
     GGX = GGX_new;
-    
+
     return false;
   }
 };
 
-
-double update_negbin(const arma::vec &y, const arma::vec &mu, const arma::vec &w, double theta, double prev_alpha, double tol = 1e-8, int max_iter = 100) {
+double update_negbin(const arma::vec &y, const arma::vec &mu,
+                     const arma::vec &w, double theta, double prev_alpha,
+                     double tol = 1e-8, int max_iter = 100) {
   double x1 = prev_alpha;
   double lower = x1 - 10, upper = x1 + 10;
   for (int iter = 0; iter < max_iter; ++iter) {
@@ -77,17 +85,24 @@ double update_negbin(const arma::vec &y, const arma::vec &mu, const arma::vec &w
       f += w(i) * (y(i) - (mui + theta) * (y(i) / mui));
       df += w(i) * (-mui * (y(i) / (mui * mui)));
     }
-    if (std::abs(df) < 1e-12) break;
+    if (std::abs(df) < 1e-12)
+      break;
     double x0 = x1;
     x1 = x0 - f / df;
-    if (x1 < lower || x1 > upper) x1 = 0.5 * (lower + upper);
-    if (std::abs(x1 - x0) < tol) break;
-    if (f > 0) lower = x1; else upper = x1;
+    if (x1 < lower || x1 > upper)
+      x1 = 0.5 * (lower + upper);
+    if (std::abs(x1 - x0) < tol)
+      break;
+    if (f > 0)
+      lower = x1;
+    else
+      upper = x1;
   }
   return x1;
 }
 
-double update_logit(const arma::vec &y, const arma::vec &mu, const arma::vec &w, double prev_alpha, double tol = 1e-8, int max_iter = 100) {
+double update_logit(const arma::vec &y, const arma::vec &mu, const arma::vec &w,
+                    double prev_alpha, double tol = 1e-8, int max_iter = 100) {
   double x1 = prev_alpha;
   double lower = x1 - 10, upper = x1 + 10;
   for (int iter = 0; iter < max_iter; ++iter) {
@@ -98,27 +113,34 @@ double update_logit(const arma::vec &y, const arma::vec &mu, const arma::vec &w,
       f += w(i) * (y(i) - p);
       df += w(i) * (-p * (1 - p));
     }
-    if (std::abs(df) < 1e-12) break;
+    if (std::abs(df) < 1e-12)
+      break;
     double x0 = x1;
     x1 = x0 - f / df;
-    if (x1 < lower || x1 > upper) x1 = 0.5 * (lower + upper);
-    if (std::abs(x1 - x0) < tol) break;
-    if (f > 0) lower = x1; else upper = x1;
+    if (x1 < lower || x1 > upper)
+      x1 = 0.5 * (lower + upper);
+    if (std::abs(x1 - x0) < tol)
+      break;
+    if (f > 0)
+      lower = x1;
+    else
+      upper = x1;
   }
   return x1;
 }
 
 // Bucket sort for efficient group processing
-inline std::vector<int> bucket_argsort(const std::vector<int>& group_ids, int max_groups) {
+inline std::vector<int> bucket_argsort(const std::vector<int> &group_ids,
+                                       int max_groups) {
   std::vector<int> result;
   result.reserve(group_ids.size());
-  
+
   // Count occurrences
   std::vector<int> counts(max_groups + 1, 0);
   for (int id : group_ids) {
     counts[id]++;
   }
-  
+
   // Create sorted indices
   for (int g = 0; g <= max_groups; ++g) {
     for (size_t i = 0; i < group_ids.size(); ++i) {
@@ -133,18 +155,18 @@ inline std::vector<int> bucket_argsort(const std::vector<int>& group_ids, int ma
 // Flat array group information structure
 struct GroupInfo {
   // Flat storage for cache efficiency
-  uvec group_starts;        // Start index for each group in flat_indices
-  uvec group_sizes;         // Size of each group
-  uvec flat_indices;        // All group indices stored contiguously
-  vec sum_weights;          // Precomputed sum of weights per group
-  vec inv_weights;          // Precomputed inverse weights per group
-  vec cached_group_means;   // Cache for group means
+  uvec group_starts;      // Start index for each group in flat_indices
+  uvec group_sizes;       // Size of each group
+  uvec flat_indices;      // All group indices stored contiguously
+  vec sum_weights;        // Precomputed sum of weights per group
+  vec inv_weights;        // Precomputed inverse weights per group
+  vec cached_group_means; // Cache for group means
   size_t n_groups;
   size_t max_group_size;
   bool has_cached_means = false;
-  
+
   GroupInfo() = default;
-  
+
   GroupInfo(const field<uvec> &group_field, const vec &w) {
     n_groups = group_field.n_elem;
     group_starts.set_size(n_groups);
@@ -153,53 +175,53 @@ struct GroupInfo {
     inv_weights.set_size(n_groups);
     cached_group_means.set_size(n_groups);
     max_group_size = 0;
-    
+
     // First pass: compute total size and group sizes
     size_t total_size = 0;
     for (size_t j = 0; j < n_groups; ++j) {
       const uvec &group_obs = group_field(j);
       group_sizes(j) = group_obs.n_elem;
-      max_group_size = std::max(max_group_size, static_cast<size_t>(group_sizes(j)));
+      max_group_size =
+          std::max(max_group_size, static_cast<size_t>(group_sizes(j)));
       total_size += group_sizes(j);
     }
-    
+
     // Allocate flat array
     flat_indices.set_size(total_size);
-    
+
     // Second pass: populate flat array and compute starts
     size_t current_pos = 0;
     for (size_t j = 0; j < n_groups; ++j) {
       const uvec &group_obs = group_field(j);
       group_starts(j) = current_pos;
-      
+
       // Copy indices to flat array
       for (size_t i = 0; i < group_obs.n_elem; ++i) {
         flat_indices(current_pos + i) = group_obs(i);
       }
-      
+
       // Precompute weights with efficient summation
       sum_weights(j) = 0.0;
       for (size_t i = 0; i < group_obs.n_elem; ++i) {
         sum_weights(j) += w(group_obs(i));
       }
       inv_weights(j) = 1.0 / sum_weights(j);
-      
+
       current_pos += group_obs.n_elem;
     }
   }
-  
-  
+
   // Compute group means
-  void compute_group_means(const vec& values, const vec& weights) {
+  void compute_group_means(const vec &values, const vec &weights) {
     for (size_t j = 0; j < n_groups; ++j) {
       const size_t start = group_starts(j);
       const size_t size = group_sizes(j);
-      
+
       if (size == 0) {
         cached_group_means(j) = 0.0;
         continue;
       }
-      
+
       double weighted_sum = 0.0;
       // Sequential memory access through flat array
       for (size_t i = 0; i < size; ++i) {
@@ -210,28 +232,28 @@ struct GroupInfo {
     }
     has_cached_means = true;
   }
-  
+
   // Vectorized group subtraction
-  void subtract_group_effects(vec& values, const vec& group_effects) const {
+  void subtract_group_effects(vec &values, const vec &group_effects) const {
     for (size_t j = 0; j < n_groups; ++j) {
       const size_t start = group_starts(j);
       const size_t size = group_sizes(j);
       const double effect = group_effects(j);
-      
+
       // Sequential memory access
       for (size_t i = 0; i < size; ++i) {
         values(flat_indices(start + i)) -= effect;
       }
     }
   }
-  
+
   // Vectorized group addition
-  void add_group_effects(vec& values, const vec& group_effects) const {
+  void add_group_effects(vec &values, const vec &group_effects) const {
     for (size_t j = 0; j < n_groups; ++j) {
       const size_t start = group_starts(j);
       const size_t size = group_sizes(j);
       const double effect = group_effects(j);
-      
+
       // Sequential memory access
       for (size_t i = 0; i < size; ++i) {
         values(flat_indices(start + i)) += effect;
@@ -242,15 +264,16 @@ struct GroupInfo {
 
 // Specialized Poisson cluster coefficient computation
 inline void CCC_poisson(size_t n_obs, size_t nb_cluster, vec &cluster_coef,
-                        const vec &exp_mu, const vec &sum_y, const uvec &cluster_indices) {
+                        const vec &exp_mu, const vec &sum_y,
+                        const uvec &cluster_indices) {
   // Initialize cluster coefficients to zero
   cluster_coef.zeros();
-  
+
   // Accumulate exp_mu for each cluster
   for (size_t i = 0; i < n_obs; ++i) {
     cluster_coef(cluster_indices(i)) += exp_mu(i);
   }
-  
+
   // Compute final cluster coefficients: sum_y / sum_exp_mu
   for (size_t m = 0; m < nb_cluster; ++m) {
     if (cluster_coef(m) > 0) {
@@ -261,11 +284,12 @@ inline void CCC_poisson(size_t n_obs, size_t nb_cluster, vec &cluster_coef,
 
 // Specialized Poisson cluster coefficient computation with log-space stability
 inline void CCC_poisson_log(size_t n_obs, size_t nb_cluster, vec &cluster_coef,
-                           const vec &mu, const vec &sum_y, const uvec &cluster_indices) {
+                            const vec &mu, const vec &sum_y,
+                            const uvec &cluster_indices) {
   // Initialize cluster coefficients and find max mu for each cluster
   cluster_coef.zeros();
   vec mu_max(nb_cluster, fill::value(-std::numeric_limits<double>::infinity()));
-  
+
   // Find maximum mu for each cluster for numerical stability
   for (size_t i = 0; i < n_obs; ++i) {
     size_t cluster_idx = cluster_indices(i);
@@ -273,13 +297,13 @@ inline void CCC_poisson_log(size_t n_obs, size_t nb_cluster, vec &cluster_coef,
       mu_max(cluster_idx) = mu(i);
     }
   }
-  
+
   // Compute sum of exp(mu - mu_max) for each cluster
   for (size_t i = 0; i < n_obs; ++i) {
     size_t cluster_idx = cluster_indices(i);
     cluster_coef(cluster_idx) += std::exp(mu(i) - mu_max(cluster_idx));
   }
-  
+
   // Compute final cluster coefficients with log-space stability
   for (size_t m = 0; m < nb_cluster; ++m) {
     if (cluster_coef(m) > 0) {
@@ -289,19 +313,23 @@ inline void CCC_poisson_log(size_t n_obs, size_t nb_cluster, vec &cluster_coef,
 }
 
 // Fast Poisson cluster coefficient update for a single fixed effect
-inline void update_poisson_cluster_coef(const vec &y, const vec &eta, const uvec &cluster_indices,
-                                       size_t nb_cluster, vec &cluster_coef, bool use_log_space = false) {
+inline void update_poisson_cluster_coef(const vec &y, const vec &eta,
+                                        const uvec &cluster_indices,
+                                        size_t nb_cluster, vec &cluster_coef,
+                                        bool use_log_space = false) {
   // Compute sum_y for each cluster
   vec sum_y(nb_cluster, fill::zeros);
   for (size_t i = 0; i < y.n_elem; ++i) {
     sum_y(cluster_indices(i)) += y(i);
   }
-  
+
   if (use_log_space) {
-    CCC_poisson_log(y.n_elem, nb_cluster, cluster_coef, eta, sum_y, cluster_indices);
+    CCC_poisson_log(y.n_elem, nb_cluster, cluster_coef, eta, sum_y,
+                    cluster_indices);
   } else {
     vec exp_mu = exp(eta);
-    CCC_poisson(y.n_elem, nb_cluster, cluster_coef, exp_mu, sum_y, cluster_indices);
+    CCC_poisson(y.n_elem, nb_cluster, cluster_coef, exp_mu, sum_y,
+                cluster_indices);
   }
 }
 
@@ -312,13 +340,12 @@ struct DemeanResult {
   int iterations;
 };
 
-inline DemeanResult demean_variables_with_init(mat &V, const vec &weights,
-                                              const field<field<uvec>> &group_indices,
-                                              const vec &init_means,
-                                              double tol = 1e-8, int max_iter = 1000,
-                                              const std::string &family = "gaussian", bool use_acceleration = false) {
+inline DemeanResult demean_variables_with_init(
+    mat &V, const vec &weights, const field<field<uvec>> &group_indices,
+    const vec &init_means, double tol = 1e-8, int max_iter = 1000,
+    const std::string &family = "gaussian", bool use_acceleration = false) {
   const size_t N = V.n_rows, P = V.n_cols, K = group_indices.n_elem;
-  
+
   if (K == 0) {
     DemeanResult result;
     result.demeaned_vars = V;
@@ -326,61 +353,64 @@ inline DemeanResult demean_variables_with_init(mat &V, const vec &weights,
     result.iterations = 0;
     return result;
   }
-  
+
   // Initialize fixed effects with init_means
   vec current_means = init_means;
-  
+
   // Apply initial fixed effects to each variable
   for (size_t p = 0; p < P; ++p) {
     V.col(p) -= current_means;
   }
-  
+
   // Demeaning iterations
-  for (int iter = 0; iter < max_iter; ++iter) {    
+  for (int iter = 0; iter < max_iter; ++iter) {
     for (size_t k = 0; k < K; ++k) {
       const field<uvec> &groups_k = group_indices(k);
-      
+
       for (size_t p = 0; p < P; ++p) {
         // Get column as subview and work with it directly
         for (size_t g = 0; g < groups_k.n_elem; ++g) {
           const uvec &group_idx = groups_k(g);
-          
+
           if (group_idx.n_elem > 0) {
-            // Extract values for this group - need to get the column as vec first
+            // Extract values for this group - need to get the column as vec
+            // first
             vec col_p = V.col(p);
             vec group_values = col_p.elem(group_idx);
             vec group_weights = weights.elem(group_idx);
             double weighted_sum = dot(group_weights, group_values);
             double weight_sum = sum(group_weights);
-            
+
             if (weight_sum > 0) {
               double group_mean = weighted_sum / weight_sum;
               // Update the column directly
               col_p.elem(group_idx) -= group_mean;
-              V.col(p) = col_p;  // Write back to matrix
+              V.col(p) = col_p; // Write back to matrix
             }
           }
         }
       }
     }
-    
+
     // Simple convergence check
-    if (iter > 10) break; // TODO: For now, just limit iterations
+    if (iter > 10)
+      break; // TODO: For now, just limit iterations
   }
 
   // Recover the fixed effects
   // The updated means should be computed from the final demeaned variables
   vec updated_means = vec(V.n_rows, fill::zeros);
-  
+
   // Updated fixed effects for each group
   for (size_t k = 0; k < K; ++k) {
     const field<uvec> &groups_k = group_indices(k);
     for (size_t g = 0; g < groups_k.n_elem; ++g) {
       const uvec &group_idx = groups_k(g);
-      
+
       if (group_idx.n_elem > 0) {
-        // Compute weighted mean of the last variable (typically y) for this group
-        vec last_col = V.col(P-1);
+        // Compute weighted mean of the last variable (typically y) for this
+        // group
+        vec last_col = V.col(P - 1);
         vec group_values = last_col.elem(group_idx); // Assume last column is y
         vec group_weights = weights.elem(group_idx);
         double weighted_sum = dot(group_weights, group_values);
@@ -392,20 +422,21 @@ inline DemeanResult demean_variables_with_init(mat &V, const vec &weights,
       }
     }
   }
-  
+
   DemeanResult result;
   result.demeaned_vars = V;
   result.means = current_means + updated_means; // Add to initial means
-  result.iterations = max_iter; // TODO: track actual iterations
+  result.iterations = max_iter;                 // TODO: track actual iterations
   return result;
 }
 
 inline void demean_variables(mat &V, const vec &weights,
-                                      const field<field<uvec>> &group_indices,
-                                      double tol = 1e-8, int max_iter = 1000,
-                                      const std::string &family = "gaussian", bool use_acceleration = false) {
+                             const field<field<uvec>> &group_indices,
+                             double tol = 1e-8, int max_iter = 1000,
+                             const std::string &family = "gaussian",
+                             bool use_acceleration = false) {
   const size_t P = V.n_cols, K = group_indices.n_elem;
-  
+
   if (K == 0) {
     return; // No fixed effects to demean
   }
@@ -425,7 +456,7 @@ inline void demean_variables(mat &V, const vec &weights,
   for (size_t k = 0; k < K; ++k) {
     const field<uvec> &groups_k = group_indices(k);
     group_weights[k].zeros(groups_k.n_elem);
-    
+
     for (size_t g = 0; g < groups_k.n_elem; ++g) {
       const uvec &group_g = groups_k(g);
       for (size_t i = 0; i < group_g.n_elem; ++i) {
@@ -437,25 +468,28 @@ inline void demean_variables(mat &V, const vec &weights,
   // Process each variable separately (matching Python parallel structure)
   for (size_t p = 0; p < P; ++p) {
     vec x_curr = V.col(p);
-    vec x_prev = x_curr - 1.0; // Initialize as different to ensure first iteration runs
-    
+    vec x_prev =
+        x_curr - 1.0; // Initialize as different to ensure first iteration runs
+
     // Alternating projections loop (matching Python demean function)
     for (int iter = 0; iter < max_iter; ++iter) {
       // For each fixed effect factor
       for (size_t k = 0; k < K; ++k) {
         const field<uvec> &groups_k = group_indices(k);
-        
+
         // For each group in this fixed effect
         for (size_t g = 0; g < groups_k.n_elem; ++g) {
           const uvec &group_g = groups_k(g);
-          if (group_g.n_elem == 0 || group_weights[k](g) == 0) continue;
-          
-          // Compute weighted group sum (matching Python _subtract_weighted_group_mean)
+          if (group_g.n_elem == 0 || group_weights[k](g) == 0)
+            continue;
+
+          // Compute weighted group sum (matching Python
+          // _subtract_weighted_group_mean)
           double group_weighted_sum = 0.0;
           for (size_t i = 0; i < group_g.n_elem; ++i) {
             group_weighted_sum += weights(group_g(i)) * x_curr(group_g(i));
           }
-          
+
           // Compute group mean and subtract from all group members
           double group_mean = group_weighted_sum / group_weights[k](g);
           for (size_t i = 0; i < group_g.n_elem; ++i) {
@@ -463,25 +497,28 @@ inline void demean_variables(mat &V, const vec &weights,
           }
         }
       }
-      
+
       // Check convergence (matching Python _sad_converged)
       if (converged_check(x_curr, x_prev, tol)) {
         break;
       }
-      
+
       x_prev = x_curr;
     }
-    
+
     V.col(p) = x_curr;
   }
 }
 
 // Portable GLM step demeaning
-inline void demean_glm_step(mat &X, vec &y, const vec &weights, const field<field<uvec>> &group_indices,
-                           double tol = 1e-8, int max_iter = 1000,
-                           const std::string &family = "gaussian", double outer_crit = 1.0, bool use_acceleration = true) {
+inline void demean_glm_step(mat &X, vec &y, const vec &weights,
+                            const field<field<uvec>> &group_indices,
+                            double tol = 1e-8, int max_iter = 1000,
+                            const std::string &family = "gaussian",
+                            double outer_crit = 1.0,
+                            bool use_acceleration = true) {
   const size_t N = X.n_rows, P = X.n_cols;
-  
+
   // Adaptive tolerance for GLM
   double adaptive_tol = tol;
   if (family == "poisson" || family == "logit") {
@@ -489,7 +526,7 @@ inline void demean_glm_step(mat &X, vec &y, const vec &weights, const field<fiel
       adaptive_tol = tol / 10.0;
     }
   }
-  
+
   // Enable acceleration for Poisson models like fixest does
   // TODO: fixest uses acceleration for all GLM models
   bool enable_acceleration = use_acceleration;
@@ -498,19 +535,22 @@ inline void demean_glm_step(mat &X, vec &y, const vec &weights, const field<fiel
   mat combined_vars(N, P + 1);
   combined_vars.cols(0, P - 1) = X;
   combined_vars.col(P) = y;
-  
-  demean_variables(combined_vars, weights, group_indices, adaptive_tol, max_iter, family, enable_acceleration);
-  
+
+  demean_variables(combined_vars, weights, group_indices, adaptive_tol,
+                   max_iter, family, enable_acceleration);
+
   // Extract results
   X = combined_vars.cols(0, P - 1);
   y = combined_vars.col(P);
 }
 
-inline vec demean_and_solve_wls(mat &X, vec &y, const vec &weights, const field<field<uvec>> &group_indices,
-                                double tol = 1e-8, int max_iter = 1000, const std::string &family = "gaussian", 
-                                uvec* valid_coefficients = nullptr) {
+inline vec demean_and_solve_wls(mat &X, vec &y, const vec &weights,
+                                const field<field<uvec>> &group_indices,
+                                double tol = 1e-8, int max_iter = 1000,
+                                const std::string &family = "gaussian",
+                                uvec *valid_coefficients = nullptr) {
   const size_t N = X.n_rows, P = X.n_cols, K = group_indices.n_elem;
-  
+
   // Fast path for no fixed effects
   if (K == 0) {
     // In-place weighted least squares with minimal memory allocation
@@ -518,47 +558,49 @@ inline vec demean_and_solve_wls(mat &X, vec &y, const vec &weights, const field<
     XtW.each_row() %= weights.t();
     mat XtWX = XtW * X;
     vec XtWy = XtW * y;
-    
+
     // Set all coefficients as valid for no fixed effects case
     if (valid_coefficients != nullptr) {
       valid_coefficients->ones(P);
     }
-    
+
     return solve(XtWX, XtWy, solve_opts::fast);
   }
-  
+
   bool use_acceleration = true;
-  
+
   // Adaptive tolerance for GLM
   double adaptive_tol = tol;
   if (family == "poisson" || family == "logit") {
     adaptive_tol = tol / 10.0;
   }
-  
-  // Build GroupInfo structures for each fixed effect - eliminate caching overhead
+
+  // Build GroupInfo structures for each fixed effect - eliminate caching
+  // overhead
   std::vector<GroupInfo> group_info(K);
   for (size_t k = 0; k < K; ++k) {
     group_info[k] = GroupInfo(group_indices(k), weights);
   }
-  
+
   static mat combined_vars_cache;
   static mat XtW_cache;
   static mat XtWX_cache;
   static vec XtWy_cache;
-  
+
   // Reuse matrices if possible to avoid allocations
   if (combined_vars_cache.n_rows != N || combined_vars_cache.n_cols != P + 1) {
     combined_vars_cache.set_size(N, P + 1);
   }
-  
+
   combined_vars_cache.cols(0, P - 1) = X;
   combined_vars_cache.col(P) = y;
-  
-  demean_variables(combined_vars_cache, weights, group_indices, adaptive_tol, max_iter, family, use_acceleration);
-  
+
+  demean_variables(combined_vars_cache, weights, group_indices, adaptive_tol,
+                   max_iter, family, use_acceleration);
+
   mat X_demeaned = combined_vars_cache.cols(0, P - 1);
   vec y_demeaned = combined_vars_cache.col(P);
-  
+
   if (XtW_cache.n_rows != P || XtW_cache.n_cols != N) {
     XtW_cache.set_size(P, N);
   }
@@ -568,37 +610,37 @@ inline vec demean_and_solve_wls(mat &X, vec &y, const vec &weights, const field<
   if (XtWy_cache.n_elem != P) {
     XtWy_cache.set_size(P);
   }
-  
+
   XtW_cache = X_demeaned.t();
-  XtW_cache.each_row() %= weights.t();  // More efficient than diagmat()
+  XtW_cache.each_row() %= weights.t(); // More efficient than diagmat()
   XtWX_cache = XtW_cache * X_demeaned;
   XtWy_cache = XtW_cache * y_demeaned;
-  
+
   // Collinearity-aware solve using QR decomposition with cached matrices
   vec beta(P, fill::value(datum::nan));
-  
+
   // Pre-allocate QR matrices
   static mat Q_cache, R_cache;
   static vec work_cache;
-  
+
   // Use QR decomposition to detect collinearity
   qr_econ(Q_cache, R_cache, X_demeaned.each_col() % sqrt(weights));
-  
+
   if (work_cache.n_elem != P) {
     work_cache.set_size(P);
   }
   work_cache = Q_cache.t() * (y_demeaned % sqrt(weights));
-  
+
   // Detect collinear variables using diagonal of R matrix
   const vec diag_abs = abs(R_cache.diag());
   const double max_diag = diag_abs.max();
   const double collin_tol = 1e-7 * max_diag;
   const uvec indep = find(diag_abs > collin_tol);
-  
+
   // Set up valid coefficients indicator
   uvec valid_coef(P, fill::zeros);
   valid_coef(indep).ones();
-  
+
   // Solve for independent variables
   if (indep.n_elem == P) {
     beta = solve(trimatu(R_cache), work_cache, solve_opts::fast);
@@ -609,71 +651,76 @@ inline vec demean_and_solve_wls(mat &X, vec &y, const vec &weights, const field<
     beta(indep) = br;
     // Keep NaN for collinear coefficients
   }
-  
+
   // Return valid coefficients if requested
   if (valid_coefficients != nullptr) {
     *valid_coefficients = valid_coef;
   }
-  
+
   // Store fitted values before updating original matrices
   vec fitted_values = X_demeaned * beta;
-  
+
   // Update original matrices
   X = std::move(X_demeaned);
   y = std::move(y_demeaned);
-  
+
   return beta;
 }
 
 // Specialized function for GLM that returns both coefficients and fitted values
-inline std::pair<vec, vec> demean_and_solve_wls_with_fitted(mat &X, vec &y, const vec &weights, 
-                                                           const field<field<uvec>> &group_indices,
-                                                           double tol = 1e-8, int max_iter = 1000, 
-                                                           const std::string &family = "gaussian",
-                                                           uvec* valid_coefficients = nullptr) {
+inline std::pair<vec, vec>
+demean_and_solve_wls_with_fitted(mat &X, vec &y, const vec &weights,
+                                 const field<field<uvec>> &group_indices,
+                                 double tol = 1e-8, int max_iter = 1000,
+                                 const std::string &family = "gaussian",
+                                 uvec *valid_coefficients = nullptr) {
   const size_t P = X.n_cols, K = group_indices.n_elem;
-  
+
   // Fast path for no fixed effects
   if (K == 0) {
     mat XtW = X.t();
     XtW.each_row() %= weights.t();
     mat XtWX = XtW * X;
     vec XtWy = XtW * y;
-    
+
     vec beta = solve(XtWX, XtWy, solve_opts::fast);
     vec fitted = X * beta;
-    
+
     if (valid_coefficients != nullptr) {
       valid_coefficients->ones(P);
     }
-    
+
     return std::make_pair(beta, fitted);
   }
-  
-  // For fixed effects case, use the standard approach but preserve fitted values
+
+  // For fixed effects case, use the standard approach but preserve fitted
+  // values
   mat X_copy = X;
   vec y_copy = y;
-  
-  vec beta = demean_and_solve_wls(X_copy, y_copy, weights, group_indices, tol, max_iter, family, valid_coefficients);
-  
+
+  vec beta = demean_and_solve_wls(X_copy, y_copy, weights, group_indices, tol,
+                                  max_iter, family, valid_coefficients);
+
   // Compute fitted values in the original space (including fixed effects)
-  // This is critical for GLM convergence - we need fitted values that include FE
-  
-  // Method: The fitted values should be the solution to the weighted least squares problem
-  // that includes both the linear predictor and the fixed effects component
-  
+  // This is critical for GLM convergence - we need fitted values that include
+  // FE
+
+  // Method: The fitted values should be the solution to the weighted least
+  // squares problem that includes both the linear predictor and the fixed
+  // effects component
+
   // Start with the linear predictor
   vec x_beta = X * beta;
-  
+
   // Compute residuals in the original space
   vec residuals = y - x_beta;
-  
+
   // Compute group-specific fixed effects (weighted means of residuals)
   vec fe_effects = vec(y.n_elem, fill::zeros);
-  
+
   for (size_t g = 0; g < group_indices.n_elem; ++g) {
     for (size_t j = 0; j < group_indices(g).n_elem; ++j) {
-      const uvec& group_j = group_indices(g)(j);
+      const uvec &group_j = group_indices(g)(j);
       if (group_j.n_elem > 0) {
         vec group_residuals = residuals.elem(group_j);
         vec group_weights = weights.elem(group_j);
@@ -686,64 +733,65 @@ inline std::pair<vec, vec> demean_and_solve_wls_with_fitted(mat &X, vec &y, cons
       }
     }
   }
-  
+
   // The fitted values are the linear predictor plus the fixed effects
   vec fitted = x_beta + fe_effects;
-  
+
   return std::make_pair(beta, fitted);
 }
 
 // Use initial fixed effects (means)
-inline std::pair<vec, vec> demean_and_solve_wls_with_fitted_and_means(mat &X, vec &y, const vec &weights, 
-                                                                      const field<field<uvec>> &group_indices,
-                                                                      const vec &initial_means,
-                                                                      double tol = 1e-8, int max_iter = 1000, 
-                                                                      const std::string &family = "gaussian",
-                                                                      uvec* valid_coefficients = nullptr) {
+inline std::pair<vec, vec> demean_and_solve_wls_with_fitted_and_means(
+    mat &X, vec &y, const vec &weights, const field<field<uvec>> &group_indices,
+    const vec &initial_means, double tol = 1e-8, int max_iter = 1000,
+    const std::string &family = "gaussian",
+    uvec *valid_coefficients = nullptr) {
   const size_t P = X.n_cols, K = group_indices.n_elem;
-  
+
   // Fast path for no fixed effects
   if (K == 0) {
     mat XtW = X.t();
     XtW.each_row() %= weights.t();
     mat XtWX = XtW * X;
     vec XtWy = XtW * y;
-    
+
     vec beta = solve(XtWX, XtWy, solve_opts::fast);
     vec fitted = X * beta;
-    
+
     if (valid_coefficients != nullptr) {
       valid_coefficients->ones(P);
     }
-    
+
     return std::make_pair(beta, fitted);
   }
-  
-  // For fixed effects case, use initial_means as starting values for fixed effects
+
+  // For fixed effects case, use initial_means as starting values for fixed
+  // effects
   mat X_copy = X;
   vec y_copy = y;
-  
+
   // Initialize fixed effects with initial_means
   vec current_means = initial_means;
-  
+
   // Subtract initial fixed effects from y before demeaning
   y_copy = y_copy - current_means;
-  
-  vec beta = demean_and_solve_wls(X_copy, y_copy, weights, group_indices, tol, max_iter, family, valid_coefficients);
-  
+
+  vec beta = demean_and_solve_wls(X_copy, y_copy, weights, group_indices, tol,
+                                  max_iter, family, valid_coefficients);
+
   // Compute fitted values in the original space (including fixed effects)
   // Start with the linear predictor
   vec x_beta = X * beta;
-  
+
   // Compute residuals in the original space
   vec residuals = y - x_beta;
-  
+
   // Compute group-specific fixed effects (weighted means of residuals)
   vec fe_effects = vec(y.n_elem, fill::zeros);
-  
+
   for (size_t g = 0; g < group_indices.n_elem; ++g) {
     for (size_t j = 0; j < group_indices(g).n_elem; ++j) {
-      const uvec& group_j = group_indices(g)(j);
+      const uvec &group_j = group_indices(g)(j);
       if (group_j.n_elem > 0) {
         vec group_residuals = residuals.elem(group_j);
         vec group_weights = weights.elem(group_j);
@@ -756,22 +804,65 @@ inline std::pair<vec, vec> demean_and_solve_wls_with_fitted_and_means(mat &X, ve
       }
     }
   }
-  
+
   // The fitted values are the linear predictor plus the fixed effects
   vec fitted = x_beta + fe_effects;
-  
+
   return std::make_pair(beta, fitted);
 }
 
+WeightedDemeanResult weighted_demean(const mat &data, const umat &fe,
+                                     const vec &weights, double tol,
+                                     int maxiter) {
+  WeightedDemeanResult result;
+  result.success = false;
+
+  if (fe.n_cols == 0) {
+    // No fixed effects - return original data
+    result.demeaned_data = data;
+    result.success = true;
+    return result;
+  }
+
+  // Convert umat fixed effects to field<field<uvec>> format expected by
+  // demean_variables
+  field<field<uvec>> group_indices(fe.n_cols);
+
+  for (size_t k = 0; k < fe.n_cols; k++) {
+    uvec fe_col = fe.col(k);
+    uvec unique_levels = unique(fe_col);
+
+    group_indices(k).set_size(unique_levels.n_elem);
+
+    for (size_t g = 0; g < unique_levels.n_elem; g++) {
+      uvec level_indices = find(fe_col == unique_levels(g));
+      group_indices(k)(g) = level_indices;
+    }
+  }
+
+  // Apply weighted demeaning using the existing infrastructure
+  result.demeaned_data = data;
+  try {
+    demean_variables(result.demeaned_data, weights, group_indices, tol, maxiter,
+                     "gaussian");
+    result.success = true;
+  } catch (...) {
+    result.success = false;
+  }
+
+  return result;
+}
+
 // Poisson demean and solve using cluster coefficient computation
-inline vec demean_and_solve_wls_poisson(mat &X, vec &y, const vec &weights, 
+inline vec demean_and_solve_wls_poisson(mat &X, vec &y, const vec &weights,
                                         const field<field<uvec>> &group_indices,
                                         double tol = 1e-8, int max_iter = 1000,
-                                        uvec* valid_coefficients = nullptr) {
-  // TODO: fall back to the general approach to avoid breaking existing functionality
-  // The specialized Poisson cluster computation needs more careful integration
-  // with the GLM working response handling
-  return demean_and_solve_wls(X, y, weights, group_indices, tol, max_iter, "poisson", valid_coefficients);
+                                        uvec *valid_coefficients = nullptr) {
+  // TODO: fall back to the general approach to avoid breaking existing
+  // functionality The specialized Poisson cluster computation needs more
+  // careful integration with the GLM working response handling
+  return demean_and_solve_wls(X, y, weights, group_indices, tol, max_iter,
+                              "poisson", valid_coefficients);
 }
 
 #endif // CAPYBARA_CENTER

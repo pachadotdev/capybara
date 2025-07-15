@@ -113,10 +113,11 @@ inline vec get_beta(mat &MX, const vec &MNU, const vec &w, const uword n,
     const vec d = abs(ws.decomp.diag());
     const double mind = d.min();
     const double avgd = mean(d);
-    
+
     if (mind > 1e-12 * avgd) {
       ws.work = solve(trimatl(ws.decomp), ws.XtY, solve_opts::fast);
-      ws.coefficients = solve(trimatu(ws.decomp.t()), ws.work, solve_opts::fast);
+      ws.coefficients =
+          solve(trimatu(ws.decomp.t()), ws.work, solve_opts::fast);
       ws.valid_coefficients.ones();
       return ws.coefficients;
     }
@@ -127,8 +128,9 @@ inline vec get_beta(mat &MX, const vec &MNU, const vec &w, const uword n,
   return ws.coefficients;
 }
 
-// Optimized beta computation for 2-way fixed effects models (disabled for now due to type issues)
-// This avoids recomputing X'X when the fixed effects structure hasn't changed
+// Optimized beta computation for 2-way fixed effects models (disabled for now
+// due to type issues) This avoids recomputing X'X when the fixed effects
+// structure hasn't changed
 inline vec get_beta_twoway_optimized(mat &MX, const vec &MNU, const vec &w,
                                      const list &k_list, beta_results &ws,
                                      bool use_weights) {

@@ -25,8 +25,9 @@ struct AlphaGroupInfo {
   }
 };
 
-inline GetAlphaResult get_alpha(const vec &p, const field<field<uvec>> &group_indices, double tol,
-                                size_t iter_max) {
+inline GetAlphaResult get_alpha(const vec &p,
+                                const field<field<uvec>> &group_indices,
+                                double tol, size_t iter_max) {
   const size_t K = group_indices.n_elem;
   field<AlphaGroupInfo> group_info(K);
   for (size_t k = 0; k < K; ++k) {
@@ -192,7 +193,7 @@ inline GetAlphaResult get_alpha(const vec &p, const field<field<uvec>> &group_in
       ratio = sqrt(num / (denom + 1e-16));
     }
   }
-  
+
   // Handle the case of no fixed effects (K = 0)
   if (K == 0) {
     // For no fixed effects, we need to return the intercept
@@ -201,7 +202,7 @@ inline GetAlphaResult get_alpha(const vec &p, const field<field<uvec>> &group_in
     Alpha(0) = vec(1);
     Alpha(0)(0) = mean(p);
   }
-  
+
   GetAlphaResult res;
   res.Alpha = Alpha;
   return res;

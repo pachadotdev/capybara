@@ -55,9 +55,7 @@ vec link_inv_gaussian_(const vec &eta) { return eta; }
 
 vec link_inv_poisson_(const vec &eta) { return exp(eta); }
 
-vec link_inv_logit_(const vec &eta) { 
-  return 1.0 / (1.0 + exp(-eta));
-}
+vec link_inv_logit_(const vec &eta) { return 1.0 / (1.0 + exp(-eta)); }
 
 vec link_inv_gamma_(const vec &eta) { return 1 / eta; }
 
@@ -83,11 +81,11 @@ double dev_resids_poisson_(const vec &y, const vec &mu, const vec &wt) {
 double dev_resids_logit_(const vec &y, const vec &mu, const vec &wt) {
   // Handle edge cases to avoid log(0) issues
   vec mu_safe = clamp(mu, 1e-15, 1.0 - 1e-15);
-  
+
   // Python formula: -2 * sum(y * log(mu) + (1-y) * log(1-mu))
   vec log_mu = log(mu_safe);
   vec log_1_minus_mu = log(1.0 - mu_safe);
-  
+
   return -2.0 * dot(wt, y % log_mu + (1.0 - y) % log_1_minus_mu);
 }
 

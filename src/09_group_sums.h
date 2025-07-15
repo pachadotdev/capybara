@@ -55,7 +55,8 @@ inline GroupSumsResult group_sums_spectral(const mat &M, const mat &v,
   return res;
 }
 
-inline GroupSumsResult group_sums_var(const mat &M, const field<uvec> &group_indices) {
+inline GroupSumsResult group_sums_var(const mat &M,
+                                      const field<uvec> &group_indices) {
   const int J = group_indices.n_elem;
   const int P = M.n_cols;
   int j;
