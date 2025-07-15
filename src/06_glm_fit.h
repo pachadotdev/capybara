@@ -65,27 +65,7 @@ inline bool convergence_check(const vec &x_new, const vec &x_old,
   }
 }
 
-// Binomial GLM helpers
-
-inline vec get_detadmu_binomial(const vec &mu) {
-  vec mu_safe = clamp(mu, 1e-15, 1.0 - 1e-15);
-  return 1.0 / (mu_safe % (1.0 - mu_safe));
-}
-
-inline vec get_V_binomial(const vec &mu) {
-  vec mu_safe = clamp(mu, 1e-15, 1.0 - 1e-15);
-  return mu_safe % (1.0 - mu_safe);
-}
-
-inline vec get_mu_binomial(const vec &eta) { return 1.0 / (1.0 + exp(-eta)); }
-
-inline double get_deviance_binomial(const vec &y, const vec &mu,
-                                    const vec &wt) {
-  vec mu_safe = clamp(mu, 1e-15, 1.0 - 1e-15);
-  vec log_mu = log(mu_safe);
-  vec log_1_minus_mu = log(1.0 - mu_safe);
-  return -2.0 * accu(wt % (y % log_mu + (1.0 - y) % log_1_minus_mu));
-}
+// Note: Binomial GLM helpers are in 05_exponential_family.h
 
 // PPML separation helpers
 

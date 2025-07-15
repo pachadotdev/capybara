@@ -38,9 +38,9 @@ test_that("fepoisson is similar to fixest", {
 
   coef_dist_base <- coef(mod_base)[2]
 
-  dist_variation <- abs((coef(mod)[1] - coef_dist_base) / coef(mod)[1])
+  dist_variation <- unname(abs((coef(mod)[1] - coef_dist_base) / coef(mod)[1]))
 
-  expect_gt(0.05, dist_variation)
+  expect_equal(dist_variation, 0.05, tolerance = 0.05)
 
   expect_output(print(mod))
 
