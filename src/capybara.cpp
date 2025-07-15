@@ -74,16 +74,34 @@ demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
                   const int &iter_interrupt, const int &iter_ssr,
                   const std::string &family) {
   mat V = as_mat(V_r);
+  vec w = as_col(w_r);
 
   field<field<uvec>> group_indices = convert_klist_to_field(klist);
+
+  // Convert field<field<uvec>> to umat format for new demean_variables
+  umat fe_matrix;
+  if (group_indices.n_elem > 0) {
+    size_t n_obs = V.n_rows;
+    fe_matrix.set_size(n_obs, group_indices.n_elem);
+    
+    for (size_t k = 0; k < group_indices.n_elem; k++) {
+      // Set FE levels based on group indices
+      for (size_t g = 0; g < group_indices(k).n_elem; g++) {
+        const uvec &group_obs = group_indices(k)(g);
+        if (group_obs.n_elem > 0) {
+          fe_matrix.submat(group_obs, uvec{k}).fill(g);
+        }
+      }
+    }
+  }
 
   // Pass the parameters that demean_variables actually uses
   // Note: iter_interrupt and iter_ssr are control parameters but not used in
   // the basic demean_variables function The max_iter parameter corresponds to
   // the centering iteration limit
-  demean_variables(V, as_col(w_r), group_indices, tol, max_iter, family, true);
+  WeightedDemeanResult result = demean_variables(V, fe_matrix, w, tol, max_iter, family);
 
-  return as_doubles_matrix(V);
+  return as_doubles_matrix(result.demeaned_data);
 }
 
 [[cpp11::register]] list felm_fit_(const doubles &y_r,

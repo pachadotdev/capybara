@@ -359,7 +359,7 @@ GLMResult feppml_fit(const vec &y, const mat &X, const umat &fe,
     mat ZX = join_rows(reg_Z, X); // Concatenate Z and X
 
     WeightedDemeanResult demean_result =
-        weighted_demean(ZX, fe, fitted_values, fixef_tol, fixef_maxiter);
+        demean_variables(ZX, fe, fitted_values, fixef_tol, fixef_maxiter);
     if (!demean_result.success) {
       // Demeaning failed
       return result;
@@ -536,10 +536,29 @@ inline GLMResult feglm_fit(mat &MX, vec &beta, vec &eta, const vec &y,
       // Center variables for fixed effects
       vec MNU = nu;
       mat MNU_mat = MNU;
-      demean_variables(MNU_mat, w, group_indices, center_tol, iter_center_max,
-                       fam);
-      MNU = MNU_mat.col(0);
-      demean_variables(MX, w, group_indices, center_tol, iter_center_max, fam);
+      
+      // Convert field<field<uvec>> to umat format for new demean_variables
+      umat fe_matrix;
+      if (group_indices.n_elem > 0) {
+        size_t n_obs = y.n_elem;
+        fe_matrix.set_size(n_obs, group_indices.n_elem);
+        
+        for (size_t k = 0; k < group_indices.n_elem; k++) {
+          // Set FE levels based on group indices
+          for (size_t g = 0; g < group_indices(k).n_elem; g++) {
+            const uvec &group_obs = group_indices(k)(g);
+            if (group_obs.n_elem > 0) {
+              fe_matrix.submat(group_obs, uvec{k}).fill(g);
+            }
+          }
+        }
+      }
+      
+      WeightedDemeanResult mnu_result = demean_variables(MNU_mat, fe_matrix, w, center_tol, iter_center_max, fam);
+      MNU = mnu_result.demeaned_data.col(0);
+      
+      WeightedDemeanResult mx_result = demean_variables(MX, fe_matrix, w, center_tol, iter_center_max, fam);
+      MX = mx_result.demeaned_data;
 
       // Compute coefficient update
       beta_results ws(MX.n_rows, MX.n_cols);

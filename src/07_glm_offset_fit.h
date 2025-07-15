@@ -35,9 +35,26 @@ feglm_offset_fit(vec eta, const vec &y, const vec &offset, const vec &wt,
     yadj = (y - mu) / mu_eta + eta - offset;
     Myadj += yadj;
     mat Myadj_mat = Myadj;
-    demean_variables(Myadj_mat, w, group_indices, center_tol, iter_center_max,
-                     "gaussian");
-    Myadj = Myadj_mat.col(0);
+    
+    // Convert field<field<uvec>> to umat format for new demean_variables
+    umat fe_matrix;
+    if (group_indices.n_elem > 0) {
+      size_t n_obs = y.n_elem;
+      fe_matrix.set_size(n_obs, group_indices.n_elem);
+      
+      for (size_t k = 0; k < group_indices.n_elem; k++) {
+        // Set FE levels based on group indices
+        for (size_t g = 0; g < group_indices(k).n_elem; g++) {
+          const uvec &group_obs = group_indices(k)(g);
+          if (group_obs.n_elem > 0) {
+            fe_matrix.submat(group_obs, uvec{k}).fill(g);
+          }
+        }
+      }
+    }
+    
+    WeightedDemeanResult myadj_result = demean_variables(Myadj_mat, fe_matrix, w, center_tol, iter_center_max, "gaussian");
+    Myadj = myadj_result.demeaned_data.col(0);
     eta_upd = yadj - Myadj + offset - eta;
     for (iter_inner = 0; iter_inner < iter_inner_max; ++iter_inner) {
       eta = eta_old + (rho * eta_upd);
