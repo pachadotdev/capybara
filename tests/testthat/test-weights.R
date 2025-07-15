@@ -4,20 +4,20 @@
 #' @noRd
 NULL
 
-test_that("feols with weights works", {
+test_that("felm with weights works", {
   skip_on_cran()
 
-  m1 <- feols(mpg ~ wt | am, weights = ~cyl, data = mtcars)
-  m2 <- feols(mpg ~ wt | am, weights = mtcars$cyl, data = mtcars)
+  m1 <- felm(mpg ~ wt | am, weights = ~cyl, data = mtcars)
+  m2 <- felm(mpg ~ wt | am, weights = mtcars$cyl, data = mtcars)
 
   w <- mtcars$cyl
-  m3 <- feols(mpg ~ wt | am, weights = w, data = mtcars)
+  m3 <- felm(mpg ~ wt | am, weights = w, data = mtcars)
 
   expect_equal(coef(m2), coef(m1))
   expect_equal(coef(m3), coef(m1))
 
   w <- NULL
-  m4 <- feols(mpg ~ wt | am, weights = w, data = mtcars)
+  m4 <- felm(mpg ~ wt | am, weights = w, data = mtcars)
 
   expect_lt(coef(m1), coef(m4))
 })

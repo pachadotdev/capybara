@@ -14,7 +14,7 @@ summary_table(
 )
 }
 \arguments{
-\item{...}{One or more model objects of \code{feols} or \code{feglm} class.}
+\item{...}{One or more model objects of \code{felm} or \code{feglm} class.}
 
 \item{coef_digits}{Number of digits for coefficients. The default is 3.}
 
@@ -33,7 +33,7 @@ A formatted table
 Generate formatted regression tables
 }
 \examples{
-m1 <- feols(mpg ~ wt | cyl, mtcars)
+m1 <- felm(mpg ~ wt | cyl, mtcars)
 m2 <- fepoisson(mpg ~ wt | cyl, mtcars)
 summary_table(m1, m2, model_names = c("Linear", "Poisson"))
 }

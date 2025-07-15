@@ -13,10 +13,10 @@ extern "C" SEXP _capybara_demean_variables_(SEXP V_r, SEXP w_r, SEXP klist, SEXP
   END_CPP11
 }
 // capybara.cpp
-list feols_fit_(const doubles & y_r, const doubles_matrix<> & x_r, const doubles & wt_r, const list & control, const list & k_list);
-extern "C" SEXP _capybara_feols_fit_(SEXP y_r, SEXP x_r, SEXP wt_r, SEXP control, SEXP k_list) {
+list felm_fit_(const doubles & y_r, const doubles_matrix<> & x_r, const doubles & wt_r, const list & control, const list & k_list);
+extern "C" SEXP _capybara_felm_fit_(SEXP y_r, SEXP x_r, SEXP wt_r, SEXP control, SEXP k_list) {
   BEGIN_CPP11
-    return cpp11::as_sexp(feols_fit_(cpp11::as_cpp<cpp11::decay_t<const doubles &>>(y_r), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(x_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(wt_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(control), cpp11::as_cpp<cpp11::decay_t<const list &>>(k_list)));
+    return cpp11::as_sexp(felm_fit_(cpp11::as_cpp<cpp11::decay_t<const doubles &>>(y_r), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(x_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(wt_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(control), cpp11::as_cpp<cpp11::decay_t<const list &>>(k_list)));
   END_CPP11
 }
 // capybara.cpp
@@ -74,7 +74,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_capybara_demean_variables_",    (DL_FUNC) &_capybara_demean_variables_,    8},
     {"_capybara_feglm_fit_",           (DL_FUNC) &_capybara_feglm_fit_,           9},
     {"_capybara_feglm_offset_fit_",    (DL_FUNC) &_capybara_feglm_offset_fit_,    7},
-    {"_capybara_feols_fit_",           (DL_FUNC) &_capybara_feols_fit_,           5},
+    {"_capybara_felm_fit_",            (DL_FUNC) &_capybara_felm_fit_,            5},
     {"_capybara_get_alpha_",           (DL_FUNC) &_capybara_get_alpha_,           3},
     {"_capybara_group_sums_",          (DL_FUNC) &_capybara_group_sums_,          3},
     {"_capybara_group_sums_cov_",      (DL_FUNC) &_capybara_group_sums_cov_,      3},

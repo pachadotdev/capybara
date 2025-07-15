@@ -3,8 +3,8 @@
 generics::tidy
 
 #' srr_stats
-#' @srrstats {G1.0} Implements `tidy` methods for `feglm` and `feols` objects to provide clean, structured coefficient tables.
-#' @srrstats {G2.1a} Validates the input object is of class `feglm` or `feols`.
+#' @srrstats {G1.0} Implements `tidy` methods for `feglm` and `felm` objects to provide clean, structured coefficient tables.
+#' @srrstats {G2.1a} Validates the input object is of class `feglm` or `felm`.
 #' @srrstats {G2.2} Extracts model coefficients, standard errors, statistics, and p-values in a consistent format.
 #' @srrstats {G2.3} Adds optional confidence intervals for coefficients with user-defined levels.
 #' @srrstats {G5.1} Outputs are compatible with downstream tidyverse operations (`tibble`-based structure).
@@ -38,6 +38,6 @@ tidy.feglm <- function(x, conf_int = FALSE, conf_level = 0.95, ...) {
 
 #' @rdname broom
 #' @export
-tidy.feols <- function(x, conf_int = FALSE, conf_level = 0.95, ...) {
+tidy.felm <- function(x, conf_int = FALSE, conf_level = 0.95, ...) {
   tidy.feglm(x, conf_int, conf_level, ...)
 }

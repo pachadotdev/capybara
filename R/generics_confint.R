@@ -1,6 +1,6 @@
 #' srr_stats
-#' @srrstats {G1.0} Implements `confint` methods for extracting confidence intervals for `feglm` and `feols` objects.
-#' @srrstats {G2.1a} Ensures that the input object is of the expected class (`feglm` or `feols`).
+#' @srrstats {G1.0} Implements `confint` methods for extracting confidence intervals for `feglm` and `felm` objects.
+#' @srrstats {G2.1a} Ensures that the input object is of the expected class (`feglm` or `felm`).
 #' @srrstats {G2.3a} Validates the `level` parameter to ensure it is within the accepted range (0, 1).
 #' @srrstats {G3.1a} Outputs confidence intervals in a standardized format, making them easily interpretable.
 #' @srrstats {G3.1b} Supports multiple model types with consistent behavior.
@@ -40,6 +40,6 @@ confint.feglm <- function(object, parm, level = 0.95, ...) {
 
 #' @export
 #' @noRd
-confint.feols <- function(object, parm, level = 0.95, ...) {
+confint.felm <- function(object, parm, level = 0.95, ...) {
   confint.feglm(object, parm, level, ...)
 }

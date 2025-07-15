@@ -3,24 +3,24 @@
 %   R/generics_tidy.R
 \name{augment.feglm}
 \alias{augment.feglm}
-\alias{augment.feols}
+\alias{augment.felm}
 \alias{glance.feglm}
-\alias{glance.feols}
+\alias{glance.felm}
 \alias{tidy.feglm}
-\alias{tidy.feols}
+\alias{tidy.felm}
 \title{Broom Integration}
 \usage{
 \method{augment}{feglm}(x, newdata = NULL, ...)
 
-\method{augment}{feols}(x, newdata = NULL, ...)
+\method{augment}{felm}(x, newdata = NULL, ...)
 
 \method{glance}{feglm}(x, ...)
 
-\method{glance}{feols}(x, ...)
+\method{glance}{felm}(x, ...)
 
 \method{tidy}{feglm}(x, conf_int = FALSE, conf_level = 0.95, ...)
 
-\method{tidy}{feols}(x, conf_int = FALSE, conf_level = 0.95, ...)
+\method{tidy}{felm}(x, conf_int = FALSE, conf_level = 0.95, ...)
 }
 \arguments{
 \item{x}{A fitted model object.}

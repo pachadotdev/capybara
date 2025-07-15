@@ -1,6 +1,6 @@
 #' srr_stats (tests)
 #' @srrstats {G5.6b} Conducts parameter recovery tests with multiple random seeds to validate consistency in results despite random components in data simulation or algorithms.
-#' @srrstats {RE3.2} Compares fixed effects estimated by `feglm` and `feols` with equivalent GLM models to ensure similarity.
+#' @srrstats {RE3.2} Compares fixed effects estimated by `feglm` and `felm` with equivalent GLM models to ensure similarity.
 #' @srrstats {RE3.3} Validates the alignment of fixed effects recovery across different model implementations.
 #' @srrstats {RE4.3} Ensures robustness of fixed effects recovery under varied random seeds.
 #' @noRd
@@ -34,7 +34,7 @@ test_that("fixed_effects is similar to glm", {
   )
 
   fit1 <- lm(y ~ x + f + 0, data = d)
-  fit2 <- feols(y ~ x | f, data = d)
+  fit2 <- felm(y ~ x | f, data = d)
 
   c1 <- unname(coef(fit1)[grep("f", names(coef(fit1)))])
   c2 <- unname(drop(fixed_effects(fit2)$f))

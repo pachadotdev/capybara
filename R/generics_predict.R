@@ -1,6 +1,6 @@
 #' srr_stats
-#' @srrstats {G1.0} Implements `predict` methods for `feglm` and `feols` objects, similar to base R methods.
-#' @srrstats {G2.1a} Ensures input objects are of the expected class (`feglm` or `feols`).
+#' @srrstats {G1.0} Implements `predict` methods for `feglm` and `felm` objects, similar to base R methods.
+#' @srrstats {G2.1a} Ensures input objects are of the expected class (`feglm` or `felm`).
 #' @srrstats {G2.3a} Provides options for output type (`link`, `response`, or `terms`) via a standardized `type` argument.
 #' @srrstats {G2.3b} Handles missing or invalid new data gracefully with appropriate checks and error messages.
 #' @srrstats {G3.1a} Computes predicted values for both new and existing data sets.
@@ -10,7 +10,7 @@
 #' @srrstats {G5.4a} Outputs predictions in a format compatible with standard R workflows.
 #' @srrstats {RE4.9} The predicted values for the model data or new data are returned as a vector with `predict()`.
 #' @srrstats {RE4.16} The fixed effects are passed to the `predict()` function to add the group-specific effects to the predictions.
-#' @srrstats {RE5.0} Ensures computational efficiency in handling both `feglm` and `feols` prediction workflows.
+#' @srrstats {RE5.0} Ensures computational efficiency in handling both `feglm` and `felm` prediction workflows.
 #' @srrstats {RE5.2} Integrates seamlessly with user-provided data for generating predictions.
 #' @srrstats {RE5.3} Provides predictable and consistent output types for downstream analysis.
 #' @noRd
@@ -72,11 +72,11 @@ predict.feglm <- function(object, newdata = NULL, type = c("link", "response"), 
   as.numeric(eta)
 }
 
-#' @title Predict method for 'feols' objects
+#' @title Predict method for 'felm' objects
 #' @description Similar to the 'predict' method for 'lm' objects
 #' @export
 #' @noRd
-predict.feols <- function(object, newdata = NULL, type = c("response", "terms"), ...) {
+predict.felm <- function(object, newdata = NULL, type = c("response", "terms"), ...) {
   type <- match.arg(type)
 
   if (!is.null(newdata)) {

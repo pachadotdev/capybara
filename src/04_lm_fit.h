@@ -29,7 +29,7 @@ inline mat crossprod_(const mat &X, const vec &w) {
 }
 
 // Core function: pure Armadillo types
-inline LMResult feols_fit(const mat &X, const vec &y, const vec &w,
+inline LMResult felm_fit(const mat &X, const vec &y, const vec &w,
                                 const field<field<uvec>> &group_indices,
                                 double center_tol, size_t iter_center_max,
                                 size_t iter_interrupt, size_t iter_ssr) {

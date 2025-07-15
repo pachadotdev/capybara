@@ -4,7 +4,7 @@ generics::augment
 
 #' srr_stats
 #' @srrstats {G1.0} Provides integration with the `broom` package for model output tidying.
-#' @srrstats {G2.1a} Ensures the input object is of the expected class (`feglm` or `feols`).
+#' @srrstats {G2.1a} Ensures the input object is of the expected class (`feglm` or `felm`).
 #' @srrstats {G2.3a} Ensures compatibility with new data provided via the `newdata` argument.
 #' @srrstats {G3.1a} Outputs include fitted values and residuals in a tidy tibble format for interpretability.
 #' @srrstats {G3.1c} Supports additional columns in the output for confidence intervals if requested.
@@ -63,6 +63,6 @@ augment.feglm <- function(x, newdata = NULL, ...) {
 
 #' @rdname broom
 #' @export
-augment.feols <- function(x, newdata = NULL, ...) {
+augment.felm <- function(x, newdata = NULL, ...) {
   augment.feglm(x, newdata, ...)
 }

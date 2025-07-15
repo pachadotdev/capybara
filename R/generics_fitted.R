@@ -1,9 +1,9 @@
 #' srr_stats
-#' @srrstats {G1.0} Implements `fitted` methods for extracting fitted values from `feglm` and `feols` objects.
-#' @srrstats {G2.1a} Ensures that the input object is of the expected class (`feglm` or `feols`).
+#' @srrstats {G1.0} Implements `fitted` methods for extracting fitted values from `feglm` and `felm` objects.
+#' @srrstats {G2.1a} Ensures that the input object is of the expected class (`feglm` or `felm`).
 #' @srrstats {G2.3a} Provides consistent and reliable handling of the fitted values for the supported object types.
 #' @srrstats {G3.1a} Ensures that the returned fitted values match the specified family link function.
-#' @srrstats {G3.1b} Supports both `feglm` and `feols` models with consistent behavior.
+#' @srrstats {G3.1b} Supports both `feglm` and `felm` models with consistent behavior.
 #' @srrstats {G3.1c} Outputs fitted values in a standardized format for use in downstream analysis.
 #' @srrstats {G5.1} Includes error handling for unsupported or invalid input objects.
 #' @srrstats {G5.4a} Includes tests to validate fitted value calculations for edge cases and typical use cases.
@@ -20,6 +20,6 @@ fitted.feglm <- function(object, ...) {
 
 #' @export
 #' @noRd
-fitted.feols <- function(object, ...) {
+fitted.felm <- function(object, ...) {
   object[["fitted.values"]]
 }

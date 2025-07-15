@@ -9,7 +9,7 @@
 #' @srrstats {G2.4d} Verifies the structure and completeness of input data, including the absence of missing values and correct dimensionality for matrices.
 #' @srrstats {G2.4e} Issues warnings when deprecated or redundant arguments are used, encouraging users to adopt updated practices while maintaining backward compatibility.
 #' @srrstats {G2.7} The input accepts data frames, tibbles and data table objects, from which it creates the design matrix.
-#' @srrstats {G2.8} The pre-processing for all main functions (e.g., `feglm`, `feols`, `fepois`, `fenegbin`) is the same. The helper functions discard unusable observations dependening on the link function, and then create the design matrix.
+#' @srrstats {G2.8} The pre-processing for all main functions (e.g., `feglm`, `felm`, `fepois`, `fenegbin`) is the same. The helper functions discard unusable observations dependening on the link function, and then create the design matrix.
 #' @srrstats {G2.10} For data frames, tibbles and data tables the column-extraction operations are consistent.
 #' @srrstats {G2.11} `data.frame`-like tabular objects which have can have atypical columns (i.e., `vector`) do not error without reason.
 #' @srrstats {G2.13} Checks for and handles missing data in input datasets.

@@ -4,8 +4,8 @@ demean_variables_ <- function(V_r, w_r, klist, tol, max_iter, iter_interrupt, it
   .Call(`_capybara_demean_variables_`, V_r, w_r, klist, tol, max_iter, iter_interrupt, iter_ssr, family)
 }
 
-feols_fit_ <- function(y_r, x_r, wt_r, control, k_list) {
-  .Call(`_capybara_feols_fit_`, y_r, x_r, wt_r, control, k_list)
+felm_fit_ <- function(y_r, x_r, wt_r, control, k_list) {
+  .Call(`_capybara_felm_fit_`, y_r, x_r, wt_r, control, k_list)
 }
 
 feglm_fit_ <- function(beta_r, eta_r, y_r, x_r, wt_r, theta, family, control, k_list) {
