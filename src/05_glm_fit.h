@@ -402,6 +402,78 @@ struct FeglmFitResult {
   }
 };
 
+// Separation checking functions for Poisson regression
+// Based on Python pyfixest fepois_.py separation checking
+
+// Helper function to check for separation using fixed effects method
+inline uvec check_separation_fe(const vec &y, const field<field<uvec>> &group_indices) {
+  std::vector<arma::uword> separated_obs;
+  
+  if (group_indices.n_elem == 0) {
+    return uvec();  // No fixed effects, no separation
+  }
+  
+  // Check if all y values are positive (no zeros)
+  if (all(y > 0)) {
+    return uvec();  // No boundary observations, no separation
+  }
+  
+  // Create binary indicator for y > 0
+  vec y_positive = conv_to<vec>::from(y > 0);
+  
+  // Loop over each fixed effect category
+  for (size_t fe_idx = 0; fe_idx < group_indices.n_elem; ++fe_idx) {
+    const field<uvec> &current_fe = group_indices(fe_idx);
+    
+    // For each level of this fixed effect
+    for (size_t level = 0; level < current_fe.n_elem; ++level) {
+      const uvec &group_obs = current_fe(level);
+      
+      if (group_obs.n_elem == 0) continue;
+      
+      // Check if this group has only positive y values (y > 0)
+      // AND there are some zero y values in the full sample
+      vec y_group = y_positive.elem(group_obs);
+      double sum_positive = sum(y_group);
+      double group_size = static_cast<double>(group_obs.n_elem);
+      
+      // Separation condition: fixed effect level has only observations with Y > 0
+      // while the overall sample has some Y = 0 observations
+      if (sum_positive == group_size && sum_positive > 0) {
+        // This group is separated - add all observations in this group to separation list
+        for (arma::uword i = 0; i < group_obs.n_elem; ++i) {
+          separated_obs.push_back(group_obs(i));
+        }
+      }
+    }
+  }
+  
+  // Remove duplicates and sort
+  std::sort(separated_obs.begin(), separated_obs.end());
+  separated_obs.erase(std::unique(separated_obs.begin(), separated_obs.end()), separated_obs.end());
+  
+  return uvec(separated_obs);
+}
+
+// Main separation checking function
+inline uvec check_separation(const vec &y, const field<field<uvec>> &group_indices, 
+                           const std::vector<std::string> &methods = {"fe"}) {
+  std::set<arma::uword> all_separated;
+  
+  for (const auto &method : methods) {
+    if (method == "fe") {
+      uvec fe_separated = check_separation_fe(y, group_indices);
+      for (arma::uword i = 0; i < fe_separated.n_elem; ++i) {
+        all_separated.insert(fe_separated(i));
+      }
+    }
+    // Note: "ir" method implementation would be more complex and is omitted for now
+    // as it requires running auxiliary regressions
+  }
+  
+  return uvec(std::vector<arma::uword>(all_separated.begin(), all_separated.end()));
+}
+
 // Family-specific GLM algorithms matching Python pyfixest EXACTLY
 // Poisson uses specialized PPML algorithm (fepois_.py)
 // Binomial and others use standard GLM IRLS (feglm_.py, felogit_.py)
@@ -412,43 +484,96 @@ inline FeglmFitResult feglm_poisson(mat MX, vec beta, vec eta, const vec &y, con
                                              size_t iter_max, size_t iter_center_max,
                                              size_t iter_interrupt, size_t iter_ssr, const std::string &fam) {
   FeglmFitResult res;
-  size_t p = MX.n_cols;  // Remove unused n variable
+  size_t p = MX.n_cols;
   bool has_fixed_effects = group_indices.n_elem > 0;
   
-  // Initialize starting values for Poisson PPML (Python fepois_.py approach)
-  beta.zeros();
-  double y_mean = mean(y);
-  vec mu = (y + y_mean) / 2.0;  // Python: mu = (_Y + _mean) / 2
-  eta = log(mu);                // Python: eta = np.log(mu)
-  vec Z = eta + y / mu - 1.0;   // Python: Z = eta + _Y / mu - 1
-  vec reg_Z = Z;                // Python: reg_Z = Z.copy()
+  // Step 1: Check for separation (Python fepois_.py approach)
+  // Remove separated observations before estimation
+  uvec separated_obs;
+  mat MX_clean = MX;
+  vec y_clean = y;
+  vec wt_clean = wt;
+  field<field<uvec>> group_indices_clean = group_indices;
   
-  double last_deviance = 2.0 * sum(y % (log(y / mu) - 1.0) + mu); // Poisson deviance
+  if (has_fixed_effects && !all(y > 0)) {
+    // Check for separation using fixed effects method
+    separated_obs = check_separation(y, group_indices, {"fe"});
+    
+    if (separated_obs.n_elem > 0) {
+      // Remove separated observations
+      uvec keep_obs = ones<uvec>(y.n_elem);
+      keep_obs.elem(separated_obs).zeros();
+      uvec keep_indices = find(keep_obs);
+      
+      // Update data matrices
+      y_clean = y.elem(keep_indices);
+      wt_clean = wt.elem(keep_indices);
+      if (MX.n_cols > 0) {
+        MX_clean = MX.rows(keep_indices);
+      }
+      
+      // Update group indices to reflect removed observations
+      // This requires remapping the original indices to the new indices
+      std::map<arma::uword, arma::uword> index_map;
+      for (arma::uword i = 0; i < keep_indices.n_elem; ++i) {
+        index_map[keep_indices(i)] = i;
+      }
+      
+      // Rebuild group indices with new numbering
+      for (arma::uword fe_idx = 0; fe_idx < group_indices.n_elem; ++fe_idx) {
+        field<uvec> &current_fe = group_indices_clean(fe_idx);
+        for (arma::uword level = 0; level < current_fe.n_elem; ++level) {
+          const uvec &old_group = group_indices(fe_idx)(level);
+          std::vector<arma::uword> new_group;
+          
+          for (arma::uword i = 0; i < old_group.n_elem; ++i) {
+            arma::uword old_idx = old_group(i);
+            if (index_map.find(old_idx) != index_map.end()) {
+              new_group.push_back(index_map[old_idx]);
+            }
+          }
+          
+          current_fe(level) = uvec(new_group);
+        }
+      }
+    }
+  }
+  
+  // Step 2: Initialize starting values for Poisson PPML (Python fepois_.py approach)
+  beta.zeros();
+  double y_mean = mean(y_clean);
+  vec mu = (y_clean + y_mean) / 2.0;  // Python: mu = (_Y + _mean) / 2
+  eta = log(mu);                      // Python: eta = np.log(mu)
+  vec Z = eta + y_clean / mu - 1.0;   // Python: Z = eta + _Y / mu - 1
+  vec reg_Z = Z;                      // Python: reg_Z = Z.copy()
+  
+  double last_deviance = 2.0 * sum(y_clean % (log(y_clean / mu) - 1.0) + mu); // Poisson deviance
   bool conv = false;
   size_t iter;
   
   // Declare variables outside loop to use after convergence
   vec delta_new(p, fill::zeros);
   mat final_WX;
+  bool has_fixed_effects_clean = group_indices_clean.n_elem > 0;
 
   // PPML algorithm (Python fepois_.py get_fit method)
   for (iter = 0; iter < iter_max; ++iter) {
     if (iter > 0) {
-      Z = eta + y / mu - 1.0;   // eq (8) in Python
-      reg_Z = Z;                // eq (9) in Python
+      Z = eta + y_clean / mu - 1.0;   // eq (8) in Python
+      reg_Z = Z;                      // eq (9) in Python
     }
 
     // Step 1: weighted demeaning (Python fepois_.py)
     mat ZX;
-    if (MX.n_cols > 0) {
-      ZX = join_horiz(reg_Z, MX);
+    if (MX_clean.n_cols > 0) {
+      ZX = join_horiz(reg_Z, MX_clean);
     } else {
       ZX = reg_Z;  // Only Z column if no covariates
     }
     vec mu_weights = mu;  // Python: weights=mu.flatten() (mu is already a vector)
     
-    if (has_fixed_effects) {
-      demean_variables(ZX, mu_weights, group_indices, center_tol, iter_center_max, fam);
+    if (has_fixed_effects_clean) {
+      demean_variables(ZX, mu_weights, group_indices_clean, center_tol, iter_center_max, fam);
     }
     
     vec Z_resid = ZX.col(0);
@@ -494,7 +619,7 @@ inline FeglmFitResult feglm_poisson(mat MX, vec beta, vec eta, const vec &y, con
     }
 
     // Convergence check (same criterion as fixest)
-    double deviance = 2.0 * sum(y % (log(y / mu) - 1.0) + mu);
+    double deviance = 2.0 * sum(y_clean % (log(y_clean / mu) - 1.0) + mu);
     double crit = fabs(deviance - last_deviance) / (0.1 + fabs(last_deviance));
     last_deviance = deviance;
 
@@ -515,10 +640,38 @@ inline FeglmFitResult feglm_poisson(mat MX, vec beta, vec eta, const vec &y, con
     H = mat(0, 0, fill::zeros);
   }
 
+  // Step 3: Reconstruct full-size results for separated observations
+  // If we removed separated observations, we need to expand results back to original size
+  vec eta_full, mu_full, wt_full;
+  if (separated_obs.n_elem > 0) {
+    // Create full-size vectors with separated observations handled
+    eta_full = vec(y.n_elem, fill::zeros);
+    mu_full = vec(y.n_elem, fill::zeros);
+    wt_full = wt;  // Weights remain the same
+    
+    // Fill in non-separated observations
+    uvec keep_obs = ones<uvec>(y.n_elem);
+    keep_obs.elem(separated_obs).zeros();
+    uvec keep_indices = find(keep_obs);
+    
+    eta_full.elem(keep_indices) = eta;
+    mu_full.elem(keep_indices) = mu;
+    
+    // For separated observations, set eta to a large negative value (low fitted values)
+    eta_full.elem(separated_obs).fill(-10.0);  // exp(-10) ≈ 4.5e-5
+    mu_full.elem(separated_obs) = exp(eta_full.elem(separated_obs));
+    
+    eta = eta_full;
+    mu = mu_full;
+    wt_full = wt;
+  } else {
+    wt_full = wt_clean;
+  }
+
   res.coefficients = beta;
   res.eta = eta;
   res.fitted_values = mu;
-  res.weights = wt;
+  res.weights = wt_full;
   res.hessian = H;
   res.deviance = last_deviance;
   res.null_deviance = 0.0; // Will be computed elsewhere if needed
@@ -526,7 +679,7 @@ inline FeglmFitResult feglm_poisson(mat MX, vec beta, vec eta, const vec &y, con
   res.iter = static_cast<int>(iter + 1);
   res.coef_status = ones<uvec>(p);  // All coefficients are valid in Poisson
   if (keep_mx) {
-    res.mx = MX;
+    res.mx = MX;  // Use original matrix, not cleaned version
     res.has_mx = true;
   }
 
