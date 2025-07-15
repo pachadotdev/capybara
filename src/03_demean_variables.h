@@ -7,7 +7,7 @@ struct WeightedDemeanResult {
   bool success;
 };
 
-// Flat array group information structure
+// Flat array group information structure (keep existing optimized version)
 struct GroupInfo {
   // Flat storage for cache efficiency
   uvec group_starts;      // Start index for each group in flat_indices
@@ -114,10 +114,20 @@ struct GroupInfo {
   }
 };
 
-inline WeightedDemeanResult demean_variables(const mat &data, const umat &fe,
-                                             const vec &weights, double tol,
-                                             int max_iter,
-                                             const std::string &family = "gaussian") {
+inline bool check_convergence(const vec &x_curr, const vec &x_prev,
+                              double tol) {
+  for (size_t i = 0; i < x_curr.n_elem; ++i) {
+    if (std::abs(x_curr(i) - x_prev(i)) >= tol) {
+      return false;
+    }
+  }
+  return true;
+}
+
+inline WeightedDemeanResult
+demean_variables(const mat &data, const umat &fe, const vec &weights,
+                 double tol, int max_iter,
+                 const std::string &family = "gaussian") {
   WeightedDemeanResult result;
   result.success = false;
 
@@ -128,85 +138,45 @@ inline WeightedDemeanResult demean_variables(const mat &data, const umat &fe,
     return result;
   }
 
-  // Convert umat fixed effects to internal format for processing
-  const size_t n_vars = data.n_cols;
+  const size_t n_samples = data.n_rows;
+  const size_t n_features = data.n_cols;
   const size_t n_factors = fe.n_cols;
 
-  // Precompute group information for all factors
-  std::vector<std::vector<uvec>> factor_groups(n_factors);
-  std::vector<vec> group_weights(n_factors);
+  mat group_weights = calc_group_weights(weights, fe);
+  const size_t n_groups = group_weights.n_rows;
 
-  for (size_t k = 0; k < n_factors; ++k) {
-    uvec fe_col = fe.col(k);
-    uvec unique_levels = unique(fe_col);
-    size_t n_groups = unique_levels.n_elem;
+  result.demeaned_data.set_size(n_samples, n_features);
 
-    factor_groups[k].resize(n_groups);
-    group_weights[k].zeros(n_groups);
+  bool converged = false;
+  size_t not_converged = 0;
 
-    // Build group membership and compute group weights
-    for (size_t g = 0; g < n_groups; ++g) {
-      uvec group_members = find(fe_col == unique_levels(g));
-      factor_groups[k][g] = group_members;
+  vec group_weighted_sums(n_groups);
 
-      // Sum of weights for this group
-      group_weights[k](g) = accu(weights.elem(group_members));
-    }
-  }
+  for (size_t k = 0; k < n_features; ++k) {
+    vec xk_curr = data.col(k);
+    vec xk_prev = xk_curr - 1.0;
 
-  // Convergence check using vectorized operation
-  auto converged_check = [](const vec &a, const vec &b, double tol) -> bool {
-    return max(abs(a - b)) < tol;
-  };
-
-  // Process each variable separately (matching Python parallel structure)
-  result.demeaned_data = data; // Initialize with original data
-  bool all_converged = true;
-
-  for (size_t p = 0; p < n_vars; ++p) {
-    vec x_curr = data.col(p);
-    vec x_prev = x_curr - 1.0; // Initialize differently to ensure first iteration runs
-
-    bool converged = false;
-    // Alternating projections loop (matching Python demean function)
     for (int iter = 0; iter < max_iter; ++iter) {
-      // For each fixed effect factor (matching Python factor iteration)
-      for (size_t k = 0; k < n_factors; ++k) {
-        const std::vector<uvec> &groups_k = factor_groups[k];
-        const vec &weights_k = group_weights[k];
-
-        // Apply factor k (matching Python _subtract_weighted_group_mean)
-        for (size_t g = 0; g < groups_k.size(); ++g) {
-          const uvec &group_members = groups_k[g];
-          if (group_members.n_elem == 0 || weights_k(g) == 0.0)
-            continue;
-
-          // Compute weighted group sum using vectorized operation
-          double group_weighted_sum = accu(weights.elem(group_members) % x_curr.elem(group_members));
-
-          // Compute and subtract group mean using vectorized operation
-          double group_mean = group_weighted_sum / weights_k(g);
-          x_curr.elem(group_members) -= group_mean;
-        }
+      for (size_t j = 0; j < n_factors; ++j) {
+        subtract_weighted_group_mean(xk_curr, weights, fe.col(j),
+                                     group_weights.col(j), group_weighted_sums);
       }
 
-      // Check convergence (matching Python convergence logic)
-      if (converged_check(x_curr, x_prev, tol)) {
-        converged = true;
+      converged = check_convergence(xk_curr, xk_prev, tol);
+      if (converged)
         break;
-      }
 
-      x_prev = x_curr;
+      xk_prev = xk_curr;
     }
 
     if (!converged) {
-      all_converged = false;
+      not_converged++;
     }
 
-    result.demeaned_data.col(p) = x_curr;
+    result.demeaned_data.col(k) = xk_curr;
   }
 
-  result.success = all_converged;
+  result.success = (not_converged == 0);
   return result;
 }
 

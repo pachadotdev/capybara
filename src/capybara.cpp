@@ -83,7 +83,7 @@ demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   if (group_indices.n_elem > 0) {
     size_t n_obs = V.n_rows;
     fe_matrix.set_size(n_obs, group_indices.n_elem);
-    
+
     for (size_t k = 0; k < group_indices.n_elem; k++) {
       // Set FE levels based on group indices
       for (size_t g = 0; g < group_indices(k).n_elem; g++) {
@@ -99,7 +99,8 @@ demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   // Note: iter_interrupt and iter_ssr are control parameters but not used in
   // the basic demean_variables function The max_iter parameter corresponds to
   // the centering iteration limit
-  WeightedDemeanResult result = demean_variables(V, fe_matrix, w, tol, max_iter, family);
+  WeightedDemeanResult result =
+      demean_variables(V, fe_matrix, w, tol, max_iter, family);
 
   return as_doubles_matrix(result.demeaned_data);
 }

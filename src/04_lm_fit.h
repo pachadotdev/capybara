@@ -46,7 +46,7 @@ inline LMResult felm_fit(const mat &X, const vec &y, const vec &w,
     if (group_indices.n_elem > 0) {
       size_t n_obs = y.n_elem;
       fe_matrix.set_size(n_obs, group_indices.n_elem);
-      
+
       for (size_t k = 0; k < group_indices.n_elem; k++) {
         // Set FE levels based on group indices
         for (size_t g = 0; g < group_indices(k).n_elem; g++) {
@@ -60,10 +60,12 @@ inline LMResult felm_fit(const mat &X, const vec &y, const vec &w,
 
     MNU = y;
     mat MNU_mat = MNU;
-    WeightedDemeanResult mnu_result = demean_variables(MNU_mat, fe_matrix, w, center_tol, iter_center_max, "gaussian");
+    WeightedDemeanResult mnu_result = demean_variables(
+        MNU_mat, fe_matrix, w, center_tol, iter_center_max, "gaussian");
     MNU = mnu_result.demeaned_data.col(0);
-    
-    WeightedDemeanResult xc_result = demean_variables(Xc, fe_matrix, w, center_tol, iter_center_max, "gaussian");
+
+    WeightedDemeanResult xc_result = demean_variables(
+        Xc, fe_matrix, w, center_tol, iter_center_max, "gaussian");
     Xc = xc_result.demeaned_data;
   } else {
     MNU = vec(y.n_elem, fill::zeros);

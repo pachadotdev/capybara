@@ -536,13 +536,13 @@ inline GLMResult feglm_fit(mat &MX, vec &beta, vec &eta, const vec &y,
       // Center variables for fixed effects
       vec MNU = nu;
       mat MNU_mat = MNU;
-      
+
       // Convert field<field<uvec>> to umat format for new demean_variables
       umat fe_matrix;
       if (group_indices.n_elem > 0) {
         size_t n_obs = y.n_elem;
         fe_matrix.set_size(n_obs, group_indices.n_elem);
-        
+
         for (size_t k = 0; k < group_indices.n_elem; k++) {
           // Set FE levels based on group indices
           for (size_t g = 0; g < group_indices(k).n_elem; g++) {
@@ -553,11 +553,13 @@ inline GLMResult feglm_fit(mat &MX, vec &beta, vec &eta, const vec &y,
           }
         }
       }
-      
-      WeightedDemeanResult mnu_result = demean_variables(MNU_mat, fe_matrix, w, center_tol, iter_center_max, fam);
+
+      WeightedDemeanResult mnu_result = demean_variables(
+          MNU_mat, fe_matrix, w, center_tol, iter_center_max, fam);
       MNU = mnu_result.demeaned_data.col(0);
-      
-      WeightedDemeanResult mx_result = demean_variables(MX, fe_matrix, w, center_tol, iter_center_max, fam);
+
+      WeightedDemeanResult mx_result =
+          demean_variables(MX, fe_matrix, w, center_tol, iter_center_max, fam);
       MX = mx_result.demeaned_data;
 
       // Compute coefficient update
