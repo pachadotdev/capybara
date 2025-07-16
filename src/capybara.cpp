@@ -34,11 +34,11 @@ using cpp11::strings;
 #include "01_get_beta.h"
 #include "02_group_ops.h"
 #include "03_demean_variables.h"
-#include "04_lm_fit.h"
-#include "05_exponential_family.h"
-#include "06_glm_fit.h"
-#include "07_glm_offset_fit.h"
-#include "08_get_alpha.h"
+#include "04_get_alpha.h"
+#include "05_lm_fit.h"
+#include "06_exponential_family.h"
+#include "07_glm_fit.h"
+#include "08_glm_offset_fit.h"
 #include "09_group_sums.h"
 
 // Convert R k_list to portable Armadillo field structure
@@ -197,19 +197,6 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
                        iter_max, iter_center_max, iter_inner_max,
                        iter_interrupt, iter_ssr, fam, family_type, collin_tol);
   return res.to_doubles();
-}
-
-[[cpp11::register]] list get_alpha_(const doubles_matrix<> &p_r,
-                                    const list &klist, const list &control) {
-  const vec p = as_Mat(p_r);
-  const double tol = as_cpp<double>(control["center_tol"]);
-  const size_t iter_max = as_cpp<int>(control["iter_max"]);
-
-  // Convert R list to portable Armadillo structure
-  field<field<uvec>> group_indices = convert_klist_to_field(klist);
-
-  GetAlphaResult res = get_alpha(p, group_indices, tol, iter_max);
-  return res.to_list();
 }
 
 [[cpp11::register]] doubles_matrix<> group_sums_(const doubles_matrix<> &M_r,

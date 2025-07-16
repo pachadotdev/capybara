@@ -106,6 +106,8 @@ test_that("predicted values increase the error outside the inter-quartile range 
   pred2_base_binom <- predict(m2_binom, newdata = d2, type = "response")
   expect_equal(pred1_binom, unname(pred1_base_binom), tolerance = 0.05)
   expect_equal(pred2_binom, unname(pred2_base_binom), tolerance = 0.05)
+
+  names(m2_binom)
 })
 
 test_that("predicted values increase the error outside the inter-quartile range for LMs", {

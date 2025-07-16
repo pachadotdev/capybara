@@ -34,13 +34,6 @@ extern "C" SEXP _capybara_feglm_offset_fit_(SEXP eta_r, SEXP y_r, SEXP offset_r,
   END_CPP11
 }
 // capybara.cpp
-list get_alpha_(const doubles_matrix<> & p_r, const list & klist, const list & control);
-extern "C" SEXP _capybara_get_alpha_(SEXP p_r, SEXP klist, SEXP control) {
-  BEGIN_CPP11
-    return cpp11::as_sexp(get_alpha_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(p_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(klist), cpp11::as_cpp<cpp11::decay_t<const list &>>(control)));
-  END_CPP11
-}
-// capybara.cpp
 doubles_matrix<> group_sums_(const doubles_matrix<> & M_r, const doubles_matrix<> & w_r, const list & jlist);
 extern "C" SEXP _capybara_group_sums_(SEXP M_r, SEXP w_r, SEXP jlist) {
   BEGIN_CPP11
@@ -75,7 +68,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_capybara_feglm_fit_",           (DL_FUNC) &_capybara_feglm_fit_,           9},
     {"_capybara_feglm_offset_fit_",    (DL_FUNC) &_capybara_feglm_offset_fit_,    7},
     {"_capybara_felm_fit_",            (DL_FUNC) &_capybara_felm_fit_,            5},
-    {"_capybara_get_alpha_",           (DL_FUNC) &_capybara_get_alpha_,           3},
     {"_capybara_group_sums_",          (DL_FUNC) &_capybara_group_sums_,          3},
     {"_capybara_group_sums_cov_",      (DL_FUNC) &_capybara_group_sums_cov_,      3},
     {"_capybara_group_sums_spectral_", (DL_FUNC) &_capybara_group_sums_spectral_, 5},

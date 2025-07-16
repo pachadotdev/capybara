@@ -181,6 +181,20 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
     colnames(fit[["mx"]]) <- nms_sp
   }
 
+  # Add names to fixed effects if they exist ----
+  if (!is.null(fit[["fixed.effects"]]) && length(fit[["fixed.effects"]]) > 0) {
+    k <- length(fit[["fixed.effects"]])
+    if (k == length(k_vars) && k == length(nms_fe)) {
+      # Add names to the fixed effects list and individual vectors
+      names(fit[["fixed.effects"]]) <- k_vars
+      for (i in seq_len(k)) {
+        if (length(fit[["fixed.effects"]][[i]]) == length(nms_fe[[i]])) {
+          names(fit[["fixed.effects"]][[i]]) <- nms_fe[[i]]
+        }
+      }
+    }
+  }
+
   # Add to fit list ----
   fit[["nobs"]] <- nobs
   fit[["lvls_k"]] <- lvls_k
