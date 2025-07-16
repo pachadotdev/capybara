@@ -32,8 +32,8 @@ using cpp11::strings;
 // #include "timing.h"
 
 #include "01_get_beta.h"
-#include "03_demean_variables.h"
-#include "04_convergence.h"
+#include "02_demean_variables.h"
+#include "03_convergence.h"
 #include "04_get_alpha.h"
 #include "05_lm_fit.h"
 #include "06_exponential_family.h"
@@ -143,24 +143,20 @@ demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   const vec y = as_Col(y_r);
   const vec wt = as_Col(wt_r);
   const std::string fam = tidy_family_(family);
-  const FamilyType family_type = get_family_type(fam);
   const double center_tol = as_cpp<double>(control["center_tol"]),
                dev_tol = as_cpp<double>(control["dev_tol"]);
   const double collin_tol = as_cpp<double>(control["collin_tol"]);
   const bool keep_mx = as_cpp<bool>(control["keep_mx"]);
   const size_t iter_max = as_cpp<size_t>(control["iter_max"]),
                iter_center_max = as_cpp<size_t>(control["iter_center_max"]),
-               iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]),
-               iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]),
-               iter_ssr = as_cpp<size_t>(control["iter_ssr"]);
+               iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]);
 
   // Convert R list to portable Armadillo structure
   field<field<uvec>> group_indices = convert_klist_to_field(k_list);
 
   GLMResult res =
-      feglm_fit(MX, beta, eta, y, wt, theta, group_indices, center_tol, dev_tol,
-                keep_mx, iter_max, iter_center_max, iter_inner_max,
-                iter_interrupt, iter_ssr, fam, family_type, collin_tol);
+      feglm_fit(MX, y, wt, group_indices, center_tol, dev_tol, keep_mx,
+                iter_max, iter_center_max, iter_inner_max, fam, collin_tol);
 
   // Replace collinear coefficients with R's NA_REAL using vectorized approach
   uvec collinear_mask = (res.coef_status == 0);
@@ -267,17 +263,19 @@ group_sums_cov_(const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
   return res.to_matrix();
 }
 
-// Convergence interface function for fixest-style cluster coefficient computation
+// Convergence interface function for fixest-style cluster coefficient
+// computation
 // [[cpp11::register]] list converge_fixed_effects_(const doubles &mu_init_r,
 //                                                   const doubles &lhs_r,
 //                                                   const list &klist,
-//                                                   const doubles_matrix<> &sum_y_r,
-//                                                   const std::string &family,
-//                                                   const bool &use_acceleration,
-//                                                   const double &theta,
-//                                                   const int &iter_max,
-//                                                   const double &diff_max,
-//                                                   const double &diff_max_nr) {
+//                                                   const doubles_matrix<>
+//                                                   &sum_y_r, const std::string
+//                                                   &family, const bool
+//                                                   &use_acceleration, const
+//                                                   double &theta, const int
+//                                                   &iter_max, const double
+//                                                   &diff_max, const double
+//                                                   &diff_max_nr) {
 //   vec mu_init = as_col(mu_init_r);
 //   vec lhs = as_col(lhs_r);
 //   mat sum_y_mat = as_mat(sum_y_r);
