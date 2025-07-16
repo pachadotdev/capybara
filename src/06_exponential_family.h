@@ -69,7 +69,7 @@ vec link_inv_gamma_(const vec &eta) {
 }
 
 vec link_inv_invgaussian_(const vec &eta) {
-  return 1.0 / sqrt(abs(eta));  // inverse squared link
+  return 1.0 / sqrt(eta);  // inverse squared link (matching old code)
 }
 
 vec link_inv_negbin_(const vec &eta) {
@@ -92,14 +92,25 @@ double dev_resids_poisson_(const vec &y, const vec &mu, const vec &wt) {
   return 2 * accu(r);
 }
 
-// Logit deviance matching Python felogit_.py exactly
+// Logit deviance matching R's base implementation exactly
 double dev_resids_logit_(const vec &y, const vec &mu, const vec &wt) {
-  // Python felogit_.py: -2 * np.sum(y * np.log(mu) + (1 - y) * np.log(1 - mu))
-  vec mu_safe = clamp(mu, 1e-15, 1.0 - 1e-15);
-  vec log_mu = log(mu_safe);
-  vec log_1_minus_mu = log(1.0 - mu_safe);
+  // Adapted from binomial_dev_resids() in R base src/library/stats/src/family.c
+  vec r(y.n_elem, fill::none);
 
-  return -2.0 * dot(wt, y % log_mu + (1.0 - y) % log_1_minus_mu);
+  uvec p = find(y == 1);
+  uvec q = find(y == 0);
+  
+  if (p.n_elem > 0) {
+    vec y_p = y(p);
+    r(p) = y_p % log(y_p / mu(p));
+  }
+  
+  if (q.n_elem > 0) {
+    vec y_q = y(q);
+    r(q) = (1 - y_q) % log((1 - y_q) / (1 - mu(q)));
+  }
+
+  return 2.0 * dot(wt, r);
 }
 
 double dev_resids_gamma_(const vec &y, const vec &mu, const vec &wt) {

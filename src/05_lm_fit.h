@@ -7,12 +7,13 @@ struct LMResult {
   vec residuals;
   vec weights;
   mat hessian;
-  mat scores;
   uvec coef_status;  // 1 = estimable, 0 = collinear (from get_beta)
   bool success;
   
-  // Fixed effects support (matching GLMResult)
+  // Enhanced fixed effects support (matching fixest style)
   field<vec> fixed_effects;
+  uvec nb_references;          // Number of references per dimension
+  bool is_regular;             // Whether fixed effects are regular
   bool has_fe = false;
 
   cpp11::list to_list() const {
@@ -21,19 +22,18 @@ struct LMResult {
          "fitted.values"_nm = as_doubles(fitted),
          "weights"_nm = as_doubles(weights),
          "residuals"_nm = as_doubles(residuals),
-         "hessian"_nm = as_doubles_matrix(hessian),
-         "coef.status"_nm = as_integers(arma::conv_to<ivec>::from(
-             coef_status))
-         // "scores"_nm = as_doubles_matrix(scores),
+         "hessian"_nm = as_doubles_matrix(hessian)
          });
 
-    // Add fixed effects if they exist
+    // Add enhanced fixed effects if they exist
     if (has_fe && fixed_effects.n_elem > 0) {
       writable::list fe_list(fixed_effects.n_elem);
       for (size_t k = 0; k < fixed_effects.n_elem; ++k) {
         fe_list[k] = as_doubles(fixed_effects(k));
       }
       out.push_back({"fixed.effects"_nm = fe_list});
+      out.push_back({"nb_references"_nm = as_integers(nb_references)});
+      out.push_back({"is_regular"_nm = writable::logicals({is_regular})});
     }
     
     return out;
@@ -67,10 +67,9 @@ inline LMResult felm_fit(const mat &X_orig, const vec &y_orig, const vec &w,
   vec Y_demean;
 
   if (has_fixed_effects) {
-    // Convert field<field<uvec>> to umat format
     umat fe_matrix;
     fe_matrix.set_size(n, group_indices.n_elem);
-    fe_matrix.zeros();  // CRITICAL: Initialize to zeros
+    fe_matrix.zeros();
 
     for (size_t k = 0; k < group_indices.n_elem; k++) {
       for (size_t g = 0; g < group_indices(k).n_elem; g++) {
@@ -81,7 +80,7 @@ inline LMResult felm_fit(const mat &X_orig, const vec &y_orig, const vec &w,
       }
     }
 
-    // CRITICAL: Joint demeaning as in Python (matches demean_model)
+    // Joint demeaning
     mat YX_combined = join_rows(y_orig, X_orig);
     WeightedDemeanResult demean_result =
         demean_variables(YX_combined, fe_matrix, w, center_tol,
@@ -127,22 +126,21 @@ inline LMResult felm_fit(const mat &X_orig, const vec &y_orig, const vec &w,
   res.fitted = ws.fitted_values;
   res.residuals = ws.residuals;
   res.weights = ws.weights;
-  // res.scores = ws.scores;
   res.hessian = ws.hessian;
   res.coef_status = ws.coef_status;
   res.success = ws.success;
 
-  // Step 5: Compute and store fixed effects if they exist (matching GLM approach)
+  // Step 5: Compute and store fixed effects if they exist
   if (has_fixed_effects) {
-    // Compute fixed effects residuals: fitted_values - X * coefficients
-    vec fe_residuals = res.fitted - X_orig * res.coefficients;
-    
-    // Use get_alpha to recover fixed effects
+    // Use enhanced fixed effects extraction
     GetAlphaResult alpha_result = 
-        get_alpha(fe_residuals, group_indices, center_tol, iter_center_max);
+        extract_model_fixef(res.fitted, res.fitted, X_orig, res.coefficients,
+                           group_indices, "gaussian", center_tol, iter_center_max);
     
     res.fixed_effects = alpha_result.Alpha;
-    res.has_fe = true;
+    res.nb_references = alpha_result.nb_references;
+    res.is_regular = alpha_result.is_regular;
+    res.has_fe = alpha_result.success;
   } else {
     res.has_fe = false;
   }

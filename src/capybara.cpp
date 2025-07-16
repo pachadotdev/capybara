@@ -32,8 +32,8 @@ using cpp11::strings;
 // #include "timing.h"
 
 #include "01_get_beta.h"
-#include "02_group_ops.h"
 #include "03_demean_variables.h"
+#include "04_convergence.h"
 #include "04_get_alpha.h"
 #include "05_lm_fit.h"
 #include "06_exponential_family.h"
@@ -266,3 +266,98 @@ group_sums_cov_(const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
   GroupSumsResult res = group_sums_cov(M, N, group_indices);
   return res.to_matrix();
 }
+
+// Convergence interface function for fixest-style cluster coefficient computation
+// [[cpp11::register]] list converge_fixed_effects_(const doubles &mu_init_r,
+//                                                   const doubles &lhs_r,
+//                                                   const list &klist,
+//                                                   const doubles_matrix<> &sum_y_r,
+//                                                   const std::string &family,
+//                                                   const bool &use_acceleration,
+//                                                   const double &theta,
+//                                                   const int &iter_max,
+//                                                   const double &diff_max,
+//                                                   const double &diff_max_nr) {
+//   vec mu_init = as_col(mu_init_r);
+//   vec lhs = as_col(lhs_r);
+//   mat sum_y_mat = as_mat(sum_y_r);
+
+//   // Convert k_list to field structure
+//   field<field<uvec>> group_indices = convert_klist_to_field(klist);
+//   size_t K = group_indices.n_elem;
+//   size_t n_obs = mu_init.n_elem;
+
+//   // Create FE structure for convergence
+//   field<uvec> fe_indices(K);
+//   field<uvec> table(K);
+//   field<vec> sum_y(K);
+//   field<uvec> obsCluster(K);  // For negbin/logit
+//   field<uvec> cumtable(K);    // For negbin/logit
+
+//   // Convert group_indices to flat FE structure
+//   for (size_t k = 0; k < K; ++k) {
+//     const field<uvec> &groups_k = group_indices(k);
+//     size_t n_groups = groups_k.n_elem;
+
+//     // Create FE indices (which group each observation belongs to)
+//     fe_indices(k).set_size(n_obs);
+//     fe_indices(k).fill(0);  // Initialize with 0 (will be properly set below)
+
+//     // Create table (number of observations per group)
+//     table(k).set_size(n_groups);
+
+//     // Fill FE indices and count observations per group
+//     for (size_t g = 0; g < n_groups; ++g) {
+//       const uvec &group_obs = groups_k(g);
+//       table(k)(g) = group_obs.n_elem;
+
+//       for (size_t i = 0; i < group_obs.n_elem; ++i) {
+//         fe_indices(k)(group_obs(i)) = g;
+//       }
+//     }
+
+//     // Extract sum_y for this FE dimension
+//     sum_y(k) = sum_y_mat.col(k).head(n_groups);
+
+//     // For negbin/logit families, create obsCluster and cumtable
+//     if (family == "negbin" || family == "logit") {
+//       // obsCluster: flat list of observation indices grouped by cluster
+//       uvec obs_cluster_k(n_obs);
+//       uvec cumtable_k(n_groups);
+//       size_t obs_idx = 0;
+
+//       for (size_t g = 0; g < n_groups; ++g) {
+//         const uvec &group_obs = groups_k(g);
+
+//         for (size_t i = 0; i < group_obs.n_elem; ++i) {
+//           obs_cluster_k(obs_idx++) = group_obs(i);
+//         }
+
+//         cumtable_k(g) = obs_idx;
+//       }
+
+//       obsCluster(k) = obs_cluster_k;
+//       cumtable(k) = cumtable_k;
+//     } else {
+//       // For other families, create empty placeholders
+//       obsCluster(k).set_size(0);
+//       cumtable(k).set_size(0);
+//     }
+//   }
+
+//   // Call convergence function
+//   ConvergenceResult result = converge_fixed_effects(
+//       mu_init, lhs, fe_indices, table, sum_y, obsCluster, cumtable,
+//       family, use_acceleration, theta,
+//       static_cast<size_t>(iter_max), diff_max, diff_max_nr
+//   );
+
+//   // Return results as R list
+//   using namespace cpp11::literals;
+//   return cpp11::writable::list({
+//     "mu_new"_nm = as_doubles(result.mu_new),
+//     "success"_nm = result.success,
+//     "iterations"_nm = static_cast<int>(result.iterations),
+//     "any_negative_poisson"_nm = result.any_negative_poisson
+//   });
+// }

@@ -26,12 +26,13 @@ predict.feglm <- function(object, newdata = NULL, type = c("link", "response"), 
   if (!is.null(newdata)) {
     check_data_(newdata)
 
-    # Initialize variables that will be assigned by helper functions
+  # Initialize variables that will be assigned by helper functions
     data <- x <- NULL
-    
+
     # These variables will be assigned by the helper functions
     model_frame_(newdata, object$formula, NULL)
-    k_vars <- attr(terms(object$formula, rhs = 2L), "term.labels")
+    # Extract fixed effects variables using proper pipe parsing
+    k_vars <- parse_formula_pipe_(object$formula)
     data <- transform_fe_(data, object$formula, k_vars)
 
     # x, nms_sp, p are assigned by model_response_
@@ -134,7 +135,8 @@ predict.felm <- function(object, newdata = NULL, type = c("response", "terms"), 
 
     # These variables will be assigned by the helper functions
     model_frame_(newdata, object$formula, NULL)
-    k_vars <- attr(terms(object$formula, rhs = 2L), "term.labels")
+    # Extract fixed effects variables using proper pipe parsing
+    k_vars <- parse_formula_pipe_(object$formula)
     data <- transform_fe_(data, object$formula, k_vars)
 
     # x, nms_sp, p are assigned by model_response_

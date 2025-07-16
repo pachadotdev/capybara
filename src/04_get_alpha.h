@@ -1,16 +1,29 @@
 #ifndef CAPYBARA_ALPHA
 #define CAPYBARA_ALPHA
 
-// Fixed effects recovery - Direct group mean solution
+// Fixed effects recovery - Enhanced version with fixest compatibility
 struct GetAlphaResult {
   field<vec> Alpha;
+  uvec nb_references;          // Number of references per dimension (fixest compatibility)
+  bool is_regular;             // Whether fixed effects are regular
+  bool success;                // Whether extraction succeeded
+  
+  GetAlphaResult() : is_regular(true), success(false) {}
 
   cpp11::list to_list() const {
     writable::list Alpha_r(Alpha.n_elem);
     for (size_t k = 0; k < Alpha.n_elem; ++k) {
       Alpha_r[k] = as_doubles_matrix(Alpha(k).eval());
     }
-    return Alpha_r;
+    
+    // Add fixest-style metadata
+    writable::list result;
+    result.push_back({"fixed_effects"_nm = Alpha_r});
+    result.push_back({"nb_references"_nm = as_integers(nb_references)});
+    result.push_back({"is_regular"_nm = writable::logicals({is_regular})});
+    result.push_back({"success"_nm = writable::logicals({success})});
+    
+    return result;
   }
 };
 
@@ -204,7 +217,92 @@ inline GetAlphaResult get_alpha(const vec &p,
 
   GetAlphaResult res;
   res.Alpha = Alpha;
+  res.success = true;
+  
+  // Set reference count (simplified for now)
+  res.nb_references.set_size(K);
+  res.nb_references.zeros();
+  if (K >= 2) {
+    // First FE has 0 references, others have at least 1
+    for (size_t q = 1; q < K; ++q) {
+      res.nb_references(q) = 1;
+    }
+  }
+  
+  // Check if fixed effects are regular (simplified)
+  res.is_regular = (K <= 2);
+  
   return res;
+}
+
+// Enhanced fixed effects extraction for fixest compatibility
+// Extract fixed effects using the simple single FE method (Q=1)
+inline GetAlphaResult extract_fixef_single(const vec &sum_fe, 
+                                          const uvec &fe_id) {
+  GetAlphaResult result;
+  
+  // Sort by FE ID to find unique groups
+  uvec sorted_order = sort_index(fe_id);
+  uvec sorted_id = fe_id(sorted_order);
+  
+  // Find first occurrence of each unique ID
+  uvec group_starts;
+  group_starts.resize(0);
+  
+  if (sorted_id.n_elem > 0) {
+    group_starts.resize(1);
+    group_starts(0) = sorted_order(0);
+    
+    for (size_t i = 1; i < sorted_id.n_elem; ++i) {
+      if (sorted_id(i) != sorted_id(i-1)) {
+        group_starts.resize(group_starts.n_elem + 1);
+        group_starts(group_starts.n_elem - 1) = sorted_order(i);
+      }
+    }
+  }
+  
+  // Extract fixed effects at group starts
+  result.Alpha.set_size(1);
+  result.Alpha(0) = sum_fe(group_starts);
+  
+  // No references for single FE
+  result.nb_references.set_size(1);
+  result.nb_references(0) = 0;
+  result.is_regular = true;
+  result.success = true;
+  
+  return result;
+}
+
+// Extract fixed effects from fitted model object structure
+// This function takes the typical capybara model structure and extracts fixed effects
+inline GetAlphaResult extract_model_fixef(const vec &fitted_values,
+                                          const vec &linear_predictor,
+                                          const mat &X,
+                                          const vec &beta,
+                                          const field<field<uvec>> &group_indices,
+                                          const std::string &family = "gaussian",
+                                          double tol = 1e-8,
+                                          size_t iter_max = 10000) {
+  // Calculate sum of fixed effects from fitted model
+  // For GLM: sum_fe = linear_predictor - X * beta
+  // For LM: sum_fe = fitted_values - X * beta
+  
+  vec sum_fe;
+  if (family == "gaussian" || family == "linear") {
+    // Linear model case
+    sum_fe = fitted_values - X * beta;
+  } else {
+    // GLM case - use linear predictor
+    sum_fe = linear_predictor - X * beta;
+  }
+  
+  GetAlphaResult result = get_alpha(sum_fe, group_indices, tol, iter_max);
+  
+  // Add family-specific information
+  result.is_regular = (group_indices.n_elem <= 2);
+  
+  return result;
 }
 
 #endif // CAPYBARA_ALPHA

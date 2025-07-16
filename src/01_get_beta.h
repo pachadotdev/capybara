@@ -18,7 +18,6 @@ struct ModelResults {
   vec residuals;
   vec weights;
   mat hessian;
-  // mat scores;
   bool success;
 
   // GLM-specific fields
@@ -56,7 +55,6 @@ struct ModelResults {
         residuals(n, fill::none),
         weights(n, fill::none),
         hessian(p, p, fill::none),
-        // scores(n, p, fill::none),
         success(false),
         // GLM-specific initialization
         eta(n, fill::none),
@@ -98,9 +96,6 @@ struct ModelResults {
     if (residuals_response.n_elem > 0) {
       result.residuals_response = residuals_response;
     }
-    // if (scores.n_elem > 0) {
-    //   result.scores = scores;
-    // }
     if (has_fe && fixed_effects.n_elem > 0) {
       result.fixed_effects = fixed_effects;
       result.has_fe = true;
@@ -111,43 +106,8 @@ struct ModelResults {
 // Typedef for consistency with usage in other files
 using beta_results = ModelResults;
 
-// Solve for regression coefficients using QR decomposition (handles
-// collinearity)
-inline void get_beta_qr(mat &MX, const vec &MNU, const vec &w, ModelResults &ws,
-                        const uword p, bool use_weights, double collin_tol) {
-  if (use_weights) {
-    if (ws.XW.n_rows != MX.n_rows || ws.XW.n_cols != MX.n_cols) {
-      ws.XW.set_size(MX.n_rows, MX.n_cols);
-    }
-
-    ws.XW = MX.each_col() % sqrt(w);
-    qr_econ(ws.Q, ws.decomp, ws.XW);
-  } else {
-    qr_econ(ws.Q, ws.decomp, MX);
-  }
-
-  ws.work = ws.Q.t() * MNU;
-
-  const vec diag_abs = abs(ws.decomp.diag());
-  const double max_diag = diag_abs.max();
-  const double tol = collin_tol * max_diag;
-  const uvec indep = find(diag_abs > tol);
-
-  ws.coefficients.fill(datum::nan);
-  ws.coef_status.zeros();
-  ws.coef_status(indep).ones();
-
-  if (indep.n_elem == p) {
-    ws.coefficients = solve(trimatu(ws.decomp), ws.work, solve_opts::fast);
-  } else if (!indep.is_empty()) {
-    const mat Rr = ws.decomp.submat(indep, indep);
-    const vec Yr = ws.work.elem(indep);
-    const vec br = solve(trimatu(Rr), Yr, solve_opts::fast);
-    ws.coefficients(indep) = br;
-  }
-}
-
-// Use Cholesky if possible, otherwise use QR
+// Rank-revealing Cholesky decomposition with implicit pivoting
+// Based on fixest's cpp_cholesky implementation
 inline void get_beta(mat &MX, const vec &MNU, const vec &y_orig, const vec &w,
                      const uword n, const uword p, ModelResults &ws,
                      bool use_weights, double collin_tol,
@@ -157,38 +117,126 @@ inline void get_beta(mat &MX, const vec &MNU, const vec &y_orig, const vec &w,
   ws.coef_status.zeros(p);
   ws.success = false;
 
-  const bool direct_qr = (p > 0.9 * n);
+  if (p == 0) {
+    ws.success = true;
+    return;
+  }
 
-  if (direct_qr) {
-    get_beta_qr(MX, MNU, w, ws, p, use_weights, collin_tol);
+  // Compute X'X and X'Y
+  if (use_weights) {
+    const vec sqrt_w = sqrt(w);
+    ws.XW = MX.each_col() % sqrt_w;
+    ws.XtX = ws.XW.t() * ws.XW;
+    ws.XtY = MX.t() * (w % MNU);
   } else {
-    if (use_weights) {
-      const vec sqrt_w = sqrt(w);
-      ws.XW = MX.each_col() % sqrt_w;
-      ws.XtX = ws.XW.t() * ws.XW;
-      ws.XtY = MX.t() * (w % MNU);
-    } else {
-      ws.XtX = MX.t() * MX;
-      ws.XtY = MX.t() * MNU;
+    ws.XtX = MX.t() * MX;
+    ws.XtY = MX.t() * MNU;
+  }
+
+  // Rank-revealing Cholesky decomposition with implicit pivoting
+  mat R(p, p, fill::zeros);
+  uvec id_excl(p, fill::zeros);
+  uword n_excl = 0;
+  double min_norm = ws.XtX(0, 0);
+  
+  // Rank-revealing Cholesky with implicit pivoting
+  for (uword j = 0; j < p; ++j) {
+    // Compute diagonal element
+    double R_jj = ws.XtX(j, j);
+    
+    for (uword k = 0; k < j; ++k) {
+      if (id_excl(k)) continue;
+      R_jj -= R(k, j) * R(k, j);
     }
-
-    const bool chol_ok = chol(ws.decomp, ws.XtX, "lower");
-
-    if (chol_ok) {
-      const vec d = abs(ws.decomp.diag());
-      const double mind = d.min();
-      const double avgd = mean(d);
-
-      if (mind > 1e-12 * avgd) {
-        ws.work = solve(trimatl(ws.decomp), ws.XtY, solve_opts::fast);
-        ws.coefficients =
-            solve(trimatu(ws.decomp.t()), ws.work, solve_opts::fast);
-        ws.coef_status.ones();
-      } else {
-        get_beta_qr(MX, MNU, w, ws, p, use_weights, collin_tol);
+    
+    // Check for collinearity
+    if (R_jj < collin_tol) {
+      n_excl++;
+      id_excl(j) = 1;
+      
+      // Corner case: all variables excluded
+      if (n_excl == p) {
+        ws.coefficients.fill(datum::nan);
+        ws.coef_status.zeros();
+        ws.success = false;
+        return;
       }
-    } else {
-      get_beta_qr(MX, MNU, w, ws, p, use_weights, collin_tol);
+      continue;
+    }
+    
+    if (min_norm > R_jj) min_norm = R_jj;
+    
+    R_jj = sqrt(R_jj);
+    R(j, j) = R_jj;
+    
+    // Compute off-diagonal elements
+    for (uword i = j + 1; i < p; ++i) {
+      double value = ws.XtX(i, j);
+      for (uword k = 0; k < j; ++k) {
+        if (id_excl(k)) continue;
+        value -= R(k, i) * R(k, j);
+      }
+      R(j, i) = value / R_jj;
+    }
+  }
+  
+  // Reconstruct R matrix if variables were excluded
+  uword p_reduced = p - n_excl;
+  if (n_excl > 0) {
+    // Find first excluded variable
+    uword j_start = 0;
+    while (j_start < p && !id_excl(j_start)) ++j_start;
+    
+    // Compact the matrix
+    uword n_j_excl = 0;
+    for (uword j = j_start; j < p; ++j) {
+      if (id_excl(j)) {
+        ++n_j_excl;
+        continue;
+      }
+      
+      uword n_i_excl = 0;
+      for (uword i = 0; i <= j; ++i) {
+        if (id_excl(i)) {
+          ++n_i_excl;
+          continue;
+        }
+        R(i - n_i_excl, j - n_j_excl) = R(i, j);
+      }
+    }
+  }
+  
+  // Store decomposition
+  ws.decomp = R.submat(0, 0, p_reduced - 1, p_reduced - 1);
+  
+  // Set coefficient status
+  for (uword j = 0; j < p; ++j) {
+    ws.coef_status(j) = id_excl(j) ? 0 : 1;
+  }
+  
+  // Solve for coefficients using forward/backward substitution
+  if (p_reduced > 0) {
+    // Extract non-excluded elements from XtY
+    vec XtY_reduced(p_reduced);
+    uword idx = 0;
+    for (uword j = 0; j < p; ++j) {
+      if (!id_excl(j)) {
+        XtY_reduced(idx++) = ws.XtY(j);
+      }
+    }
+    
+    // Forward substitution: solve L * z = XtY_reduced
+    vec z = solve(trimatl(ws.decomp), XtY_reduced, solve_opts::fast);
+    
+    // Backward substitution: solve L^T * coef_reduced = z  
+    vec coef_reduced = solve(trimatu(ws.decomp.t()), z, solve_opts::fast);
+    
+    // Place coefficients back in original positions
+    idx = 0;
+    for (uword j = 0; j < p; ++j) {
+      if (!id_excl(j)) {
+        ws.coefficients(j) = coef_reduced(idx++);
+      }
     }
   }
 
@@ -210,59 +258,10 @@ inline void get_beta(mat &MX, const vec &MNU, const vec &y_orig, const vec &w,
   // 3. Weights
   ws.weights = w;
 
-  // 4. Hessian
-  if (use_weights) {
-    mat wX = MX.each_col() % w;
-    ws.hessian = MX.t() * wX;
-  } else {
-    ws.hessian = MX.t() * MX;
-  }
-
-  // 5. Scores
-  // if (use_weights) {
-  //   ws.scores = (MX.each_col() % sqrt(w)).each_col() % ws.residuals;
-  // } else {
-  //   ws.scores = MX.each_col() % ws.residuals;
-  // }
+  // 4. Hessian (use X'X or weighted version)
+  ws.hessian = ws.XtX;
 
   ws.success = true;
-}
-
-// Enhanced get_beta for GLM that populates additional GLM-specific fields
-inline void get_beta_glm(const mat &MX, const vec &MNU, const vec &y_orig, const vec &w,
-                         const uword n, const uword p, ModelResults &ws,
-                         bool use_weights, double collin_tol,
-                         bool has_fixed_effects = false,
-                         const vec &eta_in = vec(), const vec &mu_in = vec()) {
-  // Create a non-const copy for get_beta (since it may modify matrices internally)
-  mat MX_copy = MX;
-  
-  // First call regular get_beta to get coefficients and basic results
-  get_beta(MX_copy, MNU, y_orig, w, n, p, ws, use_weights, collin_tol, has_fixed_effects);
-  
-  if (!ws.success) return;
-  
-  // Store GLM-specific fields if provided
-  if (eta_in.n_elem == n) {
-    ws.eta = eta_in;
-  }
-  
-  if (mu_in.n_elem == n) {
-    ws.mu = mu_in;
-  }
-  
-  // For GLM, compute working and response residuals
-  if (use_weights) {
-    // Working residuals (for IRLS)
-    ws.residuals_working = MNU - MX_copy * ws.coefficients;
-    
-    // Response residuals
-    ws.residuals_response = y_orig - (mu_in.n_elem == n ? mu_in : ws.fitted_values);
-    
-    // Compute scores matrix for GLM (X * residuals)
-    mat WX = MX_copy.each_col() % sqrt(w);
-    // ws.scores = WX.each_col() % ws.residuals_working;
-  }
 }
 
 #endif  // CAPYBARA_BETA
