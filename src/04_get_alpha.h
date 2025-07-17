@@ -29,6 +29,43 @@ struct GetAlphaResult {
 };
 
 // Extract fixed effects using for single FE (Q=1)
+// inline GetAlphaResult extract_fixef_single(const vec &sum_fe,
+//                                            const uvec &fe_id) {
+//   GetAlphaResult result;
+
+//   uvec myOrder = sort_index(fe_id);
+//   uvec sorted_id = fe_id(myOrder);
+
+//   // Find positions where ID changes (first occurrence of each unique ID)
+//   uvec select;
+//   select.resize(0);
+
+//   if (sorted_id.n_elem > 0) {
+//     select.resize(1);
+//     select(0) = myOrder(0); // First element
+
+//     for (size_t i = 1; i < sorted_id.n_elem; ++i) {
+//       if (sorted_id(i) != sorted_id(i - 1)) {
+//         select.resize(select.n_elem + 1);
+//         select(select.n_elem - 1) = myOrder(i);
+//       }
+//     }
+//   }
+
+//   // Extract fixed effects at selected positions
+//   result.Alpha.set_size(1);
+//   result.Alpha(0) = sum_fe(select);
+
+//   // For single FE, no references needed
+//   result.nb_references.set_size(1);
+//   result.nb_references(0) = 0;
+//   result.is_regular = true;
+//   result.success = true;
+
+//   return result;
+// }
+
+// Overload for umat-based extract_fixef_single
 inline GetAlphaResult extract_fixef_single(const vec &sum_fe,
                                            const uvec &fe_id) {
   GetAlphaResult result;
@@ -42,7 +79,7 @@ inline GetAlphaResult extract_fixef_single(const vec &sum_fe,
 
   if (sorted_id.n_elem > 0) {
     select.resize(1);
-    select(0) = myOrder(0); // First element
+    select(0) = myOrder(0);  // First element
 
     for (size_t i = 1; i < sorted_id.n_elem; ++i) {
       if (sorted_id(i) != sorted_id(i - 1)) {
@@ -64,6 +101,7 @@ inline GetAlphaResult extract_fixef_single(const vec &sum_fe,
 
   return result;
 }
+
 
 inline GetAlphaResult get_alpha(const vec &p,
                                 const field<field<uvec>> &group_indices,
@@ -92,8 +130,7 @@ inline GetAlphaResult get_alpha(const vec &p,
     for (size_t g = 0; g < groups.n_elem; ++g) {
       const uvec &group_obs = groups(g);
       for (size_t i = 0; i < group_obs.n_elem; ++i) {
-        // TODO: use 0-based indexing consistently
-        fe_id(group_obs(i)) = g + 1; // 1-based indexing like fixest
+        fe_id(group_obs(i)) = g; // 0-based indexing consistently
       }
     }
 
@@ -202,6 +239,250 @@ inline GetAlphaResult get_alpha(const vec &p,
   result.Alpha = Alpha;
   result.success = (iter < iter_max);
   result.is_regular = true; // TODO: Assume regular for now
+
+  return result;
+}
+
+// New umat-based overload (preferred for efficiency)
+inline GetAlphaResult get_alpha(const vec &p, const umat &fe_matrix,
+                                double tol, size_t iter_max) {
+  const size_t K = fe_matrix.n_cols;
+  GetAlphaResult result;
+
+  if (K == 0) {
+    // No fixed effects => return intercept
+    result.Alpha.set_size(1);
+    result.Alpha(0) = vec(1);
+    result.Alpha(0)(0) = mean(p);
+    result.nb_references.set_size(1);
+    result.nb_references(0) = 0;
+    result.is_regular = true;
+    result.success = true;
+    return result;
+  }
+
+  if (K == 1) {
+    // Single FE case - use the more efficient umat format directly
+    return extract_fixef_single(p, fe_matrix.col(0));
+  }
+
+  // Multi-FE case - use umat directly for efficiency
+  // Initialize fixed effects storage
+  field<vec> Alpha(K);
+  for (size_t k = 0; k < K; ++k) {
+    // Count unique groups in each dimension
+    uvec unique_ids = unique(fe_matrix.col(k));
+    const size_t n_groups = unique_ids.n_elem;
+    Alpha(k).zeros(n_groups);
+  }
+
+  // Alpaca-like alternating projections
+  field<vec> Alpha_old(K);
+  for (size_t k = 0; k < K; ++k) {
+    Alpha_old(k).zeros(Alpha(k).n_elem);
+  }
+
+  const size_t N = p.n_elem;
+  double ratio = 0.0;
+  size_t iter = 0;
+
+  for (; iter < iter_max; ++iter) {
+    Alpha_old = Alpha;
+
+    // Update each FE dimension
+    for (size_t k = 0; k < K; ++k) {
+      const size_t n_groups_k = Alpha(k).n_elem;
+
+      // Compute residual: p - sum of other FEs
+      vec resid = p;
+      for (size_t l = 0; l < K; ++l) {
+        if (l == k)
+          continue;
+
+        for (size_t obs = 0; obs < N; ++obs) {
+          resid(obs) -= Alpha(l)(fe_matrix(obs, l));
+        }
+      }
+
+      // Update FE k
+      Alpha(k).zeros();
+      uvec group_counts(n_groups_k, fill::zeros);
+
+      for (size_t obs = 0; obs < N; ++obs) {
+        size_t group_id = fe_matrix(obs, k);
+        Alpha(k)(group_id) += resid(obs);
+        group_counts(group_id)++;
+      }
+
+      // Convert sums to means
+      for (size_t g = 0; g < n_groups_k; ++g) {
+        if (group_counts(g) > 0) {
+          Alpha(k)(g) /= group_counts(g);
+        }
+      }
+    }
+
+    // Check convergence
+    double num = 0.0, denom = 0.0;
+    for (size_t k = 0; k < K; ++k) {
+      const vec &diff = Alpha(k) - Alpha_old(k);
+      num += dot(diff, diff);
+      denom += dot(Alpha_old(k), Alpha_old(k));
+    }
+    ratio = sqrt(num / (denom + 1e-16));
+    if (ratio < tol)
+      break;
+  }
+
+  // Set references
+  result.nb_references.set_size(K);
+  result.nb_references.zeros();
+
+  if (K >= 2) {
+    // Set references for all FE dimensions except the first
+    for (size_t k = 1; k < K; ++k) {
+      result.nb_references(k) = 1;
+
+      if (Alpha(k).n_elem > 0) {
+        double reference_value = Alpha(k)(Alpha(k).n_elem - 1);
+        Alpha(k) -= reference_value;
+      }
+    }
+  }
+
+  result.Alpha = Alpha;
+  result.success = (iter < iter_max);
+  result.is_regular = true;
+
+  return result;
+}
+
+// Umat-based version for more efficient processing
+inline GetAlphaResult get_alpha_umat(const vec &p, const umat &fe_matrix,
+                                     double tol, size_t iter_max) {
+  const size_t K = fe_matrix.n_cols;
+  GetAlphaResult result;
+
+  if (K == 0) {
+    // No fixed effects => return intercept
+    result.Alpha.set_size(1);
+    result.Alpha(0) = vec(1);
+    result.Alpha(0)(0) = mean(p);
+    result.nb_references.set_size(1);
+    result.nb_references(0) = 0;
+    result.is_regular = true;
+    result.success = true;
+    return result;
+  }
+
+  if (K == 1) {
+    // Single FE case - use the existing function
+    uvec fe_id = fe_matrix.col(0);
+    return extract_fixef_single(p, fe_id);
+  }
+
+  // Multi-FE case - use the matrix directly instead of converting
+  const size_t N = p.n_elem;
+  
+  // Initialize fixed effects storage - find unique values for each dimension
+  field<vec> Alpha(K);
+  for (size_t k = 0; k < K; ++k) {
+    uvec unique_ids = unique(fe_matrix.col(k));
+    const size_t n_groups = unique_ids.n_elem;
+    Alpha(k).zeros(n_groups);
+  }
+
+  // Alpaca-like alternating projections using the umat directly
+  field<vec> Alpha_old(K);
+  for (size_t k = 0; k < K; ++k) {
+    Alpha_old(k).zeros(Alpha(k).n_elem);
+  }
+
+  double ratio = 0.0;
+  size_t iter = 0;
+
+  for (; iter < iter_max; ++iter) {
+    Alpha_old = Alpha;
+
+    // Update each FE dimension
+    for (size_t k = 0; k < K; ++k) {
+      const size_t n_groups_k = Alpha(k).n_elem;
+      uvec unique_ids_k = unique(fe_matrix.col(k));
+
+      // Compute residual: p - sum of other FEs
+      vec resid = p;
+      for (size_t l = 0; l < K; ++l) {
+        if (l == k) continue;
+
+        uvec unique_ids_l = unique(fe_matrix.col(l));
+        for (size_t obs = 0; obs < N; ++obs) {
+          // Find which group this observation belongs to in dimension l
+          size_t group_l = 0;
+          for (size_t g = 0; g < unique_ids_l.n_elem; ++g) {
+            if (fe_matrix(obs, l) == unique_ids_l(g)) {
+              group_l = g;
+              break;
+            }
+          }
+          resid(obs) -= Alpha(l)(group_l);
+        }
+      }
+
+      // Update FE k - compute means for each group
+      Alpha(k).zeros();
+      uvec group_counts(n_groups_k, fill::zeros);
+
+      for (size_t obs = 0; obs < N; ++obs) {
+        // Find which group this observation belongs to in dimension k  
+        size_t group_k = 0;
+        for (size_t g = 0; g < unique_ids_k.n_elem; ++g) {
+          if (fe_matrix(obs, k) == unique_ids_k(g)) {
+            group_k = g;
+            break;
+          }
+        }
+        Alpha(k)(group_k) += resid(obs);
+        group_counts(group_k)++;
+      }
+
+      // Convert sums to means
+      for (size_t g = 0; g < n_groups_k; ++g) {
+        if (group_counts(g) > 0) {
+          Alpha(k)(g) /= group_counts(g);
+        }
+      }
+    }
+
+    // Check convergence
+    double num = 0.0, denom = 0.0;
+    for (size_t k = 0; k < K; ++k) {
+      const vec &diff = Alpha(k) - Alpha_old(k);
+      num += dot(diff, diff);
+      denom += dot(Alpha_old(k), Alpha_old(k));
+    }
+    ratio = sqrt(num / (denom + 1e-16));
+    if (ratio < tol) break;
+  }
+
+  // Set references for all FE dimensions except the first
+  result.nb_references.set_size(K);
+  result.nb_references.zeros();
+
+  if (K >= 2) {
+    // Set references for all FE dimensions except the first
+    for (size_t k = 1; k < K; ++k) {
+      result.nb_references(k) = 1;
+
+      if (Alpha(k).n_elem > 0) {
+        double reference_value = Alpha(k)(Alpha(k).n_elem - 1);
+        Alpha(k) -= reference_value;
+      }
+    }
+  }
+
+  result.Alpha = Alpha;
+  result.success = (iter < iter_max);
+  result.is_regular = true;
 
   return result;
 }

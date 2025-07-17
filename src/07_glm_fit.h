@@ -53,12 +53,11 @@ struct GLMResult {
   }
 };
 
-// Extract fixed effects from GLM results
+// Extract fixed effects from GLM results - umat version
 inline field<vec>
 extract_glm_fixed_effects(const vec &eta, const mat &X_orig,
-                          const vec &coefficients,
-                          const field<field<uvec>> &group_indices) {
-  const size_t Q = group_indices.n_elem;
+                          const vec &coefficients, const umat &fe_matrix) {
+  const size_t Q = fe_matrix.n_cols;
   field<vec> fixed_effects(Q);
 
   if (Q == 0) {
@@ -74,14 +73,15 @@ extract_glm_fixed_effects(const vec &eta, const mat &X_orig,
     fe_component = eta;
   }
 
-  // Extract fixed effects for each dimension
+  // Extract fixed effects for each dimension using umat directly
   for (size_t q = 0; q < Q; ++q) {
-    const size_t n_groups = group_indices(q).n_elem;
+    uvec unique_ids = unique(fe_matrix.col(q));
+    const size_t n_groups = unique_ids.n_elem;
     vec fe_q(n_groups, fill::zeros);
 
-    // Compute group means
+    // Compute group means directly from umat
     for (size_t g = 0; g < n_groups; ++g) {
-      const uvec &group_obs = group_indices(q)(g);
+      uvec group_obs = find(fe_matrix.col(q) == unique_ids(g));
       if (group_obs.n_elem > 0) {
         double group_sum = 0.0;
         for (size_t i = 0; i < group_obs.n_elem; ++i) {
@@ -92,7 +92,6 @@ extract_glm_fixed_effects(const vec &eta, const mat &X_orig,
     }
 
     // Set reference group (first group) to zero
-    // TODO: check this later to match LM logic
     if (n_groups > 0) {
       double reference_value = fe_q(0);
       fe_q -= reference_value;
@@ -104,8 +103,9 @@ extract_glm_fixed_effects(const vec &eta, const mat &X_orig,
   return fixed_effects;
 }
 
+// Main GLM fit function - umat version only
 GLMResult feglm_fit(const mat &MX, const vec &y, const vec &wt,
-                    const field<field<uvec>> &group_indices, double center_tol,
+                    const umat &fe_matrix, double center_tol,
                     double dev_tol, bool keep_mx, size_t iter_max,
                     size_t iter_center_max, size_t iter_inner_max,
                     const std::string &family, double collin_tol) {
@@ -122,7 +122,7 @@ GLMResult feglm_fit(const mat &MX, const vec &y, const vec &wt,
   // Handle Gaussian case by delegating to LM
   if (family_type == GAUSSIAN) {
     LMResult lm_result =
-        felm_fit(MX, y, wt, group_indices, center_tol, iter_center_max, 0, 0,
+        felm_fit(MX, y, wt, fe_matrix, center_tol, iter_center_max, 0, 0,
                  collin_tol, any(wt != 1.0));
 
     result.coefficients = lm_result.coefficients;
@@ -171,6 +171,7 @@ GLMResult feglm_fit(const mat &MX, const vec &y, const vec &wt,
   vec mu;
   vec eta;
 
+  // Family-specific initialization
   if (family_type == POISSON) {
     mu = (y + mean_y) / 2.0;
     eta = log(clamp(mu, 1e-12, 1e12));
@@ -182,19 +183,13 @@ GLMResult feglm_fit(const mat &MX, const vec &y, const vec &wt,
   }
 
   result.deviance = dev_resids_(y, mu, 0.0, wt, family_type);
-  uvec coef_status = ones<uvec>(p);
-
-  // Convert group indices for demeaning
-  umat fe_matrix;
-  bool has_fe = group_indices.n_elem > 0;
-  if (has_fe) {
-    fe_matrix = convert_group_indices_to_umat(group_indices, n);
-  }
 
   // Storage for IRLS algorithm
   vec eta_old, z, w;
   double devold = result.deviance;
-  ModelResults ws(n, p);
+  bool has_fe = fe_matrix.n_cols > 0;
+  uvec coef_status = ones<uvec>(p);
+  BetaResult beta_result(n, p);  // Declare outside IRLS loop
 
   // IRLS loop
   for (size_t iter = 0; iter < iter_max; iter++) {
@@ -220,9 +215,8 @@ GLMResult feglm_fit(const mat &MX, const vec &y, const vec &wt,
       break;
     }
 
-    // Weighted least squares
+    // Weighted least squares using umat directly
     if (has_fe) {
-      // Joint demeaning
       mat combined = join_rows(z, MX);
       WeightedDemeanResult demean_result = demean_variables(
           combined, fe_matrix, w, center_tol, iter_center_max, family);
@@ -232,22 +226,30 @@ GLMResult feglm_fit(const mat &MX, const vec &y, const vec &wt,
       }
 
       vec z_demean = demean_result.demeaned_data.col(0);
-      mat X_demean = demean_result.demeaned_data.cols(1, p);
-      get_beta(X_demean, z_demean, y, w, n, p, ws, true, collin_tol, has_fe);
-    } else {
-      mat MX_copy = MX; // get_beta needs non-const reference
-      get_beta(MX_copy, z, y, w, n, p, ws, true, collin_tol, false);
-    }
-
-    if (!ws.success || any(ws.coefficients != ws.coefficients)) {
-      if (iter == 0) {
-        return result; // Failed at first iteration
+      if (p > 0) {
+        mat X_demean = demean_result.demeaned_data.cols(1, demean_result.demeaned_data.n_cols - 1);
+        beta_result =
+            get_beta(X_demean, z_demean, y, w, collin_tol, true, has_fe);
+      } else {
+        // No X variables
+        mat X_demean(z_demean.n_elem, 0);
+        beta_result =
+            get_beta(X_demean, z_demean, y, w, collin_tol, true, has_fe);
       }
-      break; // Divergence
+    } else {
+      beta_result = get_beta(MX, z, y, w, collin_tol, true, false);
     }
 
-    coef_status = ws.coef_status;
-    vec new_eta = ws.fitted_values;
+    if (!beta_result.success ||
+        any(beta_result.coefficients != beta_result.coefficients)) {
+      if (iter == 0) {
+        return result;
+      }
+      break;
+    }
+
+    coef_status = beta_result.coef_status;
+    vec new_eta = beta_result.fitted_values;
 
     // Step halving
     double rho = 1.0;
@@ -292,21 +294,25 @@ GLMResult feglm_fit(const mat &MX, const vec &y, const vec &wt,
   }
 
   // Final results
-  result.coefficients = ws.coefficients;
+  result.coefficients = beta_result.coefficients;
   result.eta = eta;
   result.fitted_values = mu;
   result.weights = w;
   result.coef_status = coef_status;
 
   // Hessian
-  // TODO: check this later
   if (has_fe) {
     mat combined = join_rows(z, MX);
     WeightedDemeanResult demean_result = demean_variables(
         combined, fe_matrix, w, center_tol, iter_center_max, family);
     if (demean_result.success) {
-      mat X_demean = demean_result.demeaned_data.cols(1, p);
-      result.hessian = X_demean.t() * (X_demean.each_col() % w);
+      if (p > 0) {
+        mat X_demean = demean_result.demeaned_data.cols(1, demean_result.demeaned_data.n_cols - 1);
+        result.hessian = X_demean.t() * (X_demean.each_col() % w);
+      } else {
+        // No X variables - compute hessian for intercept only
+        result.hessian = mat(0, 0);
+      }
     }
   } else {
     result.hessian = MX.t() * (MX.each_col() % w);
@@ -321,13 +327,12 @@ GLMResult feglm_fit(const mat &MX, const vec &y, const vec &wt,
     result.has_mx = true;
   }
 
-  // Extract fixed effects
+  // Extract fixed effects using efficient umat version
   if (has_fe) {
-    result.fixed_effects =
-        extract_glm_fixed_effects(eta, MX, result.coefficients, group_indices);
+    result.fixed_effects = extract_glm_fixed_effects(eta, MX, result.coefficients, fe_matrix);
     result.has_fe = true;
     result.is_regular = true;
-    result.nb_references.set_size(group_indices.n_elem);
+    result.nb_references.set_size(fe_matrix.n_cols);
     result.nb_references.fill(1);
   } else {
     result.has_fe = false;

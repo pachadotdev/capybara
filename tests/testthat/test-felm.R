@@ -15,7 +15,19 @@ test_that("felm works", {
   # 1-FE ----
 
   m1 <- felm(mpg ~ wt | cyl, mtcars)
+  # m1_fixest <- fixest::feols(mpg ~ wt | cyl, mtcars)
   m2 <- lm(mpg ~ wt + as.factor(cyl), mtcars)
+
+  # coef(m1)
+  # coef(m1_fixest)
+  #        wt
+  # -3.205613
+
+  # m1$fixed.effects
+  # fixest::fixef(m1_fixest)
+  # $cyl
+  #        4        6        8 
+  # 33.99079 29.73521 27.91993 
 
   expect_equal(coef(m1), coef(m2)[2], tolerance = 1e-2)
 
@@ -24,6 +36,9 @@ test_that("felm works", {
   expect_equal(length(predict(m1)), n)
   expect_equal(length(coef(m1)), 1)
   expect_equal(length(coef(summary(m1))), 4)
+
+  coef(felm(mpg ~ wt + qsec | cyl, mtcars))
+  coef(fixest::feols(mpg ~ wt + qsec | cyl, mtcars))
 
   m1 <- felm(mpg ~ wt + qsec | cyl, mtcars)
   m2 <- lm(mpg ~ wt + qsec + as.factor(cyl), mtcars)

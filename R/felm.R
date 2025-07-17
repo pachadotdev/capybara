@@ -160,7 +160,7 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   if (!any(lvls_k %in% "missing_fe")) {
     k_list <- get_index_list_(k_vars, data)
   } else {
-    k_list <- list(list(`1` = seq_len(nt) - 1L))
+    k_list <- list(list(`1` = seq_len(nt)))
   }
 
   # Fit linear model ----

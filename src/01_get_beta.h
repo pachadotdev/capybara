@@ -1,254 +1,199 @@
 #ifndef CAPYBARA_BETA
 #define CAPYBARA_BETA
 
-struct ModelResults {
-  // Matrix computations
-  mat XtX;
-  vec XtY;
-  mat decomp;
-  vec work;
-  mat Xt;
-  mat Q;
-  mat XW;
+using namespace arma;
 
-  // Core results
+// High-performance rank-revealing Cholesky with vectorization
+struct BetaResult {
   vec coefficients;
-  uvec coef_status;
   vec fitted_values;
   vec residuals;
   vec weights;
   mat hessian;
+  uvec coef_status;
   bool success;
 
-  // GLM-specific fields
-  vec eta;                  // Linear predictor
-  vec mu;                   // Mean values (response scale)
-  double deviance;          // Current deviance
-  double null_deviance;     // Null deviance
-  size_t iter;              // Number of iterations
-  bool conv;                // Convergence status
-  vec residuals_working;    // Working residuals
-  vec residuals_response;   // Response residuals
-  field<vec> fixed_effects; // Recovered fixed effects
-  bool has_fe;              // Whether fixed effects are present
-
-  // GLM temporary workspace
-  vec W;        // IRLS weights
-  vec W_tilde;  // Square root of IRLS weights
-  vec Z;        // Working dependent variable
-  vec v_tilde;  // Weighted working variable
-  mat X_tilde;  // Weighted design matrix
-  mat X_dotdot; // Demeaned weighted design matrix
-  vec v_dotdot; // Demeaned weighted variable
-
-  ModelResults(size_t n, size_t p)
-      : XtX(p, p, fill::none), XtY(p, fill::none), decomp(p, p, fill::none),
-        work(p, fill::none), Xt(p, n, fill::none), Q(p, 0, fill::none),
-        XW(n, 0, fill::none), coefficients(p, fill::zeros),
-        coef_status(p, fill::ones), fitted_values(n, fill::none),
-        residuals(n, fill::none), weights(n, fill::none),
-        hessian(p, p, fill::none), success(false),
-        // GLM-specific initialization
-        eta(n, fill::none), mu(n, fill::none), deviance(0.0),
-        null_deviance(0.0), iter(0), conv(false),
-        residuals_working(n, fill::none), residuals_response(n, fill::none),
-        has_fe(false),
-        // GLM workspace initialization
-        W(n, fill::none), W_tilde(n, fill::none), Z(n, fill::none),
-        v_tilde(n, fill::none), X_tilde(n, p, fill::none),
-        X_dotdot(n, p, fill::none), v_dotdot(n, fill::none) {}
-
-  // Template method to copy GLM-specific results to any result structure
-  template <typename ResultType>
-  void copy_glm_results_to(ResultType &result) const {
-    result.coefficients = coefficients;
-    result.eta = eta;
-    result.fitted_values = mu.n_elem > 0 ? mu : fitted_values;
-    result.weights = W_tilde.n_elem > 0 ? W_tilde : weights;
-    result.hessian = hessian;
-    result.coef_status = coef_status;
-    result.conv = conv;
-    result.iter = iter;
-    result.deviance = deviance;
-    result.null_deviance = null_deviance;
-
-    // PPML-specific fields (only copy if they exist in both structures)
-    if (residuals_working.n_elem > 0) {
-      result.residuals_working = residuals_working;
-    }
-    if (residuals_response.n_elem > 0) {
-      result.residuals_response = residuals_response;
-    }
-    if (has_fe && fixed_effects.n_elem > 0) {
-      result.fixed_effects = fixed_effects;
-      result.has_fe = true;
-    }
-  }
+  BetaResult(size_t n, size_t p)
+      : coefficients(p, fill::none),
+        fitted_values(n, fill::none),
+        residuals(n, fill::none),
+        weights(n, fill::none),
+        hessian(p, p, fill::none),
+        coef_status(p, fill::none),
+        success(false) {}
 };
 
-// Typedef for consistency with usage in other files
-using beta_results = ModelResults;
+// Rank-revealing Cholesky - vectorized operations
+inline bool cholesky_decomp(mat& R, uvec& excluded, const mat& XtX,
+                            double tol) {
+  const size_t p = XtX.n_cols;
+  R.zeros(p, p);
+  excluded.zeros(p);
 
-// Rank-revealing Cholesky decomposition with implicit pivoting
-// Based on fixest's cpp_cholesky implementation
-inline void get_beta(mat &MX, const vec &MNU, const vec &y_orig, const vec &w,
-                     const uword n, const uword p, ModelResults &ws,
-                     bool use_weights, double collin_tol,
-                     bool has_fixed_effects = false) {
-  ws.coefficients.set_size(p);
-  ws.coefficients.fill(datum::nan);
-  ws.coef_status.zeros(p);
-  ws.success = false;
+  size_t n_excluded = 0;
 
-  if (p == 0) {
-    ws.success = true;
-    return;
-  }
+  for (size_t j = 0; j < p; ++j) {
+    // Compute diagonal element efficiently
+    double R_jj = XtX(j, j);
 
-  // Compute X'X and X'Y
-  if (use_weights) {
-    const vec sqrt_w = sqrt(w);
-    ws.XW = MX.each_col() % sqrt_w;
-    ws.XtX = ws.XW.t() * ws.XW;
-    ws.XtY = MX.t() * (w % MNU);
-  } else {
-    ws.XtX = MX.t() * MX;
-    ws.XtY = MX.t() * MNU;
-  }
-
-  // Rank-revealing Cholesky decomposition with implicit pivoting
-  mat R(p, p, fill::zeros);
-  uvec id_excl(p, fill::zeros);
-  uword n_excl = 0;
-  double min_norm = ws.XtX(0, 0);
-
-  // Rank-revealing Cholesky with implicit pivoting
-  for (uword j = 0; j < p; ++j) {
-    // Compute diagonal element
-    double R_jj = ws.XtX(j, j);
-
-    for (uword k = 0; k < j; ++k) {
-      if (id_excl(k))
-        continue;
-      R_jj -= R(k, j) * R(k, j);
+    // Vectorized computation of sum of squares
+    if (j > 0) {
+      const rowvec R_row = R.submat(0, j, j - 1, j);
+      R_jj -= dot(R_row, R_row);
     }
 
     // Check for collinearity
-    if (R_jj < collin_tol) {
-      n_excl++;
-      id_excl(j) = 1;
-
-      // Corner case: all variables excluded
-      if (n_excl == p) {
-        ws.coefficients.fill(datum::nan);
-        ws.coef_status.zeros();
-        ws.success = false;
-        return;
+    if (R_jj < tol) {
+      excluded(j) = 1;
+      ++n_excluded;
+      if (n_excluded == p) {
+        return false;  // All variables excluded
       }
       continue;
     }
 
-    if (min_norm > R_jj)
-      min_norm = R_jj;
-
-    R_jj = sqrt(R_jj);
+    R_jj = std::sqrt(R_jj);
     R(j, j) = R_jj;
 
-    // Compute off-diagonal elements
-    for (uword i = j + 1; i < p; ++i) {
-      double value = ws.XtX(i, j);
-      for (uword k = 0; k < j; ++k) {
-        if (id_excl(k))
-          continue;
-        value -= R(k, i) * R(k, j);
+    // Vectorized computation of off-diagonal elements
+    if (j < p - 1) {
+      vec values = XtX.submat(j + 1, j, p - 1, j);
+
+      if (j > 0) {
+        const mat R_prev = R.submat(0, j + 1, j - 1, p - 1);
+        const vec R_j_prev = R.submat(0, j, j - 1, j);
+        values -= R_prev.t() * R_j_prev;
       }
-      R(j, i) = value / R_jj;
+
+      values /= R_jj;
+      R.submat(j, j + 1, j, p - 1) = values.t();
     }
   }
 
-  // Reconstruct R matrix if variables were excluded
-  uword p_reduced = p - n_excl;
-  if (n_excl > 0) {
-    // Find first excluded variable
-    uword j_start = 0;
-    while (j_start < p && !id_excl(j_start))
-      ++j_start;
-
-    // Compact the matrix
-    uword n_j_excl = 0;
-    for (uword j = j_start; j < p; ++j) {
-      if (id_excl(j)) {
-        ++n_j_excl;
-        continue;
-      }
-
-      uword n_i_excl = 0;
-      for (uword i = 0; i <= j; ++i) {
-        if (id_excl(i)) {
-          ++n_i_excl;
-          continue;
-        }
-        R(i - n_i_excl, j - n_j_excl) = R(i, j);
-      }
-    }
-  }
-
-  // Store decomposition
-  ws.decomp = R.submat(0, 0, p_reduced - 1, p_reduced - 1);
-
-  // Set coefficient status
-  for (uword j = 0; j < p; ++j) {
-    ws.coef_status(j) = id_excl(j) ? 0 : 1;
-  }
-
-  // Solve for coefficients using forward/backward substitution
-  if (p_reduced > 0) {
-    // Extract non-excluded elements from XtY
-    vec XtY_reduced(p_reduced);
-    uword idx = 0;
-    for (uword j = 0; j < p; ++j) {
-      if (!id_excl(j)) {
-        XtY_reduced(idx++) = ws.XtY(j);
-      }
-    }
-
-    // Forward substitution: solve L * z = XtY_reduced
-    vec z = solve(trimatl(ws.decomp), XtY_reduced, solve_opts::fast);
-
-    // Backward substitution: solve L^T * coef_reduced = z
-    vec coef_reduced = solve(trimatu(ws.decomp.t()), z, solve_opts::fast);
-
-    // Place coefficients back in original positions
-    idx = 0;
-    for (uword j = 0; j < p; ++j) {
-      if (!id_excl(j)) {
-        ws.coefficients(j) = coef_reduced(idx++);
-      }
-    }
-  }
-
-  // 1. Fitted values
-  if (has_fixed_effects) {
-    vec prediction_demeaned = MX * ws.coefficients;
-    ws.fitted_values = y_orig - (MNU - prediction_demeaned);
-  } else {
-    ws.fitted_values = MX * ws.coefficients;
-  }
-
-  // 2. Residuals
-  ws.residuals = y_orig - ws.fitted_values;
-
-  if (use_weights) {
-    ws.residuals = ws.residuals / sqrt(w);
-  }
-
-  // 3. Weights
-  ws.weights = w;
-
-  // 4. Hessian (use X'X or weighted version)
-  ws.hessian = ws.XtX;
-
-  ws.success = true;
+  return true;
 }
 
-#endif // CAPYBARA_BETA
+// Forward/backward substitution
+inline vec solve_triangular(const mat& R, const vec& b, bool upper = true) {
+  const size_t n = R.n_cols;
+  vec x(n, fill::none);
+
+  if (upper) {
+    // Backward substitution
+    for (size_t i = n; i-- > 0;) {
+      double sum = b(i);
+      for (size_t j = i + 1; j < n; ++j) {
+        sum -= R(i, j) * x(j);
+      }
+      x(i) = sum / R(i, i);
+    }
+  } else {
+    // Forward substitution
+    for (size_t i = 0; i < n; ++i) {
+      double sum = b(i);
+      for (size_t j = 0; j < i; ++j) {
+        sum -= R(i, j) * x(j);
+      }
+      x(i) = sum / R(i, i);
+    }
+  }
+
+  return x;
+}
+
+// Beta computation with pre-allocated workspace
+inline BetaResult get_beta(const mat& X, const vec& y, const vec& y_orig,
+                           const vec& w, double collin_tol,
+                           bool has_weights = false,
+                           bool has_fixed_effects = false) {
+  const size_t n = X.n_rows;
+  const size_t p = X.n_cols;
+
+  BetaResult result(n, p);
+
+  if (p == 0) {
+    result.success = true;
+    return result;
+  }
+
+  // Pre-allocate matrices with appropriate size
+  mat XtX(p, p, fill::none);
+  vec XtY(p, fill::none);
+
+  // Compute X'X and X'Y efficiently
+  if (has_weights) {
+    // Weighted case - vectorized computation
+    const vec sqrt_w = sqrt(w);
+    const mat X_weighted = X.each_col() % sqrt_w;
+
+    XtX = X_weighted.t() * X_weighted;
+    XtY = X.t() * (w % y);
+  } else {
+    // Unweighted case - use BLAS
+    XtX = X.t() * X;
+    XtY = X.t() * y;
+  }
+
+  // Rank-revealing Cholesky decomposition
+  mat R(p, p, fill::none);
+  uvec excluded(p, fill::none);
+
+  if (!cholesky_decomp(R, excluded, XtX, collin_tol)) {
+    result.coefficients.fill(datum::nan);
+    result.coef_status.zeros();
+    result.success = false;
+    return result;
+  }
+
+  // Count non-excluded variables
+  const size_t p_reduced = p - sum(excluded);
+
+  if (p_reduced == 0) {
+    result.coefficients.fill(datum::nan);
+    result.coef_status.zeros();
+    result.success = false;
+    return result;
+  }
+
+  // Extract non-excluded elements efficiently
+  uvec included_idx = find(excluded == 0);
+  mat R_reduced = R.submat(included_idx, included_idx);
+  vec XtY_reduced = XtY.elem(included_idx);
+
+  // Solve triangular system efficiently
+  vec z = solve_triangular(R_reduced, XtY_reduced, false);      // Forward
+  vec coef_reduced = solve_triangular(R_reduced.t(), z, true);  // Backward
+
+  // Place coefficients back in original positions
+  result.coefficients.fill(datum::nan);
+  result.coef_status = 1 - excluded;  // 1 for included, 0 for excluded
+
+  for (size_t i = 0; i < p_reduced; ++i) {
+    result.coefficients(included_idx(i)) = coef_reduced(i);
+  }
+
+  // Compute fitted values and residuals efficiently
+  if (has_fixed_effects) {
+    // For fixed effects models: fitted = y_orig - (y_demeaned - X_demeaned *
+    // beta)
+    const vec pred_demeaned = X * result.coefficients;
+    result.fitted_values = y_orig - (y - pred_demeaned);
+  } else {
+    // Standard case: fitted = X * beta
+    result.fitted_values = X * result.coefficients;
+  }
+
+  result.residuals = y_orig - result.fitted_values;
+
+  if (has_weights) {
+    result.residuals = result.residuals / sqrt(w);
+  }
+
+  result.weights = w;
+  result.hessian = XtX;
+  result.success = true;
+
+  return result;
+}
+
+#endif  // CAPYBARA_BETA

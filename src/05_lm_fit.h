@@ -1,18 +1,19 @@
-#ifndef CAPYBARA_LM
-#define CAPYBARA_LM
+#ifndef CAPYBARA_LM_FIT
+#define CAPYBARA_LM_FIT
 
+// Original LMResult struct for compatibility
 struct LMResult {
   vec coefficients;
   vec fitted;
   vec residuals;
   vec weights;
   mat hessian;
-  uvec coef_status; // 1 = estimable, 0 = collinear
+  uvec coef_status;  // 1 = estimable, 0 = collinear
   bool success;
 
   field<vec> fixed_effects;
-  uvec nb_references; // Number of references per dimension
-  bool is_regular;    // Whether fixed effects are regular
+  uvec nb_references;  // Number of references per dimension
+  bool is_regular;     // Whether fixed effects are regular
   bool has_fe = false;
 
   cpp11::list to_list() const {
@@ -36,137 +37,137 @@ struct LMResult {
   }
 };
 
-// Convert group_indices to umat format for compatibility with demean_variables
-// TODO: find a better structure to avoid this conversion
-inline umat
-convert_group_indices_to_umat(const field<field<uvec>> &group_indices,
-                              size_t n_obs) {
-  if (group_indices.n_elem == 0) {
-    return umat();
-  }
+// Complete LM fitting with correct joint demeaning
+struct LMFitResult {
+  vec coefficients;
+  vec fitted_values;  // Note: different name than LMResult.fitted
+  vec residuals;
+  vec weights;
+  mat hessian;
+  uvec coef_status;
+  bool success;
 
-  const size_t Q = group_indices.n_elem;
-  umat fe_matrix(n_obs, Q);
+  // Fixed effects info
+  field<vec> fixed_effects;
+  bool has_fe;
+  uvec iterations;
 
-  for (size_t k = 0; k < Q; ++k) {
-    vec fe_col(n_obs, fill::zeros);
-    for (size_t g = 0; g < group_indices(k).n_elem; ++g) {
-      const uvec &group_obs = group_indices(k)(g);
-      for (size_t i = 0; i < group_obs.n_elem; ++i) {
-        fe_col(group_obs(i)) = static_cast<double>(g);
-      }
+  LMFitResult(size_t n, size_t p)
+      : coefficients(p, fill::none),
+        fitted_values(n, fill::none),
+        residuals(n, fill::none),
+        weights(n, fill::none),
+        hessian(p, p, fill::none),
+        coef_status(p, fill::none),
+        success(false),
+        has_fe(false) {}
+
+  // Convert to LMResult for R interface
+  LMResult to_lm_result() const {
+    LMResult result;
+    result.coefficients = coefficients;
+    result.fitted = fitted_values;  // Map fitted_values -> fitted
+    result.residuals = residuals;
+    result.weights = weights;
+    result.hessian = hessian;
+    result.coef_status = coef_status;
+    result.success = success;
+    result.fixed_effects = fixed_effects;
+    result.has_fe = has_fe;
+    result.is_regular = true;
+
+    if (has_fe && fixed_effects.n_elem > 0) {
+      result.nb_references.set_size(fixed_effects.n_elem);
+      result.nb_references.fill(1);
     }
-    fe_matrix.col(k) = conv_to<uvec>::from(fe_col);
-  }
 
-  return fe_matrix;
+    return result;
+  }
+};
+
+// Extract fixed effects after regression - umat version
+inline field<vec> extract_fixed_effects(
+    const vec& y_orig, const vec& fitted_values, const mat& X_orig, 
+    const vec& coefficients, const umat& fe_matrix) {
+  
+  // Compute sum of fixed effects per observation
+  vec sum_fe = fitted_values - X_orig * coefficients;
+  
+  // Extract individual fixed effects using the umat-based get_alpha function
+  GetAlphaResult alpha_result = get_alpha_umat(sum_fe, fe_matrix, 1e-8, 10000);
+  
+  return alpha_result.Alpha;
 }
 
-// Extract fixed effects from the fitted model
-inline field<vec>
-extract_fixed_effects(const vec &fitted_values, const mat &X_orig,
-                      const vec &coefficients,
-                      const field<field<uvec>> &group_indices) {
-  GetAlphaResult alpha_result = extract_model_fixef(
-      fitted_values, fitted_values, // For linear models, both are the same
-      X_orig, coefficients, group_indices, "gaussian");
-
-  if (alpha_result.success) {
-    return alpha_result.Alpha;
-  } else {
-    field<vec> empty_result(group_indices.n_elem);
-    for (size_t q = 0; q < group_indices.n_elem; ++q) {
-      empty_result(q).zeros(group_indices(q).n_elem);
-    }
-    return empty_result;
-  }
-}
-
-inline LMResult felm_fit(const mat &X_orig, const vec &y_orig, const vec &w,
-                         const field<field<uvec>> &group_indices,
+// Main LM fitting function that works directly with umat
+inline LMResult felm_fit(const mat& X_orig, const vec& y_orig, const vec& w,
+                         const umat& fe_matrix,
                          double center_tol, size_t iter_center_max,
                          size_t iter_interrupt, size_t iter_ssr,
                          double collin_tol, bool has_weights = false) {
-  LMResult res;
-  res.success = false;
-
   const size_t n = y_orig.n_elem;
   const size_t p_orig = X_orig.n_cols;
-  const bool has_fixed_effects = group_indices.n_elem > 0;
+  const bool has_fixed_effects = fe_matrix.n_cols > 0;
 
-  // Step 1: Joint demeaning
+  LMFitResult result(n, p_orig);
+
   mat X_demean;
   vec Y_demean;
-
+  
   if (has_fixed_effects) {
-    // Convert group indices to umat format
-    // TODO: find a better structure to avoid this conversion
-    umat fe_matrix = convert_group_indices_to_umat(group_indices, n);
-
+    // Combine Y and X for joint demeaning
     mat YX_combined = join_rows(y_orig, X_orig);
 
+    // Joint demeaning using the efficient demean_variables function
     WeightedDemeanResult demean_result = demean_variables(
         YX_combined, fe_matrix, w, center_tol, iter_center_max, "gaussian");
 
     if (!demean_result.success) {
-      return res; // Demeaning failed
+      result.success = false;
+      return result.to_lm_result();
     }
 
     // Extract demeaned Y and X
     Y_demean = demean_result.demeaned_data.col(0);
-    X_demean = demean_result.demeaned_data.cols(1, p_orig);
-
+    if (p_orig > 0) {
+      X_demean = demean_result.demeaned_data.cols(1, demean_result.demeaned_data.n_cols - 1);
+    } else {
+      X_demean = mat(n, 0);
+    }
+    result.has_fe = true;
   } else {
-    // No fixed effects - use original data
+    // No fixed effects
     Y_demean = y_orig;
     X_demean = X_orig;
+    result.has_fe = false;
   }
 
-  // Step 2: WLS transformation if weights are provided
-  mat X_final = X_demean;
-  vec Y_final = Y_demean;
+  // Regression on demeaned data
+  BetaResult beta_result = get_beta(X_demean, Y_demean, y_orig, w, collin_tol,
+                                    has_weights, has_fixed_effects);
 
-  if (has_weights) {
-    // Apply weights: sqrt(w) * X and sqrt(w) * Y
-    vec sqrt_w = sqrt(w);
-    X_final = X_demean.each_col() % sqrt_w;
-    Y_final = Y_demean % sqrt_w;
+  if (!beta_result.success) {
+    result.success = false;
+    return result.to_lm_result();
   }
 
-  // Step 3: Regression
-  ModelResults ws(n, p_orig);
-  get_beta(X_final, Y_final, y_orig, w, n, p_orig, ws, has_weights, collin_tol,
-           has_fixed_effects);
+  // Transfer results
+  result.coefficients = std::move(beta_result.coefficients);
+  result.fitted_values = std::move(beta_result.fitted_values);
+  result.residuals = std::move(beta_result.residuals);
+  result.weights = std::move(beta_result.weights);
+  result.hessian = std::move(beta_result.hessian);
+  result.coef_status = std::move(beta_result.coef_status);
 
-  if (!ws.success) {
-    return res; // Regression failed
-  }
-
-  // Step 4: Extract results from ModelResults workspace
-  res.coefficients = ws.coefficients;
-  res.fitted = ws.fitted_values;
-  res.residuals = ws.residuals;
-  res.weights = ws.weights;
-  res.hessian = ws.hessian;
-  res.coef_status = ws.coef_status;
-  res.success = ws.success;
-
-  // Step 5: Extract fixed effects
+  // Extract fixed effects if present
   if (has_fixed_effects) {
-    res.fixed_effects = extract_fixed_effects(res.fitted, X_orig,
-                                              res.coefficients, group_indices);
-    res.has_fe = true;
-    res.is_regular = true;
-
-    // Set number of references (one per dimension)
-    res.nb_references.set_size(group_indices.n_elem);
-    res.nb_references.fill(1);
-  } else {
-    res.has_fe = false;
-    res.is_regular = true;
+    result.fixed_effects = extract_fixed_effects(
+        y_orig, result.fitted_values, X_orig, result.coefficients, 
+        fe_matrix);
   }
 
-  return res;
+  result.success = true;
+  return result.to_lm_result();
 }
 
-#endif // CAPYBARA_LM
+#endif  // CAPYBARA_LM_FIT

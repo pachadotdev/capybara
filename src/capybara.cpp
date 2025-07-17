@@ -33,7 +33,7 @@ using cpp11::strings;
 
 #include "01_get_beta.h"
 #include "02_demean_variables.h"
-#include "03_convergence.h"
+// #include "03_convergence.h"
 #include "04_get_alpha.h"
 #include "05_lm_fit.h"
 #include "06_exponential_family.h"
@@ -41,31 +41,65 @@ using cpp11::strings;
 #include "08_glm_offset_fit.h"
 #include "09_group_sums.h"
 
-// Convert R k_list to portable Armadillo field structure
-// Each element in k_list is a list of groups, each group contains observation
-// indices
+// Helper function to convert R indices to C++ uvec (R uses 1-based, C++ uses 0-based)
+inline uvec r_to_cpp_indices(const integers& r_indices) {
+  uvec cpp_indices(r_indices.size());
+  
+  // Use std::transform for efficient vectorized conversion
+  std::transform(r_indices.begin(), r_indices.end(), cpp_indices.begin(),
+    [](int r_val) -> uword {
+      // if (r_val < 1) {
+      //   cpp11::stop("Invalid R index: %d (R indices must be >= 1)", r_val);
+      // }
+      return static_cast<uword>(r_val - 1);  // Convert to 0-based
+    });
+  
+  return cpp_indices;
+}
+
+// Convert R k_list to field<field<uvec>> format using 0-based indexing
 inline field<field<uvec>> convert_klist_to_field(const list &k_list) {
   const size_t K = k_list.size();
   field<field<uvec>> group_indices(K);
-
+  
   for (size_t k = 0; k < K; ++k) {
     const list group_list = as_cpp<list>(k_list[k]);
     const size_t n_groups = group_list.size();
-
+    
     group_indices(k).set_size(n_groups);
-
     for (size_t g = 0; g < n_groups; ++g) {
       const integers group_obs = as_cpp<integers>(group_list[g]);
+      group_indices(k)(g) = r_to_cpp_indices(group_obs);  // Convert to 0-based
+    }
+  }
+  
+  return group_indices;
+}
 
-      uvec obs_indices(group_obs.size());
-      std::transform(group_obs.begin(), group_obs.end(), obs_indices.begin(),
-                     [](int val) { return static_cast<uword>(val); });
+// Convert field<field<uvec>> to umat format for modern functions
+inline umat convert_field_to_umat(const field<field<uvec>>& group_indices, size_t n_obs) {
+  const size_t K = group_indices.n_elem;
+  
+  if (K == 0) {
+    return umat(n_obs, 0);
+  }
+  
+  umat fe_matrix(n_obs, K);
+  fe_matrix.zeros();
 
-      group_indices(k)(g) = obs_indices;
+  for (size_t k = 0; k < K; ++k) {
+    const field<uvec>& groups = group_indices(k);
+    const size_t n_groups = groups.n_elem;
+
+    for (size_t g = 0; g < n_groups; ++g) {
+      const uvec& group_obs = groups(g);
+      for (size_t i = 0; i < group_obs.n_elem; ++i) {
+        fe_matrix(group_obs(i), k) = g;  // 0-based group IDs
+      }
     }
   }
 
-  return group_indices;
+  return fe_matrix;
 }
 
 [[cpp11::register]] doubles_matrix<>
@@ -76,31 +110,38 @@ demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   mat V = as_mat(V_r);
   vec w = as_col(w_r);
 
+  // Convert R list to field<field<uvec>> format
   field<field<uvec>> group_indices = convert_klist_to_field(klist);
 
-  // Convert field<field<uvec>> to umat format for new demean_variables
-  umat fe_matrix;
-  if (group_indices.n_elem > 0) {
-    size_t n_obs = V.n_rows;
-    fe_matrix.set_size(n_obs, group_indices.n_elem);
-
-    for (size_t k = 0; k < group_indices.n_elem; k++) {
-      // Set FE levels based on group indices
-      for (size_t g = 0; g < group_indices(k).n_elem; g++) {
-        const uvec &group_obs = group_indices(k)(g);
-        if (group_obs.n_elem > 0) {
-          fe_matrix.submat(group_obs, uvec{k}).fill(g);
-        }
+  // Convert to the format expected by joint_demean
+  const size_t K = group_indices.n_elem;
+  field<uvec> fe_ids(K);
+  
+  for (size_t k = 0; k < K; ++k) {
+    const field<uvec>& groups = group_indices(k);
+    const size_t n_groups = groups.n_elem;
+    
+    // Find the maximum observation index to size the fe_id vector
+    size_t max_obs = 0;
+    for (size_t g = 0; g < n_groups; ++g) {
+      if (groups(g).n_elem > 0) {
+        max_obs = std::max(max_obs, static_cast<size_t>(groups(g).max()));
+      }
+    }
+    
+    fe_ids(k).set_size(max_obs + 1);  // +1 because indices are 0-based
+    
+    // Assign group IDs
+    for (size_t g = 0; g < n_groups; ++g) {
+      const uvec& group_obs = groups(g);
+      for (size_t i = 0; i < group_obs.n_elem; ++i) {
+        fe_ids(k)(group_obs(i)) = g;  // Use 0-based group IDs
       }
     }
   }
 
-  // Pass the parameters that demean_variables actually uses
-  // Note: iter_interrupt and iter_ssr are control parameters but not used in
-  // the basic demean_variables function The max_iter parameter corresponds to
-  // the centering iteration limit
-  WeightedDemeanResult result =
-      demean_variables(V, fe_matrix, w, tol, max_iter, family);
+  // Use the traditional demean function
+  DemeanResult result = joint_demean(V, fe_ids, w, tol, max_iter);
 
   return as_doubles_matrix(result.demeaned_data);
 }
@@ -118,10 +159,11 @@ demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
                iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]),
                iter_ssr = as_cpp<size_t>(control["iter_ssr"]);
 
-  // Convert R list to portable Armadillo structure
+  // Convert R list to efficient umat format
   field<field<uvec>> group_indices = convert_klist_to_field(k_list);
+  umat fe_matrix = convert_field_to_umat(group_indices, y.n_elem);
 
-  LMResult res = felm_fit(X, y, w, group_indices, center_tol, iter_center_max,
+  LMResult res = felm_fit(X, y, w, fe_matrix, center_tol, iter_center_max,
                           iter_interrupt, iter_ssr, collin_tol);
   // Replace collinear coefficients with R's NA_REAL using vectorized approach
   uvec collinear_mask = (res.coef_status == 0);
@@ -151,11 +193,12 @@ demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
                iter_center_max = as_cpp<size_t>(control["iter_center_max"]),
                iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]);
 
-  // Convert R list to portable Armadillo structure
+  // Convert R list to efficient umat format
   field<field<uvec>> group_indices = convert_klist_to_field(k_list);
+  umat fe_matrix = convert_field_to_umat(group_indices, y.n_elem);
 
   GLMResult res =
-      feglm_fit(MX, y, wt, group_indices, center_tol, dev_tol, keep_mx,
+      feglm_fit(MX, y, wt, fe_matrix, center_tol, dev_tol, keep_mx,
                 iter_max, iter_center_max, iter_inner_max, fam, collin_tol);
 
   // Replace collinear coefficients with R's NA_REAL using vectorized approach
@@ -185,11 +228,12 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
                iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]),
                iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]),
                iter_ssr = as_cpp<size_t>(control["iter_ssr"]);
-  // Convert R list to portable Armadillo structure
+  // Convert R list to efficient umat structure
   field<field<uvec>> group_indices = convert_klist_to_field(k_list);
+  umat fe_matrix = convert_field_to_umat(group_indices, y.n_elem);
 
   FeglmOffsetFitResult res =
-      feglm_offset_fit(eta, y, offset, wt, group_indices, center_tol, dev_tol,
+      feglm_offset_fit(eta, y, offset, wt, fe_matrix, center_tol, dev_tol,
                        iter_max, iter_center_max, iter_inner_max,
                        iter_interrupt, iter_ssr, fam, family_type, collin_tol);
   return res.to_doubles();
@@ -205,7 +249,7 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
   const size_t J = jlist.size();
   field<uvec> group_indices(J);
   for (size_t j = 0; j < J; ++j) {
-    group_indices(j) = as_uvec(as_cpp<integers>(jlist[j]));
+    group_indices(j) = r_to_cpp_indices(as_cpp<integers>(jlist[j]));
   }
 
   GroupSumsResult res = group_sums(M, w, group_indices);
@@ -224,7 +268,7 @@ group_sums_spectral_(const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
   const size_t J = jlist.size();
   field<uvec> group_indices(J);
   for (size_t j = 0; j < J; ++j) {
-    group_indices(j) = as_uvec(as_cpp<integers>(jlist[j]));
+    group_indices(j) = r_to_cpp_indices(as_cpp<integers>(jlist[j]));
   }
 
   GroupSumsResult res = group_sums_spectral(M, v, w, K, group_indices);
@@ -239,7 +283,7 @@ group_sums_var_(const doubles_matrix<> &M_r, const list &jlist) {
   const size_t J = jlist.size();
   field<uvec> group_indices(J);
   for (size_t j = 0; j < J; ++j) {
-    group_indices(j) = as_uvec(as_cpp<integers>(jlist[j]));
+    group_indices(j) = r_to_cpp_indices(as_cpp<integers>(jlist[j]));
   }
 
   GroupSumsResult res = group_sums_var(M, group_indices);
@@ -256,106 +300,9 @@ group_sums_cov_(const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
   const size_t J = jlist.size();
   field<uvec> group_indices(J);
   for (size_t j = 0; j < J; ++j) {
-    group_indices(j) = as_uvec(as_cpp<integers>(jlist[j]));
+    group_indices(j) = r_to_cpp_indices(as_cpp<integers>(jlist[j]));
   }
 
   GroupSumsResult res = group_sums_cov(M, N, group_indices);
   return res.to_matrix();
 }
-
-// Convergence interface function for fixest-style cluster coefficient
-// computation
-// [[cpp11::register]] list converge_fixed_effects_(const doubles &mu_init_r,
-//                                                   const doubles &lhs_r,
-//                                                   const list &klist,
-//                                                   const doubles_matrix<>
-//                                                   &sum_y_r, const std::string
-//                                                   &family, const bool
-//                                                   &use_acceleration, const
-//                                                   double &theta, const int
-//                                                   &iter_max, const double
-//                                                   &diff_max, const double
-//                                                   &diff_max_nr) {
-//   vec mu_init = as_col(mu_init_r);
-//   vec lhs = as_col(lhs_r);
-//   mat sum_y_mat = as_mat(sum_y_r);
-
-//   // Convert k_list to field structure
-//   field<field<uvec>> group_indices = convert_klist_to_field(klist);
-//   size_t K = group_indices.n_elem;
-//   size_t n_obs = mu_init.n_elem;
-
-//   // Create FE structure for convergence
-//   field<uvec> fe_indices(K);
-//   field<uvec> table(K);
-//   field<vec> sum_y(K);
-//   field<uvec> obsCluster(K);  // For negbin/logit
-//   field<uvec> cumtable(K);    // For negbin/logit
-
-//   // Convert group_indices to flat FE structure
-//   for (size_t k = 0; k < K; ++k) {
-//     const field<uvec> &groups_k = group_indices(k);
-//     size_t n_groups = groups_k.n_elem;
-
-//     // Create FE indices (which group each observation belongs to)
-//     fe_indices(k).set_size(n_obs);
-//     fe_indices(k).fill(0);  // Initialize with 0 (will be properly set below)
-
-//     // Create table (number of observations per group)
-//     table(k).set_size(n_groups);
-
-//     // Fill FE indices and count observations per group
-//     for (size_t g = 0; g < n_groups; ++g) {
-//       const uvec &group_obs = groups_k(g);
-//       table(k)(g) = group_obs.n_elem;
-
-//       for (size_t i = 0; i < group_obs.n_elem; ++i) {
-//         fe_indices(k)(group_obs(i)) = g;
-//       }
-//     }
-
-//     // Extract sum_y for this FE dimension
-//     sum_y(k) = sum_y_mat.col(k).head(n_groups);
-
-//     // For negbin/logit families, create obsCluster and cumtable
-//     if (family == "negbin" || family == "logit") {
-//       // obsCluster: flat list of observation indices grouped by cluster
-//       uvec obs_cluster_k(n_obs);
-//       uvec cumtable_k(n_groups);
-//       size_t obs_idx = 0;
-
-//       for (size_t g = 0; g < n_groups; ++g) {
-//         const uvec &group_obs = groups_k(g);
-
-//         for (size_t i = 0; i < group_obs.n_elem; ++i) {
-//           obs_cluster_k(obs_idx++) = group_obs(i);
-//         }
-
-//         cumtable_k(g) = obs_idx;
-//       }
-
-//       obsCluster(k) = obs_cluster_k;
-//       cumtable(k) = cumtable_k;
-//     } else {
-//       // For other families, create empty placeholders
-//       obsCluster(k).set_size(0);
-//       cumtable(k).set_size(0);
-//     }
-//   }
-
-//   // Call convergence function
-//   ConvergenceResult result = converge_fixed_effects(
-//       mu_init, lhs, fe_indices, table, sum_y, obsCluster, cumtable,
-//       family, use_acceleration, theta,
-//       static_cast<size_t>(iter_max), diff_max, diff_max_nr
-//   );
-
-//   // Return results as R list
-//   using namespace cpp11::literals;
-//   return cpp11::writable::list({
-//     "mu_new"_nm = as_doubles(result.mu_new),
-//     "success"_nm = result.success,
-//     "iterations"_nm = static_cast<int>(result.iterations),
-//     "any_negative_poisson"_nm = result.any_negative_poisson
-//   });
-// }

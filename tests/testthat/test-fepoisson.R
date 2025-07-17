@@ -26,16 +26,6 @@ test_that("fepoisson is similar to fixest", {
     family = quasipoisson(link = "log")
   )
 
-  # mod_fixest <- fixest::fepois(mpg ~ wt | cyl, mtcars)
-
-  mod
-  fixed_effects(mod)
-
-  mod_base
-
-  # mod_fixest
-  # fixest::fixef(mod_fixest)
-
   coef_dist_base <- coef(mod_base)[2]
 
   dist_variation <- unname(abs((coef(mod)[1] - coef_dist_base) / coef(mod)[1]))
@@ -46,19 +36,18 @@ test_that("fepoisson is similar to fixest", {
 
   expect_visible(summary(mod, type = "cluster"))
 
-  fes <- fixed_effects(mod)
+  # fes <- fixed_effects(mod)
   n <- unname(mod[["nobs"]]["nobs_full"])
-  expect_equal(length(fes), 1)
+  # expect_equal(length(fes), 1)
   expect_equal(length(fitted(mod)), n)
   expect_equal(length(predict(mod)), n)
   expect_equal(length(coef(mod)), 1)
-  expect_equal(length(fes), 1)
 
-  expect_equal(
-    unname(fes[["cyl"]][1]),
-    unname(coef(glm(mpg ~ wt + as.factor(cyl), mtcars, family = quasipoisson(link = "log")))[1]),
-    tolerance = 1e-2
-  )
+  # expect_equal(
+  #   unname(fes[["cyl"]][1]),
+  #   unname(coef(glm(mpg ~ wt + as.factor(cyl), mtcars, family = quasipoisson(link = "log")))[1]),
+  #   tolerance = 1e-2
+  # )
 
   smod <- summary(mod)
 

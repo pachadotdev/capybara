@@ -248,7 +248,7 @@ check_weights_ <- function(wt) {
 #' @param data Data frame
 #' @noRd
 get_index_list_ <- function(k_vars, data) {
-  indexes <- seq.int(0L, nrow(data) - 1L)
+  indexes <- seq.int(1L, nrow(data))  # Generate 1-based indices for R consistency
   lapply(k_vars, function(x, indexes, data) {
     split(indexes, data[[x]])
   }, indexes = indexes, data = data)
