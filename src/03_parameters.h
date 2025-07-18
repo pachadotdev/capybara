@@ -159,6 +159,12 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
     }
   }
 
+  // Replace collinear coefficients with 0 using coef_status
+  uvec collinear_mask = find(result.coef_status == 0);
+  if (!collinear_mask.is_empty()) {
+    result.coefficients.elem(collinear_mask).zeros();
+  }
+  
   // Compute fitted values and residuals
   if (has_fixed_effects) {
     // For fixed effects models: fitted = y_orig - (y_demeaned - X_demeaned * beta)

@@ -48,6 +48,7 @@ test_that("felm works", {
   # 2-FE ----
 
   m1 <- felm(mpg ~ wt + qsec | cyl + am, mtcars)
+
   m2 <- lm(mpg ~ wt + qsec + as.factor(cyl) + as.factor(am), mtcars)
 
   expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-2)

@@ -132,13 +132,6 @@ inline InferenceLM felm_fit(const mat& X_orig, const vec& y_orig, const vec& w,
       X_demean = mat(n, 0);
     }
     
-    // DEBUG: Print demeaned data
-    // std::cout << "HERE IS X DEMEANED USING CAPYBARA DEMEAN_VARIABLES" << std::endl;
-    // X_demean.print();
-    // std::cout << "HERE IS Y DEMEANED USING CAPYBARA DEMEAN_VARIABLES"
-    //           << std::endl;
-    // Y_demean.print();
-    
     result.has_fe = true;
   } else {
     // No fixed effects

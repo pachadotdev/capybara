@@ -187,8 +187,7 @@ demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   const size_t demean_ssr_check_frequency = as_cpp<size_t>(control["demean_ssr_check_frequency"]);
   const double safe_division_min = as_cpp<double>(control["safe_division_min"]);
   const double alpha_convergence_tol = as_cpp<double>(control["alpha_convergence_tol"]);
-  const size_t alpha_iter_max = control.contains("alpha_iter_max") ? 
-    as_cpp<size_t>(control["alpha_iter_max"]) : 10000;
+  const size_t alpha_iter_max = as_cpp<size_t>(control["alpha_iter_max"]);
 
   // Convert R list to efficient field format
   field<field<uvec>> group_indices = convert_klist_to_field(k_list);

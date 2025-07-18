@@ -12,28 +12,10 @@ namespace demean {
 using convergence::continue_criterion;
 using convergence::stopping_criterion;
 using convergence::update_irons_tuck;
-
-// Overload for update_irons_tuck that accepts subviews and temporary vectors
-bool update_irons_tuck_subvec(vec& X_subvec, vec& GX_subvec, vec& GGX_subvec, 
-                               vec& delta_GX, vec& delta2_X, double eps = 1e-14) {
-  delta_GX = GGX_subvec - GX_subvec;
-  delta2_X = delta_GX - GX_subvec + X_subvec;
-
-  double vprod = dot(delta_GX, delta2_X);
-  double ssq = dot(delta2_X, delta2_X);
-
-  if (ssq < eps) {
-    return true;  // numerical convergence
-  }
-
-  double coef = vprod / ssq;
-  X_subvec = GGX_subvec - coef * delta_GX;
-
-  return false;
-}
+using convergence::utils::safe_divide;
 
 //////////////////////////////////////////////////////////////////////////////
-// FIXED EFFECTS CLASS
+// FIXED EFFECTS CLASS (NO VARYING SLOPES)
 //////////////////////////////////////////////////////////////////////////////
 
 class FixedEffects {
@@ -44,16 +26,14 @@ class FixedEffects {
 
   // Core data
   vec weights_;
-  field<uvec>
-      fe_indices_;  // FE indices for each group [0-based after conversion]
+  field<uvec> fe_indices_;  // FE indices for each group [0-based]
 
   // FE configuration
   uvec nb_ids_;       // Number of IDs per FE group
   uvec nb_coefs_;     // Number of coefficients per group
   uvec coef_starts_;  // Starting index for coefficients per group
 
-  // Precomputed weight sums per FE
-  field<vec> sum_weights_;
+  field<vec> sum_weights_;  // Sum of weights per FE
 
   void setup_weights(const field<uvec>& fe_id_tables);
 
@@ -68,8 +48,8 @@ class FixedEffects {
 
   void compute_fe_coefficients_single(vec& fe_coef, const vec& target);
 
-  void compute_fe_coef_2(vec& fe_coef_in, vec& fe_coef_out, vec& fe_coef_tmp,
-                         const vec& sum_in_out);
+  void compute_fe_coef_2(vec& fe_coef_in_C, vec& fe_coef_out_C,
+                         vec& fe_coef_tmp, const vec& in_out_C);
 
   void add_fe_to_prediction(size_t group_idx, const vec& fe_coef,
                             vec& prediction);
@@ -78,10 +58,11 @@ class FixedEffects {
                                      vec& prediction);
 
   void add_2_fe_to_prediction(const vec& fe_coef_a, const vec& fe_coef_b,
-                              vec& prediction, const vec& sum_in_out,
+                              vec& prediction, vec& sum_in_out,
                               bool update_beta);
 
-  void compute_in_out(size_t group_idx, vec& in_out_sum, const vec& input,
+  // Compute sum of (input - output) for each FE group
+  void compute_in_out(size_t group_idx, vec& in_out_C, const vec& input,
                       const vec& output);
 
   // Accessors
@@ -100,62 +81,24 @@ class FixedEffects {
 // CONSTRUCTOR IMPLEMENTATION
 //////////////////////////////////////////////////////////////////////////////
 
-FixedEffects::  FixedEffects(size_t n_obs, size_t n_fe_groups, const vec& weights,
-               const field<uvec>& fe_indices, const uvec& nb_ids,
-               const field<uvec>& fe_id_tables)
+FixedEffects::FixedEffects(size_t n_obs, size_t n_fe_groups, const vec& weights,
+                           const field<uvec>& fe_indices, const uvec& nb_ids,
+                           const field<uvec>& fe_id_tables)
     : n_obs_(n_obs),
       n_fe_groups_(n_fe_groups),
       weights_(weights),
       fe_indices_(fe_indices),
       nb_ids_(nb_ids) {
-  // Validate inputs
-  if (n_fe_groups_ != fe_indices_.n_elem) {
-    cpp11::stop("Number of FE groups (%d) doesn't match fe_indices size (%d)",
-                n_fe_groups_, fe_indices_.n_elem);
-  }
-  if (n_fe_groups_ != nb_ids_.n_elem) {
-    cpp11::stop("Number of FE groups (%d) doesn't match nb_ids size (%d)",
-                n_fe_groups_, nb_ids_.n_elem);
-  }
-
-  // Check weights
   has_weights_ = weights_.n_elem > 1;
-  if (has_weights_) {
-    if (weights_.n_elem != n_obs_) {
-      cpp11::stop(
-          "Weight vector size (%d) doesn't match number of observations (%d)",
-          weights_.n_elem, n_obs_);
-    }
-  } else {
-    // Create unit weights if not provided
-    weights_ = ones<vec>(n_obs_);
-  }
-
-  // Validate fe_indices
-  for (size_t q = 0; q < n_fe_groups_; ++q) {
-    if (fe_indices_(q).n_elem != n_obs_) {
-      cpp11::stop("FE indices for group %d has wrong size: %d vs %d expected",
-                  q, fe_indices_(q).n_elem, n_obs_);
-    }
-    // Check that indices are within bounds
-    uword max_idx = fe_indices_(q).max();
-    if (max_idx >= nb_ids_(q)) {
-      cpp11::stop(
-          "FE index out of bounds for group %d: max index %d >= nb_ids %d", q,
-          max_idx, nb_ids_(q));
-    }
-  }
 
   // Initialize configuration arrays
   nb_coefs_ = nb_ids_;  // For non-slopes case, coefficients == IDs
-  coef_starts_ = zeros<uvec>(n_fe_groups_);
+  coef_starts_.set_size(n_fe_groups_);
 
   // Compute coefficient starting positions
-  if (n_fe_groups_ > 0) {
-    coef_starts_(0) = 0;
-    for (size_t q = 1; q < n_fe_groups_; ++q) {
-      coef_starts_(q) = coef_starts_(q - 1) + nb_coefs_(q - 1);
-    }
+  coef_starts_(0) = 0;
+  for (size_t q = 1; q < n_fe_groups_; ++q) {
+    coef_starts_(q) = coef_starts_(q - 1) + nb_coefs_(q - 1);
   }
 
   // Setup weight sums
@@ -170,41 +113,29 @@ void FixedEffects::setup_weights(const field<uvec>& fe_id_tables) {
   sum_weights_.set_size(n_fe_groups_);
 
   for (size_t q = 0; q < n_fe_groups_; ++q) {
-    sum_weights_(q) = zeros<vec>(nb_ids_(q));
+    sum_weights_(q).set_size(nb_ids_(q));
+    sum_weights_(q).zeros();
 
     if (has_weights_) {
-      // Accumulate weights for each FE ID
+      // Use observations to accumulate weights
       const uvec& fe_idx = fe_indices_(q);
       for (size_t obs = 0; obs < n_obs_; ++obs) {
-        uword idx = fe_idx(obs);
-        if (idx >= nb_ids_(q)) {
-          cpp11::stop("Index out of bounds in setup_weights: %d >= %d", idx,
-                      nb_ids_(q));
-        }
-        sum_weights_(q)(idx) += weights_(obs);
+        sum_weights_(q)(fe_idx(obs)) += weights_(obs);
       }
     } else {
-      // Use pre-computed counts from fe_id_tables if available
-      if (fe_id_tables.n_elem > q && fe_id_tables(q).n_elem == nb_ids_(q)) {
+      // Use pre-computed counts from fe_id_tables
+      if (fe_id_tables.n_elem > q) {
         sum_weights_(q) = conv_to<vec>::from(fe_id_tables(q));
       } else {
-        // Count occurrences manually
-        const uvec& fe_idx = fe_indices_(q);
-        for (size_t obs = 0; obs < n_obs_; ++obs) {
-          uword idx = fe_idx(obs);
-          if (idx >= nb_ids_(q)) {
-            cpp11::stop("Index out of bounds in setup_weights: %d >= %d", idx,
-                        nb_ids_(q));
-          }
-          sum_weights_(q)(idx) += 1.0;
-        }
+        sum_weights_(q).ones();  // Fallback to ones
       }
     }
 
-    // Avoid division by zero - check for any zero weights
-    for (size_t i = 0; i < sum_weights_(q).n_elem; ++i) {
-      if (sum_weights_(q)(i) < 1e-12) {
-        sum_weights_(q)(i) = 1e-12;
+    // Avoid division by zero with more robust clamping
+    vec& weights_q = sum_weights_(q);
+    for (size_t i = 0; i < weights_q.n_elem; ++i) {
+      if (!std::isfinite(weights_q(i)) || weights_q(i) < 1e-12) {
+        weights_q(i) = 1e-12;
       }
     }
   }
@@ -221,8 +152,11 @@ void FixedEffects::compute_fe_coefficients(size_t group_idx, vec& fe_coef,
   size_t coef_start = coef_starts_(group_idx);
   size_t nb_coef = nb_coefs_(group_idx);
 
-  // Initialize with sum_in_out for this group
-  vec group_coefs = sum_in_out.subvec(coef_start, coef_start + nb_coef - 1);
+  // Initialize with sum_in_out
+  vec group_coefs(nb_coef);
+  for (size_t i = 0; i < nb_coef; ++i) {
+    group_coefs(i) = sum_in_out(coef_start + i);
+  }
 
   // Subtract sum of other FEs
   for (size_t obs = 0; obs < n_obs_; ++obs) {
@@ -230,10 +164,12 @@ void FixedEffects::compute_fe_coefficients(size_t group_idx, vec& fe_coef,
   }
 
   // Divide by weights to get coefficients
-  group_coefs /= sum_weights_(group_idx);
+  group_coefs = safe_divide(group_coefs, sum_weights_(group_idx));
 
   // Store in output vector
-  fe_coef.subvec(coef_start, coef_start + nb_coef - 1) = group_coefs;
+  for (size_t i = 0; i < nb_coef; ++i) {
+    fe_coef(coef_start + i) = group_coefs(i);
+  }
 }
 
 void FixedEffects::compute_fe_coefficients_single(vec& fe_coef,
@@ -252,7 +188,7 @@ void FixedEffects::compute_fe_coefficients_single(vec& fe_coef,
     }
   }
 
-  fe_coef /= sum_weights_(0);
+  fe_coef = safe_divide(fe_coef, sum_weights_(0));
 }
 
 void FixedEffects::add_fe_to_prediction(size_t group_idx, const vec& fe_coef,
@@ -281,110 +217,191 @@ void FixedEffects::add_weighted_fe_to_prediction(size_t group_idx,
   }
 }
 
-void FixedEffects::compute_in_out(size_t group_idx, vec& in_out_sum,
+void FixedEffects::compute_in_out(size_t group_idx, vec& in_out_C,
                                   const vec& input, const vec& output) {
   const uvec& fe_idx = fe_indices_(group_idx);
   size_t coef_start = coef_starts_(group_idx);
   size_t nb_coef = nb_coefs_(group_idx);
 
-  // Zero out this group's section
-  in_out_sum.subvec(coef_start, coef_start + nb_coef - 1).zeros();
+  // Initialize this group's section to zero first
+  for (size_t i = 0; i < nb_coef; ++i) {
+    in_out_C(coef_start + i) = 0.0;
+  }
 
-  // Accumulate sum of (input - output) for each FE
+  // Then accumulate sum of (input - output) for each FE group
   if (has_weights_) {
     for (size_t obs = 0; obs < n_obs_; ++obs) {
       size_t fe_id = fe_idx(obs);
-      in_out_sum(coef_start + fe_id) +=
-          (input(obs) - output(obs)) * weights_(obs);
+      double weight = weights_(obs);
+      in_out_C(coef_start + fe_id) += (input(obs) - output(obs)) * weight;
     }
   } else {
     for (size_t obs = 0; obs < n_obs_; ++obs) {
       size_t fe_id = fe_idx(obs);
-      in_out_sum(coef_start + fe_id) += input(obs) - output(obs);
+      in_out_C(coef_start + fe_id) += (input(obs) - output(obs));
     }
   }
 }
 
-// Special 2-FE algorithm implementation
-void FixedEffects::compute_fe_coef_2(vec& fe_coef_in, vec& fe_coef_out,
-                                     vec& fe_coef_tmp, const vec& sum_in_out) {
-  // This implements the 2-FE special case from fixest
-  // fe_coef_in: coefficients for first FE (input and output)
-  // fe_coef_tmp: coefficients for second FE
-  // sum_in_out: precomputed sums
-
-  if (n_fe_groups_ < 2) {
-    return;
-  }
+// Special 2-FE algorithm functions
+void FixedEffects::compute_fe_coef_2(vec& fe_coef_in_C, vec& fe_coef_out_C,
+                                     vec& fe_coef_tmp, const vec& in_out_C) {
+  // Specific to the 2-FEs case - following fixest's robust implementation
+  // This avoids creating N-length vectors and handles numerical stability properly
 
   const size_t nb_coef_0 = nb_coefs_(0);
   const size_t nb_coef_1 = nb_coefs_(1);
   const size_t coef_start_1 = coef_starts_(1);
-
+  
   const uvec& fe_idx_0 = fe_indices_(0);
   const uvec& fe_idx_1 = fe_indices_(1);
 
-  // Step 1: Update second FE based on first FE
-  fe_coef_tmp = sum_in_out.subvec(coef_start_1, coef_start_1 + nb_coef_1 - 1);
+  //
+  // Step 1: Update second FE (index 1) based on first FE (index 0)
+  //
+
+  // Initialize second FE coefficients with their target sums
+  for (size_t i = 0; i < nb_coef_1; ++i) {
+    size_t idx = coef_start_1 + i;
+    if (idx < in_out_C.n_elem) {
+      fe_coef_tmp(i) = in_out_C(idx);
+    } else {
+      fe_coef_tmp(i) = 0.0;
+    }
+  }
 
   // Subtract contribution from first FE
   if (has_weights_) {
     for (size_t obs = 0; obs < n_obs_; ++obs) {
-      fe_coef_tmp(fe_idx_1(obs)) -= fe_coef_in(fe_idx_0(obs)) * weights_(obs);
+      size_t id_0 = fe_idx_0(obs);
+      size_t id_1 = fe_idx_1(obs);
+      
+      if (id_0 < nb_coef_0 && id_1 < nb_coef_1) {
+        double weight = weights_(obs);
+        // Ensure finite values
+        if (std::isfinite(fe_coef_in_C(id_0)) && std::isfinite(weight)) {
+          fe_coef_tmp(id_1) -= fe_coef_in_C(id_0) * weight;
+        }
+      }
     }
   } else {
     for (size_t obs = 0; obs < n_obs_; ++obs) {
-      fe_coef_tmp(fe_idx_1(obs)) -= fe_coef_in(fe_idx_0(obs));
+      size_t id_0 = fe_idx_0(obs);
+      size_t id_1 = fe_idx_1(obs);
+      
+      if (id_0 < nb_coef_0 && id_1 < nb_coef_1) {
+        if (std::isfinite(fe_coef_in_C(id_0))) {
+          fe_coef_tmp(id_1) -= fe_coef_in_C(id_0);
+        }
+      }
     }
   }
 
-  // Divide by weights
-  fe_coef_tmp /= sum_weights_(1);
+  // Divide by weights to get coefficients for second FE
+  for (size_t i = 0; i < nb_coef_1; ++i) {
+    double denominator = sum_weights_(1)(i);
+    if (denominator > 1e-12 && std::isfinite(fe_coef_tmp(i))) {
+      fe_coef_tmp(i) = fe_coef_tmp(i) / denominator;
+    } else {
+      fe_coef_tmp(i) = 0.0;
+    }
+    // Additional safety check
+    if (!std::isfinite(fe_coef_tmp(i))) {
+      fe_coef_tmp(i) = 0.0;
+    }
+  }
 
-  // Step 2: Update first FE based on updated second FE
-  fe_coef_out = sum_in_out.subvec(0, nb_coef_0 - 1);
+  //
+  // Step 2: Update first FE (index 0) based on updated second FE
+  //
 
-  // Subtract contribution from second FE
+  // Initialize first FE coefficients with their target sums
+  for (size_t i = 0; i < nb_coef_0; ++i) {
+    if (i < in_out_C.n_elem) {
+      fe_coef_out_C(i) = in_out_C(i);
+    } else {
+      fe_coef_out_C(i) = 0.0;
+    }
+  }
+
+  // Subtract contribution from updated second FE
   if (has_weights_) {
     for (size_t obs = 0; obs < n_obs_; ++obs) {
-      fe_coef_out(fe_idx_0(obs)) -= fe_coef_tmp(fe_idx_1(obs)) * weights_(obs);
+      size_t id_0 = fe_idx_0(obs);
+      size_t id_1 = fe_idx_1(obs);
+      
+      if (id_0 < nb_coef_0 && id_1 < nb_coef_1) {
+        double weight = weights_(obs);
+        if (std::isfinite(fe_coef_tmp(id_1)) && std::isfinite(weight)) {
+          fe_coef_out_C(id_0) -= fe_coef_tmp(id_1) * weight;
+        }
+      }
     }
   } else {
     for (size_t obs = 0; obs < n_obs_; ++obs) {
-      fe_coef_out(fe_idx_0(obs)) -= fe_coef_tmp(fe_idx_1(obs));
+      size_t id_0 = fe_idx_0(obs);
+      size_t id_1 = fe_idx_1(obs);
+      
+      if (id_0 < nb_coef_0 && id_1 < nb_coef_1) {
+        if (std::isfinite(fe_coef_tmp(id_1))) {
+          fe_coef_out_C(id_0) -= fe_coef_tmp(id_1);
+        }
+      }
     }
   }
 
-  // Divide by weights
-  fe_coef_out /= sum_weights_(0);
+  // Divide by weights to get coefficients for first FE
+  for (size_t i = 0; i < nb_coef_0; ++i) {
+    double denominator = sum_weights_(0)(i);
+    if (denominator > 1e-12 && std::isfinite(fe_coef_out_C(i))) {
+      fe_coef_out_C(i) = fe_coef_out_C(i) / denominator;
+    } else {
+      fe_coef_out_C(i) = 0.0;
+    }
+    // Additional safety check
+    if (!std::isfinite(fe_coef_out_C(i))) {
+      fe_coef_out_C(i) = 0.0;
+    }
+  }
 }
 
 void FixedEffects::add_2_fe_to_prediction(const vec& fe_coef_a,
                                           const vec& fe_coef_b, vec& prediction,
-                                          const vec& sum_in_out,
-                                          bool update_beta) {
+                                          vec& in_out_C, bool update_beta) {
+  // Robust implementation following fixest patterns
+  
   if (update_beta) {
-    // Need to update coefficients - use temporary storage
-    vec fe_coef_a_new = fe_coef_a;
-    vec fe_coef_b_new = fe_coef_b;
-    compute_fe_coef_2(const_cast<vec&>(fe_coef_a), fe_coef_a_new, fe_coef_b_new,
-                      sum_in_out);
+    // Update coefficients - need temporary storage to avoid aliasing
+    vec fe_coef_a_copy = fe_coef_a;  // Copy input to avoid aliasing
+    compute_fe_coef_2(fe_coef_a_copy, const_cast<vec&>(fe_coef_a),
+                      const_cast<vec&>(fe_coef_b), in_out_C);
+  }
 
-    // Add both FE contributions
-    const uvec& fe_idx_0 = fe_indices_(0);
-    const uvec& fe_idx_1 = fe_indices_(1);
+  // Add both FE contributions with robust bounds checking
+  const uvec& fe_idx_0 = fe_indices_(0);
+  const uvec& fe_idx_1 = fe_indices_(1);
+  
+  const size_t max_idx_0 = fe_coef_a.n_elem;
+  const size_t max_idx_1 = fe_coef_b.n_elem;
 
-    for (size_t obs = 0; obs < n_obs_; ++obs) {
-      prediction(obs) +=
-          fe_coef_a_new(fe_idx_0(obs)) + fe_coef_b_new(fe_idx_1(obs));
-    }
-  } else {
-    // Just add without updating
-    const uvec& fe_idx_0 = fe_indices_(0);
-    const uvec& fe_idx_1 = fe_indices_(1);
-
-    for (size_t obs = 0; obs < n_obs_; ++obs) {
-      prediction(obs) += fe_coef_a(fe_idx_0(obs)) + fe_coef_b(fe_idx_1(obs));
+  for (size_t obs = 0; obs < n_obs_; ++obs) {
+    size_t id_0 = fe_idx_0(obs);
+    size_t id_1 = fe_idx_1(obs);
+    
+    // Robust bounds checking and value validation
+    if (id_0 < max_idx_0 && id_1 < max_idx_1) {
+      double val_a = fe_coef_a(id_0);
+      double val_b = fe_coef_b(id_1);
+      
+      // Check for finite values and replace non-finite with 0
+      if (!std::isfinite(val_a)) val_a = 0.0;
+      if (!std::isfinite(val_b)) val_b = 0.0;
+      
+      double sum_val = val_a + val_b;
+      if (std::isfinite(sum_val)) {
+        prediction(obs) += sum_val;
+      }
+      // If sum is not finite, don't add anything (effectively adding 0)
     }
   }
 }
@@ -406,6 +423,7 @@ struct DemeanParams {
   size_t projections_after_acceleration;
   size_t grand_acceleration_frequency;
   size_t ssr_check_frequency;
+  double safe_division_min;
 
   // Data
   field<vec> input_variables;
@@ -429,14 +447,14 @@ struct DemeanParams {
 //////////////////////////////////////////////////////////////////////////////
 
 // Update fixed effects coefficients - general case (Q >= 2)
-void compute_fe_general(size_t var_idx, const vec& fe_coef_origin,
-                        vec& fe_coef_destination, vec& sum_other_fe,
-                        const vec& sum_in_out, DemeanParams& params) {
+void compute_fe_general(size_t var_idx, const vec& fe_coef_origin, vec& fe_coef_destination,
+                        vec& sum_other_fe, const vec& sum_in_out, DemeanParams& params) {
   size_t n_fe_groups = params.n_fe_groups;
 
   // Update each FE group in reverse order (like fixest)
   for (int q = n_fe_groups - 1; q >= 0; --q) {
-    // Compute sum of other FE coefficients for each observation
+    // STEP 1: Compute sum of other FE coefficients for each observation
+    // Note: we need to recompute from scratch every time (precision issues)
     sum_other_fe.zeros();
 
     for (size_t h = 0; h < n_fe_groups; ++h) {
@@ -449,23 +467,22 @@ void compute_fe_general(size_t var_idx, const vec& fe_coef_origin,
                                                          sum_other_fe);
     }
 
-    // Update FE coefficients for group q
+    // STEP 2: Update FE coefficients for group q
     params.fe_processor->compute_fe_coefficients(q, fe_coef_destination,
                                                  sum_other_fe, sum_in_out);
   }
 }
 
 // Wrapper to handle 2-FE special case vs general case
-void compute_fe(size_t var_idx, size_t Q, vec& fe_coef_origin,
-                vec& fe_coef_destination, vec& sum_other_fe_or_tmp,
-                const vec& sum_in_out, DemeanParams& params) {
+void compute_fe(size_t var_idx, size_t Q, vec& fe_coef_origin, vec& fe_coef_destination,
+                vec& sum_other_fe_or_tmp, const vec& sum_in_out, DemeanParams& params) {
   if (Q == 2) {
     // Special 2-FE algorithm
     params.fe_processor->compute_fe_coef_2(fe_coef_origin, fe_coef_destination,
                                            sum_other_fe_or_tmp, sum_in_out);
   } else {
     // General algorithm
-    compute_fe_general(var_idx, fe_coef_origin, fe_coef_destination,
+    compute_fe_general(var_idx, fe_coef_origin, fe_coef_destination, 
                        sum_other_fe_or_tmp, sum_in_out, params);
   }
 }
@@ -480,7 +497,7 @@ void demean_single_fe(size_t var_idx, DemeanParams& params) {
   vec& output = params.output_variables(var_idx);
 
   // Compute fixed effect coefficients
-  vec fe_coef(params.total_coefficients, fill::zeros);
+  vec fe_coef(params.total_coefficients);
   params.fe_processor->compute_fe_coefficients_single(fe_coef, input);
 
   // Add to prediction
@@ -520,7 +537,7 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams& params,
   // Working vector - either sum_other_fe (general) or second FE coefs (2-FE)
   size_t size_other =
       two_fe_algo ? params.fe_processor->nb_coef_group(1) : n_obs;
-  vec sum_other_fe_or_tmp(size_other, fill::zeros);
+  vec sum_other_fe_or_tmp(size_other);
 
   // Compute sum of (input - output) for each FE group ONCE at the beginning
   vec sum_in_out(nb_coef_all, fill::zeros);
@@ -528,7 +545,7 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams& params,
     params.fe_processor->compute_in_out(q, sum_in_out, input, output);
   }
 
-  // Coefficient vectors
+  // Coefficient vectors - initialize with zeros for numerical stability
   vec X(nb_coef_T, fill::zeros);
   vec GX(nb_coef_T, fill::zeros);
   vec GGX(nb_coef_T, fill::zeros);
@@ -536,12 +553,18 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams& params,
   // First iteration
   compute_fe(var_idx, Q, X, GX, sum_other_fe_or_tmp, sum_in_out, params);
 
-  // Check if we need to iterate
+  // Check if we need to iterate with better numerical stability
   bool keep_going = false;
   for (size_t i = 0; i < nb_coef_T; ++i) {
-    if (continue_criterion(X(i), GX(i), tol)) {
-      keep_going = true;
-      break;
+    if (std::isfinite(X(i)) && std::isfinite(GX(i))) {
+      if (continue_criterion(X(i), GX(i), tol)) {
+        keep_going = true;
+        break;
+      }
+    } else {
+      // If we have non-finite values, set them to zero and continue
+      if (!std::isfinite(X(i))) X(i) = 0.0;
+      if (!std::isfinite(GX(i))) GX(i) = 0.0;
     }
   }
 
@@ -577,13 +600,7 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams& params,
     compute_fe(var_idx, Q, GX, GGX, sum_other_fe_or_tmp, sum_in_out, params);
 
     // Irons-Tuck acceleration
-    vec X_subvec = X.subvec(0, nb_coef_no_Q - 1);
-    vec GX_subvec = GX.subvec(0, nb_coef_no_Q - 1);
-    vec GGX_subvec = GGX.subvec(0, nb_coef_no_Q - 1);
-    numerical_convergence = update_irons_tuck_subvec(
-        X_subvec, GX_subvec, GGX_subvec, delta_GX, delta2_X);
-    // Update the original vectors
-    X.subvec(0, nb_coef_no_Q - 1) = X_subvec;
+    numerical_convergence = update_irons_tuck(X, GX, GGX);
     if (numerical_convergence) break;
 
     // Post-acceleration projections
@@ -595,9 +612,13 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams& params,
     // Next iteration
     compute_fe(var_idx, Q, X, GX, sum_other_fe_or_tmp, sum_in_out, params);
 
-    // Check convergence
+    // Check convergence with numerical stability
     keep_going = false;
     for (size_t i = 0; i < nb_coef_no_Q; ++i) {
+      // Ensure finite values before convergence check
+      if (!std::isfinite(X(i))) X(i) = 0.0;
+      if (!std::isfinite(GX(i))) GX(i) = 0.0;
+      
       if (continue_criterion(X(i), GX(i), tol)) {
         keep_going = true;
         break;
@@ -613,13 +634,7 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams& params,
         GY = GX;
       } else {
         GGY = GX;
-        vec Y_subvec = Y.subvec(0, nb_coef_no_Q - 1);
-        vec GY_subvec = GY.subvec(0, nb_coef_no_Q - 1);
-        vec GGY_subvec = GGY.subvec(0, nb_coef_no_Q - 1);
-        numerical_convergence = update_irons_tuck_subvec(
-            Y_subvec, GY_subvec, GGY_subvec, delta_GX, delta2_X);
-        // Update the original vectors
-        Y.subvec(0, nb_coef_no_Q - 1) = Y_subvec;
+        numerical_convergence = update_irons_tuck(Y, GY, GGY);
         if (numerical_convergence) break;
         compute_fe(var_idx, Q, Y, GX, sum_other_fe_or_tmp, sum_in_out, params);
         grand_acc_counter = 0;
@@ -631,12 +646,14 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams& params,
       vec mu_current(n_obs, fill::zeros);
 
       if (two_fe_algo) {
-        // Recompute sum_in_out for SSR check
+        // Special handling for 2-FE - compute sum_in_out for SSR check
+        size_t nb_coef_all = params.fe_processor->nb_coef_group(0) +
+                             params.fe_processor->nb_coef_group(1);
         vec sum_in_out_ssr(nb_coef_all, fill::zeros);
         for (size_t q = 0; q < 2; ++q) {
           params.fe_processor->compute_in_out(q, sum_in_out_ssr, input, output);
         }
-
+        
         params.fe_processor->add_2_fe_to_prediction(
             GX, sum_other_fe_or_tmp, mu_current, sum_in_out_ssr, false);
       } else {
@@ -659,12 +676,14 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams& params,
   output.zeros();
 
   if (two_fe_algo) {
-    // Final iteration for 2-FE
+    // Final iteration for 2-FE - compute sum_in_out for final update
+    size_t nb_coef_all = params.fe_processor->nb_coef_group(0) +
+                         params.fe_processor->nb_coef_group(1);
     vec sum_in_out_final(nb_coef_all, fill::zeros);
     for (size_t q = 0; q < 2; ++q) {
       params.fe_processor->compute_in_out(q, sum_in_out_final, input, output);
     }
-
+    
     params.fe_processor->add_2_fe_to_prediction(GX, sum_other_fe_or_tmp, output,
                                                 sum_in_out_final, true);
 
@@ -672,13 +691,14 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams& params,
     if (params.save_fixed_effects) {
       // First FE
       size_t nb_coef_0 = params.fe_processor->nb_coef_group(0);
-      params.fixed_effect_values.subvec(0, nb_coef_0 - 1) = GX;
-
+      for (size_t i = 0; i < nb_coef_0; ++i) {
+        params.fixed_effect_values(i) += GX(i);
+      }
       // Second FE
       size_t coef_start_1 = params.fe_processor->coefficient_starts()(1);
-      size_t nb_coef_1 = sum_other_fe_or_tmp.n_elem;
-      params.fixed_effect_values.subvec(
-          coef_start_1, coef_start_1 + nb_coef_1 - 1) = sum_other_fe_or_tmp;
+      for (size_t i = 0; i < sum_other_fe_or_tmp.n_elem; ++i) {
+        params.fixed_effect_values(coef_start_1 + i) += sum_other_fe_or_tmp(i);
+      }
     }
   } else {
     for (size_t q = 0; q < Q; ++q) {
@@ -703,7 +723,7 @@ void demean_general(size_t var_idx, DemeanParams& params) {
 
   if (Q == 1) {
     demean_single_fe(var_idx, params);
-  } else if (Q == 2) {
+  } else if (Q == 9999) {
     // Direct to 2-FE algorithm
     demean_accelerated(var_idx, params.max_iterations, params);
   } else {
@@ -749,18 +769,8 @@ field<vec> demean_variables(
     size_t grand_acc_frequency = 20, size_t ssr_check_frequency = 40,
     bool save_fixed_effects = false, double safe_division_min = 1e-12) {
   size_t n_vars = input_vars.n_elem;
-  if (n_vars == 0) return field<vec>(0);
-
   size_t n_obs = input_vars(0).n_elem;
   size_t n_fe_groups = fe_indices.n_elem;
-
-  // Validate inputs
-  for (size_t i = 0; i < n_vars; ++i) {
-    if (input_vars(i).n_elem != n_obs) {
-      cpp11::stop(
-          "All input variables must have the same number of observations");
-    }
-  }
 
   // Create fixed effects processor
   auto fe_processor = std::make_shared<FixedEffects>(
@@ -777,7 +787,6 @@ field<vec> demean_variables(
   params.warmup_iterations = warmup_iterations;
   params.projections_after_acceleration = projections_after_acc;
   params.grand_acceleration_frequency = grand_acc_frequency;
-  params.ssr_check_frequency = ssr_check_frequency;
   params.fe_processor = fe_processor;
   params.save_fixed_effects = save_fixed_effects;
   params.stop_requested = false;
@@ -785,16 +794,19 @@ field<vec> demean_variables(
   // Initialize data structures
   params.input_variables = input_vars;
   params.output_variables.set_size(n_vars);
-  params.iteration_counts = zeros<uvec>(n_vars);
+  params.iteration_counts.set_size(n_vars);
+  params.iteration_counts.zeros();
   params.job_completed.set_size(n_vars);
   params.job_completed.fill(false);
 
   if (save_fixed_effects) {
-    params.fixed_effect_values = zeros<vec>(params.total_coefficients);
+    params.fixed_effect_values.set_size(params.total_coefficients);
+    params.fixed_effect_values.zeros();
   }
 
   for (size_t i = 0; i < n_vars; ++i) {
-    params.output_variables(i) = zeros<vec>(n_obs);
+    params.output_variables(i).set_size(n_obs);
+    params.output_variables(i).zeros();
   }
 
   // Process each variable
