@@ -97,7 +97,7 @@ test_that("felm time is the minimally affected when adding noise to the data", {
   m1 <- felm(mpg ~ wt | cyl, mtcars)
   m2 <- felm(mpg ~ wt | cyl, mtcars2)
   expect_equal(coef(m1), coef(m2))
-  expect_equal(fixed_effects(m1), fixed_effects(m2))
+  expect_equal(m1$fixed.effects, m2$fixed.effects)
 
   t1 <- rep(NA, 10)
   t2 <- rep(NA, 10)

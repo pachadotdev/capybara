@@ -72,52 +72,6 @@ partial_mu_eta_ <- function(eta, family, order) {
   }
 }
 
-#' @title Check control
-#' @description Checks control for GLM/NegBin models and merges with defaults
-#' @param control Control list
-#' @noRd
-check_control_ <- function(control) {
-  default_control <- do.call(feglm_control, list())
-
-  if (is.null(control)) {
-    assign("control", default_control, envir = parent.frame())
-  } else if (!inherits(control, "list")) {
-    stop("'control' has to be a list.", call. = FALSE)
-  } else {
-    # merge user-provided values with defaults
-    merged_control <- default_control
-
-    for (param_name in names(control)) {
-      if (param_name %in% names(default_control)) {
-        merged_control[[param_name]] <- control[[param_name]]
-      } else {
-        warning(sprintf("Unknown control parameter: '%s'", param_name), call. = FALSE)
-      }
-    }
-
-    # checks
-    # 1. non-negative params
-    non_neg_params <- c(
-      "dev_tol", "center_tol", "iter_max", "iter_center_max",
-      "iter_inner_max", "iter_interrupt", "iter_ssr", "limit"
-    )
-    for (param_name in non_neg_params) {
-      if (merged_control[[param_name]] <= 0) {
-        stop(sprintf("'%s' must be greater than zero.", param_name), call. = FALSE)
-      }
-    }
-    # 2. logical params
-    logical_params <- c("trace", "drop_pc", "keep_mx")
-    for (param_name in logical_params) {
-      if (!is.logical(merged_control[[param_name]])) {
-        stop(sprintf("'%s' must be logical.", param_name), call. = FALSE)
-      }
-    }
-
-    assign("control", merged_control, envir = parent.frame())
-  }
-}
-
 #' @title Check family
 #' @description Checks family for GLM/NegBin models
 #' @param family Family object

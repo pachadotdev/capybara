@@ -36,7 +36,7 @@ parameters in the linear predictor. Default is
 predictor.}
 
 \item{control}{a named list of parameters for controlling the fitting
-process. See \code{\link{feglm_control}} for details.}
+process. See \code{\link{fit_control}} for details.}
 }
 \value{
 A named list of class \code{"feglm"}.

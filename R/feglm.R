@@ -81,7 +81,7 @@ NULL
 #' @param eta_start an optional vector of starting values for the linear
 #'  predictor.
 #' @param control a named list of parameters for controlling the fitting
-#'  process. See \code{\link{feglm_control}} for details.
+#'  process. See \code{\link{fit_control}} for details.
 #'
 #' @details If \code{\link{feglm}} does not converge this is often a sign of
 #'  linear dependence between one or more regressors and a fixed effects

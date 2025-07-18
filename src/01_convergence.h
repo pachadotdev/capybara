@@ -1,5 +1,4 @@
-// Convergence algorithms for computing optimal cluster coefficients
-// (or fixed effects)
+// Computing optimal cluster coefficients (or fixed effects)
 
 #ifndef CAPYBARA_CONVERGENCE_H
 #define CAPYBARA_CONVERGENCE_H
@@ -13,22 +12,23 @@ enum class Family {
   POISSON_LOG,
   NEGBIN,
   BINOMIAL,
-  GAUSSIAN
+  GAUSSIAN,
+  INV_GAUSSIAN,
+  GAMMA
 };
 
 // Utility functions
 namespace utils {
 
-// Safe division with minimum threshold
+// Safe division with configurable minimum threshold
 inline vec safe_divide(const vec& numerator, const vec& denominator,
                        double min_val = 1e-12) {
-  return numerator /
-         arma::max(denominator, min_val * ones<vec>(denominator.n_elem));
+  return numerator / max(denominator, min_val * ones<vec>(denominator.n_elem));
 }
 
-// Safe log with minimum threshold
+// Safe log with configurable minimum threshold
 inline vec safe_log(const vec& x, double min_val = 1e-12) {
-  return log(arma::max(x, min_val * ones<vec>(x.n_elem)));
+  return log(max(x, min_val * ones<vec>(x.n_elem)));
 }
 
 // Check if family is Poisson-type
@@ -59,14 +59,13 @@ inline bool stopping_criterion(double a, double b, double diffMax) {
 //////////////////////////////////////////////////////////////////////////////
 
 // Irons-Tuck acceleration update
-bool update_irons_tuck(vec& X, const vec& GX, const vec& GGX) {
+bool update_irons_tuck(vec& X, const vec& GX, const vec& GGX, double eps = 1e-14) {
   vec delta_GX = GGX - GX;
   vec delta2_X = delta_GX - GX + X;
 
   double vprod = dot(delta_GX, delta2_X);
   double ssq = dot(delta2_X, delta2_X);
 
-  constexpr double eps = 1e-14;
   if (ssq < eps) {
     return true;  // numerical convergence
   }
@@ -80,7 +79,6 @@ bool update_irons_tuck(vec& X, const vec& GX, const vec& GGX) {
 // Poisson cluster coefficients
 void compute_cluster_coef_poisson(const vec& exp_mu, const vec& sum_y,
                                   const uvec& dum, vec& cluster_coef) {
-  size_t nb_cluster = cluster_coef.n_elem;
   cluster_coef.zeros();
 
   // Accumulate exp_mu by cluster
@@ -128,7 +126,6 @@ void compute_cluster_coef_poisson_log(const vec& mu, const vec& sum_y,
 void compute_cluster_coef_gaussian(const vec& mu, const vec& sum_y,
                                    const uvec& dum, const uvec& table,
                                    vec& cluster_coef) {
-  size_t nb_cluster = cluster_coef.n_elem;
   cluster_coef.zeros();
 
   // Accumulate mu by cluster
@@ -363,6 +360,14 @@ void compute_cluster_coefficients(Family family, const vec& mu, const vec& lhs,
       compute_cluster_coef_binomial(mu, sum_y, obs_cluster, table, cumtable,
                                     diffMax_NR, cluster_coef);
       break;
+    case Family::INV_GAUSSIAN:
+      // For inverse Gaussian, use Gaussian approximation
+      compute_cluster_coef_gaussian(mu, sum_y, dum, table, cluster_coef);
+      break;
+    case Family::GAMMA:
+      // For Gamma, use Gaussian approximation  
+      compute_cluster_coef_gaussian(mu, sum_y, dum, table, cluster_coef);
+      break;
   }
 }
 
@@ -371,7 +376,7 @@ void compute_cluster_coefficients(Family family, const vec& mu, const vec& lhs,
 //////////////////////////////////////////////////////////////////////////////
 
 // Parameter structure for convergence algorithms
-struct ConvParams {
+struct Convergence {
   Family family;
   size_t n_obs;
   size_t K;
@@ -388,7 +393,7 @@ struct ConvParams {
   field<uvec> cumtable_vector;
   field<uvec> obs_cluster_vector;
 
-  ConvParams()
+  Convergence()
       : family(Family::POISSON), n_obs(0), K(0), theta(1.0), diffMax_NR(1e-8) {}
 };
 
@@ -416,7 +421,7 @@ vec update_mu_with_coefficients(const vec& mu_base,
 }
 
 // Compute all cluster coefficients for current mu
-void compute_all_cluster_coefficients(const ConvParams& params,
+void compute_all_cluster_coefficients(const Convergence& params,
                                       const vec& mu_with_coef,
                                       field<vec>& cluster_coefs_dest,
                                       const field<vec>& cluster_coefs_origin) {
@@ -477,10 +482,9 @@ void compute_all_cluster_coefficients(const ConvParams& params,
 }
 
 // Accelerated convergence algorithm
-vec conv_accelerated(const ConvParams& params, size_t iterMax, double diffMax,
+vec conv_accelerated(const Convergence& params, size_t iterMax, double diffMax,
                      size_t& final_iter, bool& any_negative_poisson) {
   size_t K = params.K;
-  size_t n_obs = params.n_obs;
 
   // Initialize coefficient fields
   field<vec> X(K), GX(K), GGX(K);
@@ -576,7 +580,7 @@ vec conv_accelerated(const ConvParams& params, size_t iterMax, double diffMax,
 }
 
 // Sequential convergence algorithm
-vec conv_sequential(const ConvParams& params, size_t iterMax, double diffMax,
+vec conv_sequential(const Convergence& params, size_t iterMax, double diffMax,
                     size_t& final_iter) {
   size_t K = params.K;
 
