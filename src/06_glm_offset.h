@@ -7,16 +7,17 @@ namespace capybara {
 namespace glm_offset {
 
 using demean::demean_variables;
+using demean::DemeanResult;
 
 // Use the functions from the existing glm namespace in 05_glm.h
-using glm::link_inv;
 using glm::d_inv_link;
 using glm::dev_resids;
-using glm::variance;
+using glm::link_inv;
+using glm::string_to_family;
+using glm::tidy_family;
 using glm::valid_eta;
 using glm::valid_mu;
-using glm::tidy_family;
-using glm::string_to_family;
+using glm::variance;
 
 // Use convergence family types for consistency
 using convergence::Family;
@@ -32,12 +33,9 @@ struct InferenceGLMOffset {
   bool conv;
   size_t iter;
 
-  InferenceGLMOffset(size_t n) 
-      : eta(n, fill::none), conv(false), iter(0) {}
+  InferenceGLMOffset(size_t n) : eta(n, fill::none), conv(false), iter(0) {}
 
-  cpp11::doubles to_doubles() const { 
-    return as_doubles(eta); 
-  }
+  cpp11::doubles to_doubles() const { return as_doubles(eta); }
 };
 
 //////////////////////////////////////////////////////////////////////////////
@@ -52,15 +50,14 @@ inline InferenceGLMOffset feglm_offset_fit(
     size_t iter_interrupt, size_t iter_ssr, const std::string &family,
     double collin_tol,
     // Demean algorithm parameters
-    size_t demean_extra_projections = 0,
-    size_t demean_warmup_iterations = 15,
+    size_t demean_extra_projections = 0, size_t demean_warmup_iterations = 15,
     size_t demean_projections_after_acc = 5,
     size_t demean_grand_acc_frequency = 20,
-    size_t demean_ssr_check_frequency = 40,
-    double safe_division_min = 1e-12) {
-  
+    size_t demean_ssr_check_frequency = 40, double safe_division_min = 1e-12) {
+
   const size_t n = y.n_elem;
-  const bool has_fixed_effects = fe_indices.n_elem > 0 && fe_indices(0).n_elem > 0;
+  const bool has_fixed_effects =
+      fe_indices.n_elem > 0 && fe_indices(0).n_elem > 0;
 
   InferenceGLMOffset result(n);
 
@@ -109,19 +106,20 @@ inline InferenceGLMOffset feglm_offset_fit(
     // Center the adjusted response if we have fixed effects
     if (has_fixed_effects) {
       Myadj += yadj;
-      
+
       // Prepare data for demeaning
       field<vec> variables_to_demean(1);
       variables_to_demean(0) = Myadj;
 
       // Demean the working response
-      field<vec> demeaned_vars = demean_variables(
+      DemeanResult demean_result = demean_variables(
           variables_to_demean, w, fe_indices, nb_ids, fe_id_tables,
           iter_center_max, center_tol, demean_extra_projections,
           demean_warmup_iterations, demean_projections_after_acc,
-          demean_grand_acc_frequency, demean_ssr_check_frequency, false, safe_division_min);
+          demean_grand_acc_frequency, demean_ssr_check_frequency, false,
+          safe_division_min);
 
-      Myadj = demeaned_vars(0);
+      Myadj = demean_result.demeaned_vars(0);
     } else {
       // No fixed effects - just update with current working response
       Myadj = yadj;
@@ -170,7 +168,7 @@ inline InferenceGLMOffset feglm_offset_fit(
   return result;
 }
 
-}  // namespace glm_offset
-}  // namespace capybara
+} // namespace glm_offset
+} // namespace capybara
 
-#endif  // CAPYBARA_GLM_OFFSET_H
+#endif // CAPYBARA_GLM_OFFSET_H

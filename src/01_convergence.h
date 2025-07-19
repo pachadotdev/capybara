@@ -21,13 +21,13 @@ enum class Family {
 namespace utils {
 
 // Safe division with configurable minimum threshold
-inline vec safe_divide(const vec& numerator, const vec& denominator,
+inline vec safe_divide(const vec &numerator, const vec &denominator,
                        double min_val = 1e-12) {
   return numerator / max(denominator, min_val * ones<vec>(denominator.n_elem));
 }
 
 // Safe log with configurable minimum threshold
-inline vec safe_log(const vec& x, double min_val = 1e-12) {
+inline vec safe_log(const vec &x, double min_val = 1e-12) {
   return log(max(x, min_val * ones<vec>(x.n_elem)));
 }
 
@@ -40,7 +40,7 @@ inline bool is_poisson_family(Family family) {
 inline bool requires_newton_raphson(Family family) {
   return (family == Family::NEGBIN || family == Family::BINOMIAL);
 }
-}  // namespace utils
+} // namespace utils
 
 // Stopping criteria
 inline bool continue_criterion(double a, double b, double diffMax) {
@@ -59,7 +59,8 @@ inline bool stopping_criterion(double a, double b, double diffMax) {
 //////////////////////////////////////////////////////////////////////////////
 
 // Irons-Tuck acceleration update
-bool update_irons_tuck(vec& X, const vec& GX, const vec& GGX, double eps = 1e-14) {
+bool update_irons_tuck(vec &X, const vec &GX, const vec &GGX,
+                       double eps = 1e-14) {
   vec delta_GX = GGX - GX;
   vec delta2_X = delta_GX - GX + X;
 
@@ -67,7 +68,7 @@ bool update_irons_tuck(vec& X, const vec& GX, const vec& GGX, double eps = 1e-14
   double ssq = dot(delta2_X, delta2_X);
 
   if (ssq < eps) {
-    return true;  // numerical convergence
+    return true; // numerical convergence
   }
 
   double coef = vprod / ssq;
@@ -77,8 +78,8 @@ bool update_irons_tuck(vec& X, const vec& GX, const vec& GGX, double eps = 1e-14
 }
 
 // Poisson cluster coefficients
-void compute_cluster_coef_poisson(const vec& exp_mu, const vec& sum_y,
-                                  const uvec& dum, vec& cluster_coef) {
+void compute_cluster_coef_poisson(const vec &exp_mu, const vec &sum_y,
+                                  const uvec &dum, vec &cluster_coef) {
   cluster_coef.zeros();
 
   // Accumulate exp_mu by cluster
@@ -91,8 +92,8 @@ void compute_cluster_coef_poisson(const vec& exp_mu, const vec& sum_y,
 }
 
 // Poisson log cluster coefficients
-void compute_cluster_coef_poisson_log(const vec& mu, const vec& sum_y,
-                                      const uvec& dum, vec& cluster_coef) {
+void compute_cluster_coef_poisson_log(const vec &mu, const vec &sum_y,
+                                      const uvec &dum, vec &cluster_coef) {
   size_t nb_cluster = cluster_coef.n_elem;
   size_t n_obs = mu.n_elem;
 
@@ -123,9 +124,9 @@ void compute_cluster_coef_poisson_log(const vec& mu, const vec& sum_y,
 }
 
 // Gaussian cluster coefficients
-void compute_cluster_coef_gaussian(const vec& mu, const vec& sum_y,
-                                   const uvec& dum, const uvec& table,
-                                   vec& cluster_coef) {
+void compute_cluster_coef_gaussian(const vec &mu, const vec &sum_y,
+                                   const uvec &dum, const uvec &table,
+                                   vec &cluster_coef) {
   cluster_coef.zeros();
 
   // Accumulate mu by cluster
@@ -139,11 +140,11 @@ void compute_cluster_coef_gaussian(const vec& mu, const vec& sum_y,
 }
 
 // Negative binomial cluster coefficients (Newton-Raphson + dichotomy)
-void compute_cluster_coef_negbin(const vec& mu, const vec& lhs,
-                                 const vec& sum_y, const uvec& dum,
-                                 const uvec& obs_cluster, const uvec& table,
-                                 const uvec& cumtable, double theta,
-                                 double diffMax_NR, vec& cluster_coef) {
+void compute_cluster_coef_negbin(const vec &mu, const vec &lhs,
+                                 const vec &sum_y, const uvec &dum,
+                                 const uvec &obs_cluster, const uvec &table,
+                                 const uvec &cumtable, double theta,
+                                 double diffMax_NR, vec &cluster_coef) {
   size_t nb_cluster = cluster_coef.n_elem;
   constexpr size_t iterMax = 100;
   constexpr size_t iterFullDicho = 10;
@@ -239,10 +240,10 @@ void compute_cluster_coef_negbin(const vec& mu, const vec& lhs,
 }
 
 // Binomial cluster coefficients (similar to negbin)
-void compute_cluster_coef_binomial(const vec& mu, const vec& sum_y,
-                                   const uvec& obs_cluster, const uvec& table,
-                                   const uvec& cumtable, double diffMax_NR,
-                                   vec& cluster_coef) {
+void compute_cluster_coef_binomial(const vec &mu, const vec &sum_y,
+                                   const uvec &obs_cluster, const uvec &table,
+                                   const uvec &cumtable, double diffMax_NR,
+                                   vec &cluster_coef) {
   size_t nb_cluster = cluster_coef.n_elem;
   constexpr size_t iterMax = 100;
   constexpr size_t iterFullDicho = 10;
@@ -337,37 +338,37 @@ void compute_cluster_coef_binomial(const vec& mu, const vec& sum_y,
 //////////////////////////////////////////////////////////////////////////////
 
 // Unified cluster coefficient computation
-void compute_cluster_coefficients(Family family, const vec& mu, const vec& lhs,
-                                  const vec& sum_y, const uvec& dum,
-                                  const uvec& obs_cluster, const uvec& table,
-                                  const uvec& cumtable, double theta,
-                                  double diffMax_NR, vec& cluster_coef) {
+void compute_cluster_coefficients(Family family, const vec &mu, const vec &lhs,
+                                  const vec &sum_y, const uvec &dum,
+                                  const uvec &obs_cluster, const uvec &table,
+                                  const uvec &cumtable, double theta,
+                                  double diffMax_NR, vec &cluster_coef) {
   switch (family) {
-    case Family::POISSON:
-      compute_cluster_coef_poisson(mu, sum_y, dum, cluster_coef);
-      break;
-    case Family::POISSON_LOG:
-      compute_cluster_coef_poisson_log(mu, sum_y, dum, cluster_coef);
-      break;
-    case Family::GAUSSIAN:
-      compute_cluster_coef_gaussian(mu, sum_y, dum, table, cluster_coef);
-      break;
-    case Family::NEGBIN:
-      compute_cluster_coef_negbin(mu, lhs, sum_y, dum, obs_cluster, table,
-                                  cumtable, theta, diffMax_NR, cluster_coef);
-      break;
-    case Family::BINOMIAL:
-      compute_cluster_coef_binomial(mu, sum_y, obs_cluster, table, cumtable,
-                                    diffMax_NR, cluster_coef);
-      break;
-    case Family::INV_GAUSSIAN:
-      // For inverse Gaussian, use Gaussian approximation
-      compute_cluster_coef_gaussian(mu, sum_y, dum, table, cluster_coef);
-      break;
-    case Family::GAMMA:
-      // For Gamma, use Gaussian approximation  
-      compute_cluster_coef_gaussian(mu, sum_y, dum, table, cluster_coef);
-      break;
+  case Family::POISSON:
+    compute_cluster_coef_poisson(mu, sum_y, dum, cluster_coef);
+    break;
+  case Family::POISSON_LOG:
+    compute_cluster_coef_poisson_log(mu, sum_y, dum, cluster_coef);
+    break;
+  case Family::GAUSSIAN:
+    compute_cluster_coef_gaussian(mu, sum_y, dum, table, cluster_coef);
+    break;
+  case Family::NEGBIN:
+    compute_cluster_coef_negbin(mu, lhs, sum_y, dum, obs_cluster, table,
+                                cumtable, theta, diffMax_NR, cluster_coef);
+    break;
+  case Family::BINOMIAL:
+    compute_cluster_coef_binomial(mu, sum_y, obs_cluster, table, cumtable,
+                                  diffMax_NR, cluster_coef);
+    break;
+  case Family::INV_GAUSSIAN:
+    // For inverse Gaussian, use Gaussian approximation
+    compute_cluster_coef_gaussian(mu, sum_y, dum, table, cluster_coef);
+    break;
+  case Family::GAMMA:
+    // For Gamma, use Gaussian approximation
+    compute_cluster_coef_gaussian(mu, sum_y, dum, table, cluster_coef);
+    break;
   }
 }
 
@@ -398,15 +399,15 @@ struct Convergence {
 };
 
 // Update mu with cluster coefficients
-vec update_mu_with_coefficients(const vec& mu_base,
-                                const field<vec>& cluster_coefs,
-                                const field<uvec>& dum_vector, Family family) {
+vec update_mu_with_coefficients(const vec &mu_base,
+                                const field<vec> &cluster_coefs,
+                                const field<uvec> &dum_vector, Family family) {
   vec mu_result = mu_base;
   size_t K = cluster_coefs.n_elem;
 
   for (size_t k = 0; k < K; ++k) {
-    const uvec& my_dum = dum_vector(k);
-    const vec& my_coef = cluster_coefs(k);
+    const uvec &my_dum = dum_vector(k);
+    const vec &my_coef = cluster_coefs(k);
 
     if (utils::is_poisson_family(family)) {
       // Multiplicative updates for Poisson families
@@ -421,17 +422,17 @@ vec update_mu_with_coefficients(const vec& mu_base,
 }
 
 // Compute all cluster coefficients for current mu
-void compute_all_cluster_coefficients(const Convergence& params,
-                                      const vec& mu_with_coef,
-                                      field<vec>& cluster_coefs_dest,
-                                      const field<vec>& cluster_coefs_origin) {
+void compute_all_cluster_coefficients(const Convergence &params,
+                                      const vec &mu_with_coef,
+                                      field<vec> &cluster_coefs_dest,
+                                      const field<vec> &cluster_coefs_origin) {
   // Update mu starting from base
   vec mu_current = params.mu_init;
 
   // Add contributions from first K-1 cluster coefficients
   for (size_t k = 0; k < params.K - 1; ++k) {
-    const uvec& my_dum = params.dum_vector(k);
-    const vec& my_coef = cluster_coefs_origin(k);
+    const uvec &my_dum = params.dum_vector(k);
+    const vec &my_coef = cluster_coefs_origin(k);
 
     if (utils::is_poisson_family(params.family)) {
       mu_current %= my_coef(my_dum);
@@ -445,14 +446,14 @@ void compute_all_cluster_coefficients(const Convergence& params,
     size_t uk = static_cast<size_t>(k);
 
     // Get current cluster data
-    const uvec& my_table = params.table_vector(uk);
-    const vec& my_sum_y = params.sum_y_vector(uk);
-    const uvec& my_dum = params.dum_vector(uk);
-    const uvec& my_cumtable = params.cumtable_vector(uk);
-    const uvec& my_obs_cluster = params.obs_cluster_vector(uk);
+    const uvec &my_table = params.table_vector(uk);
+    const vec &my_sum_y = params.sum_y_vector(uk);
+    const uvec &my_dum = params.dum_vector(uk);
+    const uvec &my_cumtable = params.cumtable_vector(uk);
+    const uvec &my_obs_cluster = params.obs_cluster_vector(uk);
 
     // Compute cluster coefficients for this level
-    vec& my_cluster_coef = cluster_coefs_dest(uk);
+    vec &my_cluster_coef = cluster_coefs_dest(uk);
     my_cluster_coef.resize(my_table.n_elem);
 
     compute_cluster_coefficients(params.family, mu_current, params.lhs,
@@ -465,10 +466,11 @@ void compute_all_cluster_coefficients(const Convergence& params,
       mu_current = params.mu_init;
 
       for (size_t h = 0; h < params.K; h++) {
-        if (h == uk - 1) continue;
+        if (h == uk - 1)
+          continue;
 
-        const uvec& my_dum_h = params.dum_vector(h);
-        const vec& my_coef_h =
+        const uvec &my_dum_h = params.dum_vector(h);
+        const vec &my_coef_h =
             (h < uk - 1) ? cluster_coefs_origin(h) : cluster_coefs_dest(h);
 
         if (utils::is_poisson_family(params.family)) {
@@ -482,8 +484,8 @@ void compute_all_cluster_coefficients(const Convergence& params,
 }
 
 // Accelerated convergence algorithm
-vec conv_accelerated(const Convergence& params, size_t iterMax, double diffMax,
-                     size_t& final_iter, bool& any_negative_poisson) {
+vec conv_accelerated(const Convergence &params, size_t iterMax, double diffMax,
+                     size_t &final_iter, bool &any_negative_poisson) {
   size_t K = params.K;
 
   // Initialize coefficient fields
@@ -507,15 +509,16 @@ vec conv_accelerated(const Convergence& params, size_t iterMax, double diffMax,
   // Check if iteration is needed
   bool keepGoing = false;
   for (size_t k = 0; k < K - 1; ++k) {
-    const vec& X_k = X(k);
-    const vec& GX_k = GX(k);
+    const vec &X_k = X(k);
+    const vec &GX_k = GX(k);
     for (size_t i = 0; i < X_k.n_elem; ++i) {
       if (continue_criterion(X_k(i), GX_k(i), diffMax)) {
         keepGoing = true;
         break;
       }
     }
-    if (keepGoing) break;
+    if (keepGoing)
+      break;
   }
 
   size_t iter = 0;
@@ -535,7 +538,8 @@ vec conv_accelerated(const Convergence& params, size_t iterMax, double diffMax,
       }
     }
 
-    if (!keepGoing) break;
+    if (!keepGoing)
+      break;
 
     // Check for negative Poisson coefficients
     if (utils::is_poisson_family(params.family)) {
@@ -548,7 +552,8 @@ vec conv_accelerated(const Convergence& params, size_t iterMax, double diffMax,
       }
     }
 
-    if (!keepGoing) break;
+    if (!keepGoing)
+      break;
 
     // Update GX
     compute_all_cluster_coefficients(params, params.mu_init, GX, X);
@@ -556,15 +561,16 @@ vec conv_accelerated(const Convergence& params, size_t iterMax, double diffMax,
     // Check convergence
     keepGoing = false;
     for (size_t k = 0; k < K - 1; ++k) {
-      const vec& X_k = X(k);
-      const vec& GX_k = GX(k);
+      const vec &X_k = X(k);
+      const vec &GX_k = GX(k);
       for (size_t i = 0; i < X_k.n_elem; ++i) {
         if (continue_criterion(X_k(i), GX_k(i), diffMax)) {
           keepGoing = true;
           break;
         }
       }
-      if (keepGoing) break;
+      if (keepGoing)
+        break;
     }
   }
 
@@ -580,8 +586,8 @@ vec conv_accelerated(const Convergence& params, size_t iterMax, double diffMax,
 }
 
 // Sequential convergence algorithm
-vec conv_sequential(const Convergence& params, size_t iterMax, double diffMax,
-                    size_t& final_iter) {
+vec conv_sequential(const Convergence &params, size_t iterMax, double diffMax,
+                    size_t &final_iter) {
   size_t K = params.K;
 
   // Initialize coefficient fields
@@ -614,24 +620,25 @@ vec conv_sequential(const Convergence& params, size_t iterMax, double diffMax,
 
     // Check convergence for first K-1 coefficients
     keepGoing = false;
-    const field<vec>& X_current = (iter % 2 == 1) ? X_new : X;
-    const field<vec>& X_prev = (iter % 2 == 1) ? X : X_new;
+    const field<vec> &X_current = (iter % 2 == 1) ? X_new : X;
+    const field<vec> &X_prev = (iter % 2 == 1) ? X : X_new;
 
     for (size_t k = 0; k < K - 1; ++k) {
-      const vec& curr = X_current(k);
-      const vec& prev = X_prev(k);
+      const vec &curr = X_current(k);
+      const vec &prev = X_prev(k);
       for (size_t i = 0; i < curr.n_elem; ++i) {
         if (continue_criterion(prev(i), curr(i), diffMax)) {
           keepGoing = true;
           break;
         }
       }
-      if (keepGoing) break;
+      if (keepGoing)
+        break;
     }
   }
 
   // Use the latest coefficients
-  const field<vec>& final_coefs = (iter % 2 == 0) ? X_new : X;
+  const field<vec> &final_coefs = (iter % 2 == 0) ? X_new : X;
 
   // Compute final mu
   vec mu_result = update_mu_with_coefficients(params.mu_init, final_coefs,
@@ -647,11 +654,11 @@ vec conv_sequential(const Convergence& params, size_t iterMax, double diffMax,
 
 // 2-way Poisson sequential convergence
 vec conv_2way_poisson_sequential(size_t n_i, size_t n_j, size_t n_cells,
-                                 const uvec& index_i, const uvec& index_j,
-                                 const field<uvec>& dum_vector,
-                                 const vec& sum_y_vector, size_t iterMax,
-                                 double diffMax, const vec& exp_mu_in,
-                                 const uvec& order, size_t& final_iter) {
+                                 const uvec &index_i, const uvec &index_j,
+                                 const field<uvec> &dum_vector,
+                                 const vec &sum_y_vector, size_t iterMax,
+                                 double diffMax, const vec &exp_mu_in,
+                                 const uvec &order, size_t &final_iter) {
   // Build matrix representation
   uvec mat_row(n_cells);
   uvec mat_col(n_cells);
@@ -691,8 +698,8 @@ vec conv_2way_poisson_sequential(size_t n_i, size_t n_j, size_t n_cells,
   vec cb = sum_y_vector.tail(n_j);
 
   // Helper function for 2-way Poisson computation
-  auto compute_2way_poisson_coefs = [&](const vec& alpha_in, vec& alpha_out,
-                                        vec& beta_out) {
+  auto compute_2way_poisson_coefs = [&](const vec &alpha_in, vec &alpha_out,
+                                        vec &beta_out) {
     alpha_out.zeros();
     beta_out.zeros();
 
@@ -723,8 +730,8 @@ vec conv_2way_poisson_sequential(size_t n_i, size_t n_j, size_t n_cells,
 
     // Check convergence on alpha coefficients
     keepGoing = false;
-    const vec& alpha_current = (iter % 2 == 1) ? alpha : alpha_new;
-    const vec& alpha_prev = (iter % 2 == 1) ? alpha_new : alpha;
+    const vec &alpha_current = (iter % 2 == 1) ? alpha : alpha_new;
+    const vec &alpha_prev = (iter % 2 == 1) ? alpha_new : alpha;
 
     for (size_t i = 0; i < n_i; ++i) {
       if (continue_criterion(alpha_current(i), alpha_prev(i), diffMax)) {
@@ -735,13 +742,13 @@ vec conv_2way_poisson_sequential(size_t n_i, size_t n_j, size_t n_cells,
   }
 
   // Use final coefficients
-  const vec& alpha_final = (iter % 2 == 0) ? alpha_new : alpha;
-  const vec& beta_final = (iter % 2 == 0) ? beta_new : beta;
+  const vec &alpha_final = (iter % 2 == 0) ? alpha_new : alpha;
+  const vec &beta_final = (iter % 2 == 0) ? beta_new : beta;
 
   // Compute result mu
   vec result_mu(n_obs);
-  const uvec& dum_i = dum_vector(0);
-  const uvec& dum_j = dum_vector(1);
+  const uvec &dum_i = dum_vector(0);
+  const uvec &dum_j = dum_vector(1);
 
   for (size_t obs = 0; obs < n_obs; ++obs) {
     result_mu(obs) =
@@ -754,11 +761,11 @@ vec conv_2way_poisson_sequential(size_t n_i, size_t n_j, size_t n_cells,
 
 // 2-way Gaussian accelerated convergence
 vec conv_2way_gaussian_accelerated(
-    size_t n_i, size_t n_j, size_t n_cells, const uvec& mat_row,
-    const uvec& mat_col, const vec& mat_value_Ab, const vec& mat_value_Ba,
-    const field<uvec>& dum_vector, const vec& lhs,
-    const vec& invTableCluster_vector, size_t iterMax, double diffMax,
-    const vec& mu_in, size_t& final_iter) {
+    size_t n_i, size_t n_j, size_t n_cells, const uvec &mat_row,
+    const uvec &mat_col, const vec &mat_value_Ab, const vec &mat_value_Ba,
+    const field<uvec> &dum_vector, const vec &lhs,
+    const vec &invTableCluster_vector, size_t iterMax, double diffMax,
+    const vec &mu_in, size_t &final_iter) {
   size_t n_obs = mu_in.n_elem;
   vec resid = lhs - mu_in;
 
@@ -766,10 +773,10 @@ vec conv_2way_gaussian_accelerated(
   vec const_a = zeros<vec>(n_i);
   vec const_b = zeros<vec>(n_j);
 
-  const uvec& dum_i = dum_vector(0);
-  const uvec& dum_j = dum_vector(1);
-  const vec& invTable_i = invTableCluster_vector.head(n_i);
-  const vec& invTable_j =
+  const uvec &dum_i = dum_vector(0);
+  const uvec &dum_j = dum_vector(1);
+  const vec &invTable_i = invTableCluster_vector.head(n_i);
+  const vec &invTable_j =
       invTableCluster_vector.tail(invTableCluster_vector.n_elem - n_i);
 
   for (size_t obs = 0; obs < n_obs; ++obs) {
@@ -785,7 +792,7 @@ vec conv_2way_gaussian_accelerated(
   }
 
   // Helper function for 2-way Gaussian computation
-  auto compute_2way_gaussian_coefs = [&](const vec& alpha_in, vec& alpha_out) {
+  auto compute_2way_gaussian_coefs = [&](const vec &alpha_in, vec &alpha_out) {
     alpha_out = a_tilde;
     vec beta_temp = zeros<vec>(n_j);
 
@@ -816,7 +823,8 @@ vec conv_2way_gaussian_accelerated(
     compute_2way_gaussian_coefs(GX, GGX);
 
     bool numconv = update_irons_tuck(X, GX, GGX);
-    if (numconv) break;
+    if (numconv)
+      break;
 
     compute_2way_gaussian_coefs(X, GX);
 
@@ -858,11 +866,11 @@ vec conv_2way_gaussian_accelerated(
 
 // Sequential derivative convergence
 field<vec> conv_derivative_sequential(size_t iterMax, double diffMax,
-                                      size_t n_vars, const uvec& nb_cluster_all,
-                                      const vec& ll_d2,
-                                      const field<vec>& jacob_matrix,
-                                      const field<vec>& deriv_init_matrix,
-                                      const field<uvec>& dum_matrix) {
+                                      size_t n_vars, const uvec &nb_cluster_all,
+                                      const vec &ll_d2,
+                                      const field<vec> &jacob_matrix,
+                                      const field<vec> &deriv_init_matrix,
+                                      const field<uvec> &dum_matrix) {
   size_t n_obs = ll_d2.n_elem;
   size_t K = nb_cluster_all.n_elem;
 
@@ -873,7 +881,7 @@ field<vec> conv_derivative_sequential(size_t iterMax, double diffMax,
   field<vec> sum_ll_d2(K);
   for (size_t k = 0; k < K; ++k) {
     sum_ll_d2(k) = zeros<vec>(nb_cluster_all(k));
-    const uvec& my_dum = dum_matrix(k);
+    const uvec &my_dum = dum_matrix(k);
 
     for (size_t i = 0; i < n_obs; ++i) {
       sum_ll_d2(k)(my_dum(i)) += ll_d2(i);
@@ -882,8 +890,8 @@ field<vec> conv_derivative_sequential(size_t iterMax, double diffMax,
 
   // Process each variable
   for (size_t v = 0; v < n_vars; ++v) {
-    vec& my_deriv = deriv_matrix(v);
-    const vec& my_jac = jacob_matrix(v);
+    vec &my_deriv = deriv_matrix(v);
+    const vec &my_jac = jacob_matrix(v);
 
     bool keepGoing = true;
     size_t iter = 0;
@@ -896,8 +904,8 @@ field<vec> conv_derivative_sequential(size_t iterMax, double diffMax,
       for (int k = static_cast<int>(K) - 1; k >= 0; k--) {
         size_t uk = static_cast<size_t>(k);
 
-        const uvec& my_dum = dum_matrix(uk);
-        const vec& my_sum_ll_d2 = sum_ll_d2(uk);
+        const uvec &my_dum = dum_matrix(uk);
+        const vec &my_sum_ll_d2 = sum_ll_d2(uk);
         size_t nb_cluster = nb_cluster_all(uk);
 
         // Compute derivative coefficients
@@ -923,7 +931,7 @@ field<vec> conv_derivative_sequential(size_t iterMax, double diffMax,
   return deriv_matrix;
 }
 
-}  // namespace convergence
-}  // namespace capybara
+} // namespace convergence
+} // namespace capybara
 
-#endif  // CAPYBARA_CONVERGENCE_H
+#endif // CAPYBARA_CONVERGENCE_H

@@ -8,6 +8,7 @@ namespace capybara {
 namespace glm {
 
 using demean::demean_variables;
+using demean::DemeanResult;
 using lm::felm_fit;
 using lm::InferenceLM;
 using parameters::get_alpha;
@@ -36,7 +37,8 @@ inline Family string_to_family(const std::string &fam) {
       {"negative_binomial", Family::NEGBIN}};
 
   auto it = family_map.find(fam);
-  return (it != family_map.end()) ? it->second : Family::GAUSSIAN;  // Default fallback
+  return (it != family_map.end()) ? it->second
+                                  : Family::GAUSSIAN; // Default fallback
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -89,53 +91,53 @@ inline Family get_family_type(const std::string &fam) {
 
 // Link inverse functions (eta -> mu)
 inline vec link_inv_gaussian(const vec &eta) {
-  return eta;  // identity link
+  return eta; // identity link
 }
 
 inline vec link_inv_poisson(const vec &eta) {
-  return exp(eta);  // log link
+  return exp(eta); // log link
 }
 
 inline vec link_inv_logit(const vec &eta) {
-  return 1.0 / (1.0 + exp(-eta));  // logit link
+  return 1.0 / (1.0 + exp(-eta)); // logit link
 }
 
 inline vec link_inv_gamma(const vec &eta) {
-  return 1.0 / eta;  // reciprocal link: mu = 1/eta
+  return 1.0 / eta; // reciprocal link: mu = 1/eta
 }
 
 inline vec link_inv_invgaussian(const vec &eta) {
-  return 1.0 / sqrt(eta);  // inverse squared link (matching old code)
+  return 1.0 / sqrt(eta); // inverse squared link (matching old code)
 }
 
 inline vec link_inv_negbin(const vec &eta) {
-  return exp(eta);  // log link
+  return exp(eta); // log link
 }
 
 inline vec link_inv(const vec &eta, const Family family_type) {
   vec result(eta.n_elem);
 
   switch (family_type) {
-    case Family::GAUSSIAN:
-      result = link_inv_gaussian(eta);
-      break;
-    case Family::POISSON:
-      result = link_inv_poisson(eta);
-      break;
-    case Family::BINOMIAL:
-      result = link_inv_logit(eta);
-      break;
-    case Family::GAMMA:
-      result = link_inv_gamma(eta);
-      break;
-    case Family::INV_GAUSSIAN:
-      result = link_inv_invgaussian(eta);
-      break;
-    case Family::NEGBIN:
-      result = link_inv_negbin(eta);
-      break;
-    default:
-      stop("Unknown family");
+  case Family::GAUSSIAN:
+    result = link_inv_gaussian(eta);
+    break;
+  case Family::POISSON:
+    result = link_inv_poisson(eta);
+    break;
+  case Family::BINOMIAL:
+    result = link_inv_logit(eta);
+    break;
+  case Family::GAMMA:
+    result = link_inv_gamma(eta);
+    break;
+  case Family::INV_GAUSSIAN:
+    result = link_inv_invgaussian(eta);
+    break;
+  case Family::NEGBIN:
+    result = link_inv_negbin(eta);
+    break;
+  default:
+    stop("Unknown family");
   }
 
   return result;
@@ -146,26 +148,26 @@ inline vec d_inv_link(const vec &eta, const Family family_type) {
   vec result(eta.n_elem);
 
   switch (family_type) {
-    case Family::GAUSSIAN:
-      result.ones();
-      break;
-    case Family::POISSON:
-    case Family::NEGBIN:
-      result = arma::exp(eta);
-      break;
-    case Family::BINOMIAL: {
-      vec exp_eta = arma::exp(eta);
-      result = exp_eta / arma::square(1 + exp_eta);
-      break;
-    }
-    case Family::GAMMA:
-      result = -1.0 / arma::square(eta);
-      break;
-    case Family::INV_GAUSSIAN:
-      result = -1.0 / (2.0 * arma::pow(abs(eta), 1.5));
-      break;
-    default:
-      stop("Unknown family");
+  case Family::GAUSSIAN:
+    result.ones();
+    break;
+  case Family::POISSON:
+  case Family::NEGBIN:
+    result = arma::exp(eta);
+    break;
+  case Family::BINOMIAL: {
+    vec exp_eta = arma::exp(eta);
+    result = exp_eta / arma::square(1 + exp_eta);
+    break;
+  }
+  case Family::GAMMA:
+    result = -1.0 / arma::square(eta);
+    break;
+  case Family::INV_GAUSSIAN:
+    result = -1.0 / (2.0 * arma::pow(abs(eta), 1.5));
+    break;
+  default:
+    stop("Unknown family");
   }
 
   return result;
@@ -222,12 +224,12 @@ inline double dev_resids_gamma(const vec &y, const vec &mu, const vec &wt) {
 }
 
 inline double dev_resids_invgaussian(const vec &y, const vec &mu,
-                                      const vec &wt) {
+                                     const vec &wt) {
   return dot(wt, square(y - mu) / (y % square(mu)));
 }
 
 inline double dev_resids_negbin(const vec &y, const vec &mu,
-                                 const double &theta, const vec &wt) {
+                                const double &theta, const vec &wt) {
   vec r = y;
 
   uvec p = find(y < 1);
@@ -238,22 +240,22 @@ inline double dev_resids_negbin(const vec &y, const vec &mu,
 }
 
 inline double dev_resids(const vec &y, const vec &mu, const double &theta,
-                          const vec &wt, const Family family_type) {
+                         const vec &wt, const Family family_type) {
   switch (family_type) {
-    case Family::GAUSSIAN:
-      return dev_resids_gaussian(y, mu, wt);
-    case Family::POISSON:
-      return dev_resids_poisson(y, mu, wt);
-    case Family::BINOMIAL:
-      return dev_resids_logit(y, mu, wt);
-    case Family::GAMMA:
-      return dev_resids_gamma(y, mu, wt);
-    case Family::INV_GAUSSIAN:
-      return dev_resids_invgaussian(y, mu, wt);
-    case Family::NEGBIN:
-      return dev_resids_negbin(y, mu, theta, wt);
-    default:
-      stop("Unknown family");
+  case Family::GAUSSIAN:
+    return dev_resids_gaussian(y, mu, wt);
+  case Family::POISSON:
+    return dev_resids_poisson(y, mu, wt);
+  case Family::BINOMIAL:
+    return dev_resids_logit(y, mu, wt);
+  case Family::GAMMA:
+    return dev_resids_gamma(y, mu, wt);
+  case Family::INV_GAUSSIAN:
+    return dev_resids_invgaussian(y, mu, wt);
+  case Family::NEGBIN:
+    return dev_resids_negbin(y, mu, theta, wt);
+  default:
+    stop("Unknown family");
   }
 }
 
@@ -263,58 +265,58 @@ inline double dev_resids(const vec &y, const vec &mu, const double &theta,
 
 inline bool valid_eta(const vec &eta, const Family family_type) {
   switch (family_type) {
-    case Family::GAUSSIAN:
-    case Family::POISSON:
-    case Family::BINOMIAL:
-    case Family::NEGBIN:
-      return is_finite(eta);
-    case Family::GAMMA:
-      return is_finite(eta) &&
-             all(eta != 0.0);  // reciprocal link can't have eta=0
-    case Family::INV_GAUSSIAN:
-      return is_finite(eta) &&
-             all(eta > 0.0);  // inverse squared link needs eta > 0
-    default:
-      stop("Unknown family");
+  case Family::GAUSSIAN:
+  case Family::POISSON:
+  case Family::BINOMIAL:
+  case Family::NEGBIN:
+    return is_finite(eta);
+  case Family::GAMMA:
+    return is_finite(eta) &&
+           all(eta != 0.0); // reciprocal link can't have eta=0
+  case Family::INV_GAUSSIAN:
+    return is_finite(eta) &&
+           all(eta > 0.0); // inverse squared link needs eta > 0
+  default:
+    stop("Unknown family");
   }
 }
 
 inline bool valid_mu(const vec &mu, const Family family_type) {
   switch (family_type) {
-    case Family::GAUSSIAN:
-      return is_finite(mu);
-    case Family::POISSON:
-    case Family::NEGBIN:
-      return is_finite(mu) && all(mu > 0);
-    case Family::BINOMIAL:
-      return is_finite(mu) && all(mu > 0 && mu < 1);
-    case Family::GAMMA:
-      return is_finite(mu) && all(mu > 0.0);
-    case Family::INV_GAUSSIAN:
-      return is_finite(mu) && all(mu > 0.0);
-    default:
-      stop("Unknown family");
+  case Family::GAUSSIAN:
+    return is_finite(mu);
+  case Family::POISSON:
+  case Family::NEGBIN:
+    return is_finite(mu) && all(mu > 0);
+  case Family::BINOMIAL:
+    return is_finite(mu) && all(mu > 0 && mu < 1);
+  case Family::GAMMA:
+    return is_finite(mu) && all(mu > 0.0);
+  case Family::INV_GAUSSIAN:
+    return is_finite(mu) && all(mu > 0.0);
+  default:
+    stop("Unknown family");
   }
 }
 
 // Variance function V(mu)
 inline vec variance(const vec &mu, const double &theta,
-                     const Family family_type) {
+                    const Family family_type) {
   switch (family_type) {
-    case Family::GAUSSIAN:
-      return ones<vec>(mu.n_elem);
-    case Family::POISSON:
-      return mu;
-    case Family::BINOMIAL:
-      return mu % (1 - mu);
-    case Family::GAMMA:
-      return square(mu);
-    case Family::INV_GAUSSIAN:
-      return pow(mu, 3.0);
-    case Family::NEGBIN:
-      return mu + square(mu) / theta;
-    default:
-      stop("Unknown family");
+  case Family::GAUSSIAN:
+    return ones<vec>(mu.n_elem);
+  case Family::POISSON:
+    return mu;
+  case Family::BINOMIAL:
+    return mu % (1 - mu);
+  case Family::GAMMA:
+    return square(mu);
+  case Family::INV_GAUSSIAN:
+    return pow(mu, 3.0);
+  case Family::NEGBIN:
+    return mu + square(mu) / theta;
+  default:
+    stop("Unknown family");
   }
 }
 
@@ -326,14 +328,14 @@ inline vec variance(const vec &mu, const double &theta,
 struct InferenceGLM {
   vec coefficients;
   vec eta;
-  vec fitted_values;  // mu values (response scale)
+  vec fitted_values; // mu values (response scale)
   vec weights;
   mat hessian;
   double deviance;
   double null_deviance;
   bool conv;
   size_t iter;
-  uvec coef_status;  // 1 = estimable, 0 = collinear
+  uvec coef_status; // 1 = estimable, 0 = collinear
 
   // PPML-specific residuals
   vec residuals_working;
@@ -341,8 +343,8 @@ struct InferenceGLM {
 
   // Fixed effects info
   field<vec> fixed_effects;
-  uvec nb_references;  // Number of references per dimension
-  bool is_regular;     // Whether fixed effects are regular
+  uvec nb_references; // Number of references per dimension
+  bool is_regular;    // Whether fixed effects are regular
   bool has_fe = false;
   uvec iterations;
 
@@ -351,21 +353,12 @@ struct InferenceGLM {
   bool has_mx = false;
 
   InferenceGLM(size_t n, size_t p)
-      : coefficients(p, fill::none),
-        eta(n, fill::none),
-        fitted_values(n, fill::none),
-        weights(n, fill::none),
-        hessian(p, p, fill::none),
-        deviance(0.0),
-        null_deviance(0.0),
-        conv(false),
-        iter(0),
-        coef_status(p, fill::none),
-        residuals_working(n, fill::none),
-        residuals_response(n, fill::none),
-        is_regular(true),
-        has_fe(false),
-        has_mx(false) {}
+      : coefficients(p, fill::none), eta(n, fill::none),
+        fitted_values(n, fill::none), weights(n, fill::none),
+        hessian(p, p, fill::none), deviance(0.0), null_deviance(0.0),
+        conv(false), iter(0), coef_status(p, fill::none),
+        residuals_working(n, fill::none), residuals_response(n, fill::none),
+        is_regular(true), has_fe(false), has_mx(false) {}
 
   cpp11::list to_list(bool keep_mx = true) const {
     auto out = writable::list(
@@ -430,7 +423,7 @@ inline field<vec> extract_glm_fixed_effects(const vec &eta, const mat &X_orig,
     group_indices(k).set_size(1);
     group_indices(k)(0) = fe_indices(k);
   }
-  
+
   InferenceAlpha alpha_result = get_alpha(fe_component, group_indices);
   return alpha_result.Alpha;
 }
@@ -439,31 +432,25 @@ inline field<vec> extract_glm_fixed_effects(const vec &eta, const mat &X_orig,
 // GLM FITTING
 //////////////////////////////////////////////////////////////////////////////
 
-inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig, const vec &w,
-                           const field<uvec> &fe_indices, const uvec &nb_ids,
-                           const field<uvec> &fe_id_tables, double center_tol,
-                           size_t iter_center_max, size_t iter_interrupt,
-                           size_t iter_ssr, double collin_tol, double dev_tol,
-                           size_t iter_max, size_t iter_inner_max,
-                           const std::string &family, bool keep_mx,
-                           bool use_weights = false,
-                           // Algorithm parameters
-                           double direct_qr_threshold = 0.9,
-                           double qr_collin_tol_multiplier = 1.0,
-                           double chol_stability_threshold = 1e-12,
-                           double safe_division_min = 1e-12,
-                           double safe_log_min = 1e-12,
-                           double newton_raphson_tol = 1e-8,
-                           // Demean algorithm parameters
-                           size_t demean_extra_projections = 0,
-                           size_t demean_warmup_iterations = 15,
-                           size_t demean_projections_after_acc = 5,
-                           size_t demean_grand_acc_frequency = 20,
-                           size_t demean_ssr_check_frequency = 40,
-                           // Convergence algorithm parameters
-                           double irons_tuck_eps = 1e-14,
-                           double alpha_convergence_tol = 1e-8,
-                           size_t alpha_iter_max = 10000) {
+inline InferenceGLM feglm_fit(
+    const mat &X_orig, const vec &y_orig, const vec &w,
+    const field<uvec> &fe_indices, const uvec &nb_ids,
+    const field<uvec> &fe_id_tables, double center_tol, size_t iter_center_max,
+    size_t iter_interrupt, size_t iter_ssr, double collin_tol, double dev_tol,
+    size_t iter_max, size_t iter_inner_max, const std::string &family,
+    bool keep_mx, bool use_weights = false,
+    // Algorithm parameters
+    double direct_qr_threshold = 0.9, double qr_collin_tol_multiplier = 1.0,
+    double chol_stability_threshold = 1e-12, double safe_division_min = 1e-12,
+    double safe_log_min = 1e-12, double newton_raphson_tol = 1e-8,
+    // Demean algorithm parameters
+    size_t demean_extra_projections = 0, size_t demean_warmup_iterations = 15,
+    size_t demean_projections_after_acc = 5,
+    size_t demean_grand_acc_frequency = 20,
+    size_t demean_ssr_check_frequency = 40,
+    // Convergence algorithm parameters
+    double irons_tuck_eps = 1e-14, double alpha_convergence_tol = 1e-8,
+    size_t alpha_iter_max = 10000) {
   const size_t n = y_orig.n_elem;
   const size_t p_orig = X_orig.n_cols;
   const bool has_fixed_effects =
@@ -483,11 +470,12 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig, const vec &w
         direct_qr_threshold, qr_collin_tol_multiplier, chol_stability_threshold,
         demean_extra_projections, demean_warmup_iterations,
         demean_projections_after_acc, demean_grand_acc_frequency,
-        demean_ssr_check_frequency, safe_division_min, alpha_convergence_tol, alpha_iter_max);
+        demean_ssr_check_frequency, safe_division_min, alpha_convergence_tol,
+        alpha_iter_max);
 
     result.coefficients = lm_result.coefficients;
-    result.fitted_values = lm_result.fitted;
-    result.eta = lm_result.fitted;
+    result.fitted_values = lm_result.fitted_values;
+    result.eta = lm_result.fitted_values;
     result.weights = lm_result.weights;
     result.hessian = lm_result.hessian;
     result.coef_status = lm_result.coef_status;
@@ -541,10 +529,10 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig, const vec &w
     eta = log(clamp(mu, 1e-12, 1e12));
   } else if (family_type == Family::BINOMIAL) {
     mu = clamp((y_orig + mean_y) / 2.0, 0.001, 0.999);
-    eta = log(mu / (1.0 - mu));  // logit link
+    eta = log(mu / (1.0 - mu)); // logit link
   } else {
     result.conv = false;
-    return result;  // Unsupported family
+    return result; // Unsupported family
   }
 
   result.deviance = dev_resids(y_orig, mu, 0.0, w, family_type);
@@ -556,6 +544,7 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig, const vec &w
 
   mat X_demean;
   vec Y_demean;
+  DemeanResult y_demean_result(0);
 
   // IRLS loop
   for (size_t iter = 0; iter < iter_max; iter++) {
@@ -585,24 +574,24 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig, const vec &w
     if (has_fixed_effects) {
       // Prepare data for demeaning: combine Y and X
       field<vec> variables_to_demean(p_orig + 1);
-      variables_to_demean(0) = z;  // Working response first
+      variables_to_demean(0) = z; // Working response first
       for (size_t j = 0; j < p_orig; ++j) {
-        variables_to_demean(j + 1) = X_orig.col(j);  // Then X columns
+        variables_to_demean(j + 1) = X_orig.col(j); // Then X columns
       }
 
-      // Demean all variables jointly
-      field<vec> demeaned_vars = demean_variables(
-          variables_to_demean, working_weights, fe_indices, nb_ids,
-          fe_id_tables, iter_center_max, center_tol, demean_extra_projections,
+      y_demean_result = demean_variables(
+          variables_to_demean, w, fe_indices, nb_ids, fe_id_tables,
+          iter_center_max, center_tol, demean_extra_projections,
           demean_warmup_iterations, demean_projections_after_acc,
-          demean_grand_acc_frequency, demean_ssr_check_frequency, false, safe_division_min);
+          demean_grand_acc_frequency, demean_ssr_check_frequency, true,
+          safe_division_min);
 
       // Extract demeaned Y and X
-      Y_demean = demeaned_vars(0);
+      Y_demean = y_demean_result.demeaned_vars(0);
       if (p_orig > 0) {
         X_demean.set_size(n, p_orig);
         for (size_t j = 0; j < p_orig; ++j) {
-          X_demean.col(j) = demeaned_vars(j + 1);
+          X_demean.col(j) = y_demean_result.demeaned_vars(j + 1);
         }
       } else {
         X_demean = mat(n, 0);
@@ -674,11 +663,11 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig, const vec &w
   }
 
   // Final results
-  result.coefficients = get_beta(X_demean, Y_demean, y_orig, working_weights,
-                                 collin_tol, glm_weights, has_fixed_effects,
-                                 direct_qr_threshold, qr_collin_tol_multiplier,
-                                 chol_stability_threshold)
-                            .coefficients;
+  result.coefficients =
+      get_beta(X_demean, Y_demean, y_orig, working_weights, collin_tol,
+               glm_weights, has_fixed_effects, direct_qr_threshold,
+               qr_collin_tol_multiplier, chol_stability_threshold)
+          .coefficients;
   result.eta = eta;
   result.fitted_values = mu;
   result.weights = working_weights;
@@ -719,7 +708,7 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig, const vec &w
   return result;
 }
 
-}  // namespace glm
-}  // namespace capybara
+} // namespace glm
+} // namespace capybara
 
-#endif  // CAPYBARA_GLM_H
+#endif // CAPYBARA_GLM_H

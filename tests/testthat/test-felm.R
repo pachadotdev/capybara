@@ -48,6 +48,13 @@ test_that("felm works", {
   # 2-FE ----
 
   m1 <- felm(mpg ~ wt + qsec | cyl + am, mtcars)
+  
+  # m1$coefficients
+  # m1$fixed.effects
+
+  # m1fixest <- fixest::feols(mpg ~ wt + qsec | cyl + am, mtcars)
+  # m1fixest$coefficients
+  # fixest::fixef(m1fixest)
 
   m2 <- lm(mpg ~ wt + qsec + as.factor(cyl) + as.factor(am), mtcars)
 

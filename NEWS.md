@@ -1,6 +1,11 @@
 # capybara 2.0.0
 
 * Uses `fixest` demeaning approach.
+* There are no breaking changes, even when the internal code was completely
+  rewritten.
+* For the fixed effects, there is an open problem about which normalization to
+  use, and in this case I used the same as `fixest` and tested against base R
+  to check for correctness.
 
 # capybara 1.6.0
 

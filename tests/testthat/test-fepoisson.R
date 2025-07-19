@@ -90,6 +90,26 @@ test_that("fepoisson is similar to fixest", {
   dist_variation <- abs((coef(mod)[1] - coef_dist_base) / coef(mod)[1])
 
   expect_lt(dist_variation, 0.05)
+
+  expect_equal(mod[["fitted.values"]], mod_base[["fitted.values"]], tolerance = 1e-2)
+
+  pred_mod <- predict(mod, type = "response")
+  pred_mod_base <- predict(mod_base, type = "response")
+
+  pred_mod_link <- predict(mod, type = "link")
+  pred_mod_base_link <- predict(mod_base, type = "link")
+
+  expect_equal(pred_mod, pred_mod_base, tolerance = 1e-2)
+  expect_equal(pred_mod_link, pred_mod_base_link, tolerance = 1e-2)
+
+  pred_mod <- predict(mod, type = "response", newdata = mtcars[1:10, ])
+  pred_mod_base <- predict(mod_base, type = "response", newdata = mtcars[1:10, ])
+
+  pred_mod_link <- predict(mod, type = "link", newdata = mtcars[1:10, ])
+  pred_mod_base_link <- predict(mod_base, type = "link", newdata = mtcars[1:10, ])
+
+  expect_equal(pred_mod, pred_mod_base, tolerance = 1e-2)
+  expect_equal(pred_mod_link, pred_mod_base_link, tolerance = 1e-2)
 })
 
 test_that("fepoisson estimation is the same adding noise to the data", {

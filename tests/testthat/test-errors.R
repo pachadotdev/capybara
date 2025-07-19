@@ -117,7 +117,7 @@ test_that("error conditions in GLMs", {
     fepoisson(
       trade ~ log_dist | rta,
       data = trade_short,
-      control = list(limit = 0)
+      control = list(iter_max = 0)
     ),
     "greater than zero"
   )

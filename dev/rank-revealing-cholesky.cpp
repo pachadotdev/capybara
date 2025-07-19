@@ -26,7 +26,7 @@ inline bool cholesky_decomp(mat &R, uvec &excluded, const mat &XtX,
       excluded(j) = 1;
       ++n_excluded;
       if (n_excluded == p) {
-        return false;  // All variables excluded
+        return false; // All variables excluded
       }
       continue;
     }

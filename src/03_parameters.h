@@ -22,21 +22,18 @@ struct InferenceBeta {
   bool success;
 
   InferenceBeta(size_t n, size_t p)
-      : coefficients(p, fill::none),
-        fitted_values(n, fill::none),
-        residuals(n, fill::none),
-        weights(n, fill::none),
-        hessian(p, p, fill::none),
-        coef_status(p, fill::none),
-        success(false) {}
+      : coefficients(p, fill::none), fitted_values(n, fill::none),
+        residuals(n, fill::none), weights(n, fill::none),
+        hessian(p, p, fill::none), coef_status(p, fill::none), success(false) {}
 };
 
 // Fixed effects extraction result
 struct InferenceAlpha {
   field<vec> Alpha;
-  uvec nb_references;  // Number of references per dimension (fixest compatibility)
-  bool is_regular;     // Whether fixed effects are regular
-  bool success;        // Whether extraction succeeded
+  uvec nb_references; // Number of references per dimension (fixest
+                      // compatibility)
+  bool is_regular;    // Whether fixed effects are regular
+  bool success;       // Whether extraction succeeded
 
   InferenceAlpha() : is_regular(true), success(false) {}
 
@@ -62,12 +59,13 @@ struct InferenceAlpha {
 //////////////////////////////////////////////////////////////////////////////
 
 // QR-based beta computation (matching original implementation)
-inline void get_beta_qr(mat &X, const vec &y, const vec &w, InferenceBeta &result,
-                        bool has_weights, double qr_collin_tol_multiplier = 1.0) {
+inline void get_beta_qr(mat &X, const vec &y, const vec &w,
+                        InferenceBeta &result, bool has_weights,
+                        double qr_collin_tol_multiplier = 1.0) {
   const size_t p = X.n_cols;
-  
+
   mat Q, R;
-  
+
   if (has_weights) {
     mat X_weighted = X.each_col() % sqrt(w);
     qr_econ(Q, R, X_weighted);
@@ -99,12 +97,12 @@ inline void get_beta_qr(mat &X, const vec &y, const vec &w, InferenceBeta &resul
 }
 
 inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
-                           const vec &w, double collin_tol,
-                           bool has_weights = false,
-                           bool has_fixed_effects = false,
-                           double direct_qr_threshold = 0.9,
-                           double qr_collin_tol_multiplier = 1.0,
-                           double chol_stability_threshold = 1e-12) {
+                              const vec &w, double collin_tol,
+                              bool has_weights = false,
+                              bool has_fixed_effects = false,
+                              double direct_qr_threshold = 0.9,
+                              double qr_collin_tol_multiplier = 1.0,
+                              double chol_stability_threshold = 1e-12) {
   const size_t n = X.n_rows;
   const size_t p = X.n_cols;
 
@@ -114,17 +112,17 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
     result.success = true;
     return result;
   }
-  
+
   // For very wide matrices, use QR directly
   const bool direct_qr = (p > direct_qr_threshold * n);
 
   if (direct_qr) {
-    mat X_copy = X;  // QR modifies the matrix
+    mat X_copy = X; // QR modifies the matrix
     get_beta_qr(X_copy, y, w, result, has_weights, qr_collin_tol_multiplier);
   } else {
     // Try Cholesky first (faster), fall back to QR if needed
     mat XtX, XtY;
-    
+
     if (has_weights) {
       const vec sqrt_w = sqrt(w);
       const mat X_weighted = X.each_col() % sqrt_w;
@@ -142,7 +140,7 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
       const vec d = abs(L.diag());
       const double mind = d.min();
       const double avgd = mean(d);
-      
+
       if (mind > chol_stability_threshold * avgd) {
         vec work = solve(trimatl(L), XtY, solve_opts::fast);
         result.coefficients = solve(trimatu(L.t()), work, solve_opts::fast);
@@ -150,7 +148,8 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
       } else {
         // Cholesky failed due to conditioning, fall back to QR
         mat X_copy = X;
-        get_beta_qr(X_copy, y, w, result, has_weights, qr_collin_tol_multiplier);
+        get_beta_qr(X_copy, y, w, result, has_weights,
+                    qr_collin_tol_multiplier);
       }
     } else {
       // Cholesky failed, fall back to QR
@@ -164,14 +163,15 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
   if (!collinear_mask.is_empty()) {
     result.coefficients.elem(collinear_mask).zeros();
   }
-  
+
   // Compute fitted values and residuals
   if (has_fixed_effects) {
-    // For fixed effects models: fitted = y_orig - (y_demeaned - X_demeaned * beta)
+    // For fixed effects models:
+    // fitted_values = y_orig - (y_demeaned - X_demeaned * beta)
     const vec pred_demeaned = X * result.coefficients;
     result.fitted_values = y_orig - (y - pred_demeaned);
   } else {
-    // Standard case: fitted = X * beta
+    // Standard case: fitted_values = X * beta
     result.fitted_values = X * result.coefficients;
   }
 
@@ -199,17 +199,18 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
 // FIXED EFFECTS ESTIMATION
 //////////////////////////////////////////////////////////////////////////////
 
-inline InferenceAlpha get_alpha(const vec &p,
+inline InferenceAlpha get_alpha(const vec &sumFE,
                                 const field<field<uvec>> &group_indices,
                                 double tol = 1e-8, size_t iter_max = 10000) {
-  const size_t K = group_indices.n_elem;
+  const size_t Q = group_indices.n_elem;
+  const size_t N = sumFE.n_elem;
   InferenceAlpha result;
 
-  if (K == 0) {
+  if (Q == 0) {
     // No fixed effects => return intercept
     result.Alpha.set_size(1);
     result.Alpha(0) = vec(1);
-    result.Alpha(0)(0) = mean(p);
+    result.Alpha(0)(0) = mean(sumFE);
     result.nb_references.set_size(1);
     result.nb_references(0) = 0;
     result.is_regular = true;
@@ -217,155 +218,180 @@ inline InferenceAlpha get_alpha(const vec &p,
     return result;
   }
 
-  if (K == 1) {
-    // Single FE case - inline implementation
-    const field<uvec> &groups = group_indices(0);
-    uvec fe_id(p.n_elem);
-
-    for (size_t g = 0; g < groups.n_elem; ++g) {
-      const uvec &group_obs = groups(g);
+  // Convert group_indices to dumMat format (N x Q matrix)
+  umat dumMat(N, Q);
+  uvec cluster_sizes(Q);
+  for (size_t q = 0; q < Q; ++q) {
+    cluster_sizes(q) = group_indices(q).n_elem;
+    for (size_t g = 0; g < group_indices(q).n_elem; ++g) {
+      const uvec &group_obs = group_indices(q)(g);
       for (size_t i = 0; i < group_obs.n_elem; ++i) {
-        fe_id(group_obs(i)) = g; // 0-based indexing consistently
-      }
-    }
-
-    // Extract single fixed effect directly
-    uvec myOrder = sort_index(fe_id);
-    uvec sorted_id = fe_id(myOrder);
-
-    // Find positions where ID changes (first occurrence of each unique ID)
-    uvec select;
-    select.resize(0);
-
-    if (sorted_id.n_elem > 0) {
-      select.resize(1);
-      select(0) = myOrder(0);  // First element
-
-      for (size_t i = 1; i < sorted_id.n_elem; ++i) {
-        if (sorted_id(i) != sorted_id(i - 1)) {
-          select.resize(select.n_elem + 1);
-          select(select.n_elem - 1) = myOrder(i);
-        }
-      }
-    }
-
-    // Extract fixed effects at selected positions
-    result.Alpha.set_size(1);
-    result.Alpha(0) = p(select);
-
-    // For single FE, no references needed
-    result.nb_references.set_size(1);
-    result.nb_references(0) = 0;
-    result.is_regular = true;
-    result.success = true;
-    return result;
-  }
-
-  // Multi-FE case
-
-  // Initialize fixed effects storage
-  field<vec> Alpha(K);
-  for (size_t k = 0; k < K; ++k) {
-    const size_t n_groups = group_indices(k).n_elem;
-    Alpha(k).zeros(n_groups);
-  }
-
-  const size_t N = p.n_elem;
-  umat dumMat(N, K);
-
-  for (size_t k = 0; k < K; ++k) {
-    const field<uvec> &groups_k = group_indices(k);
-    for (size_t g = 0; g < groups_k.n_elem; ++g) {
-      const uvec &group_obs = groups_k(g);
-      for (size_t i = 0; i < group_obs.n_elem; ++i) {
-        dumMat(group_obs(i), k) = g;
+        dumMat(group_obs(i), q) = g;
       }
     }
   }
 
-  // Alpaca-like alternating projections
-  field<vec> Alpha_old(K);
-  for (size_t k = 0; k < K; ++k) {
-    Alpha_old(k).zeros(Alpha(k).n_elem);
+  // Total number of coefficients
+  size_t nb_coef = accu(cluster_sizes);
+  vec cluster_values(nb_coef, fill::zeros);
+
+  // Index mapping for clusters
+  uvec cluster_starts(Q);
+  cluster_starts(0) = 0;
+  for (size_t q = 1; q < Q; ++q) {
+    cluster_starts(q) = cluster_starts(q - 1) + cluster_sizes(q - 1);
   }
 
-  double ratio = 0.0;
+  // Create observation lists for each cluster coefficient
+  field<uvec> obs_by_cluster(nb_coef);
+  for (size_t q = 0; q < Q; ++q) {
+    for (size_t k = 0; k < cluster_sizes(q); ++k) {
+      uvec obs_in_cluster = find(dumMat.col(q) == k);
+      obs_by_cluster(cluster_starts(q) + k) = obs_in_cluster;
+    }
+  }
+
+  // Matrix tracking which clusters have been computed
+  umat mat_done(N, Q, fill::zeros);
+  uvec rowsums(N, fill::zeros);
+  uvec nb_ref(Q, fill::zeros);
+
+  // Main algorithm loop
   size_t iter = 0;
+  uvec id_todo = regspace<uvec>(0, N - 1);
+  size_t nb_todo = N;
 
-  for (; iter < iter_max; ++iter) {
-    Alpha_old = Alpha;
+  while (iter < iter_max && nb_todo > 0) {
+    iter++;
 
-    // Update each FE dimension
-    for (size_t k = 0; k < K; ++k) {
-      const size_t n_groups_k = Alpha(k).n_elem;
+    // Find observation with maximum rowsum (most FEs already computed)
+    uword qui_max = 0;
+    uword rs_max = 0;
 
-      // Compute residual: p - sum of other FEs
-      vec resid = p;
-      for (size_t l = 0; l < K; ++l) {
-        if (l == k)
-          continue;
+    if (iter == 1) {
+      qui_max = 0;
+    } else {
+      for (size_t i = 0; i < nb_todo; ++i) {
+        uword obs = id_todo(i);
+        uword rs = rowsums(obs);
 
-        for (size_t obs = 0; obs < N; ++obs) {
-          resid(obs) -= Alpha(l)(dumMat(obs, l));
-        }
-      }
-
-      // Update FE k
-      Alpha(k).zeros();
-      uvec group_counts(n_groups_k, fill::zeros);
-
-      for (size_t obs = 0; obs < N; ++obs) {
-        size_t group_id = dumMat(obs, k);
-        Alpha(k)(group_id) += resid(obs);
-        group_counts(group_id)++;
-      }
-
-      // Convert sums to means
-      for (size_t g = 0; g < n_groups_k; ++g) {
-        if (group_counts(g) > 0) {
-          Alpha(k)(g) /= group_counts(g);
+        if (rs == Q - 2) {
+          qui_max = obs;
+          break;
+        } else if (rs < Q && rs > rs_max) {
+          qui_max = obs;
+          rs_max = rs;
         }
       }
     }
 
-    // Check convergence
-    double num = 0.0, denom = 0.0;
-    for (size_t k = 0; k < K; ++k) {
-      const vec &diff = Alpha(k) - Alpha_old(k);
-      num += dot(diff, diff);
-      denom += dot(Alpha_old(k), Alpha_old(k));
+    // Set references for this observation
+    bool first = true;
+    for (size_t q = 0; q < Q; ++q) {
+      if (mat_done(qui_max, q) == 0) {
+        if (first) {
+          first = false; // Skip first dimension
+        } else {
+          // Set this cluster coefficient as reference (= 0)
+          uword id_cluster = dumMat(qui_max, q);
+          size_t index = cluster_starts(q) + id_cluster;
+          cluster_values(index) = 0;
+
+          // Mark all observations in this cluster as done for dimension q
+          const uvec &obs_in_cluster = obs_by_cluster(index);
+          for (size_t i = 0; i < obs_in_cluster.n_elem; ++i) {
+            mat_done(obs_in_cluster(i), q) = 1;
+            rowsums(obs_in_cluster(i))++;
+          }
+
+          nb_ref(q)++;
+        }
+      }
     }
-    ratio = sqrt(num / (denom + 1e-16));
-    if (ratio < tol)
+
+    // Update loop: compute values for observations with Q-1 dimensions done
+    bool changed = true;
+    size_t iter_loop = 0;
+
+    while (changed && iter_loop < iter_max) {
+      iter_loop++;
+      changed = false;
+
+      std::vector<uword> new_todo_vec;
+      new_todo_vec.reserve(nb_todo);
+
+      for (size_t i = 0; i < nb_todo; ++i) {
+        uword obs = id_todo(i);
+        uword rs = rowsums(obs);
+
+        if (rs < Q - 1) {
+          // Still need to process later
+          new_todo_vec.push_back(obs);
+        } else if (rs == Q - 1) {
+          // Can compute the remaining FE for this observation
+          changed = true;
+
+          // Find which dimension needs to be computed
+          size_t q_missing = 0;
+          for (size_t q = 0; q < Q; ++q) {
+            if (mat_done(obs, q) == 0) {
+              q_missing = q;
+              break;
+            }
+          }
+
+          // Compute sum of other FE values
+          double other_values = 0;
+          for (size_t q = 0; q < Q; ++q) {
+            if (q != q_missing) {
+              size_t index = cluster_starts(q) + dumMat(obs, q);
+              other_values += cluster_values(index);
+            }
+          }
+
+          // Set the missing cluster value
+          size_t index_missing =
+              cluster_starts(q_missing) + dumMat(obs, q_missing);
+          cluster_values(index_missing) = sumFE(obs) - other_values;
+
+          // Mark all observations in this cluster as done
+          const uvec &obs_in_cluster = obs_by_cluster(index_missing);
+          for (size_t i = 0; i < obs_in_cluster.n_elem; ++i) {
+            mat_done(obs_in_cluster(i), q_missing) = 1;
+            rowsums(obs_in_cluster(i))++;
+          }
+        }
+      }
+
+      // Convert std::vector back to uvec
+      uvec new_todo(new_todo_vec.size());
+      for (size_t i = 0; i < new_todo_vec.size(); ++i) {
+        new_todo(i) = new_todo_vec[i];
+      }
+
+      id_todo = new_todo;
+      nb_todo = new_todo.n_elem;
+    }
+
+    if (nb_todo == 0)
       break;
   }
 
-  // By construction, the elements of the first fixed-effect dimension
-  // are never set as references
-  result.nb_references.set_size(K);
-  result.nb_references.zeros();
-
-  if (K >= 2) {
-    // Set references for all FE dimensions except the first
-    // In the presence of regular fixed-effects, there should be Q-1 references
-    for (size_t k = 1; k < K; ++k) {
-      result.nb_references(k) = 1;
-
-      if (Alpha(k).n_elem > 0) {
-        double reference_value = Alpha(k)(Alpha(k).n_elem - 1);
-        Alpha(k) -= reference_value;
-      }
-    }
+  // Extract results into separate vectors for each FE dimension
+  result.Alpha.set_size(Q);
+  for (size_t q = 0; q < Q; ++q) {
+    result.Alpha(q) = cluster_values.subvec(
+        cluster_starts(q), cluster_starts(q) + cluster_sizes(q) - 1);
   }
 
-  result.Alpha = Alpha;
+  result.nb_references = nb_ref;
+  result.is_regular = (Q <= 2) || (accu(nb_ref) == Q - 1);
   result.success = (iter < iter_max);
-  result.is_regular = (K <= 2);  // Simplified regularity check
 
   return result;
 }
 
-}  // namespace parameters
-}  // namespace capybara
+} // namespace parameters
+} // namespace capybara
 
 #endif // CAPYBARA_PARAMETERS_H

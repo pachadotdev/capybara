@@ -15,7 +15,7 @@ NULL
 #' @export
 #' @noRd
 fitted.feglm <- function(object, ...) {
-  object[["family"]][["linkinv"]](object[["eta"]])
+  object[["family"]][["linkinv"]](object[["fitted.values"]])
 }
 
 #' @export
