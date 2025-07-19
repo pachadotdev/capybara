@@ -63,13 +63,13 @@ public:
                const field<uvec> &fe_id_tables);
 
   // Core computation functions
-  void compute_fe_coefficients(size_t group_idx, vec &fe_coef,
-                               const vec &sum_other_fe, const vec &sum_in_out);
+  void fe_coefficients(size_t group_idx, vec &fe_coef, const vec &sum_other_fe,
+                       const vec &sum_in_out);
 
-  void compute_fe_coefficients_single(vec &fe_coef, const vec &target);
+  void fe_coefficients_single(vec &fe_coef, const vec &target);
 
-  void compute_fe_coef_2(vec &fe_coef_in, vec &fe_coef_out, vec &fe_coef_tmp,
-                         const vec &sum_in_out);
+  void fe_coef_2(vec &fe_coef_in, vec &fe_coef_out, vec &fe_coef_tmp,
+                 const vec &sum_in_out);
 
   void add_fe_to_prediction(size_t group_idx, const vec &fe_coef,
                             vec &prediction);
@@ -81,8 +81,8 @@ public:
                               vec &prediction, const vec &sum_in_out,
                               bool update_beta);
 
-  void compute_in_out(size_t group_idx, vec &in_out_sum, const vec &input,
-                      const vec &output);
+  void in_out(size_t group_idx, vec &in_out_sum, const vec &input,
+              const vec &output);
 
   // Accessors
   size_t total_coefficients() const { return accu(nb_coefs_); }
@@ -211,9 +211,9 @@ void FixedEffects::setup_weights(const field<uvec> &fe_id_tables) {
 // CORE FUNCTIONS
 //////////////////////////////////////////////////////////////////////////////
 
-void FixedEffects::compute_fe_coefficients(size_t group_idx, vec &fe_coef,
-                                           const vec &sum_other_fe,
-                                           const vec &sum_in_out) {
+void FixedEffects::fe_coefficients(size_t group_idx, vec &fe_coef,
+                                   const vec &sum_other_fe,
+                                   const vec &sum_in_out) {
   const uvec &fe_idx = fe_indices_(group_idx);
   size_t coef_start = coef_starts_(group_idx);
   size_t nb_coef = nb_coefs_(group_idx);
@@ -233,8 +233,7 @@ void FixedEffects::compute_fe_coefficients(size_t group_idx, vec &fe_coef,
   fe_coef.subvec(coef_start, coef_start + nb_coef - 1) = group_coefs;
 }
 
-void FixedEffects::compute_fe_coefficients_single(vec &fe_coef,
-                                                  const vec &target) {
+void FixedEffects::fe_coefficients_single(vec &fe_coef, const vec &target) {
   fe_coef.zeros();
 
   const uvec &fe_idx = fe_indices_(0);
@@ -278,8 +277,8 @@ void FixedEffects::add_weighted_fe_to_prediction(size_t group_idx,
   }
 }
 
-void FixedEffects::compute_in_out(size_t group_idx, vec &in_out_sum,
-                                  const vec &input, const vec &output) {
+void FixedEffects::in_out(size_t group_idx, vec &in_out_sum, const vec &input,
+                          const vec &output) {
   const uvec &fe_idx = fe_indices_(group_idx);
   size_t coef_start = coef_starts_(group_idx);
   size_t nb_coef = nb_coefs_(group_idx);
@@ -303,8 +302,8 @@ void FixedEffects::compute_in_out(size_t group_idx, vec &in_out_sum,
 }
 
 // Special 2-FE algorithm implementation
-void FixedEffects::compute_fe_coef_2(vec &fe_coef_in, vec &fe_coef_out,
-                                     vec &fe_coef_tmp, const vec &sum_in_out) {
+void FixedEffects::fe_coef_2(vec &fe_coef_in, vec &fe_coef_out,
+                             vec &fe_coef_tmp, const vec &sum_in_out) {
   // This implements the 2-FE special case from fixest
   // fe_coef_in: coefficients for first FE (input and output)
   // fe_coef_tmp: coefficients for second FE
@@ -364,8 +363,8 @@ void FixedEffects::add_2_fe_to_prediction(const vec &fe_coef_a,
     // Need to update coefficients - use temporary storage
     vec fe_coef_a_new = fe_coef_a;
     vec fe_coef_b_new = fe_coef_b;
-    compute_fe_coef_2(const_cast<vec &>(fe_coef_a), fe_coef_a_new,
-                      fe_coef_b_new, sum_in_out);
+    fe_coef_2(const_cast<vec &>(fe_coef_a), fe_coef_a_new, fe_coef_b_new,
+              sum_in_out);
 
     // Add both FE contributions
     const uvec &fe_idx_0 = fe_indices_(0);
@@ -435,9 +434,9 @@ struct DemeanResult {
 //////////////////////////////////////////////////////////////////////////////
 
 // Update fixed effects coefficients - general case (Q >= 2)
-void compute_fe_general(size_t var_idx, const vec &fe_coef_origin,
-                        vec &fe_coef_destination, vec &sum_other_fe,
-                        const vec &sum_in_out, DemeanParams &params) {
+void fe_general(size_t var_idx, const vec &fe_coef_origin,
+                vec &fe_coef_destination, vec &sum_other_fe,
+                const vec &sum_in_out, DemeanParams &params) {
   size_t n_fe_groups = params.n_fe_groups;
 
   // Update each FE group in reverse order (like fixest)
@@ -457,23 +456,22 @@ void compute_fe_general(size_t var_idx, const vec &fe_coef_origin,
     }
 
     // Update FE coefficients for group q
-    params.fe_processor->compute_fe_coefficients(q, fe_coef_destination,
-                                                 sum_other_fe, sum_in_out);
+    params.fe_processor->fe_coefficients(q, fe_coef_destination, sum_other_fe,
+                                         sum_in_out);
   }
 }
 
 // Wrapper to handle 2-FE special case vs general case
-void compute_fe(size_t var_idx, size_t Q, vec &fe_coef_origin,
-                vec &fe_coef_destination, vec &sum_other_fe_or_tmp,
-                const vec &sum_in_out, DemeanParams &params) {
+void fe(size_t var_idx, size_t Q, vec &fe_coef_origin, vec &fe_coef_destination,
+        vec &sum_other_fe_or_tmp, const vec &sum_in_out, DemeanParams &params) {
   if (Q == 2) {
     // Special 2-FE algorithm
-    params.fe_processor->compute_fe_coef_2(fe_coef_origin, fe_coef_destination,
-                                           sum_other_fe_or_tmp, sum_in_out);
+    params.fe_processor->fe_coef_2(fe_coef_origin, fe_coef_destination,
+                                   sum_other_fe_or_tmp, sum_in_out);
   } else {
     // General algorithm
-    compute_fe_general(var_idx, fe_coef_origin, fe_coef_destination,
-                       sum_other_fe_or_tmp, sum_in_out, params);
+    fe_general(var_idx, fe_coef_origin, fe_coef_destination,
+               sum_other_fe_or_tmp, sum_in_out, params);
   }
 }
 
@@ -488,7 +486,7 @@ void demean_single_fe(size_t var_idx, DemeanParams &params) {
 
   // Compute fixed effect coefficients
   vec fe_coef(params.total_coefficients, fill::zeros);
-  params.fe_processor->compute_fe_coefficients_single(fe_coef, input);
+  params.fe_processor->fe_coefficients_single(fe_coef, input);
 
   // Add to prediction
   output.zeros();
@@ -532,7 +530,7 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams &params,
   // Compute sum of (input - output) for each FE group ONCE at the beginning
   vec sum_in_out(nb_coef_all, fill::zeros);
   for (size_t q = 0; q < Q; ++q) {
-    params.fe_processor->compute_in_out(q, sum_in_out, input, output);
+    params.fe_processor->in_out(q, sum_in_out, input, output);
   }
 
   // Coefficient vectors
@@ -541,7 +539,7 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams &params,
   vec GGX(nb_coef_T, fill::zeros);
 
   // First iteration
-  compute_fe(var_idx, Q, X, GX, sum_other_fe_or_tmp, sum_in_out, params);
+  fe(var_idx, Q, X, GX, sum_other_fe_or_tmp, sum_in_out, params);
 
   // Check if we need to iterate
   bool keep_going = false;
@@ -575,13 +573,13 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams &params,
 
     // Extra projections
     for (size_t rep = 0; rep < params.extra_projections; ++rep) {
-      compute_fe(var_idx, Q, GX, GGX, sum_other_fe_or_tmp, sum_in_out, params);
-      compute_fe(var_idx, Q, GGX, X, sum_other_fe_or_tmp, sum_in_out, params);
-      compute_fe(var_idx, Q, X, GX, sum_other_fe_or_tmp, sum_in_out, params);
+      fe(var_idx, Q, GX, GGX, sum_other_fe_or_tmp, sum_in_out, params);
+      fe(var_idx, Q, GGX, X, sum_other_fe_or_tmp, sum_in_out, params);
+      fe(var_idx, Q, X, GX, sum_other_fe_or_tmp, sum_in_out, params);
     }
 
     // Main step
-    compute_fe(var_idx, Q, GX, GGX, sum_other_fe_or_tmp, sum_in_out, params);
+    fe(var_idx, Q, GX, GGX, sum_other_fe_or_tmp, sum_in_out, params);
 
     // Irons-Tuck acceleration
     vec X_subvec = X.subvec(0, nb_coef_no_Q - 1);
@@ -597,11 +595,11 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams &params,
     // Post-acceleration projections
     if (iter >= params.projections_after_acceleration) {
       Y = X;
-      compute_fe(var_idx, Q, Y, X, sum_other_fe_or_tmp, sum_in_out, params);
+      fe(var_idx, Q, Y, X, sum_other_fe_or_tmp, sum_in_out, params);
     }
 
     // Next iteration
-    compute_fe(var_idx, Q, X, GX, sum_other_fe_or_tmp, sum_in_out, params);
+    fe(var_idx, Q, X, GX, sum_other_fe_or_tmp, sum_in_out, params);
 
     // Check convergence
     keep_going = false;
@@ -630,7 +628,7 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams &params,
         Y.subvec(0, nb_coef_no_Q - 1) = Y_subvec;
         if (numerical_convergence)
           break;
-        compute_fe(var_idx, Q, Y, GX, sum_other_fe_or_tmp, sum_in_out, params);
+        fe(var_idx, Q, Y, GX, sum_other_fe_or_tmp, sum_in_out, params);
         grand_acc_counter = 0;
       }
     }
@@ -643,7 +641,7 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams &params,
         // Recompute sum_in_out for SSR check
         vec sum_in_out_ssr(nb_coef_all, fill::zeros);
         for (size_t q = 0; q < 2; ++q) {
-          params.fe_processor->compute_in_out(q, sum_in_out_ssr, input, output);
+          params.fe_processor->in_out(q, sum_in_out_ssr, input, output);
         }
 
         params.fe_processor->add_2_fe_to_prediction(
@@ -671,7 +669,7 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams &params,
     // Final iteration for 2-FE
     vec sum_in_out_final(nb_coef_all, fill::zeros);
     for (size_t q = 0; q < 2; ++q) {
-      params.fe_processor->compute_in_out(q, sum_in_out_final, input, output);
+      params.fe_processor->in_out(q, sum_in_out_final, input, output);
     }
 
     params.fe_processor->add_2_fe_to_prediction(GX, sum_other_fe_or_tmp, output,
@@ -699,8 +697,8 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams &params,
 
       vec sum_other_fe_final(n_obs, fill::zeros);
 
-      compute_fe_general(var_idx, GX, final_fe_coef, sum_other_fe_final,
-                         sum_in_out, params);
+      fe_general(var_idx, GX, final_fe_coef, sum_other_fe_final, sum_in_out,
+                 params);
 
       params.fixed_effect_values = final_fe_coef;
     }

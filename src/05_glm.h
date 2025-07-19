@@ -174,6 +174,40 @@ inline vec d_inv_link(const vec &eta, const Family family_type) {
 }
 
 //////////////////////////////////////////////////////////////////////////////
+// INITIALIZATION FUNCTIONS
+//////////////////////////////////////////////////////////////////////////////
+
+// Initialize mu and eta for different families
+inline void initialize_family(vec &mu, vec &eta, const vec &y_orig,
+                              double mean_y, const Family family_type) {
+  switch (family_type) {
+  case Family::GAUSSIAN:
+    mu = y_orig; // Identity link: mu = eta for Gaussian
+    eta = y_orig;
+    break;
+  case Family::POISSON:
+  case Family::NEGBIN:
+    mu = (y_orig + mean_y) / 2.0;
+    eta = log(clamp(mu, 1e-12, 1e12));
+    break;
+  case Family::BINOMIAL:
+    mu = clamp((y_orig + mean_y) / 2.0, 0.001, 0.999);
+    eta = log(mu / (1.0 - mu)); // logit link
+    break;
+  case Family::GAMMA:
+    mu = clamp(y_orig, 1e-12, 1e12);
+    eta = 1.0 / mu; // reciprocal link
+    break;
+  case Family::INV_GAUSSIAN:
+    mu = clamp(y_orig, 1e-12, 1e12);
+    eta = 1.0 / square(mu); // inverse squared link
+    break;
+  default:
+    stop("Unknown family");
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////////
 // DEVIANCE FUNCTIONS
 //////////////////////////////////////////////////////////////////////////////
 
@@ -462,54 +496,7 @@ inline InferenceGLM feglm_fit(
   std::string fam = tidy_family(family);
   Family family_type = get_family_type(fam);
 
-  // Handle Gaussian case by delegating to LM
-  if (family_type == Family::GAUSSIAN) {
-    InferenceLM lm_result = felm_fit(
-        X_orig, y_orig, w, fe_indices, nb_ids, fe_id_tables, center_tol,
-        iter_center_max, iter_interrupt, iter_ssr, collin_tol, use_weights,
-        direct_qr_threshold, qr_collin_tol_multiplier, chol_stability_threshold,
-        demean_extra_projections, demean_warmup_iterations,
-        demean_projections_after_acc, demean_grand_acc_frequency,
-        demean_ssr_check_frequency, safe_division_min, alpha_convergence_tol,
-        alpha_iter_max);
-
-    result.coefficients = lm_result.coefficients;
-    result.fitted_values = lm_result.fitted_values;
-    result.eta = lm_result.fitted_values;
-    result.weights = lm_result.weights;
-    result.hessian = lm_result.hessian;
-    result.coef_status = lm_result.coef_status;
-    result.conv = lm_result.success;
-    result.iter = 1;
-
-    // Gaussian deviance
-    vec residuals = y_orig - result.fitted_values;
-    result.deviance = sum(w % square(residuals));
-
-    // Null deviance
-    double ymean = sum(w % y_orig) / sum(w);
-    vec resid_null = y_orig - ymean;
-    result.null_deviance = sum(w % square(resid_null));
-
-    // Copy fixed effects from LM result
-    if (lm_result.has_fe) {
-      result.fixed_effects = lm_result.fixed_effects;
-      result.nb_references = lm_result.nb_references;
-      result.is_regular = lm_result.is_regular;
-      result.has_fe = true;
-    } else {
-      result.has_fe = false;
-    }
-
-    if (keep_mx) {
-      result.mx = X_orig;
-      result.has_mx = true;
-    }
-
-    return result;
-  }
-
-  // For non-Gaussian families, validate response
+  // Validate response for all families
   if (!valid_mu(y_orig, family_type)) {
     result.conv = false;
     return result;
@@ -523,17 +510,8 @@ inline InferenceGLM feglm_fit(
   // Check if we actually have weights
   bool glm_weights = true;
 
-  // Family-specific initialization
-  if (family_type == Family::POISSON) {
-    mu = (y_orig + mean_y) / 2.0;
-    eta = log(clamp(mu, 1e-12, 1e12));
-  } else if (family_type == Family::BINOMIAL) {
-    mu = clamp((y_orig + mean_y) / 2.0, 0.001, 0.999);
-    eta = log(mu / (1.0 - mu)); // logit link
-  } else {
-    result.conv = false;
-    return result; // Unsupported family
-  }
+  // Initialize mu and eta using helper function
+  initialize_family(mu, eta, y_orig, mean_y, family_type);
 
   result.deviance = dev_resids(y_orig, mu, 0.0, w, family_type);
 

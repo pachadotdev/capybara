@@ -185,3 +185,21 @@ test_that("felm correctly predicts values outside the inter-quartile range", {
   expect_equal(pred1_lm, unname(pred1_base_lm), tolerance = 1e-2)
   expect_equal(pred2_lm, unname(pred2_base_lm), tolerance = 1e-2)
 })
+
+test_that("felm with weights works", {
+  skip_on_cran()
+
+  m1 <- felm(mpg ~ wt | am, weights = ~cyl, data = mtcars)
+  m2 <- felm(mpg ~ wt | am, weights = mtcars$cyl, data = mtcars)
+
+  w <- mtcars$cyl
+  m3 <- felm(mpg ~ wt | am, weights = w, data = mtcars)
+
+  expect_equal(coef(m2), coef(m1))
+  expect_equal(coef(m3), coef(m1))
+
+  w <- NULL
+  m4 <- felm(mpg ~ wt | am, weights = w, data = mtcars)
+
+  expect_gt(coef(m1), coef(m4))
+})

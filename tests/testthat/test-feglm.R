@@ -157,3 +157,21 @@ test_that("proportional regressors return NA coefficients", {
   expect_equal(coef(fit2), coef(fit1)[2:3], tolerance = 0.05)
   expect_equal(predict(fit2), unname(predict(fit1)), tolerance = 0.05)
 })
+
+test_that("feglm with weights works", {
+  skip_on_cran()
+  
+  m1 <- feglm(mpg ~ wt | am, weights = ~cyl, data = mtcars)
+  m2 <- feglm(mpg ~ wt | am, weights = mtcars$cyl, data = mtcars)
+
+  w <- mtcars$cyl
+  m3 <- feglm(mpg ~ wt | am, weights = w, data = mtcars)
+
+  expect_equal(coef(m2), coef(m1))
+  expect_equal(coef(m3), coef(m1))
+
+  w <- NULL
+  m4 <- feglm(mpg ~ wt | am, weights = w, data = mtcars)
+
+  expect_gt(coef(m1), coef(m4))
+})
