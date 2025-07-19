@@ -558,7 +558,7 @@ inline InferenceGLM feglm_fit(
       }
 
       y_demean_result = demean_variables(
-          variables_to_demean, w, fe_indices, nb_ids, fe_id_tables,
+          variables_to_demean, working_weights, fe_indices, nb_ids, fe_id_tables,
           iter_center_max, center_tol, demean_extra_projections,
           demean_warmup_iterations, demean_projections_after_acc,
           demean_grand_acc_frequency, demean_ssr_check_frequency, true,
@@ -596,7 +596,50 @@ inline InferenceGLM feglm_fit(
     }
 
     coef_status = beta_result.coef_status;
-    vec new_eta = beta_result.fitted_values;
+    
+    // Compute new eta properly for GLM with fixed effects
+    vec new_eta;
+    if (has_fixed_effects) {
+      // For fixed effects, we need to add the fixed effects component
+      if (p_orig > 0) {
+        new_eta = X_orig * beta_result.coefficients;
+      } else {
+        new_eta = zeros<vec>(n);
+      }
+      
+      // Add fixed effects component (alpha)
+      // Compute current fixed effects based on residual from linear part
+      vec fe_component;
+      if (has_fixed_effects && p_orig > 0) {
+        fe_component = z - X_orig * beta_result.coefficients;
+      } else {
+        fe_component = z;
+      }
+      
+      // Convert fe_indices to field<field<uvec>> format for get_alpha
+      field<field<uvec>> group_indices(fe_indices.n_elem);
+      for (size_t k = 0; k < fe_indices.n_elem; ++k) {
+        group_indices(k).set_size(1);
+        group_indices(k)(0) = fe_indices(k);
+      }
+      
+      InferenceAlpha alpha_result = get_alpha(fe_component, group_indices);
+      
+      // Add fixed effects to eta
+      for (size_t k = 0; k < fe_indices.n_elem; ++k) {
+        if (alpha_result.Alpha.n_elem > k && alpha_result.Alpha(k).n_elem > 0) {
+          for (size_t i = 0; i < fe_indices(k).n_elem; ++i) {
+            size_t group_id = fe_indices(k)(i);
+            if (group_id < alpha_result.Alpha(k).n_elem) {
+              new_eta(i) += alpha_result.Alpha(k)(group_id);
+            }
+          }
+        }
+      }
+    } else {
+      // No fixed effects
+      new_eta = beta_result.fitted_values;
+    }
 
     // Step halving
     double rho = 1.0;

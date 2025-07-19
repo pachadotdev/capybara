@@ -20,6 +20,9 @@ test_that("fepoisson is similar to fixest", {
 
   mod <- fepoisson(mpg ~ wt | cyl | am, mtcars)
 
+  # fixest::fepois(mpg ~ wt | cyl, mtcars)
+  # wt -0.179882
+
   mod_base <- glm(
     mpg ~ wt + as.factor(cyl),
     mtcars,
