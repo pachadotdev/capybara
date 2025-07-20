@@ -90,11 +90,11 @@ bias_corr <- function(
   data <- object[["data"]]
   family <- object[["family"]]
   formula <- object[["formula"]]
-  lvls_k <- object[["lvls_k"]]
+  fe.levels <- object[["fe.levels"]]
   nms_sp <- names(beta_uncorr)
   nt <- object[["nobs"]][["nobs"]]
-  k_vars <- names(lvls_k)
-  k <- length(lvls_k)
+  fe_names <- names(fe.levels)
+  k <- length(fe.levels)
 
   # Check if binary choice model
   apes_bias_check_binary_model_(family, fun = "bias_corr")
@@ -109,18 +109,18 @@ bias_corr <- function(
   y <- data[[1L]]
   x <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
   attr(x, "dimnames") <- NULL
-  wt <- object[["weights"]]
+  w <- object[["weights"]]
 
   # Generate auxiliary list of indexes for different sub panels
-  k_list <- get_index_list_(k_vars, data)
+  FEs <- get_index_list_(fe_names, data)
 
   # Compute derivatives and weights
   eta <- object[["eta"]]
   mu <- family[["linkinv"]](eta)
   mu_eta <- family[["mu.eta"]](eta)
-  v <- wt * (y - mu)
-  w <- wt * mu_eta
-  z <- wt * partial_mu_eta_(eta, family, 2L)
+  v <- w * (y - mu)
+  w <- w * mu_eta
+  z <- w * partial_mu_eta_(eta, family, 2L)
   if (family[["link"]] != "logit") {
     h <- mu_eta / family[["variance"]](mu)
     v <- h * v
@@ -133,32 +133,32 @@ bias_corr <- function(
   if (control[["keep_dmx"]]) {
     x <- object[["X_dm"]]
   } else {
-    x <- demean_variables_(x, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]], "gaussian")
+    x <- demean_variables_(x, w, FEs, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]], "gaussian")
   }
 
   # Compute bias terms for requested bias correction
   if (panel_structure == "classic") {
     # Compute \hat{B} and \hat{D}
-    b <- as.vector(group_sums_(x * z, w, k_list[[1L]])) / 2.0 / nt
+    b <- as.vector(group_sums_(x * z, w, FEs[[1L]])) / 2.0 / nt
     if (k > 1L) {
-      b <- b + as.vector(group_sums_(x * z, w, k_list[[2L]])) / 2.0 / nt
+      b <- b + as.vector(group_sums_(x * z, w, FEs[[2L]])) / 2.0 / nt
     }
 
     # Compute spectral density part of \hat{B}
     if (l > 0L) {
-      b <- (b + group_sums_spectral_(x * w, v, w, l, k_list[[1L]])) / nt
+      b <- (b + group_sums_spectral_(x * w, v, w, l, FEs[[1L]])) / nt
     }
   } else {
     # Compute \hat{D}_{1}, \hat{D}_{2}, and \hat{B}
-    b <- group_sums_(x * z, w, k_list[[1L]]) / (2.0 * nt)
-    b <- (b + group_sums_(x * z, w, k_list[[2L]])) / (2.0 * nt)
+    b <- group_sums_(x * z, w, FEs[[1L]]) / (2.0 * nt)
+    b <- (b + group_sums_(x * z, w, FEs[[2L]])) / (2.0 * nt)
     if (k > 2L) {
-      b <- (b + group_sums_(x * z, w, k_list[[3L]])) / (2.0 * nt)
+      b <- (b + group_sums_(x * z, w, FEs[[3L]])) / (2.0 * nt)
     }
 
     # Compute spectral density part of \hat{B}
     if (k > 2L && l > 0L) {
-      b <- (b + group_sums_spectral_(x * w, v, w, l, k_list[[3L]])) / nt
+      b <- (b + group_sums_spectral_(x * w, v, w, l, FEs[[3L]])) / nt
     }
   }
 
@@ -170,8 +170,8 @@ bias_corr <- function(
   eta <- feglm_offset_(object, x %*% beta)
   mu <- family[["linkinv"]](eta)
   mu_eta <- family[["mu.eta"]](eta)
-  v <- wt * (y - mu)
-  w <- wt * mu_eta
+  v <- w * (y - mu)
+  w <- w * mu_eta
   if (family[["link"]] != "logit") {
     h <- mu_eta / family[["variance"]](mu)
     v <- h * v
@@ -180,7 +180,7 @@ bias_corr <- function(
   }
 
   # Update centered regressor matrix
-  x <- demean_variables_(x, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]], "gaussian")
+  x <- demean_variables_(x, w, FEs, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]], "gaussian")
   colnames(x) <- nms_sp
 
   # Update hessian
@@ -204,8 +204,8 @@ bias_corr <- function(
   object
 }
 
-bias_corr_check_fixed_effects_ <- function(lvls_k) {
-  if (length(lvls_k) > 3) {
+bias_corr_check_fixed_effects_ <- function(fe.levels) {
+  if (length(fe.levels) > 3) {
     stop(
       "bias_corr() only supports models with up to three-way fixed effects.",
       call. = FALSE

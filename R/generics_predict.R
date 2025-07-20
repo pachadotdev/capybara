@@ -30,8 +30,8 @@ predict.feglm <- function(object, newdata = NULL, type = c("link", "response"), 
     data <- NA
     model_frame_(newdata, object$formula, NULL)
     # Extract fixed effects variables using proper pipe parsing
-    k_vars <- attr(terms(object$formula, rhs = 2L), "term.labels")
-    data <- transform_fe_(data, object$formula, k_vars)
+    fe_names <- attr(terms(object$formula, rhs = 2L), "term.labels")
+    data <- transform_fe_(data, object$formula, fe_names)
 
     X <- NA
     nms_sp <- NA
@@ -59,16 +59,21 @@ predict.feglm <- function(object, newdata = NULL, type = c("link", "response"), 
     coef0[is.na(coef0)] <- 0
 
     # Compute linear predictor
-    z <- X %*% coef0 + Reduce("+", fes2)
+    z <- as.numeric(X %*% coef0 + Reduce("+", fes2))
+    names(z) <- rownames(newdata)
   } else {
-    z <- object[["fitted.values"]]
+    # Use appropriate object component based on type
+    if (type == "link") {
+      return(object[["eta"]])
+    } else {
+      return(object[["fitted.values"]])
+    }
   }
 
-  if (type == "response") {
+  if (type == "link") {
     return(z)
   } else {
-    # return(object[["family"]][["linkfun"]](z))
-    return(z)
+    return(object[["family"]][["linkinv"]](z))
   }
 }
 
@@ -87,8 +92,8 @@ predict.felm <- function(object, newdata = NULL, type = c("response", "terms"), 
     nobs_na <- NA
     nobs_full <- NA
     model_frame_(newdata, object$formula, NULL)
-    k_vars <- attr(terms(object$formula, rhs = 2L), "term.labels")
-    data <- transform_fe_(data, object$formula, k_vars)
+    fe_names <- attr(terms(object$formula, rhs = 2L), "term.labels")
+    data <- transform_fe_(data, object$formula, fe_names)
 
     X <- NA
     nms_sp <- NA

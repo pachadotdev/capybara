@@ -82,7 +82,7 @@ NULL
 #'  \item{conv.outer}{a logical indicating whether the outer loop converged}
 #'  \item{nobs}{a named vector with the number of observations used in the
 #'   estimation indicating the dropped and perfectly predicted observations}
-#'  \item{lvls_k}{a named vector with the number of levels in each fixed
+#'  \item{fe.levels}{a named vector with the number of levels in each fixed
 #'   effects}
 #'  \item{nms_fe}{a list with the names of the fixed effects variables}
 #'  \item{formula}{the formula used in the model}
@@ -125,16 +125,16 @@ fenegbin <- function(
   check_response_(data, lhs, family)
 
   # Get names of the fixed effects variables and sort ----
-  k_vars <- attr(terms(formula, rhs = 2L), "term.labels")
+  fe_names <- attr(terms(formula, rhs = 2L), "term.labels")
 
   # Generate temporary variable ----
   tmp_var <- temp_var_(data)
 
   # Drop observations that do not contribute to the log likelihood ----
-  data <- drop_by_link_type_(data, lhs, family, tmp_var, k_vars, control)
+  data <- drop_by_link_type_(data, lhs, family, tmp_var, fe_names, control)
 
   # Transform fixed effects and clusters to factors ----
-  data <- transform_fe_(data, formula, k_vars)
+  data <- transform_fe_(data, formula, fe_names)
 
   # Determine the number of dropped observations ----
   nt <- nrow(data)
@@ -158,11 +158,11 @@ fenegbin <- function(
   start_guesses_(X, y, w, beta, family, nt, p, beta_start, eta_start)
 
   # Get names and number of levels in each fixed effects category ----
-  nms_fe <- lapply(data[, .SD, .SDcols = k_vars], levels)
-  lvls_k <- vapply(nms_fe, length, integer(1))
+  nms_fe <- lapply(data[, .SD, .SDcols = fe_names], levels)
+  fe.levels <- vapply(nms_fe, length, integer(1))
 
   # Generate auxiliary list of indexes for different sub panels ----
-  FEs <- get_index_list_(k_vars, data)
+  FEs <- get_index_list_(fe_names, data)
 
   # Extract control arguments ----
   tol <- control[["dev_tol"]]
@@ -256,7 +256,7 @@ fenegbin <- function(
   fit[["family"]] <- family
 
   fenegbin_result_list_(
-    fit, theta, iter, conv, nobs, lvls_k, nms_fe, formula, data, family, control
+    fit, theta, iter, conv, nobs, fe.levels, nms_fe, formula, data, family, control
   )
 }
 
@@ -271,7 +271,7 @@ fenegbin_check_convergence_ <- function(dev, dev_old, theta, theta_old, tol) {
 # Generate result list ----
 
 fenegbin_result_list_ <- function(
-    fit, theta, iter, conv, nobs, lvls_k,
+    fit, theta, iter, conv, nobs, fe.levels,
     nms_fe, formula, data, family, control) {
   reslist <- c(
     fit, list(
@@ -279,7 +279,7 @@ fenegbin_result_list_ <- function(
       iter.outer = iter,
       conv.outer = conv,
       nobs       = nobs,
-      lvls_k     = lvls_k,
+      fe.levels     = fe.levels,
       nms_fe     = nms_fe,
       formula    = formula,
       data       = data,

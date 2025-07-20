@@ -55,7 +55,7 @@ summary.feglm <- function(
     null_deviance = object[["null_deviance"]],
     iter = object[["iter"]],
     nobs = object[["nobs"]],
-    lvls_k = object[["lvls_k"]],
+    fe.levels = object[["fe.levels"]],
     formula = object[["formula"]],
     family = object[["family"]]
   )
@@ -121,7 +121,7 @@ summary.felm <- function(
   res <- list(
     coefficients = coefficients,
     nobs = object[["nobs"]],
-    lvls_k = object[["lvls_k"]],
+    fe.levels = object[["fe.levels"]],
     formula = object[["formula"]],
     r.squared = rsq,
     adj.r.squared = 1 - (1 - rsq) * (n - 1) / (n - k + 1)

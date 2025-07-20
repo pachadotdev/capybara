@@ -225,7 +225,7 @@ print.feglm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
   cat(
     sub("\\(.*\\)", "", x[["family"]][["family"]]), " - ",
     x[["family"]][["link"]], " link",
-    ", l= [", paste0(x[["lvls_k"]], collapse = ", "), "]\n\n",
+    ", l= [", paste0(x[["fe.levels"]], collapse = ", "), "]\n\n",
     sep = ""
   )
   print(x[["coefficients"]], digits = digits)

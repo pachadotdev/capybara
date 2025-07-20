@@ -22,10 +22,10 @@ get_score_matrix_felm_ <- function(object) {
   } else {
     # Extract additional required quantities from result list
     formula <- object[["formula"]]
-    k_vars <- names(object[["lvls_k"]])
+    fe_names <- names(object[["fe.levels"]])
 
     # Generate auxiliary list of indexes to project out the fixed effects
-    k_list <- get_index_list_(k_vars, data)
+    FEs <- get_index_list_(fe_names, data)
 
     # Extract regressor matrix
     x <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
@@ -34,7 +34,7 @@ get_score_matrix_felm_ <- function(object) {
 
     # Center variables
     X_dm <- demean_variables_(
-      x, w, k_list, control[["center_tol"]],
+      x, w, FEs, control[["center_tol"]],
       control[["iter_max"]], control[["iter_interrupt"]],
       control[["iter_ssr"]], "gaussian"
     )

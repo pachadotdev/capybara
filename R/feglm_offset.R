@@ -30,15 +30,15 @@ feglm_offset_ <- function(object, offset) {
   data <- object[["data"]]
   w <- object[["weights"]]
   family <- object[["family"]]
-  lvls_k <- object[["lvls_k"]]
+  fe.levels <- object[["fe.levels"]]
   nt <- object[["nobs"]][["nobs"]]
-  k_vars <- names(lvls_k)
+  fe_names <- names(fe.levels)
 
   # Extract dependent variable
   y <- data[[1L]]
 
   # Generate auxiliary list of indexes to project out the fixed effects
-  FEs <- get_index_list_(k_vars, data)
+  FEs <- get_index_list_(fe_names, data)
 
   # Compute starting guess for eta
   if (family[["family"]] == "binomial") {

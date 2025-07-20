@@ -444,10 +444,10 @@ model_frame_ <- function(data, formula, weights) {
 #' @description Transforms fixed effects that are factors
 #' @param data Data frame
 #' @param formula Formula object
-#' @param k_vars Fixed effects
+#' @param fe_names Fixed effects
 #' @noRd
-transform_fe_ <- function(data, formula, k_vars) {
-  data[, (k_vars) := lapply(.SD, check_factor_), .SDcols = k_vars]
+transform_fe_ <- function(data, formula, fe_names) {
+  data[, (fe_names) := lapply(.SD, check_factor_), .SDcols = fe_names]
 
   if (length(formula)[[2L]] > 2L) {
     add_vars <- attr(terms(formula, rhs = 3L), "term.labels")
@@ -521,13 +521,13 @@ model_response_ <- function(data, formula) {
 
 #' @title Check weights
 #' @description Checks if weights are valid
-#' @param wt Weights
+#' @param w Weights
 #' @noRd
-check_weights_ <- function(wt) {
-  if (!is.numeric(wt) || anyNA(wt)) {
+check_weights_ <- function(w) {
+  if (!is.numeric(w) || anyNA(w)) {
     stop("Weights must be numeric and non-missing.", call. = FALSE)
   }
-  if (any(wt < 0)) {
+  if (any(w < 0)) {
     stop("Negative weights are not allowed.", call. = FALSE)
   }
 }
@@ -535,12 +535,12 @@ check_weights_ <- function(wt) {
 #' @title Get index list
 #' @description Generates an auxiliary list of indexes to project out the fixed
 #'  effects
-#' @param k_vars Fixed effects
+#' @param fe_names Fixed effects
 #' @param data Data frame
 #' @noRd
-get_index_list_ <- function(k_vars, data) {
+get_index_list_ <- function(fe_names, data) {
   indexes <- seq.int(1L, nrow(data)) # Generate 1-based indices for R consistency
-  lapply(k_vars, function(x, indexes, data) {
+  lapply(fe_names, function(x, indexes, data) {
     split(indexes, data[[x]])
   }, indexes = indexes, data = data)
 }

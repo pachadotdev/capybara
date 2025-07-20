@@ -138,10 +138,10 @@ check_response_ <- function(data, lhs, family) {
 #' @param lhs Left-hand side of the formula
 #' @param family Family object
 #' @param tmp_var Temporary variable
-#' @param k_vars Fixed effects
+#' @param fe_names Fixed effects
 #' @param control Control list
 #' @noRd
-drop_by_link_type_ <- function(data, lhs, family, tmp_var, k_vars, control) {
+drop_by_link_type_ <- function(data, lhs, family, tmp_var, fe_names, control) {
   if (family[["family"]] %in% c("binomial", "poisson") && isTRUE(control[["drop_pc"]])) {
     # Convert response to numeric if it's an integer
     if (is.integer(data[[lhs]])) {
@@ -154,7 +154,7 @@ drop_by_link_type_ <- function(data, lhs, family, tmp_var, k_vars, control) {
     while (ncheck != nrow_data) {
       ncheck <- nrow_data
 
-      for (j in k_vars) {
+      for (j in fe_names) {
         data[, (tmp_var) := mean(as.numeric(get(lhs))), by = j]
 
         # Filter rows based on family type
@@ -316,10 +316,10 @@ get_score_matrix_feglm_ <- function(object) {
   } else {
     # Extract additional required quantities from result list
     formula <- object[["formula"]]
-    k_vars <- names(object[["lvls_k"]])
+    fe_names <- names(object[["fe.levels"]])
 
     # Generate auxiliary list of indexes to project out the fixed effects
-    k_list <- get_index_list_(k_vars, data)
+    FEs <- get_index_list_(fe_names, data)
 
     # Extract regressor matrix
     X <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
@@ -328,7 +328,7 @@ get_score_matrix_feglm_ <- function(object) {
 
     # Center variables
     X <- demean_variables_(
-      X, w, k_list, control[["center_tol"]],
+      X, w, FEs, control[["demean_tol"]],
       control[["iter_max"]], control[["iter_interrupt"]],
       control[["iter_ssr"]], family[["family"]]
     )

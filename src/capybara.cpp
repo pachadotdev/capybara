@@ -252,14 +252,14 @@ convert_groupindices_to_feids(const field<field<uvec>> &group_indices,
 
 [[cpp11::register]] doubles_matrix<>
 demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
-                  const list &klist, const double &tol, const int &max_iter,
+                  const list &FEs, const double &tol, const int &max_iter,
                   const int &iter_interrupt, const int &iter_ssr,
                   const std::string &family) {
   mat V = as_mat(V_r);
   vec w = as_col(w_r);
 
   // Convert R list to field<field<uvec>> format
-  field<field<uvec>> group_indices = R_list_to_Armadillo_field(klist);
+  field<field<uvec>> group_indices = R_list_to_Armadillo_field(FEs);
 
   // Convert to the format expected by demean_variables
   field<uvec> fe_ids = convert_groupindices_to_feids(group_indices, V.n_rows);

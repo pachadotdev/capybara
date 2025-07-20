@@ -6,10 +6,10 @@
 #include <R_ext/Visibility.h>
 
 // capybara.cpp
-doubles_matrix<> demean_variables_(const doubles_matrix<> & V_r, const doubles & w_r, const list & klist, const double & tol, const int & max_iter, const int & iter_interrupt, const int & iter_ssr, const std::string & family);
-extern "C" SEXP _capybara_demean_variables_(SEXP V_r, SEXP w_r, SEXP klist, SEXP tol, SEXP max_iter, SEXP iter_interrupt, SEXP iter_ssr, SEXP family) {
+doubles_matrix<> demean_variables_(const doubles_matrix<> & V_r, const doubles & w_r, const list & FEs, const double & tol, const int & max_iter, const int & iter_interrupt, const int & iter_ssr, const std::string & family);
+extern "C" SEXP _capybara_demean_variables_(SEXP V_r, SEXP w_r, SEXP FEs, SEXP tol, SEXP max_iter, SEXP iter_interrupt, SEXP iter_ssr, SEXP family) {
   BEGIN_CPP11
-    return cpp11::as_sexp(demean_variables_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(V_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(w_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(klist), cpp11::as_cpp<cpp11::decay_t<const double &>>(tol), cpp11::as_cpp<cpp11::decay_t<const int &>>(max_iter), cpp11::as_cpp<cpp11::decay_t<const int &>>(iter_interrupt), cpp11::as_cpp<cpp11::decay_t<const int &>>(iter_ssr), cpp11::as_cpp<cpp11::decay_t<const std::string &>>(family)));
+    return cpp11::as_sexp(demean_variables_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(V_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(w_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(FEs), cpp11::as_cpp<cpp11::decay_t<const double &>>(tol), cpp11::as_cpp<cpp11::decay_t<const int &>>(max_iter), cpp11::as_cpp<cpp11::decay_t<const int &>>(iter_interrupt), cpp11::as_cpp<cpp11::decay_t<const int &>>(iter_ssr), cpp11::as_cpp<cpp11::decay_t<const std::string &>>(family)));
   END_CPP11
 }
 // capybara.cpp

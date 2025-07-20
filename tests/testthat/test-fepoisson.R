@@ -64,6 +64,8 @@ test_that("fepoisson is similar to fixest", {
 
   # K = 2
 
+  load_all()
+
   mod <- fepoisson(mpg ~ wt | cyl + am, mtcars)
 
   mod_base <- glm(
@@ -71,6 +73,10 @@ test_that("fepoisson is similar to fixest", {
     mtcars,
     family = quasipoisson(link = "log")
   )
+
+  # mod$coefficients
+  # mod_base$coefficients
+  # fixest::fepois(mpg ~ wt | cyl + am, mtcars)
 
   coef_dist_base <- coef(mod_base)[2]
 
@@ -94,10 +100,16 @@ test_that("fepoisson is similar to fixest", {
 
   expect_lt(dist_variation, 0.05)
 
+  # mod$coefficients
+  # mod_base$coefficients
+
   expect_equal(mod[["fitted.values"]], mod_base[["fitted.values"]], tolerance = 1e-2)
 
   pred_mod <- predict(mod, type = "response")
   pred_mod_base <- predict(mod_base, type = "response")
+
+  mod$fitted.values
+  mod_base$fitted.values
 
   pred_mod_link <- predict(mod, type = "link")
   pred_mod_base_link <- predict(mod_base, type = "link")
@@ -117,17 +129,12 @@ test_that("fepoisson is similar to fixest", {
 
 test_that("fepoisson estimation is the same adding noise to the data", {
   set.seed(123)
-  d <- data.frame(
-    x = rnorm(1000),
-    y = rpois(1000, 1),
-    f = factor(rep(1:10, 100))
-  )
+  d <- mtcars[, c("mpg", "wt", "cyl")]
+  d$wt2 <- d$wt + pmax(rnorm(nrow(d)), 0) * .Machine$double.eps
 
-  set.seed(123)
-  d$y2 <- d$y + pmax(rnorm(nrow(d)), 0) * .Machine$double.eps
-
-  m1 <- fepoisson(y ~ x | f, d)
-  m2 <- fepoisson(y2 ~ x | f, d)
-  expect_equal(coef(m1), coef(m2))
-  expect_equal(fixed_effects(m1), fixed_effects(m2))
+  m1 <- fepoisson(mpg ~ wt | cyl, d)
+  m2 <- fepoisson(mpg ~ wt2 | cyl, d)
+  
+  expect_equal(unname(coef(m1)), unname(coef(m2)))
+  expect_equal(m1$fixed.effects, m2$fixed.effects)
 })

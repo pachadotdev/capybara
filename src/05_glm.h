@@ -427,45 +427,6 @@ struct InferenceGLM {
 };
 
 //////////////////////////////////////////////////////////////////////////////
-// FIXED EFFECTS EXTRACTION
-//////////////////////////////////////////////////////////////////////////////
-
-// Extract fixed effects from GLM results
-inline field<vec> extract_glm_fixed_effects(const vec &eta, const mat &X_orig,
-                                            const vec &coefficients,
-                                            const field<uvec> &fe_indices,
-                                            const uvec &nb_ids,
-                                            const field<uvec> &fe_id_tables) {
-  const size_t Q = fe_indices.n_elem;
-  field<vec> fixed_effects(Q);
-
-  if (Q == 0 || fe_indices(0).n_elem == 0) {
-    return fixed_effects;
-  }
-
-  // Compute fixed effects component
-  vec fe_component;
-  if (X_orig.n_cols > 0 && coefficients.n_elem > 0) {
-    vec linear_part = X_orig * coefficients;
-    fe_component = eta - linear_part;
-  } else {
-    fe_component = eta;
-  }
-
-  // Call the unified get_alpha function
-  // Convert fe_indices to field<field<uvec>> format expected by get_alpha
-  field<field<uvec>> group_indices(fe_indices.n_elem);
-  for (size_t k = 0; k < fe_indices.n_elem; ++k) {
-    group_indices(k).set_size(1);
-    group_indices(k)(0) = fe_indices(k);
-  }
-
-  InferenceAlpha alpha_result =
-      get_alpha(fe_component, group_indices, 1e-8, 10000);
-  return alpha_result.Alpha;
-}
-
-//////////////////////////////////////////////////////////////////////////////
 // GLM FITTING
 //////////////////////////////////////////////////////////////////////////////
 
@@ -571,8 +532,8 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
 
     // Regression on demeaned data
     InferenceBeta beta_result =
-        get_beta(X_demean, Y_demean, y_orig, working_weights, params,
-                 glm_weights, has_fixed_effects);
+        get_beta(X_demean, Y_demean, z, working_weights, params, glm_weights,
+                 has_fixed_effects);
 
     if (!beta_result.success ||
         any(beta_result.coefficients != beta_result.coefficients)) {
@@ -584,52 +545,11 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
     }
 
     coef_status = beta_result.coef_status;
+    result.coefficients = beta_result.coefficients;
 
-    // Compute new eta properly for GLM with fixed effects
-    vec new_eta;
-    if (has_fixed_effects) {
-      // For fixed effects, we need to add the fixed effects component
-      if (p_orig > 0) {
-        new_eta = X_orig * beta_result.coefficients;
-      } else {
-        new_eta = zeros<vec>(n);
-      }
-
-      // Add fixed effects component (alpha)
-      // Compute current fixed effects based on residual from linear part
-      vec fe_component;
-      if (has_fixed_effects && p_orig > 0) {
-        fe_component = z - X_orig * beta_result.coefficients;
-      } else {
-        fe_component = z;
-      }
-
-      // Convert fe_indices to field<field<uvec>> format for get_alpha
-      field<field<uvec>> group_indices(fe_indices.n_elem);
-      for (size_t k = 0; k < fe_indices.n_elem; ++k) {
-        group_indices(k).set_size(1);
-        group_indices(k)(0) = fe_indices(k);
-      }
-
-      InferenceAlpha alpha_result =
-          get_alpha(fe_component, group_indices, params.alpha_convergence_tol,
-                    params.alpha_iter_max);
-
-      // Add fixed effects to eta
-      for (size_t k = 0; k < fe_indices.n_elem; ++k) {
-        if (alpha_result.Alpha.n_elem > k && alpha_result.Alpha(k).n_elem > 0) {
-          for (size_t i = 0; i < fe_indices(k).n_elem; ++i) {
-            size_t group_id = fe_indices(k)(i);
-            if (group_id < alpha_result.Alpha(k).n_elem) {
-              new_eta(i) += alpha_result.Alpha(k)(group_id);
-            }
-          }
-        }
-      }
-    } else {
-      // No fixed effects
-      new_eta = beta_result.fitted_values;
-    }
+    // Use fitted values directly from get_beta - they already include fixed
+    // effects
+    vec new_eta = beta_result.fitted_values;
 
     // Step halving
     double rho = 1.0;
@@ -705,12 +625,34 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
 
   // Extract fixed effects if present
   if (has_fixed_effects) {
-    result.fixed_effects = extract_glm_fixed_effects(
-        eta, X_orig, result.coefficients, fe_indices, nb_ids, fe_id_tables);
+    // Compute fixed effects component
+    vec fe_component;
+    if (X_orig.n_cols > 0 && result.coefficients.n_elem > 0) {
+      vec linear_part = X_orig * result.coefficients;
+      fe_component = eta - linear_part;
+    } else {
+      fe_component = eta;
+    }
+
+    // Convert fe_indices to field<field<uvec>> format expected by get_alpha
+    field<field<uvec>> group_indices(fe_indices.n_elem);
+    for (size_t k = 0; k < fe_indices.n_elem; ++k) {
+      group_indices(k).set_size(nb_ids(k));
+
+      // Create groups from fe_indices
+      for (size_t g = 0; g < nb_ids(k); ++g) {
+        uvec group_obs = find(fe_indices(k) == g);
+        group_indices(k)(g) = group_obs;
+      }
+    }
+
+    InferenceAlpha alpha_result =
+        get_alpha(fe_component, group_indices, 1e-8, 10000);
+
+    result.fixed_effects = alpha_result.Alpha;
     result.has_fe = true;
-    result.is_regular = true;
-    result.nb_references.set_size(fe_indices.n_elem);
-    result.nb_references.fill(1);
+    result.is_regular = alpha_result.is_regular;
+    result.nb_references = alpha_result.nb_references;
   } else {
     result.has_fe = false;
   }

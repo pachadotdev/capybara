@@ -134,11 +134,11 @@ apes <- function(
   data <- object[["data"]]
   family <- object[["family"]]
   formula <- object[["formula"]]
-  lvls_k <- object[["lvls_k"]]
+  fe.levels <- object[["fe.levels"]]
   nt <- nrow(data)
   nt_full <- object[["nobs"]][["nobs_full"]]
-  k <- length(lvls_k)
-  k_vars <- names(lvls_k)
+  k <- length(fe.levels)
+  fe_names <- names(fe.levels)
   p <- length(beta)
 
   # Check if binary choice model
@@ -156,21 +156,21 @@ apes <- function(
   x <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
   nms_sp <- attr(x, "dimnames")[[2L]]
   attr(x, "dimnames") <- NULL
-  wt <- object[["weights"]]
+  w <- object[["weights"]]
 
   # Determine which of the regressors are binary
   binary <- apply(x, 2L, function(x) all(x %in% c(0.0, 1.0)))
 
   # Generate auxiliary list of indexes for different sub panels
-  FEs <- get_index_list_(k_vars, data)
+  FEs <- get_index_list_(fe_names, data)
 
   # Compute derivatives and weights
   eta <- object[["eta"]]
   mu <- family[["linkinv"]](eta)
   mu_eta <- family[["mu.eta"]](eta)
-  v <- wt * (y - mu)
-  w <- wt * mu_eta
-  z <- wt * partial_mu_eta_(eta, family, 2L)
+  v <- w * (y - mu)
+  w <- w * mu_eta
+  z <- w * partial_mu_eta_(eta, family, 2L)
   if (family[["link"]] != "logit") {
     h <- mu_eta / family[["variance"]](mu)
     v <- h * v
