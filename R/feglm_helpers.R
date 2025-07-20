@@ -197,18 +197,17 @@ init_theta_ <- function(init_theta, link) {
 
 #' @title Check starting guesses
 #' @description Checks if starting guesses are valid
+#' @param X Regressor matrix
+#' @param y Dependent variable
+#' @param w Weights
+#' @param beta Beta values
+#' @param family Family object
+#' @param nt Number of observations
+#' @param p Number parameters
 #' @param beta_start Starting values for beta
 #' @param eta_start Starting values for eta
-#' @param y Dependent variable
-#' @param x Regressor matrix
-#' @param beta Beta values
-#' @param nt Number of observations
-#' @param wt Weights
-#' @param p Number parameters
-#' @param family Family object
 #' @noRd
-start_guesses_ <- function(
-    beta_start, eta_start, y, x, beta, nt, wt, p, family) {
+start_guesses_ <- function(X, y, w, beta, family, nt, p, beta_start, eta_start) {
   if (!is.null(beta_start) || !is.null(eta_start)) {
     # If both are specified, ignore eta_start
     if (!is.null(beta_start) && !is.null(eta_start)) {
@@ -233,7 +232,7 @@ start_guesses_ <- function(
 
       # Set starting guesses
       beta <- beta_start
-      eta <- x %*% beta
+      eta <- X %*% beta
     } else {
       # Validity of input argument (eta_start)
       if (length(eta_start) != nt) {
@@ -254,34 +253,37 @@ start_guesses_ <- function(
     # Compute starting guesses if not user specified
     beta <- numeric(p)
     if (family[["family"]] == "binomial") {
-      eta <- rep(family[["linkfun"]](sum(wt * (y + 0.5) / 2.0) / sum(wt)), nt)
+      eta <- rep(family[["linkfun"]](sum(w * (y + 0.5) / 2.0) / sum(w)), nt)
     } else if (family[["family"]] %in% c("Gamma", "inverse.gaussian")) {
-      eta <- rep(family[["linkfun"]](sum(wt * y) / sum(wt)), nt)
+      eta <- rep(family[["linkfun"]](sum(w * y) / sum(w)), nt)
     } else if (family[["family"]] == "poisson") {
       # Better starting values for Poisson regression
       # Use a small offset to avoid log(0)
-      y_mean <- sum(wt * y) / sum(wt)
-      y_offset <- pmax(y, 0.1)  # Avoid log(0)
+      y_mean <- sum(w * y) / sum(w)
+      y_offset <- pmax(y, 0.1) # Avoid log(0)
       eta <- family[["linkfun"]](y_offset)
-      
+
       # If we have a regressor matrix, try to get better starting values
       if (p > 0) {
         # Simple linear regression on log scale as starting point
-        tryCatch({
-          lm_fit <- lm(log(y_offset) ~ x - 1, weights = wt)
-          beta <- as.numeric(coef(lm_fit))
-          beta[is.na(beta)] <- 0  # Replace NA with 0
-          eta <- x %*% beta
-        }, error = function(e) {
-          # Fall back to simple mean if lm fails
-          beta <- numeric(p)
-          eta <- rep(family[["linkfun"]](y_mean + 0.1), nt)
-        })
+        tryCatch(
+          {
+            lm_fit <- lm(log(y_offset) ~ X - 1, weights = w)
+            beta <- as.numeric(coef(lm_fit))
+            beta[is.na(beta)] <- 0 # Replace NA with 0
+            eta <- X %*% beta
+          },
+          error = function(e) {
+            # Fall back to simple mean if lm fails
+            beta <- numeric(p)
+            eta <- rep(family[["linkfun"]](y_mean + 0.1), nt)
+          }
+        )
       } else {
         eta <- rep(family[["linkfun"]](y_mean + 0.1), nt)
       }
     } else {
-      eta <- rep(family[["linkfun"]](sum(wt * (y + 0.1)) / sum(wt)), nt)
+      eta <- rep(family[["linkfun"]](sum(w * (y + 0.1)) / sum(w)), nt)
     }
   }
 
@@ -298,19 +300,19 @@ get_score_matrix_feglm_ <- function(object) {
   control <- object[["control"]]
   data <- object[["data"]]
   eta <- object[["eta"]]
-  wt <- object[["weights"]]
+  w <- object[["weights"]]
   family <- object[["family"]]
 
   # Update weights and dependent variable
   y <- data[[1L]]
   mu <- family[["linkinv"]](eta)
   mu_eta <- family[["mu.eta"]](eta)
-  w <- (wt * mu_eta^2) / family[["variance"]](mu)
+  w <- (w * mu_eta^2) / family[["variance"]](mu)
   nu <- (y - mu) / mu_eta
 
   # Center regressor matrix (if required)
-  if (control[["keep_mx"]]) {
-    mx <- object[["mx"]]
+  if (control[["keep_dmx"]]) {
+    X_dm <- object[["X_dm"]]
   } else {
     # Extract additional required quantities from result list
     formula <- object[["formula"]]
@@ -320,31 +322,33 @@ get_score_matrix_feglm_ <- function(object) {
     k_list <- get_index_list_(k_vars, data)
 
     # Extract regressor matrix
-    x <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
-    nms_sp <- attr(x, "dimnames")[[2L]]
-    attr(x, "dimnames") <- NULL
+    X <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
+    nms_sp <- attr(X, "dimnames")[[2L]]
+    attr(X, "dimnames") <- NULL
 
     # Center variables
-    x <- demean_variables_(x, w, k_list, control[["center_tol"]],
-                                    control[["iter_max"]], control[["iter_interrupt"]],
-                                    control[["iter_ssr"]], family[["family"]])
-    colnames(x) <- nms_sp
+    X <- demean_variables_(
+      X, w, k_list, control[["center_tol"]],
+      control[["iter_max"]], control[["iter_interrupt"]],
+      control[["iter_ssr"]], family[["family"]]
+    )
+    colnames(X) <- nms_sp
   }
 
   # Return score matrix
-  x * (nu * w)
+  X * (nu * w)
 }
 
 #' @title Gamma computation
 #' @description Computes the gamma matrix for the APES function
-#' @param mx Regressor matrix
+#' @param X_dm Regressor matrix
 #' @param h Hessian matrix
 #' @param j Jacobian matrix
 #' @param ppsi Psi matrix
 #' @param v Vector of weights
 #' @param nt Number of observations
 #' @noRd
-gamma_ <- function(mx, h, j, ppsi, v, nt) {
+gamma_ <- function(X_dm, h, j, ppsi, v, nt) {
   inv_nt <- 1.0 / nt
-  (mx %*% solve(h * inv_nt, j) - ppsi) * v * inv_nt
+  (X_dm %*% solve(h * inv_nt, j) - ppsi) * v * inv_nt
 }

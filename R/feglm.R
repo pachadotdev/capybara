@@ -140,7 +140,7 @@ feglm <- function(
   #   elapsed_ms <- as.numeric(difftime(end_time, start_time, units = "secs")) * 1000
   #   cat(sprintf("[R timing] feglm: %.0f ms\n", elapsed_ms), file = stderr())
   # })
-  
+
   # Check validity of formula ----
   check_formula_(formula)
 
@@ -159,7 +159,7 @@ feglm <- function(
   nobs_full <- NA
   weights_vec <- NA
   weights_col <- NA
-  
+
   model_frame_(data, formula, weights)
 
   # Ensure that model response is in line with the chosen model ----
@@ -168,7 +168,7 @@ feglm <- function(
   # Get names of the fixed effects variables and sort ----
   # the no FEs warning is printed in the check_formula_ function
   k_vars <- suppressWarnings(attr(terms(formula, rhs = 2L), "term.labels"))
-  if (length(k_vars) <1L) {
+  if (length(k_vars) < 1L) {
     k_vars <- "missing_fe"
     data[, `:=`("missing_fe", 1L)]
   }
@@ -188,31 +188,31 @@ feglm <- function(
   # Extract model response and regressor matrix ----
   nms_sp <- NA
   p <- NA
-  
+
   model_response_(data, formula)
 
   # Extract weights if required ----
   if (is.null(weights)) {
-    wt <- rep(1.0, nt)
+    w <- rep(1.0, nt)
   } else if (!all(is.na(weights_vec))) {
     # Weights provided as vector
-    wt <- weights_vec
-    if (length(wt) != nrow(data)) {
+    w <- weights_vec
+    if (length(w) != nrow(data)) {
       stop("Length of weights vector must equal number of observations.", call. = FALSE)
     }
   } else if (!all(is.na(weights_col))) {
     # Weights provided as formula - use the extracted column name
-    wt <- data[[weights_col]]
+    w <- data[[weights_col]]
   } else {
     # Weights provided as column name
-    wt <- data[[weights]]
+    w <- data[[weights]]
   }
 
   # Check validity of weights ----
-  check_weights_(wt)
+  check_weights_(w)
 
   # Compute and check starting guesses ----
-  start_guesses_(beta_start, eta_start, y, x, beta, nt, wt, p, family)
+  start_guesses_(X, y, w, beta, family, nt, p, beta_start, eta_start)
 
   # Get names and number of levels in each fixed effects category ----
   nms_fe <- lapply(data[, .SD, .SDcols = k_vars], levels)
@@ -224,9 +224,9 @@ feglm <- function(
 
   # Generate auxiliary list of indexes for different sub panels ----
   if (!any(lvls_k %in% "missing_fe")) {
-    k_list <- get_index_list_(k_vars, data)
+    FEs <- get_index_list_(k_vars, data)
   } else {
-    k_list <- list(list(`1` = seq_len(nt) - 1L))
+    FEs <- list(list(`1` = seq_len(nt) - 1L))
   }
 
   # Fit generalized linear model ----
@@ -235,20 +235,21 @@ feglm <- function(
   }
 
   fit <- structure(feglm_fit_(
-    beta, eta, y, x, wt, 0.0, family[["family"]], control, k_list
+    X, y, w, FEs, family[["family"]], beta, eta,
+    theta = 0.0, control
   ), class = "feglm")
 
   # Compute nobs using y and fitted values
   nobs <- nobs_(nobs_full, nobs_na, y, predict(fit))
 
+  X <- NULL
   y <- NULL
-  x <- NULL
   eta <- NULL
 
-  # Add names to beta, hessian, and mx (if provided) ----
+  # Add names to beta, hessian, and X_dm (if provided) ----
   names(fit[["coefficients"]]) <- nms_sp
-  if (control[["keep_mx"]]) {
-    colnames(fit[["mx"]]) <- nms_sp
+  if (control[["keep_dmx"]]) {
+    colnames(fit[["X_dm"]]) <- nms_sp
   }
   dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
 

@@ -17,8 +17,8 @@ get_score_matrix_felm_ <- function(object) {
   y <- data[[1L]]
 
   # Center regressor matrix (if required)
-  if (control[["keep_mx"]]) {
-    mx <- object[["mx"]]
+  if (control[["keep_dmx"]]) {
+    X_dm <- object[["X_dm"]]
   } else {
     # Extract additional required quantities from result list
     formula <- object[["formula"]]
@@ -33,12 +33,14 @@ get_score_matrix_felm_ <- function(object) {
     attr(x, "dimnames") <- NULL
 
     # Center variables
-    mx <- demean_variables_(x, w, k_list, control[["center_tol"]],
-                                     control[["iter_max"]], control[["iter_interrupt"]],
-                                     control[["iter_ssr"]], "gaussian")
-    colnames(mx) <- nms_sp
+    X_dm <- demean_variables_(
+      x, w, k_list, control[["center_tol"]],
+      control[["iter_max"]], control[["iter_interrupt"]],
+      control[["iter_ssr"]], "gaussian"
+    )
+    colnames(X_dm) <- nms_sp
   }
 
   # Return score matrix
-  mx * (y * w)
+  X_dm * (y * w)
 }

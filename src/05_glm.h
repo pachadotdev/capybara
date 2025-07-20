@@ -178,8 +178,10 @@ inline vec d_inv_link(const vec &eta, const Family family_type) {
 //////////////////////////////////////////////////////////////////////////////
 
 // Initialize mu and eta for different families
-inline void initialize_family(vec &mu, vec &eta, const vec &y_orig,
-                              double mean_y, const Family family_type) {
+void initialize_family(vec &mu, vec &eta, const vec &y_orig, double mean_y,
+                       const Family family_type, double binomial_mu_min,
+                       double binomial_mu_max, double safe_clamp_min,
+                       double safe_clamp_max) {
   switch (family_type) {
   case Family::GAUSSIAN:
     mu = y_orig; // Identity link: mu = eta for Gaussian
@@ -191,7 +193,7 @@ inline void initialize_family(vec &mu, vec &eta, const vec &y_orig,
     eta = log(clamp(mu, 1e-12, 1e12));
     break;
   case Family::BINOMIAL:
-    mu = clamp((y_orig + mean_y) / 2.0, 0.001, 0.999);
+    mu = clamp((y_orig + mean_y) / 2.0, binomial_mu_min, binomial_mu_max);
     eta = log(mu / (1.0 - mu)); // logit link
     break;
   case Family::GAMMA:
@@ -383,7 +385,7 @@ struct InferenceGLM {
   uvec iterations;
 
   // Optional matrix storage
-  mat mx;
+  mat X_dm;
   bool has_mx = false;
 
   InferenceGLM(size_t n, size_t p)
@@ -394,7 +396,7 @@ struct InferenceGLM {
         residuals_working(n, fill::none), residuals_response(n, fill::none),
         is_regular(true), has_fe(false), has_mx(false) {}
 
-  cpp11::list to_list(bool keep_mx = true) const {
+  cpp11::list to_list(bool keep_dmx = true) const {
     auto out = writable::list(
         {"coefficients"_nm = as_doubles(coefficients),
          "eta"_nm = as_doubles(eta),
@@ -416,8 +418,8 @@ struct InferenceGLM {
       out.push_back({"is_regular"_nm = writable::logicals({is_regular})});
     }
 
-    if (keep_mx && has_mx) {
-      out.push_back({"MX"_nm = as_doubles_matrix(mx)});
+    if (keep_dmx && has_mx) {
+      out.push_back({"MX"_nm = as_doubles_matrix(X_dm)});
     }
 
     return out;
@@ -458,7 +460,8 @@ inline field<vec> extract_glm_fixed_effects(const vec &eta, const mat &X_orig,
     group_indices(k)(0) = fe_indices(k);
   }
 
-  InferenceAlpha alpha_result = get_alpha(fe_component, group_indices);
+  InferenceAlpha alpha_result =
+      get_alpha(fe_component, group_indices, 1e-8, 10000);
   return alpha_result.Alpha;
 }
 
@@ -466,25 +469,12 @@ inline field<vec> extract_glm_fixed_effects(const vec &eta, const mat &X_orig,
 // GLM FITTING
 //////////////////////////////////////////////////////////////////////////////
 
-inline InferenceGLM feglm_fit(
-    const mat &X_orig, const vec &y_orig, const vec &w,
-    const field<uvec> &fe_indices, const uvec &nb_ids,
-    const field<uvec> &fe_id_tables, double center_tol, size_t iter_center_max,
-    size_t iter_interrupt, size_t iter_ssr, double collin_tol, double dev_tol,
-    size_t iter_max, size_t iter_inner_max, const std::string &family,
-    bool keep_mx, bool use_weights = false,
-    // Algorithm parameters
-    double direct_qr_threshold = 0.9, double qr_collin_tol_multiplier = 1.0,
-    double chol_stability_threshold = 1e-12, double safe_division_min = 1e-12,
-    double safe_log_min = 1e-12, double newton_raphson_tol = 1e-8,
-    // Demean algorithm parameters
-    size_t demean_extra_projections = 0, size_t demean_warmup_iterations = 15,
-    size_t demean_projections_after_acc = 5,
-    size_t demean_grand_acc_frequency = 20,
-    size_t demean_ssr_check_frequency = 40,
-    // Convergence algorithm parameters
-    double irons_tuck_eps = 1e-14, double alpha_convergence_tol = 1e-8,
-    size_t alpha_iter_max = 10000) {
+inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
+                              const vec &w, const field<uvec> &fe_indices,
+                              const uvec &nb_ids,
+                              const field<uvec> &fe_id_tables,
+                              const std::string &family,
+                              const CapybaraParameters &params) {
   const size_t n = y_orig.n_elem;
   const size_t p_orig = X_orig.n_cols;
   const bool has_fixed_effects =
@@ -511,7 +501,9 @@ inline InferenceGLM feglm_fit(
   bool glm_weights = true;
 
   // Initialize mu and eta using helper function
-  initialize_family(mu, eta, y_orig, mean_y, family_type);
+  initialize_family(mu, eta, y_orig, mean_y, family_type,
+                    params.binomial_mu_min, params.binomial_mu_max,
+                    params.safe_clamp_min, params.safe_clamp_max);
 
   result.deviance = dev_resids(y_orig, mu, 0.0, w, family_type);
 
@@ -525,7 +517,7 @@ inline InferenceGLM feglm_fit(
   DemeanResult y_demean_result(0);
 
   // IRLS loop
-  for (size_t iter = 0; iter < iter_max; iter++) {
+  for (size_t iter = 0; iter < params.iter_max; iter++) {
     result.iter = iter + 1;
     eta_old = eta;
 
@@ -557,12 +549,9 @@ inline InferenceGLM feglm_fit(
         variables_to_demean(j + 1) = X_orig.col(j); // Then X columns
       }
 
-      y_demean_result = demean_variables(
-          variables_to_demean, working_weights, fe_indices, nb_ids, fe_id_tables,
-          iter_center_max, center_tol, demean_extra_projections,
-          demean_warmup_iterations, demean_projections_after_acc,
-          demean_grand_acc_frequency, demean_ssr_check_frequency, true,
-          safe_division_min);
+      y_demean_result =
+          demean_variables(variables_to_demean, working_weights, fe_indices,
+                           nb_ids, fe_id_tables, true, params);
 
       // Extract demeaned Y and X
       Y_demean = y_demean_result.demeaned_vars(0);
@@ -582,9 +571,8 @@ inline InferenceGLM feglm_fit(
 
     // Regression on demeaned data
     InferenceBeta beta_result =
-        get_beta(X_demean, Y_demean, y_orig, working_weights, collin_tol,
-                 glm_weights, has_fixed_effects, direct_qr_threshold,
-                 qr_collin_tol_multiplier, chol_stability_threshold);
+        get_beta(X_demean, Y_demean, y_orig, working_weights, params,
+                 glm_weights, has_fixed_effects);
 
     if (!beta_result.success ||
         any(beta_result.coefficients != beta_result.coefficients)) {
@@ -596,7 +584,7 @@ inline InferenceGLM feglm_fit(
     }
 
     coef_status = beta_result.coef_status;
-    
+
     // Compute new eta properly for GLM with fixed effects
     vec new_eta;
     if (has_fixed_effects) {
@@ -606,7 +594,7 @@ inline InferenceGLM feglm_fit(
       } else {
         new_eta = zeros<vec>(n);
       }
-      
+
       // Add fixed effects component (alpha)
       // Compute current fixed effects based on residual from linear part
       vec fe_component;
@@ -615,16 +603,18 @@ inline InferenceGLM feglm_fit(
       } else {
         fe_component = z;
       }
-      
+
       // Convert fe_indices to field<field<uvec>> format for get_alpha
       field<field<uvec>> group_indices(fe_indices.n_elem);
       for (size_t k = 0; k < fe_indices.n_elem; ++k) {
         group_indices(k).set_size(1);
         group_indices(k)(0) = fe_indices(k);
       }
-      
-      InferenceAlpha alpha_result = get_alpha(fe_component, group_indices);
-      
+
+      InferenceAlpha alpha_result =
+          get_alpha(fe_component, group_indices, params.alpha_convergence_tol,
+                    params.alpha_iter_max);
+
       // Add fixed effects to eta
       for (size_t k = 0; k < fe_indices.n_elem; ++k) {
         if (alpha_result.Alpha.n_elem > k && alpha_result.Alpha(k).n_elem > 0) {
@@ -645,7 +635,8 @@ inline InferenceGLM feglm_fit(
     double rho = 1.0;
     bool step_accepted = false;
 
-    for (size_t iter_inner = 0; iter_inner < iter_inner_max; ++iter_inner) {
+    for (size_t iter_inner = 0; iter_inner < params.iter_inner_max;
+         ++iter_inner) {
       eta = eta_old + rho * (new_eta - eta_old);
       mu = link_inv(eta, family_type);
       double deviance = dev_resids(y_orig, mu, 0.0, w, family_type);
@@ -655,7 +646,7 @@ inline InferenceGLM feglm_fit(
       bool dev_finite = is_finite(deviance);
       bool mu_valid = valid_mu(mu, family_type);
       bool eta_valid = valid_eta(eta, family_type);
-      bool dev_improved = (dev_ratio <= -dev_tol);
+      bool dev_improved = (dev_ratio <= -params.dev_tol);
 
       if (dev_finite && mu_valid && eta_valid && dev_improved) {
         result.deviance = deviance;
@@ -663,7 +654,7 @@ inline InferenceGLM feglm_fit(
         break;
       }
 
-      rho *= 0.5;
+      rho *= params.step_halving_factor;
     }
 
     if (!step_accepted) {
@@ -675,7 +666,7 @@ inline InferenceGLM feglm_fit(
     // Check convergence
     double dev_ratio =
         std::abs(result.deviance - devold) / (0.1 + std::abs(result.deviance));
-    if (dev_ratio < dev_tol) {
+    if (dev_ratio < params.dev_tol) {
       result.conv = true;
       break;
     }
@@ -684,11 +675,9 @@ inline InferenceGLM feglm_fit(
   }
 
   // Final results
-  result.coefficients =
-      get_beta(X_demean, Y_demean, y_orig, working_weights, collin_tol,
-               glm_weights, has_fixed_effects, direct_qr_threshold,
-               qr_collin_tol_multiplier, chol_stability_threshold)
-          .coefficients;
+  result.coefficients = get_beta(X_demean, Y_demean, y_orig, working_weights,
+                                 params, glm_weights, has_fixed_effects)
+                            .coefficients;
   result.eta = eta;
   result.fitted_values = mu;
   result.weights = working_weights;
@@ -709,8 +698,8 @@ inline InferenceGLM feglm_fit(
   vec mu_null(y_orig.n_elem, fill::value(mean_y));
   result.null_deviance = dev_resids(y_orig, mu_null, 0.0, w, family_type);
 
-  if (keep_mx) {
-    result.mx = X_orig;
+  if (params.keep_dmx) {
+    result.X_dm = X_orig;
     result.has_mx = true;
   }
 

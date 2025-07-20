@@ -13,24 +13,24 @@ extern "C" SEXP _capybara_demean_variables_(SEXP V_r, SEXP w_r, SEXP klist, SEXP
   END_CPP11
 }
 // capybara.cpp
-list felm_fit_(const doubles & y_r, const doubles_matrix<> & x_r, const doubles & wt_r, const list & control, const list & k_list);
-extern "C" SEXP _capybara_felm_fit_(SEXP y_r, SEXP x_r, SEXP wt_r, SEXP control, SEXP k_list) {
+list felm_fit_(const doubles_matrix<> & X_r, const doubles & y_r, const doubles & w_r, const list & FE, const list & control);
+extern "C" SEXP _capybara_felm_fit_(SEXP X_r, SEXP y_r, SEXP w_r, SEXP FE, SEXP control) {
   BEGIN_CPP11
-    return cpp11::as_sexp(felm_fit_(cpp11::as_cpp<cpp11::decay_t<const doubles &>>(y_r), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(x_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(wt_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(control), cpp11::as_cpp<cpp11::decay_t<const list &>>(k_list)));
+    return cpp11::as_sexp(felm_fit_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(X_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(y_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(w_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(FE), cpp11::as_cpp<cpp11::decay_t<const list &>>(control)));
   END_CPP11
 }
 // capybara.cpp
-list feglm_fit_(const doubles & beta_r, const doubles & eta_r, const doubles & y_r, const doubles_matrix<> & x_r, const doubles & wt_r, const double & theta, const std::string & family, const list & control, const list & k_list);
-extern "C" SEXP _capybara_feglm_fit_(SEXP beta_r, SEXP eta_r, SEXP y_r, SEXP x_r, SEXP wt_r, SEXP theta, SEXP family, SEXP control, SEXP k_list) {
+list feglm_fit_(const doubles_matrix<> & X_r, const doubles & y_r, const doubles & w_r, const list & FE, const std::string & family, const doubles & beta_r, const doubles & eta_r, const double & theta, const list & control);
+extern "C" SEXP _capybara_feglm_fit_(SEXP X_r, SEXP y_r, SEXP w_r, SEXP FE, SEXP family, SEXP beta_r, SEXP eta_r, SEXP theta, SEXP control) {
   BEGIN_CPP11
-    return cpp11::as_sexp(feglm_fit_(cpp11::as_cpp<cpp11::decay_t<const doubles &>>(beta_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(eta_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(y_r), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(x_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(wt_r), cpp11::as_cpp<cpp11::decay_t<const double &>>(theta), cpp11::as_cpp<cpp11::decay_t<const std::string &>>(family), cpp11::as_cpp<cpp11::decay_t<const list &>>(control), cpp11::as_cpp<cpp11::decay_t<const list &>>(k_list)));
+    return cpp11::as_sexp(feglm_fit_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(X_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(y_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(w_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(FE), cpp11::as_cpp<cpp11::decay_t<const std::string &>>(family), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(beta_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(eta_r), cpp11::as_cpp<cpp11::decay_t<const double &>>(theta), cpp11::as_cpp<cpp11::decay_t<const list &>>(control)));
   END_CPP11
 }
 // capybara.cpp
-doubles feglm_offset_fit_(const doubles & eta_r, const doubles & y_r, const doubles & offset_r, const doubles & wt_r, const std::string & family, const list & control, const list & k_list);
-extern "C" SEXP _capybara_feglm_offset_fit_(SEXP eta_r, SEXP y_r, SEXP offset_r, SEXP wt_r, SEXP family, SEXP control, SEXP k_list) {
+doubles feglm_offset_fit_(const doubles & y_r, const doubles & offset_r, const doubles & w_r, const list & FEs, const std::string & family, const doubles & eta_r, const list & control);
+extern "C" SEXP _capybara_feglm_offset_fit_(SEXP y_r, SEXP offset_r, SEXP w_r, SEXP FEs, SEXP family, SEXP eta_r, SEXP control) {
   BEGIN_CPP11
-    return cpp11::as_sexp(feglm_offset_fit_(cpp11::as_cpp<cpp11::decay_t<const doubles &>>(eta_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(y_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(offset_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(wt_r), cpp11::as_cpp<cpp11::decay_t<const std::string &>>(family), cpp11::as_cpp<cpp11::decay_t<const list &>>(control), cpp11::as_cpp<cpp11::decay_t<const list &>>(k_list)));
+    return cpp11::as_sexp(feglm_offset_fit_(cpp11::as_cpp<cpp11::decay_t<const doubles &>>(y_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(offset_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(w_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(FEs), cpp11::as_cpp<cpp11::decay_t<const std::string &>>(family), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(eta_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(control)));
   END_CPP11
 }
 // capybara.cpp

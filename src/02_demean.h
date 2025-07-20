@@ -16,14 +16,14 @@ using convergence::update_irons_tuck;
 // Overload for update_irons_tuck that accepts subviews and temporary vectors
 bool update_irons_tuck_subvec(vec &X_subvec, vec &GX_subvec, vec &GGX_subvec,
                               vec &delta_GX, vec &delta2_X,
-                              double eps = 1e-14) {
+                              const CapybaraParameters &params) {
   delta_GX = GGX_subvec - GX_subvec;
   delta2_X = delta_GX - GX_subvec + X_subvec;
 
   double vprod = dot(delta_GX, delta2_X);
   double ssq = dot(delta2_X, delta2_X);
 
-  if (ssq < eps) {
+  if (ssq < params.irons_tuck_eps) {
     return true; // numerical convergence
   }
 
@@ -410,6 +410,9 @@ struct DemeanParams {
   // Fixed effects processor
   std::shared_ptr<FixedEffects> fe_processor;
 
+  // Capybara parameters for convergence functions
+  CapybaraParameters capybara_params;
+
   // Results tracking
   uvec iteration_counts;
   bool save_fixed_effects;
@@ -418,6 +421,41 @@ struct DemeanParams {
   // Convergence control
   bool stop_requested;
   field<bool> job_completed;
+
+  // Constructor
+  DemeanParams(size_t n_obs, size_t n_fe_groups,
+               std::shared_ptr<FixedEffects> fe_proc,
+               const CapybaraParameters &params, bool save_fe,
+               const field<vec> &input_vars)
+      : n_obs(n_obs), n_fe_groups(n_fe_groups),
+        total_coefficients(fe_proc->total_coefficients()),
+        max_iterations(params.iter_demean_max),
+        convergence_tolerance(params.demean_tol),
+        extra_projections(params.demean_extra_projections),
+        warmup_iterations(params.demean_warmup_iterations),
+        projections_after_acceleration(params.demean_projections_after_acc),
+        grand_acceleration_frequency(params.demean_grand_acc_frequency),
+        ssr_check_frequency(params.demean_ssr_check_frequency),
+        input_variables(input_vars), fe_processor(fe_proc),
+        capybara_params(params), save_fixed_effects(save_fe),
+        stop_requested(false) {
+
+    size_t n_vars = input_vars.n_elem;
+
+    // Initialize data structures
+    output_variables.set_size(n_vars);
+    iteration_counts = zeros<uvec>(n_vars);
+    job_completed.set_size(n_vars);
+    job_completed.fill(false);
+
+    if (save_fixed_effects) {
+      fixed_effect_values = zeros<vec>(total_coefficients);
+    }
+
+    for (size_t i = 0; i < n_vars; ++i) {
+      output_variables(i) = zeros<vec>(n_obs);
+    }
+  }
 };
 
 struct DemeanResult {
@@ -544,7 +582,7 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams &params,
   // Check if we need to iterate
   bool keep_going = false;
   for (size_t i = 0; i < nb_coef_T; ++i) {
-    if (continue_criterion(X(i), GX(i), tol)) {
+    if (continue_criterion(X(i), GX(i), tol, params.capybara_params)) {
       keep_going = true;
       break;
     }
@@ -585,8 +623,9 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams &params,
     vec X_subvec = X.subvec(0, nb_coef_no_Q - 1);
     vec GX_subvec = GX.subvec(0, nb_coef_no_Q - 1);
     vec GGX_subvec = GGX.subvec(0, nb_coef_no_Q - 1);
-    numerical_convergence = update_irons_tuck_subvec(
-        X_subvec, GX_subvec, GGX_subvec, delta_GX, delta2_X);
+    numerical_convergence =
+        update_irons_tuck_subvec(X_subvec, GX_subvec, GGX_subvec, delta_GX,
+                                 delta2_X, params.capybara_params);
     // Update the original vectors
     X.subvec(0, nb_coef_no_Q - 1) = X_subvec;
     if (numerical_convergence)
@@ -604,7 +643,7 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams &params,
     // Check convergence
     keep_going = false;
     for (size_t i = 0; i < nb_coef_no_Q; ++i) {
-      if (continue_criterion(X(i), GX(i), tol)) {
+      if (continue_criterion(X(i), GX(i), tol, params.capybara_params)) {
         keep_going = true;
         break;
       }
@@ -622,8 +661,9 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams &params,
         vec Y_subvec = Y.subvec(0, nb_coef_no_Q - 1);
         vec GY_subvec = GY.subvec(0, nb_coef_no_Q - 1);
         vec GGY_subvec = GGY.subvec(0, nb_coef_no_Q - 1);
-        numerical_convergence = update_irons_tuck_subvec(
-            Y_subvec, GY_subvec, GGY_subvec, delta_GX, delta2_X);
+        numerical_convergence =
+            update_irons_tuck_subvec(Y_subvec, GY_subvec, GGY_subvec, delta_GX,
+                                     delta2_X, params.capybara_params);
         // Update the original vectors
         Y.subvec(0, nb_coef_no_Q - 1) = Y_subvec;
         if (numerical_convergence)
@@ -655,7 +695,7 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams &params,
       // Compute SSR
       double ssr = accu(square(input - mu_current));
 
-      if (stopping_criterion(ssr_old, ssr, tol)) {
+      if (stopping_criterion(ssr_old, ssr, tol, params.capybara_params)) {
         break;
       }
       ssr_old = ssr;
@@ -754,14 +794,11 @@ void demean_general(size_t var_idx, DemeanParams &params) {
 //////////////////////////////////////////////////////////////////////////////
 
 // Main demeaning function
-DemeanResult demean_variables(
-    const field<vec> &input_vars, const vec &weights,
-    const field<uvec> &fe_indices, const uvec &nb_ids,
-    const field<uvec> &fe_id_tables, size_t max_iterations = 10000,
-    double tolerance = 1e-8, size_t extra_projections = 0,
-    size_t warmup_iterations = 15, size_t projections_after_acc = 5,
-    size_t grand_acc_frequency = 20, size_t ssr_check_frequency = 40,
-    bool save_fixed_effects = true, double safe_division_min = 1e-12) {
+DemeanResult demean_variables(const field<vec> &input_vars, const vec &weights,
+                              const field<uvec> &fe_indices, const uvec &nb_ids,
+                              const field<uvec> &fe_id_tables,
+                              bool save_fixed_effects,
+                              const CapybaraParameters &params) {
   size_t n_vars = input_vars.n_elem;
 
   if (n_vars == 0) {
@@ -784,54 +821,27 @@ DemeanResult demean_variables(
   auto fe_processor = std::make_shared<FixedEffects>(
       n_obs, n_fe_groups, weights, fe_indices, nb_ids, fe_id_tables);
 
-  // Setup parameters
-  DemeanParams params;
-  params.n_obs = n_obs;
-  params.n_fe_groups = n_fe_groups;
-  params.total_coefficients = fe_processor->total_coefficients();
-  params.max_iterations = max_iterations;
-  params.convergence_tolerance = tolerance;
-  params.extra_projections = extra_projections;
-  params.warmup_iterations = warmup_iterations;
-  params.projections_after_acceleration = projections_after_acc;
-  params.grand_acceleration_frequency = grand_acc_frequency;
-  params.ssr_check_frequency = ssr_check_frequency;
-  params.fe_processor = fe_processor;
-  params.save_fixed_effects = save_fixed_effects;
-  params.stop_requested = false;
-
-  // Initialize data structures
-  params.input_variables = input_vars;
-  params.output_variables.set_size(n_vars);
-  params.iteration_counts = zeros<uvec>(n_vars);
-  params.job_completed.set_size(n_vars);
-  params.job_completed.fill(false);
-
-  if (save_fixed_effects) {
-    params.fixed_effect_values = zeros<vec>(params.total_coefficients);
-  }
-
-  for (size_t i = 0; i < n_vars; ++i) {
-    params.output_variables(i) = zeros<vec>(n_obs);
-  }
+  // Setup parameters using constructor
+  DemeanParams demean_params(n_obs, n_fe_groups, fe_processor, params,
+                             save_fixed_effects, input_vars);
 
   // Process each variable
   for (size_t v = 0; v < n_vars; ++v) {
-    if (params.stop_requested)
+    if (demean_params.stop_requested)
       break;
 
-    demean_general(v, params);
+    demean_general(v, demean_params);
   }
 
   // Return demeaned variables (input - fitted)
   DemeanResult result(n_vars);
   for (size_t v = 0; v < n_vars; ++v) {
     result.demeaned_vars(v) =
-        params.input_variables(v) - params.output_variables(v);
+        demean_params.input_variables(v) - demean_params.output_variables(v);
   }
 
   if (save_fixed_effects) {
-    result.fixed_effects = params.fixed_effect_values;
+    result.fixed_effects = demean_params.fixed_effect_values;
     result.has_fixed_effects = true;
   }
 

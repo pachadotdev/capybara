@@ -22,12 +22,12 @@ namespace utils {
 
 // Safe division with configurable minimum threshold
 inline vec safe_divide(const vec &numerator, const vec &denominator,
-                       double min_val = 1e-12) {
+                       double min_val) {
   return numerator / max(denominator, min_val * ones<vec>(denominator.n_elem));
 }
 
 // Safe log with configurable minimum threshold
-inline vec safe_log(const vec &x, double min_val = 1e-12) {
+inline vec safe_log(const vec &x, double min_val) {
   return log(max(x, min_val * ones<vec>(x.n_elem)));
 }
 
@@ -43,15 +43,16 @@ inline bool requires_newton_raphson(Family family) {
 } // namespace utils
 
 // Stopping criteria
-inline bool continue_criterion(double a, double b, double diffMax) {
-  constexpr double rel_tol_denom = 0.1;
+inline bool continue_criterion(double a, double b, double diffMax,
+                               const CapybaraParameters &params) {
   double diff = std::abs(a - b);
-  double rel_diff = diff / (rel_tol_denom + std::abs(a));
+  double rel_diff = diff / (params.rel_tol_denom + std::abs(a));
   return (diff > diffMax) && (rel_diff > diffMax);
 }
 
-inline bool stopping_criterion(double a, double b, double diffMax) {
-  return !continue_criterion(a, b, diffMax);
+inline bool stopping_criterion(double a, double b, double diffMax,
+                               const CapybaraParameters &params) {
+  return !continue_criterion(a, b, diffMax, params);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -60,14 +61,14 @@ inline bool stopping_criterion(double a, double b, double diffMax) {
 
 // Irons-Tuck acceleration update
 bool update_irons_tuck(vec &X, const vec &GX, const vec &GGX,
-                       double eps = 1e-14) {
+                       const CapybaraParameters &params) {
   vec delta_GX = GGX - GX;
   vec delta2_X = delta_GX - GX + X;
 
   double vprod = dot(delta_GX, delta2_X);
   double ssq = dot(delta2_X, delta2_X);
 
-  if (ssq < eps) {
+  if (ssq < params.irons_tuck_eps) {
     return true; // numerical convergence
   }
 
@@ -79,7 +80,7 @@ bool update_irons_tuck(vec &X, const vec &GX, const vec &GGX,
 
 // Poisson cluster coefficients
 void cluster_coef_poisson(const vec &exp_mu, const vec &sum_y, const uvec &dum,
-                          vec &cluster_coef) {
+                          vec &cluster_coef, const CapybaraParameters &params) {
   cluster_coef.zeros();
 
   // Accumulate exp_mu by cluster
@@ -88,12 +89,15 @@ void cluster_coef_poisson(const vec &exp_mu, const vec &sum_y, const uvec &dum,
   }
 
   // Compute coefficients with safe division
-  cluster_coef = utils::safe_divide(sum_y, cluster_coef);
+  cluster_coef =
+      utils::safe_divide(sum_y, cluster_coef, params.safe_division_min) -
+      exp_mu;
 }
 
 // Poisson log cluster coefficients
 void cluster_coef_poisson_log(const vec &mu, const vec &sum_y, const uvec &dum,
-                              vec &cluster_coef) {
+                              vec &cluster_coef,
+                              const CapybaraParameters &params) {
   size_t nb_cluster = cluster_coef.n_elem;
   size_t n_obs = mu.n_elem;
 
@@ -119,13 +123,14 @@ void cluster_coef_poisson_log(const vec &mu, const vec &sum_y, const uvec &dum,
   }
 
   // Compute coefficients
-  cluster_coef =
-      utils::safe_log(sum_y) - utils::safe_log(cluster_coef) - mu_max;
+  cluster_coef = utils::safe_log(sum_y, params.safe_log_min) -
+                 utils::safe_log(cluster_coef, params.safe_log_min) - mu_max;
 }
 
 // Gaussian cluster coefficients
 void cluster_coef_gaussian(const vec &mu, const vec &sum_y, const uvec &dum,
-                           const uvec &table, vec &cluster_coef) {
+                           const uvec &table, vec &cluster_coef,
+                           const CapybaraParameters &params) {
   cluster_coef.zeros();
 
   // Accumulate mu by cluster
@@ -135,17 +140,17 @@ void cluster_coef_gaussian(const vec &mu, const vec &sum_y, const uvec &dum,
 
   // Compute coefficients
   vec table_dbl = conv_to<vec>::from(table);
-  cluster_coef = utils::safe_divide(sum_y - cluster_coef, table_dbl);
+  cluster_coef = utils::safe_divide(sum_y - cluster_coef, table_dbl,
+                                    params.safe_division_min);
 }
 
 // Negative binomial cluster coefficients (Newton-Raphson + dichotomy)
 void cluster_coef_negbin(const vec &mu, const vec &lhs, const vec &sum_y,
                          const uvec &dum, const uvec &obs_cluster,
                          const uvec &table, const uvec &cumtable, double theta,
-                         double diffMax_NR, vec &cluster_coef) {
+                         double diffMax_NR, vec &cluster_coef,
+                         const CapybaraParameters &params) {
   size_t nb_cluster = cluster_coef.n_elem;
-  constexpr size_t iterMax = 100;
-  constexpr size_t iterFullDicho = 10;
 
   // Pre-compute bounds for each cluster
   vec lower_bound(nb_cluster);
@@ -184,7 +189,7 @@ void cluster_coef_negbin(const vec &mu, const vec &lhs, const vec &sum_y,
       x1 = (lb + ub) / 2.0;
     }
 
-    while (keepGoing && iter < iterMax) {
+    while (keepGoing && iter < params.iter_max_cluster) {
       ++iter;
 
       // Evaluate function f(x)
@@ -205,7 +210,7 @@ void cluster_coef_negbin(const vec &mu, const vec &lhs, const vec &sum_y,
 
       if (std::abs(value) < 1e-12) {
         keepGoing = false;
-      } else if (iter <= iterFullDicho) {
+      } else if (iter <= params.iter_full_dicho) {
         // Newton-Raphson step
         double derivative = 0.0;
         for (size_t u = u0; u < u_end; ++u) {
@@ -228,7 +233,7 @@ void cluster_coef_negbin(const vec &mu, const vec &lhs, const vec &sum_y,
         x1 = (lb + ub) / 2.0;
       }
 
-      if (stopping_criterion(x0, x1, diffMax_NR)) {
+      if (stopping_criterion(x0, x1, diffMax_NR, params)) {
         keepGoing = false;
       }
     }
@@ -241,10 +246,9 @@ void cluster_coef_negbin(const vec &mu, const vec &lhs, const vec &sum_y,
 void cluster_coef_binomial(const vec &mu, const vec &sum_y,
                            const uvec &obs_cluster, const uvec &table,
                            const uvec &cumtable, double diffMax_NR,
-                           vec &cluster_coef) {
+                           vec &cluster_coef,
+                           const CapybaraParameters &params) {
   size_t nb_cluster = cluster_coef.n_elem;
-  constexpr size_t iterMax = 100;
-  constexpr size_t iterFullDicho = 10;
 
   // Pre-compute bounds
   vec lower_bound(nb_cluster);
@@ -283,7 +287,7 @@ void cluster_coef_binomial(const vec &mu, const vec &sum_y,
       x1 = (lb + ub) / 2.0;
     }
 
-    while (keepGoing && iter < iterMax) {
+    while (keepGoing && iter < params.iter_max) {
       ++iter;
 
       // Evaluate function
@@ -303,7 +307,7 @@ void cluster_coef_binomial(const vec &mu, const vec &sum_y,
 
       if (std::abs(value) < 1e-12) {
         keepGoing = false;
-      } else if (iter <= iterFullDicho) {
+      } else if (iter <= params.iter_full_dicho) {
         // Newton-Raphson step
         double derivative = 0.0;
         for (size_t u = u0; u < u_end; ++u) {
@@ -322,7 +326,7 @@ void cluster_coef_binomial(const vec &mu, const vec &sum_y,
         x1 = (lb + ub) / 2.0;
       }
 
-      if (stopping_criterion(x0, x1, diffMax_NR)) {
+      if (stopping_criterion(x0, x1, diffMax_NR, params)) {
         keepGoing = false;
       }
     }
@@ -340,32 +344,32 @@ void cluster_coefficients(Family family, const vec &mu, const vec &lhs,
                           const vec &sum_y, const uvec &dum,
                           const uvec &obs_cluster, const uvec &table,
                           const uvec &cumtable, double theta, double diffMax_NR,
-                          vec &cluster_coef) {
+                          vec &cluster_coef, const CapybaraParameters &params) {
   switch (family) {
   case Family::POISSON:
-    cluster_coef_poisson(mu, sum_y, dum, cluster_coef);
+    cluster_coef_poisson(mu, sum_y, dum, cluster_coef, params);
     break;
   case Family::POISSON_LOG:
-    cluster_coef_poisson_log(mu, sum_y, dum, cluster_coef);
+    cluster_coef_poisson_log(mu, sum_y, dum, cluster_coef, params);
     break;
   case Family::GAUSSIAN:
-    cluster_coef_gaussian(mu, sum_y, dum, table, cluster_coef);
+    cluster_coef_gaussian(mu, sum_y, dum, table, cluster_coef, params);
     break;
   case Family::NEGBIN:
     cluster_coef_negbin(mu, lhs, sum_y, dum, obs_cluster, table, cumtable,
-                        theta, diffMax_NR, cluster_coef);
+                        theta, diffMax_NR, cluster_coef, params);
     break;
   case Family::BINOMIAL:
     cluster_coef_binomial(mu, sum_y, obs_cluster, table, cumtable, diffMax_NR,
-                          cluster_coef);
+                          cluster_coef, params);
     break;
   case Family::INV_GAUSSIAN:
     // For inverse Gaussian, use Gaussian approximation
-    cluster_coef_gaussian(mu, sum_y, dum, table, cluster_coef);
+    cluster_coef_gaussian(mu, sum_y, dum, table, cluster_coef, params);
     break;
   case Family::GAMMA:
     // For Gamma, use Gaussian approximation
-    cluster_coef_gaussian(mu, sum_y, dum, table, cluster_coef);
+    cluster_coef_gaussian(mu, sum_y, dum, table, cluster_coef, params);
     break;
   }
 }
@@ -374,13 +378,13 @@ void cluster_coefficients(Family family, const vec &mu, const vec &lhs,
 // MAIN CONVERGENCE ALGORITHMS
 //////////////////////////////////////////////////////////////////////////////
 
-// Parameter structure for convergence algorithms
+// Data structure for convergence algorithms - contains only data, not
+// parameters
 struct Convergence {
   Family family;
   size_t n_obs;
   size_t K;
   double theta;
-  double diffMax_NR;
 
   vec mu_init;
   vec lhs;
@@ -391,9 +395,6 @@ struct Convergence {
   field<vec> sum_y_vector;
   field<uvec> cumtable_vector;
   field<uvec> obs_cluster_vector;
-
-  Convergence()
-      : family(Family::POISSON), n_obs(0), K(0), theta(1.0), diffMax_NR(1e-8) {}
 };
 
 // Update mu with cluster coefficients
@@ -420,19 +421,20 @@ vec update_mu_with_coefficients(const vec &mu_base,
 }
 
 // Compute all cluster coefficients for current mu
-void all_cluster_coefficients(const Convergence &params,
+void all_cluster_coefficients(const Convergence &data,
+                              const CapybaraParameters &params,
                               const vec &mu_with_coef,
                               field<vec> &cluster_coefs_dest,
                               const field<vec> &cluster_coefs_origin) {
   // Update mu starting from base
-  vec mu_current = params.mu_init;
+  vec mu_current = data.mu_init;
 
   // Add contributions from first K-1 cluster coefficients
-  for (size_t k = 0; k < params.K - 1; ++k) {
-    const uvec &my_dum = params.dum_vector(k);
+  for (size_t k = 0; k < data.K - 1; ++k) {
+    const uvec &my_dum = data.dum_vector(k);
     const vec &my_coef = cluster_coefs_origin(k);
 
-    if (utils::is_poisson_family(params.family)) {
+    if (utils::is_poisson_family(data.family)) {
       mu_current %= my_coef(my_dum);
     } else {
       mu_current += my_coef(my_dum);
@@ -440,37 +442,37 @@ void all_cluster_coefficients(const Convergence &params,
   }
 
   // Compute optimal cluster coefficients from K down to 1
-  for (int k = static_cast<int>(params.K) - 1; k >= 0; k--) {
+  for (int k = static_cast<int>(data.K) - 1; k >= 0; k--) {
     size_t uk = static_cast<size_t>(k);
 
     // Get current cluster data
-    const uvec &my_table = params.table_vector(uk);
-    const vec &my_sum_y = params.sum_y_vector(uk);
-    const uvec &my_dum = params.dum_vector(uk);
-    const uvec &my_cumtable = params.cumtable_vector(uk);
-    const uvec &my_obs_cluster = params.obs_cluster_vector(uk);
+    const uvec &my_table = data.table_vector(uk);
+    const vec &my_sum_y = data.sum_y_vector(uk);
+    const uvec &my_dum = data.dum_vector(uk);
+    const uvec &my_cumtable = data.cumtable_vector(uk);
+    const uvec &my_obs_cluster = data.obs_cluster_vector(uk);
 
     // Compute cluster coefficients for this level
     vec &my_cluster_coef = cluster_coefs_dest(uk);
     my_cluster_coef.resize(my_table.n_elem);
 
-    cluster_coefficients(params.family, mu_current, params.lhs, my_sum_y,
-                         my_dum, my_obs_cluster, my_table, my_cumtable,
-                         params.theta, params.diffMax_NR, my_cluster_coef);
+    cluster_coefficients(data.family, mu_current, data.lhs, my_sum_y, my_dum,
+                         my_obs_cluster, my_table, my_cumtable, data.theta,
+                         params.newton_raphson_tol, my_cluster_coef, params);
 
     // Update mu for next iteration if needed
     if (k > 0) {
-      mu_current = params.mu_init;
+      mu_current = data.mu_init;
 
-      for (size_t h = 0; h < params.K; h++) {
+      for (size_t h = 0; h < data.K; h++) {
         if (h == uk - 1)
           continue;
 
-        const uvec &my_dum_h = params.dum_vector(h);
+        const uvec &my_dum_h = data.dum_vector(h);
         const vec &my_coef_h =
             (h < uk - 1) ? cluster_coefs_origin(h) : cluster_coefs_dest(h);
 
-        if (utils::is_poisson_family(params.family)) {
+        if (utils::is_poisson_family(data.family)) {
           mu_current %= my_coef_h(my_dum_h);
         } else {
           mu_current += my_coef_h(my_dum_h);
@@ -481,15 +483,16 @@ void all_cluster_coefficients(const Convergence &params,
 }
 
 // Accelerated convergence algorithm
-vec conv_accelerated(const Convergence &params, size_t iterMax, double diffMax,
-                     size_t &final_iter, bool &any_negative_poisson) {
-  size_t K = params.K;
+vec conv_accelerated(const Convergence &data, const CapybaraParameters &params,
+                     size_t iterMax, double diffMax, size_t &final_iter,
+                     bool &any_negative_poisson) {
+  size_t K = data.K;
 
   // Initialize coefficient fields
   field<vec> X(K), GX(K), GGX(K);
   for (size_t k = 0; k < K; ++k) {
-    size_t nk = params.nb_cluster_all(k);
-    if (utils::is_poisson_family(params.family)) {
+    size_t nk = data.nb_cluster_all(k);
+    if (utils::is_poisson_family(data.family)) {
       X(k) = ones<vec>(nk);
     } else {
       X(k) = zeros<vec>(nk);
@@ -499,7 +502,7 @@ vec conv_accelerated(const Convergence &params, size_t iterMax, double diffMax,
   }
 
   // First iteration
-  all_cluster_coefficients(params, params.mu_init, GX, X);
+  all_cluster_coefficients(data, params, data.mu_init, GX, X);
 
   any_negative_poisson = false;
 
@@ -509,7 +512,7 @@ vec conv_accelerated(const Convergence &params, size_t iterMax, double diffMax,
     const vec &X_k = X(k);
     const vec &GX_k = GX(k);
     for (size_t i = 0; i < X_k.n_elem; ++i) {
-      if (continue_criterion(X_k(i), GX_k(i), diffMax)) {
+      if (continue_criterion(X_k(i), GX_k(i), diffMax, params)) {
         keepGoing = true;
         break;
       }
@@ -524,11 +527,11 @@ vec conv_accelerated(const Convergence &params, size_t iterMax, double diffMax,
     ++iter;
 
     // Compute GGX
-    all_cluster_coefficients(params, params.mu_init, GGX, GX);
+    all_cluster_coefficients(data, params, data.mu_init, GGX, GX);
 
     // Apply Irons-Tuck acceleration to first K-1 coefficients
     for (size_t k = 0; k < K - 1; ++k) {
-      bool numconv = update_irons_tuck(X(k), GX(k), GGX(k));
+      bool numconv = update_irons_tuck(X(k), GX(k), GGX(k), params);
       if (numconv) {
         keepGoing = false;
         break;
@@ -539,7 +542,7 @@ vec conv_accelerated(const Convergence &params, size_t iterMax, double diffMax,
       break;
 
     // Check for negative Poisson coefficients
-    if (utils::is_poisson_family(params.family)) {
+    if (utils::is_poisson_family(data.family)) {
       for (size_t k = 0; k < K - 1; ++k) {
         if (any(X(k) <= 0)) {
           any_negative_poisson = true;
@@ -553,7 +556,7 @@ vec conv_accelerated(const Convergence &params, size_t iterMax, double diffMax,
       break;
 
     // Update GX
-    all_cluster_coefficients(params, params.mu_init, GX, X);
+    all_cluster_coefficients(data, params, data.mu_init, GX, X);
 
     // Check convergence
     keepGoing = false;
@@ -561,7 +564,7 @@ vec conv_accelerated(const Convergence &params, size_t iterMax, double diffMax,
       const vec &X_k = X(k);
       const vec &GX_k = GX(k);
       for (size_t i = 0; i < X_k.n_elem; ++i) {
-        if (continue_criterion(X_k(i), GX_k(i), diffMax)) {
+        if (continue_criterion(X_k(i), GX_k(i), diffMax, params)) {
           keepGoing = true;
           break;
         }
@@ -572,26 +575,26 @@ vec conv_accelerated(const Convergence &params, size_t iterMax, double diffMax,
   }
 
   // Final coefficient computation
-  all_cluster_coefficients(params, params.mu_init, GGX, GX);
+  all_cluster_coefficients(data, params, data.mu_init, GGX, GX);
 
   // Compute final mu
-  vec mu_result = update_mu_with_coefficients(params.mu_init, GGX,
-                                              params.dum_vector, params.family);
+  vec mu_result = update_mu_with_coefficients(data.mu_init, GGX,
+                                              data.dum_vector, data.family);
 
   final_iter = iter;
   return mu_result;
 }
 
 // Sequential convergence algorithm
-vec conv_sequential(const Convergence &params, size_t iterMax, double diffMax,
-                    size_t &final_iter) {
-  size_t K = params.K;
+vec conv_sequential(const Convergence &data, const CapybaraParameters &params,
+                    size_t iterMax, double diffMax, size_t &final_iter) {
+  size_t K = data.K;
 
   // Initialize coefficient fields
   field<vec> X(K), X_new(K);
   for (size_t k = 0; k < K; ++k) {
-    size_t nk = params.nb_cluster_all(k);
-    if (utils::is_poisson_family(params.family)) {
+    size_t nk = data.nb_cluster_all(k);
+    if (utils::is_poisson_family(data.family)) {
       X(k) = ones<vec>(nk);
     } else {
       X(k) = zeros<vec>(nk);
@@ -600,7 +603,7 @@ vec conv_sequential(const Convergence &params, size_t iterMax, double diffMax,
   }
 
   // First iteration
-  all_cluster_coefficients(params, params.mu_init, X_new, X);
+  all_cluster_coefficients(data, params, data.mu_init, X_new, X);
 
   bool keepGoing = true;
   size_t iter = 0;
@@ -610,9 +613,9 @@ vec conv_sequential(const Convergence &params, size_t iterMax, double diffMax,
 
     // Alternate between X and X_new
     if (iter % 2 == 1) {
-      all_cluster_coefficients(params, params.mu_init, X, X_new);
+      all_cluster_coefficients(data, params, data.mu_init, X, X_new);
     } else {
-      all_cluster_coefficients(params, params.mu_init, X_new, X);
+      all_cluster_coefficients(data, params, data.mu_init, X_new, X);
     }
 
     // Check convergence for first K-1 coefficients
@@ -624,7 +627,7 @@ vec conv_sequential(const Convergence &params, size_t iterMax, double diffMax,
       const vec &curr = X_current(k);
       const vec &prev = X_prev(k);
       for (size_t i = 0; i < curr.n_elem; ++i) {
-        if (continue_criterion(prev(i), curr(i), diffMax)) {
+        if (continue_criterion(prev(i), curr(i), diffMax, params)) {
           keepGoing = true;
           break;
         }
@@ -638,8 +641,8 @@ vec conv_sequential(const Convergence &params, size_t iterMax, double diffMax,
   const field<vec> &final_coefs = (iter % 2 == 0) ? X_new : X;
 
   // Compute final mu
-  vec mu_result = update_mu_with_coefficients(params.mu_init, final_coefs,
-                                              params.dum_vector, params.family);
+  vec mu_result = update_mu_with_coefficients(data.mu_init, final_coefs,
+                                              data.dum_vector, data.family);
 
   final_iter = iter;
   return mu_result;
@@ -650,12 +653,11 @@ vec conv_sequential(const Convergence &params, size_t iterMax, double diffMax,
 //////////////////////////////////////////////////////////////////////////////
 
 // 2-way Poisson sequential convergence
-vec conv_two_way_poisson_sequential(size_t n_i, size_t n_j, size_t n_cells,
-                                    const uvec &index_i, const uvec &index_j,
-                                    const field<uvec> &dum_vector,
-                                    const vec &sum_y_vector, size_t iterMax,
-                                    double diffMax, const vec &exp_mu_in,
-                                    const uvec &order, size_t &final_iter) {
+vec conv_two_way_poisson_sequential(
+    size_t n_i, size_t n_j, size_t n_cells, const uvec &index_i,
+    const uvec &index_j, const field<uvec> &dum_vector, const vec &sum_y_vector,
+    size_t iterMax, double diffMax, const vec &exp_mu_in, const uvec &order,
+    const CapybaraParameters &params, size_t &final_iter) {
   // Build matrix representation
   uvec mat_row(n_cells);
   uvec mat_col(n_cells);
@@ -704,13 +706,13 @@ vec conv_two_way_poisson_sequential(size_t n_i, size_t n_j, size_t n_cells,
     for (size_t obs = 0; obs < n_cells; ++obs) {
       beta_out(mat_col(obs)) += mat_value(obs) * alpha_in(mat_row(obs));
     }
-    beta_out = utils::safe_divide(cb, beta_out);
+    beta_out = utils::safe_divide(cb, beta_out, params.safe_division_min);
 
     // Compute alpha
     for (size_t obs = 0; obs < n_cells; ++obs) {
       alpha_out(mat_row(obs)) += mat_value(obs) * beta_out(mat_col(obs));
     }
-    alpha_out = utils::safe_divide(ca, alpha_out);
+    alpha_out = utils::safe_divide(ca, alpha_out, params.safe_division_min);
   };
 
   bool keepGoing = true;
@@ -731,7 +733,8 @@ vec conv_two_way_poisson_sequential(size_t n_i, size_t n_j, size_t n_cells,
     const vec &alpha_prev = (iter % 2 == 1) ? alpha_new : alpha;
 
     for (size_t i = 0; i < n_i; ++i) {
-      if (continue_criterion(alpha_current(i), alpha_prev(i), diffMax)) {
+      if (continue_criterion(alpha_current(i), alpha_prev(i), diffMax,
+                             params)) {
         keepGoing = true;
         break;
       }
@@ -762,7 +765,7 @@ vec conv_two_way_gaussian_accelerated(
     const uvec &mat_col, const vec &mat_value_Ab, const vec &mat_value_Ba,
     const field<uvec> &dum_vector, const vec &lhs,
     const vec &invTableCluster_vector, size_t iterMax, double diffMax,
-    const vec &mu_in, size_t &final_iter) {
+    const vec &mu_in, size_t &final_iter, const CapybaraParameters &params) {
   size_t n_obs = mu_in.n_elem;
   vec resid = lhs - mu_in;
 
@@ -819,7 +822,7 @@ vec conv_two_way_gaussian_accelerated(
 
     two_way_gaussian_coefs(GX, GGX);
 
-    bool numconv = update_irons_tuck(X, GX, GGX);
+    bool numconv = update_irons_tuck(X, GX, GGX, params);
     if (numconv)
       break;
 
@@ -828,7 +831,7 @@ vec conv_two_way_gaussian_accelerated(
     // Check convergence
     keepGoing = false;
     for (size_t i = 0; i < n_i; ++i) {
-      if (continue_criterion(X(i), GX(i), diffMax)) {
+      if (continue_criterion(X(i), GX(i), diffMax, params)) {
         keepGoing = true;
         break;
       }

@@ -3,6 +3,9 @@
 #ifndef CAPYBARA_GLM_OFFSET_H
 #define CAPYBARA_GLM_OFFSET_H
 
+// Forward declaration
+struct CapybaraParameters;
+
 namespace capybara {
 namespace glm_offset {
 
@@ -42,18 +45,11 @@ struct InferenceGLMOffset {
 // GLM OFFSET FITTING
 //////////////////////////////////////////////////////////////////////////////
 
-inline InferenceGLMOffset feglm_offset_fit(
-    vec eta, const vec &y, const vec &offset, const vec &wt,
-    const field<uvec> &fe_indices, const uvec &nb_ids,
-    const field<uvec> &fe_id_tables, double center_tol, double dev_tol,
-    size_t iter_max, size_t iter_center_max, size_t iter_inner_max,
-    size_t iter_interrupt, size_t iter_ssr, const std::string &family,
-    double collin_tol,
-    // Demean algorithm parameters
-    size_t demean_extra_projections = 0, size_t demean_warmup_iterations = 15,
-    size_t demean_projections_after_acc = 5,
-    size_t demean_grand_acc_frequency = 20,
-    size_t demean_ssr_check_frequency = 40, double safe_division_min = 1e-12) {
+inline InferenceGLMOffset
+feglm_offset_fit(vec eta, const vec &y, const vec &offset, const vec &wt,
+                 const field<uvec> &fe_indices, const uvec &nb_ids,
+                 const field<uvec> &fe_id_tables, const std::string &family,
+                 const CapybaraParameters &params) {
 
   const size_t n = y.n_elem;
   const bool has_fixed_effects =
@@ -85,7 +81,7 @@ inline InferenceGLMOffset feglm_offset_fit(
   bool dev_crit, val_crit, imp_crit;
 
   // IRLS loop
-  for (size_t iter = 0; iter < iter_max; ++iter) {
+  for (size_t iter = 0; iter < params.iter_max; ++iter) {
     result.iter = iter + 1;
     rho = 1.0;
     eta_old = eta;
@@ -112,12 +108,9 @@ inline InferenceGLMOffset feglm_offset_fit(
       variables_to_demean(0) = Myadj;
 
       // Demean the working response
-      DemeanResult demean_result = demean_variables(
-          variables_to_demean, w, fe_indices, nb_ids, fe_id_tables,
-          iter_center_max, center_tol, demean_extra_projections,
-          demean_warmup_iterations, demean_projections_after_acc,
-          demean_grand_acc_frequency, demean_ssr_check_frequency, false,
-          safe_division_min);
+      DemeanResult demean_result =
+          demean_variables(variables_to_demean, w, fe_indices, nb_ids,
+                           fe_id_tables, false, params);
 
       Myadj = demean_result.demeaned_vars(0);
     } else {
@@ -129,7 +122,8 @@ inline InferenceGLMOffset feglm_offset_fit(
     eta_upd = yadj - Myadj + offset - eta;
 
     // Step halving loop
-    for (size_t iter_inner = 0; iter_inner < iter_inner_max; ++iter_inner) {
+    for (size_t iter_inner = 0; iter_inner < params.iter_inner_max;
+         ++iter_inner) {
       eta = eta_old + (rho * eta_upd);
       mu = link_inv(eta, family_type);
       dev = dev_resids(y, mu, 0.0, wt, family_type);
@@ -137,13 +131,13 @@ inline InferenceGLMOffset feglm_offset_fit(
 
       dev_crit = is_finite(dev);
       val_crit = valid_eta(eta, family_type) && valid_mu(mu, family_type);
-      imp_crit = (dev_ratio_inner <= -dev_tol);
+      imp_crit = (dev_ratio_inner <= -params.dev_tol);
 
       if (dev_crit && val_crit && imp_crit) {
         break;
       }
 
-      rho *= 0.5;
+      rho *= params.step_halving_factor;
     }
 
     // Check if step-halving failed
@@ -153,7 +147,7 @@ inline InferenceGLMOffset feglm_offset_fit(
 
     // Check convergence
     dev_ratio = std::abs(dev - dev_old) / (0.1 + std::abs(dev));
-    if (dev_ratio < dev_tol) {
+    if (dev_ratio < params.dev_tol) {
       result.conv = true;
       break;
     }

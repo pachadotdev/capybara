@@ -4,16 +4,16 @@ demean_variables_ <- function(V_r, w_r, klist, tol, max_iter, iter_interrupt, it
   .Call(`_capybara_demean_variables_`, V_r, w_r, klist, tol, max_iter, iter_interrupt, iter_ssr, family)
 }
 
-felm_fit_ <- function(y_r, x_r, wt_r, control, k_list) {
-  .Call(`_capybara_felm_fit_`, y_r, x_r, wt_r, control, k_list)
+felm_fit_ <- function(X_r, y_r, w_r, FE, control) {
+  .Call(`_capybara_felm_fit_`, X_r, y_r, w_r, FE, control)
 }
 
-feglm_fit_ <- function(beta_r, eta_r, y_r, x_r, wt_r, theta, family, control, k_list) {
-  .Call(`_capybara_feglm_fit_`, beta_r, eta_r, y_r, x_r, wt_r, theta, family, control, k_list)
+feglm_fit_ <- function(X_r, y_r, w_r, FE, family, beta_r, eta_r, theta, control) {
+  .Call(`_capybara_feglm_fit_`, X_r, y_r, w_r, FE, family, beta_r, eta_r, theta, control)
 }
 
-feglm_offset_fit_ <- function(eta_r, y_r, offset_r, wt_r, family, control, k_list) {
-  .Call(`_capybara_feglm_offset_fit_`, eta_r, y_r, offset_r, wt_r, family, control, k_list)
+feglm_offset_fit_ <- function(y_r, offset_r, w_r, FEs, family, eta_r, control) {
+  .Call(`_capybara_feglm_offset_fit_`, y_r, offset_r, w_r, FEs, family, eta_r, control)
 }
 
 group_sums_ <- function(M_r, w_r, jlist) {

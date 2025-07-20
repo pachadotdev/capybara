@@ -19,7 +19,132 @@ using cpp11::integers;
 using cpp11::list;
 using cpp11::strings;
 
-// #include "timing.h"
+// Passing parameters from R to C++ functions
+struct CapybaraParameters {
+  // Core tolerance parameters
+  double dev_tol;
+  double demean_tol;
+  double collin_tol;
+
+  // Iteration parameters
+  size_t iter_max;
+  size_t iter_max_cluster;
+  size_t iter_full_dicho;
+  size_t iter_demean_max;
+  size_t iter_inner_max;
+  size_t iter_interrupt;
+  size_t iter_ssr;
+
+  // Convergence parameters
+  double rel_tol_denom;
+  double irons_tuck_eps;
+  double safe_division_min;
+  double safe_log_min;
+  double newton_raphson_tol;
+  size_t convergence_iter_max;
+  size_t convergence_iter_full_dicho;
+
+  // GLM parameters
+  double step_halving_factor;
+  double binomial_mu_min;
+  double binomial_mu_max;
+  double safe_clamp_min;
+  double safe_clamp_max;
+
+  // Algorithm configuration
+  double direct_qr_threshold;
+  double qr_collin_tol_multiplier;
+  double chol_stability_threshold;
+
+  // Alpha computation
+  double alpha_convergence_tol;
+  size_t alpha_iter_max;
+
+  // Demean algorithm
+  size_t demean_extra_projections;
+  size_t demean_warmup_iterations;
+  size_t demean_projections_after_acc;
+  size_t demean_grand_acc_frequency;
+  size_t demean_ssr_check_frequency;
+
+  // Configuration flags
+  bool keep_dmx;
+  bool use_weights;
+
+  // Constructor with default initialization (matching fit_control defaults)
+  CapybaraParameters()
+      : dev_tol(1.0e-8), demean_tol(1.0e-8), collin_tol(1.0e-7), iter_max(25),
+        iter_max_cluster(100), iter_full_dicho(10), iter_demean_max(10000),
+        iter_inner_max(50), iter_interrupt(1000), iter_ssr(10),
+        rel_tol_denom(0.1), irons_tuck_eps(1.0e-14), safe_division_min(1.0e-12),
+        safe_log_min(1.0e-12), newton_raphson_tol(1.0e-8),
+        convergence_iter_max(100), convergence_iter_full_dicho(10),
+        step_halving_factor(0.5), binomial_mu_min(0.001),
+        binomial_mu_max(0.999), safe_clamp_min(1.0e-15), safe_clamp_max(1.0e12),
+        direct_qr_threshold(0.9), qr_collin_tol_multiplier(1.0),
+        chol_stability_threshold(1.0e-12), alpha_convergence_tol(1.0e-8),
+        alpha_iter_max(10000), demean_extra_projections(0),
+        demean_warmup_iterations(15), demean_projections_after_acc(5),
+        demean_grand_acc_frequency(20), demean_ssr_check_frequency(40),
+        keep_dmx(false), use_weights(true) {}
+
+  // Constructor from R control list
+  explicit CapybaraParameters(const cpp11::list &control) {
+    // Extract all parameters from R control list
+    dev_tol = as_cpp<double>(control["dev_tol"]);
+    demean_tol = as_cpp<double>(control["demean_tol"]);
+    collin_tol = as_cpp<double>(control["collin_tol"]);
+
+    iter_max = as_cpp<size_t>(control["iter_max"]);
+    iter_max_cluster = as_cpp<size_t>(control["iter_max_cluster"]);
+    iter_full_dicho = as_cpp<size_t>(control["iter_full_dicho"]);
+    iter_demean_max = as_cpp<size_t>(control["iter_demean_max"]);
+    iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]);
+    iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]);
+    iter_ssr = as_cpp<size_t>(control["iter_ssr"]);
+
+    rel_tol_denom = as_cpp<double>(control["rel_tol_denom"]);
+    irons_tuck_eps = as_cpp<double>(control["irons_tuck_eps"]);
+    safe_division_min = as_cpp<double>(control["safe_division_min"]);
+    safe_log_min = as_cpp<double>(control["safe_log_min"]);
+    newton_raphson_tol = as_cpp<double>(control["newton_raphson_tol"]);
+
+    convergence_iter_max = as_cpp<size_t>(control["convergence_iter_max"]);
+    convergence_iter_full_dicho =
+        as_cpp<size_t>(control["convergence_iter_full_dicho"]);
+
+    step_halving_factor = as_cpp<double>(control["step_halving_factor"]);
+    binomial_mu_min = as_cpp<double>(control["binomial_mu_min"]);
+    binomial_mu_max = as_cpp<double>(control["binomial_mu_max"]);
+    safe_clamp_min = as_cpp<double>(control["safe_clamp_min"]);
+    safe_clamp_max = as_cpp<double>(control["safe_clamp_max"]);
+
+    direct_qr_threshold = as_cpp<double>(control["direct_qr_threshold"]);
+    qr_collin_tol_multiplier =
+        as_cpp<double>(control["qr_collin_tol_multiplier"]);
+    chol_stability_threshold =
+        as_cpp<double>(control["chol_stability_threshold"]);
+
+    alpha_convergence_tol = as_cpp<double>(control["alpha_convergence_tol"]);
+    alpha_iter_max = as_cpp<size_t>(control["alpha_iter_max"]);
+
+    demean_extra_projections =
+        as_cpp<size_t>(control["demean_extra_projections"]);
+    demean_warmup_iterations =
+        as_cpp<size_t>(control["demean_warmup_iterations"]);
+    demean_projections_after_acc =
+        as_cpp<size_t>(control["demean_projections_after_acc"]);
+    demean_grand_acc_frequency =
+        as_cpp<size_t>(control["demean_grand_acc_frequency"]);
+    demean_ssr_check_frequency =
+        as_cpp<size_t>(control["demean_ssr_check_frequency"]);
+
+    keep_dmx = as_cpp<bool>(control["keep_dmx"]);
+    use_weights = as_cpp<bool>(control["use_weights"]);
+  }
+};
+
+// Modular code structure
 
 #include "01_convergence.h"
 #include "02_demean.h"
@@ -35,7 +160,7 @@ using GLMResult = capybara::glm::InferenceGLM;
 
 // Helper function to convert R indices to C++ uvec (R uses 1-based, C++ uses
 // 0-based)
-inline uvec r_to_cpp_indices(const integers &r_indices) {
+inline uvec R_1based_to_Cpp_0based_indices(const integers &r_indices) {
   uvec cpp_indices(r_indices.size());
 
   // Use std::transform for efficient vectorized conversion
@@ -51,19 +176,20 @@ inline uvec r_to_cpp_indices(const integers &r_indices) {
   return cpp_indices;
 }
 
-// Convert R k_list to field<field<uvec>> format using 0-based indexing
-inline field<field<uvec>> convert_klist_to_field(const list &k_list) {
-  const size_t K = k_list.size();
+// Convert R FEs to field<field<uvec>> format using 0-based indexing
+inline field<field<uvec>> R_list_to_Armadillo_field(const list &FEs) {
+  const size_t K = FEs.size();
   field<field<uvec>> group_indices(K);
 
   for (size_t k = 0; k < K; ++k) {
-    const list group_list = as_cpp<list>(k_list[k]);
+    const list group_list = as_cpp<list>(FEs[k]);
     const size_t n_groups = group_list.size();
 
     group_indices(k).set_size(n_groups);
     for (size_t g = 0; g < n_groups; ++g) {
       const integers group_obs = as_cpp<integers>(group_list[g]);
-      group_indices(k)(g) = r_to_cpp_indices(group_obs); // Convert to 0-based
+      group_indices(k)(g) =
+          R_1based_to_Cpp_0based_indices(group_obs); // Convert to 0-based
     }
   }
 
@@ -133,7 +259,7 @@ demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   vec w = as_col(w_r);
 
   // Convert R list to field<field<uvec>> format
-  field<field<uvec>> group_indices = convert_klist_to_field(klist);
+  field<field<uvec>> group_indices = R_list_to_Armadillo_field(klist);
 
   // Convert to the format expected by demean_variables
   field<uvec> fe_ids = convert_groupindices_to_feids(group_indices, V.n_rows);
@@ -156,10 +282,13 @@ demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
     }
   }
 
+  // Create CapybaraParameters object with custom values
+  CapybaraParameters params;
+
   // Use the demean_variables function
   capybara::demean::DemeanResult demean_result =
       capybara::demean::demean_variables(variables_to_demean, w, fe_ids, nb_ids,
-                                         fe_id_tables, max_iter, tol);
+                                         fe_id_tables, false, params);
 
   // Convert back to matrix
   mat result_mat(V.n_rows, V.n_cols);
@@ -170,43 +299,18 @@ demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   return as_doubles_matrix(result_mat);
 }
 
-[[cpp11::register]] list felm_fit_(const doubles &y_r,
-                                   const doubles_matrix<> &x_r,
-                                   const doubles &wt_r, const list &control,
-                                   const list &k_list) {
-  mat X = as_Mat(x_r);
+[[cpp11::register]] list felm_fit_(const doubles_matrix<> &X_r,
+                                   const doubles &y_r, const doubles &w_r,
+                                   const list &FE, const list &control) {
+  mat X = as_Mat(X_r);
   const vec y = as_Col(y_r);
-  const vec w = as_Col(wt_r);
-  const double center_tol = as_cpp<double>(control["center_tol"]);
-  const double collin_tol = as_cpp<double>(control["collin_tol"]);
-  const bool use_weights = as_cpp<bool>(control["use_weights"]);
-  const size_t iter_center_max = as_cpp<size_t>(control["iter_center_max"]),
-               iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]),
-               iter_ssr = as_cpp<size_t>(control["iter_ssr"]);
-
-  const double direct_qr_threshold =
-      as_cpp<double>(control["direct_qr_threshold"]);
-  const double qr_collin_tol_multiplier =
-      as_cpp<double>(control["qr_collin_tol_multiplier"]);
-  const double chol_stability_threshold =
-      as_cpp<double>(control["chol_stability_threshold"]);
-  const size_t demean_extra_projections =
-      as_cpp<size_t>(control["demean_extra_projections"]);
-  const size_t demean_warmup_iterations =
-      as_cpp<size_t>(control["demean_warmup_iterations"]);
-  const size_t demean_projections_after_acc =
-      as_cpp<size_t>(control["demean_projections_after_acc"]);
-  const size_t demean_grand_acc_frequency =
-      as_cpp<size_t>(control["demean_grand_acc_frequency"]);
-  const size_t demean_ssr_check_frequency =
-      as_cpp<size_t>(control["demean_ssr_check_frequency"]);
-  const double safe_division_min = as_cpp<double>(control["safe_division_min"]);
-  const double alpha_convergence_tol =
-      as_cpp<double>(control["alpha_convergence_tol"]);
-  const size_t alpha_iter_max = as_cpp<size_t>(control["alpha_iter_max"]);
+  const vec w = as_Col(w_r);
 
   // Convert R list to efficient field format
-  field<field<uvec>> group_indices = convert_klist_to_field(k_list);
+  field<field<uvec>> group_indices = R_list_to_Armadillo_field(FE);
+
+  // Parameters passed from R's capybara::fit_control()
+  CapybaraParameters params(control);
 
   // Convert to field<uvec> format for the new API
   field<uvec> fe_indices(group_indices.n_elem);
@@ -233,72 +337,35 @@ demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
     }
   }
 
-  LMResult res = capybara::lm::felm_fit(
-      X, y, w, fe_indices, nb_ids, fe_id_tables, center_tol, iter_center_max,
-      iter_interrupt, iter_ssr, collin_tol, use_weights, direct_qr_threshold,
-      qr_collin_tol_multiplier, chol_stability_threshold,
-      demean_extra_projections, demean_warmup_iterations,
-      demean_projections_after_acc, demean_grand_acc_frequency,
-      demean_ssr_check_frequency, safe_division_min, alpha_convergence_tol,
-      alpha_iter_max);
+  LMResult res =
+      capybara::lm::felm_fit(X, y, w, fe_indices, nb_ids, fe_id_tables, params);
+
   // Replace collinear coefficients with R's NA_REAL
   uvec collinear_mask = (res.coef_status == 0);
   if (any(collinear_mask)) {
     res.coefficients.elem(find(collinear_mask)).fill(NA_REAL);
   }
+
   return res.to_list();
 }
 
-[[cpp11::register]] list feglm_fit_(const doubles &beta_r, const doubles &eta_r,
-                                    const doubles &y_r,
-                                    const doubles_matrix<> &x_r,
-                                    const doubles &wt_r, const double &theta,
-                                    const std::string &family,
-                                    const list &control, const list &k_list) {
-  mat MX = as_Mat(x_r);
+[[cpp11::register]] list feglm_fit_(const doubles_matrix<> &X_r,
+                                    const doubles &y_r, const doubles &w_r,
+                                    const list &FE, const std::string &family,
+                                    const doubles &beta_r, const doubles &eta_r,
+                                    const double &theta, const list &control) {
+  mat X = as_Mat(X_r);
+  const vec y = as_Col(y_r);
+  const vec w = as_Col(w_r);
+  const std::string fam = capybara::glm::tidy_family(family);
   vec beta = as_Col(beta_r);
   vec eta = as_Col(eta_r);
-  const vec y = as_Col(y_r);
-  const vec wt = as_Col(wt_r);
-  const std::string fam = capybara::glm::tidy_family(family);
-  const double center_tol = as_cpp<double>(control["center_tol"]),
-               dev_tol = as_cpp<double>(control["dev_tol"]);
-  const double collin_tol = as_cpp<double>(control["collin_tol"]);
-  const bool keep_mx = as_cpp<bool>(control["keep_mx"]);
-  const size_t iter_max = as_cpp<size_t>(control["iter_max"]),
-               iter_center_max = as_cpp<size_t>(control["iter_center_max"]),
-               iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]),
-               iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]),
-               iter_ssr = as_cpp<size_t>(control["iter_ssr"]);
 
-  // Extract new algorithm parameters with defaults
-  const double direct_qr_threshold =
-      as_cpp<double>(control["direct_qr_threshold"]);
-  const double qr_collin_tol_multiplier =
-      as_cpp<double>(control["qr_collin_tol_multiplier"]);
-  const double chol_stability_threshold =
-      as_cpp<double>(control["chol_stability_threshold"]);
-  const double safe_division_min = as_cpp<double>(control["safe_division_min"]);
-  const double safe_log_min = as_cpp<double>(control["safe_log_min"]);
-  const double newton_raphson_tol =
-      as_cpp<double>(control["newton_raphson_tol"]);
-  const size_t demean_extra_projections =
-      as_cpp<size_t>(control["demean_extra_projections"]);
-  const size_t demean_warmup_iterations =
-      as_cpp<size_t>(control["demean_warmup_iterations"]);
-  const size_t demean_projections_after_acc =
-      as_cpp<size_t>(control["demean_projections_after_acc"]);
-  const size_t demean_grand_acc_frequency =
-      as_cpp<size_t>(control["demean_grand_acc_frequency"]);
-  const size_t demean_ssr_check_frequency =
-      as_cpp<size_t>(control["demean_ssr_check_frequency"]);
-  const double irons_tuck_eps = as_cpp<double>(control["irons_tuck_eps"]);
-  const double alpha_convergence_tol =
-      as_cpp<double>(control["alpha_convergence_tol"]);
-  const size_t alpha_iter_max = as_cpp<size_t>(control["alpha_iter_max"]);
+  // Parameters passed from R's capybara::fit_control()
+  CapybaraParameters params(control);
 
   // Convert R list to field<uvec> format for modern API
-  field<field<uvec>> group_indices = convert_klist_to_field(k_list);
+  field<field<uvec>> group_indices = R_list_to_Armadillo_field(FE);
 
   // Convert to field<uvec> format for the new API
   field<uvec> fe_indices(group_indices.n_elem);
@@ -325,58 +392,33 @@ demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
     }
   }
 
-  GLMResult res = capybara::glm::feglm_fit(
-      MX, y, wt, fe_indices, nb_ids, fe_id_tables, center_tol, iter_center_max,
-      iter_interrupt, iter_ssr, collin_tol, dev_tol, iter_max, iter_inner_max,
-      fam, keep_mx, false, direct_qr_threshold, qr_collin_tol_multiplier,
-      chol_stability_threshold, safe_division_min, safe_log_min,
-      newton_raphson_tol, demean_extra_projections, demean_warmup_iterations,
-      demean_projections_after_acc, demean_grand_acc_frequency,
-      demean_ssr_check_frequency, irons_tuck_eps, alpha_convergence_tol,
-      alpha_iter_max);
+  GLMResult res = capybara::glm::feglm_fit(X, y, w, fe_indices, nb_ids,
+                                           fe_id_tables, fam, params);
 
   // Replace collinear coefficients with R's NA_REAL using vectorized approach
   uvec collinear_mask = (res.coef_status == 0);
   if (any(collinear_mask)) {
     res.coefficients.elem(find(collinear_mask)).fill(NA_REAL);
   }
-  return res.to_list(keep_mx);
+  return res.to_list(params.keep_dmx);
 }
 
 [[cpp11::register]] doubles
-feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
-                  const doubles &offset_r, const doubles &wt_r,
-                  const std::string &family, const list &control,
-                  const list &k_list) {
-  vec eta = as_Col(eta_r);
+feglm_offset_fit_(const doubles &y_r, const doubles &offset_r,
+                  const doubles &w_r, const list &FEs,
+                  const std::string &family, const doubles &eta_r,
+                  const list &control) {
   vec y = as_Col(y_r);
-  const vec offset = as_Col(offset_r);
-  const vec wt = as_Col(wt_r);
-  const std::string fam = capybara::glm::tidy_family(family);
-  const double center_tol = as_cpp<double>(control["center_tol"]),
-               dev_tol = as_cpp<double>(control["dev_tol"]);
-  const double collin_tol = as_cpp<double>(control["collin_tol"]);
-  const size_t iter_max = as_cpp<int>(control["iter_max"]),
-               iter_center_max = as_cpp<size_t>(control["iter_center_max"]),
-               iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]),
-               iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]),
-               iter_ssr = as_cpp<size_t>(control["iter_ssr"]);
+  vec offset = as_Col(offset_r);
+  const vec w = as_Col(w_r);
+  const std::string fam = capybara::glm_offset::tidy_family(family);
+  vec eta = as_Col(eta_r);
 
-  // Extract demean algorithm parameters with defaults
-  const size_t demean_extra_projections =
-      as_cpp<size_t>(control["demean_extra_projections"]);
-  const size_t demean_warmup_iterations =
-      as_cpp<size_t>(control["demean_warmup_iterations"]);
-  const size_t demean_projections_after_acc =
-      as_cpp<size_t>(control["demean_projections_after_acc"]);
-  const size_t demean_grand_acc_frequency =
-      as_cpp<size_t>(control["demean_grand_acc_frequency"]);
-  const size_t demean_ssr_check_frequency =
-      as_cpp<size_t>(control["demean_ssr_check_frequency"]);
-  const double safe_division_min = as_cpp<double>(control["safe_division_min"]);
+  // Parameters passed from R's capybara::fit_control()
+  CapybaraParameters params(control);
 
   // Convert R list to field<uvec> format for modern API
-  field<field<uvec>> group_indices = convert_klist_to_field(k_list);
+  field<field<uvec>> group_indices = R_list_to_Armadillo_field(FEs);
 
   // Convert to field<uvec> format for the new API
   field<uvec> fe_indices(group_indices.n_elem);
@@ -404,13 +446,8 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
   }
 
   capybara::glm_offset::InferenceGLMOffset res =
-      capybara::glm_offset::feglm_offset_fit(
-          eta, y, offset, wt, fe_indices, nb_ids, fe_id_tables, center_tol,
-          dev_tol, iter_max, iter_center_max, iter_inner_max, iter_interrupt,
-          iter_ssr, fam, collin_tol, demean_extra_projections,
-          demean_warmup_iterations, demean_projections_after_acc,
-          demean_grand_acc_frequency, demean_ssr_check_frequency,
-          safe_division_min);
+      capybara::glm_offset::feglm_offset_fit(eta, y, offset, w, fe_indices,
+                                             nb_ids, fe_id_tables, fam, params);
   return res.to_doubles();
 }
 
@@ -424,7 +461,8 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
   const size_t J = jlist.size();
   field<uvec> group_indices(J);
   for (size_t j = 0; j < J; ++j) {
-    group_indices(j) = r_to_cpp_indices(as_cpp<integers>(jlist[j]));
+    group_indices(j) =
+        R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
   }
 
   capybara::group_sums::GroupSums res =
@@ -444,7 +482,8 @@ group_sums_spectral_(const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
   const size_t J = jlist.size();
   field<uvec> group_indices(J);
   for (size_t j = 0; j < J; ++j) {
-    group_indices(j) = r_to_cpp_indices(as_cpp<integers>(jlist[j]));
+    group_indices(j) =
+        R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
   }
 
   capybara::group_sums::GroupSums res =
@@ -460,7 +499,8 @@ group_sums_var_(const doubles_matrix<> &M_r, const list &jlist) {
   const size_t J = jlist.size();
   field<uvec> group_indices(J);
   for (size_t j = 0; j < J; ++j) {
-    group_indices(j) = r_to_cpp_indices(as_cpp<integers>(jlist[j]));
+    group_indices(j) =
+        R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
   }
 
   capybara::group_sums::GroupSums res =
@@ -478,7 +518,8 @@ group_sums_cov_(const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
   const size_t J = jlist.size();
   field<uvec> group_indices(J);
   for (size_t j = 0; j < J; ++j) {
-    group_indices(j) = r_to_cpp_indices(as_cpp<integers>(jlist[j]));
+    group_indices(j) =
+        R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
   }
 
   capybara::group_sums::GroupSums res =

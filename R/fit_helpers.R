@@ -63,7 +63,7 @@
 #'  log-likelihood.
 #' @srrstats {RE5.0} Supports control over algorithmic complexity, such as
 #'  dropping perfectly separated observations (`drop_pc`) and optional matrix
-#'  storage (`keep_mx`).
+#'  storage (`keep_dmx`).
 #' @noRd
 NULL
 
@@ -77,7 +77,7 @@ NULL
 #' @title Set \code{feglm} and \code{felm} Control Parameters
 #'
 #' @description Set and change parameters used for fitting \code{\link{feglm}}
-#'  and \code{felm}.Termination conditions are similar to
+#'  and \code{felm}. Termination conditions are similar to
 #'  \code{\link[stats]{glm}}.
 #'
 #' @param dev_tol tolerance level for the first stopping condition of the
@@ -85,103 +85,155 @@ NULL
 #'  of the deviance in iteration \eqn{r} and can be expressed as follows:
 #'  \eqn{|dev_{r} - dev_{r - 1}| / (0.1 + |dev_{r}|) < tol}{|dev - devold| /
 #'  (0.1 + |dev|) < tol}. The default is \code{1.0e-08}.
-#' @param center_tol tolerance level for the stopping condition of the centering
+#' @param demean_tol tolerance level for the stopping condition of the demeaning
 #'  algorithm. The default is \code{1.0e-08}.
-#' @param iter_center_max unsigned integer indicating the maximum number of
-#'  iterations in the centering algorithm. The default is \code{10000L}.
 #' @param collin_tol tolerance level for detecting collinearity. The default is
-#'  \code{1.0e-10}.
-#' @param keep_mx logical indicating if the centered regressor matrix should be
-#'  stored. The centered regressor matrix is required for some covariance
+#'  \code{1.0e-07}.
+#' @param iter_max maximum number of GLM iterations. The default is \code{25L}.
+#' @param iter_max_cluster maximum number of iterations for cluster
+#'  coefficient convergence in (negative) binomial models. The default is \code{100L}.
+#' @param iter_full_dicho maximum number of full Newton-Raphson iterations
+#'  before switching to dichotomy for cluster coefficient convergence in
+#'  (negative) binomial models. The default is \code{10L}.
+#' @param iter_demean_max unsigned integer indicating the maximum number of
+#'  iterations in the demeaning algorithm. The default is \code{10000L}.
+#' @param iter_inner_max maximum number of step-halving iterations. The default
+#'  is \code{50L}.
+#' @param iter_interrupt interruption frequency for user interrupt checks.
+#'  The default is \code{1000L}.
+#' @param iter_ssr frequency for SSR-based convergence checks. The default
+#'  is \code{10L}.
+#' @param rel_tol_denom denominator for relative tolerance in convergence
+#'  criterion. The default is \code{0.1}.
+#' @param convergence_iter_max maximum iterations for cluster coefficient
+#'  convergence (Newton-Raphson + dichotomy). The default is \code{100L}.
+#' @param convergence_iter_full_dicho number of iterations using full
+#'  Newton-Raphson before switching to dichotomy. The default is \code{10L}.
+#' @param step_halving_factor step size reduction factor in step-halving
+#'  algorithm. The default is \code{0.5}.
+#' @param binomial_mu_min minimum value for mu in binomial family. The default
+#'  is \code{0.001}.
+#' @param binomial_mu_max maximum value for mu in binomial family. The default
+#'  is \code{0.999}.
+#' @param safe_clamp_min minimum value for safe clamping operations. The default
+#'  is \code{1.0e-15}.
+#' @param safe_clamp_max maximum value for safe clamping operations. The default
+#'  is \code{1.0e12}.
+#' @param direct_qr_threshold threshold for using direct QR vs Cholesky
+#'  decomposition. The default is \code{0.9}.
+#' @param qr_collin_tol_multiplier multiplier for QR collinearity tolerance.
+#'  The default is \code{1.0}.
+#' @param chol_stability_threshold threshold for Cholesky stability check.
+#'  The default is \code{1.0e-12}.
+#' @param safe_division_min minimum value for safe division operations.
+#'  The default is \code{1.0e-12}.
+#' @param safe_log_min minimum value for safe logarithm operations.
+#'  The default is \code{1.0e-12}.
+#' @param newton_raphson_tol tolerance for Newton-Raphson convergence.
+#'  The default is \code{1.0e-08}.
+#' @param irons_tuck_eps tolerance for Irons-Tuck acceleration numerical
+#'  convergence. The default is \code{1.0e-14}.
+#' @param alpha_convergence_tol tolerance for fixed effects (alpha) convergence.
+#'  The default is \code{1.0e-08}.
+#' @param alpha_iter_max maximum iterations for fixed effects computation.
+#'  The default is \code{10000L}.
+#' @param demean_extra_projections number of extra projections in demeaning
+#'  algorithm. The default is \code{0L}.
+#' @param demean_warmup_iterations number of warmup iterations in demeaning.
+#'  The default is \code{15L}.
+#' @param demean_projections_after_acc projections after acceleration in
+#'  demeaning. The default is \code{5L}.
+#' @param demean_grand_acc_frequency frequency of grand acceleration in
+#'  demeaning. The default is \code{20L}.
+#' @param demean_ssr_check_frequency frequency of SSR checks in demeaning.
+#'  The default is \code{40L}.
+#' @param keep_dmx logical indicating if the demeaned design matrix should be
+#'  stored. The demeaned design matrix is required for some covariance
 #'  estimators, bias corrections, and average partial effects. This option saves
-#'  some computation time at the cost of memory. The default is \code{TRUE}.
+#'  some computation time at the cost of memory. The default is \code{FALSE}.
 #' @param use_weights logical indicating whether to use weights. If \code{FALSE},
 #'  weights are ignored for performance. The default is \code{TRUE}.
 #'
 #' @return A named list of control parameters.
 #'
 #' @examples
-#' fit_control(0.05, 0.05, 10L, 10L, TRUE, TRUE, TRUE)
+#' fit_control(dev_tol = 1e-6, demean_tol = 1e-6)
 #'
 #' @seealso \code{\link{feglm}}
 #'
 #' @export
 fit_control <- function(
+    # Core tolerance parameters
     dev_tol = 1.0e-8,
-    center_tol = 1.0e-8,
+    demean_tol = 1.0e-8,
     collin_tol = 1.0e-7,
+    # Iteration parameters
     iter_max = 25L,
-    iter_center_max = 10000L,
+    iter_max_cluster = 100L,
+    iter_full_dicho = 10L,
+    iter_demean_max = 10000L,
     iter_inner_max = 50L,
     iter_interrupt = 1000L,
     iter_ssr = 10L,
-    # Parameters for algorithm behavior
-    direct_qr_threshold = 0.9,
-    qr_collin_tol_multiplier = 1.0,
-    chol_stability_threshold = 1.0e-12,
+    # Previously hardcoded parameters now configurable
+    rel_tol_denom = 0.1,
+    irons_tuck_eps = 1.0e-14,
     safe_division_min = 1.0e-12,
     safe_log_min = 1.0e-12,
     newton_raphson_tol = 1.0e-8,
-    # Demean algorithm parameters
+    # Convergence parameters
+    convergence_iter_max = 100L,
+    convergence_iter_full_dicho = 10L,
+    # GLM parameters
+    step_halving_factor = 0.5,
+    binomial_mu_min = 0.001,
+    binomial_mu_max = 0.999,
+    safe_clamp_min = 1.0e-15,
+    safe_clamp_max = 1.0e12,
+    # Algorithm configuration
+    direct_qr_threshold = 0.9,
+    qr_collin_tol_multiplier = 1.0,
+    chol_stability_threshold = 1.0e-12,
+    # Alpha computation
+    alpha_convergence_tol = 1.0e-8,
+    alpha_iter_max = 10000L,
+    # Demean algorithm
     demean_extra_projections = 0L,
     demean_warmup_iterations = 15L,
     demean_projections_after_acc = 5L,
     demean_grand_acc_frequency = 20L,
     demean_ssr_check_frequency = 40L,
-    # Convergence algorithm parameters
-    irons_tuck_eps = 1.0e-14,
-    alpha_convergence_tol = 1.0e-8,
-    alpha_iter_max = 10000L,
-    # Parameters no longer used (kept for backward compatibility but ignored)
-    limit = 10L,
-    trace = FALSE,
-    drop_pc = TRUE,
-    keep_mx = FALSE,
+    # Configuration flags
+    keep_dmx = FALSE,
     use_weights = TRUE) {
-  # Validate tolerance parameters
-  if (dev_tol <= 0.0 || center_tol <= 0.0) {
-    stop("All tolerance parameters should be greater than zero.", call. = FALSE)
-  }
-
-  if (collin_tol <= 0.0) {
-    stop("Collinearity tolerance should be greater than zero.", call. = FALSE)
-  }
-
-  # Validate algorithm parameters
-  if (direct_qr_threshold <= 0.0 || direct_qr_threshold >= 1.0) {
-    stop("Direct QR threshold should be between 0 and 1.", call. = FALSE)
-  }
-
-  if (qr_collin_tol_multiplier <= 0.0) {
-    stop("QR collinearity tolerance multiplier should be positive.", call. = FALSE)
-  }
-
-  # Validate iteration parameters
   iter_max <- as.integer(iter_max)
-  if (iter_max < 1L) {
-    stop("Maximum number of iterations should be at least one.", call. = FALSE)
-  }
+  iter_max_cluster <- as.integer(iter_max_cluster)
+  iter_full_dicho <- as.integer(iter_full_dicho)
 
-  iter_center_max <- as.integer(iter_center_max)
-  if (iter_center_max < 1L) {
-    stop("Maximum number of centering iterations should be at least one.", call. = FALSE)
-  }
+  iter_demean_max <- as.integer(iter_demean_max)
+
+  convergence_iter_max <- as.integer(convergence_iter_max)
+
+  convergence_iter_full_dicho <- as.integer(convergence_iter_full_dicho)
 
   alpha_iter_max <- as.integer(alpha_iter_max)
-  if (alpha_iter_max < 1L) {
-    stop("Maximum number of alpha iterations should be at least one.", call. = FALSE)
-  }
 
-  # Return list with control parameters (only used parameters)
+  # Return list with control parameters
   list(
+    # Core tolerance parameters
     dev_tol = dev_tol,
-    center_tol = center_tol,
+    demean_tol = demean_tol,
     collin_tol = collin_tol,
+
+    # Iteration parameters
     iter_max = iter_max,
-    iter_center_max = iter_center_max,
+    iter_max_cluster = iter_max_cluster,
+    iter_full_dicho = iter_full_dicho,
+    iter_demean_max = iter_demean_max,
     iter_inner_max = as.integer(iter_inner_max),
     iter_interrupt = as.integer(iter_interrupt),
     iter_ssr = as.integer(iter_ssr),
+
     # Algorithm parameters
     direct_qr_threshold = direct_qr_threshold,
     qr_collin_tol_multiplier = qr_collin_tol_multiplier,
@@ -189,18 +241,31 @@ fit_control <- function(
     safe_division_min = safe_division_min,
     safe_log_min = safe_log_min,
     newton_raphson_tol = newton_raphson_tol,
+
     # Demean algorithm parameters
     demean_extra_projections = as.integer(demean_extra_projections),
     demean_warmup_iterations = as.integer(demean_warmup_iterations),
     demean_projections_after_acc = as.integer(demean_projections_after_acc),
     demean_grand_acc_frequency = as.integer(demean_grand_acc_frequency),
     demean_ssr_check_frequency = as.integer(demean_ssr_check_frequency),
+
     # Convergence algorithm parameters
     irons_tuck_eps = irons_tuck_eps,
     alpha_convergence_tol = alpha_convergence_tol,
     alpha_iter_max = alpha_iter_max,
-    # Kept for backward compatibility
-    keep_mx = as.logical(keep_mx),
+
+    # Previously hardcoded parameters
+    rel_tol_denom = rel_tol_denom,
+    convergence_iter_max = convergence_iter_max,
+    convergence_iter_full_dicho = convergence_iter_full_dicho,
+    step_halving_factor = step_halving_factor,
+    binomial_mu_min = binomial_mu_min,
+    binomial_mu_max = binomial_mu_max,
+    safe_clamp_min = safe_clamp_min,
+    safe_clamp_max = safe_clamp_max,
+
+    # Configuration parameters
+    keep_dmx = as.logical(keep_dmx),
     use_weights = as.logical(use_weights)
   )
 }
@@ -231,7 +296,7 @@ check_control_ <- function(control) {
     # checks
     # 1. non-negative params
     non_neg_params <- c(
-      "dev_tol", "center_tol", "iter_max", "iter_center_max",
+      "dev_tol", "demean_tol", "iter_max", "iter_demean_max",
       "iter_inner_max", "iter_interrupt", "iter_ssr", "limit"
     )
     for (param_name in non_neg_params) {
@@ -240,7 +305,7 @@ check_control_ <- function(control) {
       }
     }
     # 2. logical params
-    logical_params <- c("trace", "drop_pc", "keep_mx")
+    logical_params <- c("trace", "drop_pc", "keep_dmx")
     for (param_name in logical_params) {
       if (!is.logical(merged_control[[param_name]])) {
         stop(sprintf("'%s' must be logical.", param_name), call. = FALSE)
@@ -433,12 +498,12 @@ model_response_ <- function(data, formula) {
   y <- model.response(mf)
 
   # Create the model matrix for predictors
-  x <- model.matrix(formula, mf)[, -1L, drop = FALSE]
-  nms_sp <- colnames(x)
-  attr(x, "dimnames") <- NULL
+  X <- model.matrix(formula, mf)[, -1L, drop = FALSE]
+  nms_sp <- colnames(X)
+  attr(X, "dimnames") <- NULL
 
   # Check for Inf values in both model matrix and response
-  if (any(is.infinite(x))) {
+  if (any(is.infinite(X))) {
     stop("Infinite values detected in model matrix. This often happens when applying log() to zero or negative values in predictors.", call. = FALSE)
   }
 
@@ -448,9 +513,9 @@ model_response_ <- function(data, formula) {
 
   # Assign results to parent environment
   assign("y", y, envir = parent.frame())
-  assign("x", x, envir = parent.frame())
+  assign("X", X, envir = parent.frame())
   assign("nms_sp", nms_sp, envir = parent.frame())
-  assign("p", ncol(x), envir = parent.frame())
+  assign("p", ncol(X), envir = parent.frame())
   assign("data", data, envir = parent.frame()) # Update data frame
 }
 
@@ -474,7 +539,7 @@ check_weights_ <- function(wt) {
 #' @param data Data frame
 #' @noRd
 get_index_list_ <- function(k_vars, data) {
-  indexes <- seq.int(1L, nrow(data))  # Generate 1-based indices for R consistency
+  indexes <- seq.int(1L, nrow(data)) # Generate 1-based indices for R consistency
   lapply(k_vars, function(x, indexes, data) {
     split(indexes, data[[x]])
   }, indexes = indexes, data = data)

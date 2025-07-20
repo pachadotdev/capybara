@@ -130,23 +130,23 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
 
   # Extract weights if required ----
   if (is.null(weights)) {
-    wt <- rep(1.0, nt)
+    w <- rep(1.0, nt)
   } else if (!all(is.na(weights_vec))) {
     # Weights provided as vector
-    wt <- weights_vec
-    if (length(wt) != nrow(data)) {
+    w <- weights_vec
+    if (length(w) != nrow(data)) {
       stop("Length of weights vector must equal number of observations.", call. = FALSE)
     }
   } else if (!all(is.na(weights_col))) {
     # Weights provided as formula - use the extracted column name
-    wt <- data[[weights_col]]
+    w <- data[[weights_col]]
   } else {
     # Weights provided as column name
-    wt <- data[[weights]]
+    w <- data[[weights]]
   }
 
   # Check validity of weights ----
-  check_weights_(wt)
+  check_weights_(w)
 
   # Get names and number of levels in each fixed effects category ----
   nms_fe <- lapply(data[, .SD, .SDcols = k_vars], levels)
@@ -158,27 +158,27 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
 
   # Generate auxiliary list of indexes for different sub panels ----
   if (!any(lvls_k %in% "missing_fe")) {
-    k_list <- get_index_list_(k_vars, data)
+    FEs <- get_index_list_(k_vars, data)
   } else {
-    k_list <- list(list(`1` = seq_len(nt)))
+    FEs <- list(list(`1` = seq_len(nt)))
   }
 
   # Fit linear model ----
   if (is.integer(y)) {
     y <- as.numeric(y)
   }
-  fit <- structure(felm_fit_(y, x, wt, control, k_list), class = "felm")
+  fit <- structure(felm_fit_(X, y, w, FEs, control), class = "felm")
 
   # Compute nobs using y and fitted values
   nobs <- nobs_(nobs_full, nobs_na, y, predict(fit))
 
+  X <- NULL
   y <- NULL
-  x <- NULL
 
-  # Add names to beta, hessian, and mx (if provided) ----
+  # Add names to beta, hessian, and X_dm (if provided) ----
   names(fit[["coefficients"]]) <- nms_sp
-  if (control[["keep_mx"]]) {
-    colnames(fit[["mx"]]) <- nms_sp
+  if (control[["keep_dmx"]]) {
+    colnames(fit[["X_dm"]]) <- nms_sp
   }
 
   # Add names to fixed effects if they exist ----

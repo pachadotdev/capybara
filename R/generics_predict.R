@@ -26,21 +26,21 @@ predict.feglm <- function(object, newdata = NULL, type = c("link", "response"), 
   if (!is.null(newdata)) {
     check_data_(newdata)
 
-  # Initialize variables that will be assigned by helper functions
+    # Initialize variables that will be assigned by helper functions
     data <- NA
     model_frame_(newdata, object$formula, NULL)
     # Extract fixed effects variables using proper pipe parsing
     k_vars <- attr(terms(object$formula, rhs = 2L), "term.labels")
     data <- transform_fe_(data, object$formula, k_vars)
 
-    x <- NA
+    X <- NA
     nms_sp <- NA
     p <- NA
     model_response_(data, object$formula)
 
     fes <- object[["fixed.effects"]]
     fes2 <- list()
-    
+
     for (name in names(fes)) {
       fe <- fes[[name]]
 
@@ -50,16 +50,16 @@ predict.feglm <- function(object, newdata = NULL, type = c("link", "response"), 
       # Match values and handle missing levels
       data_values <- data[[name]]
       matched_values <- fe_values[match(data_values, fe_names)]
-      matched_values[is.na(matched_values)] <- 0  # Set missing levels to 0
+      matched_values[is.na(matched_values)] <- 0 # Set missing levels to 0
       fes2[[name]] <- matched_values
     }
-    
+
     # Replace NA coefficients with 0 for prediction
     coef0 <- object$coefficients
     coef0[is.na(coef0)] <- 0
-    
+
     # Compute linear predictor
-    z <- x %*% coef0 + Reduce("+", fes2)
+    z <- X %*% coef0 + Reduce("+", fes2)
   } else {
     z <- object[["fitted.values"]]
   }
@@ -90,7 +90,7 @@ predict.felm <- function(object, newdata = NULL, type = c("response", "terms"), 
     k_vars <- attr(terms(object$formula, rhs = 2L), "term.labels")
     data <- transform_fe_(data, object$formula, k_vars)
 
-    x <- NA
+    X <- NA
     nms_sp <- NA
     p <- NA
     model_response_(data, object$formula)
@@ -100,14 +100,14 @@ predict.felm <- function(object, newdata = NULL, type = c("response", "terms"), 
 
     for (name in names(fes)) {
       fe <- fes[[name]]
-      
+
       fe_values <- fe
       fe_names <- names(fe_values)
-      
+
       # Match values and handle missing levels
       data_values <- data[[name]]
       matched_values <- fe_values[match(data_values, fe_names)]
-      matched_values[is.na(matched_values)] <- 0  # Set missing levels to 0
+      matched_values[is.na(matched_values)] <- 0 # Set missing levels to 0
       fes2[[name]] <- matched_values
     }
 
@@ -115,7 +115,7 @@ predict.felm <- function(object, newdata = NULL, type = c("response", "terms"), 
     coef0 <- object$coefficients
     coef0[is.na(coef0)] <- 0
 
-    return(as.numeric(x %*% coef0 + Reduce("+", fes2)))
+    return(as.numeric(X %*% coef0 + Reduce("+", fes2)))
   } else {
     return(object[["fitted.values"]])
   }

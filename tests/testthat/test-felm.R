@@ -26,8 +26,8 @@ test_that("felm works", {
   # m1$fixed.effects
   # fixest::fixef(m1_fixest)
   # $cyl
-  #        4        6        8 
-  # 33.99079 29.73521 27.91993 
+  #        4        6        8
+  # 33.99079 29.73521 27.91993
 
   expect_equal(coef(m1), coef(m2)[2], tolerance = 1e-2)
 
@@ -48,7 +48,7 @@ test_that("felm works", {
   # 2-FE ----
 
   m1 <- felm(mpg ~ wt + qsec | cyl + am, mtcars)
-  
+
   # m1$coefficients
   # m1$fixed.effects
 

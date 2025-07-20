@@ -66,11 +66,13 @@ summary.feglm <- function(
     # pass matrix with y and yhat as columns
     y_obs <- unlist(object$data[, 1], use.names = FALSE)
     y_pred <- predict(object, type = "response")
-    
+
     # Debug: check lengths
     if (length(y_obs) != length(y_pred)) {
-      warning(sprintf("Length mismatch: y_obs has %d elements, y_pred has %d elements", 
-                      length(y_obs), length(y_pred)))
+      warning(sprintf(
+        "Length mismatch: y_obs has %d elements, y_pred has %d elements",
+        length(y_obs), length(y_pred)
+      ))
       # Skip pseudo R-squared calculation if lengths don't match
       res[["pseudo.rsq"]] <- NA
     } else {

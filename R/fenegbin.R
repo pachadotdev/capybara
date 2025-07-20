@@ -146,23 +146,23 @@ fenegbin <- function(
 
   # Extract weights if required ----
   if (is.null(weights)) {
-    wt <- rep(1.0, nt)
+    w <- rep(1.0, nt)
   } else {
-    wt <- data[[weights]]
+    w <- data[[weights]]
   }
 
   # Check validity of weights ----
-  check_weights_(wt)
+  check_weights_(w)
 
   # Compute and check starting guesses ----
-  start_guesses_(beta_start, eta_start, y, x, beta, nt, wt, p, family)
+  start_guesses_(X, y, w, beta, family, nt, p, beta_start, eta_start)
 
   # Get names and number of levels in each fixed effects category ----
   nms_fe <- lapply(data[, .SD, .SDcols = k_vars], levels)
   lvls_k <- vapply(nms_fe, length, integer(1))
 
   # Generate auxiliary list of indexes for different sub panels ----
-  k_list <- get_index_list_(k_vars, data)
+  FEs <- get_index_list_(k_vars, data)
 
   # Extract control arguments ----
   tol <- control[["dev_tol"]]
@@ -183,7 +183,7 @@ fenegbin <- function(
   )
 
   fit <- structure(feglm_fit_(
-    beta, eta, y, x, wt, theta, family[["family"]], control, k_list
+    beta, eta, y, X, w, theta, family[["family"]], control, FEs
   ), class = c("feglm", "fenegbin"))
 
   # Replace collinear coefficients with NA
@@ -216,7 +216,7 @@ fenegbin <- function(
       )
     )
     fit <- structure(feglm_fit_(
-      beta, eta, y, x, wt, theta, family[["family"]], control, k_list
+      X, y, w, FEs, family[["family"]], beta, eta, theta, control
     ), class = c("feglm", "fenegbin"))
     beta <- fit[["coefficients"]]
     eta <- fit[["eta"]]
@@ -240,15 +240,15 @@ fenegbin <- function(
     }
   }
 
-  y <- x <- eta <- NULL
+  y <- X <- eta <- NULL
 
   # Information if convergence failed ----
   if (!conv && trace) cat("Algorithm did not converge.\n")
 
-  # Add names to beta, hessian, and mx (if provided) ----
+  # Add names to beta, hessian, and X_dm (if provided) ----
   names(fit[["coefficients"]]) <- nms_sp
-  if (control[["keep_mx"]]) {
-    colnames(fit[["mx"]]) <- nms_sp
+  if (control[["keep_dmx"]]) {
+    colnames(fit[["X_dm"]]) <- nms_sp
   }
   dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
 

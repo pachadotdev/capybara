@@ -66,55 +66,40 @@ struct InferenceLM {
 // LM FITTING
 //////////////////////////////////////////////////////////////////////////////
 
-inline InferenceLM felm_fit(
-    const mat &X_orig, const vec &y_orig, const vec &w,
-    const field<uvec> &fe_indices, const uvec &nb_ids,
-    const field<uvec> &fe_id_tables, double center_tol, size_t iter_center_max,
-    size_t iter_interrupt, size_t iter_ssr, double collin_tol,
-    bool use_weights = true, double direct_qr_threshold = 0.9,
-    double qr_collin_tol_multiplier = 1.0,
-    double chol_stability_threshold = 1e-12,
-    size_t demean_extra_projections = 0, size_t demean_warmup_iterations = 15,
-    size_t demean_projections_after_acc = 5,
-    size_t demean_grand_acc_frequency = 20,
-    size_t demean_ssr_check_frequency = 40, double safe_division_min = 1e-12,
-    double alpha_convergence_tol = 1e-8, size_t alpha_iter_max = 10000) {
-  const size_t n = y_orig.n_elem;
-  const size_t p_orig = X_orig.n_cols;
+inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
+                            const field<uvec> &fe_indices, const uvec &nb_ids,
+                            const field<uvec> &fe_id_tables,
+                            const CapybaraParameters &params) {
+  const size_t n = y.n_elem;
+  const size_t p_orig = X.n_cols;
   const bool has_fixed_effects =
       fe_indices.n_elem > 0 && fe_indices(0).n_elem > 0;
 
   InferenceLM result(n, p_orig);
 
   mat X_demean;
-  vec Y_demean;
-  DemeanResult y_demean_result(0); // DECLARE HERE!
+  vec y_demean;
+  DemeanResult y_demean_result(0);
 
   if (has_fixed_effects) {
     // STEP 1: Demean Y and save the fixed effects
     field<vec> y_to_demean(1);
-    y_to_demean(0) = y_orig;
+    y_to_demean(0) = y;
 
-    y_demean_result = demean_variables(
-        y_to_demean, w, fe_indices, nb_ids, fe_id_tables, iter_center_max,
-        center_tol, demean_extra_projections, demean_warmup_iterations,
-        demean_projections_after_acc, demean_grand_acc_frequency,
-        demean_ssr_check_frequency, true, safe_division_min);
+    y_demean_result = demean_variables(y_to_demean, w, fe_indices, nb_ids,
+                                       fe_id_tables, true, params);
 
-    Y_demean = y_demean_result.demeaned_vars(0);
+    y_demean = y_demean_result.demeaned_vars(0);
 
     // Demean X columns (without saving FE)
     if (p_orig > 0) {
       X_demean.set_size(n, p_orig);
       for (size_t j = 0; j < p_orig; ++j) {
         field<vec> x_to_demean(1);
-        x_to_demean(0) = X_orig.col(j);
+        x_to_demean(0) = X.col(j);
 
         DemeanResult x_demean_result = demean_variables(
-            x_to_demean, w, fe_indices, nb_ids, fe_id_tables, iter_center_max,
-            center_tol, demean_extra_projections, demean_warmup_iterations,
-            demean_projections_after_acc, demean_grand_acc_frequency,
-            demean_ssr_check_frequency, false, safe_division_min);
+            x_to_demean, w, fe_indices, nb_ids, fe_id_tables, false, params);
 
         X_demean.col(j) = x_demean_result.demeaned_vars(0);
       }
@@ -125,19 +110,19 @@ inline InferenceLM felm_fit(
     result.has_fe = true;
   } else {
     // No fixed effects
-    Y_demean = y_orig;
-    X_demean = X_orig;
+    y_demean = y;
+    X_demean = X;
     result.has_fe = false;
   }
 
   // STEP 2: Run regression on demeaned data
+  bool use_weights = params.use_weights;
   if (use_weights) {
     use_weights = !all(w == 1.0);
   }
 
-  InferenceBeta beta_result = get_beta(
-      X_demean, Y_demean, y_orig, w, collin_tol, use_weights, has_fixed_effects,
-      direct_qr_threshold, qr_collin_tol_multiplier, chol_stability_threshold);
+  InferenceBeta beta_result = get_beta(X_demean, y_demean, y, w, params,
+                                       use_weights, has_fixed_effects);
 
   if (!beta_result.success) {
     result.success = false;
@@ -155,7 +140,7 @@ inline InferenceLM felm_fit(
   // STEP 3: Extract fixed effects if present
   if (has_fixed_effects) {
     // The sum of fixed effects is: fitted_values - X*beta
-    vec sum_fe = result.fitted_values - X_orig * result.coefficients;
+    vec sum_fe = result.fitted_values - X * result.coefficients;
 
     // Convert field<uvec> to field<field<uvec>> format
     field<field<uvec>> group_indices(fe_indices.n_elem);
@@ -171,7 +156,8 @@ inline InferenceLM felm_fit(
 
     // Use fixest algorithm instead of get_alpha
     InferenceAlpha alpha_result =
-        get_alpha(sum_fe, group_indices, alpha_convergence_tol, alpha_iter_max);
+        get_alpha(sum_fe, group_indices, params.alpha_convergence_tol,
+                  params.alpha_iter_max);
     result.fixed_effects = alpha_result.Alpha;
     result.nb_references = alpha_result.nb_references;
     result.is_regular = alpha_result.is_regular;

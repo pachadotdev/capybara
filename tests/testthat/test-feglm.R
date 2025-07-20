@@ -160,7 +160,7 @@ test_that("proportional regressors return NA coefficients", {
 
 test_that("feglm with weights works", {
   skip_on_cran()
-  
+
   m1 <- feglm(mpg ~ wt | am, weights = ~cyl, data = mtcars)
   m2 <- feglm(mpg ~ wt | am, weights = mtcars$cyl, data = mtcars)
 

@@ -84,7 +84,7 @@ NULL
 #     fe_gamma_base[1] + fe_gamma_base[2],
 #     fe_gamma_base[1] + fe_gamma_base[3]
 #   )
-  
+
 #   expect_equal(fe_gamma - fe_gamma_base, c(0, 0, 0), tolerance = 1e-1)
 
 #   # Inverse Gaussian ----

@@ -61,7 +61,7 @@ struct InferenceAlpha {
 // QR-based beta computation (matching original implementation)
 inline void get_beta_qr(mat &X, const vec &y, const vec &w,
                         InferenceBeta &result, bool has_weights,
-                        double qr_collin_tol_multiplier = 1.0) {
+                        double qr_collin_tol_multiplier) {
   const size_t p = X.n_cols;
 
   mat Q, R;
@@ -97,12 +97,9 @@ inline void get_beta_qr(mat &X, const vec &y, const vec &w,
 }
 
 inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
-                              const vec &w, double collin_tol,
+                              const vec &w, const CapybaraParameters &params,
                               bool has_weights = false,
-                              bool has_fixed_effects = false,
-                              double direct_qr_threshold = 0.9,
-                              double qr_collin_tol_multiplier = 1.0,
-                              double chol_stability_threshold = 1e-12) {
+                              bool has_fixed_effects = false) {
   const size_t n = X.n_rows;
   const size_t p = X.n_cols;
 
@@ -114,11 +111,12 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
   }
 
   // For very wide matrices, use QR directly
-  const bool direct_qr = (p > direct_qr_threshold * n);
+  const bool direct_qr = (p > params.direct_qr_threshold * n);
 
   if (direct_qr) {
     mat X_copy = X; // QR modifies the matrix
-    get_beta_qr(X_copy, y, w, result, has_weights, qr_collin_tol_multiplier);
+    get_beta_qr(X_copy, y, w, result, has_weights,
+                params.qr_collin_tol_multiplier);
   } else {
     // Try Cholesky first (faster), fall back to QR if needed
     mat XtX, XtY;
@@ -141,7 +139,7 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
       const double mind = d.min();
       const double avgd = mean(d);
 
-      if (mind > chol_stability_threshold * avgd) {
+      if (mind > params.chol_stability_threshold * avgd) {
         vec work = solve(trimatl(L), XtY, solve_opts::fast);
         result.coefficients = solve(trimatu(L.t()), work, solve_opts::fast);
         result.coef_status.ones();
@@ -149,12 +147,13 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
         // Cholesky failed due to conditioning, fall back to QR
         mat X_copy = X;
         get_beta_qr(X_copy, y, w, result, has_weights,
-                    qr_collin_tol_multiplier);
+                    params.qr_collin_tol_multiplier);
       }
     } else {
       // Cholesky failed, fall back to QR
       mat X_copy = X;
-      get_beta_qr(X_copy, y, w, result, has_weights, qr_collin_tol_multiplier);
+      get_beta_qr(X_copy, y, w, result, has_weights,
+                  params.qr_collin_tol_multiplier);
     }
   }
 
@@ -201,7 +200,7 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
 
 inline InferenceAlpha get_alpha(const vec &sumFE,
                                 const field<field<uvec>> &group_indices,
-                                double tol = 1e-8, size_t iter_max = 10000) {
+                                double tol, size_t iter_max) {
   const size_t Q = group_indices.n_elem;
   const size_t N = sumFE.n_elem;
   InferenceAlpha result;
