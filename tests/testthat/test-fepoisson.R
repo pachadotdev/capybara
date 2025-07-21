@@ -33,7 +33,7 @@ test_that("fepoisson is similar to fixest", {
 
   dist_variation <- unname(abs((coef(mod)[1] - coef_dist_base) / coef(mod)[1]))
 
-  expect_equal(dist_variation, 0.05, tolerance = 0.05)
+  expect_equal(dist_variation, 0.0, tolerance = 1e-2)
 
   expect_output(print(mod))
 
@@ -108,9 +108,6 @@ test_that("fepoisson is similar to fixest", {
   pred_mod <- predict(mod, type = "response")
   pred_mod_base <- predict(mod_base, type = "response")
 
-  mod$fitted.values
-  mod_base$fitted.values
-
   pred_mod_link <- predict(mod, type = "link")
   pred_mod_base_link <- predict(mod_base, type = "link")
 
@@ -137,4 +134,23 @@ test_that("fepoisson estimation is the same adding noise to the data", {
   
   expect_equal(unname(coef(m1)), unname(coef(m2)))
   expect_equal(m1$fixed.effects, m2$fixed.effects)
+})
+
+
+test_that("proportional regressors return NA coefficients", {
+  load_all()
+
+  set.seed(200100)
+  d <- data.frame(
+    y = rpois(100, 2),
+    x1 = rnorm(100),
+    f = factor(sample(1:2, 100, replace = TRUE))
+  )
+  d$x2 <- 2 * d$x1
+
+  fit1 <- glm(y ~ x1 + x2 + as.factor(f), data = d, family = poisson())
+  fit2 <- feglm(y ~ x1 + x2 | f, data = d, family = poisson())
+
+  expect_equal(coef(fit2), coef(fit1)[2:3], tolerance = 1e-2)
+  expect_equal(predict(fit2), predict(fit1), tolerance = 1e-2)
 })

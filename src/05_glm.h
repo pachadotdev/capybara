@@ -89,88 +89,43 @@ inline Family get_family_type(const std::string &fam) {
 // LINK FUNCTIONS
 //////////////////////////////////////////////////////////////////////////////
 
-// Link inverse functions (eta -> mu)
-inline vec link_inv_gaussian(const vec &eta) {
-  return eta; // identity link
-}
-
-inline vec link_inv_poisson(const vec &eta) {
-  return exp(eta); // log link
-}
-
-inline vec link_inv_logit(const vec &eta) {
-  return 1.0 / (1.0 + exp(-eta)); // logit link
-}
-
-inline vec link_inv_gamma(const vec &eta) {
-  return 1.0 / eta; // reciprocal link: mu = 1/eta
-}
-
-inline vec link_inv_invgaussian(const vec &eta) {
-  return 1.0 / sqrt(eta); // inverse squared link (matching old code)
-}
-
-inline vec link_inv_negbin(const vec &eta) {
-  return exp(eta); // log link
-}
-
 inline vec link_inv(const vec &eta, const Family family_type) {
-  vec result(eta.n_elem);
-
   switch (family_type) {
   case Family::GAUSSIAN:
-    result = link_inv_gaussian(eta);
-    break;
+    return eta;
   case Family::POISSON:
-    result = link_inv_poisson(eta);
-    break;
-  case Family::BINOMIAL:
-    result = link_inv_logit(eta);
-    break;
-  case Family::GAMMA:
-    result = link_inv_gamma(eta);
-    break;
-  case Family::INV_GAUSSIAN:
-    result = link_inv_invgaussian(eta);
-    break;
   case Family::NEGBIN:
-    result = link_inv_negbin(eta);
-    break;
+    return exp(eta);
+  case Family::BINOMIAL:
+    return 1.0 / (1.0 + exp(-eta));
+  case Family::GAMMA:
+    return 1.0 / eta;
+  case Family::INV_GAUSSIAN:
+    return 1.0 / sqrt(eta);
   default:
     stop("Unknown family");
   }
-
-  return result;
 }
 
 // d mu / d eta (derivative of inverse link function)
 inline vec d_inv_link(const vec &eta, const Family family_type) {
-  vec result(eta.n_elem);
-
   switch (family_type) {
   case Family::GAUSSIAN:
-    result.ones();
-    break;
+    return ones<vec>(eta.n_elem);
   case Family::POISSON:
   case Family::NEGBIN:
-    result = arma::exp(eta);
-    break;
+    return exp(eta);
   case Family::BINOMIAL: {
-    vec exp_eta = arma::exp(eta);
-    result = exp_eta / arma::square(1 + exp_eta);
-    break;
+    vec exp_eta = exp(eta);
+    return exp_eta / square(1.0 + exp_eta);
   }
   case Family::GAMMA:
-    result = -1.0 / arma::square(eta);
-    break;
+    return -1.0 / square(eta);
   case Family::INV_GAUSSIAN:
-    result = -1.0 / (2.0 * arma::pow(abs(eta), 1.5));
-    break;
+    return -1.0 / (2.0 * pow(abs(eta), 1.5));
   default:
     stop("Unknown family");
   }
-
-  return result;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -190,18 +145,20 @@ void initialize_family(vec &mu, vec &eta, const vec &y_orig, double mean_y,
   case Family::POISSON:
   case Family::NEGBIN:
     mu = (y_orig + mean_y) / 2.0;
-    eta = log(clamp(mu, 1e-12, 1e12));
+    eta = log(clamp(mu, safe_clamp_min, safe_clamp_max));
     break;
   case Family::BINOMIAL:
+    // For binomial, y should be 0 or 1
+    // Initialize mu away from boundaries to avoid numerical issues
     mu = clamp((y_orig + mean_y) / 2.0, binomial_mu_min, binomial_mu_max);
-    eta = log(mu / (1.0 - mu)); // logit link
+    eta = log(mu / (1.0 - mu));
     break;
   case Family::GAMMA:
-    mu = clamp(y_orig, 1e-12, 1e12);
+    mu = clamp(y_orig, safe_clamp_min, safe_clamp_max);
     eta = 1.0 / mu; // reciprocal link
     break;
   case Family::INV_GAUSSIAN:
-    mu = clamp(y_orig, 1e-12, 1e12);
+    mu = clamp(y_orig, safe_clamp_min, safe_clamp_max);
     eta = 1.0 / square(mu); // inverse squared link
     break;
   default:
@@ -214,82 +171,86 @@ void initialize_family(vec &mu, vec &eta, const vec &y_orig, double mean_y,
 //////////////////////////////////////////////////////////////////////////////
 
 // Deviance functions - matching Python exactly
-inline double dev_resids_gaussian(const vec &y, const vec &mu, const vec &wt) {
-  // Python fegaussian_.py: np.sum((y - mu) ** 2)
-  return dot(wt, square(y - mu));
+inline double dev_resids_gaussian(const vec &y, const vec &mu, const vec &w) {
+  return dot(w, square(y - mu));
 }
 
-inline double dev_resids_poisson(const vec &y, const vec &mu, const vec &wt) {
+inline double dev_resids_poisson(const vec &y, const vec &mu, const vec &w) {
   // Standard Poisson deviance
-  vec r = mu % wt;
+  vec r(y.n_elem, fill::zeros);
 
+  // Find positive y values
   uvec p = find(y > 0);
-  r(p) = wt(p) % (y(p) % log(y(p) / mu(p)) - (y(p) - mu(p)));
-
-  return 2 * accu(r);
-}
-
-// Logit deviance matching R's base implementation exactly
-inline double dev_resids_logit(const vec &y, const vec &mu, const vec &wt) {
-  // Adapted from binomial_dev_resids() in R base src/library/stats/src/family.c
-  vec r(y.n_elem, fill::none);
-
-  uvec p = find(y == 1);
-  uvec q = find(y == 0);
-
   if (p.n_elem > 0) {
     vec y_p = y(p);
-    r(p) = y_p % log(y_p / mu(p));
+    vec mu_p = mu(p);
+    vec w_p = w(p);
+    r(p) = w_p % (y_p % log(y_p / mu_p) - (y_p - mu_p));
   }
 
-  if (q.n_elem > 0) {
-    vec y_q = y(q);
-    r(q) = (1 - y_q) % log((1 - y_q) / (1 - mu(q)));
-  }
-
-  return 2.0 * dot(wt, r);
+  return 2.0 * accu(r);
 }
 
-inline double dev_resids_gamma(const vec &y, const vec &mu, const vec &wt) {
-  // Standard Gamma deviance: -2 * sum(log(y/mu) - (y-mu)/mu)
-  vec y_safe = clamp(y, 1e-15, arma::datum::inf);
-  vec mu_safe = clamp(mu, 1e-15, arma::datum::inf);
+// Binomial deviance matching R's base implementation exactly
+inline double dev_resids_binomial(const vec &y, const vec &mu, const vec &w) {
+  vec r(y.n_elem, fill::zeros);
 
-  vec terms = log(y_safe / mu_safe) - (y - mu) / mu_safe;
-  return -2.0 * dot(wt, terms);
+  // y = 1 cases
+  uvec p = find(y == 1);
+  if (p.n_elem > 0) {
+    r(p) = log(y(p) / mu(p));
+  }
+
+  // y = 0 cases
+  uvec q = find(y == 0);
+  if (q.n_elem > 0) {
+    r(q) = log((1.0 - y(q)) / (1.0 - mu(q)));
+  }
+
+  return 2.0 * dot(w, r);
+}
+
+inline double dev_resids_gamma(const vec &y, const vec &mu, const vec &w,
+                               double safe_clamp_min) {
+  // Standard Gamma deviance: -2 * sum(log(y/mu) - (y-mu)/mu)
+  vec y_adj = clamp(y, safe_clamp_min, datum::inf);
+  vec mu_adj = clamp(mu, safe_clamp_min, datum::inf);
+
+  vec terms = log(y_adj / mu_adj) - (y - mu) / mu_adj;
+  return -2.0 * dot(w, terms);
 }
 
 inline double dev_resids_invgaussian(const vec &y, const vec &mu,
-                                     const vec &wt) {
-  return dot(wt, square(y - mu) / (y % square(mu)));
+                                     const vec &w) {
+  return dot(w, square(y - mu) / (y % square(mu)));
 }
 
 inline double dev_resids_negbin(const vec &y, const vec &mu,
-                                const double &theta, const vec &wt) {
-  vec r = y;
+                                const double &theta, const vec &w,
+                                double safe_clamp_min) {
+  vec y_adj = clamp(y, safe_clamp_min, datum::inf); // Avoid log(0)
+  vec r =
+      w % (y % log(y_adj / mu) - (y + theta) % log((y + theta) / (mu + theta)));
 
-  uvec p = find(y < 1);
-  r.elem(p).fill(1.0);
-  r = wt % (y % log(r / mu) - (y + theta) % log((y + theta) / (mu + theta)));
-
-  return 2 * accu(r);
+  return 2.0 * accu(r);
 }
 
 inline double dev_resids(const vec &y, const vec &mu, const double &theta,
-                         const vec &wt, const Family family_type) {
+                         const vec &w, const Family family_type,
+                         double safe_clamp_min) {
   switch (family_type) {
   case Family::GAUSSIAN:
-    return dev_resids_gaussian(y, mu, wt);
+    return dev_resids_gaussian(y, mu, w);
   case Family::POISSON:
-    return dev_resids_poisson(y, mu, wt);
+    return dev_resids_poisson(y, mu, w);
   case Family::BINOMIAL:
-    return dev_resids_logit(y, mu, wt);
+    return dev_resids_binomial(y, mu, w);
   case Family::GAMMA:
-    return dev_resids_gamma(y, mu, wt);
+    return dev_resids_gamma(y, mu, w, safe_clamp_min);
   case Family::INV_GAUSSIAN:
-    return dev_resids_invgaussian(y, mu, wt);
+    return dev_resids_invgaussian(y, mu, w);
   case Family::NEGBIN:
-    return dev_resids_negbin(y, mu, theta, wt);
+    return dev_resids_negbin(y, mu, theta, w, safe_clamp_min);
   default:
     stop("Unknown family");
   }
@@ -389,11 +350,11 @@ struct InferenceGLM {
   bool has_mx = false;
 
   InferenceGLM(size_t n, size_t p)
-      : coefficients(p, fill::none), eta(n, fill::none),
-        fitted_values(n, fill::none), weights(n, fill::none),
-        hessian(p, p, fill::none), deviance(0.0), null_deviance(0.0),
-        conv(false), iter(0), coef_status(p, fill::none),
-        residuals_working(n, fill::none), residuals_response(n, fill::none),
+      : coefficients(p, fill::zeros), eta(n, fill::zeros),
+        fitted_values(n, fill::zeros), weights(n, fill::ones),
+        hessian(p, p, fill::zeros), deviance(0.0), null_deviance(0.0),
+        conv(false), iter(0), coef_status(p, fill::ones),
+        residuals_working(n, fill::zeros), residuals_response(n, fill::zeros),
         is_regular(true), has_fe(false), has_mx(false) {}
 
   cpp11::list to_list(bool keep_dmx = true) const {
@@ -441,6 +402,51 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
   const bool has_fixed_effects =
       fe_indices.n_elem > 0 && fe_indices(0).n_elem > 0;
 
+  // Debug: Function entry
+  std::cout << "DEBUG feglm_fit ENTRY: family='" << family << "', n=" << n
+            << ", p_orig=" << p_orig
+            << ", has_fixed_effects=" << has_fixed_effects << std::endl;
+
+  // Print data dimensions
+  std::cout << "X rows=" << X_orig.n_rows << ", cols=" << X_orig.n_cols
+            << ", y rows=" << y_orig.n_elem << std::endl;
+
+  // Debug: Print first few values of input data
+  std::cout << "DEBUG INPUT DATA:" << std::endl;
+  std::cout << "First 5 y values: ";
+  for (size_t i = 0; i < 5; i++) {
+    std::cout << y_orig(i) << " ";
+  }
+  std::cout << std::endl;
+
+  std::cout << "First 5 x1 values: ";
+  for (size_t i = 0; i < 5; i++) {
+    std::cout << X_orig(i, 0) << " ";
+  }
+  std::cout << std::endl;
+
+  if (X_orig.n_cols > 1) {
+    std::cout << "First 5 x2 values: ";
+    for (size_t i = 0; i < 5; i++) {
+      std::cout << X_orig(i, 1) << " ";
+    }
+    std::cout << std::endl;
+  }
+
+  std::cout << "First 5 weights: ";
+  for (size_t i = 0; i < 5; i++) {
+    std::cout << w(i) << " ";
+  }
+  std::cout << std::endl;
+
+  std::cout << "First 5 fe_indices: ";
+  if (fe_indices.n_elem > 0 && fe_indices(0).n_elem > 0) {
+    for (size_t i = 0; i < 5; i++) {
+      std::cout << fe_indices(0)(i) << " ";
+    }
+  }
+  std::cout << std::endl;
+
   InferenceGLM result(n, p_orig);
 
   // Get family type
@@ -448,15 +454,46 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
   Family family_type = get_family_type(fam);
 
   // Validate response for all families
-  if (!valid_mu(y_orig, family_type)) {
-    result.conv = false;
-    return result;
+
+  switch (family_type) {
+  case Family::GAUSSIAN:
+    if (!is_finite(y_orig)) {
+      result.conv = false;
+      return result;
+    }
+    break;
+  case Family::POISSON:
+  case Family::NEGBIN:
+    // For Poisson/NegBin: y must be non-negative integers (can include 0)
+    if (!is_finite(y_orig) || any(y_orig < 0)) {
+      result.conv = false;
+      return result;
+    }
+    break;
+  case Family::BINOMIAL:
+    // For Binomial: y must be between 0 and 1
+    if (!is_finite(y_orig) || any(y_orig < 0) || any(y_orig > 1)) {
+      result.conv = false;
+      return result;
+    }
+    break;
+  case Family::GAMMA:
+  case Family::INV_GAUSSIAN:
+    // For Gamma/InvGaussian: y must be positive
+    if (!is_finite(y_orig) || any(y_orig <= 0)) {
+      result.conv = false;
+      return result;
+    }
+    break;
+  default:
+    stop("Unknown family");
   }
+  std::cout << "DEBUG: Response validation passed!" << std::endl;
 
   // Initialize
   double mean_y = sum(w % y_orig) / sum(w);
-  vec mu;
-  vec eta;
+  vec mu(n, fill::none);
+  vec eta(n, fill::none);
 
   // Check if we actually have weights
   bool glm_weights = true;
@@ -466,18 +503,81 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
                     params.binomial_mu_min, params.binomial_mu_max,
                     params.safe_clamp_min, params.safe_clamp_max);
 
-  result.deviance = dev_resids(y_orig, mu, 0.0, w, family_type);
+  // For fixed effects models, initialize eta conservatively
+  if (has_fixed_effects) {
+    double safe_mean_y =
+        std::max(static_cast<double>(mean_y), params.safe_clamp_min);
 
-  // Storage for IRLS algorithm
-  vec eta_old, z, working_weights;
+    switch (family_type) {
+    case Family::GAUSSIAN:
+      mu.fill(mean_y);
+      eta.fill(mean_y);
+      break;
+    case Family::POISSON:
+    case Family::NEGBIN:
+      mu.fill(mean_y);
+      eta.fill(log(safe_mean_y));
+      break;
+    case Family::BINOMIAL:
+      mu.fill(0.5); // Start at neutral probability
+      eta.zeros();  // logit(0.5) = 0
+      break;
+    case Family::GAMMA:
+      mu.fill(safe_mean_y);
+      eta.fill(1.0 / mean_y); // reciprocal link
+      break;
+    case Family::INV_GAUSSIAN:
+      mu.fill(safe_mean_y);
+      eta.fill(1.0 / (mean_y * mean_y)); // inverse squared link
+      break;
+    default:
+      stop("Unknown family");
+    }
+  }
+
+  result.deviance =
+      dev_resids(y_orig, mu, 0.0, w, family_type, params.safe_clamp_min);
+
+  // Storage for IRLS algorithm - pre-allocate
+  vec eta_old(n, fill::none);
+  vec z(n, fill::none);
+  vec working_weights(n, fill::none);
   double devold = result.deviance;
   uvec coef_status = ones<uvec>(p_orig);
 
+  // Variables for convergence checking
+  double deviance = result.deviance;
+  vec coefficients_old = result.coefficients;
+  bool converged = false;
+
   mat X_demean;
   vec Y_demean;
+
+  // Initialize demean matrices properly
+  if (!has_fixed_effects) {
+    X_demean = X_orig;
+  } else if (p_orig > 0) {
+    X_demean.set_size(n, p_orig);
+  } else {
+    X_demean = mat(n, 0);
+  }
+
+  // Pre-allocate for fixed effects case
+  field<vec> variables_to_demean;
+  if (has_fixed_effects) {
+    variables_to_demean.set_size(p_orig + 1);
+    if (p_orig > 0) {
+      X_demean.set_size(n, p_orig);
+    }
+  }
+
   DemeanResult y_demean_result(0);
 
+  // Debug after DemeanResult initialization
+  std::cout << "DEBUG: DemeanResult created successfully" << std::endl;
+
   // IRLS loop
+
   for (size_t iter = 0; iter < params.iter_max; iter++) {
     result.iter = iter + 1;
     eta_old = eta;
@@ -496,15 +596,13 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
     working_weights = w % square(mu_eta_val) / var_mu;
 
     // Check weights
-    uvec zero_w = (working_weights <= 0);
-    if (any(zero_w) && all(zero_w)) {
+    if (all(working_weights <= 0)) {
       break;
     }
 
     // Demean variables if we have fixed effects
     if (has_fixed_effects) {
       // Prepare data for demeaning: combine Y and X
-      field<vec> variables_to_demean(p_orig + 1);
       variables_to_demean(0) = z; // Working response first
       for (size_t j = 0; j < p_orig; ++j) {
         variables_to_demean(j + 1) = X_orig.col(j); // Then X columns
@@ -514,13 +612,23 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
           demean_variables(variables_to_demean, working_weights, fe_indices,
                            nb_ids, fe_id_tables, true, params);
 
-      // Extract demeaned Y and X
+      // Debug: Print demeaned data
+      std::cout << "DEBUG: After demeaning - First 5 Y_demean values: ";
       Y_demean = y_demean_result.demeaned_vars(0);
+      for (size_t i = 0; i < 5; i++) {
+        std::cout << Y_demean(i) << " ";
+      }
+      std::cout << std::endl;
+
       if (p_orig > 0) {
-        X_demean.set_size(n, p_orig);
+        std::cout << "DEBUG: After demeaning - First 5 X_demean values: ";
         for (size_t j = 0; j < p_orig; ++j) {
           X_demean.col(j) = y_demean_result.demeaned_vars(j + 1);
         }
+        for (size_t i = 0; i < 5; i++) {
+          std::cout << X_demean(i, 0) << " ";
+        }
+        std::cout << std::endl;
       } else {
         X_demean = mat(n, 0);
       }
@@ -535,6 +643,18 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
         get_beta(X_demean, Y_demean, z, working_weights, params, glm_weights,
                  has_fixed_effects);
 
+    // Debug: Print beta results
+    std::cout << "DEBUG: Iteration " << iter
+              << " - Beta calculation:" << std::endl;
+    std::cout << "Beta success: " << beta_result.success << std::endl;
+    if (beta_result.success && beta_result.coefficients.n_elem > 0) {
+      std::cout << "Coefficients: ";
+      for (size_t i = 0; i < beta_result.coefficients.n_elem; i++) {
+        std::cout << beta_result.coefficients(i) << " ";
+      }
+      std::cout << std::endl;
+    }
+
     if (!beta_result.success ||
         any(beta_result.coefficients != beta_result.coefficients)) {
       if (iter == 0) {
@@ -545,7 +665,8 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
     }
 
     coef_status = beta_result.coef_status;
-    result.coefficients = beta_result.coefficients;
+    // Ensure proper copy of coefficients
+    result.coefficients = vec(beta_result.coefficients);
 
     // Use fitted values directly from get_beta - they already include fixed
     // effects
@@ -559,7 +680,8 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
          ++iter_inner) {
       eta = eta_old + rho * (new_eta - eta_old);
       mu = link_inv(eta, family_type);
-      double deviance = dev_resids(y_orig, mu, 0.0, w, family_type);
+      double deviance =
+          dev_resids(y_orig, mu, 0.0, w, family_type, params.safe_clamp_min);
 
       double dev_ratio = (deviance - devold) / (0.1 + std::abs(devold));
 
@@ -594,10 +716,9 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
     devold = result.deviance;
   }
 
-  // Final results
-  result.coefficients = get_beta(X_demean, Y_demean, y_orig, working_weights,
-                                 params, glm_weights, has_fixed_effects)
-                            .coefficients;
+  // Final processing
+  result.conv = converged;
+  result.deviance = deviance;
   result.eta = eta;
   result.fitted_values = mu;
   result.weights = working_weights;
@@ -606,17 +727,20 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
   // Hessian
   if (has_fixed_effects) {
     if (p_orig > 0) {
-      result.hessian = X_demean.t() * (X_demean.each_col() % working_weights);
+      mat weighted_X = X_demean.each_col() % working_weights;
+      result.hessian = X_demean.t() * weighted_X;
     } else {
       result.hessian = mat(0, 0);
     }
   } else {
-    result.hessian = X_orig.t() * (X_orig.each_col() % working_weights);
+    mat weighted_X = X_orig.each_col() % working_weights;
+    result.hessian = X_orig.t() * weighted_X;
   }
 
   // Null deviance
   vec mu_null(y_orig.n_elem, fill::value(mean_y));
-  result.null_deviance = dev_resids(y_orig, mu_null, 0.0, w, family_type);
+  result.null_deviance =
+      dev_resids(y_orig, mu_null, 0.0, w, family_type, params.safe_clamp_min);
 
   if (params.keep_dmx) {
     result.X_dm = X_orig;

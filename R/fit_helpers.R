@@ -297,17 +297,17 @@ check_control_ <- function(control) {
     # 1. non-negative params
     non_neg_params <- c(
       "dev_tol", "demean_tol", "iter_max", "iter_demean_max",
-      "iter_inner_max", "iter_interrupt", "iter_ssr", "limit"
+      "iter_inner_max", "iter_interrupt", "iter_ssr"
     )
     for (param_name in non_neg_params) {
-      if (merged_control[[param_name]] <= 0) {
+      if (param_name %in% names(merged_control) && merged_control[[param_name]] <= 0) {
         stop(sprintf("'%s' must be greater than zero.", param_name), call. = FALSE)
       }
     }
-    # 2. logical params
-    logical_params <- c("trace", "drop_pc", "keep_dmx")
+    # 2. logical params (only check params that exist in merged_control)
+    logical_params <- c("keep_dmx", "use_weights")
     for (param_name in logical_params) {
-      if (!is.logical(merged_control[[param_name]])) {
+      if (param_name %in% names(merged_control) && !is.logical(merged_control[[param_name]])) {
         stop(sprintf("'%s' must be logical.", param_name), call. = FALSE)
       }
     }

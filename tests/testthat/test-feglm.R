@@ -29,7 +29,7 @@ test_that("feglm is similar to glm", {
   # coef(mod_binom)
   # coef(mod_binom_base)
 
-  expect_equal(unname(coef(mod_binom) - coef(mod_binom_base)[2:3]), c(0, 0), tolerance = 0.05)
+  expect_equal(unname(coef(mod_binom) - coef(mod_binom_base)[2:3]), c(0, 0), tolerance = 1e-2)
 
   mod_binom <- feglm(am ~ wt + mpg | cyl, mtcars, family = binomial())
   mod_binom_fixest <- fixest::feglm(am ~ wt + mpg | cyl, mtcars, family = binomial())
@@ -43,12 +43,12 @@ test_that("feglm is similar to glm", {
   # Gamma ----
   mod_gamma <- feglm(mpg ~ wt + am | cyl, mtcars, family = Gamma())
   mod_gamma_base <- glm(mpg ~ wt + am + as.factor(cyl), mtcars, family = Gamma())
-  expect_equal(coef(mod_gamma_base)[2:3], coef(mod_gamma), tolerance = 0.05)
+  expect_equal(coef(mod_gamma_base)[2:3], coef(mod_gamma), tolerance = 1e-2)
 
   # Inverse Gaussian ----
   mod_invgauss <- feglm(mpg ~ wt + am | cyl, mtcars, family = inverse.gaussian())
   mod_invgauss_base <- glm(mpg ~ wt + am + as.factor(cyl), mtcars, family = inverse.gaussian())
-  expect_equal(coef(mod_invgauss_base)[2:3], coef(mod_invgauss), tolerance = 0.05)
+  expect_equal(coef(mod_invgauss_base)[2:3], coef(mod_invgauss), tolerance = 1e-2)
 })
 
 test_that("predicted values increase the error outside the inter-quartile range for GLMs", {
@@ -80,14 +80,14 @@ test_that("predicted values increase the error outside the inter-quartile range 
   # Compare with base R Poisson
   pred1_base_pois <- predict(m2_pois, newdata = d1, type = "response")
   pred2_base_pois <- predict(m2_pois, newdata = d2, type = "response")
-  expect_equal(unname(pred1_base_pois), pred1_pois, tolerance = 0.05)
-  expect_equal(unname(pred2_base_pois), pred2_pois, tolerance = 0.05)
+  expect_equal(pred1_base_pois, pred1_pois, tolerance = 1e-2)
+  expect_equal(pred2_base_pois, pred2_pois, tolerance = 1e-2)
 
   # Compare with fixest Poisson
   # pred1_fixest_pois <- predict(m3_pois, newdata = d1, type = "response")
   # pred2_fixest_pois <- predict(m3_pois, newdata = d2, type = "response")
-  # expect_equal(unname(pred1_fixest_pois), pred1_pois, tolerance = 0.05)
-  # expect_equal(unname(pred2_fixest_pois), pred2_pois, tolerance = 0.05)
+  # expect_equal(unname(pred1_fixest_pois), pred1_pois, tolerance = 1e-2)
+  # expect_equal(unname(pred2_fixest_pois), pred2_pois, tolerance = 1e-2)
 
   # Binomial ----
   m1_binom <- feglm(am ~ wt + disp | cyl, mtcars, family = binomial())
@@ -104,8 +104,8 @@ test_that("predicted values increase the error outside the inter-quartile range 
   # Compare with base R Binomial
   pred1_base_binom <- predict(m2_binom, newdata = d1, type = "response")
   pred2_base_binom <- predict(m2_binom, newdata = d2, type = "response")
-  expect_equal(pred1_binom, unname(pred1_base_binom), tolerance = 0.05)
-  expect_equal(pred2_binom, unname(pred2_base_binom), tolerance = 0.05)
+  expect_equal(pred1_binom, pred1_base_binom, tolerance = 1e-2)
+  expect_equal(pred2_binom, pred2_base_binom, tolerance = 1e-2)
 
   names(m2_binom)
 })
@@ -137,8 +137,8 @@ test_that("predicted values increase the error outside the inter-quartile range 
   # Compare with base R Binomial
   pred1_base_binom <- predict(m2_binom, newdata = d1, type = "response")
   pred2_base_binom <- predict(m2_binom, newdata = d2, type = "response")
-  expect_equal(pred1_binom, unname(pred1_base_binom), tolerance = 0.05)
-  expect_equal(pred2_binom, unname(pred2_base_binom), tolerance = 0.05)
+  expect_equal(pred1_binom, pred1_base_binom, tolerance = 1e-2)
+  expect_equal(pred2_binom, pred2_base_binom, tolerance = 1e-2)
 })
 
 test_that("proportional regressors return NA coefficients", {
@@ -153,9 +153,8 @@ test_that("proportional regressors return NA coefficients", {
   fit1 <- glm(y ~ x1 + x2 + as.factor(f), data = d, family = gaussian())
   fit2 <- feglm(y ~ x1 + x2 | f, data = d, family = gaussian())
 
-  # TODO: check tolerance for closer results?
-  expect_equal(coef(fit2), coef(fit1)[2:3], tolerance = 0.05)
-  expect_equal(predict(fit2), unname(predict(fit1)), tolerance = 0.05)
+  expect_equal(coef(fit2), coef(fit1)[2:3], tolerance = 1e-2)
+  expect_equal(predict(fit2), predict(fit1), tolerance = 1e-2)
 })
 
 test_that("feglm with weights works", {

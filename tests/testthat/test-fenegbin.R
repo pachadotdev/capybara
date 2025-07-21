@@ -24,5 +24,5 @@ test_that("fenegbin is similar to fixest", {
     family = quasipoisson(link = "log")
   )
 
-  expect_equal(coef(mod_base)[2], coef(mod)[1], tolerance = 0.05)
+  expect_equal(coef(mod_base)[2], coef(mod)[1], tolerance = 1e-2)
 })

@@ -76,7 +76,7 @@ feglm_offset_fit(vec eta, const vec &y, const vec &offset, const vec &wt,
   vec eta_upd(n, fill::none);
   vec eta_old(n, fill::none);
 
-  double dev = dev_resids(y, mu, 0.0, wt, family_type);
+  double dev = dev_resids(y, mu, 0.0, wt, family_type, params.safe_clamp_min);
   double dev_old, dev_ratio, dev_ratio_inner, rho;
   bool dev_crit, val_crit, imp_crit;
 
@@ -126,7 +126,7 @@ feglm_offset_fit(vec eta, const vec &y, const vec &offset, const vec &wt,
          ++iter_inner) {
       eta = eta_old + (rho * eta_upd);
       mu = link_inv(eta, family_type);
-      dev = dev_resids(y, mu, 0.0, wt, family_type);
+      dev = dev_resids(y, mu, 0.0, wt, family_type, params.safe_clamp_min);
       dev_ratio_inner = (dev - dev_old) / (0.1 + std::abs(dev_old));
 
       dev_crit = is_finite(dev);
