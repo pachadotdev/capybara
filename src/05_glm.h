@@ -15,6 +15,8 @@ using parameters::get_alpha;
 using parameters::get_beta;
 using parameters::InferenceAlpha;
 using parameters::InferenceBeta;
+using parameters::CollinearityResult;
+using parameters::detect_collinearity_qr;
 
 // Use convergence family types to avoid duplication
 using convergence::Family;
@@ -160,6 +162,39 @@ void initialize_family(vec &mu, vec &eta, const vec &y_orig, double mean_y,
   case Family::INV_GAUSSIAN:
     mu = clamp(y_orig, safe_clamp_min, safe_clamp_max);
     eta = 1.0 / square(mu); // inverse squared link
+    break;
+  default:
+    stop("Unknown family");
+  }
+}
+
+// Conservative initialization for fixed effects models
+void initialize_family_fixed_effects(vec &mu, vec &eta, double mean_y,
+                                      const Family family_type,
+                                      double safe_clamp_min) {
+  double safe_mean_y = std::max(static_cast<double>(mean_y), safe_clamp_min);
+
+  switch (family_type) {
+  case Family::GAUSSIAN:
+    mu.fill(mean_y);
+    eta.fill(mean_y);
+    break;
+  case Family::POISSON:
+  case Family::NEGBIN:
+    mu.fill(safe_mean_y);
+    eta.fill(log(safe_mean_y));
+    break;
+  case Family::BINOMIAL:
+    mu.fill(0.5);
+    eta.zeros();
+    break;
+  case Family::GAMMA:
+    mu.fill(safe_mean_y);
+    eta.fill(1.0 / safe_mean_y);
+    break;
+  case Family::INV_GAUSSIAN:
+    mu.fill(safe_mean_y);
+    eta.fill(1.0 / (safe_mean_y * safe_mean_y));
     break;
   default:
     stop("Unknown family");
@@ -317,6 +352,24 @@ inline vec variance(const vec &mu, const double &theta,
   }
 }
 
+// Validate response vector for given family
+inline bool valid_response(const vec &y, const Family family_type) {
+  switch (family_type) {
+  case Family::GAUSSIAN:
+    return is_finite(y);
+  case Family::POISSON:
+  case Family::NEGBIN:
+    return is_finite(y) && all(y >= 0);
+  case Family::BINOMIAL:
+    return is_finite(y) && all(y >= 0) && all(y <= 1);
+  case Family::GAMMA:
+  case Family::INV_GAUSSIAN:
+    return is_finite(y) && all(y > 0);
+  default:
+    stop("Unknown family");
+  }
+}
+
 //////////////////////////////////////////////////////////////////////////////
 // RESULT STRUCTURES
 //////////////////////////////////////////////////////////////////////////////
@@ -408,61 +461,29 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
   Family family_type = get_family_type(fam);
 
   // Validate response
-  switch (family_type) {
-  case Family::GAUSSIAN:
-    if (!is_finite(y_orig)) {
-      result.conv = false;
-      return result;
-    }
-    break;
-  case Family::POISSON:
-  case Family::NEGBIN:
-    if (!is_finite(y_orig) || any(y_orig < 0)) {
-      result.conv = false;
-      return result;
-    }
-    break;
-  case Family::BINOMIAL:
-    if (!is_finite(y_orig) || any(y_orig < 0) || any(y_orig > 1)) {
-      result.conv = false;
-      return result;
-    }
-    break;
-  case Family::GAMMA:
-  case Family::INV_GAUSSIAN:
-    if (!is_finite(y_orig) || any(y_orig <= 0)) {
-      result.conv = false;
-      return result;
-    }
-    break;
-  default:
-    stop("Unknown family");
+  if (!valid_response(y_orig, family_type)) {
+    result.conv = false;
+    return result;
   }
 
   // Detect collinearity before starting iterations
-  uvec non_collinear_cols;
   mat X; // This will be the working X matrix without collinear columns
+  CollinearityResult collin_result(p_orig);
 
   if (p_orig > 0) {
-    // Simple collinearity check using correlation or QR decomposition
-    mat Q, R;
-    qr_econ(Q, R, X_orig);
+    // Use shared collinearity detection (no weights for initial check)
+    vec dummy_weights = ones<vec>(y_orig.n_elem);
+    collin_result = detect_collinearity_qr(X_orig, dummy_weights, false, params.collin_tol);
 
-    vec R_diag = abs(R.diag());
-    double tol = params.collin_tol * R_diag.max();
-
-    non_collinear_cols = find(R_diag > tol);
-
-    if (non_collinear_cols.n_elem < p_orig) {
+    if (collin_result.has_collinearity) {
       // Some columns are collinear - create reduced X matrix
-      X = X_orig.cols(non_collinear_cols);
+      X = X_orig.cols(collin_result.non_collinear_cols);
     } else {
       // No collinearity detected
       X = X_orig;
     }
   } else {
     X = X_orig;
-    non_collinear_cols = uvec();
   }
 
   const size_t p = X.n_cols; // Number of non-collinear columns
@@ -496,34 +517,8 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
 
   // For fixed effects models, use conservative initialization
   if (has_fixed_effects) {
-    double safe_mean_y =
-        std::max(static_cast<double>(mean_y), params.safe_clamp_min);
-
-    switch (family_type) {
-    case Family::GAUSSIAN:
-      mu.fill(mean_y);
-      eta.fill(mean_y);
-      break;
-    case Family::POISSON:
-    case Family::NEGBIN:
-      mu.fill(safe_mean_y);
-      eta.fill(log(safe_mean_y));
-      break;
-    case Family::BINOMIAL:
-      mu.fill(0.5);
-      eta.zeros();
-      break;
-    case Family::GAMMA:
-      mu.fill(safe_mean_y);
-      eta.fill(1.0 / safe_mean_y);
-      break;
-    case Family::INV_GAUSSIAN:
-      mu.fill(safe_mean_y);
-      eta.fill(1.0 / (safe_mean_y * safe_mean_y));
-      break;
-    default:
-      stop("Unknown family");
-    }
+    initialize_family_fixed_effects(mu, eta, mean_y, family_type,
+                                     params.safe_clamp_min);
   }
 
   // Initial deviance
@@ -589,20 +584,20 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
     vec coef_reduced = felm_result.coefficients;
     result.coefficients.zeros();
 
-    if (non_collinear_cols.n_elem < p_orig && non_collinear_cols.n_elem > 0) {
+    if (collin_result.non_collinear_cols.n_elem < p_orig && collin_result.non_collinear_cols.n_elem > 0) {
       // Map reduced coefficients back to original positions
-      for (size_t i = 0; i < non_collinear_cols.n_elem; i++) {
-        result.coefficients(non_collinear_cols(i)) = coef_reduced(i);
+      for (size_t i = 0; i < collin_result.non_collinear_cols.n_elem; i++) {
+        result.coefficients(collin_result.non_collinear_cols(i)) = coef_reduced(i);
       }
     } else if (p > 0) {
       // No collinearity, direct copy
       result.coefficients = coef_reduced;
     }
 
-    // Update eta - using fitted values from felm_fit
+    // New eta
     vec eta_new = felm_result.fitted_values;
 
-    // Compute new mu for deviance calculation
+    // New mu for deviance calculation
     vec mu_new = link_inv(eta_new, family_type);
     double dev = dev_resids(y_orig, mu_new, 0.0, weights_vec, family_type,
                             params.safe_clamp_min);
@@ -682,9 +677,9 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
 
   // Update coef_status to reflect collinear variables
   result.coef_status.zeros();
-  if (non_collinear_cols.n_elem < p_orig && non_collinear_cols.n_elem > 0) {
-    for (size_t i = 0; i < non_collinear_cols.n_elem; i++) {
-      result.coef_status(non_collinear_cols(i)) = coef_status(i);
+  if (collin_result.non_collinear_cols.n_elem < p_orig && collin_result.non_collinear_cols.n_elem > 0) {
+    for (size_t i = 0; i < collin_result.non_collinear_cols.n_elem; i++) {
+      result.coef_status(collin_result.non_collinear_cols(i)) = coef_status(i);
     }
   } else {
     result.coef_status = coef_status;
@@ -706,12 +701,12 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
                                       fe_indices, nb_ids, fe_id_tables, params);
 
     // For hessian, we need to account for the original dimensions
-    if (non_collinear_cols.n_elem < p_orig && p_orig > 0) {
+    if (collin_result.non_collinear_cols.n_elem < p_orig && p_orig > 0) {
       result.hessian = zeros<mat>(p_orig, p_orig);
       mat hess_reduced = final_felm.hessian;
-      for (size_t i = 0; i < non_collinear_cols.n_elem; i++) {
-        for (size_t j = 0; j < non_collinear_cols.n_elem; j++) {
-          result.hessian(non_collinear_cols(i), non_collinear_cols(j)) =
+      for (size_t i = 0; i < collin_result.non_collinear_cols.n_elem; i++) {
+        for (size_t j = 0; j < collin_result.non_collinear_cols.n_elem; j++) {
+          result.hessian(collin_result.non_collinear_cols(i), collin_result.non_collinear_cols(j)) =
               hess_reduced(i, j);
         }
       }
@@ -727,11 +722,11 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
     mat weighted_X = X.each_col() % sqrt(working_weights);
     mat hess_reduced = weighted_X.t() * weighted_X;
 
-    if (non_collinear_cols.n_elem < p_orig && p_orig > 0) {
+    if (collin_result.non_collinear_cols.n_elem < p_orig && p_orig > 0) {
       result.hessian = zeros<mat>(p_orig, p_orig);
-      for (size_t i = 0; i < non_collinear_cols.n_elem; i++) {
-        for (size_t j = 0; j < non_collinear_cols.n_elem; j++) {
-          result.hessian(non_collinear_cols(i), non_collinear_cols(j)) =
+      for (size_t i = 0; i < collin_result.non_collinear_cols.n_elem; i++) {
+        for (size_t j = 0; j < collin_result.non_collinear_cols.n_elem; j++) {
+          result.hessian(collin_result.non_collinear_cols(i), collin_result.non_collinear_cols(j)) =
               hess_reduced(i, j);
         }
       }

@@ -58,11 +58,31 @@ struct InferenceAlpha {
 // STRUCTURAL PARAMETERS ESTIMATION
 //////////////////////////////////////////////////////////////////////////////
 
-// QR-based beta computation (matching original implementation)
-inline void get_beta_qr(mat &X, const vec &y, const vec &w,
-                        InferenceBeta &result, bool has_weights,
-                        double qr_collin_tol_multiplier) {
+// Result structure for collinearity detection
+struct CollinearityResult {
+  uvec non_collinear_cols;
+  uvec coef_status;
+  bool has_collinearity;
+
+  CollinearityResult(size_t p)
+      : non_collinear_cols(p), coef_status(p, fill::ones), has_collinearity(false) {
+    non_collinear_cols = regspace<uvec>(0, p - 1);
+  }
+};
+
+// Shared QR-based collinearity detection helper
+inline CollinearityResult detect_collinearity_qr(const mat &X,
+                                                  const vec &w,
+                                                  bool has_weights,
+                                                  double tolerance) {
   const size_t p = X.n_cols;
+  CollinearityResult result(p);
+
+  if (p == 0) {
+    result.non_collinear_cols = uvec();
+    result.coef_status = uvec();
+    return result;
+  }
 
   mat Q, R;
 
@@ -73,17 +93,42 @@ inline void get_beta_qr(mat &X, const vec &y, const vec &w,
     qr_econ(Q, R, X);
   }
 
-  vec QTy = Q.t() * y;
-
   const vec diag_abs = abs(R.diag());
   const double max_diag = diag_abs.max();
-  // Use configurable tolerance for collinearity detection
-  const double tol = qr_collin_tol_multiplier * 1e-7 * max_diag;
+  const double tol = tolerance * max_diag;
   const uvec indep = find(diag_abs > tol);
 
-  result.coefficients.fill(datum::nan);
+  result.non_collinear_cols = indep;
   result.coef_status.zeros();
   result.coef_status(indep).ones();
+  result.has_collinearity = (indep.n_elem < p);
+
+  return result;
+}
+
+inline void get_beta_qr(mat &X, const vec &y, const vec &w,
+                        InferenceBeta &result, bool has_weights,
+                        double qr_collin_tol_multiplier) {
+  const size_t p = X.n_cols;
+
+  // Use shared collinearity detection
+  double tolerance = qr_collin_tol_multiplier * 1e-7;
+  CollinearityResult collin_result = detect_collinearity_qr(X, w, has_weights, tolerance);
+  
+  // QR decomposition for coefficient computation
+  mat Q, R;
+  if (has_weights) {
+    mat X_weighted = X.each_col() % sqrt(w);
+    qr_econ(Q, R, X_weighted);
+  } else {
+    qr_econ(Q, R, X);
+  }
+
+  vec QTy = Q.t() * y;
+  const uvec &indep = collin_result.non_collinear_cols;
+
+  result.coefficients.fill(datum::nan);
+  result.coef_status = collin_result.coef_status;
 
   if (indep.n_elem == p) {
     result.coefficients = solve(trimatu(R), QTy, solve_opts::fast);

@@ -37,8 +37,8 @@ test_that("felm works", {
   expect_equal(length(coef(m1)), 1)
   expect_equal(length(coef(summary(m1))), 4)
 
-  coef(felm(mpg ~ wt + qsec | cyl, mtcars))
-  coef(fixest::feols(mpg ~ wt + qsec | cyl, mtcars))
+  # coef(felm(mpg ~ wt + qsec | cyl, mtcars))
+  # coef(fixest::feols(mpg ~ wt + qsec | cyl, mtcars))
 
   m1 <- felm(mpg ~ wt + qsec | cyl, mtcars)
   m2 <- lm(mpg ~ wt + qsec + as.factor(cyl), mtcars)
