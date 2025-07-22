@@ -9,12 +9,12 @@ namespace lm {
 
 using demean::demean_variables;
 using demean::DemeanResult;
+using parameters::check_collinearity;
+using parameters::CollinearityResult;
 using parameters::get_alpha;
 using parameters::get_beta;
-using parameters::check_collinearity;
 using parameters::InferenceAlpha;
 using parameters::InferenceBeta;
-using parameters::CollinearityResult;
 
 //////////////////////////////////////////////////////////////////////////////
 // RESULT STRUCTURES
@@ -79,26 +79,36 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
 
   InferenceLM result(n, p_orig);
 
-  mat X_demean = X;
+  // Keep a copy of original X for fixed effects computation
+  mat X_orig = X;
+
+  // STEP 1: Check collinearity and modify X in place
+  bool use_weights = params.use_weights && !all(w == 1.0);
+  double tolerance = params.qr_collin_tol_multiplier * 1e-7;
+
+  mat X_work = X; // Working copy that will be modified
+  CollinearityResult collin_result =
+      check_collinearity(X_work, w, use_weights, tolerance, false);
+
+  // STEP 2: Demean variables
+  mat X_demean;
   vec y_demean;
-  DemeanResult y_demean_result(0);
 
   if (has_fixed_effects) {
-    // STEP 1: Demean Y and save the fixed effects
+    // Demean Y
     field<vec> y_to_demean(1);
     y_to_demean(0) = y;
 
-    y_demean_result = demean_variables(y_to_demean, w, fe_indices, nb_ids,
-                                       fe_id_tables, true, params);
-
+    DemeanResult y_demean_result = demean_variables(
+        y_to_demean, w, fe_indices, nb_ids, fe_id_tables, true, params);
     y_demean = y_demean_result.demeaned_vars(0);
 
-    // Demean X columns (without saving FE)
-    if (p_orig > 0) {
-      X_demean.set_size(n, p_orig);
-      for (size_t j = 0; j < p_orig; ++j) {
+    // Demean only non-collinear X columns
+    if (X_work.n_cols > 0) {
+      X_demean.set_size(n, X_work.n_cols);
+      for (size_t j = 0; j < X_work.n_cols; ++j) {
         field<vec> x_to_demean(1);
-        x_to_demean(0) = X.col(j);
+        x_to_demean(0) = X_work.col(j);
 
         DemeanResult x_demean_result = demean_variables(
             x_to_demean, w, fe_indices, nb_ids, fe_id_tables, false, params);
@@ -111,27 +121,21 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
 
     result.has_fe = true;
   } else {
-    // No fixed effects
     y_demean = y;
-    X_demean = X;
+    X_demean = X_work; // Already reduced
     result.has_fe = false;
   }
 
-  // STEP 2: Run regression using QR for first iteration (LM fitting)
-  bool use_weights = params.use_weights;
-  if (use_weights) {
-    use_weights = !all(w == 1.0);
-  }
-
-  InferenceBeta beta_result = get_beta(X_demean, y_demean, y, w, params,
-                                       use_weights, has_fixed_effects, true); // first_iter = true
+  // STEP 3: Run regression on reduced matrix
+  InferenceBeta beta_result = get_beta(X_demean, y_demean, y, w, collin_result,
+                                       use_weights, has_fixed_effects);
 
   if (!beta_result.success) {
     result.success = false;
     return result;
   }
 
-  // STEP 4: Direct assignment to result fields
+  // STEP 4: Copy results
   result.coefficients = beta_result.coefficients;
   result.fitted_values = beta_result.fitted_values;
   result.residuals = beta_result.residuals;
@@ -139,24 +143,19 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
   result.hessian = beta_result.hessian;
   result.coef_status = beta_result.coef_status;
 
-  // STEP 5: Extract fixed effects if present
+  // STEP 5: Extract fixed effects using original X
   if (has_fixed_effects) {
-    // The sum of fixed effects is: fitted_values - X*beta
-    vec sum_fe = result.fitted_values - X * result.coefficients;
+    vec sum_fe = result.fitted_values - X_orig * result.coefficients;
 
-    // Convert field<uvec> to field<field<uvec>> format
     field<field<uvec>> group_indices(fe_indices.n_elem);
     for (size_t k = 0; k < fe_indices.n_elem; ++k) {
       group_indices(k).set_size(nb_ids(k));
-
-      // Create groups from fe_indices
       for (size_t g = 0; g < nb_ids(k); ++g) {
         uvec group_obs = find(fe_indices(k) == g);
         group_indices(k)(g) = group_obs;
       }
     }
 
-    // Use fixest algorithm instead of get_alpha
     InferenceAlpha alpha_result =
         get_alpha(sum_fe, group_indices, params.alpha_convergence_tol,
                   params.alpha_iter_max);

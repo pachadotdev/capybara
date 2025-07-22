@@ -10,8 +10,8 @@ namespace glm {
 using demean::demean_variables;
 using demean::DemeanResult;
 using lm::InferenceLM;
-using parameters::CollinearityResult;
 using parameters::check_collinearity;
+using parameters::CollinearityResult;
 using parameters::get_alpha;
 using parameters::get_beta;
 using parameters::InferenceAlpha;
@@ -479,12 +479,24 @@ inline InferenceWLM wlm_fit(const mat &X, const vec &y, const vec &y_orig,
 
   InferenceWLM result(n, p_orig);
 
+  // Keep original X for fixed effects computation
+  mat X_orig = X;
+
+  // Check collinearity on working copy
+  bool use_weights = params.use_weights && !all(w == 1.0);
+  double tolerance = params.qr_collin_tol_multiplier * 1e-7;
+
+  mat X_work = X;
+  CollinearityResult collin_result =
+      check_collinearity(X_work, w, use_weights, tolerance, first_iter);
+
+  // Demean variables
   mat X_demean;
   vec y_demean;
   DemeanResult y_demean_result(0);
 
   if (has_fixed_effects) {
-    // STEP 1: Demean Y (save fixed effects if requested)
+    // Demean Y
     field<vec> y_to_demean(1);
     y_to_demean(0) = y;
 
@@ -493,12 +505,12 @@ inline InferenceWLM wlm_fit(const mat &X, const vec &y, const vec &y_orig,
                          compute_fixed_effects, params);
     y_demean = y_demean_result.demeaned_vars(0);
 
-    // Demean X columns (without saving FE)
-    if (p_orig > 0) {
-      X_demean.set_size(n, p_orig);
-      for (size_t j = 0; j < p_orig; ++j) {
+    // Demean reduced X columns
+    if (X_work.n_cols > 0) {
+      X_demean.set_size(n, X_work.n_cols);
+      for (size_t j = 0; j < X_work.n_cols; ++j) {
         field<vec> x_to_demean(1);
-        x_to_demean(0) = X.col(j);
+        x_to_demean(0) = X_work.col(j);
 
         DemeanResult x_demean_result = demean_variables(
             x_to_demean, w, fe_indices, nb_ids, fe_id_tables, false, params);
@@ -511,49 +523,37 @@ inline InferenceWLM wlm_fit(const mat &X, const vec &y, const vec &y_orig,
 
     result.has_fe = true;
   } else {
-    // No fixed effects
     y_demean = y;
-    X_demean = X;
+    X_demean = X_work;
     result.has_fe = false;
   }
 
-  // STEP 2: Run regression using unified get_beta
-  bool use_weights = params.use_weights;
-  if (use_weights) {
-    use_weights = !all(w == 1.0);
-  }
+  // Run regression
+  InferenceBeta beta_result = get_beta(X_demean, y_demean, y, w, collin_result,
+                                       use_weights, has_fixed_effects);
 
-  InferenceBeta beta_result = get_beta(X_demean, y_demean, y, w, params,
-                                       use_weights, has_fixed_effects, first_iter);
-
-  // Extract what we need
+  // Extract results
   result.coefficients = beta_result.coefficients;
   result.fitted_values = beta_result.fitted_values;
   result.coef_status = beta_result.coef_status;
 
-  // Optionally compute hessian
   if (compute_hessian) {
     result.hessian = beta_result.hessian;
   }
 
-  // STEP 3: Extract fixed effects if present and requested
+  // Extract fixed effects using original X
   if (has_fixed_effects && compute_fixed_effects) {
-    // The sum of fixed effects is: fitted_values - X*beta
-    vec sum_fe = result.fitted_values - X * result.coefficients;
+    vec sum_fe = result.fitted_values - X_orig * result.coefficients;
 
-    // Convert field<uvec> to field<field<uvec>> format
     field<field<uvec>> group_indices(fe_indices.n_elem);
     for (size_t k = 0; k < fe_indices.n_elem; ++k) {
       group_indices(k).set_size(nb_ids(k));
-
-      // Create groups from fe_indices
       for (size_t g = 0; g < nb_ids(k); ++g) {
         uvec group_obs = find(fe_indices(k) == g);
         group_indices(k)(g) = group_obs;
       }
     }
 
-    // Use fixest algorithm to get fixed effects
     InferenceAlpha alpha_result =
         get_alpha(sum_fe, group_indices, params.alpha_convergence_tol,
                   params.alpha_iter_max);
@@ -593,48 +593,20 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
     return result;
   }
 
-  // Detect collinearity before starting iterations
-  mat X; // This will be the working X matrix without collinear columns
-  CollinearityResult collin_result(p_orig);
-
-  if (p_orig > 0) {
-    // Use shared collinearity detection
-    X = X_orig; // Copy to allow modification
-    collin_result = check_collinearity(X, w, false, params.qr_collin_tol_multiplier);
-  } else {
-    X = X_orig;
-  }
-
-  const size_t p = X.n_cols; // Number of non-collinear columns
-
-  // Check if we actually have weights
+  // Initialize weights
   bool use_weights = params.use_weights && w.n_elem > 1 && !all(w == 1.0);
+  vec weights_vec = use_weights ? w : ones<vec>(n);
 
-  // Create effective weights vector
-  vec weights_vec;
-  if (use_weights) {
-    weights_vec = w;
-  } else {
-    weights_vec = ones<vec>(n);
-  }
-
-  // Initialize
-  double mean_y;
-  if (use_weights) {
-    mean_y = sum(weights_vec % y_orig) / sum(weights_vec);
-  } else {
-    mean_y = mean(y_orig);
-  }
-
+  // Initialize GLM variables
+  double mean_y =
+      use_weights ? sum(weights_vec % y_orig) / sum(weights_vec) : mean(y_orig);
   vec mu(n, fill::none);
   vec eta(n, fill::none);
 
-  // Initialize mu and eta
   initialize_family(mu, eta, y_orig, mean_y, family_type,
                     params.binomial_mu_min, params.binomial_mu_max,
                     params.safe_clamp_min, params.safe_clamp_max);
 
-  // For fixed effects models, use conservative initialization
   if (has_fixed_effects) {
     initialize_family_fixed_effects(mu, eta, mean_y, family_type,
                                     params.safe_clamp_min);
@@ -646,16 +618,11 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
   double devold = dev_resids(y_orig, mu_init, 0.0, weights_vec, family_type,
                              params.safe_clamp_min);
 
-  // Storage for IRLS algorithm
+  // IRLS variables
   vec eta_old(n, fill::none);
   vec z(n, fill::none);
   vec working_weights(n, fill::none);
-  uvec coef_status = ones<uvec>(p); // Status for non-collinear columns only
-
-  // For saving the old WLS results
   vec eta_old_wls = vec(n, fill::value(1e-5));
-
-  // Variables for convergence checking
   bool converged = false;
 
   // IRLS loop
@@ -663,30 +630,26 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
     result.iter = iter + 1;
     eta_old = eta;
 
-    // Compute mu.eta and variance
+    // Compute derivatives and weights
     vec mu_eta_val = d_inv_link(eta, family_type);
     vec var_mu = variance(mu, 0.0, family_type);
 
-    // Check variance
     if (any(var_mu <= 0) || any(var_mu != var_mu)) {
       break;
     }
 
-    // Working response
+    // Working response and weights
     z = eta + (y_orig - mu) / mu_eta_val;
-
-    // Working weights
     working_weights = weights_vec % square(mu_eta_val) / var_mu;
 
-    // Check weights
     if (all(working_weights <= 0)) {
       break;
     }
 
-    // Call wlm_fit with the reduced X matrix (already trimmed for collinearity)
+    // Call wlm_fit - it will handle collinearity internally
     InferenceWLM felm_result =
-        wlm_fit(X, z, y_orig, working_weights, fe_indices, nb_ids, fe_id_tables,
-                params, false, false, iter == 0); // first_iter = true for first iteration
+        wlm_fit(X_orig, z, y_orig, working_weights, fe_indices, nb_ids,
+                fe_id_tables, params, false, false, iter == 0);
 
     if (!felm_result.success ||
         any(felm_result.coefficients != felm_result.coefficients)) {
@@ -697,34 +660,18 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
       break;
     }
 
-    coef_status = felm_result.coef_status;
+    // Coefficients are already properly sized
+    result.coefficients = felm_result.coefficients;
+    result.coef_status = felm_result.coef_status;
 
-    // Store coefficients in the right positions (accounting for removed
-    // columns)
-    vec coef_reduced = felm_result.coefficients;
-    result.coefficients.zeros();
-
-    if (collin_result.has_collinearity && collin_result.n_valid > 0) {
-      // Map reduced coefficients back to original positions
-      uvec valid_cols = find(collin_result.coef_status == 1);
-      for (size_t i = 0; i < valid_cols.n_elem; i++) {
-        result.coefficients(valid_cols(i)) = coef_reduced(i);
-      }
-    } else if (p > 0) {
-      // No collinearity, direct copy
-      result.coefficients = coef_reduced;
-    }
-
-    // New eta
+    // New eta and mu
     vec eta_new = felm_result.fitted_values;
-
-    // New mu for deviance calculation
     vec mu_new = link_inv(eta_new, family_type);
     double dev = dev_resids(y_orig, mu_new, 0.0, weights_vec, family_type,
                             params.safe_clamp_min);
     double dev_evol = dev - devold;
 
-    // Step halving
+    // Step halving if needed
     bool need_step_halving = !is_finite(dev) || (dev_evol > 0) ||
                              !valid_eta(eta_new, family_type) ||
                              !valid_mu(mu_new, family_type);
@@ -737,9 +684,7 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
 
       while (iter_sh < params.iter_inner_max) {
         iter_sh++;
-
         eta_new = (eta_old_wls + felm_result.fitted_values) / 2.0;
-
         mu_new = link_inv(eta_new, family_type);
         dev = dev_resids(y_orig, mu_new, 0.0, weights_vec, family_type,
                          params.safe_clamp_min);
@@ -795,23 +740,10 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
   result.eta = eta;
   result.fitted_values = mu;
   result.weights = working_weights;
-
-  // Update coef_status to reflect collinear variables
-  result.coef_status.zeros();
-  if (collin_result.has_collinearity && collin_result.n_valid > 0) {
-    uvec valid_cols = find(collin_result.coef_status == 1);
-    for (size_t i = 0; i < valid_cols.n_elem; i++) {
-      result.coef_status(valid_cols(i)) = coef_status(i);
-    }
-  } else {
-    result.coef_status = coef_status;
-  }
-
-  // Compute residuals
   result.residuals_response = y_orig - mu;
   result.residuals_working = z - eta;
 
-  // Hessian and fixed effects extraction
+  // Final hessian and fixed effects
   if (has_fixed_effects) {
     vec final_mu_eta = d_inv_link(eta, family_type);
     vec final_var_mu = variance(mu, 0.0, family_type);
@@ -820,42 +752,38 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
     vec final_z = eta + (y_orig - mu) / final_mu_eta;
 
     InferenceWLM final_felm =
-        wlm_fit(X, final_z, y_orig, final_working_weights, fe_indices, nb_ids,
-                fe_id_tables, params, true,
-                true, false); // Compute hessian and FE for final result, use Cholesky
+        wlm_fit(X_orig, final_z, y_orig, final_working_weights, fe_indices,
+                nb_ids, fe_id_tables, params, true, true, false);
 
-    // For hessian, we need to account for the original dimensions
-    if (collin_result.has_collinearity && p_orig > 0) {
-      result.hessian = zeros<mat>(p_orig, p_orig);
-      mat hess_reduced = final_felm.hessian;
-      uvec valid_cols = find(collin_result.coef_status == 1);
-      for (size_t i = 0; i < valid_cols.n_elem; i++) {
-        for (size_t j = 0; j < valid_cols.n_elem; j++) {
-          result.hessian(valid_cols(i), valid_cols(j)) = hess_reduced(i, j);
-        }
-      }
-    } else {
-      result.hessian = final_felm.hessian;
-    }
-
+    result.hessian = final_felm.hessian;
     result.fixed_effects = final_felm.fixed_effects;
     result.has_fe = true;
     result.is_regular = final_felm.is_regular;
     result.nb_references = final_felm.nb_references;
   } else {
-    mat weighted_X = X.each_col() % sqrt(working_weights);
-    mat hess_reduced = weighted_X.t() * weighted_X;
+    // Check collinearity for hessian computation
+    mat X_work = X_orig;
+    double tolerance = params.qr_collin_tol_multiplier * 1e-7;
+    CollinearityResult collin_result =
+        check_collinearity(X_work, weights_vec, use_weights, tolerance, false);
 
-    if (collin_result.has_collinearity && p_orig > 0) {
-      result.hessian = zeros<mat>(p_orig, p_orig);
-      uvec valid_cols = find(collin_result.coef_status == 1);
-      for (size_t i = 0; i < valid_cols.n_elem; i++) {
-        for (size_t j = 0; j < valid_cols.n_elem; j++) {
-          result.hessian(valid_cols(i), valid_cols(j)) = hess_reduced(i, j);
+    // Compute hessian on reduced matrix
+    result.hessian.zeros();
+    if (X_work.n_cols > 0) {
+      mat weighted_X = X_work.each_col() % sqrt(working_weights);
+      mat hess_reduced = weighted_X.t() * weighted_X;
+
+      if (collin_result.has_collinearity) {
+        for (size_t i = 0; i < collin_result.non_collinear_cols.n_elem; i++) {
+          for (size_t j = 0; j < collin_result.non_collinear_cols.n_elem; j++) {
+            result.hessian(collin_result.non_collinear_cols(i),
+                           collin_result.non_collinear_cols(j)) =
+                hess_reduced(i, j);
+          }
         }
+      } else {
+        result.hessian = hess_reduced;
       }
-    } else {
-      result.hessian = hess_reduced;
     }
 
     result.has_fe = false;
