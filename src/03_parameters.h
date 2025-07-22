@@ -60,26 +60,28 @@ struct InferenceAlpha {
 
 // Result structure for collinearity detection
 struct CollinearityResult {
-  uvec non_collinear_cols;
   uvec coef_status;
   bool has_collinearity;
+  size_t n_valid;
+  uvec non_collinear_cols; // Indices of non-collinear columns
+  mat Q, R; // QR decomposition for reuse
+  bool has_qr; // Whether QR decomposition is available
 
   CollinearityResult(size_t p)
-      : non_collinear_cols(p), coef_status(p, fill::ones),
-        has_collinearity(false) {
-    non_collinear_cols = regspace<uvec>(0, p - 1);
-  }
+      : coef_status(p, fill::ones), has_collinearity(false), n_valid(p), 
+        has_qr(false) {}
 };
 
-// Shared QR-based collinearity detection helper
-inline CollinearityResult detect_collinearity_qr(const mat &X, const vec &w,
-                                                 bool has_weights,
-                                                 double tolerance) {
+// Collinearity detection that directly modifies X
+inline CollinearityResult check_collinearity(mat &X,
+                                                       const vec &w,
+                                                       bool has_weights,
+                                                       double tolerance,
+                                                       bool store_qr = false) {
   const size_t p = X.n_cols;
   CollinearityResult result(p);
 
   if (p == 0) {
-    result.non_collinear_cols = uvec();
     result.coef_status = uvec();
     return result;
   }
@@ -98,126 +100,101 @@ inline CollinearityResult detect_collinearity_qr(const mat &X, const vec &w,
   const double tol = tolerance * max_diag;
   const uvec indep = find(diag_abs > tol);
 
-  result.non_collinear_cols = indep;
   result.coef_status.zeros();
   result.coef_status(indep).ones();
   result.has_collinearity = (indep.n_elem < p);
+  result.n_valid = indep.n_elem;
+  result.non_collinear_cols = indep;
+
+  // Store QR decomposition if requested
+  if (store_qr) {
+    result.Q = std::move(Q);
+    result.R = std::move(R);
+    result.has_qr = true;
+  }
+
+  // Directly modify X to keep only non-collinear columns
+  if (result.has_collinearity && !indep.is_empty()) {
+    X = X.cols(indep);
+  }
 
   return result;
 }
 
-inline void get_beta_qr(mat &X, const vec &y, const vec &w,
-                        InferenceBeta &result, bool has_weights,
-                        double qr_collin_tol_multiplier) {
-  const size_t p = X.n_cols;
-
-  // Use shared collinearity detection
-  double tolerance = qr_collin_tol_multiplier * 1e-7;
-  CollinearityResult collin_result =
-      detect_collinearity_qr(X, w, has_weights, tolerance);
-
-  // QR decomposition for coefficient computation
-  mat Q, R;
-  if (has_weights) {
-    mat X_weighted = X.each_col() % sqrt(w);
-    qr_econ(Q, R, X_weighted);
-  } else {
-    qr_econ(Q, R, X);
-  }
-
-  vec QTy = Q.t() * y;
-  const uvec &indep = collin_result.non_collinear_cols;
-
-  result.coefficients.fill(datum::nan);
-  result.coef_status = collin_result.coef_status;
-
-  if (indep.n_elem == p) {
-    result.coefficients = solve(trimatu(R), QTy, solve_opts::fast);
-  } else if (!indep.is_empty()) {
-    const mat Rr = R.submat(indep, indep);
-    const vec Yr = QTy.elem(indep);
-    const vec br = solve(trimatu(Rr), Yr, solve_opts::fast);
-    result.coefficients(indep) = br;
-    // Keep NaN for invalid coefficients
-  }
-}
-
-inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
-                              const vec &w, const CapybaraParameters &params,
-                              bool has_weights = false,
-                              bool has_fixed_effects = false) {
+// Cholesky-based beta estimation (assumes X has already been trimmed for collinearity)
+inline InferenceBeta get_beta_cholesky(const mat &X, const vec &y, const vec &y_orig,
+                                       const vec &w, const CollinearityResult &collin_result,
+                                       bool has_weights = false,
+                                       bool has_fixed_effects = false) {
   const size_t n = X.n_rows;
   const size_t p = X.n_cols;
+  const size_t p_orig = collin_result.coef_status.n_elem;
 
-  InferenceBeta result(n, p);
+  InferenceBeta result(n, p_orig);
 
   if (p == 0) {
     result.success = true;
+    result.coef_status = collin_result.coef_status;
+    result.fitted_values = has_fixed_effects ? y_orig : zeros<vec>(n);
+    result.residuals = y_orig - result.fitted_values;
+    result.weights = w;
     return result;
   }
 
-  // For very wide matrices, use QR directly
-  const bool direct_qr = (p > params.direct_qr_threshold * n);
-
-  if (direct_qr) {
-    mat X_copy = X; // QR modifies the matrix
-    get_beta_qr(X_copy, y, w, result, has_weights,
-                params.qr_collin_tol_multiplier);
+  // Form normal equations
+  mat XtX, XtY;
+  if (has_weights) {
+    const vec sqrt_w = sqrt(w);
+    const mat X_weighted = X.each_col() % sqrt_w;
+    XtX = X_weighted.t() * X_weighted;
+    XtY = X.t() * (w % y);
   } else {
-    // Try Cholesky first (faster), fall back to QR if needed
-    mat XtX, XtY;
-
-    if (has_weights) {
-      const vec sqrt_w = sqrt(w);
-      const mat X_weighted = X.each_col() % sqrt_w;
-      XtX = X_weighted.t() * X_weighted;
-      XtY = X.t() * (w % y);
-    } else {
-      XtX = X.t() * X;
-      XtY = X.t() * y;
-    }
-
-    mat L;
-    const bool chol_ok = chol(L, XtX, "lower");
-
-    if (chol_ok) {
-      const vec d = abs(L.diag());
-      const double mind = d.min();
-      const double avgd = mean(d);
-
-      if (mind > params.chol_stability_threshold * avgd) {
-        vec work = solve(trimatl(L), XtY, solve_opts::fast);
-        result.coefficients = solve(trimatu(L.t()), work, solve_opts::fast);
-        result.coef_status.ones();
-      } else {
-        // Cholesky failed due to conditioning, fall back to QR
-        mat X_copy = X;
-        get_beta_qr(X_copy, y, w, result, has_weights,
-                    params.qr_collin_tol_multiplier);
-      }
-    } else {
-      // Cholesky failed, fall back to QR
-      mat X_copy = X;
-      get_beta_qr(X_copy, y, w, result, has_weights,
-                  params.qr_collin_tol_multiplier);
-    }
+    XtX = X.t() * X;
+    XtY = X.t() * y;
   }
 
-  // Replace collinear coefficients with 0 using coef_status
-  uvec collinear_mask = find(result.coef_status == 0);
-  if (!collinear_mask.is_empty()) {
-    result.coefficients.elem(collinear_mask).zeros();
+  // Cholesky decomposition
+  mat L;
+  if (!chol(L, XtX, "lower")) {
+    result.success = false;
+    return result;
   }
 
-  // Compute fitted values and residuals
+  // Solve normal equations
+  vec work = solve(trimatl(L), XtY, solve_opts::fast);
+  vec beta_reduced = solve(trimatu(L.t()), work, solve_opts::fast);
+
+  // Expand coefficients back to original size
+  result.coefficients.fill(datum::nan);
+  if (collin_result.has_collinearity) {
+    uvec valid_cols = find(collin_result.coef_status == 1);
+    result.coefficients(valid_cols) = beta_reduced;
+    // Set collinear coefficients to 0
+    uvec collinear_mask = find(collin_result.coef_status == 0);
+    if (!collinear_mask.is_empty()) {
+      result.coefficients(collinear_mask).zeros();
+    }
+  } else {
+    result.coefficients = beta_reduced;
+  }
+
+  result.coef_status = collin_result.coef_status;
+
+  // Compute fitted values and residuals using original X matrix size
   if (has_fixed_effects) {
     // For fixed effects models:
     // fitted_values = y_orig - (y_demeaned - X_demeaned * beta)
-    const vec pred_demeaned = X * result.coefficients;
+    const vec pred_demeaned = X * beta_reduced;
     result.fitted_values = y_orig - (y - pred_demeaned);
   } else {
-    // Standard case: fitted_values = X * beta
-    result.fitted_values = X * result.coefficients;
+    // Standard case: fitted_values = X_full * beta_full
+    // Need to reconstruct with original X dimensions
+    if (collin_result.has_collinearity) {
+      // This would require original X, so we'll approximate
+      result.fitted_values = X * beta_reduced;
+    } else {
+      result.fitted_values = X * beta_reduced;
+    }
   }
 
   result.residuals = y_orig - result.fitted_values;
@@ -228,16 +205,153 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
 
   result.weights = w;
 
+  // Hessian computation
   if (has_weights) {
     const vec sqrt_w = sqrt(w);
     const mat X_weighted = X.each_col() % sqrt_w;
-    result.hessian = X_weighted.t() * X_weighted;
+    result.hessian.zeros();
+    if (collin_result.has_collinearity) {
+      uvec valid_cols = find(collin_result.coef_status == 1);
+      result.hessian.submat(valid_cols, valid_cols) = X_weighted.t() * X_weighted;
+    } else {
+      result.hessian = X_weighted.t() * X_weighted;
+    }
   } else {
-    result.hessian = X.t() * X;
+    result.hessian.zeros();
+    if (collin_result.has_collinearity) {
+      uvec valid_cols = find(collin_result.coef_status == 1);
+      result.hessian.submat(valid_cols, valid_cols) = X.t() * X;
+    } else {
+      result.hessian = X.t() * X;
+    }
   }
-  result.success = true;
 
+  result.success = true;
   return result;
+}
+
+// QR-based beta estimation that reuses QR decomposition from collinearity detection
+inline InferenceBeta get_beta_qr(const mat &X, const vec &y, const vec &y_orig,
+                                 const vec &w, const CollinearityResult &collin_result,
+                                 bool has_weights = false,
+                                 bool has_fixed_effects = false) {
+  const size_t n = X.n_rows;
+  const size_t p = X.n_cols;
+  const size_t p_orig = collin_result.coef_status.n_elem;
+
+  InferenceBeta result(n, p_orig);
+
+  if (p == 0) {
+    result.success = true;
+    result.coef_status = collin_result.coef_status;
+    result.fitted_values = has_fixed_effects ? y_orig : zeros<vec>(n);
+    result.residuals = y_orig - result.fitted_values;
+    result.weights = w;
+    return result;
+  }
+
+  // Use stored QR decomposition if available
+  if (!collin_result.has_qr) {
+    // Fallback to Cholesky method
+    return get_beta_cholesky(X, y, y_orig, w, collin_result, has_weights, has_fixed_effects);
+  }
+
+  const mat &Q = collin_result.Q;
+  const mat &R = collin_result.R;
+  const uvec &indep = collin_result.non_collinear_cols;
+
+  // Compute Q^T * y
+  vec QTy;
+  if (has_weights) {
+    vec y_weighted = y % sqrt(w);
+    QTy = Q.t() * y_weighted;
+  } else {
+    QTy = Q.t() * y;
+  }
+
+  // Initialize coefficients
+  result.coefficients.fill(datum::nan);
+  result.coef_status = collin_result.coef_status;
+
+  // Solve using QR decomposition
+  if (collin_result.has_collinearity) {
+    if (!indep.is_empty()) {
+      const mat Rr = R.submat(indep, indep);
+      const vec Yr = QTy.elem(indep);
+      const vec br = solve(trimatu(Rr), Yr, solve_opts::fast);
+      result.coefficients(indep) = br;
+      // Set collinear coefficients to 0
+      uvec collinear_mask = find(collin_result.coef_status == 0);
+      if (!collinear_mask.is_empty()) {
+        result.coefficients(collinear_mask).zeros();
+      }
+    }
+  } else {
+    result.coefficients = solve(trimatu(R), QTy, solve_opts::fast);
+  }
+
+  // Compute fitted values and residuals
+  if (has_fixed_effects) {
+    const vec pred_demeaned = X * (collin_result.has_collinearity ? 
+      result.coefficients(indep) : result.coefficients);
+    result.fitted_values = y_orig - (y - pred_demeaned);
+  } else {
+    if (collin_result.has_collinearity) {
+      result.fitted_values = X * result.coefficients(indep);
+    } else {
+      result.fitted_values = X * result.coefficients;
+    }
+  }
+
+  result.residuals = y_orig - result.fitted_values;
+
+  if (has_weights) {
+    result.residuals = result.residuals / sqrt(w);
+  }
+
+  result.weights = w;
+
+  // Hessian computation using QR
+  if (has_weights) {
+    const vec sqrt_w = sqrt(w);
+    const mat X_weighted = X.each_col() % sqrt_w;
+    result.hessian.zeros();
+    if (collin_result.has_collinearity) {
+      uvec valid_cols = find(collin_result.coef_status == 1);
+      result.hessian.submat(valid_cols, valid_cols) = X_weighted.t() * X_weighted;
+    } else {
+      result.hessian = X_weighted.t() * X_weighted;
+    }
+  } else {
+    result.hessian.zeros();
+    if (collin_result.has_collinearity) {
+      uvec valid_cols = find(collin_result.coef_status == 1);
+      result.hessian.submat(valid_cols, valid_cols) = X.t() * X;
+    } else {
+      result.hessian = X.t() * X;
+    }
+  }
+
+  result.success = true;
+  return result;
+}
+
+// Unified beta estimation function that chooses between QR and Cholesky
+inline InferenceBeta get_beta(mat X, const vec &y, const vec &y_orig,
+                              const vec &w, const CapybaraParameters &params,
+                              bool has_weights = false,
+                              bool has_fixed_effects = false,
+                              bool first_iter = true) {
+  // Detect and trim collinearity
+  double tolerance = params.qr_collin_tol_multiplier * 1e-7;
+  CollinearityResult collin_result = check_collinearity(X, w, has_weights, tolerance, first_iter);
+  
+  // Call the appropriate function based on iteration preference
+  if (first_iter && collin_result.has_qr) {
+    return get_beta_qr(X, y, y_orig, w, collin_result, has_weights, has_fixed_effects);
+  } else {
+    return get_beta_cholesky(X, y, y_orig, w, collin_result, has_weights, has_fixed_effects);
+  }
 }
 
 //////////////////////////////////////////////////////////////////////////////

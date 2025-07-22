@@ -11,8 +11,10 @@ using demean::demean_variables;
 using demean::DemeanResult;
 using parameters::get_alpha;
 using parameters::get_beta;
+using parameters::check_collinearity;
 using parameters::InferenceAlpha;
 using parameters::InferenceBeta;
+using parameters::CollinearityResult;
 
 //////////////////////////////////////////////////////////////////////////////
 // RESULT STRUCTURES
@@ -77,7 +79,7 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
 
   InferenceLM result(n, p_orig);
 
-  mat X_demean;
+  mat X_demean = X;
   vec y_demean;
   DemeanResult y_demean_result(0);
 
@@ -115,21 +117,21 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
     result.has_fe = false;
   }
 
-  // STEP 2: Run regression on demeaned data
+  // STEP 2: Run regression using QR for first iteration (LM fitting)
   bool use_weights = params.use_weights;
   if (use_weights) {
     use_weights = !all(w == 1.0);
   }
 
   InferenceBeta beta_result = get_beta(X_demean, y_demean, y, w, params,
-                                       use_weights, has_fixed_effects);
+                                       use_weights, has_fixed_effects, true); // first_iter = true
 
   if (!beta_result.success) {
     result.success = false;
     return result;
   }
 
-  // Direct assignment to result fields
+  // STEP 4: Direct assignment to result fields
   result.coefficients = beta_result.coefficients;
   result.fitted_values = beta_result.fitted_values;
   result.residuals = beta_result.residuals;
@@ -137,7 +139,7 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
   result.hessian = beta_result.hessian;
   result.coef_status = beta_result.coef_status;
 
-  // STEP 3: Extract fixed effects if present
+  // STEP 5: Extract fixed effects if present
   if (has_fixed_effects) {
     // The sum of fixed effects is: fitted_values - X*beta
     vec sum_fe = result.fitted_values - X * result.coefficients;

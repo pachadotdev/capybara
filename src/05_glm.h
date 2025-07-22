@@ -11,7 +11,7 @@ using demean::demean_variables;
 using demean::DemeanResult;
 using lm::InferenceLM;
 using parameters::CollinearityResult;
-using parameters::detect_collinearity_qr;
+using parameters::check_collinearity;
 using parameters::get_alpha;
 using parameters::get_beta;
 using parameters::InferenceAlpha;
@@ -470,7 +470,8 @@ inline InferenceWLM wlm_fit(const mat &X, const vec &y, const vec &y_orig,
                             const uvec &nb_ids, const field<uvec> &fe_id_tables,
                             const CapybaraParameters &params,
                             bool compute_hessian = false,
-                            bool compute_fixed_effects = false) {
+                            bool compute_fixed_effects = false,
+                            bool first_iter = true) {
   const size_t n = y.n_elem;
   const size_t p_orig = X.n_cols;
   const bool has_fixed_effects =
@@ -516,15 +517,14 @@ inline InferenceWLM wlm_fit(const mat &X, const vec &y, const vec &y_orig,
     result.has_fe = false;
   }
 
-  // STEP 2: Run regression on demeaned data
+  // STEP 2: Run regression using unified get_beta
   bool use_weights = params.use_weights;
   if (use_weights) {
     use_weights = !all(w == 1.0);
   }
 
-  // Get coefficients (always use QR for reliability)
   InferenceBeta beta_result = get_beta(X_demean, y_demean, y, w, params,
-                                       use_weights, has_fixed_effects);
+                                       use_weights, has_fixed_effects, first_iter);
 
   // Extract what we need
   result.coefficients = beta_result.coefficients;
@@ -598,18 +598,9 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
   CollinearityResult collin_result(p_orig);
 
   if (p_orig > 0) {
-    // Use shared collinearity detection (no weights for initial check)
-    vec dummy_weights = ones<vec>(y_orig.n_elem);
-    collin_result =
-        detect_collinearity_qr(X_orig, dummy_weights, false, params.collin_tol);
-
-    if (collin_result.has_collinearity) {
-      // Some columns are collinear - create reduced X matrix
-      X = X_orig.cols(collin_result.non_collinear_cols);
-    } else {
-      // No collinearity detected
-      X = X_orig;
-    }
+    // Use shared collinearity detection
+    X = X_orig; // Copy to allow modification
+    collin_result = check_collinearity(X, w, false, params.qr_collin_tol_multiplier);
   } else {
     X = X_orig;
   }
@@ -692,10 +683,10 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
       break;
     }
 
-    // Call wlm_fit with the reduced X matrix (no collinear columns)
+    // Call wlm_fit with the reduced X matrix (already trimmed for collinearity)
     InferenceWLM felm_result =
         wlm_fit(X, z, y_orig, working_weights, fe_indices, nb_ids, fe_id_tables,
-                params, false, false);
+                params, false, false, iter == 0); // first_iter = true for first iteration
 
     if (!felm_result.success ||
         any(felm_result.coefficients != felm_result.coefficients)) {
@@ -713,12 +704,11 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
     vec coef_reduced = felm_result.coefficients;
     result.coefficients.zeros();
 
-    if (collin_result.non_collinear_cols.n_elem < p_orig &&
-        collin_result.non_collinear_cols.n_elem > 0) {
+    if (collin_result.has_collinearity && collin_result.n_valid > 0) {
       // Map reduced coefficients back to original positions
-      for (size_t i = 0; i < collin_result.non_collinear_cols.n_elem; i++) {
-        result.coefficients(collin_result.non_collinear_cols(i)) =
-            coef_reduced(i);
+      uvec valid_cols = find(collin_result.coef_status == 1);
+      for (size_t i = 0; i < valid_cols.n_elem; i++) {
+        result.coefficients(valid_cols(i)) = coef_reduced(i);
       }
     } else if (p > 0) {
       // No collinearity, direct copy
@@ -808,10 +798,10 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
 
   // Update coef_status to reflect collinear variables
   result.coef_status.zeros();
-  if (collin_result.non_collinear_cols.n_elem < p_orig &&
-      collin_result.non_collinear_cols.n_elem > 0) {
-    for (size_t i = 0; i < collin_result.non_collinear_cols.n_elem; i++) {
-      result.coef_status(collin_result.non_collinear_cols(i)) = coef_status(i);
+  if (collin_result.has_collinearity && collin_result.n_valid > 0) {
+    uvec valid_cols = find(collin_result.coef_status == 1);
+    for (size_t i = 0; i < valid_cols.n_elem; i++) {
+      result.coef_status(valid_cols(i)) = coef_status(i);
     }
   } else {
     result.coef_status = coef_status;
@@ -832,17 +822,16 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
     InferenceWLM final_felm =
         wlm_fit(X, final_z, y_orig, final_working_weights, fe_indices, nb_ids,
                 fe_id_tables, params, true,
-                true); // Compute hessian and FE for final result
+                true, false); // Compute hessian and FE for final result, use Cholesky
 
     // For hessian, we need to account for the original dimensions
-    if (collin_result.non_collinear_cols.n_elem < p_orig && p_orig > 0) {
+    if (collin_result.has_collinearity && p_orig > 0) {
       result.hessian = zeros<mat>(p_orig, p_orig);
       mat hess_reduced = final_felm.hessian;
-      for (size_t i = 0; i < collin_result.non_collinear_cols.n_elem; i++) {
-        for (size_t j = 0; j < collin_result.non_collinear_cols.n_elem; j++) {
-          result.hessian(collin_result.non_collinear_cols(i),
-                         collin_result.non_collinear_cols(j)) =
-              hess_reduced(i, j);
+      uvec valid_cols = find(collin_result.coef_status == 1);
+      for (size_t i = 0; i < valid_cols.n_elem; i++) {
+        for (size_t j = 0; j < valid_cols.n_elem; j++) {
+          result.hessian(valid_cols(i), valid_cols(j)) = hess_reduced(i, j);
         }
       }
     } else {
@@ -857,13 +846,12 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
     mat weighted_X = X.each_col() % sqrt(working_weights);
     mat hess_reduced = weighted_X.t() * weighted_X;
 
-    if (collin_result.non_collinear_cols.n_elem < p_orig && p_orig > 0) {
+    if (collin_result.has_collinearity && p_orig > 0) {
       result.hessian = zeros<mat>(p_orig, p_orig);
-      for (size_t i = 0; i < collin_result.non_collinear_cols.n_elem; i++) {
-        for (size_t j = 0; j < collin_result.non_collinear_cols.n_elem; j++) {
-          result.hessian(collin_result.non_collinear_cols(i),
-                         collin_result.non_collinear_cols(j)) =
-              hess_reduced(i, j);
+      uvec valid_cols = find(collin_result.coef_status == 1);
+      for (size_t i = 0; i < valid_cols.n_elem; i++) {
+        for (size_t j = 0; j < valid_cols.n_elem; j++) {
+          result.hessian(valid_cols(i), valid_cols(j)) = hess_reduced(i, j);
         }
       }
     } else {
