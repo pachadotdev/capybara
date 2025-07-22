@@ -122,7 +122,7 @@ NULL
 #' @param direct_qr_threshold threshold for using direct QR vs Cholesky
 #'  decomposition. The default is \code{0.9}.
 #' @param qr_collin_tol_multiplier multiplier for QR collinearity tolerance.
-#'  The default is \code{1.0}.
+#'  The default is \code{1.0e-7}.
 #' @param chol_stability_threshold threshold for Cholesky stability check.
 #'  The default is \code{1.0e-12}.
 #' @param safe_division_min minimum value for safe division operations.
@@ -192,7 +192,7 @@ fit_control <- function(
     safe_clamp_max = 1.0e12,
     # Algorithm configuration
     direct_qr_threshold = 0.9,
-    qr_collin_tol_multiplier = 1.0,
+    qr_collin_tol_multiplier = 1.0e-7,
     chol_stability_threshold = 1.0e-12,
     # Alpha computation
     alpha_convergence_tol = 1.0e-8,

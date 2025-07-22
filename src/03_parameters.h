@@ -65,16 +65,16 @@ struct CollinearityResult {
   bool has_collinearity;
 
   CollinearityResult(size_t p)
-      : non_collinear_cols(p), coef_status(p, fill::ones), has_collinearity(false) {
+      : non_collinear_cols(p), coef_status(p, fill::ones),
+        has_collinearity(false) {
     non_collinear_cols = regspace<uvec>(0, p - 1);
   }
 };
 
 // Shared QR-based collinearity detection helper
-inline CollinearityResult detect_collinearity_qr(const mat &X,
-                                                  const vec &w,
-                                                  bool has_weights,
-                                                  double tolerance) {
+inline CollinearityResult detect_collinearity_qr(const mat &X, const vec &w,
+                                                 bool has_weights,
+                                                 double tolerance) {
   const size_t p = X.n_cols;
   CollinearityResult result(p);
 
@@ -113,8 +113,9 @@ inline void get_beta_qr(mat &X, const vec &y, const vec &w,
 
   // Use shared collinearity detection
   double tolerance = qr_collin_tol_multiplier * 1e-7;
-  CollinearityResult collin_result = detect_collinearity_qr(X, w, has_weights, tolerance);
-  
+  CollinearityResult collin_result =
+      detect_collinearity_qr(X, w, has_weights, tolerance);
+
   // QR decomposition for coefficient computation
   mat Q, R;
   if (has_weights) {
