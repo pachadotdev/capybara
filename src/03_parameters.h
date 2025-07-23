@@ -72,9 +72,6 @@ struct CollinearityResult {
         has_qr(false) {}
 };
 
-// Directly modifies the design matrix and trims it if there are
-// collinear variables, then the QR matrices are reused for LM
-// fitting the the 1st GLM iteration
 inline CollinearityResult check_collinearity(mat &X, const vec &w,
                                              bool has_weights, double tolerance,
                                              bool store_qr = false) {
@@ -108,7 +105,6 @@ inline CollinearityResult check_collinearity(mat &X, const vec &w,
 
   // Store QR decomposition if requested
   if (store_qr && !result.has_collinearity) {
-    // Only store if no collinearity (otherwise QR is for full X, not reduced)
     result.Q = std::move(Q);
     result.R = std::move(R);
     result.has_qr = true;
@@ -122,7 +118,6 @@ inline CollinearityResult check_collinearity(mat &X, const vec &w,
   return result;
 }
 
-// Solve betas using the checked design matrix
 inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
                               const vec &w,
                               const CollinearityResult &collin_result,
