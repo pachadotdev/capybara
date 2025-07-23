@@ -50,8 +50,7 @@
 #' @noRd
 NULL
 
-#' @title Negative Binomial model fitting with high-dimensional k-way fixed
-#'  effects
+#' @title Negative Binomial model fitting with high-dimensional k-way fixed effects
 #'
 #' @description A routine that uses the same internals as \code{\link{feglm}}.
 #'
@@ -117,9 +116,8 @@ fenegbin <- function(
   lhs <- nobs_na <- nobs_full <- NA
   model_frame_(data, formula, weights)
 
-  # Check starting guess of theta ----
-  family <- init_theta_(init_theta, link)
-  rm(init_theta)
+  # Create a dummy family for response checking
+  family <- poisson(link = link)
 
   # Ensure that model response is in line with the chosen model ----
   check_response_(data, lhs, family)
@@ -138,8 +136,7 @@ fenegbin <- function(
 
   # Determine the number of dropped observations ----
   nt <- nrow(data)
-  # Compute nobs using y and fitted values
-  # nobs <- nobs_(nobs_full, nobs_na, nt) # old
+
   # Extract model response and regressor matrix ----
   nms_sp <- p <- NA
   model_response_(data, formula)
@@ -164,86 +161,32 @@ fenegbin <- function(
   # Generate auxiliary list of indexes for different sub panels ----
   FEs <- get_index_list_(fe_names, data)
 
-  # Extract control arguments ----
-  tol <- control[["dev_tol"]]
-  limit <- control[["limit"]]
-  iter_max <- control[["iter_max"]]
-  trace <- control[["trace"]]
-
-  # Initial negative binomial fit ----
-
-  theta <- suppressWarnings(
-    theta.ml(
-      y     = y,
-      mu    = family[["linkinv"]](eta),
-      n     = nt,
-      limit = limit,
-      trace = trace
-    )
-  )
-
-  fit <- structure(feglm_fit_(
-    beta, eta, y, X, w, theta, family[["family"]], control, FEs
-  ), class = c("feglm", "fenegbin"))
-
-  # Replace collinear coefficients with NA
-  if (!is.null(fit$coef_status)) {
-    fit$coefficients[fit$coef_status == 0] <- NA_real_
-    fit$coef_status <- NULL
+  # Set init_theta to 0 if NULL (C++ will handle default)
+  if (is.null(init_theta)) {
+    init_theta <- 0.0
+  } else {
+    # Validate init_theta
+    if (length(init_theta) != 1L || init_theta <= 0) {
+      stop("'init_theta' must be a positive scalar.", call. = FALSE)
+    }
   }
+
+  # Fit negative binomial model using C++ implementation
+  if (is.integer(y)) {
+    y <- as.numeric(y)
+  }
+
+  fit <- structure(fenegbin_fit_(
+    X, y, w, FEs, link, beta, eta, init_theta, control
+  ), class = c("feglm", "fenegbin"))
 
   # Compute nobs using y and fitted values
   nobs <- nobs_(nobs_full, nobs_na, y, predict(fit))
 
-  beta <- fit[["coefficients"]]
-  eta <- fit[["eta"]]
-  dev <- fit[["deviance"]]
-
-  # Alternate between fitting glm and \theta ----
-  conv <- FALSE
-  for (iter in seq.int(iter_max)) {
-    # Fit negative binomial model
-    dev_old <- dev
-    theta_old <- theta
-    family <- negative.binomial(theta, link)
-    theta <- suppressWarnings(
-      theta.ml(
-        y     = y,
-        mu    = family[["linkinv"]](eta),
-        n     = nt,
-        limit = limit,
-        trace = trace
-      )
-    )
-    fit <- structure(feglm_fit_(
-      X, y, w, FEs, family[["family"]], beta, eta, theta, control
-    ), class = c("feglm", "fenegbin"))
-    beta <- fit[["coefficients"]]
-    eta <- fit[["eta"]]
-    dev <- fit[["deviance"]]
-
-    # Progress information
-    if (trace) {
-      cat("Outer Iteration=", iter, "\n")
-      cat("Deviance=", format(dev, digits = 5L, nsmall = 2L), "\n")
-      cat("theta=", format(theta, digits = 5L, nsmall = 2L), "\n")
-      cat("Estimates=", format(beta, digits = 3L, nsmall = 2L), "\n")
-    }
-
-    # Check termination condition ----
-    if (fenegbin_check_convergence_(dev, dev_old, theta, theta_old, tol)) {
-      if (trace) {
-        cat("Convergence\n")
-      }
-      conv <- TRUE
-      break
-    }
-  }
-
-  y <- X <- eta <- NULL
-
   # Information if convergence failed ----
-  if (!conv && trace) cat("Algorithm did not converge.\n")
+  if (!fit[["conv.outer"]]) {
+    cat("Algorithm did not converge.\n")
+  }
 
   # Add names to beta, hessian, and X_dm (if provided) ----
   names(fit[["coefficients"]]) <- nms_sp
@@ -253,41 +196,14 @@ fenegbin <- function(
   dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
 
   # Add to fit list ----
-  fit[["family"]] <- family
+  fit[["nobs"]] <- nobs
+  fit[["fe.levels"]] <- fe.levels
+  fit[["nms_fe"]] <- nms_fe
+  fit[["formula"]] <- formula
+  fit[["data"]] <- data
+  fit[["family"]] <- negative.binomial(theta = fit[["theta"]], link = link)
+  fit[["control"]] <- control
 
-  fenegbin_result_list_(
-    fit, theta, iter, conv, nobs, fe.levels, nms_fe, formula, data, family, control
-  )
-}
-
-# Convergence Check ----
-
-fenegbin_check_convergence_ <- function(dev, dev_old, theta, theta_old, tol) {
-  dev_crit <- abs(dev - dev_old) / (0.1 + abs(dev))
-  theta_crit <- abs(theta - theta_old) / (0.1 + abs(theta_old))
-  dev_crit <= tol && theta_crit <= tol
-}
-
-# Generate result list ----
-
-fenegbin_result_list_ <- function(
-    fit, theta, iter, conv, nobs, fe.levels,
-    nms_fe, formula, data, family, control) {
-  reslist <- c(
-    fit, list(
-      theta      = theta,
-      iter.outer = iter,
-      conv.outer = conv,
-      nobs       = nobs,
-      fe.levels     = fe.levels,
-      nms_fe     = nms_fe,
-      formula    = formula,
-      data       = data,
-      family     = family,
-      control    = control
-    )
-  )
-
-  # Return result list ----
-  structure(reslist, class = c("feglm", "fenegbin"))
+  # Return result ----
+  fit
 }

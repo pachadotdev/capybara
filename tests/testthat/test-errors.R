@@ -272,7 +272,7 @@ test_that("error conditions in helpers", {
       data = trade_short,
       init_theta = -1 # not allowed
     ),
-    "has to be strictly positive"
+    "positive scalar"
   )
 
   # intentionally break the data with unusable weights

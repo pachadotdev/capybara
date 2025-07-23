@@ -34,7 +34,7 @@ eleven elements:
 \item{null_deviance}{the null deviance of the model}
 \item{nobs}{a named vector with the number of observations used in the
 estimation indicating the dropped and perfectly predicted observations}
-\item{lvls_k}{a named vector with the number of levels in each fixed
+\item{fe.levels}{a named vector with the number of levels in each fixed
 effect}
 \item{nms_fe}{a list with the names of the fixed effects variables}
 \item{formula}{the formula used in the model}

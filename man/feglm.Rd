@@ -57,7 +57,7 @@ fifteen elements:
 \item{iter}{the number of iterations needed to converge}
 \item{nobs}{a named vector with the number of observations used in the
 estimation indicating the dropped and perfectly predicted observations}
-\item{lvls_k}{a named vector with the number of levels in each fixed
+\item{fe.levels}{a named vector with the number of levels in each fixed
 effects}
 \item{nms_fe}{a list with the names of the fixed effects variables}
 \item{formula}{the formula used in the model}

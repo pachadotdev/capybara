@@ -2,8 +2,7 @@
 % Please edit documentation in R/fenegbin.R
 \name{fenegbin}
 \alias{fenegbin}
-\title{Negative Binomial model fitting with high-dimensional k-way fixed
-effects}
+\title{Negative Binomial model fitting with high-dimensional k-way fixed effects}
 \usage{
 fenegbin(
   formula = NULL,
@@ -63,7 +62,7 @@ eighteen elements:
 \item{conv.outer}{a logical indicating whether the outer loop converged}
 \item{nobs}{a named vector with the number of observations used in the
 estimation indicating the dropped and perfectly predicted observations}
-\item{lvls_k}{a named vector with the number of levels in each fixed
+\item{fe.levels}{a named vector with the number of levels in each fixed
 effects}
 \item{nms_fe}{a list with the names of the fixed effects variables}
 \item{formula}{the formula used in the model}

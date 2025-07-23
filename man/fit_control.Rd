@@ -27,8 +27,9 @@ fit_control(
   binomial_mu_max = 0.999,
   safe_clamp_min = 1e-15,
   safe_clamp_max = 1e+12,
+  iter_nb_theta = 10L,
   direct_qr_threshold = 0.9,
-  qr_collin_tol_multiplier = 1,
+  qr_collin_tol_multiplier = 1e-07,
   chol_stability_threshold = 1e-12,
   alpha_convergence_tol = 1e-08,
   alpha_iter_max = 10000L,
@@ -111,11 +112,14 @@ is \code{1.0e-15}.}
 \item{safe_clamp_max}{maximum value for safe clamping operations. The default
 is \code{1.0e12}.}
 
+\item{iter_nb_theta}{integer indicating the maximum number of iterations for
+\code{\link[MASS]{theta.ml}}. The default is \code{25L}.}
+
 \item{direct_qr_threshold}{threshold for using direct QR vs Cholesky
 decomposition. The default is \code{0.9}.}
 
 \item{qr_collin_tol_multiplier}{multiplier for QR collinearity tolerance.
-The default is \code{1.0}.}
+The default is \code{1.0e-7}.}
 
 \item{chol_stability_threshold}{threshold for Cholesky stability check.
 The default is \code{1.0e-12}.}

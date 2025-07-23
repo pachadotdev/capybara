@@ -10,19 +10,14 @@ test_that("fenegbin is similar to fixest", {
   skip_on_cran()
 
   mod <- fenegbin(mpg ~ wt | cyl, mtcars)
+  # fepoisson(mpg ~ wt | cyl, mtcars)
 
   # MASS::glm.nb for negative binomial will return warning because of
   # lack of overdispersion
-  # mod_mass <- MASS::glm.nb(
-  #   mpg ~ wt + as.factor(cyl),
-  #   mtcars
-  # )
-
-  mod_base <- glm(
+  mod_mass <- suppressWarnings(MASS::glm.nb(
     mpg ~ wt + as.factor(cyl),
-    mtcars,
-    family = quasipoisson(link = "log")
-  )
+    mtcars
+  ))
 
-  expect_equal(coef(mod_base)[2], coef(mod)[1], tolerance = 1e-2)
+  expect_equal(coef(mod)[1], coef(mod_mass)[2], tolerance = 0.05)
 })

@@ -16,6 +16,10 @@ feglm_offset_fit_ <- function(y_r, offset_r, w_r, FEs, family, eta_r, control) {
   .Call(`_capybara_feglm_offset_fit_`, y_r, offset_r, w_r, FEs, family, eta_r, control)
 }
 
+fenegbin_fit_ <- function(X_r, y_r, w_r, FE, link, beta_r, eta_r, init_theta, control) {
+  .Call(`_capybara_fenegbin_fit_`, X_r, y_r, w_r, FE, link, beta_r, eta_r, init_theta, control)
+}
+
 group_sums_ <- function(M_r, w_r, jlist) {
   .Call(`_capybara_group_sums_`, M_r, w_r, jlist)
 }

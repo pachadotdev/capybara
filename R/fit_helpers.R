@@ -119,6 +119,8 @@ NULL
 #'  is \code{1.0e-15}.
 #' @param safe_clamp_max maximum value for safe clamping operations. The default
 #'  is \code{1.0e12}.
+#' @param iter_nb_theta integer indicating the maximum number of iterations for
+#'  \code{\link[MASS]{theta.ml}}. The default is \code{25L}.
 #' @param direct_qr_threshold threshold for using direct QR vs Cholesky
 #'  decomposition. The default is \code{0.9}.
 #' @param qr_collin_tol_multiplier multiplier for QR collinearity tolerance.
@@ -190,6 +192,8 @@ fit_control <- function(
     binomial_mu_max = 0.999,
     safe_clamp_min = 1.0e-15,
     safe_clamp_max = 1.0e12,
+    # Negative Binomial parameters
+    iter_nb_theta = 10L,
     # Algorithm configuration
     direct_qr_threshold = 0.9,
     qr_collin_tol_multiplier = 1.0e-7,
@@ -206,18 +210,6 @@ fit_control <- function(
     # Configuration flags
     keep_dmx = FALSE,
     use_weights = TRUE) {
-  iter_max <- as.integer(iter_max)
-  iter_max_cluster <- as.integer(iter_max_cluster)
-  iter_full_dicho <- as.integer(iter_full_dicho)
-
-  iter_demean_max <- as.integer(iter_demean_max)
-
-  convergence_iter_max <- as.integer(convergence_iter_max)
-
-  convergence_iter_full_dicho <- as.integer(convergence_iter_full_dicho)
-
-  alpha_iter_max <- as.integer(alpha_iter_max)
-
   # Return list with control parameters
   list(
     # Core tolerance parameters
@@ -226,10 +218,10 @@ fit_control <- function(
     collin_tol = collin_tol,
 
     # Iteration parameters
-    iter_max = iter_max,
-    iter_max_cluster = iter_max_cluster,
-    iter_full_dicho = iter_full_dicho,
-    iter_demean_max = iter_demean_max,
+    iter_max = as.integer(iter_max),
+    iter_max_cluster = as.integer(iter_max_cluster),
+    iter_full_dicho = as.integer(iter_full_dicho),
+    iter_demean_max = as.integer(iter_demean_max),
     iter_inner_max = as.integer(iter_inner_max),
     iter_interrupt = as.integer(iter_interrupt),
     iter_ssr = as.integer(iter_ssr),
@@ -252,17 +244,17 @@ fit_control <- function(
     # Convergence algorithm parameters
     irons_tuck_eps = irons_tuck_eps,
     alpha_convergence_tol = alpha_convergence_tol,
-    alpha_iter_max = alpha_iter_max,
+    alpha_iter_max = as.integer(alpha_iter_max),
 
-    # Previously hardcoded parameters
     rel_tol_denom = rel_tol_denom,
-    convergence_iter_max = convergence_iter_max,
-    convergence_iter_full_dicho = convergence_iter_full_dicho,
+    convergence_iter_max = as.integer(convergence_iter_max),
+    convergence_iter_full_dicho = as.integer(convergence_iter_full_dicho),
     step_halving_factor = step_halving_factor,
     binomial_mu_min = binomial_mu_min,
     binomial_mu_max = binomial_mu_max,
     safe_clamp_min = safe_clamp_min,
     safe_clamp_max = safe_clamp_max,
+    iter_nb_theta = as.integer(iter_nb_theta),
 
     # Configuration parameters
     keep_dmx = as.logical(keep_dmx),
@@ -297,7 +289,7 @@ check_control_ <- function(control) {
     # 1. non-negative params
     non_neg_params <- c(
       "dev_tol", "demean_tol", "iter_max", "iter_demean_max",
-      "iter_inner_max", "iter_interrupt", "iter_ssr"
+      "iter_inner_max", "iter_interrupt", "iter_ssr", "iter_nb_theta"
     )
     for (param_name in non_neg_params) {
       if (param_name %in% names(merged_control) && merged_control[[param_name]] <= 0) {

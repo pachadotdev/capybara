@@ -51,6 +51,9 @@ struct CapybaraParameters {
   double safe_clamp_min;
   double safe_clamp_max;
 
+  // Negative binomial parameters
+  size_t iter_nb_theta;
+
   // Algorithm configuration
   double direct_qr_threshold;
   double qr_collin_tol_multiplier;
@@ -81,12 +84,12 @@ struct CapybaraParameters {
         convergence_iter_max(100), convergence_iter_full_dicho(10),
         step_halving_factor(0.5), binomial_mu_min(0.001),
         binomial_mu_max(0.999), safe_clamp_min(1.0e-15), safe_clamp_max(1.0e12),
-        direct_qr_threshold(0.9), qr_collin_tol_multiplier(1.0e-7),
-        chol_stability_threshold(1.0e-12), alpha_convergence_tol(1.0e-8),
-        alpha_iter_max(10000), demean_extra_projections(0),
-        demean_warmup_iterations(15), demean_projections_after_acc(5),
-        demean_grand_acc_frequency(20), demean_ssr_check_frequency(40),
-        keep_dmx(false), use_weights(true) {}
+        iter_nb_theta(10), direct_qr_threshold(0.9),
+        qr_collin_tol_multiplier(1.0e-7), chol_stability_threshold(1.0e-12),
+        alpha_convergence_tol(1.0e-8), alpha_iter_max(10000),
+        demean_extra_projections(0), demean_warmup_iterations(15),
+        demean_projections_after_acc(5), demean_grand_acc_frequency(20),
+        demean_ssr_check_frequency(40), keep_dmx(false), use_weights(true) {}
 
   // Constructor from R control list
   explicit CapybaraParameters(const cpp11::list &control) {
@@ -118,6 +121,8 @@ struct CapybaraParameters {
     binomial_mu_max = as_cpp<double>(control["binomial_mu_max"]);
     safe_clamp_min = as_cpp<double>(control["safe_clamp_min"]);
     safe_clamp_max = as_cpp<double>(control["safe_clamp_max"]);
+
+    iter_nb_theta = as_cpp<size_t>(control["iter_nb_theta"]);
 
     direct_qr_threshold = as_cpp<double>(control["direct_qr_threshold"]);
     qr_collin_tol_multiplier =
@@ -152,11 +157,13 @@ struct CapybaraParameters {
 #include "04_lm.h"
 #include "05_glm.h"
 #include "06_glm_offset.h"
-#include "07_group_sums.h"
+#include "07_negbin.h"
+#include "08_group_sums.h"
 
 // Type aliases for easier access
 using LMResult = capybara::lm::InferenceLM;
 using GLMResult = capybara::glm::InferenceGLM;
+using NegBinResult = capybara::negbin::InferenceNegBin;
 
 // Helper function to convert R indices to C++ uvec (R uses 1-based, C++ uses
 // 0-based)
@@ -449,6 +456,90 @@ feglm_offset_fit_(const doubles &y_r, const doubles &offset_r,
       capybara::glm_offset::feglm_offset_fit(eta, y, offset, w, fe_indices,
                                              nb_ids, fe_id_tables, fam, params);
   return res.to_doubles();
+}
+
+[[cpp11::register]] list
+fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
+              const doubles &w_r, const list &FE, const std::string &link,
+              const doubles &beta_r, const doubles &eta_r,
+              const double &init_theta, const list &control) {
+  mat X = as_Mat(X_r);
+  const vec y = as_Col(y_r);
+  const vec w = as_Col(w_r);
+  vec beta = as_Col(beta_r);
+  vec eta = as_Col(eta_r);
+
+  // Parameters passed from R's capybara::fit_control()
+  CapybaraParameters params(control);
+
+  // Convert R list to field<uvec> format for modern API
+  field<field<uvec>> group_indices = R_list_to_Armadillo_field(FE);
+
+  // Convert to field<uvec> format for the new API
+  field<uvec> fe_indices(group_indices.n_elem);
+  uvec nb_ids(group_indices.n_elem);
+  field<uvec> fe_id_tables(group_indices.n_elem);
+
+  for (size_t k = 0; k < group_indices.n_elem; ++k) {
+    // Create a single uvec for all observations in this FE dimension
+    fe_indices(k).set_size(y.n_elem);
+    const field<uvec> &groups_k = group_indices(k);
+    nb_ids(k) = groups_k.n_elem;
+
+    // Create frequency table
+    fe_id_tables(k).set_size(nb_ids(k));
+
+    for (size_t g = 0; g < groups_k.n_elem; ++g) {
+      const uvec &group_obs = groups_k(g);
+      fe_id_tables(k)(g) = group_obs.n_elem;
+
+      // Assign group ID to all observations in this group
+      for (size_t i = 0; i < group_obs.n_elem; ++i) {
+        fe_indices(k)(group_obs(i)) = g;
+      }
+    }
+  }
+
+  NegBinResult res = capybara::negbin::fenegbin_fit(
+      X, y, w, fe_indices, nb_ids, fe_id_tables, link, params, init_theta);
+
+  // Replace collinear coefficients with R's NA_REAL using vectorized approach
+  uvec collinear_mask = (res.coef_status == 0);
+  if (any(collinear_mask)) {
+    res.coefficients.elem(find(collinear_mask)).fill(NA_REAL);
+  }
+
+  // Create the result list manually (since InferenceNegBin doesn't have
+  // to_list)
+  auto out = writable::list(
+      {"coefficients"_nm = as_doubles(res.coefficients),
+       "eta"_nm = as_doubles(res.eta),
+       "fitted.values"_nm = as_doubles(res.fitted_values),
+       "weights"_nm = as_doubles(res.weights),
+       "hessian"_nm = as_doubles_matrix(res.hessian),
+       "deviance"_nm = writable::doubles({res.deviance}),
+       "null.deviance"_nm = writable::doubles({res.null_deviance}),
+       "conv"_nm = writable::logicals({res.conv}),
+       "iter"_nm = writable::integers({static_cast<int>(res.iter)}),
+       "theta"_nm = writable::doubles({res.theta}),
+       "iter.outer"_nm = writable::integers({static_cast<int>(res.iter_outer)}),
+       "conv.outer"_nm = writable::logicals({res.conv_outer})});
+
+  if (res.has_fe && res.fixed_effects.n_elem > 0) {
+    writable::list fe_list(res.fixed_effects.n_elem);
+    for (size_t k = 0; k < res.fixed_effects.n_elem; ++k) {
+      fe_list[k] = as_doubles(res.fixed_effects(k));
+    }
+    out.push_back({"fixed.effects"_nm = fe_list});
+    out.push_back({"nb_references"_nm = as_integers(res.nb_references)});
+    out.push_back({"is_regular"_nm = writable::logicals({res.is_regular})});
+  }
+
+  if (params.keep_dmx && res.has_mx) {
+    out.push_back({"MX"_nm = as_doubles_matrix(res.X_dm)});
+  }
+
+  return out;
 }
 
 [[cpp11::register]] doubles_matrix<> group_sums_(const doubles_matrix<> &M_r,

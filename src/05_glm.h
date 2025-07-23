@@ -621,7 +621,7 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
   // Initial deviance
   vec mu_init =
       vec(n, fill::value(link_inv(vec(n, fill::value(1e-5)), family_type)(0)));
-  double devold = dev_resids(y_orig, mu_init, 0.0, weights_vec, family_type,
+  double devold = dev_resids(y_orig, mu_init, theta, weights_vec, family_type,
                              params.safe_clamp_min);
 
   // IRLS variables
@@ -673,7 +673,7 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
     // New eta and mu
     vec eta_new = felm_result.fitted_values;
     vec mu_new = link_inv(eta_new, family_type);
-    double dev = dev_resids(y_orig, mu_new, 0.0, weights_vec, family_type,
+    double dev = dev_resids(y_orig, mu_new, theta, weights_vec, family_type,
                             params.safe_clamp_min);
     double dev_evol = dev - devold;
 
@@ -692,7 +692,7 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
         iter_sh++;
         eta_new = (eta_old_wls + felm_result.fitted_values) / 2.0;
         mu_new = link_inv(eta_new, family_type);
-        dev = dev_resids(y_orig, mu_new, 0.0, weights_vec, family_type,
+        dev = dev_resids(y_orig, mu_new, theta, weights_vec, family_type,
                          params.safe_clamp_min);
         dev_evol = dev - devold;
 
@@ -791,7 +791,7 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
 
   // Null deviance
   vec mu_null(y_orig.n_elem, fill::value(mean_y));
-  result.null_deviance = dev_resids(y_orig, mu_null, 0.0, weights_vec,
+  result.null_deviance = dev_resids(y_orig, mu_null, theta, weights_vec,
                                     family_type, params.safe_clamp_min);
 
   if (params.keep_dmx) {
