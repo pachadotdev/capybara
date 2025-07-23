@@ -574,7 +574,8 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
                               const field<uvec> &fe_indices, const uvec &nb_ids,
                               const field<uvec> &fe_id_tables,
                               const std::string &family,
-                              const CapybaraParameters &params) {
+                              const CapybaraParameters &params,
+                              const double &theta = 0.0) {
   const size_t n = y_orig.n_elem;
   const size_t p_orig = X.n_cols;
   const bool has_fixed_effects =
@@ -637,7 +638,7 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
 
     // Compute derivatives and weights
     vec mu_eta_val = d_inv_link(eta, family_type);
-    vec var_mu = variance(mu, 0.0, family_type);
+    vec var_mu = variance(mu, theta, family_type);
 
     if (any(var_mu <= 0) || any(var_mu != var_mu)) {
       break;
@@ -751,7 +752,7 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
   // Final hessian and fixed effects
   if (has_fixed_effects) {
     vec final_mu_eta = d_inv_link(eta, family_type);
-    vec final_var_mu = variance(mu, 0.0, family_type);
+    vec final_var_mu = variance(mu, theta, family_type);
     vec final_working_weights =
         weights_vec % square(final_mu_eta) / final_var_mu;
     vec final_z = eta + (y_orig - mu) / final_mu_eta;

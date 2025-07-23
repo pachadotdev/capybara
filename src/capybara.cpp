@@ -393,7 +393,7 @@ demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   }
 
   GLMResult res = capybara::glm::feglm_fit(X, y, w, fe_indices, nb_ids,
-                                           fe_id_tables, fam, params);
+                                           fe_id_tables, fam, params, theta);
 
   // Replace collinear coefficients with R's NA_REAL using vectorized approach
   uvec collinear_mask = (res.coef_status == 0);
