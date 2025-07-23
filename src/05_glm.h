@@ -465,8 +465,8 @@ struct InferenceGLM {
 // WLM FITTING
 //////////////////////////////////////////////////////////////////////////////
 
-inline InferenceWLM wlm_fit(const mat &X_orig, const mat &X_reduced,
-                            const vec &y, const vec &y_orig, const vec &w,
+inline InferenceWLM wlm_fit(const mat &X_reduced, const vec &y,
+                            const vec &y_orig, const vec &w,
                             const field<uvec> &fe_indices, const uvec &nb_ids,
                             const field<uvec> &fe_id_tables,
                             const CollinearityResult &collin_result,
@@ -533,9 +533,17 @@ inline InferenceWLM wlm_fit(const mat &X_orig, const mat &X_reduced,
     result.hessian = beta_result.hessian;
   }
 
-  // Extract fixed effects using original X
+  // Extract fixed effects using reduced X
   if (has_fixed_effects && compute_fixed_effects) {
-    vec sum_fe = result.fitted_values - X_orig * result.coefficients;
+    // Extract the non-zero coefficients for the reduced matrix
+    vec coef_reduced;
+    if (collin_result.has_collinearity) {
+      coef_reduced = result.coefficients(collin_result.non_collinear_cols);
+    } else {
+      coef_reduced = result.coefficients;
+    }
+
+    vec sum_fe = result.fitted_values - X_reduced * coef_reduced;
 
     field<field<uvec>> group_indices(fe_indices.n_elem);
     for (size_t k = 0; k < fe_indices.n_elem; ++k) {
@@ -562,14 +570,13 @@ inline InferenceWLM wlm_fit(const mat &X_orig, const mat &X_reduced,
 // GLM FITTING
 //////////////////////////////////////////////////////////////////////////////
 
-inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
-                              const vec &w, const field<uvec> &fe_indices,
-                              const uvec &nb_ids,
+inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
+                              const field<uvec> &fe_indices, const uvec &nb_ids,
                               const field<uvec> &fe_id_tables,
                               const std::string &family,
                               const CapybaraParameters &params) {
   const size_t n = y_orig.n_elem;
-  const size_t p_orig = X_orig.n_cols;
+  const size_t p_orig = X.n_cols;
   const bool has_fixed_effects =
       fe_indices.n_elem > 0 && fe_indices(0).n_elem > 0;
 
@@ -590,7 +597,7 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
   vec weights_vec = use_weights ? w : ones<vec>(n);
 
   // STEP 1: Check collinearity ONCE at the beginning
-  mat X_reduced = X_orig;
+  mat X_reduced = X;
   double tolerance = params.qr_collin_tol_multiplier * 1e-7;
   CollinearityResult collin_result =
       check_collinearity(X_reduced, weights_vec, use_weights, tolerance, true);
@@ -646,8 +653,8 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
 
     // Call wlm_fit with pre-computed collinearity result
     InferenceWLM felm_result =
-        wlm_fit(X_orig, X_reduced, z, y_orig, working_weights, fe_indices,
-                nb_ids, fe_id_tables, collin_result, params, false, false);
+        wlm_fit(X_reduced, z, y_orig, working_weights, fe_indices, nb_ids,
+                fe_id_tables, collin_result, params, false, false);
 
     if (!felm_result.success ||
         any(felm_result.coefficients != felm_result.coefficients)) {
@@ -749,9 +756,9 @@ inline InferenceGLM feglm_fit(const mat &X_orig, const vec &y_orig,
         weights_vec % square(final_mu_eta) / final_var_mu;
     vec final_z = eta + (y_orig - mu) / final_mu_eta;
 
-    InferenceWLM final_felm = wlm_fit(
-        X_orig, X_reduced, final_z, y_orig, final_working_weights, fe_indices,
-        nb_ids, fe_id_tables, collin_result, params, true, true);
+    InferenceWLM final_felm =
+        wlm_fit(X_reduced, final_z, y_orig, final_working_weights, fe_indices,
+                nb_ids, fe_id_tables, collin_result, params, true, true);
 
     result.hessian = final_felm.hessian;
     result.fixed_effects = final_felm.fixed_effects;

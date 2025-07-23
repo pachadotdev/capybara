@@ -79,9 +79,6 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
 
   InferenceLM result(n, p_orig);
 
-  // Keep a copy of original X for fixed effects computation
-  mat X_orig = X;
-
   // STEP 1: Check collinearity and modify X in place
   bool use_weights = params.use_weights && !all(w == 1.0);
   double tolerance = params.qr_collin_tol_multiplier * 1e-7;
@@ -143,9 +140,17 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
   result.hessian = beta_result.hessian;
   result.coef_status = beta_result.coef_status;
 
-  // STEP 5: Extract fixed effects using original X
+  // STEP 5: Extract fixed effects using reduced X and coefficients
   if (has_fixed_effects) {
-    vec sum_fe = result.fitted_values - X_orig * result.coefficients;
+    // Extract the non-zero coefficients for the reduced matrix
+    vec coef_reduced;
+    if (collin_result.has_collinearity) {
+      coef_reduced = result.coefficients(collin_result.non_collinear_cols);
+    } else {
+      coef_reduced = result.coefficients;
+    }
+
+    vec sum_fe = result.fitted_values - X_work * coef_reduced;
 
     field<field<uvec>> group_indices(fe_indices.n_elem);
     for (size_t k = 0; k < fe_indices.n_elem; ++k) {
