@@ -9,6 +9,8 @@ NULL
 test_that("group_sums_* works", {
   skip_on_cran()
 
+  load_all()
+
   set.seed(123)
   m <- matrix(rnorm(9), ncol = 3, nrow = 3)
   w <- matrix(rnorm(3), ncol = 1, nrow = 3)
@@ -16,27 +18,44 @@ test_that("group_sums_* works", {
   k <- 2L
   jlist <- list(1L, 2L)
 
+  # groupSums <- function(M, w, jlist) {
+  #   P <- ncol(M)
+  #   b <- numeric(P)
+  #   for (indexes in jlist) {
+  #     num <- colSums(M[indexes, , drop = FALSE])
+  #     denom <- sum(w[indexes])
+  #     b <- b + num / denom
+  #   }
+  #   b
+  # }
+
+  # groupSums(m, w, jlist)
+
   expect_equal(
-    matrix(c(4.144, 4.872, -2.942), ncol = 1, nrow = 3),
     group_sums_(m, w, jlist),
+    # alpaca:::groupSums(m, w, jlist)
+    matrix(c(4.144, 4.872, -2.942), ncol = 1, nrow = 3),
     tolerance = 1e-2
   )
 
   expect_equal(
-    matrix(c(0, 0, 0), ncol = 1, nrow = 3),
     group_sums_spectral_(m, w, v, k, jlist),
+    # alpaca:::groupSumsSpectral(m, w, v, k, jlist)
+    matrix(c(0, 0, 0), ncol = 1, nrow = 3),
     tolerance = 1e-2
   )
 
   expect_equal(
-    c(2.483, 2.644, -0.779),
     group_sums_var_(m, jlist)[, 1],
+    # alpaca:::groupSumsVar(m, jlist)
+    c(2.483, 2.644, -0.779),
     tolerance = 1e-2
   )
 
   expect_equal(
-    c(0, 0, 0),
     group_sums_cov_(m, m, jlist)[, 1],
+    # alpaca:::groupSumsCov(m, m, jlist)
+    c(0, 0, 0),
     tolerance = 1e-2
   )
 })

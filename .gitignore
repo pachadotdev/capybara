@@ -17,6 +17,7 @@ dev/FEN*
 dev/ppmlhdfe
 dev/pyfixest
 dev/article
+dev/alpaca
 README.html
 pkgdown
 src/Makevars

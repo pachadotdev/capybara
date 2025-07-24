@@ -546,7 +546,7 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
                                                  const doubles_matrix<> &w_r,
                                                  const list &jlist) {
   const mat M = as_Mat(M_r);
-  const mat w = as_Mat(w_r);
+  const vec w = as_Col(w_r);
 
   // Convert R list to single-level Armadillo field
   const size_t J = jlist.size();

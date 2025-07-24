@@ -183,7 +183,7 @@ apes <- function(
   if (control[["keep_dmx"]]) {
     X_dm <- object[["X_dm"]]
   } else {
-    X_dm <- demean_variables_(x, w, FEs, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]], "gaussian")
+    X_dm <- demean_variables_(x, w, FEs, control[["demean_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]], "gaussian")
   }
 
   # Compute average partial effects, derivatives, and Jacobian
@@ -220,7 +220,7 @@ apes <- function(
 
   # Compute projection and residual projection of \psi
   psi <- -delta1 / w
-  mpsi <- demean_variables_(psi, w, FEs, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]], "gaussian")
+  mpsi <- demean_variables_(psi, w, FEs, control[["demean_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]], "gaussian")
   ppsi <- psi - mpsi
   rm(delta1, psi)
 

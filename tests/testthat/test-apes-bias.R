@@ -35,13 +35,13 @@ test_that("apes/bias works", {
   # mod2 <- alpaca::feglm(trade ~ lang | year, trade_short, family = binomial())
   # apes2 <- alpaca::getAPEs(mod2)
   # bias2 <- alpaca::biasCorr(mod2)
-  apes2 <- c("lang" = 1e-2)
+  apes2 <- c("lang" = 0.05)
   bias2 <- c("lang" = 0.2436)
 
   expect_output(print(mod1))
 
   expect_equal(length(coef(apes1)), 1)
-  expect_equal(round(coef(apes1), 2), apes2, tolerance = 1e-2)
+  expect_equal(coef(apes1), apes2, tolerance = 1e-2)
   expect_equal(length(coef(summary(apes(mod1)))), 4)
 
   expect_equal(length(coef(bias1)), 1)
