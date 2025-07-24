@@ -34,7 +34,7 @@ get_score_matrix_felm_ <- function(object) {
 
     # Center variables
     X_dm <- demean_variables_(
-      x, w, FEs, control[["center_tol"]],
+      x, w, FEs, control[["demean_tol"]],
       control[["iter_max"]], control[["iter_interrupt"]],
       control[["iter_ssr"]], "gaussian"
     )

@@ -52,7 +52,7 @@ summary.feglm <- function(
   res <- list(
     coefficients = coefficients,
     deviance = object[["deviance"]],
-    null_deviance = object[["null_deviance"]],
+    null.deviance = object[["null.deviance"]],
     iter = object[["iter"]],
     nobs = object[["nobs"]],
     fe.levels = object[["fe.levels"]],

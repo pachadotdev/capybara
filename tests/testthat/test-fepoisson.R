@@ -16,8 +16,6 @@ test_that("fepoisson is similar to fixest", {
 
   # K = 1
 
-  # load_all()
-
   mod <- fepoisson(mpg ~ wt | cyl | am, mtcars)
 
   # fixest::fepois(mpg ~ wt | cyl, mtcars)
@@ -63,8 +61,6 @@ test_that("fepoisson is similar to fixest", {
   expect_output(summary_fisher_(smod))
 
   # K = 2
-
-  load_all()
 
   mod <- fepoisson(mpg ~ wt | cyl + am, mtcars)
 

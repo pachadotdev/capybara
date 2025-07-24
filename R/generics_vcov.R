@@ -58,7 +58,7 @@ vcov.apes <- function(object, ...) {
 #' @examples
 #' # same as the example in feglm but extracting the covariance matrix
 #' mod <- fepoisson(mpg ~ wt | cyl | am, mtcars)
-#' round(vcov(mod, type = "clustered"), 5)
+#' vcov(mod, type = "clustered")
 #'
 #' @return A named matrix of covariance estimates.
 #'

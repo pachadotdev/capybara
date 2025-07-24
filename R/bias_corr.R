@@ -40,6 +40,8 @@ NULL
 #'  observed several times (this includes pseudo panels). \code{"network"}
 #'  denotes panel structures where for example bilateral trade flows are
 #'  observed for several time periods. Default is \code{"classic"}.
+#' @param weights a numeric vector of observation weights. If \code{NULL}
+#'  (default), unit weights are used.
 #'
 #' @return A named list of classes \code{"bias_corr"} and \code{"feglm"}.
 #'
@@ -77,7 +79,8 @@ NULL
 bias_corr <- function(
     object = NULL,
     l = 0L,
-    panel_structure = c("classic", "network")) {
+    panel_structure = c("classic", "network"),
+    weights = NULL) {
   # Check validity of 'object'
   apes_bias_check_object_(object, fun = "bias_corr")
 
@@ -109,7 +112,27 @@ bias_corr <- function(
   y <- data[[1L]]
   x <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
   attr(x, "dimnames") <- NULL
-  w <- object[["weights"]]
+
+  # Extract weights - default to unit weights if not provided
+  if (is.null(weights)) {
+    w <- rep(1.0, nrow(data))
+  } else {
+    # If weights is a character string (column name), extract from data
+    if (is.character(weights) && length(weights) == 1) {
+      if (!(weights %in% names(data))) {
+        stop("Weight variable '", weights, "' not found in data.", call. = FALSE)
+      }
+      w <- data[[weights]]
+    } else if (is.numeric(weights)) {
+      # If weights is a numeric vector, use directly
+      if (length(weights) != nrow(data)) {
+        stop("Length of weights must equal number of observations.", call. = FALSE)
+      }
+      w <- weights
+    } else {
+      stop("'weights' must be NULL, a column name, or a numeric vector.", call. = FALSE)
+    }
+  }
 
   # Generate auxiliary list of indexes for different sub panels
   FEs <- get_index_list_(fe_names, data)
@@ -119,46 +142,50 @@ bias_corr <- function(
   mu <- family[["linkinv"]](eta)
   mu_eta <- family[["mu.eta"]](eta)
   v <- w * (y - mu)
-  w <- w * mu_eta
+  w_working <- w * mu_eta # Working weights for GLM
   z <- w * partial_mu_eta_(eta, family, 2L)
   if (family[["link"]] != "logit") {
     h <- mu_eta / family[["variance"]](mu)
     v <- h * v
-    w <- h * w
+    w_working <- h * w_working
     z <- h * z
     rm(h)
   }
 
-  # Center regressor matrix (if required)
+  # Center regressor matrix (if required) - use working weights
   if (control[["keep_dmx"]]) {
     x <- object[["X_dm"]]
   } else {
-    x <- demean_variables_(x, w, FEs, control[["demean_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]], "gaussian")
+    x <- demean_variables_(
+      x, w_working, FEs, control[["demean_tol"]],
+      control[["iter_max"]], control[["iter_interrupt"]],
+      control[["iter_ssr"]], "gaussian"
+    )
   }
 
   # Compute bias terms for requested bias correction
   if (panel_structure == "classic") {
     # Compute \hat{B} and \hat{D}
-    b <- as.vector(group_sums_(x * z, w, FEs[[1L]])) / 2.0 / nt
+    b <- as.vector(group_sums_(x * z, w_working, FEs[[1L]])) / 2.0 / nt
     if (k > 1L) {
-      b <- b + as.vector(group_sums_(x * z, w, FEs[[2L]])) / 2.0 / nt
+      b <- b + as.vector(group_sums_(x * z, w_working, FEs[[2L]])) / 2.0 / nt
     }
 
     # Compute spectral density part of \hat{B}
     if (l > 0L) {
-      b <- (b + group_sums_spectral_(x * w, v, w, l, FEs[[1L]])) / nt
+      b <- (b + group_sums_spectral_(x * w_working, v, w_working, l, FEs[[1L]])) / nt
     }
   } else {
     # Compute \hat{D}_{1}, \hat{D}_{2}, and \hat{B}
-    b <- group_sums_(x * z, w, FEs[[1L]]) / (2.0 * nt)
-    b <- (b + group_sums_(x * z, w, FEs[[2L]])) / (2.0 * nt)
+    b <- group_sums_(x * z, w_working, FEs[[1L]]) / (2.0 * nt)
+    b <- (b + group_sums_(x * z, w_working, FEs[[2L]])) / (2.0 * nt)
     if (k > 2L) {
-      b <- (b + group_sums_(x * z, w, FEs[[3L]])) / (2.0 * nt)
+      b <- (b + group_sums_(x * z, w_working, FEs[[3L]])) / (2.0 * nt)
     }
 
     # Compute spectral density part of \hat{B}
     if (k > 2L && l > 0L) {
-      b <- (b + group_sums_spectral_(x * w, v, w, l, FEs[[3L]])) / nt
+      b <- (b + group_sums_spectral_(x * w_working, v, w_working, l, FEs[[3L]])) / nt
     }
   }
 
@@ -170,21 +197,25 @@ bias_corr <- function(
   eta <- feglm_offset_(object, x %*% beta)
   mu <- family[["linkinv"]](eta)
   mu_eta <- family[["mu.eta"]](eta)
-  v <- w * (y - mu)
-  w <- w * mu_eta
+  v <- w * (y - mu) # Use original weights
+  w_working <- w * mu_eta # Recompute working weights
   if (family[["link"]] != "logit") {
     h <- mu_eta / family[["variance"]](mu)
     v <- h * v
-    w <- h * w
+    w_working <- h * w_working
     rm(h)
   }
 
   # Update centered regressor matrix
-  x <- demean_variables_(x, w, FEs, control[["demean_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]], "gaussian")
+  x <- demean_variables_(
+    x, w_working, FEs, control[["demean_tol"]],
+    control[["iter_max"]], control[["iter_interrupt"]],
+    control[["iter_ssr"]], "gaussian"
+  )
   colnames(x) <- nms_sp
 
   # Update hessian
-  h <- crossprod(x * sqrt(w))
+  h <- crossprod(x * sqrt(w_working))
   dimnames(h) <- list(nms_sp, nms_sp)
 
   # Update result list

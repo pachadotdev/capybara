@@ -113,7 +113,7 @@ fenegbin <- function(
   control <- check_control_(control)
 
   # Generate model.frame
-  lhs <- nobs_na <- nobs_full <- NA
+  X <- eta <- lhs <- nobs_na <- nobs_full <- NA
   model_frame_(data, formula, weights)
 
   # Create a dummy family for response checking

@@ -206,6 +206,7 @@ init_theta_ <- function(init_theta, link) {
 #' @param p Number parameters
 #' @param beta_start Starting values for beta
 #' @param eta_start Starting values for eta
+#' @importFrom stats lm coef
 #' @noRd
 start_guesses_ <- function(X, y, w, beta, family, nt, p, beta_start, eta_start) {
   if (!is.null(beta_start) || !is.null(eta_start)) {

@@ -35,7 +35,7 @@ from the hessian, the scores, or a combination of both after convergence.
 \examples{
 # same as the example in feglm but extracting the covariance matrix
 mod <- fepoisson(mpg ~ wt | cyl | am, mtcars)
-round(vcov(mod, type = "clustered"), 5)
+vcov(mod, type = "clustered")
 
 }
 \references{
