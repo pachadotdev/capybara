@@ -29,7 +29,7 @@ struct GroupSums {
 //////////////////////////////////////////////////////////////////////////////
 
 // Basic group sums with weights
-inline GroupSums group_sums(const mat &M, const mat &w,
+inline GroupSums group_sums(const mat &M, const vec &w,
                             const field<uvec> &group_indices) {
   const size_t J = group_indices.n_elem;
   const size_t P = M.n_cols;

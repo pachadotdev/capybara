@@ -17,14 +17,7 @@ test_that("apes/bias works", {
   trade_short <- trade_short[trade_short$trade > 100, ]
   trade_short$trade <- ifelse(trade_short$trade > 200, 1L, 0L)
 
-  mod1 <- tryCatch(
-    {
-      feglm(trade ~ lang | exp_year, trade_short, family = binomial())
-    },
-    error = function(e) {
-      stop("feglm failed: ", e$message)
-    }
-  )
+  mod1 <- feglm(trade ~ lang | exp_year, trade_short, family = binomial())
 
   expect_s3_class(mod1, "feglm")
 

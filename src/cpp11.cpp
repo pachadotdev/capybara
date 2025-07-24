@@ -41,10 +41,10 @@ extern "C" SEXP _capybara_fenegbin_fit_(SEXP X_r, SEXP y_r, SEXP w_r, SEXP FE, S
   END_CPP11
 }
 // capybara.cpp
-doubles_matrix<> group_sums_(const doubles_matrix<> & M_r, const doubles_matrix<> & w_r, const list & jlist);
+doubles_matrix<> group_sums_(const doubles_matrix<> & M_r, const doubles & w_r, const list & jlist);
 extern "C" SEXP _capybara_group_sums_(SEXP M_r, SEXP w_r, SEXP jlist) {
   BEGIN_CPP11
-    return cpp11::as_sexp(group_sums_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(M_r), cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(w_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(jlist)));
+    return cpp11::as_sexp(group_sums_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(M_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(w_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(jlist)));
   END_CPP11
 }
 // capybara.cpp

@@ -543,7 +543,7 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
 }
 
 [[cpp11::register]] doubles_matrix<> group_sums_(const doubles_matrix<> &M_r,
-                                                 const doubles_matrix<> &w_r,
+                                                 const doubles &w_r,
                                                  const list &jlist) {
   const mat M = as_Mat(M_r);
   const vec w = as_Col(w_r);
