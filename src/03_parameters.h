@@ -134,7 +134,10 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
     result.success = true;
     result.coefficients.zeros();
     result.coef_status = collin_result.coef_status;
-    result.fitted_values = has_fixed_effects ? y_orig : zeros<vec>(n);
+    result.fitted_values = has_fixed_effects ? y_orig : vec(n, fill::none);
+    if (!has_fixed_effects) {
+      result.fitted_values.zeros();
+    }
     result.residuals = y_orig - result.fitted_values;
     result.weights = w;
     result.hessian.zeros();

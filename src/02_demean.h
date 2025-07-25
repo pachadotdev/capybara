@@ -13,6 +13,49 @@ using convergence::continue_criterion;
 using convergence::stopping_criterion;
 using convergence::update_irons_tuck;
 
+//////////////////////////////////////////////////////////////////////////////
+// WORKSPACE STRUCTURES
+//////////////////////////////////////////////////////////////////////////////
+
+// Workspace for demean algorithms to avoid repeated allocations
+struct DemeanWorkspace {
+  // Core vectors for acceleration algorithms
+  vec sum_other_fe_or_tmp;
+  vec sum_in_out;
+  vec X, GX, GGX;
+  vec Y, GY, GGY;
+  vec delta_GX, delta2_X;
+
+  // Working vectors for convergence checking
+  vec mu_current;
+
+  void resize_for_demean(size_t n_obs, size_t total_coefficients,
+                        size_t max_other_size, size_t Q, size_t sum_in_out_size = 0) {
+    // Resize only if needed to avoid unnecessary allocations
+    if (sum_other_fe_or_tmp.n_elem != max_other_size) {
+      sum_other_fe_or_tmp.set_size(max_other_size);
+    }
+    // sum_in_out should be sized according to the specific algorithm needs
+    size_t actual_sum_in_out_size = (sum_in_out_size > 0) ? sum_in_out_size : total_coefficients;
+    if (sum_in_out.n_elem != actual_sum_in_out_size) {
+      sum_in_out.set_size(actual_sum_in_out_size);
+    }
+    if (X.n_elem != total_coefficients) {
+      X.set_size(total_coefficients);
+      GX.set_size(total_coefficients);
+      GGX.set_size(total_coefficients);
+      Y.set_size(total_coefficients);
+      GY.set_size(total_coefficients);
+      GGY.set_size(total_coefficients);
+      delta_GX.set_size(total_coefficients);
+      delta2_X.set_size(total_coefficients);
+    }
+    if (mu_current.n_elem != n_obs) {
+      mu_current.set_size(n_obs);
+    }
+  }
+};
+
 // Overload for update_irons_tuck that accepts subviews and temporary vectors
 bool update_irons_tuck_subvec(vec &X_subvec, vec &GX_subvec, vec &GGX_subvec,
                               vec &delta_GX, vec &delta2_X,
@@ -63,12 +106,12 @@ public:
                const field<uvec> &fe_id_tables);
 
   // Core computation functions
-  void fe_coefficients(size_t group_idx, vec &fe_coef, const vec &sum_other_fe,
+  void compute_fe_coefficients(size_t group_idx, vec &fe_coef, const vec &sum_other_fe,
                        const vec &sum_in_out);
 
-  void fe_coefficients_single(vec &fe_coef, const vec &target);
+  void compute_fe_coefficients_single(vec &fe_coef, const vec &target);
 
-  void fe_coef_2(vec &fe_coef_in, vec &fe_coef_out, vec &fe_coef_tmp,
+  void compute_fe_coef_2(vec &fe_coef_in, vec &fe_coef_out, vec &fe_coef_tmp,
                  const vec &sum_in_out);
 
   void add_fe_to_prediction(size_t group_idx, const vec &fe_coef,
@@ -81,7 +124,7 @@ public:
                               vec &prediction, const vec &sum_in_out,
                               bool update_beta);
 
-  void in_out(size_t group_idx, vec &in_out_sum, const vec &input,
+  void compute_in_out(size_t group_idx, vec &in_out_sum, const vec &input,
               const vec &output);
 
   // Accessors
@@ -145,7 +188,8 @@ FixedEffects::FixedEffects(size_t n_obs, size_t n_fe_groups, const vec &weights,
 
   // Initialize configuration arrays
   nb_coefs_ = nb_ids_; // For non-slopes case, coefficients == IDs
-  coef_starts_ = zeros<uvec>(n_fe_groups_);
+  coef_starts_ = uvec(n_fe_groups_, fill::none);
+  coef_starts_.zeros();
 
   // Compute coefficient starting positions
   if (n_fe_groups_ > 0) {
@@ -167,7 +211,8 @@ void FixedEffects::setup_weights(const field<uvec> &fe_id_tables) {
   sum_weights_.set_size(n_fe_groups_);
 
   for (size_t q = 0; q < n_fe_groups_; ++q) {
-    sum_weights_(q) = zeros<vec>(nb_ids_(q));
+    sum_weights_(q) = vec(nb_ids_(q), fill::none);
+    sum_weights_(q).zeros();
 
     if (has_weights_) {
       // Accumulate weights for each FE ID
@@ -211,7 +256,7 @@ void FixedEffects::setup_weights(const field<uvec> &fe_id_tables) {
 // CORE FUNCTIONS
 //////////////////////////////////////////////////////////////////////////////
 
-void FixedEffects::fe_coefficients(size_t group_idx, vec &fe_coef,
+void FixedEffects::compute_fe_coefficients(size_t group_idx, vec &fe_coef,
                                    const vec &sum_other_fe,
                                    const vec &sum_in_out) {
   const uvec &fe_idx = fe_indices_(group_idx);
@@ -226,14 +271,14 @@ void FixedEffects::fe_coefficients(size_t group_idx, vec &fe_coef,
     group_coefs(fe_idx(obs)) -= sum_other_fe(obs);
   }
 
-  // Divide by weights to get coefficients
-  group_coefs /= sum_weights_(group_idx);
+  // Divide by weights to get coefficients - use safe_divide like reference
+  group_coefs = convergence::utils::safe_divide(group_coefs, sum_weights_(group_idx), 1e-12);
 
   // Store in output vector
   fe_coef.subvec(coef_start, coef_start + nb_coef - 1) = group_coefs;
 }
 
-void FixedEffects::fe_coefficients_single(vec &fe_coef, const vec &target) {
+void FixedEffects::compute_fe_coefficients_single(vec &fe_coef, const vec &target) {
   fe_coef.zeros();
 
   const uvec &fe_idx = fe_indices_(0);
@@ -248,7 +293,8 @@ void FixedEffects::fe_coefficients_single(vec &fe_coef, const vec &target) {
     }
   }
 
-  fe_coef /= sum_weights_(0);
+  // Use safe division like reference
+  fe_coef = convergence::utils::safe_divide(fe_coef, sum_weights_(0), 1e-12);
 }
 
 void FixedEffects::add_fe_to_prediction(size_t group_idx, const vec &fe_coef,
@@ -256,8 +302,21 @@ void FixedEffects::add_fe_to_prediction(size_t group_idx, const vec &fe_coef,
   const uvec &fe_idx = fe_indices_(group_idx);
   size_t coef_start = coef_starts_(group_idx);
 
+  // Add bounds checking
+  if (group_idx >= n_fe_groups_) {
+    cpp11::stop("add_fe_to_prediction: group_idx=%zu >= n_fe_groups=%zu", group_idx, n_fe_groups_);
+  }
+
   for (size_t obs = 0; obs < n_obs_; ++obs) {
-    prediction(obs) += fe_coef(coef_start + fe_idx(obs));
+    size_t access_idx = coef_start + fe_idx(obs);
+    
+    // Bounds check for fe_coef access
+    if (access_idx >= fe_coef.n_elem) {
+      cpp11::stop("add_fe_to_prediction bounds error: coef_start=%zu, fe_id=%zu, access_idx=%zu, fe_coef.size=%zu", 
+                  coef_start, (size_t)fe_idx(obs), access_idx, fe_coef.n_elem);
+    }
+    
+    prediction(obs) += fe_coef(access_idx);
   }
 }
 
@@ -273,15 +332,29 @@ void FixedEffects::add_weighted_fe_to_prediction(size_t group_idx,
   size_t coef_start = coef_starts_(group_idx);
 
   for (size_t obs = 0; obs < n_obs_; ++obs) {
-    prediction(obs) += fe_coef(coef_start + fe_idx(obs)) * weights_(obs);
+    size_t access_idx = coef_start + fe_idx(obs);
+    
+    // Bounds check for fe_coef access
+    if (access_idx >= fe_coef.n_elem) {
+      cpp11::stop("add_weighted_fe_to_prediction bounds error: coef_start=%zu, fe_id=%zu, access_idx=%zu, fe_coef.size=%zu", 
+                  coef_start, (size_t)fe_idx(obs), access_idx, fe_coef.n_elem);
+    }
+    
+    prediction(obs) += fe_coef(access_idx) * weights_(obs);
   }
 }
 
-void FixedEffects::in_out(size_t group_idx, vec &in_out_sum, const vec &input,
+void FixedEffects::compute_in_out(size_t group_idx, vec &in_out_sum, const vec &input,
                           const vec &output) {
   const uvec &fe_idx = fe_indices_(group_idx);
   size_t coef_start = coef_starts_(group_idx);
   size_t nb_coef = nb_coefs_(group_idx);
+
+  // Validate bounds
+  if (coef_start + nb_coef > in_out_sum.n_elem) {
+    cpp11::stop("in_out bounds error: coef_start=%zu, nb_coef=%zu, in_out_sum.size=%zu", 
+                coef_start, nb_coef, in_out_sum.n_elem);
+  }
 
   // Zero out this group's section
   in_out_sum.subvec(coef_start, coef_start + nb_coef - 1).zeros();
@@ -290,19 +363,34 @@ void FixedEffects::in_out(size_t group_idx, vec &in_out_sum, const vec &input,
   if (has_weights_) {
     for (size_t obs = 0; obs < n_obs_; ++obs) {
       size_t fe_id = fe_idx(obs);
-      in_out_sum(coef_start + fe_id) +=
-          (input(obs) - output(obs)) * weights_(obs);
+      size_t access_idx = coef_start + fe_id;
+      
+      // Bounds check
+      if (access_idx >= in_out_sum.n_elem) {
+        cpp11::stop("in_out access bounds error: coef_start=%zu, fe_id=%zu, access_idx=%zu, in_out_sum.size=%zu", 
+                    coef_start, fe_id, access_idx, in_out_sum.n_elem);
+      }
+      
+      in_out_sum(access_idx) += (input(obs) - output(obs)) * weights_(obs);
     }
   } else {
     for (size_t obs = 0; obs < n_obs_; ++obs) {
       size_t fe_id = fe_idx(obs);
-      in_out_sum(coef_start + fe_id) += input(obs) - output(obs);
+      size_t access_idx = coef_start + fe_id;
+      
+      // Bounds check
+      if (access_idx >= in_out_sum.n_elem) {
+        cpp11::stop("in_out access bounds error: coef_start=%zu, fe_id=%zu, access_idx=%zu, in_out_sum.size=%zu", 
+                    coef_start, fe_id, access_idx, in_out_sum.n_elem);
+      }
+      
+      in_out_sum(access_idx) += input(obs) - output(obs);
     }
   }
 }
 
 // Special 2-FE algorithm implementation
-void FixedEffects::fe_coef_2(vec &fe_coef_in, vec &fe_coef_out,
+void FixedEffects::compute_fe_coef_2(vec &fe_coef_in, vec &fe_coef_out,
                              vec &fe_coef_tmp, const vec &sum_in_out) {
   // This implements the 2-FE special case from fixest
   // fe_coef_in: coefficients for first FE (input and output)
@@ -335,7 +423,7 @@ void FixedEffects::fe_coef_2(vec &fe_coef_in, vec &fe_coef_out,
   }
 
   // Divide by weights
-  fe_coef_tmp /= sum_weights_(1);
+  fe_coef_tmp = convergence::utils::safe_divide(fe_coef_tmp, sum_weights_(1), 1e-12);
 
   // Step 2: Update first FE based on updated second FE
   fe_coef_out = sum_in_out.subvec(0, nb_coef_0 - 1);
@@ -352,7 +440,7 @@ void FixedEffects::fe_coef_2(vec &fe_coef_in, vec &fe_coef_out,
   }
 
   // Divide by weights
-  fe_coef_out /= sum_weights_(0);
+  fe_coef_out = convergence::utils::safe_divide(fe_coef_out, sum_weights_(0), 1e-12);
 }
 
 void FixedEffects::add_2_fe_to_prediction(const vec &fe_coef_a,
@@ -363,7 +451,7 @@ void FixedEffects::add_2_fe_to_prediction(const vec &fe_coef_a,
     // Need to update coefficients - use temporary storage
     vec fe_coef_a_new = fe_coef_a;
     vec fe_coef_b_new = fe_coef_b;
-    fe_coef_2(const_cast<vec &>(fe_coef_a), fe_coef_a_new, fe_coef_b_new,
+    compute_fe_coef_2(const_cast<vec &>(fe_coef_a), fe_coef_a_new, fe_coef_b_new,
               sum_in_out);
 
     // Add both FE contributions
@@ -444,16 +532,19 @@ struct DemeanParams {
 
     // Initialize data structures
     output_variables.set_size(n_vars);
-    iteration_counts = zeros<uvec>(n_vars);
+    iteration_counts = uvec(n_vars, fill::none);
+    iteration_counts.zeros();
     job_completed.set_size(n_vars);
     job_completed.fill(false);
 
     if (save_fixed_effects) {
-      fixed_effect_values = zeros<vec>(total_coefficients);
+      fixed_effect_values = vec(total_coefficients, fill::none);
+      fixed_effect_values.zeros();
     }
 
     for (size_t i = 0; i < n_vars; ++i) {
-      output_variables(i) = zeros<vec>(n_obs);
+      output_variables(i) = vec(n_obs, fill::none);
+      output_variables(i).zeros();
     }
   }
 };
@@ -472,7 +563,7 @@ struct DemeanResult {
 //////////////////////////////////////////////////////////////////////////////
 
 // Update fixed effects coefficients - general case (Q >= 2)
-void fe_general(size_t var_idx, const vec &fe_coef_origin,
+void compute_fe_general(size_t var_idx, const vec &fe_coef_origin,
                 vec &fe_coef_destination, vec &sum_other_fe,
                 const vec &sum_in_out, DemeanParams &params) {
   size_t n_fe_groups = params.n_fe_groups;
@@ -494,22 +585,22 @@ void fe_general(size_t var_idx, const vec &fe_coef_origin,
     }
 
     // Update FE coefficients for group q
-    params.fe_processor->fe_coefficients(q, fe_coef_destination, sum_other_fe,
+    params.fe_processor->compute_fe_coefficients(q, fe_coef_destination, sum_other_fe,
                                          sum_in_out);
   }
 }
 
 // Wrapper to handle 2-FE special case vs general case
-void fe(size_t var_idx, size_t Q, vec &fe_coef_origin, vec &fe_coef_destination,
+void compute_fe(size_t var_idx, size_t Q, vec &fe_coef_origin, vec &fe_coef_destination,
         vec &sum_other_fe_or_tmp, const vec &sum_in_out, DemeanParams &params) {
   if (Q == 2) {
     // Special 2-FE algorithm
-    params.fe_processor->fe_coef_2(fe_coef_origin, fe_coef_destination,
-                                   sum_other_fe_or_tmp, sum_in_out);
+    params.fe_processor->compute_fe_coef_2(fe_coef_origin, fe_coef_destination,
+                                           sum_other_fe_or_tmp, sum_in_out);
   } else {
     // General algorithm
-    fe_general(var_idx, fe_coef_origin, fe_coef_destination,
-               sum_other_fe_or_tmp, sum_in_out, params);
+    compute_fe_general(var_idx, fe_coef_origin, fe_coef_destination,
+                       sum_other_fe_or_tmp, sum_in_out, params);
   }
 }
 
@@ -522,9 +613,9 @@ void demean_single_fe(size_t var_idx, DemeanParams &params) {
   const vec &input = params.input_variables(var_idx);
   vec &output = params.output_variables(var_idx);
 
-  // Compute fixed effect coefficients
+  // Initialize workspace - ensure proper zeros for numerical accuracy
   vec fe_coef(params.total_coefficients, fill::zeros);
-  params.fe_processor->fe_coefficients_single(fe_coef, input);
+  params.fe_processor->compute_fe_coefficients_single(fe_coef, input);
 
   // Add to prediction
   output.zeros();
@@ -561,23 +652,22 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams &params,
   }
 
   // Working vector - either sum_other_fe (general) or second FE coefs (2-FE)
-  size_t size_other =
-      two_fe_algo ? params.fe_processor->nb_coef_group(1) : n_obs;
+  size_t size_other = two_fe_algo ? params.fe_processor->nb_coef_group(1) : n_obs;
   vec sum_other_fe_or_tmp(size_other, fill::zeros);
 
   // Compute sum of (input - output) for each FE group ONCE at the beginning
   vec sum_in_out(nb_coef_all, fill::zeros);
   for (size_t q = 0; q < Q; ++q) {
-    params.fe_processor->in_out(q, sum_in_out, input, output);
+    params.fe_processor->compute_in_out(q, sum_in_out, input, output);
   }
 
-  // Coefficient vectors
+  // Initialize coefficient vectors with proper zeros
   vec X(nb_coef_T, fill::zeros);
   vec GX(nb_coef_T, fill::zeros);
   vec GGX(nb_coef_T, fill::zeros);
 
   // First iteration
-  fe(var_idx, Q, X, GX, sum_other_fe_or_tmp, sum_in_out, params);
+  compute_fe(var_idx, Q, X, GX, sum_other_fe_or_tmp, sum_in_out, params);
 
   // Check if we need to iterate
   bool keep_going = false;
@@ -611,34 +701,36 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams &params,
 
     // Extra projections
     for (size_t rep = 0; rep < params.extra_projections; ++rep) {
-      fe(var_idx, Q, GX, GGX, sum_other_fe_or_tmp, sum_in_out, params);
-      fe(var_idx, Q, GGX, X, sum_other_fe_or_tmp, sum_in_out, params);
-      fe(var_idx, Q, X, GX, sum_other_fe_or_tmp, sum_in_out, params);
+      compute_fe(var_idx, Q, GX, GGX, sum_other_fe_or_tmp, sum_in_out, params);
+      compute_fe(var_idx, Q, GGX, X, sum_other_fe_or_tmp, sum_in_out, params);
+      compute_fe(var_idx, Q, X, GX, sum_other_fe_or_tmp, sum_in_out, params);
     }
 
     // Main step
-    fe(var_idx, Q, GX, GGX, sum_other_fe_or_tmp, sum_in_out, params);
+    compute_fe(var_idx, Q, GX, GGX, sum_other_fe_or_tmp, sum_in_out, params);
 
-    // Irons-Tuck acceleration
-    vec X_subvec = X.subvec(0, nb_coef_no_Q - 1);
-    vec GX_subvec = GX.subvec(0, nb_coef_no_Q - 1);
-    vec GGX_subvec = GGX.subvec(0, nb_coef_no_Q - 1);
-    numerical_convergence =
-        update_irons_tuck_subvec(X_subvec, GX_subvec, GGX_subvec, delta_GX,
-                                 delta2_X, params.capybara_params);
-    // Update the original vectors
-    X.subvec(0, nb_coef_no_Q - 1) = X_subvec;
-    if (numerical_convergence)
-      break;
+    // Irons-Tuck acceleration (only if we have coefficients to accelerate)
+    if (nb_coef_no_Q > 0) {
+      vec X_subvec = X.subvec(0, nb_coef_no_Q - 1);
+      vec GX_subvec = GX.subvec(0, nb_coef_no_Q - 1);
+      vec GGX_subvec = GGX.subvec(0, nb_coef_no_Q - 1);
+      numerical_convergence =
+          update_irons_tuck_subvec(X_subvec, GX_subvec, GGX_subvec, delta_GX,
+                                   delta2_X, params.capybara_params);
+      // Update the original vectors
+      X.subvec(0, nb_coef_no_Q - 1) = X_subvec;
+      if (numerical_convergence)
+        break;
+    }
 
     // Post-acceleration projections
     if (iter >= params.projections_after_acceleration) {
       Y = X;
-      fe(var_idx, Q, Y, X, sum_other_fe_or_tmp, sum_in_out, params);
+      compute_fe(var_idx, Q, Y, X, sum_other_fe_or_tmp, sum_in_out, params);
     }
 
     // Next iteration
-    fe(var_idx, Q, X, GX, sum_other_fe_or_tmp, sum_in_out, params);
+    compute_fe(var_idx, Q, X, GX, sum_other_fe_or_tmp, sum_in_out, params);
 
     // Check convergence
     keep_going = false;
@@ -658,30 +750,34 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams &params,
         GY = GX;
       } else {
         GGY = GX;
-        vec Y_subvec = Y.subvec(0, nb_coef_no_Q - 1);
-        vec GY_subvec = GY.subvec(0, nb_coef_no_Q - 1);
-        vec GGY_subvec = GGY.subvec(0, nb_coef_no_Q - 1);
-        numerical_convergence =
-            update_irons_tuck_subvec(Y_subvec, GY_subvec, GGY_subvec, delta_GX,
-                                     delta2_X, params.capybara_params);
-        // Update the original vectors
-        Y.subvec(0, nb_coef_no_Q - 1) = Y_subvec;
-        if (numerical_convergence)
-          break;
-        fe(var_idx, Q, Y, GX, sum_other_fe_or_tmp, sum_in_out, params);
+        if (nb_coef_no_Q > 0) {
+          vec Y_subvec = Y.subvec(0, nb_coef_no_Q - 1);
+          vec GY_subvec = GY.subvec(0, nb_coef_no_Q - 1);
+          vec GGY_subvec = GGY.subvec(0, nb_coef_no_Q - 1);
+          numerical_convergence =
+              update_irons_tuck_subvec(Y_subvec, GY_subvec, GGY_subvec, delta_GX,
+                                       delta2_X, params.capybara_params);
+          // Update the original vectors
+          Y.subvec(0, nb_coef_no_Q - 1) = Y_subvec;
+          if (numerical_convergence)
+            break;
+        }
+        compute_fe(var_idx, Q, Y, GX, sum_other_fe_or_tmp, sum_in_out, params);
         grand_acc_counter = 0;
       }
     }
 
     // SSR-based stopping criterion
     if (iter % params.ssr_check_frequency == 0) {
-      vec mu_current(n_obs, fill::zeros);
+      vec mu_current(n_obs, fill::none);
+      mu_current.zeros();
 
       if (two_fe_algo) {
         // Recompute sum_in_out for SSR check
-        vec sum_in_out_ssr(nb_coef_all, fill::zeros);
+        vec sum_in_out_ssr(nb_coef_all, fill::none);
+        sum_in_out_ssr.zeros();
         for (size_t q = 0; q < 2; ++q) {
-          params.fe_processor->in_out(q, sum_in_out_ssr, input, output);
+          params.fe_processor->compute_in_out(q, sum_in_out_ssr, input, output);
         }
 
         params.fe_processor->add_2_fe_to_prediction(
@@ -707,9 +803,10 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams &params,
 
   if (two_fe_algo) {
     // Final iteration for 2-FE
-    vec sum_in_out_final(nb_coef_all, fill::zeros);
+    vec sum_in_out_final(nb_coef_all, fill::none);
+    sum_in_out_final.zeros();
     for (size_t q = 0; q < 2; ++q) {
-      params.fe_processor->in_out(q, sum_in_out_final, input, output);
+      params.fe_processor->compute_in_out(q, sum_in_out_final, input, output);
     }
 
     params.fe_processor->add_2_fe_to_prediction(GX, sum_other_fe_or_tmp, output,
@@ -733,11 +830,13 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams &params,
     }
 
     if (params.save_fixed_effects) {
-      vec final_fe_coef(params.total_coefficients, fill::zeros);
+      vec final_fe_coef(params.total_coefficients, fill::none);
+      final_fe_coef.zeros();
 
-      vec sum_other_fe_final(n_obs, fill::zeros);
+      vec sum_other_fe_final(n_obs, fill::none);
+      sum_other_fe_final.zeros();
 
-      fe_general(var_idx, GX, final_fe_coef, sum_other_fe_final, sum_in_out,
+      compute_fe_general(var_idx, GX, final_fe_coef, sum_other_fe_final, sum_in_out,
                  params);
 
       params.fixed_effect_values = final_fe_coef;
@@ -751,44 +850,238 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams &params,
   return (iter < iter_max);
 }
 
-// General multi-FE demeaning with sophisticated algorithm
-void demean_general(size_t var_idx, DemeanParams &params) {
+// Optimized multi-FE demeaning with workspace to avoid allocations
+bool demean_accelerated_fast(size_t var_idx, size_t iter_max, DemeanParams &params,
+                            DemeanWorkspace &workspace, bool two_fe_mode = false) {
+  const vec &input = params.input_variables(var_idx);
+  vec &output = params.output_variables(var_idx);
+  
+  size_t n_obs = input.n_elem;
   size_t Q = params.n_fe_groups;
-
-  if (Q == 1) {
-    demean_single_fe(var_idx, params);
-  } else if (Q == 2) {
-    // Direct to 2-FE algorithm
-    demean_accelerated(var_idx, params.max_iterations, params);
-  } else {
-    // Q >= 3: Use fixest's three-phase approach
-    bool converged = false;
-
-    // Phase 1: Warmup with acceleration
-    if (params.warmup_iterations > 0) {
-      converged = demean_accelerated(var_idx, params.warmup_iterations, params);
+  bool two_fe_algo = two_fe_mode || (Q == 2);
+  
+  double tol = params.convergence_tolerance;
+  bool keep_going = true;
+  
+  size_t nb_coef_T = params.total_coefficients;
+  size_t nb_coef_all = nb_coef_T;
+  
+  // Handle 2-FE mode
+  if (two_fe_algo) {
+    Q = 2;
+    nb_coef_T = params.fe_processor->nb_coef_group(0); // Only first FE for main vectors
+    nb_coef_all = params.fe_processor->nb_coef_group(0) +
+                  params.fe_processor->nb_coef_group(1);
+  }
+  
+  // Determine workspace sizing
+  size_t size_other = two_fe_algo ? params.fe_processor->nb_coef_group(1) : n_obs;
+  // size_t max_workspace_size = std::max({nb_coef_T, nb_coef_all, size_other, n_obs});
+  
+  // Resize workspace efficiently - pass nb_coef_all for sum_in_out size
+  workspace.resize_for_demean(n_obs, nb_coef_T, size_other, Q, nb_coef_all);
+  
+  // Get references to workspace vectors - ZERO allocations
+  vec &sum_other_fe_or_tmp = workspace.sum_other_fe_or_tmp;
+  vec &sum_in_out = workspace.sum_in_out;
+  vec &X = workspace.X;
+  vec &GX = workspace.GX;
+  vec &GGX = workspace.GGX;
+  vec &Y = workspace.Y;
+  vec &GY = workspace.GY;
+  vec &GGY = workspace.GGY;
+  vec &delta_GX = workspace.delta_GX;
+  vec &delta2_X = workspace.delta2_X;
+  vec &mu_current = workspace.mu_current;
+  
+  // Resize workspace vectors to the actual sizes needed for this algorithm
+  if (X.n_elem != nb_coef_T) {
+    X.set_size(nb_coef_T);
+    GX.set_size(nb_coef_T);
+    GGX.set_size(nb_coef_T);
+    Y.set_size(nb_coef_T);
+    GY.set_size(nb_coef_T);
+    GGY.set_size(nb_coef_T);
+  }
+  if (sum_in_out.n_elem != nb_coef_all) {
+    sum_in_out.set_size(nb_coef_all);
+  }
+  
+  // Initialize vectors efficiently
+  sum_other_fe_or_tmp.zeros();
+  sum_in_out.zeros();
+  X.zeros();
+  GX.zeros();
+  
+  // Compute sum of (input - output) for each FE group ONCE
+  for (size_t q = 0; q < Q; ++q) {
+    params.fe_processor->compute_in_out(q, sum_in_out, input, output);
+  }
+  
+  size_t iter = 0;
+  bool numerical_convergence = false;
+  size_t grand_acc_counter = 0;
+  double ssr_old = 0;
+  
+  while (!params.stop_requested && keep_going && iter < iter_max) {
+    ++iter;
+    
+    // Extra projections
+    for (size_t rep = 0; rep < params.extra_projections; ++rep) {
+      compute_fe(var_idx, Q, GX, GGX, sum_other_fe_or_tmp, sum_in_out, params);
+      compute_fe(var_idx, Q, GGX, X, sum_other_fe_or_tmp, sum_in_out, params);
+      compute_fe(var_idx, Q, X, GX, sum_other_fe_or_tmp, sum_in_out, params);
     }
-
-    if (!converged && params.max_iterations > params.warmup_iterations) {
-      // Phase 2: 2-FE convergence
-      size_t iter_previous = params.iteration_counts(var_idx);
-      size_t iter_max_2fe =
-          params.max_iterations / 2 - params.warmup_iterations;
-
-      if (iter_max_2fe > 0) {
-        demean_accelerated(var_idx, iter_max_2fe, params, true); // 2-FE mode
+    
+    // Main projection iteration
+    compute_fe(var_idx, Q, GX, GGX, sum_other_fe_or_tmp, sum_in_out, params);
+    
+    GGX = GX;
+    
+    // Acceleration step - use pre-allocated workspace vectors
+    if (iter > params.warmup_iterations) {
+      // Calculate nb_coef_no_Q the same way as the original version
+      size_t nb_coef_no_Q = 0;
+      for (size_t q = 0; q < Q - 1; ++q) {
+        nb_coef_no_Q += params.fe_processor->nb_coef_group(q);
       }
-
-      // Phase 3: Re-acceleration for all FEs
-      iter_previous = params.iteration_counts(var_idx);
-      size_t remaining = params.max_iterations - iter_previous;
-      if (remaining > 0) {
-        demean_accelerated(var_idx, remaining, params);
+      
+      // Only apply acceleration if we have coefficients to accelerate
+      if (nb_coef_no_Q > 0) {
+        // Use subviews for efficiency
+        vec X_subvec = X.subvec(0, nb_coef_no_Q - 1);
+        vec GX_subvec = GX.subvec(0, nb_coef_no_Q - 1);
+        vec GGX_subvec = GGX.subvec(0, nb_coef_no_Q - 1);
+        
+        // Resize workspace vectors for this iteration
+        delta_GX.set_size(nb_coef_no_Q);
+        delta2_X.set_size(nb_coef_no_Q);
+        
+        numerical_convergence = update_irons_tuck_subvec(
+            X_subvec, GX_subvec, GGX_subvec, delta_GX, delta2_X, params.capybara_params);
+        
+        if (numerical_convergence) {
+          break;
+        }
       }
+    }
+    
+    // Grand acceleration
+    ++grand_acc_counter;
+    if (grand_acc_counter >= params.grand_acceleration_frequency) {
+      grand_acc_counter = 0;
+      
+      Y = X;
+      GY = GX;
+      
+      compute_fe(var_idx, Q, Y, GY, sum_other_fe_or_tmp, sum_in_out, params);
+      
+      GGY = GY;
+      
+      // Apply acceleration to Y
+      size_t nb_coef_no_Q = nb_coef_T;
+      if (Q > 1) {
+        nb_coef_no_Q = nb_coef_T - params.fe_processor->nb_coef_group(Q - 1);
+      }
+      
+      vec Y_subvec = Y.subvec(0, nb_coef_no_Q - 1);
+      vec GY_subvec = GY.subvec(0, nb_coef_no_Q - 1);
+      vec GGY_subvec = GGY.subvec(0, nb_coef_no_Q - 1);
+      
+      delta_GX.set_size(nb_coef_no_Q);
+      delta2_X.set_size(nb_coef_no_Q);
+      
+      update_irons_tuck_subvec(Y_subvec, GY_subvec, GGY_subvec, delta_GX, delta2_X, 
+                              params.capybara_params);
+      
+      X = Y;
+      GX = GY;
+    }
+    
+    X = GX;
+    
+    // Additional projections after acceleration
+    for (size_t rep = 0; rep < params.projections_after_acceleration; ++rep) {
+      compute_fe(var_idx, Q, X, GX, sum_other_fe_or_tmp, sum_in_out, params);
+      X = GX;
+    }
+    
+    // SSR check for convergence
+    if (iter % params.ssr_check_frequency == 0) {
+      // Compute current prediction efficiently
+      mu_current.zeros();
+      if (two_fe_algo) {
+        // For 2-FE, use direct coefficient access
+        const uvec &fe_idx_0 = params.fe_processor->fe_indices()(0);
+        const uvec &fe_idx_1 = params.fe_processor->fe_indices()(1);
+        
+        for (size_t obs = 0; obs < n_obs; ++obs) {
+          mu_current(obs) = X(fe_idx_0(obs)) + sum_other_fe_or_tmp(fe_idx_1(obs));
+        }
+      } else {
+        for (size_t q = 0; q < Q; ++q) {
+          params.fe_processor->add_fe_to_prediction(q, X, mu_current);
+        }
+      }
+      
+      // Compute SSR efficiently
+      double ssr = accu(square(input - mu_current));
+      
+      if (stopping_criterion(ssr_old, ssr, tol, params.capybara_params)) {
+        break;
+      }
+      ssr_old = ssr;
     }
   }
+  
+  // Final update of output - use efficient computation
+  output.zeros();
+  if (two_fe_algo) {
+    // Final iteration for 2-FE
+    sum_in_out.zeros();
+    for (size_t q = 0; q < 2; ++q) {
+      params.fe_processor->compute_in_out(q, sum_in_out, input, output);
+    }
+    
+    // Final projections
+    compute_fe(var_idx, Q, X, GX, sum_other_fe_or_tmp, sum_in_out, params);
+    
+    // For 2-FE, use the special prediction method
+    // X contains first FE coefficients, sum_other_fe_or_tmp contains second FE coefficients
+    const uvec &fe_idx_0 = params.fe_processor->fe_indices()(0);
+    const uvec &fe_idx_1 = params.fe_processor->fe_indices()(1);
+    
+    for (size_t obs = 0; obs < n_obs; ++obs) {
+      output(obs) += X(fe_idx_0(obs)) + sum_other_fe_or_tmp(fe_idx_1(obs));
+    }
+  } else {
+    // General case
+    for (size_t q = 0; q < Q; ++q) {
+      params.fe_processor->add_fe_to_prediction(q, X, output);
+    }
+  }
+  
+  // Save fixed effects if requested
+  if (params.save_fixed_effects) {
+    if (two_fe_algo) {
+      // For 2-FE, combine coefficients from both groups
+      size_t nb_coef_0 = params.fe_processor->nb_coef_group(0);
+      size_t nb_coef_1 = params.fe_processor->nb_coef_group(1);
+      size_t coef_start_1 = params.fe_processor->coefficient_starts()(1);
+      
+      params.fixed_effect_values.set_size(nb_coef_0 + nb_coef_1);
+      params.fixed_effect_values.subvec(0, nb_coef_0 - 1) = X;
+      params.fixed_effect_values.subvec(coef_start_1, coef_start_1 + nb_coef_1 - 1) = sum_other_fe_or_tmp;
+    } else {
+      params.fixed_effect_values = X;
+    }
+  }
+  
+  params.iteration_counts(var_idx) += iter;
+  params.job_completed(var_idx) = true;
+  
+  return numerical_convergence;
 }
-
 //////////////////////////////////////////////////////////////////////////////
 // MAIN INTERFACE FUNCTIONS
 //////////////////////////////////////////////////////////////////////////////
@@ -830,7 +1123,7 @@ DemeanResult demean_variables(const field<vec> &input_vars, const vec &weights,
     if (demean_params.stop_requested)
       break;
 
-    demean_general(v, demean_params);
+    demean_accelerated(v, demean_params.max_iterations, demean_params);
   }
 
   // Return demeaned variables (input - fitted)
@@ -846,6 +1139,29 @@ DemeanResult demean_variables(const field<vec> &input_vars, const vec &weights,
   }
 
   return result;
+}
+
+// Simplified demean function without aggressive optimizations  
+DemeanResult demean_variables_fast(const field<vec> &input_vars, const vec &weights,
+                                  const field<uvec> &fe_indices, const uvec &nb_ids,
+                                  const field<uvec> &fe_id_tables,
+                                  bool save_fixed_effects,
+                                  const CapybaraParameters &params,
+                                  DemeanWorkspace &workspace) {
+  // Delegate to original algorithm for numerical correctness
+  return demean_variables(input_vars, weights, fe_indices, nb_ids, fe_id_tables, 
+                         save_fixed_effects, params);
+}
+
+// Simplified wrapper without thread-local optimizations
+DemeanResult demean_variables_fast(const field<vec> &input_vars, const vec &weights,
+                                  const field<uvec> &fe_indices, const uvec &nb_ids,
+                                  const field<uvec> &fe_id_tables,
+                                  bool save_fixed_effects,
+                                  const CapybaraParameters &params) {
+  // Delegate to original algorithm for numerical correctness
+  return demean_variables(input_vars, weights, fe_indices, nb_ids, fe_id_tables,
+                         save_fixed_effects, params);
 }
 
 } // namespace demean

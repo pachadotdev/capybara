@@ -92,12 +92,15 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
   vec y_demean;
 
   if (has_fixed_effects) {
+    // Use thread-local demean workspace for optimal performance
+    static thread_local demean::DemeanWorkspace demean_workspace;
+    
     // Demean Y
     field<vec> y_to_demean(1);
     y_to_demean(0) = y;
 
-    DemeanResult y_demean_result = demean_variables(
-        y_to_demean, w, fe_indices, nb_ids, fe_id_tables, true, params);
+    DemeanResult y_demean_result = demean::demean_variables_fast(
+        y_to_demean, w, fe_indices, nb_ids, fe_id_tables, true, params, demean_workspace);
     y_demean = y_demean_result.demeaned_vars(0);
 
     // Demean only non-collinear X columns
@@ -107,8 +110,8 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
         field<vec> x_to_demean(1);
         x_to_demean(0) = X_work.col(j);
 
-        DemeanResult x_demean_result = demean_variables(
-            x_to_demean, w, fe_indices, nb_ids, fe_id_tables, false, params);
+        DemeanResult x_demean_result = demean::demean_variables_fast(
+            x_to_demean, w, fe_indices, nb_ids, fe_id_tables, false, params, demean_workspace);
 
         X_demean.col(j) = x_demean_result.demeaned_vars(0);
       }

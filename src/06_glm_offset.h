@@ -68,7 +68,8 @@ feglm_offset_fit(vec eta, const vec &y, const vec &offset, const vec &wt,
   }
 
   // Initialize variables
-  vec Myadj = vec(n, fill::zeros);
+  vec Myadj = vec(n, fill::none);
+  Myadj.zeros();
   vec mu = link_inv(eta, family_type);
   vec mu_eta(n, fill::none);
   vec yadj(n, fill::none);

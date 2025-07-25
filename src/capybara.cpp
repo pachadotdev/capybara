@@ -19,6 +19,80 @@ using cpp11::integers;
 using cpp11::list;
 using cpp11::strings;
 
+//////////////////////////////////////////////////////////////////////////////
+// OPTIMIZED DATA CONVERSION WORKSPACE
+//////////////////////////////////////////////////////////////////////////////
+
+// Workspace for optimized R to C++ data conversion
+struct ConversionWorkspace {
+  field<uvec> fe_indices;
+  uvec nb_ids;
+  field<uvec> fe_id_tables;
+  
+  void prepare_for_conversion(size_t n_fe_groups, size_t n_obs) {
+    fe_indices.set_size(n_fe_groups);
+    nb_ids.set_size(n_fe_groups);  
+    fe_id_tables.set_size(n_fe_groups);
+    
+    // Pre-allocate fe_indices to full size to avoid reallocations
+    for (size_t k = 0; k < n_fe_groups; ++k) {
+      fe_indices(k).set_size(n_obs);
+    }
+  }
+};
+
+// Standard conversion function for numerical correctness
+void convert_FE_list(const cpp11::list &FE, size_t n_obs,
+                    field<uvec> &fe_indices, uvec &nb_ids, field<uvec> &fe_id_tables) {
+  const size_t n_fe_groups = FE.size();
+  fe_indices.set_size(n_fe_groups);
+  nb_ids.set_size(n_fe_groups);  
+  fe_id_tables.set_size(n_fe_groups);
+  
+  for (size_t k = 0; k < n_fe_groups; ++k) {
+    const cpp11::list group_list = cpp11::as_cpp<cpp11::list>(FE[k]);
+    const size_t n_groups = group_list.size();
+    nb_ids(k) = n_groups;
+    fe_id_tables(k).set_size(n_groups);
+    fe_indices(k).set_size(n_obs);
+    fe_indices(k).zeros(); // Initialize with zeros
+    
+    for (size_t g = 0; g < n_groups; ++g) {
+      const cpp11::integers group_obs = cpp11::as_cpp<cpp11::integers>(group_list[g]);
+      fe_id_tables(k)(g) = group_obs.size();
+      
+      for (int obs_r : group_obs) {
+        fe_indices(k)(static_cast<size_t>(obs_r - 1)) = g;
+      }
+    }
+  }
+}
+
+// Single-pass optimized conversion function
+void convert_FE_list_fast(const cpp11::list &FE, size_t n_obs,
+                         ConversionWorkspace &workspace) {
+  const size_t n_fe_groups = FE.size();
+  workspace.prepare_for_conversion(n_fe_groups, n_obs);
+  
+  for (size_t k = 0; k < n_fe_groups; ++k) {
+    const cpp11::list group_list = cpp11::as_cpp<cpp11::list>(FE[k]);
+    const size_t n_groups = group_list.size();
+    workspace.nb_ids(k) = n_groups;
+    workspace.fe_id_tables(k).set_size(n_groups);
+    
+    // Single pass through groups
+    for (size_t g = 0; g < n_groups; ++g) {
+      const cpp11::integers group_obs = cpp11::as_cpp<cpp11::integers>(group_list[g]);
+      workspace.fe_id_tables(k)(g) = group_obs.size();
+      
+      // Direct assignment to pre-allocated vector
+      for (int obs_r : group_obs) {
+        workspace.fe_indices(k)(static_cast<size_t>(obs_r - 1)) = g;
+      }
+    }
+  }
+}
+
 // Passing parameters from R to C++ functions
 struct CapybaraParameters {
   // Core tolerance parameters
@@ -371,36 +445,23 @@ demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   // Parameters passed from R's capybara::fit_control()
   CapybaraParameters params(control);
 
-  // Convert R list to field<uvec> format for modern API
-  field<field<uvec>> group_indices = R_list_to_Armadillo_field(FE);
-
-  // Convert to field<uvec> format for the new API
-  field<uvec> fe_indices(group_indices.n_elem);
-  uvec nb_ids(group_indices.n_elem);
-  field<uvec> fe_id_tables(group_indices.n_elem);
-
-  for (size_t k = 0; k < group_indices.n_elem; ++k) {
-    // Create a single uvec for all observations in this FE dimension
-    fe_indices(k).set_size(y.n_elem);
-    const field<uvec> &groups_k = group_indices(k);
-    nb_ids(k) = groups_k.n_elem;
-
-    // Create frequency table
-    fe_id_tables(k).set_size(nb_ids(k));
-
-    for (size_t g = 0; g < groups_k.n_elem; ++g) {
-      const uvec &group_obs = groups_k(g);
-      fe_id_tables(k)(g) = group_obs.n_elem;
-
-      // Assign group ID to all observations in this group
-      for (size_t i = 0; i < group_obs.n_elem; ++i) {
-        fe_indices(k)(group_obs(i)) = g;
-      }
-    }
+  // Use standard conversion for numerical correctness
+  field<uvec> fe_indices;
+  uvec nb_ids; 
+  field<uvec> fe_id_tables;
+  
+  if (FE.size() > 0) {
+    convert_FE_list(FE, y.n_elem, fe_indices, nb_ids, fe_id_tables);
+  } else {
+    // No fixed effects - create empty structures
+    fe_indices.set_size(0);
+    nb_ids.set_size(0);
+    fe_id_tables.set_size(0);
   }
 
+  // Use original GLM function for numerical correctness
   GLMResult res = capybara::glm::feglm_fit(X, y, w, fe_indices, nb_ids,
-                                           fe_id_tables, fam, params, theta);
+                                          fe_id_tables, fam, params, theta);
 
   // Replace collinear coefficients with R's NA_REAL using vectorized approach
   uvec collinear_mask = (res.coef_status == 0);
