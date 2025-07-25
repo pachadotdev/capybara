@@ -47,6 +47,7 @@ struct DemeanWorkspace {
       Y.set_size(total_coefficients);
       GY.set_size(total_coefficients);
       GGY.set_size(total_coefficients);
+      // Pre-allocate to maximum possible size to avoid reallocations in loops
       delta_GX.set_size(total_coefficients);
       delta2_X.set_size(total_coefficients);
     }
@@ -948,17 +949,17 @@ bool demean_accelerated_fast(size_t var_idx, size_t iter_max, DemeanParams &para
       
       // Only apply acceleration if we have coefficients to accelerate
       if (nb_coef_no_Q > 0) {
-        // Use subviews for efficiency
+        // Use subviews for efficiency - no allocation needed since workspace is pre-sized
         vec X_subvec = X.subvec(0, nb_coef_no_Q - 1);
         vec GX_subvec = GX.subvec(0, nb_coef_no_Q - 1);
         vec GGX_subvec = GGX.subvec(0, nb_coef_no_Q - 1);
         
-        // Resize workspace vectors for this iteration
-        delta_GX.set_size(nb_coef_no_Q);
-        delta2_X.set_size(nb_coef_no_Q);
+        // Use pre-allocated workspace vectors - just create subviews, no allocation
+        vec delta_GX_sub = delta_GX.subvec(0, nb_coef_no_Q - 1);
+        vec delta2_X_sub = delta2_X.subvec(0, nb_coef_no_Q - 1);
         
         numerical_convergence = update_irons_tuck_subvec(
-            X_subvec, GX_subvec, GGX_subvec, delta_GX, delta2_X, params.capybara_params);
+            X_subvec, GX_subvec, GGX_subvec, delta_GX_sub, delta2_X_sub, params.capybara_params);
         
         if (numerical_convergence) {
           break;
@@ -988,10 +989,11 @@ bool demean_accelerated_fast(size_t var_idx, size_t iter_max, DemeanParams &para
       vec GY_subvec = GY.subvec(0, nb_coef_no_Q - 1);
       vec GGY_subvec = GGY.subvec(0, nb_coef_no_Q - 1);
       
-      delta_GX.set_size(nb_coef_no_Q);
-      delta2_X.set_size(nb_coef_no_Q);
+      // Use pre-allocated workspace vectors - just create subviews
+      vec delta_GX_sub = delta_GX.subvec(0, nb_coef_no_Q - 1);
+      vec delta2_X_sub = delta2_X.subvec(0, nb_coef_no_Q - 1);
       
-      update_irons_tuck_subvec(Y_subvec, GY_subvec, GGY_subvec, delta_GX, delta2_X, 
+      update_irons_tuck_subvec(Y_subvec, GY_subvec, GGY_subvec, delta_GX_sub, delta2_X_sub, 
                               params.capybara_params);
       
       X = Y;
@@ -1000,21 +1002,34 @@ bool demean_accelerated_fast(size_t var_idx, size_t iter_max, DemeanParams &para
     
     X = GX;
     
-    // Additional projections after acceleration
-    for (size_t rep = 0; rep < params.projections_after_acceleration; ++rep) {
-      compute_fe(var_idx, Q, X, GX, sum_other_fe_or_tmp, sum_in_out, params);
-      X = GX;
+    // Next iteration
+    compute_fe(var_idx, Q, X, GX, sum_other_fe_or_tmp, sum_in_out, params);
+    
+    // Check convergence with early termination optimization
+    keep_going = false;
+    size_t nb_coef_no_Q = 0;
+    for (size_t q = 0; q < Q - 1; ++q) {
+      nb_coef_no_Q += params.fe_processor->nb_coef_group(q);
+    }
+    
+    // Only check convergence on coefficients that matter
+    for (size_t i = 0; i < nb_coef_no_Q; ++i) {
+      if (continue_criterion(X(i), GX(i), tol, params.capybara_params)) {
+        keep_going = true;
+        break; // Early exit for efficiency
+      }
     }
     
     // SSR check for convergence
     if (iter % params.ssr_check_frequency == 0) {
-      // Compute current prediction efficiently
+      // Compute current prediction efficiently using workspace vector
       mu_current.zeros();
       if (two_fe_algo) {
-        // For 2-FE, use direct coefficient access
+        // For 2-FE, use direct coefficient access for better performance
         const uvec &fe_idx_0 = params.fe_processor->fe_indices()(0);
         const uvec &fe_idx_1 = params.fe_processor->fe_indices()(1);
         
+        // Vectorized computation
         for (size_t obs = 0; obs < n_obs; ++obs) {
           mu_current(obs) = X(fe_idx_0(obs)) + sum_other_fe_or_tmp(fe_idx_1(obs));
         }
@@ -1024,7 +1039,7 @@ bool demean_accelerated_fast(size_t var_idx, size_t iter_max, DemeanParams &para
         }
       }
       
-      // Compute SSR efficiently
+      // Efficient SSR computation using Armadillo's optimized functions
       double ssr = accu(square(input - mu_current));
       
       if (stopping_criterion(ssr_old, ssr, tol, params.capybara_params)) {
@@ -1037,25 +1052,16 @@ bool demean_accelerated_fast(size_t var_idx, size_t iter_max, DemeanParams &para
   // Final update of output - use efficient computation
   output.zeros();
   if (two_fe_algo) {
-    // Final iteration for 2-FE
-    sum_in_out.zeros();
-    for (size_t q = 0; q < 2; ++q) {
-      params.fe_processor->compute_in_out(q, sum_in_out, input, output);
-    }
-    
-    // Final projections
-    compute_fe(var_idx, Q, X, GX, sum_other_fe_or_tmp, sum_in_out, params);
-    
-    // For 2-FE, use the special prediction method
-    // X contains first FE coefficients, sum_other_fe_or_tmp contains second FE coefficients
+    // For 2-FE, final computation without redundant sum_in_out recalculation
     const uvec &fe_idx_0 = params.fe_processor->fe_indices()(0);
     const uvec &fe_idx_1 = params.fe_processor->fe_indices()(1);
     
+    // Direct vectorized computation for best performance
     for (size_t obs = 0; obs < n_obs; ++obs) {
-      output(obs) += X(fe_idx_0(obs)) + sum_other_fe_or_tmp(fe_idx_1(obs));
+      output(obs) = X(fe_idx_0(obs)) + sum_other_fe_or_tmp(fe_idx_1(obs));
     }
   } else {
-    // General case
+    // General case - use the existing prediction infrastructure
     for (size_t q = 0; q < Q; ++q) {
       params.fe_processor->add_fe_to_prediction(q, X, output);
     }
@@ -1141,27 +1147,67 @@ DemeanResult demean_variables(const field<vec> &input_vars, const vec &weights,
   return result;
 }
 
-// Simplified demean function without aggressive optimizations  
+// Optimized demean function with workspace reuse
 DemeanResult demean_variables_fast(const field<vec> &input_vars, const vec &weights,
                                   const field<uvec> &fe_indices, const uvec &nb_ids,
                                   const field<uvec> &fe_id_tables,
                                   bool save_fixed_effects,
                                   const CapybaraParameters &params,
                                   DemeanWorkspace &workspace) {
-  // Delegate to original algorithm for numerical correctness
-  return demean_variables(input_vars, weights, fe_indices, nb_ids, fe_id_tables, 
-                         save_fixed_effects, params);
+  size_t n_vars = input_vars.n_elem;
+  if (n_vars == 0) {
+    return DemeanResult(0);
+  }
+
+  size_t n_obs = input_vars(0).n_elem;
+  size_t n_fe_groups = fe_indices.n_elem;
+
+  // Create fixed effects processor once
+  auto fe_processor = std::make_shared<FixedEffects>(
+      n_obs, n_fe_groups, weights, fe_indices, nb_ids, fe_id_tables);
+
+  // Setup parameters using constructor
+  DemeanParams demean_params(n_obs, n_fe_groups, fe_processor, params,
+                             save_fixed_effects, input_vars);
+
+  // Pre-size workspace to avoid repeated allocations
+  size_t total_coef = fe_processor->total_coefficients();
+  size_t max_other_size = (n_fe_groups == 2) ? fe_processor->nb_coef_group(1) : n_obs;
+  workspace.resize_for_demean(n_obs, total_coef, max_other_size, n_fe_groups, total_coef);
+
+  // Process each variable with optimized algorithm
+  for (size_t v = 0; v < n_vars; ++v) {
+    if (n_fe_groups == 1) {
+      demean_single_fe(v, demean_params);
+    } else {
+      demean_accelerated_fast(v, params.iter_demean_max, demean_params, workspace);
+    }
+  }
+
+  // Return demeaned variables (input - fitted)
+  DemeanResult result(n_vars);
+  for (size_t v = 0; v < n_vars; ++v) {
+    result.demeaned_vars(v) = demean_params.input_variables(v) - demean_params.output_variables(v);
+  }
+
+  if (save_fixed_effects) {
+    result.fixed_effects = demean_params.fixed_effect_values;
+    result.has_fixed_effects = true;
+  }
+
+  return result;
 }
 
-// Simplified wrapper without thread-local optimizations
+// Fast wrapper without workspace parameter - uses thread-local workspace
 DemeanResult demean_variables_fast(const field<vec> &input_vars, const vec &weights,
                                   const field<uvec> &fe_indices, const uvec &nb_ids,
                                   const field<uvec> &fe_id_tables,
                                   bool save_fixed_effects,
                                   const CapybaraParameters &params) {
-  // Delegate to original algorithm for numerical correctness
-  return demean_variables(input_vars, weights, fe_indices, nb_ids, fe_id_tables,
-                         save_fixed_effects, params);
+  // Use thread-local workspace for better performance in multi-threaded contexts
+  static thread_local DemeanWorkspace workspace;
+  return demean_variables_fast(input_vars, weights, fe_indices, nb_ids, fe_id_tables,
+                              save_fixed_effects, params, workspace);
 }
 
 } // namespace demean

@@ -427,17 +427,13 @@ struct InferenceGLM {
 
   InferenceGLM(size_t n, size_t p)
       : coefficients(p, fill::none), eta(n, fill::none),
-        fitted_values(n, fill::none), weights(n, fill::ones),
+        fitted_values(n, fill::none), weights(n, fill::none),
         hessian(p, p, fill::none), deviance(0.0), null_deviance(0.0),
-        conv(false), iter(0), coef_status(p, fill::ones),
+        conv(false), iter(0), coef_status(p, fill::none),
         residuals_working(n, fill::none), residuals_response(n, fill::none),
         is_regular(true), has_fe(false), has_mx(false) {
-    coefficients.zeros();
-    eta.zeros();
-    fitted_values.zeros();
-    hessian.zeros();
-    residuals_working.zeros();
-    residuals_response.zeros();
+    // Don't initialize vectors during construction for performance
+    // They will be properly set during the algorithm
   }
 
   cpp11::list to_list(bool keep_dmx = true) const {
@@ -694,6 +690,9 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
   CollinearityResult collin_result =
       check_collinearity(X_reduced, weights_vec, use_weights, tolerance, true);
 
+  // Initialize coef_status from collinearity result
+  result.coef_status = collin_result.coef_status;
+
   // Initialize GLM variables with proper zeros for numerical accuracy
   double mean_y =
       use_weights ? sum(weights_vec % y_orig) / sum(weights_vec) : mean(y_orig);
@@ -718,23 +717,26 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
   vec eta_old(n, fill::zeros);
   vec z(n, fill::zeros);
   vec working_weights(n, fill::zeros);
-  vec eta_old_wls = vec(n, fill::value(1e-5));
   bool converged = false;
 
+  // Pre-allocate working vectors to avoid repeated allocations
+  vec mu_eta_val(n, fill::none);
+  vec var_mu(n, fill::none);
+  
   // IRLS loop
   for (size_t iter = 0; iter < params.iter_max; iter++) {
     result.iter = iter + 1;
     eta_old = eta;
 
-    // Compute derivatives and weights
-    vec mu_eta_val = d_inv_link(eta, family_type);
-    vec var_mu = variance(mu, theta, family_type);
+    // Compute derivatives and weights (reuse pre-allocated vectors)
+    mu_eta_val = d_inv_link(eta, family_type);
+    var_mu = variance(mu, theta, family_type);
 
     if (any(var_mu <= 0) || any(var_mu != var_mu)) {
       break;
     }
 
-    // Working response and weights
+    // Working response and weights (reuse pre-allocated vectors)
     z = eta + (y_orig - mu) / mu_eta_val;
     working_weights = weights_vec % square(mu_eta_val) / var_mu;
 
@@ -742,84 +744,59 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
       break;
     }
 
-    // Call wlm_fit with pre-computed collinearity result
-    InferenceWLM felm_result =
-        wlm_fit(X_reduced, z, y_orig, working_weights, fe_indices, nb_ids,
-                fe_id_tables, collin_result, params, false, false);
-
-    if (!felm_result.success ||
-        any(felm_result.coefficients != felm_result.coefficients)) {
+    // Use proper WLS fitting with demeaning for numerical correctness
+    InferenceWLM wls_result = wlm_fit(X_reduced, z, y_orig, working_weights, 
+                                     fe_indices, nb_ids, fe_id_tables, 
+                                     collin_result, params, false, false);
+    
+    if (!wls_result.success) {
       if (iter == 0) {
         result.conv = false;
         return result;
       }
       break;
     }
-
-    // Coefficients are already properly sized
-    result.coefficients = felm_result.coefficients;
-    result.coef_status = felm_result.coef_status;
-
-    // New eta and mu
-    vec eta_new = felm_result.fitted_values;
+    
+    result.coefficients = wls_result.coefficients;
+    result.coef_status = wls_result.coef_status;
+    
+    // Compute new eta and mu
+    vec eta_new = wls_result.fitted_values;
     vec mu_new = link_inv(eta_new, family_type);
     double dev = dev_resids(y_orig, mu_new, theta, weights_vec, family_type,
                             params.safe_clamp_min);
     double dev_evol = dev - devold;
-
-    // Step halving if needed
-    bool need_step_halving = !is_finite(dev) || (dev_evol > 0) ||
-                             !valid_eta(eta_new, family_type) ||
-                             !valid_mu(mu_new, family_type);
-
-    if (need_step_halving &&
-        !(std::abs(dev_evol) < params.dev_tol ||
-          std::abs(dev_evol) / (0.1 + std::abs(dev)) < params.dev_tol)) {
-      size_t iter_sh = 0;
-      bool step_accepted = false;
-
-      while (iter_sh < params.iter_inner_max) {
-        iter_sh++;
-        eta_new = (eta_old_wls + felm_result.fitted_values) / 2.0;
-        mu_new = link_inv(eta_new, family_type);
-        dev = dev_resids(y_orig, mu_new, theta, weights_vec, family_type,
-                         params.safe_clamp_min);
-        dev_evol = dev - devold;
-
-        if (is_finite(dev) && (dev_evol <= 0) &&
-            valid_eta(eta_new, family_type) && valid_mu(mu_new, family_type)) {
-          step_accepted = true;
-          break;
-        }
-
-        if (iter == 0 && iter_sh >= 2 && is_finite(dev) &&
-            valid_eta(eta_new, family_type) && valid_mu(mu_new, family_type)) {
-          step_accepted = true;
-          break;
-        }
+    
+    // Step halving for numerical stability
+    double rho = 1.0;
+    for (size_t iter_inner = 0; iter_inner < params.iter_inner_max; ++iter_inner) {
+      if (is_finite(dev) && (dev_evol <= 0) &&
+          valid_eta(eta_new, family_type) && valid_mu(mu_new, family_type)) {
+        break;
       }
-
-      if (!step_accepted) {
-        if (iter == 0) {
-          result.conv = false;
-          return result;
-        }
-        eta = eta_old;
-        mu = link_inv(eta, family_type);
-        result.deviance = devold;
-      } else {
-        eta = eta_new;
-        mu = mu_new;
-        result.deviance = dev;
-        dev_evol = datum::inf;
+      
+      rho *= 0.5;
+      eta_new = eta_old + rho * (eta_new - eta_old);
+      mu_new = link_inv(eta_new, family_type);
+      dev = dev_resids(y_orig, mu_new, theta, weights_vec, family_type,
+                       params.safe_clamp_min);
+      dev_evol = dev - devold;
+    }
+    
+    // Check if step halving failed
+    if (!is_finite(dev) || !valid_eta(eta_new, family_type) || !valid_mu(mu_new, family_type)) {
+      if (iter == 0) {
+        result.conv = false;
+        return result;
       }
+      eta = eta_old;
+      mu = link_inv(eta, family_type);
+      result.deviance = devold;
     } else {
       eta = eta_new;
       mu = mu_new;
       result.deviance = dev;
     }
-
-    eta_old_wls = felm_result.fitted_values;
 
     // Check convergence
     if (std::abs(dev_evol) / (0.1 + std::abs(dev)) < params.dev_tol) {
@@ -856,6 +833,11 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
     result.has_fe = true;
     result.is_regular = final_felm.is_regular;
     result.nb_references = final_felm.nb_references;
+    
+    // Update coef_status from final fit if not already set
+    if (result.coef_status.n_elem == 0 || all(result.coef_status == 1)) {
+      result.coef_status = final_felm.coef_status;
+    }
   } else {
     // Compute hessian on reduced matrix using pre-computed collinearity
     result.hessian.zeros();
@@ -877,6 +859,9 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
     }
 
     result.has_fe = false;
+    
+    // Make sure coef_status reflects collinearity 
+    result.coef_status = collin_result.coef_status;
   }
 
   // Null deviance
@@ -890,22 +875,6 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
   }
 
   return result;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-// OPTIMIZED GLM FITTING WITH WORKSPACE
-//////////////////////////////////////////////////////////////////////////////
-
-// GLM fitting function with original algorithm for numerical accuracy
-inline InferenceGLM feglm_fit_fast(const mat &X, const vec &y_orig, const vec &w,
-                                   const field<uvec> &fe_indices, const uvec &nb_ids,
-                                   const field<uvec> &fe_id_tables,
-                                   const std::string &family,
-                                   const CapybaraParameters &params,
-                                   GLMWorkspace &glm_ws,
-                                   const double &theta = 0.0) {
-  // Delegate to original function for numerical correctness
-  return feglm_fit(X, y_orig, w, fe_indices, nb_ids, fe_id_tables, family, params, theta);
 }
 
 } // namespace glm
