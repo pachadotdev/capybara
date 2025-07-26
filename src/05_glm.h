@@ -210,39 +210,26 @@ inline double dev_resids_gaussian(const vec &y, const vec &mu, const vec &w) {
 }
 
 inline double dev_resids_poisson(const vec &y, const vec &mu, const vec &w) {
-  // Standard Poisson deviance
-  vec r(y.n_elem, fill::none);
-  r.zeros();
-
-  // Find positive y values
+  vec r = zeros<vec>(y.n_elem);
   uvec p = find(y > 0);
   if (p.n_elem > 0) {
-    vec y_p = y(p);
-    vec mu_p = mu(p);
-    vec w_p = w(p);
-    r(p) = w_p % (y_p % log(y_p / mu_p) - (y_p - mu_p));
+    r(p) = w(p) % (y(p) % log(y(p) / mu(p)) - (y(p) - mu(p)));
   }
-
   return 2.0 * accu(r);
 }
 
-// Binomial deviance matching R's base implementation
 inline double dev_resids_binomial(const vec &y, const vec &mu, const vec &w) {
-  vec r(y.n_elem, fill::none);
-  r.zeros();
-
-  // y = 1 cases
+  vec r = zeros<vec>(y.n_elem);
   uvec p = find(y == 1);
+  uvec q = find(y == 0);
+  
   if (p.n_elem > 0) {
     r(p) = log(y(p) / mu(p));
   }
-
-  // y = 0 cases
-  uvec q = find(y == 0);
   if (q.n_elem > 0) {
     r(q) = log((1.0 - y(q)) / (1.0 - mu(q)));
   }
-
+  
   return 2.0 * dot(w, r);
 }
 
@@ -567,7 +554,7 @@ inline InferenceWLM wlm_fit(const mat &X_reduced, const vec &y,
 
   InferenceWLM result(n, p_orig);
 
-  bool use_weights = params.use_weights && !all(w == 1.0);
+  bool use_weights = params.use_weights && any(w != 1.0);
 
   // Demean variables
   mat X_demean;
@@ -587,14 +574,17 @@ inline InferenceWLM wlm_fit(const mat &X_reduced, const vec &y,
 
     // Demean reduced X columns
     if (X_reduced.n_cols > 0) {
+      field<vec> x_to_demean(X_reduced.n_cols);
+      for (size_t j = 0; j < X_reduced.n_cols; ++j) {
+        x_to_demean(j) = X_reduced.col(j);
+      }
+
+      DemeanResult x_demean_result = demean::demean_variables_fast(
+          x_to_demean, w, fe_indices, nb_ids, fe_id_tables, false, params, demean_workspace);
+      
       X_demean.set_size(n, X_reduced.n_cols);
       for (size_t j = 0; j < X_reduced.n_cols; ++j) {
-        field<vec> x_to_demean(1);
-        x_to_demean(0) = X_reduced.col(j);
-
-        DemeanResult x_demean_result = demean::demean_variables_fast(
-            x_to_demean, w, fe_indices, nb_ids, fe_id_tables, false, params, demean_workspace);
-        X_demean.col(j) = x_demean_result.demeaned_vars(0);
+        X_demean.col(j) = x_demean_result.demeaned_vars(j);
       }
     } else {
       X_demean = mat(n, 0);
@@ -623,21 +613,18 @@ inline InferenceWLM wlm_fit(const mat &X_reduced, const vec &y,
   // Extract fixed effects using reduced X
   if (has_fixed_effects && compute_fixed_effects) {
     // Extract the non-zero coefficients for the reduced matrix
-    vec coef_reduced;
-    if (collin_result.has_collinearity) {
-      coef_reduced = result.coefficients(collin_result.non_collinear_cols);
-    } else {
-      coef_reduced = result.coefficients;
-    }
+    vec coef_reduced = collin_result.has_collinearity ? 
+                      result.coefficients(collin_result.non_collinear_cols) :
+                      result.coefficients;
 
     vec sum_fe = result.fitted_values - X_reduced * coef_reduced;
 
     field<field<uvec>> group_indices(fe_indices.n_elem);
     for (size_t k = 0; k < fe_indices.n_elem; ++k) {
       group_indices(k).set_size(nb_ids(k));
+      const uvec& fe_k = fe_indices(k);
       for (size_t g = 0; g < nb_ids(k); ++g) {
-        uvec group_obs = find(fe_indices(k) == g);
-        group_indices(k)(g) = group_obs;
+        group_indices(k)(g) = find(fe_k == g);
       }
     }
 
@@ -681,7 +668,7 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
   }
 
   // Initialize weights
-  bool use_weights = params.use_weights && w.n_elem > 1 && !all(w == 1.0);
+  bool use_weights = params.use_weights && w.n_elem > 1 && any(w != 1.0);
   vec weights_vec = use_weights ? w : ones<vec>(n);
 
   // STEP 1: Check collinearity ONCE at the beginning
@@ -846,13 +833,8 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
       mat hess_reduced = weighted_X.t() * weighted_X;
 
       if (collin_result.has_collinearity) {
-        for (size_t i = 0; i < collin_result.non_collinear_cols.n_elem; i++) {
-          for (size_t j = 0; j < collin_result.non_collinear_cols.n_elem; j++) {
-            result.hessian(collin_result.non_collinear_cols(i),
-                           collin_result.non_collinear_cols(j)) =
-                hess_reduced(i, j);
-          }
-        }
+        const uvec& cols = collin_result.non_collinear_cols;
+        result.hessian.submat(cols, cols) = hess_reduced;
       } else {
         result.hessian = hess_reduced;
       }
@@ -865,7 +847,7 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
   }
 
   // Null deviance
-  vec mu_null(y_orig.n_elem, fill::value(mean_y));
+  vec mu_null = vec(y_orig.n_elem, fill::value(mean_y));
   result.null_deviance = dev_resids(y_orig, mu_null, theta, weights_vec,
                                     family_type, params.safe_clamp_min);
 

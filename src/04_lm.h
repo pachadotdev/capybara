@@ -80,7 +80,7 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
   InferenceLM result(n, p_orig);
 
   // STEP 1: Check collinearity and modify X in place
-  bool use_weights = params.use_weights && !all(w == 1.0);
+  bool use_weights = params.use_weights && any(w != 1.0);
   double tolerance = params.qr_collin_tol_multiplier * 1e-7;
 
   mat X_work = X; // Working copy that will be modified
@@ -105,15 +105,17 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
 
     // Demean only non-collinear X columns
     if (X_work.n_cols > 0) {
+      field<vec> x_to_demean(X_work.n_cols);
+      for (size_t j = 0; j < X_work.n_cols; ++j) {
+        x_to_demean(j) = X_work.col(j);
+      }
+
+      DemeanResult x_demean_result = demean::demean_variables_fast(
+          x_to_demean, w, fe_indices, nb_ids, fe_id_tables, false, params, demean_workspace);
+
       X_demean.set_size(n, X_work.n_cols);
       for (size_t j = 0; j < X_work.n_cols; ++j) {
-        field<vec> x_to_demean(1);
-        x_to_demean(0) = X_work.col(j);
-
-        DemeanResult x_demean_result = demean::demean_variables_fast(
-            x_to_demean, w, fe_indices, nb_ids, fe_id_tables, false, params, demean_workspace);
-
-        X_demean.col(j) = x_demean_result.demeaned_vars(0);
+        X_demean.col(j) = x_demean_result.demeaned_vars(j);
       }
     } else {
       X_demean = mat(n, 0);
@@ -146,21 +148,18 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
   // STEP 5: Extract fixed effects using reduced X and coefficients
   if (has_fixed_effects) {
     // Extract the non-zero coefficients for the reduced matrix
-    vec coef_reduced;
-    if (collin_result.has_collinearity) {
-      coef_reduced = result.coefficients(collin_result.non_collinear_cols);
-    } else {
-      coef_reduced = result.coefficients;
-    }
+    vec coef_reduced = collin_result.has_collinearity ? 
+                      result.coefficients(collin_result.non_collinear_cols) :
+                      result.coefficients;
 
     vec sum_fe = result.fitted_values - X_work * coef_reduced;
 
     field<field<uvec>> group_indices(fe_indices.n_elem);
     for (size_t k = 0; k < fe_indices.n_elem; ++k) {
       group_indices(k).set_size(nb_ids(k));
+      const uvec& fe_k = fe_indices(k);
       for (size_t g = 0; g < nb_ids(k); ++g) {
-        uvec group_obs = find(fe_indices(k) == g);
-        group_indices(k)(g) = group_obs;
+        group_indices(k)(g) = find(fe_k == g);
       }
     }
 
