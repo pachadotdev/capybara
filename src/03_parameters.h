@@ -200,26 +200,14 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
     mat hess_reduced = X_weighted.t() * X_weighted;
 
     if (collin_result.has_collinearity) {
-      for (size_t i = 0; i < collin_result.non_collinear_cols.n_elem; i++) {
-        for (size_t j = 0; j < collin_result.non_collinear_cols.n_elem; j++) {
-          result.hessian(collin_result.non_collinear_cols(i),
-                         collin_result.non_collinear_cols(j)) =
-              hess_reduced(i, j);
-        }
-      }
+      result.hessian(collin_result.non_collinear_cols, collin_result.non_collinear_cols) = hess_reduced;
     } else {
       result.hessian = hess_reduced;
     }
   } else {
     mat hess_reduced = X.t() * X;
     if (collin_result.has_collinearity) {
-      for (size_t i = 0; i < collin_result.non_collinear_cols.n_elem; i++) {
-        for (size_t j = 0; j < collin_result.non_collinear_cols.n_elem; j++) {
-          result.hessian(collin_result.non_collinear_cols(i),
-                         collin_result.non_collinear_cols(j)) =
-              hess_reduced(i, j);
-        }
-      }
+      result.hessian(collin_result.non_collinear_cols, collin_result.non_collinear_cols) = hess_reduced;
     } else {
       result.hessian = hess_reduced;
     }
@@ -300,21 +288,21 @@ inline InferenceAlpha get_alpha(const vec &sumFE,
 
     // Find observation with maximum rowsum (most FEs already computed)
     uword qui_max = 0;
-    uword rs_max = 0;
 
     if (iter == 1) {
       qui_max = 0;
     } else {
-      for (size_t i = 0; i < nb_todo; ++i) {
-        uword obs = id_todo(i);
-        uword rs = rowsums(obs);
-
-        if (rs == Q - 2) {
-          qui_max = obs;
-          break;
-        } else if (rs < Q && rs > rs_max) {
-          qui_max = obs;
-          rs_max = rs;
+      uvec todo_rowsums = rowsums(id_todo);
+      uvec candidates = find(todo_rowsums == Q - 2);
+      
+      if (!candidates.is_empty()) {
+        qui_max = id_todo(candidates(0));
+      } else {
+        uvec valid_candidates = find((todo_rowsums < Q) && (todo_rowsums > 0));
+        if (!valid_candidates.is_empty()) {
+          uvec valid_rowsums = todo_rowsums(valid_candidates);
+          uword max_idx = valid_rowsums.index_max();
+          qui_max = id_todo(valid_candidates(max_idx));
         }
       }
     }
