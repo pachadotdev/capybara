@@ -212,8 +212,7 @@ void FixedEffects::setup_weights(const field<uvec> &fe_id_tables) {
   sum_weights_.set_size(n_fe_groups_);
 
   for (size_t q = 0; q < n_fe_groups_; ++q) {
-    sum_weights_(q) = vec(nb_ids_(q), fill::none);
-    sum_weights_(q).zeros();
+    sum_weights_(q) = vec(nb_ids_(q), fill::zeros);
 
     if (has_weights_) {
       // Accumulate weights for each FE ID
@@ -231,7 +230,7 @@ void FixedEffects::setup_weights(const field<uvec> &fe_id_tables) {
       if (fe_id_tables.n_elem > q && fe_id_tables(q).n_elem == nb_ids_(q)) {
         sum_weights_(q) = conv_to<vec>::from(fe_id_tables(q));
       } else {
-        // Count occurrences manually
+        // Count occurrences
         const uvec &fe_idx = fe_indices_(q);
         for (size_t obs = 0; obs < n_obs_; ++obs) {
           uword idx = fe_idx(obs);
@@ -244,12 +243,8 @@ void FixedEffects::setup_weights(const field<uvec> &fe_id_tables) {
       }
     }
 
-    // Avoid division by zero - check for any zero weights
-    for (size_t i = 0; i < sum_weights_(q).n_elem; ++i) {
-      if (sum_weights_(q)(i) < 1e-12) {
-        sum_weights_(q)(i) = 1e-12;
-      }
-    }
+    // Avoid division by zero
+    sum_weights_(q) = clamp(sum_weights_(q), 1e-12, datum::inf);
   }
 }
 
@@ -272,7 +267,6 @@ void FixedEffects::compute_fe_coefficients(size_t group_idx, vec &fe_coef,
     group_coefs(fe_idx(obs)) -= sum_other_fe(obs);
   }
 
-  // Divide by weights to get coefficients - use safe_divide like reference
   group_coefs = convergence::utils::safe_divide(group_coefs, sum_weights_(group_idx), 1e-12);
 
   // Store in output vector
@@ -281,12 +275,12 @@ void FixedEffects::compute_fe_coefficients(size_t group_idx, vec &fe_coef,
 
 void FixedEffects::compute_fe_coefficients_single(vec &fe_coef, const vec &target) {
   fe_coef.zeros();
-
   const uvec &fe_idx = fe_indices_(0);
 
   if (has_weights_) {
+    vec weighted_target = weights_ % target;
     for (size_t obs = 0; obs < n_obs_; ++obs) {
-      fe_coef(fe_idx(obs)) += weights_(obs) * target(obs);
+      fe_coef(fe_idx(obs)) += weighted_target(obs);
     }
   } else {
     for (size_t obs = 0; obs < n_obs_; ++obs) {
@@ -294,7 +288,6 @@ void FixedEffects::compute_fe_coefficients_single(vec &fe_coef, const vec &targe
     }
   }
 
-  // Use safe division like reference
   fe_coef = convergence::utils::safe_divide(fe_coef, sum_weights_(0), 1e-12);
 }
 
@@ -303,21 +296,12 @@ void FixedEffects::add_fe_to_prediction(size_t group_idx, const vec &fe_coef,
   const uvec &fe_idx = fe_indices_(group_idx);
   size_t coef_start = coef_starts_(group_idx);
 
-  // Add bounds checking
   if (group_idx >= n_fe_groups_) {
     cpp11::stop("add_fe_to_prediction: group_idx=%zu >= n_fe_groups=%zu", group_idx, n_fe_groups_);
   }
 
   for (size_t obs = 0; obs < n_obs_; ++obs) {
-    size_t access_idx = coef_start + fe_idx(obs);
-    
-    // Bounds check for fe_coef access
-    if (access_idx >= fe_coef.n_elem) {
-      cpp11::stop("add_fe_to_prediction bounds error: coef_start=%zu, fe_id=%zu, access_idx=%zu, fe_coef.size=%zu", 
-                  coef_start, (size_t)fe_idx(obs), access_idx, fe_coef.n_elem);
-    }
-    
-    prediction(obs) += fe_coef(access_idx);
+    prediction(obs) += fe_coef(coef_start + fe_idx(obs));
   }
 }
 
@@ -333,15 +317,7 @@ void FixedEffects::add_weighted_fe_to_prediction(size_t group_idx,
   size_t coef_start = coef_starts_(group_idx);
 
   for (size_t obs = 0; obs < n_obs_; ++obs) {
-    size_t access_idx = coef_start + fe_idx(obs);
-    
-    // Bounds check for fe_coef access
-    if (access_idx >= fe_coef.n_elem) {
-      cpp11::stop("add_weighted_fe_to_prediction bounds error: coef_start=%zu, fe_id=%zu, access_idx=%zu, fe_coef.size=%zu", 
-                  coef_start, (size_t)fe_idx(obs), access_idx, fe_coef.n_elem);
-    }
-    
-    prediction(obs) += fe_coef(access_idx) * weights_(obs);
+    prediction(obs) += fe_coef(coef_start + fe_idx(obs)) * weights_(obs);
   }
 }
 
@@ -353,6 +329,7 @@ void FixedEffects::compute_in_out(size_t group_idx, vec &in_out_sum, const vec &
 
   // Validate bounds
   if (coef_start + nb_coef > in_out_sum.n_elem) {
+    // TODO: use a portable error message
     cpp11::stop("in_out bounds error: coef_start=%zu, nb_coef=%zu, in_out_sum.size=%zu", 
                 coef_start, nb_coef, in_out_sum.n_elem);
   }
@@ -362,42 +339,25 @@ void FixedEffects::compute_in_out(size_t group_idx, vec &in_out_sum, const vec &
 
   // Accumulate sum of (input - output) for each FE
   if (has_weights_) {
+    vec diff_weighted = (input - output) % weights_;
     for (size_t obs = 0; obs < n_obs_; ++obs) {
-      size_t fe_id = fe_idx(obs);
-      size_t access_idx = coef_start + fe_id;
-      
-      // Bounds check
-      if (access_idx >= in_out_sum.n_elem) {
-        cpp11::stop("in_out access bounds error: coef_start=%zu, fe_id=%zu, access_idx=%zu, in_out_sum.size=%zu", 
-                    coef_start, fe_id, access_idx, in_out_sum.n_elem);
-      }
-      
-      in_out_sum(access_idx) += (input(obs) - output(obs)) * weights_(obs);
+      in_out_sum(coef_start + fe_idx(obs)) += diff_weighted(obs);
     }
   } else {
+    vec diff = input - output;
     for (size_t obs = 0; obs < n_obs_; ++obs) {
-      size_t fe_id = fe_idx(obs);
-      size_t access_idx = coef_start + fe_id;
-      
-      // Bounds check
-      if (access_idx >= in_out_sum.n_elem) {
-        cpp11::stop("in_out access bounds error: coef_start=%zu, fe_id=%zu, access_idx=%zu, in_out_sum.size=%zu", 
-                    coef_start, fe_id, access_idx, in_out_sum.n_elem);
-      }
-      
-      in_out_sum(access_idx) += input(obs) - output(obs);
+      in_out_sum(coef_start + fe_idx(obs)) += diff(obs);
     }
   }
 }
 
 // Special 2-FE algorithm implementation
-void FixedEffects::compute_fe_coef_2(vec &fe_coef_in, vec &fe_coef_out,
-                             vec &fe_coef_tmp, const vec &sum_in_out) {
-  // This implements the 2-FE special case from fixest
+// This implements the 2-FE special case from fixest
   // fe_coef_in: coefficients for first FE (input and output)
   // fe_coef_tmp: coefficients for second FE
   // sum_in_out: precomputed sums
-
+void FixedEffects::compute_fe_coef_2(vec &fe_coef_in, vec &fe_coef_out,
+                             vec &fe_coef_tmp, const vec &sum_in_out) {
   if (n_fe_groups_ < 2) {
     return;
   }
@@ -414,16 +374,17 @@ void FixedEffects::compute_fe_coef_2(vec &fe_coef_in, vec &fe_coef_out,
 
   // Subtract contribution from first FE
   if (has_weights_) {
+    vec weighted_fe_coef_in = fe_coef_in(fe_idx_0) % weights_;
     for (size_t obs = 0; obs < n_obs_; ++obs) {
-      fe_coef_tmp(fe_idx_1(obs)) -= fe_coef_in(fe_idx_0(obs)) * weights_(obs);
+      fe_coef_tmp(fe_idx_1(obs)) -= weighted_fe_coef_in(obs);
     }
   } else {
+    vec fe_coef_values = fe_coef_in(fe_idx_0);
     for (size_t obs = 0; obs < n_obs_; ++obs) {
-      fe_coef_tmp(fe_idx_1(obs)) -= fe_coef_in(fe_idx_0(obs));
+      fe_coef_tmp(fe_idx_1(obs)) -= fe_coef_values(obs);
     }
   }
 
-  // Divide by weights
   fe_coef_tmp = convergence::utils::safe_divide(fe_coef_tmp, sum_weights_(1), 1e-12);
 
   // Step 2: Update first FE based on updated second FE
@@ -431,16 +392,17 @@ void FixedEffects::compute_fe_coef_2(vec &fe_coef_in, vec &fe_coef_out,
 
   // Subtract contribution from second FE
   if (has_weights_) {
+    vec weighted_fe_coef_tmp = fe_coef_tmp(fe_idx_1) % weights_;
     for (size_t obs = 0; obs < n_obs_; ++obs) {
-      fe_coef_out(fe_idx_0(obs)) -= fe_coef_tmp(fe_idx_1(obs)) * weights_(obs);
+      fe_coef_out(fe_idx_0(obs)) -= weighted_fe_coef_tmp(obs);
     }
   } else {
+    vec fe_coef_tmp_values = fe_coef_tmp(fe_idx_1);
     for (size_t obs = 0; obs < n_obs_; ++obs) {
-      fe_coef_out(fe_idx_0(obs)) -= fe_coef_tmp(fe_idx_1(obs));
+      fe_coef_out(fe_idx_0(obs)) -= fe_coef_tmp_values(obs);
     }
   }
 
-  // Divide by weights
   fe_coef_out = convergence::utils::safe_divide(fe_coef_out, sum_weights_(0), 1e-12);
 }
 
@@ -671,13 +633,9 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams &params,
   compute_fe(var_idx, Q, X, GX, sum_other_fe_or_tmp, sum_in_out, params);
 
   // Check if we need to iterate
-  bool keep_going = false;
-  for (size_t i = 0; i < nb_coef_T; ++i) {
-    if (continue_criterion(X(i), GX(i), tol, params.capybara_params)) {
-      keep_going = true;
-      break;
-    }
-  }
+  vec diff = abs(X - GX);
+  vec rel_diff = diff / (params.capybara_params.rel_tol_denom + abs(X));
+  bool keep_going = any((diff > tol) && (rel_diff > tol));
 
   // Temp vectors for acceleration (exclude last FE group)
   size_t nb_coef_no_Q = 0;
@@ -734,12 +692,14 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams &params,
     compute_fe(var_idx, Q, X, GX, sum_other_fe_or_tmp, sum_in_out, params);
 
     // Check convergence
-    keep_going = false;
-    for (size_t i = 0; i < nb_coef_no_Q; ++i) {
-      if (continue_criterion(X(i), GX(i), tol, params.capybara_params)) {
-        keep_going = true;
-        break;
-      }
+    if (nb_coef_no_Q > 0) {
+      vec X_check = X.subvec(0, nb_coef_no_Q - 1);
+      vec GX_check = GX.subvec(0, nb_coef_no_Q - 1);
+      vec diff_check = abs(X_check - GX_check);
+      vec rel_diff_check = diff_check / (params.capybara_params.rel_tol_denom + abs(X_check));
+      keep_going = any((diff_check > tol) && (rel_diff_check > tol));
+    } else {
+      keep_going = false;
     }
 
     // Grand acceleration
@@ -1005,19 +965,20 @@ bool demean_accelerated_fast(size_t var_idx, size_t iter_max, DemeanParams &para
     // Next iteration
     compute_fe(var_idx, Q, X, GX, sum_other_fe_or_tmp, sum_in_out, params);
     
-    // Check convergence with early termination optimization
+    // Check convergence
     keep_going = false;
     size_t nb_coef_no_Q = 0;
     for (size_t q = 0; q < Q - 1; ++q) {
       nb_coef_no_Q += params.fe_processor->nb_coef_group(q);
     }
     
-    // Only check convergence on coefficients that matter
-    for (size_t i = 0; i < nb_coef_no_Q; ++i) {
-      if (continue_criterion(X(i), GX(i), tol, params.capybara_params)) {
-        keep_going = true;
-        break; // Early exit for efficiency
-      }
+    // Convergence check on relevant coefficients
+    if (nb_coef_no_Q > 0) {
+      vec X_check = X.subvec(0, nb_coef_no_Q - 1);
+      vec GX_check = GX.subvec(0, nb_coef_no_Q - 1);
+      vec diff_check = abs(X_check - GX_check);
+      vec rel_diff_check = diff_check / (params.capybara_params.rel_tol_denom + abs(X_check));
+      keep_going = any((diff_check > tol) && (rel_diff_check > tol));
     }
     
     // SSR check for convergence
