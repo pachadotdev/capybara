@@ -81,7 +81,7 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
 
   // STEP 1: Check collinearity and modify X in place
   bool use_weights = params.use_weights && any(w != 1.0);
-  double tolerance = params.qr_collin_tol_multiplier * 1e-7;
+  double tolerance = params.qr_collin_tol_multiplier;
 
   mat X_work = X; // Working copy that will be modified
   CollinearityResult collin_result =

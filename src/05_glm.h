@@ -673,7 +673,7 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
 
   // STEP 1: Check collinearity ONCE at the beginning
   mat X_reduced = X;
-  double tolerance = params.qr_collin_tol_multiplier * 1e-7;
+  double tolerance = params.qr_collin_tol_multiplier;
   CollinearityResult collin_result =
       check_collinearity(X_reduced, weights_vec, use_weights, tolerance, true);
 
@@ -696,7 +696,7 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
   }
 
   // Initial deviance - use baseline initialization
-  vec mu_init(n, fill::value(1e-5));
+  vec mu_init(n, fill::zeros);
   double devold = dev_resids(y_orig, mu_init, theta, weights_vec, family_type,
                              params.safe_clamp_min);
 
