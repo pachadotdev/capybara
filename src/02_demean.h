@@ -228,6 +228,9 @@ void FixedEffects::setup_weights(const field<uvec> &fe_id_tables) {
     } else {
       // Use pre-computed counts from fe_id_tables if available
       if (fe_id_tables.n_elem > q && fe_id_tables(q).n_elem == nb_ids_(q)) {
+        // NOTE: we need the conversion here to avoid
+        // "no known conversion for argument 1 from
+        // const arma::Col<long long unsigned int> to const arma::subview_cube<double>&"
         sum_weights_(q) = conv_to<vec>::from(fe_id_tables(q));
       } else {
         // Count occurrences
@@ -244,7 +247,7 @@ void FixedEffects::setup_weights(const field<uvec> &fe_id_tables) {
     }
 
     // Avoid division by zero
-    sum_weights_(q) = clamp(sum_weights_(q), 1e-12, datum::inf);
+    sum_weights_(q) = clamp(sum_weights_(q), datum::eps, datum::inf);
   }
 }
 
@@ -267,7 +270,7 @@ void FixedEffects::compute_fe_coefficients(size_t group_idx, vec &fe_coef,
     group_coefs(fe_idx(obs)) -= sum_other_fe(obs);
   }
 
-  group_coefs = convergence::utils::safe_divide(group_coefs, sum_weights_(group_idx), 1e-12);
+  group_coefs = convergence::utils::safe_divide(group_coefs, sum_weights_(group_idx), datum::eps);
 
   // Store in output vector
   fe_coef.subvec(coef_start, coef_start + nb_coef - 1) = group_coefs;
@@ -288,7 +291,7 @@ void FixedEffects::compute_fe_coefficients_single(vec &fe_coef, const vec &targe
     }
   }
 
-  fe_coef = convergence::utils::safe_divide(fe_coef, sum_weights_(0), 1e-12);
+  fe_coef = convergence::utils::safe_divide(fe_coef, sum_weights_(0), datum::eps);
 }
 
 void FixedEffects::add_fe_to_prediction(size_t group_idx, const vec &fe_coef,
@@ -385,7 +388,7 @@ void FixedEffects::compute_fe_coef_2(vec &fe_coef_in, vec &fe_coef_out,
     }
   }
 
-  fe_coef_tmp = convergence::utils::safe_divide(fe_coef_tmp, sum_weights_(1), 1e-12);
+  fe_coef_tmp = convergence::utils::safe_divide(fe_coef_tmp, sum_weights_(1), datum::eps);
 
   // Step 2: Update first FE based on updated second FE
   fe_coef_out = sum_in_out.subvec(0, nb_coef_0 - 1);
@@ -403,7 +406,7 @@ void FixedEffects::compute_fe_coef_2(vec &fe_coef_in, vec &fe_coef_out,
     }
   }
 
-  fe_coef_out = convergence::utils::safe_divide(fe_coef_out, sum_weights_(0), 1e-12);
+  fe_coef_out = convergence::utils::safe_divide(fe_coef_out, sum_weights_(0), datum::eps);
 }
 
 void FixedEffects::add_2_fe_to_prediction(const vec &fe_coef_a,

@@ -216,7 +216,7 @@ void cluster_coef_negbin(const vec &mu, const vec &lhs, const vec &sum_y,
 
       double x0 = x1;
 
-      if (std::abs(value) < 1e-12) {
+      if (std::abs(value) < datum::eps) {
         keepGoing = false;
       } else if (iter <= params.iter_full_dicho) {
         // Newton-Raphson step
@@ -228,7 +228,7 @@ void cluster_coef_negbin(const vec &mu, const vec &lhs, const vec &sum_y,
                         ((theta / exp_mu + 1.0) * (theta + exp_mu));
         }
 
-        if (std::abs(derivative) > 1e-12) {
+        if (std::abs(derivative) > datum::eps) {
           x1 = x0 - value / derivative;
         }
 
@@ -313,7 +313,7 @@ void cluster_coef_binomial(const vec &mu, const vec &sum_y,
 
       double x0 = x1;
 
-      if (std::abs(value) < 1e-12) {
+      if (std::abs(value) < datum::eps) {
         keepGoing = false;
       } else if (iter <= params.iter_full_dicho) {
         // Newton-Raphson step
@@ -323,7 +323,7 @@ void cluster_coef_binomial(const vec &mu, const vec &sum_y,
           derivative -= 1.0 / ((1.0 / exp_mu + 1.0) * (1.0 + exp_mu));
         }
 
-        if (std::abs(derivative) > 1e-12) {
+        if (std::abs(derivative) > datum::eps) {
           x1 = x0 - value / derivative;
         }
 
