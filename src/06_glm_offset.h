@@ -68,18 +68,12 @@ feglm_offset_fit(vec eta, const vec &y, const vec &offset, const vec &wt,
   }
 
   // Initialize variables
-  vec Myadj = vec(n, fill::none);
-  Myadj.zeros();
+  vec Myadj = zeros<vec>(n);
   vec mu = link_inv(eta, family_type);
-  vec mu_eta(n, fill::none);
-  vec yadj(n, fill::none);
-  vec w(n, fill::none);
-  vec eta_upd(n, fill::none);
-  vec eta_old(n, fill::none);
+  vec mu_eta(n), yadj(n), w(n), eta_upd(n), eta_old(n);
 
   double dev = dev_resids(y, mu, 0.0, wt, family_type, params.safe_clamp_min);
   double dev_old, dev_ratio, dev_ratio_inner, rho;
-  bool dev_crit, val_crit, imp_crit;
 
   // IRLS loop
   for (size_t iter = 0; iter < params.iter_max; ++iter) {
@@ -93,11 +87,11 @@ feglm_offset_fit(vec eta, const vec &y, const vec &offset, const vec &wt,
     vec var_mu = variance(mu, 0.0, family_type);
 
     // Check variance
-    if (any(var_mu <= 0) || any(var_mu != var_mu)) {
+    if (any(var_mu <= 0 || var_mu != var_mu)) {
       break;
     }
 
-    w = (wt % square(mu_eta)) / var_mu;
+    w = wt % square(mu_eta) / var_mu;
     yadj = (y - mu) / mu_eta + eta - offset;
 
     // Center the adjusted response if we have fixed effects
@@ -123,18 +117,14 @@ feglm_offset_fit(vec eta, const vec &y, const vec &offset, const vec &wt,
     eta_upd = yadj - Myadj + offset - eta;
 
     // Step halving loop
-    for (size_t iter_inner = 0; iter_inner < params.iter_inner_max;
-         ++iter_inner) {
-      eta = eta_old + (rho * eta_upd);
+    for (size_t iter_inner = 0; iter_inner < params.iter_inner_max; ++iter_inner) {
+      eta = eta_old + rho * eta_upd;
       mu = link_inv(eta, family_type);
       dev = dev_resids(y, mu, 0.0, wt, family_type, params.safe_clamp_min);
       dev_ratio_inner = (dev - dev_old) / (0.1 + std::abs(dev_old));
 
-      dev_crit = is_finite(dev);
-      val_crit = valid_eta(eta, family_type) && valid_mu(mu, family_type);
-      imp_crit = (dev_ratio_inner <= -params.dev_tol);
-
-      if (dev_crit && val_crit && imp_crit) {
+      if (is_finite(dev) && valid_eta(eta, family_type) && 
+          valid_mu(mu, family_type) && (dev_ratio_inner <= -params.dev_tol)) {
         break;
       }
 
@@ -142,7 +132,7 @@ feglm_offset_fit(vec eta, const vec &y, const vec &offset, const vec &wt,
     }
 
     // Check if step-halving failed
-    if (!dev_crit || !val_crit) {
+    if (!is_finite(dev) || !valid_eta(eta, family_type) || !valid_mu(mu, family_type)) {
       stop("Inner loop failed; cannot correct step size.");
     }
 
@@ -155,7 +145,7 @@ feglm_offset_fit(vec eta, const vec &y, const vec &offset, const vec &wt,
 
     // Update starting guesses for acceleration
     if (has_fixed_effects) {
-      Myadj = Myadj - yadj;
+      Myadj -= yadj;
     }
   }
 
