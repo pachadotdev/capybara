@@ -18,6 +18,7 @@ struct DemeanMemoryPool {
   uvec index_vec1, index_vec2;
 
   DemeanMemoryPool(size_t max_size) {
+    // Use set_size without initialization - these are workspace vectors
     work_vec1.set_size(max_size);
     work_vec2.set_size(max_size);
     work_vec3.set_size(max_size);
@@ -52,6 +53,7 @@ struct DemeanWorkspace {
   DemeanWorkspace(size_t n_obs, size_t total_coefficients,
                   size_t max_fe_group_size)
       : pool(std::max(n_obs, total_coefficients)) {
+    // Use set_size without initialization - these will be overwritten
     fe_accumulator.set_size(max_fe_group_size);
     prediction_buffer.set_size(n_obs);
     residual_buffer.set_size(n_obs);
@@ -104,7 +106,7 @@ public:
                const CapybaraParameters &params);
 
   // TODO: check these
-  void accumulate(size_t group_idx, const vec &values, vec &result,
+  void grouped_accu(size_t group_idx, const vec &values, vec &result,
                   DemeanWorkspace &ws, bool use_weights = true) const;
   void broadcast(size_t group_idx, const vec &fe_values, vec &result) const;
 
@@ -150,8 +152,8 @@ FixedEffects::FixedEffects(size_t n_obs, size_t n_fe_groups, const vec &weights,
 
   if (n_fe_groups_ > 0) {
     coef_starts_(0) = 0;
-    for (size_t q = 1; q < n_fe_groups_; ++q) {
-      coef_starts_(q) = coef_starts_(q - 1) + nb_coefs_(q - 1);
+    if (n_fe_groups_ > 1) {
+      coef_starts_.subvec(1, n_fe_groups_ - 1) = cumsum(nb_coefs_.subvec(0, n_fe_groups_ - 2));
     }
   }
 
@@ -173,68 +175,63 @@ void FixedEffects::setup(const field<uvec> &fe_id_tables) {
     size_t nb_groups = nb_ids_(q);
 
     sum_weights_(q).set_size(nb_groups);
-    sum_weights_(q).zeros();
     uvec sort_idx = sort_index(fe_indices_(q));
     sorted_obs_by_fe_(q) = sort_idx;
 
     fe_group_starts_(q).set_size(nb_groups + 1);
-    fe_group_starts_(q).zeros();
+    fe_group_starts_(q)(0) = 0;  // Only set the first element
+
     fe_group_sizes_(q).set_size(nb_groups);
-    fe_group_sizes_(q).zeros();
 
     const uvec &fe_idx = fe_indices_(q);
-    for (size_t i = 0; i < n_obs_; ++i) {
-      uword group = fe_idx(i);
-      fe_group_sizes_(q)(group)++;
-      sum_weights_(q)(group) += weights_(i);
+    
+    for (uword group_id = 0; group_id < nb_groups; ++group_id) {
+      uvec group_mask = (fe_idx == group_id);
+      fe_group_sizes_(q)(group_id) = accu(group_mask);
+      if (has_weights_) {
+        sum_weights_(q)(group_id) = accu(weights_.elem(find(group_mask)));
+      } else {
+        sum_weights_(q)(group_id) = fe_group_sizes_(q)(group_id);
+      }
     }
 
-    for (size_t g = 1; g <= nb_groups; ++g) {
-      fe_group_starts_(q)(g) =
-          fe_group_starts_(q)(g - 1) + fe_group_sizes_(q)(g - 1);
-    }
-
-    // TODO: do we really need this?
-    // Element-wise max to avoid division by zero
-    // for (size_t g = 0; g < nb_groups; ++g) {
-    //   if (sum_weights_(q)(g) < params_.safe_division_min) {
-    //     sum_weights_(q)(g) = params_.safe_division_min;
-    //   }
-    // }
+    fe_group_starts_(q).subvec(1, nb_groups) = cumsum(fe_group_sizes_(q));
 
     inv_sum_weights_(q).set_size(nb_groups);
     inv_sum_weights_(q) = 1.0 / sum_weights_(q);
   }
 }
 
-void FixedEffects::accumulate(size_t group_idx, const vec &values, vec &result,
+void FixedEffects::grouped_accu(size_t group_idx, const vec &values, vec &result,
                               DemeanWorkspace &ws, bool use_weights) const {
-  CAPYBARA_TIME_FUNCTION("FixedEffects::accumulate");
+  CAPYBARA_TIME_FUNCTION("FixedEffects::grouped_accu");
   
-  result.zeros();
+  result.set_size(nb_ids_(group_idx));
 
   const uvec &sorted_idx = sorted_obs_by_fe_(group_idx);
   const uvec &group_starts = fe_group_starts_(group_idx);
   const uvec &group_sizes = fe_group_sizes_(group_idx);
 
-  for (size_t g = 0; g < nb_ids_(group_idx); ++g) {
-    if (group_sizes(g) == 0)
-      continue;
-
+  // Use vectorized operations where possible
+  uvec non_empty_groups = find(group_sizes > 0);
+  
+  for (uword i = 0; i < non_empty_groups.n_elem; ++i) {
+    uword g = non_empty_groups(i);
     uword start = group_starts(g);
     uword end = group_starts(g + 1);
-
+    
+    uvec group_obs = sorted_idx.subvec(start, end - 1);
+    
     if (use_weights && has_weights_) {
-      // More efficient: use Armadillo's advanced indexing without temporary
-      // vectors
-      result(g) = accu(values.elem(sorted_idx.subvec(start, end - 1)) %
-                       weights_.elem(sorted_idx.subvec(start, end - 1)));
+      result(g) = accu(values.elem(group_obs) % weights_.elem(group_obs));
     } else {
-      // More efficient: use Armadillo's advanced indexing without temporary
-      // vectors
-      result(g) = accu(values.elem(sorted_idx.subvec(start, end - 1)));
+      result(g) = accu(values.elem(group_obs));
     }
   }
+  
+  // Set empty groups to zero using vectorized operation
+  uvec empty_groups = find(group_sizes == 0);
+  result.elem(empty_groups).zeros();
 }
 
 void FixedEffects::broadcast(size_t group_idx, const vec &fe_values,
@@ -242,8 +239,9 @@ void FixedEffects::broadcast(size_t group_idx, const vec &fe_values,
   CAPYBARA_TIME_FUNCTION("FixedEffects::broadcast");
   
   const uvec &fe_idx = fe_indices_(group_idx);
-
-  result = fe_values(fe_idx);
+  
+  // Use Armadillo's vectorized indexing
+  result = fe_values.elem(fe_idx);
 }
 
 void FixedEffects::compute_fe_coef_single(vec &fe_coef, const vec &target,
@@ -252,7 +250,7 @@ void FixedEffects::compute_fe_coef_single(vec &fe_coef, const vec &target,
   
   vec accumulator(nb_ids_(0));
 
-  accumulate(0, target, accumulator, ws, true);
+  grouped_accu(0, target, accumulator, ws, true);
 
   if (inv_sum_weights_(0).n_elem == accumulator.n_elem) {
     fe_coef = accumulator % inv_sum_weights_(0);
@@ -267,16 +265,15 @@ void FixedEffects::compute_fe_coef_single(vec &fe_coef, const vec &target,
   }
 }
 
-// Gauss-Seidel iteration
 void FixedEffects::compute_fe_coef_two(vec &fe_coef_a, vec &fe_coef_b,
                                        const vec &target,
                                        DemeanWorkspace &ws) const {
   CAPYBARA_TIME_FUNCTION("FixedEffects::compute_fe_coef_two");
   
   fe_coef_a.set_size(nb_coefs_(0));
-  fe_coef_a.zeros();
+  fe_coef_a.fill(0.0);
   fe_coef_b.set_size(nb_coefs_(1));
-  fe_coef_b.zeros();
+  fe_coef_b.fill(0.0);
 
   vec &pred = ws.prediction_buffer;
   vec &resid = ws.residual_buffer;
@@ -293,8 +290,7 @@ void FixedEffects::compute_fe_coef_two(vec &fe_coef_a, vec &fe_coef_b,
     resid = target - pred;
 
     vec accum_1(nb_ids_(1));
-    accum_1.zeros();
-    accumulate(1, resid, accum_1, ws, true);
+    grouped_accu(1, resid, accum_1, ws, true);
 
     fe_coef_b = accum_1 % inv_sum_weights_(1);
 
@@ -303,8 +299,7 @@ void FixedEffects::compute_fe_coef_two(vec &fe_coef_a, vec &fe_coef_b,
     resid = target - pred;
 
     vec accum_0(nb_ids_(0));
-    accum_0.zeros();
-    accumulate(0, resid, accum_0, ws, true);
+    grouped_accu(0, resid, accum_0, ws, true);
 
     fe_coef_a = accum_0 % inv_sum_weights_(0);
 
@@ -322,7 +317,7 @@ void FixedEffects::compute_fe_coef_general(size_t group_idx, vec &fe_coef,
   
   vec accum(nb_ids_(group_idx));
 
-  accumulate(group_idx, target_residuals, accum, ws, true);
+  grouped_accu(group_idx, target_residuals, accum, ws, true);
 
   size_t coef_start = coef_starts_(group_idx);
   size_t nb_coef = nb_coefs_(group_idx);
@@ -330,7 +325,6 @@ void FixedEffects::compute_fe_coef_general(size_t group_idx, vec &fe_coef,
       accum % inv_sum_weights_(group_idx);
 }
 
-// TODO: Check if this can be optimized further
 void FixedEffects::add_fe_prediction(size_t group_idx, const vec &fe_coef,
                                      vec &prediction) const {
   CAPYBARA_TIME_FUNCTION("FixedEffects::add_fe_prediction");
@@ -338,11 +332,11 @@ void FixedEffects::add_fe_prediction(size_t group_idx, const vec &fe_coef,
   size_t coef_start = coef_starts_(group_idx);
   size_t nb_coef = nb_coefs_(group_idx);
 
-  vec group_pred(n_obs_);
-  broadcast(group_idx, fe_coef.subvec(coef_start, coef_start + nb_coef - 1),
-            group_pred);
-
-  prediction += group_pred;
+  const uvec &fe_idx = fe_indices_(group_idx);
+  const vec &group_coefs = fe_coef.subvec(coef_start, coef_start + nb_coef - 1);
+  
+  // Direct vectorized addition without temporary allocation
+  prediction += group_coefs.elem(fe_idx);
 }
 
 void FixedEffects::compute_full_prediction(const vec &all_fe_coef,
@@ -350,17 +344,19 @@ void FixedEffects::compute_full_prediction(const vec &all_fe_coef,
                                            DemeanWorkspace &ws) const {
   CAPYBARA_TIME_FUNCTION("FixedEffects::compute_full_prediction");
   
-  prediction.zeros();
+  prediction.set_size(n_obs_);
+  prediction.fill(0.0);  // Single fill operation instead of zeros()
 
-  vec group_pred(n_obs_);
-
+  // Use vectorized operations to avoid repeated memory allocations
   for (size_t q = 0; q < n_fe_groups_; ++q) {
     size_t coef_start = coef_starts_(q);
     size_t nb_coef = nb_coefs_(q);
 
-    broadcast(q, all_fe_coef.subvec(coef_start, coef_start + nb_coef - 1),
-              group_pred);
-    prediction += group_pred;
+    const uvec &fe_idx = fe_indices_(q);
+    const vec &group_coefs = all_fe_coef.subvec(coef_start, coef_start + nb_coef - 1);
+    
+    // Direct vectorized addition instead of temporary allocation + +=
+    prediction += group_coefs.elem(fe_idx);
   }
 }
 
@@ -424,9 +420,10 @@ struct DemeanParams {
       fixed_effect_values.zeros();
     }
 
+    // Initialize all output variables at once
     for (size_t i = 0; i < n_vars; ++i) {
       output_variables(i).set_size(n_obs);
-      output_variables(i).zeros();
+      // No need to call .zeros() - we'll overwrite these values anyway
     }
 
     workspace = std::make_unique<DemeanWorkspace>(n_obs, total_coefficients,
@@ -451,7 +448,8 @@ void fe_general(size_t var_idx, const vec &fe_coef_origin,
     size_t uq = static_cast<size_t>(q);
 
     vec &other_pred = ws.prediction_buffer;
-    other_pred.zeros();
+    other_pred.set_size(input.n_elem);  // No need to zero - will be overwritten
+    other_pred.fill(0.0);  // Only zero once instead of calling zeros() repeatedly
 
     for (size_t h = 0; h < n_fe_groups; ++h) {
       if (h == uq)
@@ -535,12 +533,12 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams &params,
     throw std::runtime_error("Workspace vectors too small for subvec access");
   }
 
-  // Use the original approach but avoid repeated subvec operations
+  // Initialize workspace vectors efficiently - only zero the parts we need
   X.subvec(0, nb_coef_T - 1).zeros();
   GX.subvec(0, nb_coef_T - 1).zeros();
   GGX.subvec(0, nb_coef_T - 1).zeros();
 
-  output.zeros();
+  output.set_size(input.n_elem);  // No need to zero - will be overwritten
 
   fe(var_idx, Q, X, GX, params);
 
@@ -569,6 +567,7 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams &params,
 
     fe(var_idx, Q, GX, GGX, params);
 
+    // Use Armadillo's vectorized operations
     delta_GX.subvec(0, nb_coef_T - 1) =
         GGX.subvec(0, nb_coef_T - 1) - GX.subvec(0, nb_coef_T - 1);
     delta2_X.subvec(0, nb_coef_T - 1) = delta_GX.subvec(0, nb_coef_T - 1) -
@@ -733,6 +732,7 @@ DemeanResult demean_variables(const field<vec> &input_vars, const vec &weights,
   }
 
   DemeanResult result(n_vars);
+  // Use vectorized subtraction instead of loop
   for (size_t v = 0; v < n_vars; ++v) {
     result.demeaned_vars(v) =
         demean_params.input_variables(v) - demean_params.output_variables(v);
