@@ -166,10 +166,9 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
         group_indices(k)(g) = find(fe_indices(k) == g);
       }
     }
-
     InferenceAlpha alpha_result =
-        get_alpha(sum_fe, group_indices, params.alpha_convergence_tol,
-                  params.alpha_iter_max);
+        get_alpha(sum_fe, group_indices, params.alpha_convergence_tol, params.alpha_iter_max);
+    
     result.fixed_effects = alpha_result.Alpha;
     result.nb_references = alpha_result.nb_references;
     result.is_regular = alpha_result.is_regular;
