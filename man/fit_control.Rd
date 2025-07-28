@@ -27,7 +27,15 @@ fit_control(
   binomial_mu_max = 0.999,
   safe_clamp_min = 1e-15,
   safe_clamp_max = 1e+12,
-  iter_nb_theta = 25L,
+  glm_init_eta = 1e-05,
+  iter_nb_theta = 10L,
+  nb_theta_tol = 1e-06,
+  nb_info_min = 1e-12,
+  nb_overdispersion_threshold = 0.01,
+  nb_theta_min = 0.1,
+  nb_theta_max = 1e+06,
+  nb_step_max_decrease = 0.1,
+  nb_step_max_increase = 0.5,
   direct_qr_threshold = 0.9,
   qr_collin_tol_multiplier = 1e-07,
   chol_stability_threshold = 1e-12,
@@ -38,6 +46,8 @@ fit_control(
   demean_projections_after_acc = 5L,
   demean_grand_acc_frequency = 20L,
   demean_ssr_check_frequency = 40L,
+  demean_2fe_max_iter = 100L,
+  demean_2fe_tolerance = 1e-12,
   keep_dmx = FALSE,
   use_weights = TRUE
 )
@@ -112,8 +122,17 @@ is \code{1.0e-15}.}
 \item{safe_clamp_max}{maximum value for safe clamping operations. The default
 is \code{1.0e12}.}
 
+\item{glm_init_eta}{initial value for eta in GLM initialization. The default
+is \code{1.0e-5}.}
+
 \item{iter_nb_theta}{integer indicating the maximum number of iterations for
-\code{\link[MASS]{theta.ml}}. The default is \code{25L}.}
+\code{\link[MASS]{theta.ml}}. The default is \code{10L}.}
+
+\item{nb_theta_tol}{tolerance for negative binomial theta convergence.
+The default is \code{1.0e-6}.}
+
+\item{nb_info_min}{minimum information value for Newton-Raphson step in
+negative binomial theta estimation. The default is \code{1.0e-12}.}
 
 \item{direct_qr_threshold}{threshold for using direct QR vs Cholesky
 decomposition. The default is \code{0.9}.}

@@ -617,7 +617,7 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
 
   // Check collinearity
   mat X_reduced = X;
-  double tolerance = params.qr_collin_tol_multiplier * 1e-7;
+  double tolerance = params.collin_tol;
   CollinearityResult collin_result =
       check_collinearity(X_reduced, weights_vec, use_weights, tolerance, true);
 
@@ -638,7 +638,7 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
 
   // Initial deviance
   vec mu_init =
-      vec(n, fill::value(link_inv(vec(n, fill::value(1e-5)), family_type)(0)));
+      vec(n, fill::value(link_inv(vec(n, fill::value(params.glm_init_eta)), family_type)(0)));
   double devold = dev_resids(y_orig, mu_init, theta, weights_vec, family_type,
                              params.safe_clamp_min);
 
@@ -646,7 +646,7 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
   vec eta_old(n, fill::none);
   vec z(n, fill::none);
   vec working_weights(n, fill::none);
-  vec eta_old_wls = vec(n, fill::value(1e-5));
+  vec eta_old_wls = vec(n, fill::value(params.glm_init_eta));
   // Pre-allocate workspace vectors to avoid repeated allocation
   vec mu_eta_val(n, fill::none);
   vec var_mu(n, fill::none);
@@ -709,13 +709,13 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
 
     if (need_step_halving &&
         !(std::abs(dev_evol) < params.dev_tol ||
-          std::abs(dev_evol) / (0.1 + std::abs(dev)) < params.dev_tol)) {
+          std::abs(dev_evol) / (params.rel_tol_denom + std::abs(dev)) < params.dev_tol)) {
       size_t iter_sh = 0;
       bool step_accepted = false;
 
       while (iter_sh < params.iter_inner_max) {
         iter_sh++;
-        eta_new = (eta_old_wls + wls_result.fitted_values) / 2.0;
+        eta_new = eta_old_wls + params.step_halving_factor * (wls_result.fitted_values - eta_old_wls);
         mu_new = link_inv(eta_new, family_type);
         dev = dev_resids(y_orig, mu_new, theta, weights_vec, family_type,
                          params.safe_clamp_min);
@@ -757,7 +757,7 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
     eta_old_wls = wls_result.fitted_values;
 
     // Check convergence
-    if (std::abs(dev_evol) / (0.1 + std::abs(dev)) < params.dev_tol) {
+    if (std::abs(dev_evol) / (params.rel_tol_denom + std::abs(dev)) < params.dev_tol) {
       result.conv = true;
       converged = true;
       break;

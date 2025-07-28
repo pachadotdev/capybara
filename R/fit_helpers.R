@@ -1,6 +1,12 @@
 #' srr_stats
 #' #' @srrstats {G1.0} Implements controls for efficient and numerically stable
-#'  fitting of generalized linear models with fixed effects.
+#'  fitting of generalized linear models with fixed effects in demeaning.
+#'  The default is \code{40L}.
+#' @param demean_2fe_max_iter maximum iterations for 2-way fixed effects
+#'  convergence algorithm. The default is \code{100L}.
+#' @param demean_2fe_tolerance tolerance for 2-way fixed effects convergence.
+#'  The default is \code{1.0e-12}.
+#' @param keep_dmx logical indicating if the demeaned design matrix should be.
 #' @srrstats {G2.0} Validates the integrity of inputs such as
 #'  factors, formulas, data, and control parameters.
 #' @srrstats {G2.0a} Gives informative errors (e.g. "tolerance must be
@@ -119,8 +125,14 @@ NULL
 #'  is \code{1.0e-15}.
 #' @param safe_clamp_max maximum value for safe clamping operations. The default
 #'  is \code{1.0e12}.
+#' @param glm_init_eta initial value for eta in GLM initialization. The default
+#'  is \code{1.0e-5}.
 #' @param iter_nb_theta integer indicating the maximum number of iterations for
-#'  \code{\link[MASS]{theta.ml}}. The default is \code{25L}.
+#'  \code{\link[MASS]{theta.ml}}. The default is \code{10L}.
+#' @param nb_theta_tol tolerance for negative binomial theta convergence.
+#'  The default is \code{1.0e-6}.
+#' @param nb_info_min minimum information value for Newton-Raphson step in
+#'  negative binomial theta estimation. The default is \code{1.0e-12}.
 #' @param direct_qr_threshold threshold for using direct QR vs Cholesky
 #'  decomposition. The default is \code{0.9}.
 #' @param qr_collin_tol_multiplier multiplier for QR collinearity tolerance.
@@ -192,8 +204,16 @@ fit_control <- function(
     binomial_mu_max = 0.999,
     safe_clamp_min = 1.0e-15,
     safe_clamp_max = 1.0e12,
-    # Negative Binomial parameters
-    iter_nb_theta = 25L,
+    glm_init_eta = 1.0e-5,
+    # Negative binomial parameters
+    iter_nb_theta = 10L,
+    nb_theta_tol = 1.0e-6,
+    nb_info_min = 1.0e-12,
+    nb_overdispersion_threshold = 0.01,
+    nb_theta_min = 0.1,
+    nb_theta_max = 1.0e6,
+    nb_step_max_decrease = 0.1,
+    nb_step_max_increase = 0.5,
     # Algorithm configuration
     direct_qr_threshold = 0.9,
     qr_collin_tol_multiplier = 1.0e-7,
@@ -207,6 +227,9 @@ fit_control <- function(
     demean_projections_after_acc = 5L,
     demean_grand_acc_frequency = 20L,
     demean_ssr_check_frequency = 40L,
+    # 2-FE specific parameters
+    demean_2fe_max_iter = 100L,
+    demean_2fe_tolerance = 1.0e-12,
     # Configuration flags
     keep_dmx = FALSE,
     use_weights = TRUE) {
@@ -241,6 +264,10 @@ fit_control <- function(
     demean_grand_acc_frequency = as.integer(demean_grand_acc_frequency),
     demean_ssr_check_frequency = as.integer(demean_ssr_check_frequency),
 
+    # 2-FE specific algorithm parameters
+    demean_2fe_max_iter = as.integer(demean_2fe_max_iter),
+    demean_2fe_tolerance = demean_2fe_tolerance,
+
     # Convergence algorithm parameters
     irons_tuck_eps = irons_tuck_eps,
     alpha_convergence_tol = alpha_convergence_tol,
@@ -254,7 +281,15 @@ fit_control <- function(
     binomial_mu_max = binomial_mu_max,
     safe_clamp_min = safe_clamp_min,
     safe_clamp_max = safe_clamp_max,
+    glm_init_eta = glm_init_eta,
     iter_nb_theta = as.integer(iter_nb_theta),
+    nb_theta_tol = nb_theta_tol,
+    nb_info_min = nb_info_min,
+    nb_overdispersion_threshold = nb_overdispersion_threshold,
+    nb_theta_min = nb_theta_min,
+    nb_theta_max = nb_theta_max,
+    nb_step_max_decrease = nb_step_max_decrease,
+    nb_step_max_increase = nb_step_max_increase,
 
     # Configuration parameters
     keep_dmx = as.logical(keep_dmx),

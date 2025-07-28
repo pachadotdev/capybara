@@ -50,9 +50,17 @@ struct CapybaraParameters {
   double binomial_mu_max;
   double safe_clamp_min;
   double safe_clamp_max;
+  double glm_init_eta;
 
   // Negative binomial parameters
   size_t iter_nb_theta;
+  double nb_theta_tol;
+  double nb_info_min;
+  double nb_overdispersion_threshold;
+  double nb_theta_min;
+  double nb_theta_max;
+  double nb_step_max_decrease;
+  double nb_step_max_increase;
 
   // Algorithm configuration
   double direct_qr_threshold;
@@ -70,6 +78,10 @@ struct CapybaraParameters {
   size_t demean_grand_acc_frequency;
   size_t demean_ssr_check_frequency;
 
+  // 2-FE specific parameters
+  size_t demean_2fe_max_iter;
+  double demean_2fe_tolerance;
+
   // Configuration flags
   bool keep_dmx;
   bool use_weights;
@@ -84,12 +96,16 @@ struct CapybaraParameters {
         convergence_iter_max(100), convergence_iter_full_dicho(10),
         step_halving_factor(0.5), binomial_mu_min(0.001),
         binomial_mu_max(0.999), safe_clamp_min(1.0e-15), safe_clamp_max(1.0e12),
-        iter_nb_theta(10), direct_qr_threshold(0.9),
+        glm_init_eta(1.0e-5),
+        iter_nb_theta(10), nb_theta_tol(1.0e-6), nb_info_min(1.0e-12), 
+        nb_overdispersion_threshold(0.01), nb_theta_min(0.1), nb_theta_max(1.0e6),
+        nb_step_max_decrease(0.1), nb_step_max_increase(0.5), direct_qr_threshold(0.9),
         qr_collin_tol_multiplier(1.0e-7), chol_stability_threshold(1.0e-12),
         alpha_convergence_tol(1.0e-8), alpha_iter_max(10000),
         demean_extra_projections(0), demean_warmup_iterations(15),
         demean_projections_after_acc(5), demean_grand_acc_frequency(20),
-        demean_ssr_check_frequency(40), keep_dmx(false), use_weights(true) {}
+        demean_ssr_check_frequency(40), demean_2fe_max_iter(100),
+        demean_2fe_tolerance(1.0e-12), keep_dmx(false), use_weights(true) {}
 
   // Constructor from R control list
   explicit CapybaraParameters(const cpp11::list &control) {
@@ -121,8 +137,16 @@ struct CapybaraParameters {
     binomial_mu_max = as_cpp<double>(control["binomial_mu_max"]);
     safe_clamp_min = as_cpp<double>(control["safe_clamp_min"]);
     safe_clamp_max = as_cpp<double>(control["safe_clamp_max"]);
+    glm_init_eta = as_cpp<double>(control["glm_init_eta"]);
 
     iter_nb_theta = as_cpp<size_t>(control["iter_nb_theta"]);
+    nb_theta_tol = as_cpp<double>(control["nb_theta_tol"]);
+    nb_info_min = as_cpp<double>(control["nb_info_min"]);
+    nb_overdispersion_threshold = as_cpp<double>(control["nb_overdispersion_threshold"]);
+    nb_theta_min = as_cpp<double>(control["nb_theta_min"]);
+    nb_theta_max = as_cpp<double>(control["nb_theta_max"]);
+    nb_step_max_decrease = as_cpp<double>(control["nb_step_max_decrease"]);
+    nb_step_max_increase = as_cpp<double>(control["nb_step_max_increase"]);
 
     direct_qr_threshold = as_cpp<double>(control["direct_qr_threshold"]);
     qr_collin_tol_multiplier =
@@ -143,6 +167,9 @@ struct CapybaraParameters {
         as_cpp<size_t>(control["demean_grand_acc_frequency"]);
     demean_ssr_check_frequency =
         as_cpp<size_t>(control["demean_ssr_check_frequency"]);
+
+    demean_2fe_max_iter = as_cpp<size_t>(control["demean_2fe_max_iter"]);
+    demean_2fe_tolerance = as_cpp<double>(control["demean_2fe_tolerance"]);
 
     keep_dmx = as_cpp<bool>(control["keep_dmx"]);
     use_weights = as_cpp<bool>(control["use_weights"]);

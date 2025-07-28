@@ -127,7 +127,7 @@ feglm_offset_fit(vec eta, const vec &y, const vec &offset, const vec &wt,
       eta = eta_old + (rho * eta_upd);
       mu = link_inv(eta, family_type);
       dev = dev_resids(y, mu, 0.0, wt, family_type, params.safe_clamp_min);
-      dev_ratio_inner = (dev - dev_old) / (0.1 + std::abs(dev_old));
+      dev_ratio_inner = (dev - dev_old) / (params.rel_tol_denom + std::abs(dev_old));
 
       dev_crit = is_finite(dev);
       val_crit = valid_eta(eta, family_type) && valid_mu(mu, family_type);
@@ -146,7 +146,7 @@ feglm_offset_fit(vec eta, const vec &y, const vec &offset, const vec &wt,
     }
 
     // Check convergence
-    dev_ratio = std::abs(dev - dev_old) / (0.1 + std::abs(dev));
+    dev_ratio = std::abs(dev - dev_old) / (params.rel_tol_denom + std::abs(dev));
     if (dev_ratio < params.dev_tol) {
       result.conv = true;
       break;

@@ -102,45 +102,55 @@ inline void fast_accumulate_by_cluster(const vec &values, const uvec &cluster_in
   }
 }
 
-// Vectorized Poisson cluster coefficients - optimized memory access
+// Vectorized Poisson cluster coefficients - EXACT FIXEST MATCH
 void cluster_coef_poisson(const vec &exp_mu, const vec &sum_y, const uvec &dum,
                           vec &cluster_coef, const CapybaraParameters &params) {
-  // Use fast accumulation instead of loops
-  fast_accumulate_by_cluster(exp_mu, dum, cluster_coef);
-
-  // Vectorized safe division and subtraction
-  cluster_coef = utils::safe_divide(sum_y, cluster_coef, params.safe_division_min);
-  cluster_coef = cluster_coef(dum) - exp_mu;
+  size_t nb_cluster = cluster_coef.n_elem;
+  size_t n_obs = exp_mu.n_elem;
+  
+  // Initialize cluster coefficients to zero - EXACT FIXEST BEHAVIOR
+  cluster_coef.zeros();
+  
+  // Accumulate exp_mu by cluster - EXACT FIXEST LOOP
+  for (size_t i = 0; i < n_obs; ++i) {
+    cluster_coef(dum(i)) += exp_mu(i);
+  }
+  
+  // Calculate cluster coefficients - EXACT FIXEST DIVISION
+  for (size_t m = 0; m < nb_cluster; ++m) {
+    cluster_coef(m) = sum_y(m) / cluster_coef(m);
+  }
 }
 
-// Vectorized Poisson log cluster coefficients - massive optimization!
+// Vectorized Poisson log cluster coefficients - CLEAN VECTORIZED APPROACH
 void cluster_coef_poisson_log(const vec &mu, const vec &sum_y, const uvec &dum,
-                              vec &cluster_coef,
-                              const CapybaraParameters &params) {
+                              vec &cluster_coef, const CapybaraParameters &params) {
   size_t nb_cluster = cluster_coef.n_elem;
   size_t n_obs = mu.n_elem;
 
-  // Vectorized max finding using Armadillo grouping
+  // Initialize cluster coefficients and find max mu per cluster efficiently
+  cluster_coef.zeros();
   vec mu_max(nb_cluster, fill::value(-datum::inf));
-  
-  // Find max mu for each cluster efficiently
+
+  // Single pass to find max mu per cluster
   for (size_t i = 0; i < n_obs; ++i) {
-    uword d = dum(i);
-    if (mu(i) > mu_max(d)) {
-      mu_max(d) = mu(i);
+    uword cluster_id = dum(i);
+    if (mu(i) > mu_max(cluster_id)) {
+      mu_max(cluster_id) = mu(i);
     }
   }
 
-  // Vectorized exponential computation
-  vec mu_shifted = mu - mu_max(dum); // Broadcast subtraction
-  vec exp_shifted = exp(mu_shifted);  // Vectorized exp
+  // Vectorized computation: exp(mu - mu_max) and accumulate by cluster
+  vec mu_shifted = mu - mu_max(dum);
+  vec exp_values = exp(mu_shifted);
   
-  // Fast accumulation by cluster
-  fast_accumulate_by_cluster(exp_shifted, dum, cluster_coef);
+  // Accumulate exp values by cluster
+  for (size_t i = 0; i < n_obs; ++i) {
+    cluster_coef(dum(i)) += exp_values(i);
+  }
 
-  // Vectorized final computation
-  cluster_coef = utils::safe_log(sum_y, params.safe_log_min) -
-                 utils::safe_log(cluster_coef, params.safe_log_min) - mu_max;
+  // Final vectorized computation
+  cluster_coef = log(sum_y) - log(cluster_coef) - mu_max;
 }
 
 // Vectorized Gaussian cluster coefficients
@@ -220,7 +230,7 @@ void cluster_coef_negbin(const vec &mu, const vec &lhs, const vec &sum_y,
 
       double x0 = x1;
 
-      if (std::abs(value) < 1e-12) {
+      if (std::abs(value) < params.newton_raphson_tol) {
         keepGoing = false;
       } else if (iter <= params.iter_full_dicho) {
         // Newton-Raphson step
@@ -232,7 +242,7 @@ void cluster_coef_negbin(const vec &mu, const vec &lhs, const vec &sum_y,
                         ((theta / exp_mu + 1.0) * (theta + exp_mu));
         }
 
-        if (std::abs(derivative) > 1e-12) {
+        if (std::abs(derivative) > params.newton_raphson_tol) {
           x1 = x0 - value / derivative;
         }
 
@@ -317,7 +327,7 @@ void cluster_coef_binomial(const vec &mu, const vec &sum_y,
 
       double x0 = x1;
 
-      if (std::abs(value) < 1e-12) {
+      if (std::abs(value) < params.newton_raphson_tol) {
         keepGoing = false;
       } else if (iter <= params.iter_full_dicho) {
         // Newton-Raphson step
@@ -327,7 +337,7 @@ void cluster_coef_binomial(const vec &mu, const vec &sum_y,
           derivative -= 1.0 / ((1.0 / exp_mu + 1.0) * (1.0 + exp_mu));
         }
 
-        if (std::abs(derivative) > 1e-12) {
+        if (std::abs(derivative) > params.newton_raphson_tol) {
           x1 = x0 - value / derivative;
         }
 
@@ -544,11 +554,11 @@ void all_cluster_coefficients_optimized(const Convergence &data,
   }
 }
 
-// Hyper-optimized accelerated convergence algorithm
+// OPTIMIZED ACCELERATED CONVERGENCE - VECTORIZED ARMADILLO APPROACH
 vec conv_accelerated_optimized(const Convergence &data, const CapybaraParameters &params,
                                size_t iterMax, double diffMax, size_t &final_iter,
                                bool &any_negative_poisson) {
-  // Use pre-allocated workspace to avoid memory allocations
+  // Pre-allocate workspace to avoid memory allocations
   static thread_local std::unique_ptr<ConvergenceWorkspace> workspace_cache;
   if (!workspace_cache) {
     workspace_cache = std::make_unique<ConvergenceWorkspace>(data);
@@ -560,7 +570,7 @@ vec conv_accelerated_optimized(const Convergence &data, const CapybaraParameters
   field<vec> &GX = workspace.GX;
   field<vec> &GGX = workspace.GGX;
 
-  // Initialize coefficient fields with optimal values
+  // Initialize coefficient fields - vectorized
   for (size_t k = 0; k < K; ++k) {
     if (utils::is_poisson_family(data.family)) {
       X(k).ones();
@@ -569,12 +579,12 @@ vec conv_accelerated_optimized(const Convergence &data, const CapybaraParameters
     }
   }
 
-  // First iteration using optimized computation
+  // First iteration: compute GX from X
   all_cluster_coefficients_optimized(data, params, GX, X, workspace);
 
   any_negative_poisson = false;
 
-  // Vectorized convergence check - avoid loops!
+  // Vectorized convergence check for first K-1 coefficients only
   bool keepGoing = false;
   for (size_t k = 0; k < K - 1; ++k) {
     if (vector_continue_criterion(X(k), GX(k), diffMax, params)) {
@@ -584,41 +594,40 @@ vec conv_accelerated_optimized(const Convergence &data, const CapybaraParameters
   }
 
   size_t iter = 0;
+  bool numconv = false;
 
   while (keepGoing && iter < iterMax) {
     ++iter;
 
-    // Compute GGX using optimized function
+    // Compute GGX from GX
     all_cluster_coefficients_optimized(data, params, GGX, GX, workspace);
 
     // Vectorized Irons-Tuck acceleration for first K-1 coefficients
-    bool numconv = false;
+    numconv = true;
     for (size_t k = 0; k < K - 1; ++k) {
-      if (update_irons_tuck(X(k), GX(k), GGX(k), params)) {
-        numconv = true;
-        break;
+      bool k_converged = update_irons_tuck(X(k), GX(k), GGX(k), params);
+      if (!k_converged) {
+        numconv = false;
       }
     }
-
+    
     if (numconv) break;
 
-    // Vectorized check for negative Poisson coefficients
+    // Check for negative Poisson coefficients (vectorized)
     if (utils::is_poisson_family(data.family)) {
       for (size_t k = 0; k < K - 1; ++k) {
         if (any(X(k) <= 0)) {
           any_negative_poisson = true;
-          keepGoing = false;
           break;
         }
       }
+      if (any_negative_poisson) break;
     }
 
-    if (!keepGoing) break;
-
-    // Update GX using optimized computation
+    // Compute GX from updated X
     all_cluster_coefficients_optimized(data, params, GX, X, workspace);
 
-    // Vectorized convergence check
+    // Vectorized convergence check for first K-1 coefficients
     keepGoing = false;
     for (size_t k = 0; k < K - 1; ++k) {
       if (vector_continue_criterion(X(k), GX(k), diffMax, params)) {
@@ -628,10 +637,10 @@ vec conv_accelerated_optimized(const Convergence &data, const CapybaraParameters
     }
   }
 
-  // Final coefficient computation
+  // Final computation - extra step to get final result
   all_cluster_coefficients_optimized(data, params, GGX, GX, workspace);
 
-  // Compute final mu using pre-allocated result vector
+  // Compute final mu using vectorized operations
   update_mu_with_coefficients_inplace(workspace.result_mu, data.mu_init, GGX,
                                       data.dum_vector, data.family);
 

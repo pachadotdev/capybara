@@ -17,7 +17,7 @@ using glm::link_inv;
 // THETA ML ESTIMATION
 //////////////////////////////////////////////////////////////////////////////
 
-inline double theta_ml(const vec &y, const vec &mu, size_t limit = 10) {
+inline double theta_ml(const vec &y, const vec &mu, const CapybaraParameters &params) {
   // Maximum likelihood estimation of theta for negative binomial
   // Using moment-based estimation with proper bounds checking
 
@@ -32,19 +32,19 @@ inline double theta_ml(const vec &y, const vec &mu, size_t limit = 10) {
   // (approaching Poisson)
   double overdispersion = y_dev - y_mean;
 
-  if (overdispersion <= 0.01 * y_mean) {
+  if (overdispersion <= params.nb_overdispersion_threshold * y_mean) {
     // Very little overdispersion - return very large theta (Poisson-like)
-    return 1e6;
+    return params.nb_theta_max;
   }
 
   double theta = y_mean * y_mean / overdispersion;
 
   // Ensure reasonable bounds
-  theta = std::max(theta, 0.1);
-  theta = std::min(theta, 1e6);
+  theta = std::max(theta, params.nb_theta_min);
+  theta = std::min(theta, params.nb_theta_max);
 
   // Newton-Raphson iterations for MLE
-  for (size_t iter = 0; iter < limit; ++iter) {
+  for (size_t iter = 0; iter < params.iter_nb_theta; ++iter) {
     double theta_old = theta;
 
     // Compute score function: derivative of log-likelihood w.r.t. theta
@@ -77,19 +77,19 @@ inline double theta_ml(const vec &y, const vec &mu, size_t limit = 10) {
     }
 
     // Newton-Raphson step with conservative updates
-    if (std::abs(info) > 1e-12) {
+    if (std::abs(info) > params.nb_info_min) {
       double step = score / info;
-      step = std::max(step, -0.1 * theta); // Don't decrease by more than 10%
-      step = std::min(step, 0.5 * theta);  // Don't increase by more than 50%
+      step = std::max(step, -params.nb_step_max_decrease * theta); // Don't decrease by more than limit
+      step = std::min(step, params.nb_step_max_increase * theta);  // Don't increase by more than limit
       theta = theta + step;
     }
 
     // Ensure theta stays positive and reasonable
-    theta = std::max(theta, 0.1);
-    theta = std::min(theta, 1e6);
+    theta = std::max(theta, params.nb_theta_min);
+    theta = std::min(theta, params.nb_theta_max);
 
     // Check convergence
-    if (std::abs(theta - theta_old) < 1e-6 * (1 + std::abs(theta))) {
+    if (std::abs(theta - theta_old) < params.nb_theta_tol * (1 + std::abs(theta))) {
       break;
     }
   }
@@ -149,7 +149,7 @@ fenegbin_fit(const mat &X, const vec &y_orig, const vec &w,
   // Poisson)
   if (init_theta <= 0) {
     // Start with a large theta value to be closer to Poisson limit
-    theta = std::max(theta_ml(y_orig, mu, params.iter_nb_theta), 10.0);
+    theta = std::max(theta_ml(y_orig, mu, params), 10.0);
   }
 
   // Storage for convergence checking
@@ -199,7 +199,7 @@ fenegbin_fit(const mat &X, const vec &y_orig, const vec &w,
     double dev = glm_fit.deviance;
 
     // Update theta
-    double theta_new = theta_ml(y_orig, mu, params.iter_nb_theta);
+    double theta_new = theta_ml(y_orig, mu, params);
 
     // Ensure theta is valid
     if (!is_finite(theta_new) || theta_new <= 0) {
@@ -207,9 +207,9 @@ fenegbin_fit(const mat &X, const vec &y_orig, const vec &w,
     }
 
     // Check convergence
-    double dev_crit = std::abs(dev - dev_old) / (0.1 + std::abs(dev));
+    double dev_crit = std::abs(dev - dev_old) / (params.rel_tol_denom + std::abs(dev));
     double theta_crit =
-        std::abs(theta_new - theta_old) / (0.1 + std::abs(theta_old));
+        std::abs(theta_new - theta_old) / (params.rel_tol_denom + std::abs(theta_old));
 
     if (dev_crit <= params.dev_tol && theta_crit <= params.dev_tol) {
       converged = true;
