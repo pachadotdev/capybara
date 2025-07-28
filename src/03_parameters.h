@@ -34,7 +34,7 @@ struct InferenceAlpha {
 
   cpp11::list to_list() const {
     CAPYBARA_TIME_FUNCTION("InferenceAlpha::to_list");
-    
+
     writable::list Alpha_r(Alpha.n_elem);
     for (size_t k = 0; k < Alpha.n_elem; ++k) {
       Alpha_r[k] = as_doubles_matrix(Alpha(k).eval());
@@ -65,18 +65,20 @@ struct CollinearityResult {
   }
 };
 
-inline bool rank_revealing_cholesky(uvec &excluded, const mat &XtX, double tol) {
+inline bool rank_revealing_cholesky(uvec &excluded, const mat &XtX,
+                                    double tol) {
   const size_t p = XtX.n_cols;
   excluded.zeros(p);
-  
-  if (p == 0) return true;
-  
+
+  if (p == 0)
+    return true;
+
   mat R(p, p, fill::zeros);
-  
+
   for (size_t j = 0; j < p; ++j) {
     // R(j,j) = sqrt(X(j,j) - sum(R(k,j)^2 for k < j))
     double R_jj = XtX(j, j);
-    
+
     if (j > 0) {
       // Dot product of column R(.,j) with itself (excluding elements)
       uvec valid_k = find(excluded.head(j) == 0);
@@ -85,40 +87,42 @@ inline bool rank_revealing_cholesky(uvec &excluded, const mat &XtX, double tol) 
         R_jj -= dot(R_col_j, R_col_j);
       }
     }
-    
+
     // Check for rank deficiency
     if (R_jj < tol) {
       excluded(j) = 1;
-      if (accu(excluded) == p) return false;
+      if (accu(excluded) == p)
+        return false;
       continue;
     }
-    
+
     R_jj = std::sqrt(R_jj);
     R(j, j) = R_jj;
-    
+
     // Row R(j, j+1:p-1)
     if (j < p - 1) {
       // Remaining column indices
       uvec remaining_cols = regspace<uvec>(j + 1, p - 1);
-      
+
       vec R_row_j = XtX.submat(remaining_cols, uvec{j});
-      
+
       if (j > 0) {
         // R_row_j -= R(valid_k, j+1:p-1).t() * R(valid_k, j)
         uvec valid_k = find(excluded.head(j) == 0);
         if (!valid_k.is_empty()) {
-          mat R_prev_cols = R.submat(valid_k, remaining_cols);  // R(valid_k, j+1:p-1)
-          vec R_prev_j = R.submat(valid_k, uvec{j});            // R(valid_k, j)
-          
+          mat R_prev_cols =
+              R.submat(valid_k, remaining_cols);     // R(valid_k, j+1:p-1)
+          vec R_prev_j = R.submat(valid_k, uvec{j}); // R(valid_k, j)
+
           R_row_j -= R_prev_cols.t() * R_prev_j;
         }
       }
-      
+
       R_row_j /= R_jj;
       R.submat(uvec{j}, remaining_cols) = R_row_j.t();
     }
   }
-  
+
   return accu(excluded) < p;
 }
 
@@ -126,7 +130,7 @@ inline CollinearityResult check_collinearity(mat &X, const vec &w,
                                              bool has_weights, double tolerance,
                                              bool store_qr = false) {
   CAPYBARA_TIME_FUNCTION("check_collinearity");
-  
+
   const size_t p = X.n_cols;
   CollinearityResult result(p);
 
@@ -167,7 +171,7 @@ inline CollinearityResult check_collinearity(mat &X, const vec &w,
   // Use fixest's rank-revealing approach (exact match for compatibility)
   uvec excluded;
   bool success = rank_revealing_cholesky(excluded, XtX, tolerance);
-  
+
   if (!success) {
     // All variables are collinear
     result.coef_status.zeros();
@@ -180,7 +184,7 @@ inline CollinearityResult check_collinearity(mat &X, const vec &w,
 
   // Find non-excluded columns
   const uvec indep = find(excluded == 0);
-  
+
   result.coef_status.zeros();
   if (!indep.is_empty()) {
     result.coef_status.elem(indep).ones();
@@ -237,7 +241,7 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
                               bool has_weights, bool has_fixed_effects,
                               BetaWorkspace *ws = nullptr) {
   CAPYBARA_TIME_FUNCTION("get_beta");
-  
+
   const size_t n = X.n_rows;
   const size_t p = X.n_cols;
   const size_t p_orig = collin_result.coef_status.n_elem;
@@ -356,7 +360,7 @@ inline InferenceAlpha get_alpha(const vec &sumFE,
                                 double tol, size_t iter_max,
                                 AlphaWorkspace *ws = nullptr) {
   CAPYBARA_TIME_FUNCTION("get_alpha");
-  
+
   const size_t Q = group_indices.n_elem;
   const size_t N = sumFE.n_elem;
 
@@ -408,7 +412,7 @@ inline InferenceAlpha get_alpha(const vec &sumFE,
   if (obs_to_group.n_rows < N || obs_to_group.n_cols < Q) {
     obs_to_group.set_size(N, Q);
   }
-  
+
   for (size_t q = 0; q < Q; ++q) {
     for (size_t g = 0; g < group_indices(q).n_elem; ++g) {
       const uvec &group_obs = group_indices(q)(g);
@@ -424,14 +428,19 @@ inline InferenceAlpha get_alpha(const vec &sumFE,
   vec &residual = ws->residual;
   vec &group_sums = ws->group_sums;
   uvec &group_counts = ws->group_counts;
-  
-  if (current_fe.n_elem < N) current_fe.set_size(N);
-  if (old_fe.n_elem < N) old_fe.set_size(N);
-  if (residual.n_elem < N) residual.set_size(N);
-  if (group_sums.n_elem < max_groups) group_sums.set_size(max_groups);
-  if (group_counts.n_elem < max_groups) group_counts.set_size(max_groups);
-  
-  current_fe.subvec(0, N-1).zeros();
+
+  if (current_fe.n_elem < N)
+    current_fe.set_size(N);
+  if (old_fe.n_elem < N)
+    old_fe.set_size(N);
+  if (residual.n_elem < N)
+    residual.set_size(N);
+  if (group_sums.n_elem < max_groups)
+    group_sums.set_size(max_groups);
+  if (group_counts.n_elem < max_groups)
+    group_counts.set_size(max_groups);
+
+  current_fe.subvec(0, N - 1).zeros();
   bool converged = false;
   size_t iter = 0;
 
@@ -439,21 +448,22 @@ inline InferenceAlpha get_alpha(const vec &sumFE,
   uvec nb_ref(Q, fill::zeros);
   for (size_t q = 1; q < Q; ++q) {
     if (cluster_sizes(q) > 0) {
-      result.Alpha(q)(0) = 0.0;  // First group is reference
+      result.Alpha(q)(0) = 0.0; // First group is reference
       nb_ref(q) = 1;
     }
   }
 
   while (iter < iter_max && !converged) {
     iter++;
-    old_fe.subvec(0, N-1) = current_fe.subvec(0, N-1);
-    
+    old_fe.subvec(0, N - 1) = current_fe.subvec(0, N - 1);
+
     // For each dimension, solve for fixed effects
     for (size_t q = 0; q < Q; ++q) {
-      if (cluster_sizes(q) == 0) continue;
-      
+      if (cluster_sizes(q) == 0)
+        continue;
+
       // Compute residual after removing other dimensions
-      residual.subvec(0, N-1) = sumFE;
+      residual.subvec(0, N - 1) = sumFE;
       for (size_t other_q = 0; other_q < Q; ++other_q) {
         if (other_q != q) {
           for (size_t obs = 0; obs < N; ++obs) {
@@ -461,25 +471,26 @@ inline InferenceAlpha get_alpha(const vec &sumFE,
           }
         }
       }
-      
+
       // Compute group averages for dimension q
-      group_sums.subvec(0, cluster_sizes(q)-1).zeros();
-      group_counts.subvec(0, cluster_sizes(q)-1).zeros();
-      
+      group_sums.subvec(0, cluster_sizes(q) - 1).zeros();
+      group_counts.subvec(0, cluster_sizes(q) - 1).zeros();
+
       for (size_t obs = 0; obs < N; ++obs) {
         uword g = obs_to_group(obs, q);
         group_sums(g) += residual(obs);
         group_counts(g)++;
       }
-      
+
       // Set averages (with reference constraint if not first dimension)
       for (size_t g = 0; g < cluster_sizes(q); ++g) {
         if (group_counts(g) > 0) {
           result.Alpha(q)(g) = group_sums(g) / group_counts(g);
         }
       }
-      
-      // Apply reference constraint (all groups sum to zero, except first dimension)
+
+      // Apply reference constraint (all groups sum to zero, except first
+      // dimension)
       if (q > 0) {
         double mean_fe = 0.0;
         size_t total_count = 0;
@@ -493,18 +504,19 @@ inline InferenceAlpha get_alpha(const vec &sumFE,
         }
       }
     }
-    
+
     // Check convergence by computing current fitted values
-    current_fe.subvec(0, N-1).zeros();
+    current_fe.subvec(0, N - 1).zeros();
     for (size_t obs = 0; obs < N; ++obs) {
       for (size_t q = 0; q < Q; ++q) {
         current_fe(obs) += result.Alpha(q)(obs_to_group(obs, q));
       }
     }
-    
+
     // Convergence check
     if (iter > 1) {
-      double diff = norm(current_fe.subvec(0, N-1) - old_fe.subvec(0, N-1), 2);
+      double diff =
+          norm(current_fe.subvec(0, N - 1) - old_fe.subvec(0, N - 1), 2);
       if (diff < tol) {
         converged = true;
       }

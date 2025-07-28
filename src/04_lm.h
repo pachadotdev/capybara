@@ -41,7 +41,7 @@ struct InferenceLM {
 
   cpp11::list to_list() const {
     CAPYBARA_TIME_FUNCTION("InferenceLM::to_list");
-    
+
     auto out = writable::list({"coefficients"_nm = as_doubles(coefficients),
                                "fitted.values"_nm = as_doubles(fitted_values),
                                "weights"_nm = as_doubles(weights),
@@ -67,7 +67,7 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
                             const field<uvec> &fe_id_tables,
                             const CapybaraParameters &params) {
   CAPYBARA_TIME_FUNCTION("felm_fit");
-  
+
   const size_t n = y.n_elem;
   const size_t p_orig = X.n_cols;
   const bool has_fixed_effects =
