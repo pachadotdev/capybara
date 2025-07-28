@@ -6,11 +6,6 @@
 namespace capybara {
 namespace group_sums {
 
-//////////////////////////////////////////////////////////////////////////////
-// RESULT STRUCTURES
-//////////////////////////////////////////////////////////////////////////////
-
-// Group sums result structure
 struct GroupSums {
   mat result;
 
@@ -24,11 +19,6 @@ struct GroupSums {
   }
 };
 
-//////////////////////////////////////////////////////////////////////////////
-// GROUP SUM OPERATIONS
-//////////////////////////////////////////////////////////////////////////////
-
-// Basic group sums with weights
 inline GroupSums group_sums(const mat &M, const vec &w,
                             const field<uvec> &group_indices) {
   const size_t J = group_indices.n_elem;
@@ -46,7 +36,6 @@ inline GroupSums group_sums(const mat &M, const vec &w,
   return result;
 }
 
-// Spectral group sums with shifting
 inline GroupSums group_sums_spectral(const mat &M, const mat &v, const mat &w,
                                      size_t K,
                                      const field<uvec> &group_indices) {
@@ -71,7 +60,7 @@ inline GroupSums group_sums_spectral(const mat &M, const mat &v, const mat &w,
     vec v_indexed = v.elem(indexes);
 
     for (size_t k = 1; k <= K && k < I; ++k) {
-      // Vectorized subvector operations
+
       v_shifted.subvec(k, I - 1) += v_indexed.subvec(0, I - k - 1);
     }
 
@@ -82,7 +71,6 @@ inline GroupSums group_sums_spectral(const mat &M, const mat &v, const mat &w,
   return result;
 }
 
-// Variance group sums
 inline GroupSums group_sums_var(const mat &M,
                                 const field<uvec> &group_indices) {
   const size_t J = group_indices.n_elem;
@@ -100,7 +88,6 @@ inline GroupSums group_sums_var(const mat &M,
   return result;
 }
 
-// Covariance group sums
 inline GroupSums group_sums_cov(const mat &M, const mat &N,
                                 const field<uvec> &group_indices) {
   const size_t J = group_indices.n_elem;

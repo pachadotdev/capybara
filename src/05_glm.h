@@ -17,17 +17,11 @@ using parameters::get_beta;
 using parameters::InferenceAlpha;
 using parameters::InferenceBeta;
 
-// Use convergence family types to avoid duplication
 using convergence::Family;
 using convergence::utils::is_poisson_family;
 using convergence::utils::safe_divide;
 using convergence::utils::safe_log;
 
-//////////////////////////////////////////////////////////////////////////////
-// FAMILY TYPE MAPPING
-//////////////////////////////////////////////////////////////////////////////
-
-// Map convergence::Family to the GLM FamilyType for compatibility
 inline Family string_to_family(const std::string &fam) {
   static const std::unordered_map<std::string, Family> family_map = {
       {"gaussian", Family::GAUSSIAN},
@@ -38,36 +32,26 @@ inline Family string_to_family(const std::string &fam) {
       {"negative_binomial", Family::NEGBIN}};
 
   auto it = family_map.find(fam);
-  return (it != family_map.end()) ? it->second
-                                  : Family::GAUSSIAN; // Default fallback
+  return (it != family_map.end()) ? it->second : Family::GAUSSIAN;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-// UTILITY FUNCTIONS
-//////////////////////////////////////////////////////////////////////////////
-
 inline std::string tidy_family(const std::string &family) {
-  // tidy family param
+
   std::string fam = family;
 
-  // 1. put all in lowercase
   std::transform(fam.begin(), fam.end(), fam.begin(),
                  [](unsigned char c) { return std::tolower(c); });
 
-  // 2. remove numbers
   fam.erase(std::remove_if(fam.begin(), fam.end(), ::isdigit), fam.end());
 
-  // 3. remove parentheses and everything inside
   size_t pos = fam.find("(");
   if (pos != std::string::npos) {
     fam.erase(pos, fam.size());
   }
 
-  // 4. replace spaces and dots
   std::replace(fam.begin(), fam.end(), ' ', '_');
   std::replace(fam.begin(), fam.end(), '.', '_');
 
-  // 5. trim
   fam.erase(std::remove_if(fam.begin(), fam.end(), ::isspace), fam.end());
 
   return fam;
@@ -85,10 +69,6 @@ inline Family get_family_type(const std::string &fam) {
   auto it = family_map.find(fam);
   return (it != family_map.end()) ? it->second : Family::GAUSSIAN;
 }
-
-//////////////////////////////////////////////////////////////////////////////
-// LINK FUNCTIONS
-//////////////////////////////////////////////////////////////////////////////
 
 inline vec link_inv(const vec &eta, const Family family_type) {
   switch (family_type) {
@@ -108,7 +88,6 @@ inline vec link_inv(const vec &eta, const Family family_type) {
   }
 }
 
-// Derivative of inverse link function (d mu / d eta)
 inline vec d_inv_link(const vec &eta, const Family family_type) {
   switch (family_type) {
   case Family::GAUSSIAN:
@@ -129,18 +108,13 @@ inline vec d_inv_link(const vec &eta, const Family family_type) {
   }
 }
 
-//////////////////////////////////////////////////////////////////////////////
-// INITIALIZATION FUNCTIONS
-//////////////////////////////////////////////////////////////////////////////
-
-// Initialize mu and eta for different families
 void initialize_family(vec &mu, vec &eta, const vec &y_orig, double mean_y,
                        const Family family_type, double binomial_mu_min,
                        double binomial_mu_max, double safe_clamp_min,
                        double safe_clamp_max) {
   switch (family_type) {
   case Family::GAUSSIAN:
-    mu = y_orig; // Identity link: mu = eta for Gaussian
+    mu = y_orig;
     eta = y_orig;
     break;
   case Family::POISSON:
@@ -149,25 +123,23 @@ void initialize_family(vec &mu, vec &eta, const vec &y_orig, double mean_y,
     eta = log(clamp(mu, safe_clamp_min, safe_clamp_max));
     break;
   case Family::BINOMIAL:
-    // For binomial, y should be 0 or 1
-    // Initialize mu away from boundaries to avoid numerical issues
+
     mu = clamp((y_orig + mean_y) / 2.0, binomial_mu_min, binomial_mu_max);
     eta = log(mu / (1.0 - mu));
     break;
   case Family::GAMMA:
     mu = clamp(y_orig, safe_clamp_min, safe_clamp_max);
-    eta = 1.0 / mu; // reciprocal link
+    eta = 1.0 / mu;
     break;
   case Family::INV_GAUSSIAN:
     mu = clamp(y_orig, safe_clamp_min, safe_clamp_max);
-    eta = 1.0 / square(mu); // inverse squared link
+    eta = 1.0 / square(mu);
     break;
   default:
     stop("Unknown family");
   }
 }
 
-// Conservative initialization for fixed effects models
 void initialize_family_fixed_effects(vec &mu, vec &eta, double mean_y,
                                      const Family family_type,
                                      double safe_clamp_min) {
@@ -200,20 +172,14 @@ void initialize_family_fixed_effects(vec &mu, vec &eta, double mean_y,
   }
 }
 
-//////////////////////////////////////////////////////////////////////////////
-// DEVIANCE FUNCTIONS
-//////////////////////////////////////////////////////////////////////////////
-
-// Deviance functions
 inline double dev_resids_gaussian(const vec &y, const vec &mu, const vec &w) {
   return dot(w, square(y - mu));
 }
 
 inline double dev_resids_poisson(const vec &y, const vec &mu, const vec &w) {
-  // Standard Poisson deviance
+
   vec r(y.n_elem, fill::zeros);
 
-  // Find positive y values
   uvec p = find(y > 0);
   if (p.n_elem > 0) {
     vec y_p = y(p);
@@ -225,17 +191,14 @@ inline double dev_resids_poisson(const vec &y, const vec &mu, const vec &w) {
   return 2.0 * accu(r);
 }
 
-// Binomial deviance matching R's base implementation
 inline double dev_resids_binomial(const vec &y, const vec &mu, const vec &w) {
   vec r(y.n_elem, fill::zeros);
 
-  // y = 1 cases
   uvec p = find(y == 1);
   if (p.n_elem > 0) {
     r(p) = log(y(p) / mu(p));
   }
 
-  // y = 0 cases
   uvec q = find(y == 0);
   if (q.n_elem > 0) {
     r(q) = log((1.0 - y(q)) / (1.0 - mu(q)));
@@ -246,7 +209,7 @@ inline double dev_resids_binomial(const vec &y, const vec &mu, const vec &w) {
 
 inline double dev_resids_gamma(const vec &y, const vec &mu, const vec &w,
                                double safe_clamp_min) {
-  // Standard Gamma deviance: -2 * sum(log(y/mu) - (y-mu)/mu)
+
   vec y_adj = clamp(y, safe_clamp_min, datum::inf);
   vec mu_adj = clamp(mu, safe_clamp_min, datum::inf);
 
@@ -262,7 +225,7 @@ inline double dev_resids_invgaussian(const vec &y, const vec &mu,
 inline double dev_resids_negbin(const vec &y, const vec &mu,
                                 const double &theta, const vec &w,
                                 double safe_clamp_min) {
-  vec y_adj = clamp(y, safe_clamp_min, datum::inf); // Avoid log(0)
+  vec y_adj = clamp(y, safe_clamp_min, datum::inf);
   vec r =
       w % (y % log(y_adj / mu) - (y + theta) % log((y + theta) / (mu + theta)));
 
@@ -290,10 +253,6 @@ inline double dev_resids(const vec &y, const vec &mu, const double &theta,
   }
 }
 
-//////////////////////////////////////////////////////////////////////////////
-// VARIANCE V(mu)
-//////////////////////////////////////////////////////////////////////////////
-
 inline vec variance(const vec &mu, const double &theta,
                     const Family family_type) {
   switch (family_type) {
@@ -314,10 +273,6 @@ inline vec variance(const vec &mu, const double &theta,
   }
 }
 
-//////////////////////////////////////////////////////////////////////////////
-// VALIDATION FUNCTIONS
-//////////////////////////////////////////////////////////////////////////////
-
 inline bool valid_eta(const vec &eta, const Family family_type) {
   switch (family_type) {
   case Family::GAUSSIAN:
@@ -326,11 +281,9 @@ inline bool valid_eta(const vec &eta, const Family family_type) {
   case Family::NEGBIN:
     return is_finite(eta);
   case Family::GAMMA:
-    return is_finite(eta) &&
-           all(eta != 0.0); // reciprocal link can't have eta=0
+    return is_finite(eta) && all(eta != 0.0);
   case Family::INV_GAUSSIAN:
-    return is_finite(eta) &&
-           all(eta > 0.0); // inverse squared link needs eta > 0
+    return is_finite(eta) && all(eta > 0.0);
   default:
     stop("Unknown family");
   }
@@ -354,7 +307,6 @@ inline bool valid_mu(const vec &mu, const Family family_type) {
   }
 }
 
-// Validate response vector for given family
 inline bool valid_response(const vec &y, const Family family_type) {
   switch (family_type) {
   case Family::GAUSSIAN:
@@ -372,18 +324,12 @@ inline bool valid_response(const vec &y, const Family family_type) {
   }
 }
 
-//////////////////////////////////////////////////////////////////////////////
-// RESULT STRUCTURES
-//////////////////////////////////////////////////////////////////////////////
-
-// Similar to InferenceWLM but only with what IRLS needs
 struct InferenceWLM {
   vec coefficients;
   vec fitted_values;
-  uvec coef_status; // 1 = estimable, 0 = collinear
+  uvec coef_status;
   bool success;
 
-  // Optional components (only computed when requested)
   mat hessian;
   field<vec> fixed_effects;
   uvec nb_references;
@@ -396,7 +342,6 @@ struct InferenceWLM {
         is_regular(true), has_fe(false) {}
 };
 
-// GLM fitting result structure
 struct InferenceGLM {
   vec coefficients;
   vec eta;
@@ -412,14 +357,12 @@ struct InferenceGLM {
   vec residuals_working;
   vec residuals_response;
 
-  // Fixed effects info
   field<vec> fixed_effects;
   uvec nb_references; // Number of references per dimension
   bool is_regular;    // Whether fixed effects are regular
   bool has_fe = false;
   uvec iterations;
 
-  // Optional matrix storage
   mat X_dm;
   bool has_mx = false;
 
@@ -461,10 +404,6 @@ struct InferenceGLM {
   }
 };
 
-//////////////////////////////////////////////////////////////////////////////
-// WLM FITTING
-//////////////////////////////////////////////////////////////////////////////
-
 inline InferenceWLM wlm_fit(const mat &X_reduced, const vec &y,
                             const vec &y_orig, const vec &w,
                             const field<uvec> &fe_indices, const uvec &nb_ids,
@@ -482,13 +421,12 @@ inline InferenceWLM wlm_fit(const mat &X_reduced, const vec &y,
 
   bool use_weights = params.use_weights && !all(w == 1.0);
 
-  // Demean variables
   mat X_demean;
   vec y_demean;
   DemeanResult y_demean_result(0);
 
   if (has_fixed_effects) {
-    // Demean Y
+
     field<vec> y_to_demean(1);
     y_to_demean(0) = y;
 
@@ -497,22 +435,19 @@ inline InferenceWLM wlm_fit(const mat &X_reduced, const vec &y,
                          compute_fixed_effects, params);
     y_demean = y_demean_result.demeaned_vars(0);
 
-    // Optimized batch demeaning of ALL X columns for efficiency
     if (X_reduced.n_cols > 0) {
-      // Pre-allocate the demeaned matrix
+
       X_demean.set_size(n, X_reduced.n_cols);
-      
-      // Use in-place column demeaning for better memory efficiency
+
       field<vec> x_columns_to_demean(X_reduced.n_cols);
       for (size_t j = 0; j < X_reduced.n_cols; ++j) {
-        x_columns_to_demean(j) = X_reduced.unsafe_col(j); // Avoid copy when possible
+        x_columns_to_demean(j) = X_reduced.unsafe_col(j);
       }
 
-      // Single batch demeaning call (major optimization)
-      DemeanResult x_demean_result = demean_variables(
-          x_columns_to_demean, w, fe_indices, nb_ids, fe_id_tables, false, params);
+      DemeanResult x_demean_result =
+          demean_variables(x_columns_to_demean, w, fe_indices, nb_ids,
+                           fe_id_tables, false, params);
 
-      // Vectorized column assignment with direct memory access
       for (size_t j = 0; j < X_reduced.n_cols; ++j) {
         X_demean.col(j) = std::move(x_demean_result.demeaned_vars(j));
       }
@@ -527,11 +462,9 @@ inline InferenceWLM wlm_fit(const mat &X_reduced, const vec &y,
     result.has_fe = false;
   }
 
-  // Run regression with pre-computed collinearity
   InferenceBeta beta_result = get_beta(X_demean, y_demean, y, w, collin_result,
                                        use_weights, has_fixed_effects);
 
-  // Extract results
   result.coefficients = beta_result.coefficients;
   result.fitted_values = beta_result.fitted_values;
   result.coef_status = beta_result.coef_status;
@@ -540,9 +473,8 @@ inline InferenceWLM wlm_fit(const mat &X_reduced, const vec &y,
     result.hessian = beta_result.hessian;
   }
 
-  // Extract fixed effects using reduced X
   if (has_fixed_effects && compute_fixed_effects) {
-    // Extract the non-zero coefficients for the reduced matrix
+
     vec coef_reduced;
     if (collin_result.has_collinearity) {
       coef_reduced = result.coefficients(collin_result.non_collinear_cols);
@@ -552,21 +484,17 @@ inline InferenceWLM wlm_fit(const mat &X_reduced, const vec &y,
 
     vec sum_fe = result.fitted_values - X_reduced * coef_reduced;
 
-    // Optimize group indices computation with parallel-friendly approach
     field<field<uvec>> group_indices(fe_indices.n_elem);
     for (size_t k = 0; k < fe_indices.n_elem; ++k) {
       group_indices(k).set_size(nb_ids(k));
-      
-      // Pre-allocate vectors to avoid repeated memory allocation
+
       std::vector<std::vector<uword>> temp_groups(nb_ids(k));
       const uvec &fe_idx = fe_indices(k);
-      
-      // Single pass through indices to build groups
+
       for (size_t obs = 0; obs < fe_idx.n_elem; ++obs) {
         temp_groups[fe_idx(obs)].push_back(obs);
       }
-      
-      // Convert to uvec format efficiently
+
       for (size_t g = 0; g < nb_ids(k); ++g) {
         group_indices(k)(g) = conv_to<uvec>::from(temp_groups[g]);
       }
@@ -584,10 +512,6 @@ inline InferenceWLM wlm_fit(const mat &X_reduced, const vec &y,
   return result;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-// GLM FITTING
-//////////////////////////////////////////////////////////////////////////////
-
 inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
                               const field<uvec> &fe_indices, const uvec &nb_ids,
                               const field<uvec> &fe_id_tables,
@@ -601,27 +525,22 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
 
   InferenceGLM result(n, p_orig);
 
-  // Get family type
   std::string fam = tidy_family(family);
   Family family_type = get_family_type(fam);
 
-  // Validate response
   if (!valid_response(y_orig, family_type)) {
     result.conv = false;
     return result;
   }
 
-  // Initialize weights
   bool use_weights = params.use_weights && w.n_elem > 1 && !all(w == 1.0);
   vec weights_vec = use_weights ? w : ones<vec>(n);
 
-  // Check collinearity
   mat X_reduced = X;
   double tolerance = params.collin_tol;
   CollinearityResult collin_result =
       check_collinearity(X_reduced, weights_vec, use_weights, tolerance, true);
 
-  // Initialize GLM variables
   double mean_y =
       use_weights ? sum(weights_vec % y_orig) / sum(weights_vec) : mean(y_orig);
   vec mu(n, fill::none);
@@ -636,32 +555,28 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
                                     params.safe_clamp_min);
   }
 
-  // Initial deviance
   vec mu_init =
-      vec(n, fill::value(link_inv(vec(n, fill::value(params.glm_init_eta)), family_type)(0)));
+      vec(n, fill::value(link_inv(vec(n, fill::value(params.glm_init_eta)),
+                                  family_type)(0)));
   double devold = dev_resids(y_orig, mu_init, theta, weights_vec, family_type,
                              params.safe_clamp_min);
 
-  // IRLS variables - pre-allocated for efficiency
   vec eta_old(n, fill::none);
   vec z(n, fill::none);
   vec working_weights(n, fill::none);
   vec eta_old_wls = vec(n, fill::value(params.glm_init_eta));
-  // Pre-allocate workspace vectors to avoid repeated allocation
+
   vec mu_eta_val(n, fill::none);
   vec var_mu(n, fill::none);
   vec mu_new(n, fill::none);
-  
-  // Pre-allocate WLM result to avoid constructor calls in loop
+
   InferenceWLM wls_result(n, p_orig);
   bool converged = false;
 
-  // IRLS loop
   for (size_t iter = 0; iter < params.iter_max; iter++) {
     result.iter = iter + 1;
     eta_old = eta;
 
-    // Compute derivatives and weights - using pre-allocated vectors
     mu_eta_val = d_inv_link(eta, family_type);
     var_mu = variance(mu, theta, family_type);
 
@@ -669,7 +584,6 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
       break;
     }
 
-    // Working response and weights - optimized with vectorized operations
     z = eta + (y_orig - mu) / mu_eta_val;
     working_weights = weights_vec % square(mu_eta_val) / var_mu;
 
@@ -677,10 +591,9 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
       break;
     }
 
-    // Use standard wlm_fit for all cases (more reliable) - reuse pre-allocated result
-    wls_result = wlm_fit(X_reduced, z, y_orig, working_weights, 
-                        fe_indices, nb_ids, fe_id_tables,
-                        collin_result, params, false, false);
+    wls_result =
+        wlm_fit(X_reduced, z, y_orig, working_weights, fe_indices, nb_ids,
+                fe_id_tables, collin_result, params, false, false);
 
     if (!wls_result.success ||
         any(wls_result.coefficients != wls_result.coefficients)) {
@@ -691,31 +604,30 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
       break;
     }
 
-    // Coefficients are already properly sized
     result.coefficients = wls_result.coefficients;
     result.coef_status = wls_result.coef_status;
 
-    // New eta and mu
     vec eta_new = wls_result.fitted_values;
     mu_new = link_inv(eta_new, family_type);
     double dev = dev_resids(y_orig, mu_new, theta, weights_vec, family_type,
                             params.safe_clamp_min);
     double dev_evol = dev - devold;
 
-    // Step halving if needed
     bool need_step_halving = !is_finite(dev) || (dev_evol > 0) ||
                              !valid_eta(eta_new, family_type) ||
                              !valid_mu(mu_new, family_type);
 
     if (need_step_halving &&
         !(std::abs(dev_evol) < params.dev_tol ||
-          std::abs(dev_evol) / (params.rel_tol_denom + std::abs(dev)) < params.dev_tol)) {
+          std::abs(dev_evol) / (params.rel_tol_denom + std::abs(dev)) <
+              params.dev_tol)) {
       size_t iter_sh = 0;
       bool step_accepted = false;
 
       while (iter_sh < params.iter_inner_max) {
         iter_sh++;
-        eta_new = eta_old_wls + params.step_halving_factor * (wls_result.fitted_values - eta_old_wls);
+        eta_new = eta_old_wls + params.step_halving_factor *
+                                    (wls_result.fitted_values - eta_old_wls);
         mu_new = link_inv(eta_new, family_type);
         dev = dev_resids(y_orig, mu_new, theta, weights_vec, family_type,
                          params.safe_clamp_min);
@@ -756,8 +668,8 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
 
     eta_old_wls = wls_result.fitted_values;
 
-    // Check convergence
-    if (std::abs(dev_evol) / (params.rel_tol_denom + std::abs(dev)) < params.dev_tol) {
+    if (std::abs(dev_evol) / (params.rel_tol_denom + std::abs(dev)) <
+        params.dev_tol) {
       result.conv = true;
       converged = true;
       break;
@@ -766,7 +678,6 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
     devold = dev;
   }
 
-  // Final processing
   result.conv = converged;
   result.eta = eta;
   result.fitted_values = mu;
@@ -774,7 +685,6 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
   result.residuals_response = y_orig - mu;
   result.residuals_working = z - eta;
 
-  // Final hessian and fixed effects
   if (has_fixed_effects) {
     vec final_mu_eta = d_inv_link(eta, family_type);
     vec final_var_mu = variance(mu, theta, family_type);
@@ -782,10 +692,9 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
         weights_vec % square(final_mu_eta) / final_var_mu;
     vec final_z = eta + (y_orig - mu) / final_mu_eta;
 
-    // Get final WLS fit with fixed effects (need full wlm_fit for fixed effects computation)
-    InferenceWLM final_wls = wlm_fit(X_reduced, final_z, y_orig, final_working_weights,
-                                    fe_indices, nb_ids, fe_id_tables,
-                                    collin_result, params, true, true);
+    InferenceWLM final_wls =
+        wlm_fit(X_reduced, final_z, y_orig, final_working_weights, fe_indices,
+                nb_ids, fe_id_tables, collin_result, params, true, true);
 
     result.hessian = final_wls.hessian;
     result.fixed_effects = final_wls.fixed_effects;
@@ -793,15 +702,16 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
     result.is_regular = final_wls.is_regular;
     result.nb_references = final_wls.nb_references;
   } else {
-    // Compute hessian on reduced matrix using pre-computed collinearity
+
     result.hessian.zeros();
     if (X_reduced.n_cols > 0) {
       mat weighted_X = X_reduced.each_col() % sqrt(working_weights);
       mat hess_reduced = weighted_X.t() * weighted_X;
 
       if (collin_result.has_collinearity) {
-        // Vectorized submatrix assignment
-        result.hessian(collin_result.non_collinear_cols, collin_result.non_collinear_cols) = hess_reduced;
+
+        result.hessian(collin_result.non_collinear_cols,
+                       collin_result.non_collinear_cols) = hess_reduced;
       } else {
         result.hessian = hess_reduced;
       }
@@ -810,7 +720,6 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
     result.has_fe = false;
   }
 
-  // Null deviance
   vec mu_null(y_orig.n_elem, fill::value(mean_y));
   result.null_deviance = dev_resids(y_orig, mu_null, theta, weights_vec,
                                     family_type, params.safe_clamp_min);

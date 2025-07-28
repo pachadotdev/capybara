@@ -16,11 +16,6 @@ using parameters::get_beta;
 using parameters::InferenceAlpha;
 using parameters::InferenceBeta;
 
-//////////////////////////////////////////////////////////////////////////////
-// RESULT STRUCTURES
-//////////////////////////////////////////////////////////////////////////////
-
-// LM fitting result structure
 struct InferenceLM {
   vec coefficients;
   vec fitted_values;
@@ -30,7 +25,6 @@ struct InferenceLM {
   uvec coef_status; // 1 = estimable, 0 = collinear
   bool success;
 
-  // Fixed effects info
   field<vec> fixed_effects;
   uvec nb_references; // Number of references per dimension
   bool is_regular;    // Whether fixed effects are regular
@@ -64,10 +58,6 @@ struct InferenceLM {
   }
 };
 
-//////////////////////////////////////////////////////////////////////////////
-// LM FITTING
-//////////////////////////////////////////////////////////////////////////////
-
 inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
                             const field<uvec> &fe_indices, const uvec &nb_ids,
                             const field<uvec> &fe_id_tables,
@@ -79,15 +69,16 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
 
   InferenceLM result(n, p_orig);
 
-  // STEP 1: Check collinearity and modify X in place
+  // Step 1: Check collinearity and modify X in place
   bool use_weights = params.use_weights && !all(w == 1.0);
   double tolerance = params.collin_tol;
 
-  mat X_work = X; // Working copy that will be modified
+  // TODO: avoid working copy that will be modified
+  mat X_work = X;
   CollinearityResult collin_result =
       check_collinearity(X_work, w, use_weights, tolerance, false);
 
-  // STEP 2: Demean variables
+  // Step 2: Demean variables
   mat X_demean;
   vec y_demean;
 
@@ -100,19 +91,18 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
         y_to_demean, w, fe_indices, nb_ids, fe_id_tables, true, params);
     y_demean = y_demean_result.demeaned_vars(0);
 
-    // Demean only non-collinear X columns - optimized batch processing
+    // Demean only non-collinear X columns
     if (X_work.n_cols > 0) {
-      // Prepare all X columns for batch demeaning using vectorized operations
       field<vec> x_columns_to_demean(X_work.n_cols);
       for (size_t j = 0; j < X_work.n_cols; ++j) {
         x_columns_to_demean(j) = X_work.col(j);
       }
 
       // Demean all X columns in a single batch call
-      DemeanResult x_demean_result = demean_variables(
-          x_columns_to_demean, w, fe_indices, nb_ids, fe_id_tables, false, params);
+      DemeanResult x_demean_result =
+          demean_variables(x_columns_to_demean, w, fe_indices, nb_ids,
+                           fe_id_tables, false, params);
 
-      // Vectorized column assignment
       X_demean.set_size(n, X_work.n_cols);
       for (size_t j = 0; j < X_work.n_cols; ++j) {
         X_demean.col(j) = x_demean_result.demeaned_vars(j);
@@ -124,11 +114,11 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
     result.has_fe = true;
   } else {
     y_demean = y;
-    X_demean = X_work; // Already reduced
+    X_demean = X_work;
     result.has_fe = false;
   }
 
-  // STEP 3: Run regression on reduced matrix
+  // Step 3: Solve normal equations using the reduced matrix
   InferenceBeta beta_result = get_beta(X_demean, y_demean, y, w, collin_result,
                                        use_weights, has_fixed_effects);
 
@@ -137,7 +127,7 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
     return result;
   }
 
-  // STEP 4: Copy results
+  // Step 4: Copy results
   result.coefficients = beta_result.coefficients;
   result.fitted_values = beta_result.fitted_values;
   result.residuals = beta_result.residuals;
@@ -145,9 +135,8 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
   result.hessian = beta_result.hessian;
   result.coef_status = beta_result.coef_status;
 
-  // STEP 5: Extract fixed effects using reduced X and coefficients
+  // Step 5: Extract fixed effects using reduced X and coefficients
   if (has_fixed_effects) {
-    // Extract the non-zero coefficients for the reduced matrix
     vec coef_reduced;
     if (collin_result.has_collinearity) {
       coef_reduced = result.coefficients(collin_result.non_collinear_cols);
@@ -157,18 +146,18 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
 
     vec sum_fe = result.fitted_values - X_work * coef_reduced;
 
-    // Optimize group indices computation - vectorized version
     field<field<uvec>> group_indices(fe_indices.n_elem);
     for (size_t k = 0; k < fe_indices.n_elem; ++k) {
       group_indices(k).set_size(nb_ids(k));
       for (size_t g = 0; g < nb_ids(k); ++g) {
-        // Use direct vectorized find operation
+
         group_indices(k)(g) = find(fe_indices(k) == g);
       }
     }
     InferenceAlpha alpha_result =
-        get_alpha(sum_fe, group_indices, params.alpha_convergence_tol, params.alpha_iter_max);
-    
+        get_alpha(sum_fe, group_indices, params.alpha_convergence_tol,
+                  params.alpha_iter_max);
+
     result.fixed_effects = alpha_result.Alpha;
     result.nb_references = alpha_result.nb_references;
     result.is_regular = alpha_result.is_regular;

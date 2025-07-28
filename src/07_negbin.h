@@ -13,27 +13,21 @@ using glm::feglm_fit;
 using glm::InferenceGLM;
 using glm::link_inv;
 
-//////////////////////////////////////////////////////////////////////////////
-// THETA ML ESTIMATION
-//////////////////////////////////////////////////////////////////////////////
-
-inline double theta_ml(const vec &y, const vec &mu, const CapybaraParameters &params) {
-  // Maximum likelihood estimation of theta for negative binomial
-  // Using moment-based estimation with proper bounds checking
+// Method of moments: theta = mu^2 / (var - mu)
+// If variance is close to or less than mean, theta should be very large
+// and approaching Poisson
+inline double theta_ml(const vec &y, const vec &mu,
+                       const CapybaraParameters &params) {
 
   const size_t n = y.n_elem;
 
-  // Calculate sample variance and mean
   double y_mean = mean(y);
   double y_dev = var(y);
 
-  // Method of moments: theta = mu^2 / (var - mu)
-  // If variance is close to or less than mean, theta should be very large
-  // (approaching Poisson)
   double overdispersion = y_dev - y_mean;
 
   if (overdispersion <= params.nb_overdispersion_threshold * y_mean) {
-    // Very little overdispersion - return very large theta (Poisson-like)
+    // Very little overdispersion => return very large theta (Poisson-like)
     return params.nb_theta_max;
   }
 
@@ -67,7 +61,6 @@ inline double theta_ml(const vec &y, const vec &mu, const CapybaraParameters &pa
         }
       }
 
-      // Fisher information (negative second derivative)
       info += 1.0 / theta - 1.0 / (mu_i + theta);
       if (y_i > 0) {
         for (size_t k = 0; k < static_cast<size_t>(y_i); ++k) {
@@ -79,8 +72,10 @@ inline double theta_ml(const vec &y, const vec &mu, const CapybaraParameters &pa
     // Newton-Raphson step with conservative updates
     if (std::abs(info) > params.nb_info_min) {
       double step = score / info;
-      step = std::max(step, -params.nb_step_max_decrease * theta); // Don't decrease by more than limit
-      step = std::min(step, params.nb_step_max_increase * theta);  // Don't increase by more than limit
+      step = std::max(step, -params.nb_step_max_decrease *
+                                theta); // Don't decrease by more than limit
+      step = std::min(step, params.nb_step_max_increase *
+                                theta); // Don't increase by more than limit
       theta = theta + step;
     }
 
@@ -89,17 +84,14 @@ inline double theta_ml(const vec &y, const vec &mu, const CapybaraParameters &pa
     theta = std::min(theta, params.nb_theta_max);
 
     // Check convergence
-    if (std::abs(theta - theta_old) < params.nb_theta_tol * (1 + std::abs(theta))) {
+    if (std::abs(theta - theta_old) <
+        params.nb_theta_tol * (1 + std::abs(theta))) {
       break;
     }
   }
 
   return theta;
 }
-
-//////////////////////////////////////////////////////////////////////////////
-// NEGATIVE BINOMIAL RESULT STRUCTURE
-//////////////////////////////////////////////////////////////////////////////
 
 struct InferenceNegBin : public InferenceGLM {
   double theta;
@@ -109,10 +101,6 @@ struct InferenceNegBin : public InferenceGLM {
   InferenceNegBin(size_t n, size_t p)
       : InferenceGLM(n, p), theta(1.0), iter_outer(0), conv_outer(false) {}
 };
-
-//////////////////////////////////////////////////////////////////////////////
-// NEGATIVE BINOMIAL FITTING
-//////////////////////////////////////////////////////////////////////////////
 
 inline InferenceNegBin
 fenegbin_fit(const mat &X, const vec &y_orig, const vec &w,
@@ -125,10 +113,8 @@ fenegbin_fit(const mat &X, const vec &y_orig, const vec &w,
 
   InferenceNegBin result(n, p_orig);
 
-  // Initialize theta
   double theta = (init_theta > 0) ? init_theta : 1.0;
 
-  // First fit with Poisson to get starting values
   std::string poisson_family = "poisson";
   InferenceGLM poisson_fit =
       feglm_fit(X, y_orig, w, fe_indices, nb_ids, fe_id_tables, poisson_family,
@@ -140,31 +126,24 @@ fenegbin_fit(const mat &X, const vec &y_orig, const vec &w,
     return result;
   }
 
-  // Use Poisson results as starting values
   vec beta = poisson_fit.coefficients;
   vec eta = poisson_fit.eta;
   vec mu = poisson_fit.fitted_values;
 
-  // Initial theta estimate if not provided - start with large value (closer to
-  // Poisson)
   if (init_theta <= 0) {
-    // Start with a large theta value to be closer to Poisson limit
+
     theta = std::max(theta_ml(y_orig, mu, params), 10.0);
   }
 
-  // Storage for convergence checking
   double dev_old = poisson_fit.deviance;
   double theta_old = theta;
   bool converged = false;
 
-  // Alternate between fitting GLM and estimating theta
   for (size_t iter = 0; iter < params.iter_max; ++iter) {
     result.iter_outer = iter + 1;
 
-    // Store old values
     theta_old = theta;
 
-    // Fit GLM with current theta - using negative_binomial family
     std::string negbin_family = "negative_binomial";
     InferenceGLM glm_fit =
         feglm_fit(X, y_orig, w, fe_indices, nb_ids, fe_id_tables, negbin_family,
@@ -174,7 +153,6 @@ fenegbin_fit(const mat &X, const vec &y_orig, const vec &w,
       break;
     }
 
-    // Update results - copy all fields from GLM result
     result.coefficients = glm_fit.coefficients;
     result.eta = glm_fit.eta;
     result.fitted_values = glm_fit.fitted_values;
@@ -194,22 +172,19 @@ fenegbin_fit(const mat &X, const vec &y_orig, const vec &w,
     result.X_dm = glm_fit.X_dm;
     result.has_mx = glm_fit.has_mx;
 
-    // Extract updated values
     mu = glm_fit.fitted_values;
     double dev = glm_fit.deviance;
 
-    // Update theta
     double theta_new = theta_ml(y_orig, mu, params);
 
-    // Ensure theta is valid
     if (!is_finite(theta_new) || theta_new <= 0) {
-      theta_new = theta; // Keep previous value
+      theta_new = theta;
     }
 
-    // Check convergence
-    double dev_crit = std::abs(dev - dev_old) / (params.rel_tol_denom + std::abs(dev));
-    double theta_crit =
-        std::abs(theta_new - theta_old) / (params.rel_tol_denom + std::abs(theta_old));
+    double dev_crit =
+        std::abs(dev - dev_old) / (params.rel_tol_denom + std::abs(dev));
+    double theta_crit = std::abs(theta_new - theta_old) /
+                        (params.rel_tol_denom + std::abs(theta_old));
 
     if (dev_crit <= params.dev_tol && theta_crit <= params.dev_tol) {
       converged = true;
@@ -217,12 +192,10 @@ fenegbin_fit(const mat &X, const vec &y_orig, const vec &w,
       break;
     }
 
-    // Update for next iteration
     theta = theta_new;
     dev_old = dev;
   }
 
-  // Set final values
   result.theta = theta;
   result.conv_outer = converged;
 

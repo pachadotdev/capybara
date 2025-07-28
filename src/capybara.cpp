@@ -96,10 +96,10 @@ struct CapybaraParameters {
         convergence_iter_max(100), convergence_iter_full_dicho(10),
         step_halving_factor(0.5), binomial_mu_min(0.001),
         binomial_mu_max(0.999), safe_clamp_min(1.0e-15), safe_clamp_max(1.0e12),
-        glm_init_eta(1.0e-5),
-        iter_nb_theta(10), nb_theta_tol(1.0e-6), nb_info_min(1.0e-12), 
-        nb_overdispersion_threshold(0.01), nb_theta_min(0.1), nb_theta_max(1.0e6),
-        nb_step_max_decrease(0.1), nb_step_max_increase(0.5), direct_qr_threshold(0.9),
+        glm_init_eta(1.0e-5), iter_nb_theta(10), nb_theta_tol(1.0e-6),
+        nb_info_min(1.0e-12), nb_overdispersion_threshold(0.01),
+        nb_theta_min(0.1), nb_theta_max(1.0e6), nb_step_max_decrease(0.1),
+        nb_step_max_increase(0.5), direct_qr_threshold(0.9),
         qr_collin_tol_multiplier(1.0e-7), chol_stability_threshold(1.0e-12),
         alpha_convergence_tol(1.0e-8), alpha_iter_max(10000),
         demean_extra_projections(0), demean_warmup_iterations(15),
@@ -142,7 +142,8 @@ struct CapybaraParameters {
     iter_nb_theta = as_cpp<size_t>(control["iter_nb_theta"]);
     nb_theta_tol = as_cpp<double>(control["nb_theta_tol"]);
     nb_info_min = as_cpp<double>(control["nb_info_min"]);
-    nb_overdispersion_threshold = as_cpp<double>(control["nb_overdispersion_threshold"]);
+    nb_overdispersion_threshold =
+        as_cpp<double>(control["nb_overdispersion_threshold"]);
     nb_theta_min = as_cpp<double>(control["nb_theta_min"]);
     nb_theta_max = as_cpp<double>(control["nb_theta_max"]);
     nb_step_max_decrease = as_cpp<double>(control["nb_step_max_decrease"]);
@@ -590,8 +591,7 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
 
 [[cpp11::register]] doubles_matrix<>
 group_sums_spectral_(const doubles_matrix<> &M_r, const doubles &v_r,
-                     const doubles &w_r, const int K,
-                     const list &jlist) {
+                     const doubles &w_r, const int K, const list &jlist) {
   const mat M = as_Mat(M_r);
   const vec v = as_Col(v_r);
   const vec w = as_Col(w_r);
