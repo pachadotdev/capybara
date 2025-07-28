@@ -9,7 +9,6 @@ namespace glm {
 
 using demean::demean_variables;
 using demean::DemeanResult;
-using lm::InferenceLM;
 using parameters::check_collinearity;
 using parameters::CollinearityResult;
 using parameters::get_alpha;
@@ -23,6 +22,7 @@ using convergence::utils::safe_divide;
 using convergence::utils::safe_log;
 
 inline Family string_to_family(const std::string &fam) {
+  CAPYBARA_TIME_FUNCTION("string_to_family");
   static const std::unordered_map<std::string, Family> family_map = {
       {"gaussian", Family::GAUSSIAN},
       {"poisson", Family::POISSON},
@@ -36,6 +36,7 @@ inline Family string_to_family(const std::string &fam) {
 }
 
 inline std::string tidy_family(const std::string &family) {
+  CAPYBARA_TIME_FUNCTION("tidy_family");
 
   std::string fam = family;
 
@@ -58,6 +59,7 @@ inline std::string tidy_family(const std::string &family) {
 }
 
 inline Family get_family_type(const std::string &fam) {
+  CAPYBARA_TIME_FUNCTION("get_family_type");
   static const std::unordered_map<std::string, Family> family_map = {
       {"gaussian", Family::GAUSSIAN},
       {"poisson", Family::POISSON},
@@ -70,39 +72,54 @@ inline Family get_family_type(const std::string &fam) {
   return (it != family_map.end()) ? it->second : Family::GAUSSIAN;
 }
 
-inline vec link_inv(const vec &eta, const Family family_type) {
+inline void link_inv(const vec &eta, vec &mu, const Family family_type) {
+  CAPYBARA_TIME_FUNCTION("link_inv");
   switch (family_type) {
   case Family::GAUSSIAN:
-    return eta;
+    mu = eta;
+    break;
   case Family::POISSON:
   case Family::NEGBIN:
-    return exp(eta);
+    mu = exp(eta);
+    break;
   case Family::BINOMIAL:
-    return 1.0 / (1.0 + exp(-eta));
+    mu = 1.0 / (1.0 + exp(-eta));
+    break;
   case Family::GAMMA:
-    return 1.0 / eta;
+    mu = 1.0 / eta;
+    break;
   case Family::INV_GAUSSIAN:
-    return 1.0 / sqrt(eta);
+    mu = 1.0 / sqrt(eta);
+    break;
   default:
     stop("Unknown family");
   }
 }
 
-inline vec d_inv_link(const vec &eta, const Family family_type) {
+inline void d_inv_link(const vec &eta, vec &result, const Family family_type) {
+  CAPYBARA_TIME_FUNCTION("d_inv_link");
   switch (family_type) {
   case Family::GAUSSIAN:
-    return ones<vec>(eta.n_elem);
+    result.ones();
+    break;
   case Family::POISSON:
   case Family::NEGBIN:
-    return exp(eta);
+    result = exp(eta);
+    break;
   case Family::BINOMIAL: {
-    vec exp_eta = exp(eta);
-    return exp_eta / square(1.0 + exp_eta);
+    // Use the identity: d/d_eta[1/(1+exp(-eta))] = mu*(1-mu) where mu =
+    // 1/(1+exp(-eta))
+    result = 1.0 / (1.0 + exp(-eta));
+    result = result % (1.0 - result);
+    break;
   }
   case Family::GAMMA:
-    return -1.0 / square(eta);
-  case Family::INV_GAUSSIAN:
-    return -1.0 / (2.0 * pow(abs(eta), 1.5));
+    result = -1.0 / square(eta);
+    break;
+  case Family::INV_GAUSSIAN: {
+    result = -1.0 / (2.0 * pow(abs(eta), 1.5));
+    break;
+  }
   default:
     stop("Unknown family");
   }
@@ -112,6 +129,7 @@ void initialize_family(vec &mu, vec &eta, const vec &y_orig, double mean_y,
                        const Family family_type, double binomial_mu_min,
                        double binomial_mu_max, double safe_clamp_min,
                        double safe_clamp_max) {
+  CAPYBARA_TIME_FUNCTION("initialize_family");
   switch (family_type) {
   case Family::GAUSSIAN:
     mu = y_orig;
@@ -133,7 +151,7 @@ void initialize_family(vec &mu, vec &eta, const vec &y_orig, double mean_y,
     break;
   case Family::INV_GAUSSIAN:
     mu = clamp(y_orig, safe_clamp_min, safe_clamp_max);
-    eta = 1.0 / square(mu);
+    eta = 1.0 / (mu % mu);
     break;
   default:
     stop("Unknown family");
@@ -143,6 +161,7 @@ void initialize_family(vec &mu, vec &eta, const vec &y_orig, double mean_y,
 void initialize_family_fixed_effects(vec &mu, vec &eta, double mean_y,
                                      const Family family_type,
                                      double safe_clamp_min) {
+  CAPYBARA_TIME_FUNCTION("initialize_family_fixed_effects");
   double safe_mean_y = std::max(static_cast<double>(mean_y), safe_clamp_min);
 
   switch (family_type) {
@@ -173,25 +192,27 @@ void initialize_family_fixed_effects(vec &mu, vec &eta, double mean_y,
 }
 
 inline double dev_resids_gaussian(const vec &y, const vec &mu, const vec &w) {
+  CAPYBARA_TIME_FUNCTION("dev_resids_gaussian");
   return dot(w, square(y - mu));
 }
 
 inline double dev_resids_poisson(const vec &y, const vec &mu, const vec &w) {
-
-  vec r(y.n_elem, fill::zeros);
-
+  CAPYBARA_TIME_FUNCTION("dev_resids_poisson");
   uvec p = find(y > 0);
-  if (p.n_elem > 0) {
-    vec y_p = y(p);
-    vec mu_p = mu(p);
-    vec w_p = w(p);
-    r(p) = w_p % (y_p % log(y_p / mu_p) - (y_p - mu_p));
+  if (p.n_elem == 0) {
+    return 0.0;
   }
 
-  return 2.0 * accu(r);
+  // Vectorized computation for positive y values only
+  vec y_pos = y(p);
+  vec mu_pos = mu(p);
+  vec w_pos = w(p);
+
+  return 2.0 * accu(w_pos % (y_pos % log(y_pos / mu_pos) - (y_pos - mu_pos)));
 }
 
 inline double dev_resids_binomial(const vec &y, const vec &mu, const vec &w) {
+  CAPYBARA_TIME_FUNCTION("dev_resids_binomial");
   vec r(y.n_elem, fill::zeros);
 
   uvec p = find(y == 1);
@@ -209,32 +230,35 @@ inline double dev_resids_binomial(const vec &y, const vec &mu, const vec &w) {
 
 inline double dev_resids_gamma(const vec &y, const vec &mu, const vec &w,
                                double safe_clamp_min) {
-
+  CAPYBARA_TIME_FUNCTION("dev_resids_gamma");
   vec y_adj = clamp(y, safe_clamp_min, datum::inf);
   vec mu_adj = clamp(mu, safe_clamp_min, datum::inf);
 
-  vec terms = log(y_adj / mu_adj) - (y - mu) / mu_adj;
-  return -2.0 * dot(w, terms);
+  return -2.0 * dot(w, log(y_adj / mu_adj) - (y - mu) / mu_adj);
 }
 
 inline double dev_resids_invgaussian(const vec &y, const vec &mu,
                                      const vec &w) {
-  return dot(w, square(y - mu) / (y % square(mu)));
+  CAPYBARA_TIME_FUNCTION("dev_resids_invgaussian");
+  vec diff = y - mu;
+  vec mu_sq = mu % mu;
+  return dot(w, (diff % diff) / (y % mu_sq));
 }
 
 inline double dev_resids_negbin(const vec &y, const vec &mu,
                                 const double &theta, const vec &w,
                                 double safe_clamp_min) {
+  CAPYBARA_TIME_FUNCTION("dev_resids_negbin");
   vec y_adj = clamp(y, safe_clamp_min, datum::inf);
-  vec r =
-      w % (y % log(y_adj / mu) - (y + theta) % log((y + theta) / (mu + theta)));
 
-  return 2.0 * accu(r);
+  return 2.0 * accu(w % (y % log(y_adj / mu) -
+                         (y + theta) % log((y + theta) / (mu + theta))));
 }
 
 inline double dev_resids(const vec &y, const vec &mu, const double &theta,
                          const vec &w, const Family family_type,
                          double safe_clamp_min) {
+  CAPYBARA_TIME_FUNCTION("dev_resids");
   switch (family_type) {
   case Family::GAUSSIAN:
     return dev_resids_gaussian(y, mu, w);
@@ -253,27 +277,35 @@ inline double dev_resids(const vec &y, const vec &mu, const double &theta,
   }
 }
 
-inline vec variance(const vec &mu, const double &theta,
-                    const Family family_type) {
+inline void variance(const vec &mu, const double &theta, vec &result,
+                     const Family family_type) {
+  CAPYBARA_TIME_FUNCTION("variance");
   switch (family_type) {
   case Family::GAUSSIAN:
-    return ones<vec>(mu.n_elem);
+    result.ones();
+    break;
   case Family::POISSON:
-    return mu;
+    result = mu;
+    break;
   case Family::BINOMIAL:
-    return mu % (1 - mu);
+    result = mu % (1 - mu);
+    break;
   case Family::GAMMA:
-    return square(mu);
+    result = mu % mu;
+    break;
   case Family::INV_GAUSSIAN:
-    return pow(mu, 3.0);
+    result = pow(mu, 3.0);
+    break;
   case Family::NEGBIN:
-    return mu + square(mu) / theta;
+    result = mu + square(mu) / theta;
+    break;
   default:
     stop("Unknown family");
   }
 }
 
 inline bool valid_eta(const vec &eta, const Family family_type) {
+  CAPYBARA_TIME_FUNCTION("valid_eta");
   switch (family_type) {
   case Family::GAUSSIAN:
   case Family::POISSON:
@@ -290,6 +322,7 @@ inline bool valid_eta(const vec &eta, const Family family_type) {
 }
 
 inline bool valid_mu(const vec &mu, const Family family_type) {
+  CAPYBARA_TIME_FUNCTION("valid_mu");
   switch (family_type) {
   case Family::GAUSSIAN:
     return is_finite(mu);
@@ -308,6 +341,7 @@ inline bool valid_mu(const vec &mu, const Family family_type) {
 }
 
 inline bool valid_response(const vec &y, const Family family_type) {
+  CAPYBARA_TIME_FUNCTION("valid_response");
   switch (family_type) {
   case Family::GAUSSIAN:
     return is_finite(y);
@@ -339,7 +373,9 @@ struct InferenceWLM {
   InferenceWLM(size_t n, size_t p)
       : coefficients(p, fill::none), fitted_values(n, fill::none),
         coef_status(p, fill::none), success(false), hessian(p, p, fill::none),
-        is_regular(true), has_fe(false) {}
+        is_regular(true), has_fe(false) {
+    CAPYBARA_TIME_FUNCTION("InferenceWLM::constructor");
+  }
 };
 
 struct InferenceGLM {
@@ -372,9 +408,12 @@ struct InferenceGLM {
         hessian(p, p, fill::zeros), deviance(0.0), null_deviance(0.0),
         conv(false), iter(0), coef_status(p, fill::ones),
         residuals_working(n, fill::zeros), residuals_response(n, fill::zeros),
-        is_regular(true), has_fe(false), has_mx(false) {}
+        is_regular(true), has_fe(false), has_mx(false) {
+    CAPYBARA_TIME_FUNCTION("InferenceGLM::constructor");
+  }
 
   cpp11::list to_list(bool keep_dmx = true) const {
+    CAPYBARA_TIME_FUNCTION("InferenceGLM::to_list");
     auto out = writable::list(
         {"coefficients"_nm = as_doubles(coefficients),
          "eta"_nm = as_doubles(eta),
@@ -412,6 +451,7 @@ inline InferenceWLM wlm_fit(const mat &X_reduced, const vec &y,
                             const CapybaraParameters &params,
                             bool compute_hessian = false,
                             bool compute_fixed_effects = false) {
+  CAPYBARA_TIME_FUNCTION("wlm_fit");
   const size_t n = y.n_elem;
   const size_t p_orig = collin_result.coef_status.n_elem;
   const bool has_fixed_effects =
@@ -449,7 +489,7 @@ inline InferenceWLM wlm_fit(const mat &X_reduced, const vec &y,
                            fe_id_tables, false, params);
 
       for (size_t j = 0; j < X_reduced.n_cols; ++j) {
-        X_demean.col(j) = std::move(x_demean_result.demeaned_vars(j));
+        X_demean.unsafe_col(j) = std::move(x_demean_result.demeaned_vars(j));
       }
     } else {
       X_demean = mat(n, 0);
@@ -488,16 +528,34 @@ inline InferenceWLM wlm_fit(const mat &X_reduced, const vec &y,
     for (size_t k = 0; k < fe_indices.n_elem; ++k) {
       group_indices(k).set_size(nb_ids(k));
 
-      std::vector<std::vector<uword>> temp_groups(nb_ids(k));
+      field<uvec> temp_groups(nb_ids(k));
       const uvec &fe_idx = fe_indices(k);
 
-      for (size_t obs = 0; obs < fe_idx.n_elem; ++obs) {
-        temp_groups[fe_idx(obs)].push_back(obs);
+      // Initialize each group as empty
+      for (size_t g = 0; g < nb_ids(k); ++g) {
+        temp_groups(g).reset();
       }
 
-      for (size_t g = 0; g < nb_ids(k); ++g) {
-        group_indices(k)(g) = conv_to<uvec>::from(temp_groups[g]);
+      // Count group sizes first
+      uvec group_sizes(nb_ids(k), fill::zeros);
+      for (size_t obs = 0; obs < fe_idx.n_elem; ++obs) {
+        group_sizes(fe_idx(obs))++;
       }
+
+      // Pre-allocate and fill groups
+      for (size_t g = 0; g < nb_ids(k); ++g) {
+        if (group_sizes(g) > 0) {
+          temp_groups(g).set_size(group_sizes(g));
+        }
+      }
+
+      uvec group_counters(nb_ids(k), fill::zeros);
+      for (size_t obs = 0; obs < fe_idx.n_elem; ++obs) {
+        uword group_id = fe_idx(obs);
+        temp_groups(group_id)(group_counters(group_id)++) = obs;
+      }
+
+      group_indices(k) = std::move(temp_groups);
     }
 
     InferenceAlpha alpha_result =
@@ -518,6 +576,7 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
                               const std::string &family,
                               const CapybaraParameters &params,
                               const double &theta = 0.0) {
+  CAPYBARA_TIME_FUNCTION("feglm_fit");
   const size_t n = y_orig.n_elem;
   const size_t p_orig = X.n_cols;
   const bool has_fixed_effects =
@@ -534,7 +593,7 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
   }
 
   bool use_weights = params.use_weights && w.n_elem > 1 && !all(w == 1.0);
-  vec weights_vec = use_weights ? w : ones<vec>(n);
+  const vec &weights_vec = w;
 
   mat X_reduced = X;
   double tolerance = params.collin_tol;
@@ -555,16 +614,15 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
                                     params.safe_clamp_min);
   }
 
-  vec mu_init =
-      vec(n, fill::value(link_inv(vec(n, fill::value(params.glm_init_eta)),
-                                  family_type)(0)));
+  vec mu_init(n);
+  vec eta_old_wls = vec(n, fill::value(params.glm_init_eta));
+  link_inv(eta_old_wls, mu_init, family_type);
   double devold = dev_resids(y_orig, mu_init, theta, weights_vec, family_type,
                              params.safe_clamp_min);
 
   vec eta_old(n, fill::none);
   vec z(n, fill::none);
   vec working_weights(n, fill::none);
-  vec eta_old_wls = vec(n, fill::value(params.glm_init_eta));
 
   vec mu_eta_val(n, fill::none);
   vec var_mu(n, fill::none);
@@ -577,17 +635,17 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
     result.iter = iter + 1;
     eta_old = eta;
 
-    mu_eta_val = d_inv_link(eta, family_type);
-    var_mu = variance(mu, theta, family_type);
+    d_inv_link(eta, mu_eta_val, family_type);
+    variance(mu, theta, var_mu, family_type);
 
-    if (any(var_mu <= 0) || any(var_mu != var_mu)) {
+    if (!all(var_mu > 0) || !is_finite(var_mu)) {
       break;
     }
 
     z = eta + (y_orig - mu) / mu_eta_val;
-    working_weights = weights_vec % square(mu_eta_val) / var_mu;
+    working_weights = weights_vec % (mu_eta_val % mu_eta_val) / var_mu;
 
-    if (all(working_weights <= 0)) {
+    if (!any(working_weights > 0)) {
       break;
     }
 
@@ -595,8 +653,7 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
         wlm_fit(X_reduced, z, y_orig, working_weights, fe_indices, nb_ids,
                 fe_id_tables, collin_result, params, false, false);
 
-    if (!wls_result.success ||
-        any(wls_result.coefficients != wls_result.coefficients)) {
+    if (!wls_result.success || !is_finite(wls_result.coefficients)) {
       if (iter == 0) {
         result.conv = false;
         return result;
@@ -607,14 +664,15 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
     result.coefficients = wls_result.coefficients;
     result.coef_status = wls_result.coef_status;
 
-    vec eta_new = wls_result.fitted_values;
-    mu_new = link_inv(eta_new, family_type);
+    // Reuse z vector as temporary for eta_new to avoid allocation
+    z = wls_result.fitted_values;
+    link_inv(z, mu_new, family_type);
     double dev = dev_resids(y_orig, mu_new, theta, weights_vec, family_type,
                             params.safe_clamp_min);
     double dev_evol = dev - devold;
 
     bool need_step_halving = !is_finite(dev) || (dev_evol > 0) ||
-                             !valid_eta(eta_new, family_type) ||
+                             !valid_eta(z, family_type) ||
                              !valid_mu(mu_new, family_type);
 
     if (need_step_halving &&
@@ -626,21 +684,22 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
 
       while (iter_sh < params.iter_inner_max) {
         iter_sh++;
-        eta_new = eta_old_wls + params.step_halving_factor *
-                                    (wls_result.fitted_values - eta_old_wls);
-        mu_new = link_inv(eta_new, family_type);
+        // More efficient: eta_new = (1-factor)*eta_old + factor*new_eta
+        z = (1.0 - params.step_halving_factor) * eta_old_wls +
+            params.step_halving_factor * wls_result.fitted_values;
+        link_inv(z, mu_new, family_type);
         dev = dev_resids(y_orig, mu_new, theta, weights_vec, family_type,
                          params.safe_clamp_min);
         dev_evol = dev - devold;
 
-        if (is_finite(dev) && (dev_evol <= 0) &&
-            valid_eta(eta_new, family_type) && valid_mu(mu_new, family_type)) {
+        if (is_finite(dev) && (dev_evol <= 0) && valid_eta(z, family_type) &&
+            valid_mu(mu_new, family_type)) {
           step_accepted = true;
           break;
         }
 
         if (iter == 0 && iter_sh >= 2 && is_finite(dev) &&
-            valid_eta(eta_new, family_type) && valid_mu(mu_new, family_type)) {
+            valid_eta(z, family_type) && valid_mu(mu_new, family_type)) {
           step_accepted = true;
           break;
         }
@@ -652,16 +711,16 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
           return result;
         }
         eta = eta_old;
-        mu = link_inv(eta, family_type);
+        link_inv(eta, mu, family_type);
         result.deviance = devold;
       } else {
-        eta = eta_new;
+        eta = z;
         mu = mu_new;
         result.deviance = dev;
         dev_evol = datum::inf;
       }
     } else {
-      eta = eta_new;
+      eta = z;
       mu = mu_new;
       result.deviance = dev;
     }
@@ -686,10 +745,12 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
   result.residuals_working = z - eta;
 
   if (has_fixed_effects) {
-    vec final_mu_eta = d_inv_link(eta, family_type);
-    vec final_var_mu = variance(mu, theta, family_type);
+    vec final_mu_eta(n);
+    d_inv_link(eta, final_mu_eta, family_type);
+    vec final_var_mu(n);
+    variance(mu, theta, final_var_mu, family_type);
     vec final_working_weights =
-        weights_vec % square(final_mu_eta) / final_var_mu;
+        weights_vec % (final_mu_eta % final_mu_eta) / final_var_mu;
     vec final_z = eta + (y_orig - mu) / final_mu_eta;
 
     InferenceWLM final_wls =
@@ -702,14 +763,13 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
     result.is_regular = final_wls.is_regular;
     result.nb_references = final_wls.nb_references;
   } else {
-
-    result.hessian.zeros();
+    // Hessian already initialized with zeros in constructor
     if (X_reduced.n_cols > 0) {
-      mat weighted_X = X_reduced.each_col() % sqrt(working_weights);
-      mat hess_reduced = weighted_X.t() * weighted_X;
+      // More efficient Hessian computation: X.t() * W * X using weighted rows
+      mat X_weighted = X_reduced.each_col() % sqrt(working_weights);
+      mat hess_reduced = X_weighted.t() * X_weighted;
 
       if (collin_result.has_collinearity) {
-
         result.hessian(collin_result.non_collinear_cols,
                        collin_result.non_collinear_cols) = hess_reduced;
       } else {

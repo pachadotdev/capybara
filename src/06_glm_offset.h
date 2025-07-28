@@ -50,7 +50,8 @@ feglm_offset_fit(vec eta, const vec &y, const vec &offset, const vec &wt,
   }
 
   vec Myadj = vec(n, fill::zeros);
-  vec mu = link_inv(eta, family_type);
+  vec mu(n);
+  link_inv(eta, mu, family_type);
   vec mu_eta(n, fill::none);
   vec yadj(n, fill::none);
   vec w(n, fill::none);
@@ -67,8 +68,9 @@ feglm_offset_fit(vec eta, const vec &y, const vec &offset, const vec &wt,
     eta_old = eta;
     dev_old = dev;
 
-    mu_eta = d_inv_link(eta, family_type);
-    vec var_mu = variance(mu, 0.0, family_type);
+    d_inv_link(eta, mu_eta, family_type);
+    vec var_mu(n);
+    variance(mu, 0.0, var_mu, family_type);
 
     if (any(var_mu <= 0) || any(var_mu != var_mu)) {
       break;
@@ -98,7 +100,7 @@ feglm_offset_fit(vec eta, const vec &y, const vec &offset, const vec &wt,
     for (size_t iter_inner = 0; iter_inner < params.iter_inner_max;
          ++iter_inner) {
       eta = eta_old + (rho * eta_upd);
-      mu = link_inv(eta, family_type);
+      link_inv(eta, mu, family_type);
       dev = dev_resids(y, mu, 0.0, wt, family_type, params.safe_clamp_min);
       dev_ratio_inner =
           (dev - dev_old) / (params.rel_tol_denom + std::abs(dev_old));

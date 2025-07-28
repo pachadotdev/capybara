@@ -68,6 +68,8 @@ struct ClusterWorkspace {
   uvec counts;
 
   ClusterWorkspace(size_t max_cluster_size, size_t n_obs) {
+    CAPYBARA_TIME_FUNCTION("ClusterWorkspace::ClusterWorkspace");
+    
     accumulator.set_size(max_cluster_size);
     mu_max.set_size(max_cluster_size);
     exp_values.set_size(n_obs);
@@ -77,6 +79,8 @@ struct ClusterWorkspace {
 
 inline void grouped_accu(const vec &values, const uvec &indices, vec &result,
                          ClusterWorkspace &ws) {
+  CAPYBARA_TIME_FUNCTION("grouped_accu");
+  
   result.zeros();
 
   for (size_t g = 0; g < result.n_elem; ++g) {
@@ -86,6 +90,8 @@ inline void grouped_accu(const vec &values, const uvec &indices, vec &result,
 
 bool irons_tuck(vec &X, const vec &GX, const vec &GGX,
                 const CapybaraParameters &params) {
+  CAPYBARA_TIME_FUNCTION("irons_tuck");
+  
   vec delta_GX = GGX - GX;
   vec delta2_X = delta_GX - GX + X;
 
@@ -100,9 +106,10 @@ bool irons_tuck(vec &X, const vec &GX, const vec &GGX,
   return false;
 }
 
-void cluster_coef_poisson_vectorized(const vec &exp_mu, const vec &sum_y,
-                                     const uvec &dum, vec &cluster_coef,
-                                     ClusterWorkspace &ws) {
+void cluster_coef_poisson(const vec &exp_mu, const vec &sum_y, const uvec &dum,
+                          vec &cluster_coef, ClusterWorkspace &ws) {
+  CAPYBARA_TIME_FUNCTION("cluster_coef_poisson");
+  
   size_t nb_cluster = cluster_coef.n_elem;
 
   vec accumulator(nb_cluster);
@@ -113,9 +120,10 @@ void cluster_coef_poisson_vectorized(const vec &exp_mu, const vec &sum_y,
   cluster_coef = sum_y / accumulator;
 }
 
-void cluster_coef_poisson_log_vectorized(const vec &mu, const vec &sum_y,
-                                         const uvec &dum, vec &cluster_coef,
-                                         ClusterWorkspace &ws) {
+void cluster_coef_poisson_log(const vec &mu, const vec &sum_y, const uvec &dum,
+                              vec &cluster_coef, ClusterWorkspace &ws) {
+  CAPYBARA_TIME_FUNCTION("cluster_coef_poisson_log");
+  
   size_t nb_cluster = cluster_coef.n_elem;
   size_t n_obs = mu.n_elem;
 
@@ -131,44 +139,44 @@ void cluster_coef_poisson_log_vectorized(const vec &mu, const vec &sum_y,
   }
 
   vec exp_diff(n_obs);
-  for (size_t i = 0; i < n_obs; ++i) {
-    exp_diff(i) = exp(mu(i) - mu_max(dum(i)));
-  }
+  exp_diff = exp(mu - mu_max.elem(dum));
 
   grouped_accu(exp_diff, dum, cluster_coef, ws);
 
   cluster_coef = log(sum_y) - log(cluster_coef) - mu_max;
 }
 
-void cluster_coef_gaussian_vectorized(const vec &mu, const vec &sum_y,
-                                      const uvec &dum, const uvec &table,
-                                      vec &cluster_coef, ClusterWorkspace &ws,
-                                      double safe_min) {
+void cluster_coef_gaussian(const vec &mu, const vec &sum_y, const uvec &dum,
+                           const uvec &table, vec &cluster_coef,
+                           ClusterWorkspace &ws, double safe_min) {
+  CAPYBARA_TIME_FUNCTION("cluster_coef_gaussian");
+  
   grouped_accu(mu, dum, cluster_coef, ws);
 
   vec table_dbl = conv_to<vec>::from(table);
   cluster_coef = (sum_y - cluster_coef) / max(table_dbl, safe_min);
 }
 
-void cluster_coefficients_vectorized(Family family, const vec &mu,
-                                     const vec &lhs, const vec &sum_y,
-                                     const uvec &dum, const uvec &obs_cluster,
-                                     const uvec &table, const uvec &cumtable,
-                                     double theta, double diffMax_NR,
-                                     vec &cluster_coef, ClusterWorkspace &ws,
-                                     const CapybaraParameters &params) {
+void cluster_coefficients(Family family, const vec &mu, const vec &lhs,
+                          const vec &sum_y, const uvec &dum,
+                          const uvec &obs_cluster, const uvec &table,
+                          const uvec &cumtable, double theta, double diffMax_NR,
+                          vec &cluster_coef, ClusterWorkspace &ws,
+                          const CapybaraParameters &params) {
+  CAPYBARA_TIME_FUNCTION("cluster_coefficients");
+  
   switch (family) {
   case Family::POISSON:
-    cluster_coef_poisson_vectorized(mu, sum_y, dum, cluster_coef, ws);
+    cluster_coef_poisson(mu, sum_y, dum, cluster_coef, ws);
     break;
   case Family::POISSON_LOG:
-    cluster_coef_poisson_log_vectorized(mu, sum_y, dum, cluster_coef, ws);
+    cluster_coef_poisson_log(mu, sum_y, dum, cluster_coef, ws);
     break;
   case Family::GAUSSIAN:
   case Family::INV_GAUSSIAN:
   case Family::GAMMA:
-    cluster_coef_gaussian_vectorized(mu, sum_y, dum, table, cluster_coef, ws,
-                                     params.safe_division_min);
+    cluster_coef_gaussian(mu, sum_y, dum, table, cluster_coef, ws,
+                          params.safe_division_min);
     break;
   case Family::NEGBIN:
     // Needs Newton-Raphson
@@ -200,7 +208,9 @@ struct Convergence {
   Convergence(Family fam, size_t n, size_t k, double th, const vec &mu_i,
               const vec &lhs_i, const uvec &nb_cl)
       : family(fam), n_obs(n), K(k), theta(th), mu_init(mu_i), lhs(lhs_i),
-        nb_cluster_all(nb_cl), workspace(nb_cl.max(), n) {}
+        nb_cluster_all(nb_cl), workspace(nb_cl.max(), n) {
+    CAPYBARA_TIME_FUNCTION("Convergence::Convergence");
+  }
 };
 
 struct ConvergenceWorkspace {
@@ -210,6 +220,8 @@ struct ConvergenceWorkspace {
   vec mu_result;
 
   ConvergenceWorkspace(const Convergence &data) {
+    CAPYBARA_TIME_FUNCTION("ConvergenceWorkspace::ConvergenceWorkspace");
+    
     size_t K = data.K;
     size_t n_obs = data.n_obs;
 
@@ -231,46 +243,50 @@ struct ConvergenceWorkspace {
   }
 };
 
-inline void update_mu_vectorized(vec &mu_result, const vec &mu_base,
-                                 const field<vec> &cluster_coefs,
-                                 const field<uvec> &dum_vector, Family family) {
+inline void update_mu(vec &mu_result, const vec &mu_base,
+                      const field<vec> &cluster_coefs,
+                      const field<uvec> &dum_vector, Family family) {
+  CAPYBARA_TIME_FUNCTION("update_mu");
+  
   // TODO: avoid Initial copy
   mu_result = mu_base;
   size_t K = cluster_coefs.n_elem;
 
   if (utils::is_poisson_family(family)) {
     for (size_t k = 0; k < K; ++k) {
-      mu_result %= cluster_coefs(k)(dum_vector(k));
+      mu_result %= cluster_coefs(k).elem(dum_vector(k));
     }
   } else {
     for (size_t k = 0; k < K; ++k) {
-      mu_result += cluster_coefs(k)(dum_vector(k));
+      mu_result += cluster_coefs(k).elem(dum_vector(k));
     }
   }
 }
 
-void all_cluster_coefficients_vectorized(const Convergence &data,
-                                         const CapybaraParameters &params,
-                                         field<vec> &cluster_coefs_dest,
-                                         const field<vec> &cluster_coefs_origin,
-                                         ConvergenceWorkspace &workspace) {
+void all_cluster_coefficients(const Convergence &data,
+                              const CapybaraParameters &params,
+                              field<vec> &cluster_coefs_dest,
+                              const field<vec> &cluster_coefs_origin,
+                              ConvergenceWorkspace &workspace) {
+  CAPYBARA_TIME_FUNCTION("all_cluster_coefficients");
+  
   vec &mu_current = workspace.mu_current;
   mu_current = data.mu_init;
 
   if (utils::is_poisson_family(data.family)) {
     for (size_t k = 0; k < data.K - 1; ++k) {
-      mu_current %= cluster_coefs_origin(k)(data.dum_vector(k));
+      mu_current %= cluster_coefs_origin(k).elem(data.dum_vector(k));
     }
   } else {
     for (size_t k = 0; k < data.K - 1; ++k) {
-      mu_current += cluster_coefs_origin(k)(data.dum_vector(k));
+      mu_current += cluster_coefs_origin(k).elem(data.dum_vector(k));
     }
   }
 
   for (int k = static_cast<int>(data.K) - 1; k >= 0; k--) {
     size_t uk = static_cast<size_t>(k);
 
-    cluster_coefficients_vectorized(
+    cluster_coefficients(
         data.family, mu_current, data.lhs, data.sum_y_vector(uk),
         data.dum_vector(uk), data.obs_cluster_vector(uk), data.table_vector(uk),
         data.cumtable_vector(uk), data.theta, params.newton_raphson_tol,
@@ -286,7 +302,7 @@ void all_cluster_coefficients_vectorized(const Convergence &data,
             continue;
           const vec &coef =
               (h < uk - 1) ? cluster_coefs_origin(h) : cluster_coefs_dest(h);
-          mu_current %= coef(data.dum_vector(h));
+          mu_current %= coef.elem(data.dum_vector(h));
         }
       } else {
         for (size_t h = 0; h < data.K; h++) {
@@ -294,18 +310,18 @@ void all_cluster_coefficients_vectorized(const Convergence &data,
             continue;
           const vec &coef =
               (h < uk - 1) ? cluster_coefs_origin(h) : cluster_coefs_dest(h);
-          mu_current += coef(data.dum_vector(h));
+          mu_current += coef.elem(data.dum_vector(h));
         }
       }
     }
   }
 }
 
-vec conv_accelerated_vectorized(const Convergence &data,
-                                const CapybaraParameters &params,
-                                size_t iterMax, double diffMax,
-                                size_t &final_iter,
-                                bool &any_negative_poisson) {
+vec conv_accelerated(const Convergence &data, const CapybaraParameters &params,
+                     size_t iterMax, double diffMax, size_t &final_iter,
+                     bool &any_negative_poisson) {
+  CAPYBARA_TIME_FUNCTION("conv_accelerated");
+  
   static thread_local std::unique_ptr<ConvergenceWorkspace> workspace_cache;
   if (!workspace_cache || workspace_cache->X.n_elem != data.K) {
     workspace_cache = std::make_unique<ConvergenceWorkspace>(data);
@@ -325,7 +341,7 @@ vec conv_accelerated_vectorized(const Convergence &data,
     }
   }
 
-  all_cluster_coefficients_vectorized(data, params, GX, X, workspace);
+  all_cluster_coefficients(data, params, GX, X, workspace);
 
   any_negative_poisson = false;
 
@@ -343,7 +359,7 @@ vec conv_accelerated_vectorized(const Convergence &data,
   while (keepGoing && iter < iterMax) {
     ++iter;
 
-    all_cluster_coefficients_vectorized(data, params, GGX, GX, workspace);
+    all_cluster_coefficients(data, params, GGX, GX, workspace);
 
     numconv = true;
     for (size_t k = 0; k < K - 1; ++k) {
@@ -367,7 +383,7 @@ vec conv_accelerated_vectorized(const Convergence &data,
         break;
     }
 
-    all_cluster_coefficients_vectorized(data, params, GX, X, workspace);
+    all_cluster_coefficients(data, params, GX, X, workspace);
 
     keepGoing = false;
     for (size_t k = 0; k < K - 1; ++k) {
@@ -378,10 +394,10 @@ vec conv_accelerated_vectorized(const Convergence &data,
     }
   }
 
-  all_cluster_coefficients_vectorized(data, params, GGX, GX, workspace);
+  all_cluster_coefficients(data, params, GGX, GX, workspace);
 
-  update_mu_vectorized(workspace.mu_result, data.mu_init, GGX, data.dum_vector,
-                       data.family);
+  update_mu(workspace.mu_result, data.mu_init, GGX, data.dum_vector,
+            data.family);
 
   final_iter = iter;
   return workspace.mu_result;

@@ -35,9 +35,13 @@ struct InferenceLM {
       : coefficients(p, fill::none), fitted_values(n, fill::none),
         residuals(n, fill::none), weights(n, fill::none),
         hessian(p, p, fill::none), coef_status(p, fill::none), success(false),
-        is_regular(true), has_fe(false) {}
+        is_regular(true), has_fe(false) {
+    CAPYBARA_TIME_FUNCTION("InferenceLM::InferenceLM");
+  }
 
   cpp11::list to_list() const {
+    CAPYBARA_TIME_FUNCTION("InferenceLM::to_list");
+    
     auto out = writable::list({"coefficients"_nm = as_doubles(coefficients),
                                "fitted.values"_nm = as_doubles(fitted_values),
                                "weights"_nm = as_doubles(weights),
@@ -62,6 +66,8 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
                             const field<uvec> &fe_indices, const uvec &nb_ids,
                             const field<uvec> &fe_id_tables,
                             const CapybaraParameters &params) {
+  CAPYBARA_TIME_FUNCTION("felm_fit");
+  
   const size_t n = y.n_elem;
   const size_t p_orig = X.n_cols;
   const bool has_fixed_effects =
@@ -95,7 +101,7 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
     if (X_work.n_cols > 0) {
       field<vec> x_columns_to_demean(X_work.n_cols);
       for (size_t j = 0; j < X_work.n_cols; ++j) {
-        x_columns_to_demean(j) = X_work.col(j);
+        x_columns_to_demean(j) = X_work.unsafe_col(j);
       }
 
       // Demean all X columns in a single batch call
@@ -105,7 +111,7 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
 
       X_demean.set_size(n, X_work.n_cols);
       for (size_t j = 0; j < X_work.n_cols; ++j) {
-        X_demean.col(j) = x_demean_result.demeaned_vars(j);
+        X_demean.unsafe_col(j) = std::move(x_demean_result.demeaned_vars(j));
       }
     } else {
       X_demean = mat(n, 0);
@@ -149,10 +155,35 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
     field<field<uvec>> group_indices(fe_indices.n_elem);
     for (size_t k = 0; k < fe_indices.n_elem; ++k) {
       group_indices(k).set_size(nb_ids(k));
-      for (size_t g = 0; g < nb_ids(k); ++g) {
 
-        group_indices(k)(g) = find(fe_indices(k) == g);
+      field<uvec> temp_groups(nb_ids(k));
+      const uvec &fe_idx = fe_indices(k);
+
+      // Initialize each group as empty
+      for (size_t g = 0; g < nb_ids(k); ++g) {
+        temp_groups(g).reset();
       }
+
+      // Count group sizes first
+      uvec group_sizes(nb_ids(k), fill::zeros);
+      for (size_t obs = 0; obs < fe_idx.n_elem; ++obs) {
+        group_sizes(fe_idx(obs))++;
+      }
+
+      // Pre-allocate and fill groups
+      for (size_t g = 0; g < nb_ids(k); ++g) {
+        if (group_sizes(g) > 0) {
+          temp_groups(g).set_size(group_sizes(g));
+        }
+      }
+
+      uvec group_counters(nb_ids(k), fill::zeros);
+      for (size_t obs = 0; obs < fe_idx.n_elem; ++obs) {
+        uword group_id = fe_idx(obs);
+        temp_groups(group_id)(group_counters(group_id)++) = obs;
+      }
+
+      group_indices(k) = std::move(temp_groups);
     }
     InferenceAlpha alpha_result =
         get_alpha(sum_fe, group_indices, params.alpha_convergence_tol,
