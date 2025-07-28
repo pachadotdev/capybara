@@ -17,9 +17,7 @@ struct GroupSums {
   GroupSums() = default;
 
   explicit GroupSums(size_t rows, size_t cols)
-      : result(rows, cols, fill::none) {
-    result.zeros();
-  }
+      : result(rows, cols, fill::zeros) {}
 
   cpp11::doubles_matrix<> to_matrix() const {
     return as_doubles_matrix(result);

@@ -80,8 +80,8 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
   InferenceLM result(n, p_orig);
 
   // STEP 1: Check collinearity and modify X in place
-  bool use_weights = params.use_weights && any(w != 1.0);
-  double tolerance = params.qr_collin_tol_multiplier;
+  bool use_weights = params.use_weights && !all(w == 1.0);
+  double tolerance = params.qr_collin_tol_multiplier * 1e-7;
 
   mat X_work = X; // Working copy that will be modified
   CollinearityResult collin_result =
@@ -92,27 +92,27 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
   vec y_demean;
 
   if (has_fixed_effects) {
-    // Use thread-local demean workspace for optimal performance
-    static thread_local demean::DemeanWorkspace demean_workspace;
-    
     // Demean Y
     field<vec> y_to_demean(1);
     y_to_demean(0) = y;
 
-    DemeanResult y_demean_result = demean::demean_variables_fast(
-        y_to_demean, w, fe_indices, nb_ids, fe_id_tables, true, params, demean_workspace);
+    DemeanResult y_demean_result = demean_variables(
+        y_to_demean, w, fe_indices, nb_ids, fe_id_tables, true, params);
     y_demean = y_demean_result.demeaned_vars(0);
 
-    // Demean only non-collinear X columns
+    // Demean only non-collinear X columns - optimized batch processing
     if (X_work.n_cols > 0) {
-      field<vec> x_to_demean(X_work.n_cols);
+      // Prepare all X columns for batch demeaning using vectorized operations
+      field<vec> x_columns_to_demean(X_work.n_cols);
       for (size_t j = 0; j < X_work.n_cols; ++j) {
-        x_to_demean(j) = X_work.col(j);
+        x_columns_to_demean(j) = X_work.col(j);
       }
 
-      DemeanResult x_demean_result = demean::demean_variables_fast(
-          x_to_demean, w, fe_indices, nb_ids, fe_id_tables, false, params, demean_workspace);
+      // Demean all X columns in a single batch call
+      DemeanResult x_demean_result = demean_variables(
+          x_columns_to_demean, w, fe_indices, nb_ids, fe_id_tables, false, params);
 
+      // Vectorized column assignment
       X_demean.set_size(n, X_work.n_cols);
       for (size_t j = 0; j < X_work.n_cols; ++j) {
         X_demean.col(j) = x_demean_result.demeaned_vars(j);
@@ -148,18 +148,22 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
   // STEP 5: Extract fixed effects using reduced X and coefficients
   if (has_fixed_effects) {
     // Extract the non-zero coefficients for the reduced matrix
-    vec coef_reduced = collin_result.has_collinearity ? 
-                      result.coefficients(collin_result.non_collinear_cols) :
-                      result.coefficients;
+    vec coef_reduced;
+    if (collin_result.has_collinearity) {
+      coef_reduced = result.coefficients(collin_result.non_collinear_cols);
+    } else {
+      coef_reduced = result.coefficients;
+    }
 
     vec sum_fe = result.fitted_values - X_work * coef_reduced;
 
+    // Optimize group indices computation - vectorized version
     field<field<uvec>> group_indices(fe_indices.n_elem);
     for (size_t k = 0; k < fe_indices.n_elem; ++k) {
       group_indices(k).set_size(nb_ids(k));
-      const uvec& fe_k = fe_indices(k);
       for (size_t g = 0; g < nb_ids(k); ++g) {
-        group_indices(k)(g) = find(fe_k == g);
+        // Use direct vectorized find operation
+        group_indices(k)(g) = find(fe_indices(k) == g);
       }
     }
 

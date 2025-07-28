@@ -40,7 +40,7 @@ install:
 	@export CAPYBARA_ADVANCED_BUILD="yes"
 	@Rscript -e 'devtools::install(upgrade = "never")'
 
-clang_format=`which clang-format-14`
+clang_format=`which clang-format`
 
 format: $(shell find . -name '*.h') $(shell find . -name '*.hpp') $(shell find . -name '*.cpp')
 	@${clang_format} -i $?

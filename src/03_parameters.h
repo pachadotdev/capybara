@@ -134,38 +134,39 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
     result.success = true;
     result.coefficients.zeros();
     result.coef_status = collin_result.coef_status;
-    result.fitted_values = has_fixed_effects ? y_orig : vec(n, fill::none);
-    if (!has_fixed_effects) {
-      result.fitted_values.zeros();
-    }
+    result.fitted_values = has_fixed_effects ? y_orig : zeros<vec>(n);
     result.residuals = y_orig - result.fitted_values;
     result.weights = w;
     result.hessian.zeros();
     return result;
   }
 
-  // Normal equations with checked X
+  // Optimized normal equations computation
   mat XtX, XtY;
   if (has_weights) {
+    // Avoid temporary allocation - use in-place operations
     const vec sqrt_w = sqrt(w);
-    const mat X_weighted = X.each_col() % sqrt_w;
+    mat X_weighted = X;
+    X_weighted.each_col() %= sqrt_w;  // In-place multiplication
+    
+    // Optimized matrix multiplication
     XtX = X_weighted.t() * X_weighted;
     XtY = X.t() * (w % y);
   } else {
+    // Most efficient path for unweighted case
     XtX = X.t() * X;
     XtY = X.t() * y;
   }
 
-  // Cholesky decomposition
+  // Fast Cholesky decomposition with error handling
   mat L;
   if (!chol(L, XtX, "lower")) {
     result.success = false;
     return result;
   }
 
-  // Solve normal equations
-  vec work = solve(trimatl(L), XtY, solve_opts::fast);
-  vec beta_reduced = solve(trimatu(L.t()), work, solve_opts::fast);
+  // Optimized back-substitution
+  vec beta_reduced = solve(XtX, XtY, solve_opts::fast + solve_opts::likely_sympd);
 
   // Expand coefficients to original size with zeros for collinear variables
   result.coefficients.zeros();
@@ -192,25 +193,14 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
 
   result.weights = w;
 
-  // Hessian (non-collinear variables)
+  // Optimized Hessian computation - reuse XtX when possible
   result.hessian.zeros();
-  if (has_weights) {
-    const vec sqrt_w = sqrt(w);
-    const mat X_weighted = X.each_col() % sqrt_w;
-    mat hess_reduced = X_weighted.t() * X_weighted;
-
-    if (collin_result.has_collinearity) {
-      result.hessian(collin_result.non_collinear_cols, collin_result.non_collinear_cols) = hess_reduced;
-    } else {
-      result.hessian = hess_reduced;
-    }
+  if (collin_result.has_collinearity) {
+    // Efficient submatrix assignment for collinear case
+    result.hessian(collin_result.non_collinear_cols, collin_result.non_collinear_cols) = XtX;
   } else {
-    mat hess_reduced = X.t() * X;
-    if (collin_result.has_collinearity) {
-      result.hessian(collin_result.non_collinear_cols, collin_result.non_collinear_cols) = hess_reduced;
-    } else {
-      result.hessian = hess_reduced;
-    }
+    // Direct assignment for non-collinear case
+    result.hessian = XtX;
   }
 
   result.success = true;
@@ -288,21 +278,21 @@ inline InferenceAlpha get_alpha(const vec &sumFE,
 
     // Find observation with maximum rowsum (most FEs already computed)
     uword qui_max = 0;
+    uword rs_max = 0;
 
     if (iter == 1) {
       qui_max = 0;
     } else {
-      uvec todo_rowsums = rowsums(id_todo);
-      uvec candidates = find(todo_rowsums == Q - 2);
-      
-      if (!candidates.is_empty()) {
-        qui_max = id_todo(candidates(0));
-      } else {
-        uvec valid_candidates = find((todo_rowsums < Q) && (todo_rowsums > 0));
-        if (!valid_candidates.is_empty()) {
-          uvec valid_rowsums = todo_rowsums(valid_candidates);
-          uword max_idx = valid_rowsums.index_max();
-          qui_max = id_todo(valid_candidates(max_idx));
+      for (size_t i = 0; i < nb_todo; ++i) {
+        uword obs = id_todo(i);
+        uword rs = rowsums(obs);
+
+        if (rs == Q - 2) {
+          qui_max = obs;
+          break;
+        } else if (rs < Q && rs > rs_max) {
+          qui_max = obs;
+          rs_max = rs;
         }
       }
     }

@@ -166,9 +166,9 @@ NULL
 #' @export
 fit_control <- function(
     # Core tolerance parameters
-    dev_tol = 1.0e-8,
-    demean_tol = 1.0e-8,
-    collin_tol = 1.0e-7,
+    dev_tol = 1.0e-08,
+    demean_tol = 1.0e-08,
+    collin_tol = 1.0e-07,
     # Iteration parameters
     iter_max = 25L,
     iter_max_cluster = 100L,
@@ -182,7 +182,7 @@ fit_control <- function(
     irons_tuck_eps = 1.0e-14,
     safe_division_min = 1.0e-12,
     safe_log_min = 1.0e-12,
-    newton_raphson_tol = 1.0e-8,
+    newton_raphson_tol = 1.0e-08,
     # Convergence parameters
     convergence_iter_max = 100L,
     convergence_iter_full_dicho = 10L,
@@ -193,13 +193,13 @@ fit_control <- function(
     safe_clamp_min = 1.0e-15,
     safe_clamp_max = 1.0e12,
     # Negative Binomial parameters
-    iter_nb_theta = 10L,
+    iter_nb_theta = 25L,
     # Algorithm configuration
     direct_qr_threshold = 0.9,
     qr_collin_tol_multiplier = 1.0e-7,
     chol_stability_threshold = 1.0e-12,
     # Alpha computation
-    alpha_convergence_tol = 1.0e-8,
+    alpha_convergence_tol = 1.0e-08,
     alpha_iter_max = 10000L,
     # Demean algorithm
     demean_extra_projections = 0L,

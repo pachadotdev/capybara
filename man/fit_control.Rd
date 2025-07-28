@@ -27,7 +27,7 @@ fit_control(
   binomial_mu_max = 0.999,
   safe_clamp_min = 1e-15,
   safe_clamp_max = 1e+12,
-  iter_nb_theta = 10L,
+  iter_nb_theta = 25L,
   direct_qr_threshold = 0.9,
   qr_collin_tol_multiplier = 1e-07,
   chol_stability_threshold = 1e-12,
