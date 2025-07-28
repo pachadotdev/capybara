@@ -65,6 +65,63 @@ struct CollinearityResult {
   }
 };
 
+inline bool rank_revealing_cholesky(uvec &excluded, const mat &XtX, double tol) {
+  const size_t p = XtX.n_cols;
+  excluded.zeros(p);
+  
+  if (p == 0) return true;
+  
+  mat R(p, p, fill::zeros);
+  
+  for (size_t j = 0; j < p; ++j) {
+    // R(j,j) = sqrt(X(j,j) - sum(R(k,j)^2 for k < j))
+    double R_jj = XtX(j, j);
+    
+    if (j > 0) {
+      // Dot product of column R(.,j) with itself (excluding elements)
+      uvec valid_k = find(excluded.head(j) == 0);
+      if (!valid_k.is_empty()) {
+        vec R_col_j = R.submat(valid_k, uvec{j});
+        R_jj -= dot(R_col_j, R_col_j);
+      }
+    }
+    
+    // Check for rank deficiency
+    if (R_jj < tol) {
+      excluded(j) = 1;
+      if (accu(excluded) == p) return false;
+      continue;
+    }
+    
+    R_jj = std::sqrt(R_jj);
+    R(j, j) = R_jj;
+    
+    // Row R(j, j+1:p-1)
+    if (j < p - 1) {
+      // Remaining column indices
+      uvec remaining_cols = regspace<uvec>(j + 1, p - 1);
+      
+      vec R_row_j = XtX.submat(remaining_cols, uvec{j});
+      
+      if (j > 0) {
+        // R_row_j -= R(valid_k, j+1:p-1).t() * R(valid_k, j)
+        uvec valid_k = find(excluded.head(j) == 0);
+        if (!valid_k.is_empty()) {
+          mat R_prev_cols = R.submat(valid_k, remaining_cols);  // R(valid_k, j+1:p-1)
+          vec R_prev_j = R.submat(valid_k, uvec{j});            // R(valid_k, j)
+          
+          R_row_j -= R_prev_cols.t() * R_prev_j;
+        }
+      }
+      
+      R_row_j /= R_jj;
+      R.submat(uvec{j}, remaining_cols) = R_row_j.t();
+    }
+  }
+  
+  return accu(excluded) < p;
+}
+
 inline CollinearityResult check_collinearity(mat &X, const vec &w,
                                              bool has_weights, double tolerance,
                                              bool store_qr = false) {
@@ -78,32 +135,76 @@ inline CollinearityResult check_collinearity(mat &X, const vec &w,
     return result;
   }
 
-  mat Q, R;
-  if (has_weights) {
-    mat X_weighted = X.each_col() % sqrt(w);
-    qr_econ(Q, R, X_weighted);
-  } else {
-    qr_econ(Q, R, X);
+  // Early exit for single column
+  if (p == 1) {
+    // Check if the single column is all zeros or has very small variance
+    vec col = X.col(0);
+    if (has_weights) {
+      col = col % sqrt(w);
+    }
+    double var_col = var(col);
+    if (var_col < tolerance * tolerance) {
+      result.coef_status.zeros();
+      result.has_collinearity = true;
+      result.n_valid = 0;
+      result.non_collinear_cols = uvec();
+      X.reset();
+    }
+    return result;
   }
 
-  const vec diag_abs = abs(R.diag());
-  const double tol = tolerance * diag_abs.max();
-  const uvec indep = find(diag_abs > tol);
+  // Build X'X matrix efficiently
+  mat XtX;
+  if (has_weights) {
+    // Compute X'WX efficiently without creating NxN diagonal matrix
+    mat X_weighted = X;
+    X_weighted.each_col() %= sqrt(w);
+    XtX = X_weighted.t() * X_weighted;
+  } else {
+    XtX = X.t() * X;
+  }
 
+  // Use fixest's rank-revealing approach (exact match for compatibility)
+  uvec excluded;
+  bool success = rank_revealing_cholesky(excluded, XtX, tolerance);
+  
+  if (!success) {
+    // All variables are collinear
+    result.coef_status.zeros();
+    result.has_collinearity = true;
+    result.n_valid = 0;
+    result.non_collinear_cols = uvec();
+    X.reset();
+    return result;
+  }
+
+  // Find non-excluded columns
+  const uvec indep = find(excluded == 0);
+  
   result.coef_status.zeros();
-  result.coef_status.elem(indep).ones();
+  if (!indep.is_empty()) {
+    result.coef_status.elem(indep).ones();
+  }
   result.has_collinearity = (indep.n_elem < p);
   result.n_valid = indep.n_elem;
   result.non_collinear_cols = indep;
 
-  if (store_qr && !result.has_collinearity) {
-    result.Q = std::move(Q);
-    result.R = std::move(R);
-    result.has_qr = true;
+  // Store decomposition if requested (for future use in beta computation)
+  if (store_qr && !result.has_collinearity && result.n_valid > 0) {
+    // Store the Cholesky factor of X'X for non-collinear columns
+    mat XtX_reduced = XtX.submat(indep, indep);
+    mat L;
+    if (chol(L, XtX_reduced, "lower")) {
+      result.R = std::move(L);
+      result.has_qr = true;
+    }
   }
 
+  // Remove collinear columns from X
   if (result.has_collinearity && !indep.is_empty()) {
     X = X.cols(indep);
+  } else if (result.has_collinearity && indep.is_empty()) {
+    X.reset();
   }
 
   return result;
@@ -227,48 +328,26 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
 }
 
 struct AlphaWorkspace {
-  vec cluster_values;
-  vec sum_values;
-  uvec cluster_counts;
-  uvec obs_indices;
-  
-  // Replace large matrices with more efficient data structures
-  std::vector<std::vector<uword>> obs_to_groups;  // obs_to_groups[obs][dim] = group_id
-  std::vector<std::vector<bool>> completion_status;  // completion_status[obs][dim] = done
-  uvec completion_count;  // How many dimensions are complete for each obs
-  
-  // Priority queue workspace
-  std::vector<std::pair<uword, uword>> priority_pairs;  // (completion_count, obs_id)
-  uvec id_todo;
-  vec other_values_vec;
+  vec group_sums;
+  uvec group_counts;
+  vec residual;
+  vec current_fe;
+  vec old_fe;
+  umat obs_to_group;
 
-  AlphaWorkspace(size_t n_obs, size_t n_fe, size_t total_clusters) {
+  AlphaWorkspace(size_t n_obs, size_t n_fe, size_t max_groups) {
     CAPYBARA_TIME_FUNCTION("AlphaWorkspace::AlphaWorkspace");
 
     size_t safe_n_obs = std::max(n_obs, size_t(1));
     size_t safe_n_fe = std::max(n_fe, size_t(1));
-    size_t safe_total_clusters = std::max(total_clusters, size_t(1));
+    size_t safe_max_groups = std::max(max_groups, size_t(1));
 
-    cluster_values.set_size(safe_total_clusters);
-    cluster_values.zeros();
-    sum_values.set_size(safe_total_clusters);
-    cluster_counts.set_size(safe_total_clusters);
-    cluster_counts.zeros();
-    obs_indices.set_size(safe_n_obs);
-    
-    // More efficient data structures
-    obs_to_groups.resize(safe_n_obs);
-    completion_status.resize(safe_n_obs);
-    for (size_t i = 0; i < safe_n_obs; ++i) {
-      obs_to_groups[i].resize(safe_n_fe);
-      completion_status[i].resize(safe_n_fe, false);
-    }
-    completion_count.set_size(safe_n_obs);
-    completion_count.zeros();
-    
-    priority_pairs.reserve(safe_n_obs);
-    id_todo.set_size(safe_n_obs);
-    other_values_vec.set_size(safe_n_fe);
+    group_sums.set_size(safe_max_groups);
+    group_counts.set_size(safe_max_groups);
+    residual.set_size(safe_n_obs);
+    current_fe.set_size(safe_n_obs);
+    old_fe.set_size(safe_n_obs);
+    obs_to_group.set_size(safe_n_obs, safe_n_fe);
   }
 };
 
@@ -294,19 +373,19 @@ inline InferenceAlpha get_alpha(const vec &sumFE,
   }
 
   uvec cluster_sizes(Q);
+  size_t max_groups = 0;
   for (size_t q = 0; q < Q; ++q) {
     cluster_sizes(q) = group_indices(q).n_elem;
+    max_groups = std::max(max_groups, static_cast<size_t>(cluster_sizes(q)));
   }
-
-  size_t nb_coef = accu(cluster_sizes);
 
   std::unique_ptr<AlphaWorkspace> temp_ws;
   if (!ws) {
-    temp_ws = std::make_unique<AlphaWorkspace>(N, Q, nb_coef);
+    temp_ws = std::make_unique<AlphaWorkspace>(N, Q, max_groups);
     ws = temp_ws.get();
   }
 
-  if (nb_coef == 0) {
+  if (max_groups == 0) {
     result.Alpha.set_size(Q);
     for (size_t q = 0; q < Q; ++q) {
       result.Alpha(q) = vec(0, arma::fill::zeros);
@@ -318,190 +397,123 @@ inline InferenceAlpha get_alpha(const vec &sumFE,
     return result;
   }
 
-  size_t workspace_size = std::max(nb_coef, size_t(1));
-  if (ws->cluster_values.n_elem < workspace_size) {
-    ws->cluster_values.set_size(workspace_size);
+  // Use simple alternating projection method (like fixest)
+  result.Alpha.set_size(Q);
+  for (size_t q = 0; q < Q; ++q) {
+    result.Alpha(q) = vec(cluster_sizes(q), fill::zeros);
   }
 
-  vec cluster_values;
-  if (nb_coef > 0) {
-    cluster_values = ws->cluster_values.subvec(0, nb_coef - 1);
-  } else {
-    cluster_values.set_size(0);
+  // Build observation-to-group mapping using workspace
+  umat &obs_to_group = ws->obs_to_group;
+  if (obs_to_group.n_rows < N || obs_to_group.n_cols < Q) {
+    obs_to_group.set_size(N, Q);
   }
-  cluster_values.zeros();
-
-  // Build efficient observation-to-group mapping
-  uvec cluster_starts(Q);
-  cluster_starts(0) = 0;
-  for (size_t q = 1; q < Q; ++q) {
-    cluster_starts(q) = cluster_starts(q - 1) + cluster_sizes(q - 1);
-  }
-
-  // Direct mapping: obs -> group for each dimension
+  
   for (size_t q = 0; q < Q; ++q) {
     for (size_t g = 0; g < group_indices(q).n_elem; ++g) {
       const uvec &group_obs = group_indices(q)(g);
       for (uword obs : group_obs) {
-        if (obs >= N) {
-          throw std::runtime_error("Index out of bounds in obs_to_groups");
-        }
-        ws->obs_to_groups[obs][q] = g;
+        obs_to_group(obs, q) = g;
       }
     }
   }
 
-  // Build reverse mapping: cluster -> observations
-  field<uvec> obs_by_cluster(nb_coef);
-  std::vector<std::vector<uword>> temp_cluster_obs(nb_coef);
+  // Alternating projection algorithm (similar to fixest approach)
+  vec &current_fe = ws->current_fe;
+  vec &old_fe = ws->old_fe;
+  vec &residual = ws->residual;
+  vec &group_sums = ws->group_sums;
+  uvec &group_counts = ws->group_counts;
   
-  // Count observations per cluster
-  for (size_t obs = 0; obs < N; ++obs) {
-    for (size_t q = 0; q < Q; ++q) {
-      size_t cluster_idx = cluster_starts(q) + ws->obs_to_groups[obs][q];
-      temp_cluster_obs[cluster_idx].push_back(obs);
-    }
-  }
+  if (current_fe.n_elem < N) current_fe.set_size(N);
+  if (old_fe.n_elem < N) old_fe.set_size(N);
+  if (residual.n_elem < N) residual.set_size(N);
+  if (group_sums.n_elem < max_groups) group_sums.set_size(max_groups);
+  if (group_counts.n_elem < max_groups) group_counts.set_size(max_groups);
   
-  // Convert to field<uvec>
-  for (size_t i = 0; i < nb_coef; ++i) {
-    obs_by_cluster(i) = conv_to<uvec>::from(temp_cluster_obs[i]);
-  }
-
-  // Initialize completion tracking
-  uvec completion_count = ws->completion_count.subvec(0, N - 1);
-  completion_count.zeros();
-  
-  for (size_t i = 0; i < N; ++i) {
-    std::fill(ws->completion_status[i].begin(), ws->completion_status[i].begin() + Q, false);
-  }
-
-  uvec nb_ref(Q);
-  nb_ref.zeros();
-
+  current_fe.subvec(0, N-1).zeros();
+  bool converged = false;
   size_t iter = 0;
-  
-  // Use a more efficient selection strategy
-  std::unordered_set<uword> todo_set;
-  for (size_t i = 0; i < N; ++i) {
-    todo_set.insert(i);
-  }
 
-  while (iter < iter_max && !todo_set.empty()) {
-    iter++;
-
-    // Find observation with maximum completion count (Q-2 is optimal, Q-1 is ready)
-    uword best_obs = *todo_set.begin();
-    uword best_count = completion_count(best_obs);
-    
-    for (uword obs : todo_set) {
-      uword count = completion_count(obs);
-      if (count == Q - 2) {
-        best_obs = obs;
-        best_count = count;
-        break; // Optimal choice found
-      } else if (count > best_count) {
-        best_obs = obs;
-        best_count = count;
-      }
-    }
-
-    // Set reference for first incomplete dimension
-    bool first = true;
-    for (size_t q = 0; q < Q; ++q) {
-      if (!ws->completion_status[best_obs][q]) {
-        if (first) {
-          first = false;
-        } else {
-          // Set this group as reference (value = 0)
-          uword group_id = ws->obs_to_groups[best_obs][q];
-          size_t cluster_idx = cluster_starts(q) + group_id;
-          cluster_values(cluster_idx) = 0;
-
-          // Mark all observations in this cluster as complete for this dimension
-          const uvec &obs_in_cluster = obs_by_cluster(cluster_idx);
-          for (uword obs : obs_in_cluster) {
-            if (!ws->completion_status[obs][q]) {
-              ws->completion_status[obs][q] = true;
-              completion_count(obs)++;
-            }
-          }
-          nb_ref(q)++;
-        }
-      }
-    }
-
-    // Process all observations that are now ready (Q-1 complete)
-    std::vector<uword> to_remove;
-    bool changed = true;
-    size_t inner_iter = 0;
-    
-    while (changed && inner_iter < iter_max) {
-      inner_iter++;
-      changed = false;
-      to_remove.clear();
-      
-      for (uword obs : todo_set) {
-        if (completion_count(obs) == Q - 1) {
-          changed = true;
-          to_remove.push_back(obs);
-          
-          // Find the missing dimension
-          size_t q_missing = Q;
-          for (size_t q = 0; q < Q; ++q) {
-            if (!ws->completion_status[obs][q]) {
-              q_missing = q;
-              break;
-            }
-          }
-          
-          // Compute the missing value
-          double other_sum = 0;
-          for (size_t q = 0; q < Q; ++q) {
-            if (q != q_missing) {
-              size_t cluster_idx = cluster_starts(q) + ws->obs_to_groups[obs][q];
-              other_sum += cluster_values(cluster_idx);
-            }
-          }
-          
-          uword group_id = ws->obs_to_groups[obs][q_missing];
-          size_t cluster_idx = cluster_starts(q_missing) + group_id;
-          cluster_values(cluster_idx) = sumFE(obs) - other_sum;
-          
-          // Mark all observations in this cluster as complete
-          const uvec &obs_in_cluster = obs_by_cluster(cluster_idx);
-          for (uword cluster_obs : obs_in_cluster) {
-            if (!ws->completion_status[cluster_obs][q_missing]) {
-              ws->completion_status[cluster_obs][q_missing] = true;
-              completion_count(cluster_obs)++;
-            }
-          }
-        }
-      }
-      
-      // Remove completed observations
-      for (uword obs : to_remove) {
-        todo_set.erase(obs);
-      }
-    }
-    
-    if (todo_set.empty()) break;
-  }
-
-  // Build result
-  result.Alpha.set_size(Q);
-  for (size_t q = 0; q < Q; ++q) {
+  // Set first group in each dimension as reference (except first dimension)
+  uvec nb_ref(Q, fill::zeros);
+  for (size_t q = 1; q < Q; ++q) {
     if (cluster_sizes(q) > 0) {
-      result.Alpha(q) = cluster_values.subvec(
-          cluster_starts(q), cluster_starts(q) + cluster_sizes(q) - 1);
-    } else {
-      result.Alpha(q) = vec(0, arma::fill::zeros);
+      result.Alpha(q)(0) = 0.0;  // First group is reference
+      nb_ref(q) = 1;
+    }
+  }
+
+  while (iter < iter_max && !converged) {
+    iter++;
+    old_fe.subvec(0, N-1) = current_fe.subvec(0, N-1);
+    
+    // For each dimension, solve for fixed effects
+    for (size_t q = 0; q < Q; ++q) {
+      if (cluster_sizes(q) == 0) continue;
+      
+      // Compute residual after removing other dimensions
+      residual.subvec(0, N-1) = sumFE;
+      for (size_t other_q = 0; other_q < Q; ++other_q) {
+        if (other_q != q) {
+          for (size_t obs = 0; obs < N; ++obs) {
+            residual(obs) -= result.Alpha(other_q)(obs_to_group(obs, other_q));
+          }
+        }
+      }
+      
+      // Compute group averages for dimension q
+      group_sums.subvec(0, cluster_sizes(q)-1).zeros();
+      group_counts.subvec(0, cluster_sizes(q)-1).zeros();
+      
+      for (size_t obs = 0; obs < N; ++obs) {
+        uword g = obs_to_group(obs, q);
+        group_sums(g) += residual(obs);
+        group_counts(g)++;
+      }
+      
+      // Set averages (with reference constraint if not first dimension)
+      for (size_t g = 0; g < cluster_sizes(q); ++g) {
+        if (group_counts(g) > 0) {
+          result.Alpha(q)(g) = group_sums(g) / group_counts(g);
+        }
+      }
+      
+      // Apply reference constraint (all groups sum to zero, except first dimension)
+      if (q > 0) {
+        double mean_fe = 0.0;
+        size_t total_count = 0;
+        for (size_t g = 0; g < cluster_sizes(q); ++g) {
+          mean_fe += result.Alpha(q)(g) * group_counts(g);
+          total_count += group_counts(g);
+        }
+        if (total_count > 0) {
+          mean_fe /= total_count;
+          result.Alpha(q) -= mean_fe;
+        }
+      }
+    }
+    
+    // Check convergence by computing current fitted values
+    current_fe.subvec(0, N-1).zeros();
+    for (size_t obs = 0; obs < N; ++obs) {
+      for (size_t q = 0; q < Q; ++q) {
+        current_fe(obs) += result.Alpha(q)(obs_to_group(obs, q));
+      }
+    }
+    
+    // Convergence check
+    if (iter > 1) {
+      double diff = norm(current_fe.subvec(0, N-1) - old_fe.subvec(0, N-1), 2);
+      if (diff < tol) {
+        converged = true;
+      }
     }
   }
 
   result.nb_references = nb_ref;
   result.is_regular = (Q <= 2) || (accu(nb_ref) == Q - 1);
-  result.success = (iter < iter_max);
+  result.success = converged || (iter < iter_max);
 
   return result;
 }
