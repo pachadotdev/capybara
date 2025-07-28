@@ -18,7 +18,6 @@ struct DemeanMemoryPool {
   uvec index_vec1, index_vec2;
 
   DemeanMemoryPool(size_t max_size) {
-    // Use set_size without initialization - these are workspace vectors
     work_vec1.set_size(max_size);
     work_vec2.set_size(max_size);
     work_vec3.set_size(max_size);
@@ -53,7 +52,6 @@ struct DemeanWorkspace {
   DemeanWorkspace(size_t n_obs, size_t total_coefficients,
                   size_t max_fe_group_size)
       : pool(std::max(n_obs, total_coefficients)) {
-    // Use set_size without initialization - these will be overwritten
     fe_accumulator.set_size(max_fe_group_size);
     prediction_buffer.set_size(n_obs);
     residual_buffer.set_size(n_obs);
@@ -206,20 +204,19 @@ void FixedEffects::grouped_accu(size_t group_idx, const vec &values, vec &result
                               DemeanWorkspace &ws, bool use_weights) const {
   CAPYBARA_TIME_FUNCTION("FixedEffects::grouped_accu");
   
-  result.set_size(nb_ids_(group_idx));
+  result.zeros();
 
   const uvec &sorted_idx = sorted_obs_by_fe_(group_idx);
   const uvec &group_starts = fe_group_starts_(group_idx);
   const uvec &group_sizes = fe_group_sizes_(group_idx);
 
-  // Use vectorized operations where possible
-  uvec non_empty_groups = find(group_sizes > 0);
-  
-  for (uword i = 0; i < non_empty_groups.n_elem; ++i) {
-    uword g = non_empty_groups(i);
+  for (size_t g = 0; g < nb_ids_(group_idx); ++g) {
+    if (group_sizes(g) == 0) continue;
+
     uword start = group_starts(g);
     uword end = group_starts(g + 1);
     
+    // Use Armadillo's vectorized operations
     uvec group_obs = sorted_idx.subvec(start, end - 1);
     
     if (use_weights && has_weights_) {
@@ -228,10 +225,6 @@ void FixedEffects::grouped_accu(size_t group_idx, const vec &values, vec &result
       result(g) = accu(values.elem(group_obs));
     }
   }
-  
-  // Set empty groups to zero using vectorized operation
-  uvec empty_groups = find(group_sizes == 0);
-  result.elem(empty_groups).zeros();
 }
 
 void FixedEffects::broadcast(size_t group_idx, const vec &fe_values,
@@ -271,9 +264,9 @@ void FixedEffects::compute_fe_coef_two(vec &fe_coef_a, vec &fe_coef_b,
   CAPYBARA_TIME_FUNCTION("FixedEffects::compute_fe_coef_two");
   
   fe_coef_a.set_size(nb_coefs_(0));
-  fe_coef_a.fill(0.0);
+  fe_coef_a.zeros();
   fe_coef_b.set_size(nb_coefs_(1));
-  fe_coef_b.fill(0.0);
+  fe_coef_b.zeros();
 
   vec &pred = ws.prediction_buffer;
   vec &resid = ws.residual_buffer;
@@ -344,8 +337,7 @@ void FixedEffects::compute_full_prediction(const vec &all_fe_coef,
                                            DemeanWorkspace &ws) const {
   CAPYBARA_TIME_FUNCTION("FixedEffects::compute_full_prediction");
   
-  prediction.set_size(n_obs_);
-  prediction.fill(0.0);  // Single fill operation instead of zeros()
+  prediction.zeros();
 
   // Use vectorized operations to avoid repeated memory allocations
   for (size_t q = 0; q < n_fe_groups_; ++q) {
@@ -448,8 +440,7 @@ void fe_general(size_t var_idx, const vec &fe_coef_origin,
     size_t uq = static_cast<size_t>(q);
 
     vec &other_pred = ws.prediction_buffer;
-    other_pred.set_size(input.n_elem);  // No need to zero - will be overwritten
-    other_pred.fill(0.0);  // Only zero once instead of calling zeros() repeatedly
+    other_pred.zeros();
 
     for (size_t h = 0; h < n_fe_groups; ++h) {
       if (h == uq)
@@ -533,12 +524,12 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams &params,
     throw std::runtime_error("Workspace vectors too small for subvec access");
   }
 
-  // Initialize workspace vectors efficiently - only zero the parts we need
+  // Use Armadillo's efficient operations
   X.subvec(0, nb_coef_T - 1).zeros();
   GX.subvec(0, nb_coef_T - 1).zeros();
   GGX.subvec(0, nb_coef_T - 1).zeros();
 
-  output.set_size(input.n_elem);  // No need to zero - will be overwritten
+  output.zeros();
 
   fe(var_idx, Q, X, GX, params);
 
