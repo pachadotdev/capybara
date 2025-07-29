@@ -22,9 +22,9 @@ struct InferenceLM {
   uvec iterations;
 
   InferenceLM(size_t n, size_t p)
-      : coefficients(p, fill::none), fitted_values(n, fill::none),
-        residuals(n, fill::none), weights(n, fill::none),
-        hessian(p, p, fill::none), coef_status(p, fill::none), success(false),
+      : coefficients(p, fill::zeros), fitted_values(n, fill::zeros),
+        residuals(n, fill::zeros), weights(n, fill::ones),
+        hessian(p, p, fill::zeros), coef_status(p, fill::ones), success(false),
         is_regular(true), has_fe(false) {
     CAPYBARA_TIME_FUNCTION("InferenceLM::InferenceLM");
   }
@@ -52,7 +52,7 @@ struct InferenceLM {
   }
 };
 
-inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
+inline InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
                             const field<uvec> &fe_indices, const uvec &nb_ids,
                             const field<uvec> &fe_id_tables,
                             const CapybaraParameters &params) {
@@ -65,14 +65,12 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
 
   InferenceLM result(n, p_orig);
 
-  // Step 1: Check collinearity and modify X in place
+  // Step 1: Check collinearity
   bool use_weights = params.use_weights && !all(w == 1.0);
   double tolerance = params.collin_tol;
 
-  // TODO: avoid working copy that will be modified
-  mat X_work = X;
   CollinearityResult collin_result =
-      check_collinearity(X_work, w, use_weights, tolerance, false);
+      check_collinearity(X, w, use_weights, tolerance, false);
 
   // Step 2: Demean variables
   mat X_demean;
@@ -85,35 +83,36 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
 
     DemeanResult y_demean_result = demean_variables(
         y_to_demean, w, fe_indices, nb_ids, fe_id_tables, true, params);
-    y_demean = y_demean_result.demeaned_vars(0);
+    y_demean = std::move(y_demean_result.demeaned_vars(0));
 
-    // Demean only non-collinear X columns
-    if (X_work.n_cols > 0) {
-      field<vec> x_columns_to_demean(X_work.n_cols);
-      for (size_t j = 0; j < X_work.n_cols; ++j) {
-        x_columns_to_demean(j) = X_work.unsafe_col(j);
+    if (X.n_cols > 0) {
+      field<vec> x_columns_to_demean(X.n_cols);
+
+      for (size_t j = 0; j < X.n_cols; ++j) {
+        x_columns_to_demean(j) = X.unsafe_col(j);
       }
 
       DemeanResult x_demean_result =
           demean_variables(x_columns_to_demean, w, fe_indices, nb_ids,
                            fe_id_tables, false, params);
 
-      X_demean.set_size(n, X_work.n_cols);
-      for (size_t j = 0; j < X_work.n_cols; ++j) {
+      X_demean.set_size(n, X.n_cols);
+      for (size_t j = 0; j < X.n_cols; ++j) {
         X_demean.unsafe_col(j) = std::move(x_demean_result.demeaned_vars(j));
       }
     } else {
-      X_demean = mat(n, 0);
+      X_demean.set_size(n, 0);
     }
 
     result.has_fe = true;
   } else {
+
     y_demean = y;
-    X_demean = X_work;
+    X_demean = std::move(X);
     result.has_fe = false;
   }
 
-  // Step 3: Solve normal equations using the reduced matrix
+  // Step 3: Solve normal equation
   InferenceBeta beta_result = get_beta(X_demean, y_demean, y, w, collin_result,
                                        use_weights, has_fixed_effects);
 
@@ -123,15 +122,16 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
   }
 
   // Step 4: Copy results
-  result.coefficients = beta_result.coefficients;
-  result.fitted_values = beta_result.fitted_values;
-  result.residuals = beta_result.residuals;
-  result.weights = beta_result.weights;
-  result.hessian = beta_result.hessian;
-  result.coef_status = beta_result.coef_status;
+  result.coefficients = std::move(beta_result.coefficients);
+  result.fitted_values = std::move(beta_result.fitted_values);
+  result.residuals = std::move(beta_result.residuals);
+  result.weights = std::move(beta_result.weights);
+  result.hessian = std::move(beta_result.hessian);
+  result.coef_status = std::move(beta_result.coef_status);
 
-  // Step 5: Extract fixed effects using reduced X and coefficients
+  // Step 5: Extract fixed effects
   if (has_fixed_effects) {
+
     vec coef_reduced;
     if (collin_result.has_collinearity) {
       coef_reduced = result.coefficients(collin_result.non_collinear_cols);
@@ -139,44 +139,46 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
       coef_reduced = result.coefficients;
     }
 
-    vec sum_fe = result.fitted_values - X_work * coef_reduced;
+    vec sum_fe = result.fitted_values - X * coef_reduced;
 
     field<field<uvec>> group_indices(fe_indices.n_elem);
     for (size_t k = 0; k < fe_indices.n_elem; ++k) {
-      group_indices(k).set_size(nb_ids(k));
-
-      field<uvec> temp_groups(nb_ids(k));
       const uvec &fe_idx = fe_indices(k);
+      const size_t n_obs = fe_idx.n_elem;
+      const size_t n_groups = nb_ids(k);
 
-      for (size_t g = 0; g < nb_ids(k); ++g) {
-        temp_groups(g).reset();
+      group_indices(k).set_size(n_groups);
+
+      uvec group_sizes(n_groups, fill::zeros);
+      const uword *fe_idx_ptr = fe_idx.memptr();
+      uword *group_sizes_ptr = group_sizes.memptr();
+
+      for (size_t obs = 0; obs < n_obs; ++obs) {
+        group_sizes_ptr[fe_idx_ptr[obs]]++;
       }
 
-      uvec group_sizes(nb_ids(k), fill::zeros);
-      for (size_t obs = 0; obs < fe_idx.n_elem; ++obs) {
-        group_sizes(fe_idx(obs))++;
-      }
-
-      for (size_t g = 0; g < nb_ids(k); ++g) {
-        if (group_sizes(g) > 0) {
-          temp_groups(g).set_size(group_sizes(g));
+      for (size_t g = 0; g < n_groups; ++g) {
+        if (group_sizes_ptr[g] > 0) {
+          group_indices(k)(g).set_size(group_sizes_ptr[g]);
+        } else {
+          group_indices(k)(g).reset();
         }
       }
 
-      uvec group_counters(nb_ids(k), fill::zeros);
-      for (size_t obs = 0; obs < fe_idx.n_elem; ++obs) {
-        uword group_id = fe_idx(obs);
-        temp_groups(group_id)(group_counters(group_id)++) = obs;
-      }
+      uvec group_counters(n_groups, fill::zeros);
+      uword *group_counters_ptr = group_counters.memptr();
 
-      group_indices(k) = std::move(temp_groups);
+      for (size_t obs = 0; obs < n_obs; ++obs) {
+        uword group_id = fe_idx_ptr[obs];
+        group_indices(k)(group_id)(group_counters_ptr[group_id]++) = obs;
+      }
     }
     InferenceAlpha alpha_result =
         get_alpha(sum_fe, group_indices, params.alpha_convergence_tol,
                   params.alpha_iter_max);
 
-    result.fixed_effects = alpha_result.Alpha;
-    result.nb_references = alpha_result.nb_references;
+    result.fixed_effects = std::move(alpha_result.Alpha);
+    result.nb_references = std::move(alpha_result.nb_references);
     result.is_regular = alpha_result.is_regular;
   }
 
