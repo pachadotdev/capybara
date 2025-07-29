@@ -15,17 +15,6 @@ enum class Family {
   GAMMA
 };
 
-namespace utils {
-
-inline vec safe_divide(const vec &numerator, const vec &denominator,
-                       double min_val) {
-  return numerator / max(denominator, min_val);
-}
-
-inline vec safe_log(const vec &x, double min_val) {
-  return log(max(x, min_val));
-}
-
 inline bool is_poisson_family(Family family) {
   return (family == Family::POISSON || family == Family::POISSON_LOG);
 }
@@ -33,7 +22,6 @@ inline bool is_poisson_family(Family family) {
 inline bool requires_newton_raphson(Family family) {
   return (family == Family::NEGBIN || family == Family::BINOMIAL);
 }
-} // namespace utils
 
 inline bool continue_criterion(double a, double b, double diffMax,
                                const CapybaraParameters &params) {
@@ -80,10 +68,15 @@ inline void grouped_accu(const vec &values, const uvec &indices, vec &result,
                          ClusterWorkspace &ws) {
   CAPYBARA_TIME_FUNCTION("grouped_accu");
 
+  size_t n_obs = values.n_elem;
   result.zeros();
 
-  for (size_t g = 0; g < result.n_elem; ++g) {
-    result(g) = accu(values(find(indices == g)));
+  const double *values_ptr = values.memptr();
+  const uword *indices_ptr = indices.memptr();
+  double *result_ptr = result.memptr();
+
+  for (size_t i = 0; i < n_obs; ++i) {
+    result_ptr[indices_ptr[i]] += values_ptr[i];
   }
 }
 
@@ -91,17 +84,35 @@ bool irons_tuck(vec &X, const vec &GX, const vec &GGX,
                 const CapybaraParameters &params) {
   CAPYBARA_TIME_FUNCTION("irons_tuck");
 
-  vec delta_GX = GGX - GX;
-  vec delta2_X = delta_GX - GX + X;
+  size_t nb_coef = X.n_elem;
+  const double *X_ptr = X.memptr();
+  const double *GX_ptr = GX.memptr();
+  const double *GGX_ptr = GGX.memptr();
+  double *X_out_ptr = X.memptr();
 
-  double vprod = dot(delta_GX, delta2_X);
-  double ssq = dot(delta2_X, delta2_X);
+  double vprod = 0.0;
+  double ssq = 0.0;
 
-  if (ssq < params.irons_tuck_eps) {
-    return true;
+  for (size_t i = 0; i < nb_coef; ++i) {
+    double GX_tmp = GX_ptr[i];
+    double delta_GX = GGX_ptr[i] - GX_tmp;
+    double delta2_X = delta_GX - GX_tmp + X_ptr[i];
+
+    vprod += delta_GX * delta2_X;
+    ssq += delta2_X * delta2_X;
   }
 
-  X = GGX - (vprod / ssq) * delta_GX;
+  if (ssq < params.irons_tuck_eps) {
+    return true; // Convergence reached
+  }
+
+  double coef = vprod / ssq;
+  for (size_t i = 0; i < nb_coef; ++i) {
+    double GX_tmp = GX_ptr[i];
+    double delta_GX = GGX_ptr[i] - GX_tmp;
+    X_out_ptr[i] = GGX_ptr[i] - coef * delta_GX;
+  }
+
   return false;
 }
 
@@ -110,13 +121,22 @@ void cluster_coef_poisson(const vec &exp_mu, const vec &sum_y, const uvec &dum,
   CAPYBARA_TIME_FUNCTION("cluster_coef_poisson");
 
   size_t nb_cluster = cluster_coef.n_elem;
+  size_t n_obs = exp_mu.n_elem;
 
-  vec accumulator(nb_cluster);
-  accumulator.zeros();
+  cluster_coef.zeros();
 
-  grouped_accu(exp_mu, dum, accumulator, ws);
+  const double *exp_mu_ptr = exp_mu.memptr();
+  const uword *dum_ptr = dum.memptr();
+  const double *sum_y_ptr = sum_y.memptr();
+  double *coef_ptr = cluster_coef.memptr();
 
-  cluster_coef = sum_y / accumulator;
+  for (size_t i = 0; i < n_obs; ++i) {
+    coef_ptr[dum_ptr[i]] += exp_mu_ptr[i];
+  }
+
+  for (size_t m = 0; m < nb_cluster; ++m) {
+    coef_ptr[m] = sum_y_ptr[m] / coef_ptr[m];
+  }
 }
 
 void cluster_coef_poisson_log(const vec &mu, const vec &sum_y, const uvec &dum,
@@ -127,22 +147,32 @@ void cluster_coef_poisson_log(const vec &mu, const vec &sum_y, const uvec &dum,
   size_t n_obs = mu.n_elem;
 
   cluster_coef.zeros();
-  vec mu_max(nb_cluster);
+
+  vec &mu_max = ws.mu_max;
+  mu_max.set_size(nb_cluster);
   mu_max.fill(-datum::inf);
 
+  const double *mu_ptr = mu.memptr();
+  const uword *dum_ptr = dum.memptr();
+  const double *sum_y_ptr = sum_y.memptr();
+  double *coef_ptr = cluster_coef.memptr();
+  double *mu_max_ptr = mu_max.memptr();
+
   for (size_t i = 0; i < n_obs; ++i) {
-    uword cluster_id = dum(i);
-    if (mu(i) > mu_max(cluster_id)) {
-      mu_max(cluster_id) = mu(i);
+    uword cluster_id = dum_ptr[i];
+    if (mu_ptr[i] > mu_max_ptr[cluster_id]) {
+      mu_max_ptr[cluster_id] = mu_ptr[i];
     }
   }
 
-  vec exp_diff(n_obs);
-  exp_diff = exp(mu - mu_max.elem(dum));
+  for (size_t i = 0; i < n_obs; ++i) {
+    uword cluster_id = dum_ptr[i];
+    coef_ptr[cluster_id] += exp(mu_ptr[i] - mu_max_ptr[cluster_id]);
+  }
 
-  grouped_accu(exp_diff, dum, cluster_coef, ws);
-
-  cluster_coef = log(sum_y) - log(cluster_coef) - mu_max;
+  for (size_t m = 0; m < nb_cluster; ++m) {
+    coef_ptr[m] = log(sum_y_ptr[m]) - log(coef_ptr[m]) - mu_max_ptr[m];
+  }
 }
 
 void cluster_coef_gaussian(const vec &mu, const vec &sum_y, const uvec &dum,
@@ -150,10 +180,25 @@ void cluster_coef_gaussian(const vec &mu, const vec &sum_y, const uvec &dum,
                            ClusterWorkspace &ws, double safe_min) {
   CAPYBARA_TIME_FUNCTION("cluster_coef_gaussian");
 
-  grouped_accu(mu, dum, cluster_coef, ws);
+  size_t nb_cluster = cluster_coef.n_elem;
+  size_t n_obs = mu.n_elem;
 
-  vec table_dbl = conv_to<vec>::from(table);
-  cluster_coef = (sum_y - cluster_coef) / max(table_dbl, safe_min);
+  cluster_coef.zeros();
+
+  const double *mu_ptr = mu.memptr();
+  const uword *dum_ptr = dum.memptr();
+  const double *sum_y_ptr = sum_y.memptr();
+  const uword *table_ptr = table.memptr();
+  double *coef_ptr = cluster_coef.memptr();
+
+  for (size_t i = 0; i < n_obs; ++i) {
+    coef_ptr[dum_ptr[i]] += mu_ptr[i];
+  }
+
+  for (size_t m = 0; m < nb_cluster; ++m) {
+    double table_val = static_cast<double>(table_ptr[m]);
+    coef_ptr[m] = (sum_y_ptr[m] - coef_ptr[m]) / std::max(table_val, safe_min);
+  }
 }
 
 void cluster_coefficients(Family family, const vec &mu, const vec &lhs,
@@ -247,17 +292,37 @@ inline void update_mu(vec &mu_result, const vec &mu_base,
                       const field<uvec> &dum_vector, Family family) {
   CAPYBARA_TIME_FUNCTION("update_mu");
 
-  // TODO: avoid Initial copy
-  mu_result = mu_base;
   size_t K = cluster_coefs.n_elem;
+  size_t n_obs = mu_base.n_elem;
 
-  if (utils::is_poisson_family(family)) {
+  const double *mu_base_ptr = mu_base.memptr();
+  double *mu_result_ptr = mu_result.memptr();
+
+  if (mu_result.memptr() != mu_base.memptr()) {
+    for (size_t i = 0; i < n_obs; ++i) {
+      mu_result_ptr[i] = mu_base_ptr[i];
+    }
+  }
+
+  if (is_poisson_family(family)) {
+    // Multiplicative updates for Poisson
     for (size_t k = 0; k < K; ++k) {
-      mu_result %= cluster_coefs(k).elem(dum_vector(k));
+      const double *coef_ptr = cluster_coefs(k).memptr();
+      const uword *dum_ptr = dum_vector(k).memptr();
+
+      for (size_t i = 0; i < n_obs; ++i) {
+        mu_result_ptr[i] *= coef_ptr[dum_ptr[i]];
+      }
     }
   } else {
+    // Additive updates for Gaussian and others
     for (size_t k = 0; k < K; ++k) {
-      mu_result += cluster_coefs(k).elem(dum_vector(k));
+      const double *coef_ptr = cluster_coefs(k).memptr();
+      const uword *dum_ptr = dum_vector(k).memptr();
+
+      for (size_t i = 0; i < n_obs; ++i) {
+        mu_result_ptr[i] += coef_ptr[dum_ptr[i]];
+      }
     }
   }
 }
@@ -272,7 +337,7 @@ void all_cluster_coefficients(const Convergence &data,
   vec &mu_current = workspace.mu_current;
   mu_current = data.mu_init;
 
-  if (utils::is_poisson_family(data.family)) {
+  if (is_poisson_family(data.family)) {
     for (size_t k = 0; k < data.K - 1; ++k) {
       mu_current %= cluster_coefs_origin(k).elem(data.dum_vector(k));
     }
@@ -295,7 +360,7 @@ void all_cluster_coefficients(const Convergence &data,
     if (k > 0) {
       mu_current = data.mu_init;
 
-      if (utils::is_poisson_family(data.family)) {
+      if (is_poisson_family(data.family)) {
         for (size_t h = 0; h < data.K; h++) {
           if (h == uk - 1)
             continue;
@@ -333,7 +398,7 @@ vec conv_accelerated(const Convergence &data, const CapybaraParameters &params,
   field<vec> &GGX = workspace.GGX;
 
   for (size_t k = 0; k < K; ++k) {
-    if (utils::is_poisson_family(data.family)) {
+    if (is_poisson_family(data.family)) {
       X(k).ones();
     } else {
       X(k).zeros();
@@ -371,12 +436,18 @@ vec conv_accelerated(const Convergence &data, const CapybaraParameters &params,
     if (numconv)
       break;
 
-    if (utils::is_poisson_family(data.family)) {
+    if (is_poisson_family(data.family)) {
       for (size_t k = 0; k < K - 1; ++k) {
-        if (any(X(k) <= 0)) {
-          any_negative_poisson = true;
-          break;
+        const double *X_ptr = X(k).memptr();
+        size_t n_coef = X(k).n_elem;
+        for (size_t i = 0; i < n_coef; ++i) {
+          if (X_ptr[i] <= 0) {
+            any_negative_poisson = true;
+            break;
+          }
         }
+        if (any_negative_poisson)
+          break;
       }
       if (any_negative_poisson)
         break;
