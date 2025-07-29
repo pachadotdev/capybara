@@ -210,25 +210,33 @@ void FixedEffects::grouped_accu(size_t group_idx, const vec &values,
 
   result.zeros();
 
-  const uvec &sorted_idx = sorted_obs_by_fe_(group_idx);
-  const uvec &group_starts = fe_group_starts_(group_idx);
-  const uvec &group_sizes = fe_group_sizes_(group_idx);
+  const uword *sorted_idx_ptr = sorted_obs_by_fe_(group_idx).memptr();
+  const uword *group_starts_ptr = fe_group_starts_(group_idx).memptr();
+  const uword *group_sizes_ptr = fe_group_sizes_(group_idx).memptr();
+  const double *values_ptr = values.memptr();
+  const double *weights_ptr = has_weights_ ? weights_.memptr() : nullptr;
+  double *result_ptr = result.memptr();
 
   for (size_t g = 0; g < nb_ids_(group_idx); ++g) {
-    if (group_sizes(g) == 0)
+    if (group_sizes_ptr[g] == 0)
       continue;
 
-    uword start = group_starts(g);
-    uword end = group_starts(g + 1);
+    uword start = group_starts_ptr[g];
+    uword end = group_starts_ptr[g + 1];
 
-    // Use Armadillo's vectorized operations
-    uvec group_obs = sorted_idx.subvec(start, end - 1);
-
+    double sum = 0.0;
     if (use_weights && has_weights_) {
-      result(g) = accu(values.elem(group_obs) % weights_.elem(group_obs));
+      for (uword idx = start; idx < end; ++idx) {
+        uword obs = sorted_idx_ptr[idx];
+        sum += values_ptr[obs] * weights_ptr[obs];
+      }
     } else {
-      result(g) = accu(values.elem(group_obs));
+      for (uword idx = start; idx < end; ++idx) {
+        uword obs = sorted_idx_ptr[idx];
+        sum += values_ptr[obs];
+      }
     }
+    result_ptr[g] = sum;
   }
 }
 
@@ -236,10 +244,14 @@ void FixedEffects::broadcast(size_t group_idx, const vec &fe_values,
                              vec &result) const {
   CAPYBARA_TIME_FUNCTION("FixedEffects::broadcast");
 
-  const uvec &fe_idx = fe_indices_(group_idx);
+  const uword *fe_idx_ptr = fe_indices_(group_idx).memptr();
+  const double *fe_values_ptr = fe_values.memptr();
+  double *result_ptr = result.memptr();
 
-  // Use Armadillo's vectorized indexing
-  result = fe_values.elem(fe_idx);
+  // Direct pointer-based indexing - much faster than elem()
+  for (size_t i = 0; i < n_obs_; ++i) {
+    result_ptr[i] = fe_values_ptr[fe_idx_ptr[i]];
+  }
 }
 
 void FixedEffects::compute_fe_coef_single(vec &fe_coef, const vec &target,
@@ -250,16 +262,22 @@ void FixedEffects::compute_fe_coef_single(vec &fe_coef, const vec &target,
 
   grouped_accu(0, target, accumulator, ws, true);
 
-  if (inv_sum_weights_(0).n_elem == accumulator.n_elem) {
-    fe_coef = accumulator % inv_sum_weights_(0);
-  } else if (inv_sum_weights_(0).n_elem == 1) {
-    fe_coef = accumulator * inv_sum_weights_(0)(0);
-  } else {
-    if (accumulator.n_elem > inv_sum_weights_(0).n_elem) {
-      throw std::runtime_error("Accumulator size mismatch in demean");
+  // Use direct pointer arithmetic instead of Armadillo operations
+  const double *inv_weights_ptr = inv_sum_weights_(0).memptr();
+  const double *accum_ptr = accumulator.memptr();
+  double *fe_coef_ptr = fe_coef.memptr();
+  
+  size_t n_coef = accumulator.n_elem;
+  
+  if (inv_sum_weights_(0).n_elem == 1) {
+    double inv_weight_scalar = inv_weights_ptr[0];
+    for (size_t i = 0; i < n_coef; ++i) {
+      fe_coef_ptr[i] = accum_ptr[i] * inv_weight_scalar;
     }
-    vec inv_weights = inv_sum_weights_(0).subvec(0, accumulator.n_elem - 1);
-    fe_coef = accumulator % inv_weights;
+  } else {
+    for (size_t i = 0; i < n_coef; ++i) {
+      fe_coef_ptr[i] = accum_ptr[i] * inv_weights_ptr[i];
+    }
   }
 }
 
@@ -275,31 +293,77 @@ void FixedEffects::compute_fe_coef_two(vec &fe_coef_a, vec &fe_coef_b,
 
   vec &pred = ws.prediction_buffer;
   vec &resid = ws.residual_buffer;
+  vec &accum_0 = ws.fe_accumulator;  // Reuse workspace vectors
+  vec &accum_1 = ws.pool.work_vec1;  // Reuse workspace vectors
+
+  accum_0.set_size(nb_ids_(0));
+  accum_1.set_size(nb_ids_(1));
 
   const size_t max_iter = params_.demean_2fe_max_iter;
   const double tol = params_.demean_2fe_tolerance;
 
+  // Get direct pointers for performance
+  const double *target_ptr = target.memptr();
+  double *pred_ptr = pred.memptr();
+  double *resid_ptr = resid.memptr();
+  double *fe_a_ptr = fe_coef_a.memptr();
+  double *fe_b_ptr = fe_coef_b.memptr();
+  double *accum_0_ptr = accum_0.memptr();
+  double *accum_1_ptr = accum_1.memptr();
+  
+  const double *inv_weights_0_ptr = inv_sum_weights_(0).memptr();
+  const double *inv_weights_1_ptr = inv_sum_weights_(1).memptr();
+
   for (size_t iter = 0; iter < max_iter; ++iter) {
+    // Store old values for convergence check
     vec fe_a_old = fe_coef_a;
     vec fe_b_old = fe_coef_b;
 
     // Update FE group 1 given FE group 0
     broadcast(0, fe_coef_a, pred);
-    resid = target - pred;
+    
+    // Compute residual using direct pointer arithmetic
+    for (size_t i = 0; i < n_obs_; ++i) {
+      resid_ptr[i] = target_ptr[i] - pred_ptr[i];
+    }
 
-    vec accum_1(nb_ids_(1));
     grouped_accu(1, resid, accum_1, ws, true);
 
-    fe_coef_b = accum_1 % inv_sum_weights_(1);
+    // Update fe_coef_b using direct multiplication
+    size_t nb_coef_1 = nb_coefs_(1);
+    if (inv_sum_weights_(1).n_elem == 1) {
+      double inv_weight_scalar = inv_weights_1_ptr[0];
+      for (size_t i = 0; i < nb_coef_1; ++i) {
+        fe_b_ptr[i] = accum_1_ptr[i] * inv_weight_scalar;
+      }
+    } else {
+      for (size_t i = 0; i < nb_coef_1; ++i) {
+        fe_b_ptr[i] = accum_1_ptr[i] * inv_weights_1_ptr[i];
+      }
+    }
 
     // Update FE group 0 given FE group 1
     broadcast(1, fe_coef_b, pred);
-    resid = target - pred;
+    
+    // Compute residual using direct pointer arithmetic
+    for (size_t i = 0; i < n_obs_; ++i) {
+      resid_ptr[i] = target_ptr[i] - pred_ptr[i];
+    }
 
-    vec accum_0(nb_ids_(0));
     grouped_accu(0, resid, accum_0, ws, true);
 
-    fe_coef_a = accum_0 % inv_sum_weights_(0);
+    // Update fe_coef_a using direct multiplication
+    size_t nb_coef_0 = nb_coefs_(0);
+    if (inv_sum_weights_(0).n_elem == 1) {
+      double inv_weight_scalar = inv_weights_0_ptr[0];
+      for (size_t i = 0; i < nb_coef_0; ++i) {
+        fe_a_ptr[i] = accum_0_ptr[i] * inv_weight_scalar;
+      }
+    } else {
+      for (size_t i = 0; i < nb_coef_0; ++i) {
+        fe_a_ptr[i] = accum_0_ptr[i] * inv_weights_0_ptr[i];
+      }
+    }
 
     if (norm(fe_coef_a - fe_a_old, 2) < tol &&
         norm(fe_coef_b - fe_b_old, 2) < tol) {
@@ -319,8 +383,22 @@ void FixedEffects::compute_fe_coef_general(size_t group_idx, vec &fe_coef,
 
   size_t coef_start = coef_starts_(group_idx);
   size_t nb_coef = nb_coefs_(group_idx);
-  fe_coef.subvec(coef_start, coef_start + nb_coef - 1) =
-      accum % inv_sum_weights_(group_idx);
+  
+  // Use direct pointer arithmetic instead of subvec and %
+  const double *accum_ptr = accum.memptr();
+  const double *inv_weights_ptr = inv_sum_weights_(group_idx).memptr();
+  double *fe_coef_ptr = fe_coef.memptr() + coef_start;
+  
+  if (inv_sum_weights_(group_idx).n_elem == 1) {
+    double inv_weight_scalar = inv_weights_ptr[0];
+    for (size_t i = 0; i < nb_coef; ++i) {
+      fe_coef_ptr[i] = accum_ptr[i] * inv_weight_scalar;
+    }
+  } else {
+    for (size_t i = 0; i < nb_coef; ++i) {
+      fe_coef_ptr[i] = accum_ptr[i] * inv_weights_ptr[i];
+    }
+  }
 }
 
 void FixedEffects::add_fe_prediction(size_t group_idx, const vec &fe_coef,
@@ -330,11 +408,14 @@ void FixedEffects::add_fe_prediction(size_t group_idx, const vec &fe_coef,
   size_t coef_start = coef_starts_(group_idx);
   size_t nb_coef = nb_coefs_(group_idx);
 
-  const uvec &fe_idx = fe_indices_(group_idx);
-  const vec &group_coefs = fe_coef.subvec(coef_start, coef_start + nb_coef - 1);
+  const uword *fe_idx_ptr = fe_indices_(group_idx).memptr();
+  const double *group_coefs_ptr = fe_coef.memptr() + coef_start;
+  double *prediction_ptr = prediction.memptr();
 
-  // Direct vectorized addition without temporary allocation
-  prediction += group_coefs.elem(fe_idx);
+  // Direct pointer-based addition - much faster than elem()
+  for (size_t i = 0; i < n_obs_; ++i) {
+    prediction_ptr[i] += group_coefs_ptr[fe_idx_ptr[i]];
+  }
 }
 
 void FixedEffects::compute_full_prediction(const vec &all_fe_coef,
@@ -344,17 +425,18 @@ void FixedEffects::compute_full_prediction(const vec &all_fe_coef,
 
   prediction.zeros();
 
-  // Use vectorized operations to avoid repeated memory allocations
+  const double *all_fe_coef_ptr = all_fe_coef.memptr();
+  double *prediction_ptr = prediction.memptr();
+
+  // Use direct pointer arithmetic to avoid repeated elem() calls
   for (size_t q = 0; q < n_fe_groups_; ++q) {
     size_t coef_start = coef_starts_(q);
-    size_t nb_coef = nb_coefs_(q);
+    const uword *fe_idx_ptr = fe_indices_(q).memptr();
+    const double *group_coefs_ptr = all_fe_coef_ptr + coef_start;
 
-    const uvec &fe_idx = fe_indices_(q);
-    const vec &group_coefs =
-        all_fe_coef.subvec(coef_start, coef_start + nb_coef - 1);
-
-    // Direct vectorized addition instead of temporary allocation + +=
-    prediction += group_coefs.elem(fe_idx);
+    for (size_t i = 0; i < n_obs_; ++i) {
+      prediction_ptr[i] += group_coefs_ptr[fe_idx_ptr[i]];
+    }
   }
 }
 
@@ -560,25 +642,37 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams &params,
 
     fe(var_idx, Q, GX, GGX, params);
 
-    // Use Armadillo's vectorized operations
-    delta_GX.subvec(0, nb_coef_T - 1) =
-        GGX.subvec(0, nb_coef_T - 1) - GX.subvec(0, nb_coef_T - 1);
-    delta2_X.subvec(0, nb_coef_T - 1) = delta_GX.subvec(0, nb_coef_T - 1) -
-                                        GX.subvec(0, nb_coef_T - 1) +
-                                        X.subvec(0, nb_coef_T - 1);
+    // Use direct pointer arithmetic instead of subvec operations
+    double *delta_GX_ptr = delta_GX.memptr();
+    double *delta2_X_ptr = delta2_X.memptr();
+    double *X_ptr = X.memptr();
+    double *GX_ptr = GX.memptr();
+    double *GGX_ptr = GGX.memptr();
 
-    double vprod = dot(delta_GX.subvec(0, nb_coef_T - 1),
-                       delta2_X.subvec(0, nb_coef_T - 1));
-    double ssq = dot(delta2_X.subvec(0, nb_coef_T - 1),
-                     delta2_X.subvec(0, nb_coef_T - 1));
+    // Compute deltas using direct loops
+    double vprod = 0.0;
+    double ssq = 0.0;
+    
+    for (size_t i = 0; i < nb_coef_T; ++i) {
+      double GX_val = GX_ptr[i];
+      delta_GX_ptr[i] = GGX_ptr[i] - GX_val;
+      delta2_X_ptr[i] = delta_GX_ptr[i] - GX_val + X_ptr[i];
+      
+      // Accumulate dot products inline
+      vprod += delta_GX_ptr[i] * delta2_X_ptr[i];
+      ssq += delta2_X_ptr[i] * delta2_X_ptr[i];
+    }
 
     if (ssq < params.capybara_params.irons_tuck_eps) {
       break;
     }
 
-    X.subvec(0, nb_coef_T - 1) =
-        GGX.subvec(0, nb_coef_T - 1) -
-        (vprod / ssq) * delta_GX.subvec(0, nb_coef_T - 1);
+    double coef = vprod / ssq;
+    
+    // Update X using direct loop
+    for (size_t i = 0; i < nb_coef_T; ++i) {
+      X_ptr[i] = GGX_ptr[i] - coef * delta_GX_ptr[i];
+    }
 
     if (iter >= params.projections_after_acceleration) {
       Y.subvec(0, nb_coef_T - 1) = X.subvec(0, nb_coef_T - 1);
@@ -587,37 +681,57 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams &params,
 
     fe(var_idx, Q, X, GX, params);
 
-    keep_going = vector_continue_criterion(X.subvec(0, nb_coef_T - 1),
-                                           GX.subvec(0, nb_coef_T - 1), tol,
-                                           params.capybara_params);
+    // Create temporary vecs for convergence check
+    vec X_sub = X.subvec(0, nb_coef_T - 1);
+    vec GX_sub = GX.subvec(0, nb_coef_T - 1);
+    keep_going = vector_continue_criterion(X_sub, GX_sub, tol, params.capybara_params);
 
     if (iter % params.grand_acceleration_frequency == 0) {
       ++grand_acc_counter;
       if (grand_acc_counter == 1) {
-        Y.subvec(0, nb_coef_T - 1) = GX.subvec(0, nb_coef_T - 1);
+        // Copy using direct pointers
+        double *Y_ptr = Y.memptr();
+        double *GX_ptr = GX.memptr();
+        for (size_t i = 0; i < nb_coef_T; ++i) {
+          Y_ptr[i] = GX_ptr[i];
+        }
       } else if (grand_acc_counter == 2) {
-        GY.subvec(0, nb_coef_T - 1) = GX.subvec(0, nb_coef_T - 1);
+        // Copy using direct pointers
+        double *GY_ptr = GY.memptr();
+        double *GX_ptr = GX.memptr();
+        for (size_t i = 0; i < nb_coef_T; ++i) {
+          GY_ptr[i] = GX_ptr[i];
+        }
       } else {
-        GGY.subvec(0, nb_coef_T - 1) = GX.subvec(0, nb_coef_T - 1);
+        // Copy and compute deltas using direct pointers
+        double *GGY_ptr = GGY.memptr();
+        double *GY_ptr = GY.memptr();
+        double *Y_ptr = Y.memptr();
+        double *GX_ptr = GX.memptr();
+        
+        for (size_t i = 0; i < nb_coef_T; ++i) {
+          GGY_ptr[i] = GX_ptr[i];
+        }
 
-        delta_GX.subvec(0, nb_coef_T - 1) =
-            GGY.subvec(0, nb_coef_T - 1) - GY.subvec(0, nb_coef_T - 1);
-        delta2_X.subvec(0, nb_coef_T - 1) = delta_GX.subvec(0, nb_coef_T - 1) -
-                                            GY.subvec(0, nb_coef_T - 1) +
-                                            Y.subvec(0, nb_coef_T - 1);
-
-        vprod = dot(delta_GX.subvec(0, nb_coef_T - 1),
-                    delta2_X.subvec(0, nb_coef_T - 1));
-        ssq = dot(delta2_X.subvec(0, nb_coef_T - 1),
-                  delta2_X.subvec(0, nb_coef_T - 1));
+        double vprod = 0.0;
+        double ssq = 0.0;
+        
+        for (size_t i = 0; i < nb_coef_T; ++i) {
+          delta_GX_ptr[i] = GGY_ptr[i] - GY_ptr[i];
+          delta2_X_ptr[i] = delta_GX_ptr[i] - GY_ptr[i] + Y_ptr[i];
+          
+          vprod += delta_GX_ptr[i] * delta2_X_ptr[i];
+          ssq += delta2_X_ptr[i] * delta2_X_ptr[i];
+        }
 
         if (ssq < params.capybara_params.irons_tuck_eps) {
           break;
         }
 
-        Y.subvec(0, nb_coef_T - 1) =
-            GGY.subvec(0, nb_coef_T - 1) -
-            (vprod / ssq) * delta_GX.subvec(0, nb_coef_T - 1);
+        double coef = vprod / ssq;
+        for (size_t i = 0; i < nb_coef_T; ++i) {
+          Y_ptr[i] = GGY_ptr[i] - coef * delta_GX_ptr[i];
+        }
         fe(var_idx, Q, Y, GX, params);
         grand_acc_counter = 0;
       }
@@ -625,11 +739,20 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams &params,
 
     if (iter % params.ssr_check_frequency == 0) {
       vec &mu_current = ws.prediction_buffer;
-      params.fe_processor->compute_full_prediction(GX.subvec(0, nb_coef_T - 1),
-                                                   mu_current, ws);
+      
+      // Create temporary vec for subvector access
+      vec GX_sub = GX.subvec(0, nb_coef_T - 1);
+      params.fe_processor->compute_full_prediction(GX_sub, mu_current, ws);
 
-      vec resid = input - mu_current;
-      double ssr = dot(resid, resid);
+      // Compute residual using direct pointer arithmetic
+      const double *input_ptr = input.memptr();
+      const double *mu_ptr = mu_current.memptr();
+      double ssr = 0.0;
+      
+      for (size_t i = 0; i < input.n_elem; ++i) {
+        double resid_val = input_ptr[i] - mu_ptr[i];
+        ssr += resid_val * resid_val;
+      }
 
       if (stopping_criterion(ssr_old, ssr, tol, params.capybara_params)) {
         break;
@@ -638,8 +761,9 @@ bool demean_accelerated(size_t var_idx, size_t iter_max, DemeanParams &params,
     }
   }
 
-  params.fe_processor->compute_full_prediction(GX.subvec(0, nb_coef_T - 1),
-                                               output, ws);
+  // Create temporary vec for final prediction
+  vec GX_sub = GX.subvec(0, nb_coef_T - 1);
+  params.fe_processor->compute_full_prediction(GX_sub, output, ws);
 
   if (params.save_fixed_effects) {
     params.fixed_effect_values = GX.subvec(0, nb_coef_T - 1);

@@ -22,3 +22,9 @@ README.html
 pkgdown
 src/Makevars
 dev/timing.txt
+analysis.txt
+dev/output-fixest.log
+dev/output.log
+dev/timing.r
+dev/timing.txt
+dev/timing.txt

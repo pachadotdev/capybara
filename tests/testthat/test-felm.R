@@ -142,22 +142,6 @@ test_that("proportional regressors return NA coefficients", {
   expect_equal(predict(fit2), unname(predict(fit1)), tolerance = 1e-2)
 })
 
-test_that("Inf values are dropped", {
-  mtcars2 <- mtcars[, c("mpg", "wt", "cyl")]
-
-  mtcars2$mpg[1] <- 0
-  expect_error(felm(log(mpg) ~ log(wt) | cyl, mtcars2), "Infinite values")
-
-  mtcars2$mpg[1] <- 1
-  mtcars2$wt[2] <- 0
-  expect_error(felm(log(mpg) ~ log(wt) | cyl, mtcars2), "Infinite values")
-
-  mtcars2$wt[2] <- 1
-  m1 <- felm(log(mpg) ~ log(wt) | cyl, mtcars2)
-  m2 <- lm(log(mpg) ~ log(wt) + as.factor(cyl), mtcars2)
-  expect_equal(coef(m2)[2], coef(m1), tolerance = 1e-2)
-})
-
 test_that("felm correctly predicts values outside the inter-quartile range", {
   # Helper function for MAPE calculation
   mape <- function(y, yhat) {

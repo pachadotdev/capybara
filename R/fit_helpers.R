@@ -453,6 +453,15 @@ model_frame_ <- function(data, formula, weights) {
   nobs_full <- nrow(data)
   data <- na.omit(data)
 
+  # Remove observations with infinite values in any column
+  # This is crucial for preventing issues with log(0) or other transformations
+  infinite_rows <- apply(data, 1, function(x) any(is.infinite(x)))
+  if (any(infinite_rows)) {
+    n_infinite <- sum(infinite_rows)
+    data <- data[!infinite_rows, ]
+    message(sprintf("Removed %d observations with infinite values", n_infinite))
+  }
+
   # Convert columns of type "units" to numeric
   unit_cols <- names(data)[vapply(data, inherits, what = "units", logical(1))]
   if (length(unit_cols) > 0) {
@@ -529,13 +538,31 @@ model_response_ <- function(data, formula) {
   nms_sp <- colnames(X)
   attr(X, "dimnames") <- NULL
 
-  # Check for Inf values in both model matrix and response
-  if (any(is.infinite(X))) {
-    stop("Infinite values detected in model matrix. This often happens when applying log() to zero or negative values in predictors.", call. = FALSE)
-  }
-
-  if (any(is.infinite(y))) {
-    stop("Infinite values detected in response variable. This often happens when applying log() to zero or negative values.", call. = FALSE)
+  # Check for Inf values in model matrix and response after transformation
+  inf_X <- is.infinite(X)
+  inf_y <- is.infinite(y)
+  
+  if (any(inf_X) || any(inf_y)) {
+    # Find which observations have infinite values
+    inf_obs_X <- apply(inf_X, 1, any)
+    inf_obs_y <- inf_y
+    inf_obs <- inf_obs_X | inf_obs_y
+    
+    if (any(inf_obs)) {
+      n_inf <- sum(inf_obs)
+      
+      # Remove infinite observations
+      keep_obs <- !inf_obs
+      y <- y[keep_obs]
+      X <- X[keep_obs, , drop = FALSE]
+      
+      # Update row indices in data to match
+      if (nrow(data) == length(inf_obs)) {
+        data <- data[keep_obs, ]
+      }
+      
+      message(sprintf("Removed %d observation(s) with infinite values after formula transformation", n_inf))
+    }
   }
 
   # Assign results to parent environment
