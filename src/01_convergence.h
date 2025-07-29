@@ -4,7 +4,6 @@
 #define CAPYBARA_CONVERGENCE_H
 
 namespace capybara {
-namespace convergence {
 
 enum class Family {
   POISSON,
@@ -403,7 +402,6 @@ vec conv_accelerated(const Convergence &data, const CapybaraParameters &params,
   return workspace.mu_result;
 }
 
-} // namespace convergence
 } // namespace capybara
 
 #endif // CAPYBARA_CONVERGENCE_H

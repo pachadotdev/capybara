@@ -5,21 +5,6 @@
 #define CAPYBARA_GLM_H
 
 namespace capybara {
-namespace glm {
-
-using demean::demean_variables;
-using demean::DemeanResult;
-using parameters::check_collinearity;
-using parameters::CollinearityResult;
-using parameters::get_alpha;
-using parameters::get_beta;
-using parameters::InferenceAlpha;
-using parameters::InferenceBeta;
-
-using convergence::Family;
-using convergence::utils::is_poisson_family;
-using convergence::utils::safe_divide;
-using convergence::utils::safe_log;
 
 inline Family string_to_family(const std::string &fam) {
   CAPYBARA_TIME_FUNCTION("string_to_family");
@@ -203,7 +188,6 @@ inline double dev_resids_poisson(const vec &y, const vec &mu, const vec &w) {
     return 0.0;
   }
 
-  // Vectorized computation for positive y values only
   vec y_pos = y(p);
   vec mu_pos = mu(p);
   vec w_pos = w(p);
@@ -531,18 +515,15 @@ inline InferenceWLM wlm_fit(const mat &X_reduced, const vec &y,
       field<uvec> temp_groups(nb_ids(k));
       const uvec &fe_idx = fe_indices(k);
 
-      // Initialize each group as empty
       for (size_t g = 0; g < nb_ids(k); ++g) {
         temp_groups(g).reset();
       }
 
-      // Count group sizes first
       uvec group_sizes(nb_ids(k), fill::zeros);
       for (size_t obs = 0; obs < fe_idx.n_elem; ++obs) {
         group_sizes(fe_idx(obs))++;
       }
 
-      // Pre-allocate and fill groups
       for (size_t g = 0; g < nb_ids(k); ++g) {
         if (group_sizes(g) > 0) {
           temp_groups(g).set_size(group_sizes(g));
@@ -684,7 +665,7 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
 
       while (iter_sh < params.iter_inner_max) {
         iter_sh++;
-        // More efficient: eta_new = (1-factor)*eta_old + factor*new_eta
+        // eta_new = (1-factor)*eta_old + factor*new_eta
         z = (1.0 - params.step_halving_factor) * eta_old_wls +
             params.step_halving_factor * wls_result.fitted_values;
         link_inv(z, mu_new, family_type);
@@ -763,9 +744,9 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
     result.is_regular = final_wls.is_regular;
     result.nb_references = final_wls.nb_references;
   } else {
-    // Hessian already initialized with zeros in constructor
+
     if (X_reduced.n_cols > 0) {
-      // More efficient Hessian computation: X.t() * W * X using weighted rows
+
       mat X_weighted = X_reduced.each_col() % sqrt(working_weights);
       mat hess_reduced = X_weighted.t() * X_weighted;
 
@@ -792,7 +773,6 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
   return result;
 }
 
-} // namespace glm
 } // namespace capybara
 
 #endif // CAPYBARA_GLM_H

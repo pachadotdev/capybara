@@ -4,7 +4,6 @@
 #define CAPYBARA_GROUP_SUMS_H
 
 namespace capybara {
-namespace group_sums {
 
 struct GroupSums {
   mat result;
@@ -108,7 +107,6 @@ inline GroupSums group_sums_cov(const mat &M, const mat &N,
   return result;
 }
 
-} // namespace group_sums
 } // namespace capybara
 
 #endif // CAPYBARA_GROUP_SUMS_H

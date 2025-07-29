@@ -4,20 +4,6 @@
 #define CAPYBARA_GLM_OFFSET_H
 
 namespace capybara {
-namespace glm_offset {
-
-using convergence::Family;
-using demean::demean_variables;
-using demean::DemeanResult;
-using glm::d_inv_link;
-using glm::dev_resids;
-using glm::get_family_type;
-using glm::link_inv;
-using glm::string_to_family;
-using glm::tidy_family;
-using glm::valid_eta;
-using glm::valid_mu;
-using glm::variance;
 
 struct InferenceGLMOffset {
   vec eta;
@@ -136,7 +122,6 @@ feglm_offset_fit(vec eta, const vec &y, const vec &offset, const vec &wt,
   return result;
 }
 
-} // namespace glm_offset
 } // namespace capybara
 
 #endif // CAPYBARA_GLM_OFFSET_H

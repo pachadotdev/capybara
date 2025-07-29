@@ -5,16 +5,6 @@
 #define CAPYBARA_LM_H
 
 namespace capybara {
-namespace lm {
-
-using demean::demean_variables;
-using demean::DemeanResult;
-using parameters::check_collinearity;
-using parameters::CollinearityResult;
-using parameters::get_alpha;
-using parameters::get_beta;
-using parameters::InferenceAlpha;
-using parameters::InferenceBeta;
 
 struct InferenceLM {
   vec coefficients;
@@ -89,7 +79,7 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
   vec y_demean;
 
   if (has_fixed_effects) {
-    // Demean Y
+
     field<vec> y_to_demean(1);
     y_to_demean(0) = y;
 
@@ -104,7 +94,6 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
         x_columns_to_demean(j) = X_work.unsafe_col(j);
       }
 
-      // Demean all X columns in a single batch call
       DemeanResult x_demean_result =
           demean_variables(x_columns_to_demean, w, fe_indices, nb_ids,
                            fe_id_tables, false, params);
@@ -159,18 +148,15 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
       field<uvec> temp_groups(nb_ids(k));
       const uvec &fe_idx = fe_indices(k);
 
-      // Initialize each group as empty
       for (size_t g = 0; g < nb_ids(k); ++g) {
         temp_groups(g).reset();
       }
 
-      // Count group sizes first
       uvec group_sizes(nb_ids(k), fill::zeros);
       for (size_t obs = 0; obs < fe_idx.n_elem; ++obs) {
         group_sizes(fe_idx(obs))++;
       }
 
-      // Pre-allocate and fill groups
       for (size_t g = 0; g < nb_ids(k); ++g) {
         if (group_sizes(g) > 0) {
           temp_groups(g).set_size(group_sizes(g));
@@ -198,7 +184,6 @@ inline InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
   return result;
 }
 
-} // namespace lm
 } // namespace capybara
 
 #endif // CAPYBARA_LM_H

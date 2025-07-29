@@ -5,13 +5,6 @@
 #define CAPYBARA_NEGBIN_H
 
 namespace capybara {
-namespace negbin {
-
-using convergence::Family;
-using glm::dev_resids;
-using glm::feglm_fit;
-using glm::InferenceGLM;
-using glm::link_inv;
 
 // Method of moments: theta = mu^2 / (var - mu)
 // If variance is close to or less than mean, theta should be very large
@@ -202,7 +195,6 @@ fenegbin_fit(const mat &X, const vec &y_orig, const vec &w,
   return result;
 }
 
-} // namespace negbin
 } // namespace capybara
 
 #endif // CAPYBARA_NEGBIN_H

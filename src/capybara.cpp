@@ -23,8 +23,7 @@
     auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(      \
                         end_time - start_time)                                 \
                         .count();                                              \
-    std::cout << "function " << func_name << " took " << duration              \
-              << " nanoseconds" << std::endl;                                  \
+    std::cout << func_name << "," << duration << ",nanoseconds" << std::endl;  \
   };                                                                           \
   std::shared_ptr<void> timing_guard(nullptr, [&](void *) { cleanup(); });
 #else
@@ -213,9 +212,9 @@ struct CapybaraParameters {
 #include "08_group_sums.h"
 
 // Type aliases for easier access
-using LMResult = capybara::lm::InferenceLM;
-using GLMResult = capybara::glm::InferenceGLM;
-using NegBinResult = capybara::negbin::InferenceNegBin;
+using LMResult = capybara::InferenceLM;
+using GLMResult = capybara::InferenceGLM;
+using NegBinResult = capybara::InferenceNegBin;
 
 // Helper function to convert R indices to C++ uvec (R uses 1-based, C++ uses
 // 0-based)
@@ -345,9 +344,8 @@ demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   CapybaraParameters params;
 
   // Use the demean_variables function
-  capybara::demean::DemeanResult demean_result =
-      capybara::demean::demean_variables(variables_to_demean, w, fe_ids, nb_ids,
-                                         fe_id_tables, false, params);
+  capybara::DemeanResult demean_result = capybara::demean_variables(
+      variables_to_demean, w, fe_ids, nb_ids, fe_id_tables, false, params);
 
   // Convert back to matrix
   mat result_mat(V.n_rows, V.n_cols);
@@ -397,7 +395,7 @@ demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   }
 
   LMResult res =
-      capybara::lm::felm_fit(X, y, w, fe_indices, nb_ids, fe_id_tables, params);
+      capybara::felm_fit(X, y, w, fe_indices, nb_ids, fe_id_tables, params);
 
   // Replace collinear coefficients with R's NA_REAL
   uvec collinear_mask = (res.coef_status == 0);
@@ -416,7 +414,7 @@ demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   mat X = as_Mat(X_r);
   const vec y = as_Col(y_r);
   const vec w = as_Col(w_r);
-  const std::string fam = capybara::glm::tidy_family(family);
+  const std::string fam = capybara::tidy_family(family);
   vec beta = as_Col(beta_r);
   vec eta = as_Col(eta_r);
 
@@ -451,8 +449,8 @@ demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
     }
   }
 
-  GLMResult res = capybara::glm::feglm_fit(X, y, w, fe_indices, nb_ids,
-                                           fe_id_tables, fam, params, theta);
+  GLMResult res = capybara::feglm_fit(X, y, w, fe_indices, nb_ids, fe_id_tables,
+                                      fam, params, theta);
 
   // Replace collinear coefficients with R's NA_REAL using vectorized approach
   uvec collinear_mask = (res.coef_status == 0);
@@ -470,7 +468,7 @@ feglm_offset_fit_(const doubles &y_r, const doubles &offset_r,
   vec y = as_Col(y_r);
   vec offset = as_Col(offset_r);
   const vec w = as_Col(w_r);
-  const std::string fam = capybara::glm_offset::tidy_family(family);
+  const std::string fam = capybara::tidy_family(family);
   vec eta = as_Col(eta_r);
 
   // Parameters passed from R's capybara::fit_control()
@@ -504,9 +502,8 @@ feglm_offset_fit_(const doubles &y_r, const doubles &offset_r,
     }
   }
 
-  capybara::glm_offset::InferenceGLMOffset res =
-      capybara::glm_offset::feglm_offset_fit(eta, y, offset, w, fe_indices,
-                                             nb_ids, fe_id_tables, fam, params);
+  capybara::InferenceGLMOffset res = capybara::feglm_offset_fit(
+      eta, y, offset, w, fe_indices, nb_ids, fe_id_tables, fam, params);
   return res.to_doubles();
 }
 
@@ -552,7 +549,7 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
     }
   }
 
-  NegBinResult res = capybara::negbin::fenegbin_fit(
+  NegBinResult res = capybara::fenegbin_fit(
       X, y, w, fe_indices, nb_ids, fe_id_tables, link, params, init_theta);
 
   // Replace collinear coefficients with R's NA_REAL using vectorized approach
@@ -608,8 +605,7 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
         R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
   }
 
-  capybara::group_sums::GroupSums res =
-      capybara::group_sums::group_sums(M, w, group_indices);
+  capybara::GroupSums res = capybara::group_sums(M, w, group_indices);
   return res.to_matrix();
 }
 
@@ -628,8 +624,8 @@ group_sums_spectral_(const doubles_matrix<> &M_r, const doubles &v_r,
         R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
   }
 
-  capybara::group_sums::GroupSums res =
-      capybara::group_sums::group_sums_spectral(M, v, w, K, group_indices);
+  capybara::GroupSums res =
+      capybara::group_sums_spectral(M, v, w, K, group_indices);
   return res.to_matrix();
 }
 
@@ -645,8 +641,7 @@ group_sums_var_(const doubles_matrix<> &M_r, const list &jlist) {
         R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
   }
 
-  capybara::group_sums::GroupSums res =
-      capybara::group_sums::group_sums_var(M, group_indices);
+  capybara::GroupSums res = capybara::group_sums_var(M, group_indices);
   return res.to_matrix();
 }
 
@@ -664,7 +659,6 @@ group_sums_cov_(const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
         R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
   }
 
-  capybara::group_sums::GroupSums res =
-      capybara::group_sums::group_sums_cov(M, N, group_indices);
+  capybara::GroupSums res = capybara::group_sums_cov(M, N, group_indices);
   return res.to_matrix();
 }

@@ -5,7 +5,6 @@
 #define CAPYBARA_PARAMETERS_H
 
 namespace capybara {
-namespace parameters {
 
 struct InferenceBeta {
   vec coefficients;
@@ -157,7 +156,6 @@ inline CollinearityResult check_collinearity(mat &X, const vec &w,
     return result;
   }
 
-  // Build X'X matrix efficiently
   mat XtX;
   if (has_weights) {
     // Compute X'WX efficiently without creating NxN diagonal matrix
@@ -168,7 +166,6 @@ inline CollinearityResult check_collinearity(mat &X, const vec &w,
     XtX = X.t() * X;
   }
 
-  // Use fixest's rank-revealing approach (exact match for compatibility)
   uvec excluded;
   bool success = rank_revealing_cholesky(excluded, XtX, tolerance);
 
@@ -182,7 +179,7 @@ inline CollinearityResult check_collinearity(mat &X, const vec &w,
     return result;
   }
 
-  // Find non-excluded columns
+  // Non-excluded columns
   const uvec indep = find(excluded == 0);
 
   result.coef_status.zeros();
@@ -193,9 +190,8 @@ inline CollinearityResult check_collinearity(mat &X, const vec &w,
   result.n_valid = indep.n_elem;
   result.non_collinear_cols = indep;
 
-  // Store decomposition if requested (for future use in beta computation)
   if (store_qr && !result.has_collinearity && result.n_valid > 0) {
-    // Store the Cholesky factor of X'X for non-collinear columns
+
     mat XtX_reduced = XtX.submat(indep, indep);
     mat L;
     if (chol(L, XtX_reduced, "lower")) {
@@ -204,7 +200,6 @@ inline CollinearityResult check_collinearity(mat &X, const vec &w,
     }
   }
 
-  // Remove collinear columns from X
   if (result.has_collinearity && !indep.is_empty()) {
     X = X.cols(indep);
   } else if (result.has_collinearity && indep.is_empty()) {
@@ -401,13 +396,11 @@ inline InferenceAlpha get_alpha(const vec &sumFE,
     return result;
   }
 
-  // Use simple alternating projection method (like fixest)
   result.Alpha.set_size(Q);
   for (size_t q = 0; q < Q; ++q) {
     result.Alpha(q) = vec(cluster_sizes(q), fill::zeros);
   }
 
-  // Build observation-to-group mapping using workspace
   umat &obs_to_group = ws->obs_to_group;
   if (obs_to_group.n_rows < N || obs_to_group.n_cols < Q) {
     obs_to_group.set_size(N, Q);
@@ -422,7 +415,6 @@ inline InferenceAlpha get_alpha(const vec &sumFE,
     }
   }
 
-  // Alternating projection algorithm (similar to fixest approach)
   vec &current_fe = ws->current_fe;
   vec &old_fe = ws->old_fe;
   vec &residual = ws->residual;
@@ -457,12 +449,10 @@ inline InferenceAlpha get_alpha(const vec &sumFE,
     iter++;
     old_fe.subvec(0, N - 1) = current_fe.subvec(0, N - 1);
 
-    // For each dimension, solve for fixed effects
     for (size_t q = 0; q < Q; ++q) {
       if (cluster_sizes(q) == 0)
         continue;
 
-      // Compute residual after removing other dimensions
       residual.subvec(0, N - 1) = sumFE;
       for (size_t other_q = 0; other_q < Q; ++other_q) {
         if (other_q != q) {
@@ -472,7 +462,6 @@ inline InferenceAlpha get_alpha(const vec &sumFE,
         }
       }
 
-      // Compute group averages for dimension q
       group_sums.subvec(0, cluster_sizes(q) - 1).zeros();
       group_counts.subvec(0, cluster_sizes(q) - 1).zeros();
 
@@ -482,15 +471,12 @@ inline InferenceAlpha get_alpha(const vec &sumFE,
         group_counts(g)++;
       }
 
-      // Set averages (with reference constraint if not first dimension)
       for (size_t g = 0; g < cluster_sizes(q); ++g) {
         if (group_counts(g) > 0) {
           result.Alpha(q)(g) = group_sums(g) / group_counts(g);
         }
       }
 
-      // Apply reference constraint (all groups sum to zero, except first
-      // dimension)
       if (q > 0) {
         double mean_fe = 0.0;
         size_t total_count = 0;
@@ -505,7 +491,6 @@ inline InferenceAlpha get_alpha(const vec &sumFE,
       }
     }
 
-    // Check convergence by computing current fitted values
     current_fe.subvec(0, N - 1).zeros();
     for (size_t obs = 0; obs < N; ++obs) {
       for (size_t q = 0; q < Q; ++q) {
@@ -513,7 +498,6 @@ inline InferenceAlpha get_alpha(const vec &sumFE,
       }
     }
 
-    // Convergence check
     if (iter > 1) {
       double diff =
           norm(current_fe.subvec(0, N - 1) - old_fe.subvec(0, N - 1), 2);
@@ -530,7 +514,6 @@ inline InferenceAlpha get_alpha(const vec &sumFE,
   return result;
 }
 
-} // namespace parameters
 } // namespace capybara
 
 #endif // CAPYBARA_PARAMETERS_H
