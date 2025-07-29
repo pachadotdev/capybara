@@ -355,8 +355,8 @@ struct InferenceWLM {
   bool has_fe;
 
   InferenceWLM(size_t n, size_t p)
-      : coefficients(p, fill::none), fitted_values(n, fill::none),
-        coef_status(p, fill::none), success(false), hessian(p, p, fill::none),
+      : coefficients(p, fill::zeros), fitted_values(n, fill::zeros),
+        coef_status(p, fill::ones), success(false), hessian(p, p, fill::zeros),
         is_regular(true), has_fe(false) {
     CAPYBARA_TIME_FUNCTION("InferenceWLM::constructor");
   }
@@ -508,42 +508,48 @@ inline InferenceWLM wlm_fit(const mat &X_reduced, const vec &y,
 
     vec sum_fe = result.fitted_values - X_reduced * coef_reduced;
 
+    
     field<field<uvec>> group_indices(fe_indices.n_elem);
     for (size_t k = 0; k < fe_indices.n_elem; ++k) {
-      group_indices(k).set_size(nb_ids(k));
-
-      field<uvec> temp_groups(nb_ids(k));
       const uvec &fe_idx = fe_indices(k);
+      const size_t n_obs = fe_idx.n_elem;
+      const size_t n_groups = nb_ids(k);
+      
+      group_indices(k).set_size(n_groups);
 
-      for (size_t g = 0; g < nb_ids(k); ++g) {
-        temp_groups(g).reset();
+      
+      uvec group_sizes(n_groups, fill::zeros);
+      const uword *fe_idx_ptr = fe_idx.memptr();
+      uword *group_sizes_ptr = group_sizes.memptr();
+      
+      for (size_t obs = 0; obs < n_obs; ++obs) {
+        group_sizes_ptr[fe_idx_ptr[obs]]++;
       }
 
-      uvec group_sizes(nb_ids(k), fill::zeros);
-      for (size_t obs = 0; obs < fe_idx.n_elem; ++obs) {
-        group_sizes(fe_idx(obs))++;
-      }
-
-      for (size_t g = 0; g < nb_ids(k); ++g) {
-        if (group_sizes(g) > 0) {
-          temp_groups(g).set_size(group_sizes(g));
+      
+      for (size_t g = 0; g < n_groups; ++g) {
+        if (group_sizes_ptr[g] > 0) {
+          group_indices(k)(g).set_size(group_sizes_ptr[g]);
+        } else {
+          group_indices(k)(g).reset();
         }
       }
 
-      uvec group_counters(nb_ids(k), fill::zeros);
-      for (size_t obs = 0; obs < fe_idx.n_elem; ++obs) {
-        uword group_id = fe_idx(obs);
-        temp_groups(group_id)(group_counters(group_id)++) = obs;
+      
+      uvec group_counters(n_groups, fill::zeros);
+      uword *group_counters_ptr = group_counters.memptr();
+      
+      for (size_t obs = 0; obs < n_obs; ++obs) {
+        uword group_id = fe_idx_ptr[obs];
+        group_indices(k)(group_id)(group_counters_ptr[group_id]++) = obs;
       }
-
-      group_indices(k) = std::move(temp_groups);
     }
 
     InferenceAlpha alpha_result =
         get_alpha(sum_fe, group_indices, params.alpha_convergence_tol,
                   params.alpha_iter_max);
-    result.fixed_effects = alpha_result.Alpha;
-    result.nb_references = alpha_result.nb_references;
+    result.fixed_effects = std::move(alpha_result.Alpha);
+    result.nb_references = std::move(alpha_result.nb_references);
     result.is_regular = alpha_result.is_regular;
   }
 
@@ -551,7 +557,7 @@ inline InferenceWLM wlm_fit(const mat &X_reduced, const vec &y,
   return result;
 }
 
-inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
+inline InferenceGLM feglm_fit(mat &X, const vec &y_orig, const vec &w,
                               const field<uvec> &fe_indices, const uvec &nb_ids,
                               const field<uvec> &fe_id_tables,
                               const std::string &family,
@@ -576,10 +582,12 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
   bool use_weights = params.use_weights && w.n_elem > 1 && !all(w == 1.0);
   const vec &weights_vec = w;
 
-  mat X_reduced = X;
+  
   double tolerance = params.collin_tol;
   CollinearityResult collin_result =
-      check_collinearity(X_reduced, weights_vec, use_weights, tolerance, true);
+      check_collinearity(X, weights_vec, use_weights, tolerance, true);
+  
+  
 
   double mean_y =
       use_weights ? sum(weights_vec % y_orig) / sum(weights_vec) : mean(y_orig);
@@ -601,13 +609,13 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
   double devold = dev_resids(y_orig, mu_init, theta, weights_vec, family_type,
                              params.safe_clamp_min);
 
-  vec eta_old(n, fill::none);
-  vec z(n, fill::none);
-  vec working_weights(n, fill::none);
-
-  vec mu_eta_val(n, fill::none);
-  vec var_mu(n, fill::none);
-  vec mu_new(n, fill::none);
+  
+  vec eta_old(n);
+  vec z(n);
+  vec working_weights(n);
+  vec mu_eta_val(n);
+  vec var_mu(n);
+  vec mu_new(n);
 
   InferenceWLM wls_result(n, p_orig);
   bool converged = false;
@@ -631,7 +639,7 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
     }
 
     wls_result =
-        wlm_fit(X_reduced, z, y_orig, working_weights, fe_indices, nb_ids,
+        wlm_fit(X, z, y_orig, working_weights, fe_indices, nb_ids,
                 fe_id_tables, collin_result, params, false, false);
 
     if (!wls_result.success || !is_finite(wls_result.coefficients)) {
@@ -735,19 +743,19 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
     vec final_z = eta + (y_orig - mu) / final_mu_eta;
 
     InferenceWLM final_wls =
-        wlm_fit(X_reduced, final_z, y_orig, final_working_weights, fe_indices,
+        wlm_fit(X, final_z, y_orig, final_working_weights, fe_indices,
                 nb_ids, fe_id_tables, collin_result, params, true, true);
 
-    result.hessian = final_wls.hessian;
-    result.fixed_effects = final_wls.fixed_effects;
+    result.hessian = std::move(final_wls.hessian);
+    result.fixed_effects = std::move(final_wls.fixed_effects);
     result.has_fe = true;
     result.is_regular = final_wls.is_regular;
-    result.nb_references = final_wls.nb_references;
+    result.nb_references = std::move(final_wls.nb_references);
   } else {
 
-    if (X_reduced.n_cols > 0) {
+    if (X.n_cols > 0) {
 
-      mat X_weighted = X_reduced.each_col() % sqrt(working_weights);
+      mat X_weighted = X.each_col() % sqrt(working_weights);
       mat hess_reduced = X_weighted.t() * X_weighted;
 
       if (collin_result.has_collinearity) {
@@ -766,7 +774,7 @@ inline InferenceGLM feglm_fit(const mat &X, const vec &y_orig, const vec &w,
                                     family_type, params.safe_clamp_min);
 
   if (params.keep_dmx) {
-    result.X_dm = X_reduced;
+    result.X_dm = std::move(X);
     result.has_mx = true;
   }
 

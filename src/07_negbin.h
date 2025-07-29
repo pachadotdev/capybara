@@ -96,7 +96,7 @@ struct InferenceNegBin : public InferenceGLM {
 };
 
 inline InferenceNegBin
-fenegbin_fit(const mat &X, const vec &y_orig, const vec &w,
+fenegbin_fit(mat &X, const vec &y_orig, const vec &w,
              const field<uvec> &fe_indices, const uvec &nb_ids,
              const field<uvec> &fe_id_tables, const std::string &link_str,
              const CapybaraParameters &params, const double init_theta = 0.0) {
@@ -109,6 +109,8 @@ fenegbin_fit(const mat &X, const vec &y_orig, const vec &w,
   double theta = (init_theta > 0) ? init_theta : 1.0;
 
   std::string poisson_family = "poisson";
+  
+  // Modify X directly for initial Poisson fit
   InferenceGLM poisson_fit =
       feglm_fit(X, y_orig, w, fe_indices, nb_ids, fe_id_tables, poisson_family,
                 params, 0.0);
@@ -146,27 +148,30 @@ fenegbin_fit(const mat &X, const vec &y_orig, const vec &w,
       break;
     }
 
-    result.coefficients = glm_fit.coefficients;
-    result.eta = glm_fit.eta;
-    result.fitted_values = glm_fit.fitted_values;
-    result.weights = glm_fit.weights;
-    result.hessian = glm_fit.hessian;
+    
+    vec fitted_vals_copy = glm_fit.fitted_values;
+    double dev = glm_fit.deviance;
+
+    result.coefficients = std::move(glm_fit.coefficients);
+    result.eta = std::move(glm_fit.eta);
+    result.fitted_values = std::move(glm_fit.fitted_values);
+    result.weights = std::move(glm_fit.weights);
+    result.hessian = std::move(glm_fit.hessian);
     result.deviance = glm_fit.deviance;
     result.null_deviance = glm_fit.null_deviance;
     result.conv = glm_fit.conv;
     result.iter = glm_fit.iter;
-    result.coef_status = glm_fit.coef_status;
-    result.residuals_working = glm_fit.residuals_working;
-    result.residuals_response = glm_fit.residuals_response;
-    result.fixed_effects = glm_fit.fixed_effects;
-    result.nb_references = glm_fit.nb_references;
+    result.coef_status = std::move(glm_fit.coef_status);
+    result.residuals_working = std::move(glm_fit.residuals_working);
+    result.residuals_response = std::move(glm_fit.residuals_response);
+    result.fixed_effects = std::move(glm_fit.fixed_effects);
+    result.nb_references = std::move(glm_fit.nb_references);
     result.is_regular = glm_fit.is_regular;
     result.has_fe = glm_fit.has_fe;
-    result.X_dm = glm_fit.X_dm;
+    result.X_dm = std::move(glm_fit.X_dm);
     result.has_mx = glm_fit.has_mx;
 
-    mu = glm_fit.fitted_values;
-    double dev = glm_fit.deviance;
+    mu = fitted_vals_copy;
 
     double theta_new = theta_ml(y_orig, mu, params);
 
