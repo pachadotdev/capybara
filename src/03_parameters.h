@@ -74,55 +74,63 @@ inline bool rank_revealing_cholesky(uvec &excluded, const mat &XtX,
 
   mat R(p, p, fill::zeros);
 
+  double *R_ptr = R.memptr();
+  uword *excluded_ptr = excluded.memptr();
+
   for (size_t j = 0; j < p; ++j) {
-    // R(j,j) = sqrt(X(j,j) - sum(R(k,j)^2 for k < j))
+
     double R_jj = XtX(j, j);
 
     if (j > 0) {
-      // Dot product of column R(.,j) with itself (excluding elements)
-      uvec valid_k = find(excluded.head(j) == 0);
-      if (!valid_k.is_empty()) {
-        vec R_col_j = R.submat(valid_k, uvec{j});
-        R_jj -= dot(R_col_j, R_col_j);
+
+      double sum_squares = 0.0;
+      for (size_t k = 0; k < j; ++k) {
+        if (excluded_ptr[k] == 0) {
+          double R_kj = R_ptr[k + j * p];
+          sum_squares += R_kj * R_kj;
+        }
       }
+      R_jj -= sum_squares;
     }
 
-    // Check for rank deficiency
     if (R_jj < tol) {
-      excluded(j) = 1;
-      if (accu(excluded) == p)
+      excluded_ptr[j] = 1;
+
+      bool all_excluded = true;
+      for (size_t k = 0; k < p; ++k) {
+        if (excluded_ptr[k] == 0) {
+          all_excluded = false;
+          break;
+        }
+      }
+      if (all_excluded)
         return false;
       continue;
     }
 
     R_jj = std::sqrt(R_jj);
-    R(j, j) = R_jj;
+    R_ptr[j + j * p] = R_jj;
 
-    // Row R(j, j+1:p-1)
-    if (j < p - 1) {
-      // Remaining column indices
-      uvec remaining_cols = regspace<uvec>(j + 1, p - 1);
+    for (size_t col = j + 1; col < p; ++col) {
+      double R_j_col = XtX(j, col);
 
-      vec R_row_j = XtX.submat(remaining_cols, uvec{j});
-
-      if (j > 0) {
-        // R_row_j -= R(valid_k, j+1:p-1).t() * R(valid_k, j)
-        uvec valid_k = find(excluded.head(j) == 0);
-        if (!valid_k.is_empty()) {
-          mat R_prev_cols =
-              R.submat(valid_k, remaining_cols);     // R(valid_k, j+1:p-1)
-          vec R_prev_j = R.submat(valid_k, uvec{j}); // R(valid_k, j)
-
-          R_row_j -= R_prev_cols.t() * R_prev_j;
+      for (size_t k = 0; k < j; ++k) {
+        if (excluded_ptr[k] == 0) {
+          R_j_col -= R_ptr[k + j * p] * R_ptr[k + col * p];
         }
       }
 
-      R_row_j /= R_jj;
-      R.submat(uvec{j}, remaining_cols) = R_row_j.t();
+      R_ptr[j + col * p] = R_j_col / R_jj;
     }
   }
 
-  return accu(excluded) < p;
+  size_t n_excluded = 0;
+  for (size_t j = 0; j < p; ++j) {
+    if (excluded_ptr[j] == 1)
+      n_excluded++;
+  }
+
+  return n_excluded < p;
 }
 
 inline CollinearityResult check_collinearity(mat &X, const vec &w,
@@ -131,6 +139,7 @@ inline CollinearityResult check_collinearity(mat &X, const vec &w,
   CAPYBARA_TIME_FUNCTION("check_collinearity");
 
   const size_t p = X.n_cols;
+  const size_t n = X.n_rows;
   CollinearityResult result(p);
 
   if (p == 0) {
@@ -138,15 +147,30 @@ inline CollinearityResult check_collinearity(mat &X, const vec &w,
     return result;
   }
 
-  // Early exit for single column
   if (p == 1) {
-    // Check if the single column is all zeros or has very small variance
-    vec col = X.col(0);
-    if (has_weights) {
-      col = col % sqrt(w);
+    const double *col_ptr = X.colptr(0);
+    const double *w_ptr = has_weights ? w.memptr() : nullptr;
+
+    double mean_val = 0.0, sum_sq = 0.0, sum_w = 0.0;
+
+    for (size_t i = 0; i < n; ++i) {
+      double val = col_ptr[i];
+      double weight = has_weights ? w_ptr[i] : 1.0;
+
+      if (has_weights) {
+        val *= std::sqrt(weight);
+        sum_w += weight;
+      } else {
+        sum_w += 1.0;
+      }
+      mean_val += val;
+      sum_sq += val * val;
     }
-    double var_col = var(col);
-    if (var_col < tolerance * tolerance) {
+
+    mean_val /= sum_w;
+    double variance = (sum_sq / sum_w) - (mean_val * mean_val);
+
+    if (variance < tolerance * tolerance) {
       result.coef_status.zeros();
       result.has_collinearity = true;
       result.n_valid = 0;
@@ -156,12 +180,27 @@ inline CollinearityResult check_collinearity(mat &X, const vec &w,
     return result;
   }
 
-  mat XtX;
+  mat XtX(p, p);
   if (has_weights) {
-    // Compute X'WX efficiently without creating NxN diagonal matrix
-    mat X_weighted = X;
-    X_weighted.each_col() %= sqrt(w);
-    XtX = X_weighted.t() * X_weighted;
+
+    const double *w_ptr = w.memptr();
+
+    for (size_t i = 0; i < p; ++i) {
+      const double *Xi_ptr = X.colptr(i);
+      for (size_t j = i; j < p; ++j) {
+        const double *Xj_ptr = X.colptr(j);
+
+        double sum = 0.0;
+        for (size_t obs = 0; obs < n; ++obs) {
+          sum += Xi_ptr[obs] * Xj_ptr[obs] * w_ptr[obs];
+        }
+
+        XtX(i, j) = sum;
+        if (i != j) {
+          XtX(j, i) = sum;
+        }
+      }
+    }
   } else {
     XtX = X.t() * X;
   }
@@ -170,7 +209,7 @@ inline CollinearityResult check_collinearity(mat &X, const vec &w,
   bool success = rank_revealing_cholesky(excluded, XtX, tolerance);
 
   if (!success) {
-    // All variables are collinear
+
     result.coef_status.zeros();
     result.has_collinearity = true;
     result.n_valid = 0;
@@ -179,7 +218,6 @@ inline CollinearityResult check_collinearity(mat &X, const vec &w,
     return result;
   }
 
-  // Non-excluded columns
   const uvec indep = find(excluded == 0);
 
   result.coef_status.zeros();
@@ -191,7 +229,6 @@ inline CollinearityResult check_collinearity(mat &X, const vec &w,
   result.non_collinear_cols = indep;
 
   if (store_qr && !result.has_collinearity && result.n_valid > 0) {
-
     mat XtX_reduced = XtX.submat(indep, indep);
     mat L;
     if (chol(L, XtX_reduced, "lower")) {
@@ -267,14 +304,37 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
 
   mat XtX = ws->XtX.submat(0, 0, p - 1, p - 1);
   vec XtY = ws->XtY.subvec(0, p - 1);
+
   if (has_weights) {
-    mat X_w = ws->X_weighted.submat(0, 0, n - 1, p - 1);
 
-    X_w = X;
-    X_w.each_col() %= sqrt(w);
+    const double *w_ptr = w.memptr();
 
-    XtX = X_w.t() * X_w;
-    XtY = X.t() * (w % y);
+    for (size_t i = 0; i < p; ++i) {
+      const double *Xi_ptr = X.colptr(i);
+      for (size_t j = i; j < p; ++j) {
+        const double *Xj_ptr = X.colptr(j);
+
+        double sum = 0.0;
+        for (size_t obs = 0; obs < n; ++obs) {
+          sum += Xi_ptr[obs] * Xj_ptr[obs] * w_ptr[obs];
+        }
+
+        XtX(i, j) = sum;
+        if (i != j) {
+          XtX(j, i) = sum;
+        }
+      }
+    }
+
+    const double *y_ptr = y.memptr();
+    for (size_t i = 0; i < p; ++i) {
+      const double *Xi_ptr = X.colptr(i);
+      double sum = 0.0;
+      for (size_t obs = 0; obs < n; ++obs) {
+        sum += Xi_ptr[obs] * y_ptr[obs] * w_ptr[obs];
+      }
+      XtY(i) = sum;
+    }
   } else {
 
     XtX = X.t() * X;
@@ -407,10 +467,14 @@ inline InferenceAlpha get_alpha(const vec &sumFE,
   }
 
   for (size_t q = 0; q < Q; ++q) {
+    uword *obs_group_ptr = obs_to_group.colptr(q);
     for (size_t g = 0; g < group_indices(q).n_elem; ++g) {
       const uvec &group_obs = group_indices(q)(g);
-      for (uword obs : group_obs) {
-        obs_to_group(obs, q) = g;
+      const uword *group_obs_ptr = group_obs.memptr();
+      size_t n_group_obs = group_obs.n_elem;
+
+      for (size_t i = 0; i < n_group_obs; ++i) {
+        obs_group_ptr[group_obs_ptr[i]] = g;
       }
     }
   }
@@ -436,72 +500,103 @@ inline InferenceAlpha get_alpha(const vec &sumFE,
   bool converged = false;
   size_t iter = 0;
 
-  // Set first group in each dimension as reference (except first dimension)
   uvec nb_ref(Q, fill::zeros);
   for (size_t q = 1; q < Q; ++q) {
     if (cluster_sizes(q) > 0) {
-      result.Alpha(q)(0) = 0.0; // First group is reference
+      result.Alpha(q)(0) = 0.0;
       nb_ref(q) = 1;
     }
   }
 
+  const double *sumFE_ptr = sumFE.memptr();
+  double *current_fe_ptr = current_fe.memptr();
+  double *old_fe_ptr = old_fe.memptr();
+  double *residual_ptr = residual.memptr();
+  double *group_sums_ptr = group_sums.memptr();
+  uword *group_counts_ptr = group_counts.memptr();
+
   while (iter < iter_max && !converged) {
     iter++;
-    old_fe.subvec(0, N - 1) = current_fe.subvec(0, N - 1);
+
+    for (size_t obs = 0; obs < N; ++obs) {
+      old_fe_ptr[obs] = current_fe_ptr[obs];
+    }
 
     for (size_t q = 0; q < Q; ++q) {
       if (cluster_sizes(q) == 0)
         continue;
 
-      residual.subvec(0, N - 1) = sumFE;
+      for (size_t obs = 0; obs < N; ++obs) {
+        residual_ptr[obs] = sumFE_ptr[obs];
+      }
+
       for (size_t other_q = 0; other_q < Q; ++other_q) {
         if (other_q != q) {
+          const uword *obs_group_ptr = obs_to_group.colptr(other_q);
+          const double *alpha_ptr = result.Alpha(other_q).memptr();
+
           for (size_t obs = 0; obs < N; ++obs) {
-            residual(obs) -= result.Alpha(other_q)(obs_to_group(obs, other_q));
+            residual_ptr[obs] -= alpha_ptr[obs_group_ptr[obs]];
           }
         }
       }
 
-      group_sums.subvec(0, cluster_sizes(q) - 1).zeros();
-      group_counts.subvec(0, cluster_sizes(q) - 1).zeros();
-
-      for (size_t obs = 0; obs < N; ++obs) {
-        uword g = obs_to_group(obs, q);
-        group_sums(g) += residual(obs);
-        group_counts(g)++;
+      size_t n_groups = cluster_sizes(q);
+      for (size_t g = 0; g < n_groups; ++g) {
+        group_sums_ptr[g] = 0.0;
+        group_counts_ptr[g] = 0;
       }
 
-      for (size_t g = 0; g < cluster_sizes(q); ++g) {
-        if (group_counts(g) > 0) {
-          result.Alpha(q)(g) = group_sums(g) / group_counts(g);
+      const uword *obs_group_ptr = obs_to_group.colptr(q);
+      for (size_t obs = 0; obs < N; ++obs) {
+        uword g = obs_group_ptr[obs];
+        group_sums_ptr[g] += residual_ptr[obs];
+        group_counts_ptr[g]++;
+      }
+
+      double *alpha_q_ptr = result.Alpha(q).memptr();
+      for (size_t g = 0; g < n_groups; ++g) {
+        if (group_counts_ptr[g] > 0) {
+          alpha_q_ptr[g] = group_sums_ptr[g] / group_counts_ptr[g];
         }
       }
 
       if (q > 0) {
-        double mean_fe = 0.0;
+        double weighted_mean = 0.0;
         size_t total_count = 0;
-        for (size_t g = 0; g < cluster_sizes(q); ++g) {
-          mean_fe += result.Alpha(q)(g) * group_counts(g);
-          total_count += group_counts(g);
+        for (size_t g = 0; g < n_groups; ++g) {
+          weighted_mean += alpha_q_ptr[g] * group_counts_ptr[g];
+          total_count += group_counts_ptr[g];
         }
         if (total_count > 0) {
-          mean_fe /= total_count;
-          result.Alpha(q) -= mean_fe;
+          weighted_mean /= total_count;
+          for (size_t g = 0; g < n_groups; ++g) {
+            alpha_q_ptr[g] -= weighted_mean;
+          }
         }
       }
     }
 
-    current_fe.subvec(0, N - 1).zeros();
     for (size_t obs = 0; obs < N; ++obs) {
-      for (size_t q = 0; q < Q; ++q) {
-        current_fe(obs) += result.Alpha(q)(obs_to_group(obs, q));
+      current_fe_ptr[obs] = 0.0;
+    }
+
+    for (size_t q = 0; q < Q; ++q) {
+      const uword *obs_group_ptr = obs_to_group.colptr(q);
+      const double *alpha_q_ptr = result.Alpha(q).memptr();
+
+      for (size_t obs = 0; obs < N; ++obs) {
+        current_fe_ptr[obs] += alpha_q_ptr[obs_group_ptr[obs]];
       }
     }
 
     if (iter > 1) {
-      double diff =
-          norm(current_fe.subvec(0, N - 1) - old_fe.subvec(0, N - 1), 2);
-      if (diff < tol) {
+      double diff_sq = 0.0;
+      for (size_t obs = 0; obs < N; ++obs) {
+        double d = current_fe_ptr[obs] - old_fe_ptr[obs];
+        diff_sq += d * d;
+      }
+      if (std::sqrt(diff_sq) < tol) {
         converged = true;
       }
     }
