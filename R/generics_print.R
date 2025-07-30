@@ -228,6 +228,12 @@ print.feglm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
     ", l= [", paste0(x[["fe.levels"]], collapse = ", "), "]\n\n",
     sep = ""
   )
+  
+  # Check if fixed effects are regular and warn if not (like fixest does)
+  if (!is.null(x[["is_regular"]]) && !x[["is_regular"]]) {
+    warning("The fixed-effects are not regular, they cannot be straightforwardly interpreted.")
+  }
+  
   print(x[["coefficients"]], digits = digits)
 }
 
@@ -261,6 +267,11 @@ print.summary.feglm <- function(
   summary_family_(x)
 
   summary_estimates_(x, digits)
+  
+  # Check if fixed effects are regular and warn if not (like fixest does)
+  if (!is.null(x[["is_regular"]]) && !x[["is_regular"]]) {
+    cat("\nNOTE: The fixed-effects are not regular, they cannot be straightforwardly interpreted.\n")
+  }
 
   summary_pseudo_rsq_(x, digits)
 
