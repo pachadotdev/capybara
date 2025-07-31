@@ -55,7 +55,6 @@ struct ClusterWorkspace {
   uvec counts;
 
   ClusterWorkspace(size_t max_cluster_size, size_t n_obs) {
-    
 
     accumulator.set_size(max_cluster_size);
     mu_max.set_size(max_cluster_size);
@@ -66,7 +65,6 @@ struct ClusterWorkspace {
 
 inline void grouped_accu(const vec &values, const uvec &indices, vec &result,
                          ClusterWorkspace &ws) {
-  
 
   size_t n_obs = values.n_elem;
   result.zeros();
@@ -82,58 +80,32 @@ inline void grouped_accu(const vec &values, const uvec &indices, vec &result,
 
 bool irons_tuck(vec &X, const vec &GX, const vec &GGX,
                 const CapybaraParameters &params) {
-  
-
-  size_t nb_coef = X.n_elem;
-  const double *X_ptr = X.memptr();
-  const double *GX_ptr = GX.memptr();
-  const double *GGX_ptr = GGX.memptr();
-  double *X_out_ptr = X.memptr();
-
-  double vprod = 0.0;
-  double ssq = 0.0;
-
-  for (size_t i = 0; i < nb_coef; ++i) {
-    double GX_tmp = GX_ptr[i];
-    double delta_GX = GGX_ptr[i] - GX_tmp;
-    double delta2_X = delta_GX - GX_tmp + X_ptr[i];
-
-    vprod += delta_GX * delta2_X;
-    ssq += delta2_X * delta2_X;
-  }
+  vec delta_GX = GGX - GX;
+  vec delta2_X = delta_GX - GX + X;
+  double vprod = dot(delta_GX, delta2_X);
+  double ssq = dot(delta2_X, delta2_X);
 
   if (ssq < params.irons_tuck_eps) {
     return true; // Convergence reached
   }
 
   double coef = vprod / ssq;
-  for (size_t i = 0; i < nb_coef; ++i) {
-    double GX_tmp = GX_ptr[i];
-    double delta_GX = GGX_ptr[i] - GX_tmp;
-    X_out_ptr[i] = GGX_ptr[i] - coef * delta_GX;
-  }
-
+  X = GGX - coef * delta_GX;
   return false;
 }
 
 void cluster_coef_poisson(const vec &exp_mu, const vec &sum_y, const uvec &dum,
                           vec &cluster_coef, ClusterWorkspace &ws) {
-  
-
   size_t nb_cluster = cluster_coef.n_elem;
   size_t n_obs = exp_mu.n_elem;
-
   cluster_coef.zeros();
-
   const double *exp_mu_ptr = exp_mu.memptr();
   const uword *dum_ptr = dum.memptr();
-  const double *sum_y_ptr = sum_y.memptr();
   double *coef_ptr = cluster_coef.memptr();
-
   for (size_t i = 0; i < n_obs; ++i) {
     coef_ptr[dum_ptr[i]] += exp_mu_ptr[i];
   }
-
+  const double *sum_y_ptr = sum_y.memptr();
   for (size_t m = 0; m < nb_cluster; ++m) {
     coef_ptr[m] = sum_y_ptr[m] / coef_ptr[m];
   }
@@ -141,60 +113,47 @@ void cluster_coef_poisson(const vec &exp_mu, const vec &sum_y, const uvec &dum,
 
 void cluster_coef_poisson_log(const vec &mu, const vec &sum_y, const uvec &dum,
                               vec &cluster_coef, ClusterWorkspace &ws) {
-  
-
   size_t nb_cluster = cluster_coef.n_elem;
   size_t n_obs = mu.n_elem;
-
   cluster_coef.zeros();
-
   vec &mu_max = ws.mu_max;
   mu_max.set_size(nb_cluster);
   mu_max.fill(-datum::inf);
-
   const double *mu_ptr = mu.memptr();
   const uword *dum_ptr = dum.memptr();
-  const double *sum_y_ptr = sum_y.memptr();
-  double *coef_ptr = cluster_coef.memptr();
   double *mu_max_ptr = mu_max.memptr();
-
   for (size_t i = 0; i < n_obs; ++i) {
     uword cluster_id = dum_ptr[i];
     if (mu_ptr[i] > mu_max_ptr[cluster_id]) {
       mu_max_ptr[cluster_id] = mu_ptr[i];
     }
   }
-
+  double *coef_ptr = cluster_coef.memptr();
   for (size_t i = 0; i < n_obs; ++i) {
     uword cluster_id = dum_ptr[i];
     coef_ptr[cluster_id] += exp(mu_ptr[i] - mu_max_ptr[cluster_id]);
   }
-
+  const double *sum_y_ptr = sum_y.memptr();
   for (size_t m = 0; m < nb_cluster; ++m) {
-    coef_ptr[m] = log(sum_y_ptr[m]) - log(coef_ptr[m]) - mu_max_ptr[m];
+    coef_ptr[m] =
+        log(sum_y_ptr[m]) - log(coef_ptr[m]) - mu_max_ptr[m];
   }
 }
 
 void cluster_coef_gaussian(const vec &mu, const vec &sum_y, const uvec &dum,
                            const uvec &table, vec &cluster_coef,
                            ClusterWorkspace &ws, double safe_min) {
-  
-
   size_t nb_cluster = cluster_coef.n_elem;
   size_t n_obs = mu.n_elem;
-
   cluster_coef.zeros();
-
   const double *mu_ptr = mu.memptr();
   const uword *dum_ptr = dum.memptr();
-  const double *sum_y_ptr = sum_y.memptr();
-  const uword *table_ptr = table.memptr();
   double *coef_ptr = cluster_coef.memptr();
-
   for (size_t i = 0; i < n_obs; ++i) {
     coef_ptr[dum_ptr[i]] += mu_ptr[i];
   }
-
+  const double *sum_y_ptr = sum_y.memptr();
+  const uword *table_ptr = table.memptr();
   for (size_t m = 0; m < nb_cluster; ++m) {
     double table_val = static_cast<double>(table_ptr[m]);
     coef_ptr[m] = (sum_y_ptr[m] - coef_ptr[m]) / std::max(table_val, safe_min);
@@ -207,7 +166,6 @@ void cluster_coefficients(Family family, const vec &mu, const vec &lhs,
                           const uvec &cumtable, double theta, double diffMax_NR,
                           vec &cluster_coef, ClusterWorkspace &ws,
                           const CapybaraParameters &params) {
-  
 
   switch (family) {
   case Family::POISSON:
@@ -252,9 +210,7 @@ struct Convergence {
   Convergence(Family fam, size_t n, size_t k, double th, const vec &mu_i,
               const vec &lhs_i, const uvec &nb_cl)
       : family(fam), n_obs(n), K(k), theta(th), mu_init(mu_i), lhs(lhs_i),
-        nb_cluster_all(nb_cl), workspace(nb_cl.max(), n) {
-    
-  }
+        nb_cluster_all(nb_cl), workspace(nb_cl.max(), n) {}
 };
 
 struct ConvergenceWorkspace {
@@ -264,7 +220,6 @@ struct ConvergenceWorkspace {
   vec mu_result;
 
   ConvergenceWorkspace(const Convergence &data) {
-    
 
     size_t K = data.K;
     size_t n_obs = data.n_obs;
@@ -290,7 +245,6 @@ struct ConvergenceWorkspace {
 inline void update_mu(vec &mu_result, const vec &mu_base,
                       const field<vec> &cluster_coefs,
                       const field<uvec> &dum_vector, Family family) {
-  
 
   size_t K = cluster_coefs.n_elem;
   size_t n_obs = mu_base.n_elem;
@@ -332,7 +286,6 @@ void all_cluster_coefficients(const Convergence &data,
                               field<vec> &cluster_coefs_dest,
                               const field<vec> &cluster_coefs_origin,
                               ConvergenceWorkspace &workspace) {
-  
 
   vec &mu_current = workspace.mu_current;
   mu_current = data.mu_init;
@@ -384,7 +337,6 @@ void all_cluster_coefficients(const Convergence &data,
 vec conv_accelerated(const Convergence &data, const CapybaraParameters &params,
                      size_t iterMax, double diffMax, size_t &final_iter,
                      bool &any_negative_poisson) {
-  
 
   static thread_local std::unique_ptr<ConvergenceWorkspace> workspace_cache;
   if (!workspace_cache || workspace_cache->X.n_elem != data.K) {
