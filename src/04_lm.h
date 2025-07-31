@@ -26,11 +26,11 @@ struct InferenceLM {
         residuals(n, fill::zeros), weights(n, fill::ones),
         hessian(p, p, fill::zeros), coef_status(p, fill::ones), success(false),
         is_regular(true), has_fe(false) {
-    CAPYBARA_TIME_FUNCTION("InferenceLM::InferenceLM");
+    
   }
 
   cpp11::list to_list() const {
-    CAPYBARA_TIME_FUNCTION("InferenceLM::to_list");
+    
 
     auto out = writable::list({"coefficients"_nm = as_doubles(coefficients),
                                "fitted.values"_nm = as_doubles(fitted_values),
@@ -56,7 +56,7 @@ inline InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
                             const field<uvec> &fe_indices, const uvec &nb_ids,
                             const field<uvec> &fe_id_tables,
                             const CapybaraParameters &params) {
-  CAPYBARA_TIME_FUNCTION("felm_fit");
+  
 
   const size_t n = y.n_elem;
   const size_t p_orig = X.n_cols;

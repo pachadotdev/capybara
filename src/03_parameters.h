@@ -19,7 +19,7 @@ struct InferenceBeta {
       : coefficients(p, fill::zeros), fitted_values(n, fill::zeros),
         residuals(n, fill::zeros), weights(n, fill::ones),
         hessian(p, p, fill::zeros), coef_status(p, fill::ones), success(false) {
-    CAPYBARA_TIME_FUNCTION("InferenceBeta::InferenceBeta");
+    
   }
 };
 
@@ -32,7 +32,7 @@ struct InferenceAlpha {
   InferenceAlpha() : is_regular(true), success(false) {}
 
   cpp11::list to_list() const {
-    CAPYBARA_TIME_FUNCTION("InferenceAlpha::to_list");
+    
 
     writable::list Alpha_r(Alpha.n_elem);
     for (size_t k = 0; k < Alpha.n_elem; ++k) {
@@ -60,7 +60,7 @@ struct CollinearityResult {
   CollinearityResult(size_t p)
       : coef_status(p, fill::ones), has_collinearity(false), n_valid(p),
         has_qr(false) {
-    CAPYBARA_TIME_FUNCTION("CollinearityResult::CollinearityResult");
+    
   }
 };
 
@@ -136,7 +136,7 @@ inline bool rank_revealing_cholesky(uvec &excluded, const mat &XtX,
 inline CollinearityResult check_collinearity(mat &X, const vec &w,
                                              bool has_weights, double tolerance,
                                              bool store_qr = false) {
-  CAPYBARA_TIME_FUNCTION("check_collinearity");
+  
 
   const size_t p = X.n_cols;
   const size_t n = X.n_rows;
@@ -254,7 +254,7 @@ struct BetaWorkspace {
   mat X_weighted;
 
   BetaWorkspace(size_t n, size_t p) {
-    CAPYBARA_TIME_FUNCTION("BetaWorkspace::BetaWorkspace");
+    
 
     size_t safe_n = std::max(n, size_t(1));
     size_t safe_p = std::max(p, size_t(1));
@@ -272,7 +272,7 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
                               const CollinearityResult &collin_result,
                               bool has_weights, bool has_fixed_effects,
                               BetaWorkspace *ws = nullptr) {
-  CAPYBARA_TIME_FUNCTION("get_beta");
+  
 
   const size_t n = X.n_rows;
   const size_t p = X.n_cols;
@@ -395,7 +395,7 @@ struct AlphaWorkspace {
   umat obs_to_group;
 
   AlphaWorkspace(size_t n_obs, size_t n_fe, size_t max_groups) {
-    CAPYBARA_TIME_FUNCTION("AlphaWorkspace::AlphaWorkspace");
+    
 
     size_t safe_n_obs = std::max(n_obs, size_t(1));
     size_t safe_n_fe = std::max(n_fe, size_t(1));
@@ -414,7 +414,7 @@ inline InferenceAlpha get_alpha(const vec &sumFE,
                                 const field<field<uvec>> &group_indices,
                                 double tol, size_t iter_max,
                                 AlphaWorkspace *ws = nullptr) {
-  CAPYBARA_TIME_FUNCTION("get_alpha");
+  
 
   const size_t Q = group_indices.n_elem;
   const size_t N = sumFE.n_elem;

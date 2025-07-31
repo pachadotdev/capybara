@@ -12,24 +12,6 @@
 #include <unordered_set>
 #include <vector>
 
-// Enable/disable timing debug messages
-#define CAPYBARA_DEBUG_TIMING
-
-#ifdef CAPYBARA_DEBUG_TIMING
-#define CAPYBARA_TIME_FUNCTION(func_name)                                      \
-  auto start_time = std::chrono::high_resolution_clock::now();                 \
-  auto cleanup = [&]() {                                                       \
-    auto end_time = std::chrono::high_resolution_clock::now();                 \
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(      \
-                        end_time - start_time)                                 \
-                        .count();                                              \
-    std::cout << func_name << "," << duration << ",nanoseconds" << std::endl;  \
-  };                                                                           \
-  std::shared_ptr<void> timing_guard(nullptr, [&](void *) { cleanup(); });
-#else
-#define CAPYBARA_TIME_FUNCTION(func_name) // No-op when timing is disabled
-#endif
-
 using arma::field;
 using arma::mat;
 using arma::uvec;

@@ -54,7 +54,7 @@ public:
               const field<uvec> &fe_indices, const uvec &nb_ids)
       : n_obs_(n_obs), n_fe_groups_(n_fe_groups), weights_(weights),
         fe_indices_(fe_indices), nb_coefs_(nb_ids) {
-    CAPYBARA_TIME_FUNCTION("FEProcessor::FEProcessor");
+    
 
     has_weights_ = weights_.n_elem > 1 &&
                    !approx_equal(weights_, ones<vec>(n_obs_), "absdiff", 1e-14);
@@ -74,7 +74,7 @@ public:
   }
 
   void compute_sum_weights() {
-    CAPYBARA_TIME_FUNCTION("FEProcessor::compute_sum_weights");
+    
 
     sum_weights_.zeros();
     const double *w_ptr = weights_.memptr();
@@ -91,7 +91,7 @@ public:
   }
 
   void compute_fe_coef_single(const vec &target, vec &fe_coef) const {
-    CAPYBARA_TIME_FUNCTION("FEProcessor::compute_fe_coef_single");
+    
 
     fe_coef.set_size(nb_coefs_(0));
     fe_coef.zeros();
@@ -114,7 +114,7 @@ public:
   void compute_fe_coef_two(const vec &target, vec &fe_coef_a, vec &fe_coef_b,
                            DemeanWorkspace &ws,
                            const CapybaraParameters &params) const {
-    CAPYBARA_TIME_FUNCTION("FEProcessor::compute_fe_coef_two");
+    
 
     fe_coef_a.set_size(nb_coefs_(0));
     fe_coef_b.set_size(nb_coefs_(1));
@@ -153,7 +153,7 @@ public:
 
   void broadcast_fe_to_prediction(size_t group_idx, const vec &fe_coef,
                                   vec &prediction) const {
-    CAPYBARA_TIME_FUNCTION("FEProcessor::broadcast_fe_to_prediction");
+    
 
     const uword *fe_ptr = fe_indices_(group_idx).memptr();
     const double *coef_ptr = fe_coef.memptr();
@@ -166,7 +166,7 @@ public:
 
   void compute_fe_from_residual(size_t group_idx, const vec &residual,
                                 vec &fe_coef) const {
-    CAPYBARA_TIME_FUNCTION("FEProcessor::compute_fe_from_residual");
+    
 
     fe_coef.zeros();
 
@@ -188,7 +188,7 @@ public:
 
   void compute_fe_coef_general(size_t group_idx, const vec &target_residual,
                                vec &all_fe_coef) const {
-    CAPYBARA_TIME_FUNCTION("FEProcessor::compute_fe_coef_general");
+    
 
     size_t coef_start = coef_starts_(group_idx);
     size_t nb_coef = nb_coefs_(group_idx);
@@ -214,7 +214,7 @@ public:
 
   void add_fe_to_prediction(size_t group_idx, const vec &all_fe_coef,
                             vec &prediction) const {
-    CAPYBARA_TIME_FUNCTION("FEProcessor::add_fe_to_prediction");
+    
 
     size_t coef_start = coef_starts_(group_idx);
     const uword *fe_ptr = fe_indices_(group_idx).memptr();
@@ -227,7 +227,7 @@ public:
   }
 
   void compute_full_prediction(const vec &all_fe_coef, vec &prediction) const {
-    CAPYBARA_TIME_FUNCTION("FEProcessor::compute_full_prediction");
+    
 
     prediction.zeros();
     const double *coef_ptr = all_fe_coef.memptr();
@@ -254,7 +254,7 @@ public:
 inline bool irons_tuck_update(const vec &X_subvec, const vec &GX_subvec,
                               const vec &GGX_subvec, vec &delta_GX,
                               vec &delta2_X, const CapybaraParameters &params) {
-  CAPYBARA_TIME_FUNCTION("irons_tuck_update");
+  
 
   size_t nb_coef = X_subvec.n_elem;
   const double *X_ptr = X_subvec.memptr();
@@ -296,7 +296,7 @@ DemeanResult demean_variables(const field<vec> &variables, const vec &weights,
                               const field<uvec> &fe_id_tables,
                               bool save_fixed_effects,
                               const CapybaraParameters &params) {
-  CAPYBARA_TIME_FUNCTION("demean_variables");
+  
 
   size_t n_vars = variables.n_elem;
   size_t n_obs = variables(0).n_elem;

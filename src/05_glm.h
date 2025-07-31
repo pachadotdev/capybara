@@ -7,7 +7,7 @@
 namespace capybara {
 
 inline Family string_to_family(const std::string &fam) {
-  CAPYBARA_TIME_FUNCTION("string_to_family");
+  
   static const std::unordered_map<std::string, Family> family_map = {
       {"gaussian", Family::GAUSSIAN},
       {"poisson", Family::POISSON},
@@ -21,7 +21,7 @@ inline Family string_to_family(const std::string &fam) {
 }
 
 inline std::string tidy_family(const std::string &family) {
-  CAPYBARA_TIME_FUNCTION("tidy_family");
+  
 
   std::string fam = family;
 
@@ -44,7 +44,7 @@ inline std::string tidy_family(const std::string &family) {
 }
 
 inline Family get_family_type(const std::string &fam) {
-  CAPYBARA_TIME_FUNCTION("get_family_type");
+  
   static const std::unordered_map<std::string, Family> family_map = {
       {"gaussian", Family::GAUSSIAN},
       {"poisson", Family::POISSON},
@@ -58,7 +58,7 @@ inline Family get_family_type(const std::string &fam) {
 }
 
 inline void link_inv(const vec &eta, vec &mu, const Family family_type) {
-  CAPYBARA_TIME_FUNCTION("link_inv");
+  
   switch (family_type) {
   case Family::GAUSSIAN:
     mu = eta;
@@ -82,7 +82,7 @@ inline void link_inv(const vec &eta, vec &mu, const Family family_type) {
 }
 
 inline void d_inv_link(const vec &eta, vec &result, const Family family_type) {
-  CAPYBARA_TIME_FUNCTION("d_inv_link");
+  
   switch (family_type) {
   case Family::GAUSSIAN:
     result.ones();
@@ -114,7 +114,7 @@ void initialize_family(vec &mu, vec &eta, const vec &y_orig, double mean_y,
                        const Family family_type, double binomial_mu_min,
                        double binomial_mu_max, double safe_clamp_min,
                        double safe_clamp_max) {
-  CAPYBARA_TIME_FUNCTION("initialize_family");
+  
   switch (family_type) {
   case Family::GAUSSIAN:
     mu = y_orig;
@@ -146,7 +146,7 @@ void initialize_family(vec &mu, vec &eta, const vec &y_orig, double mean_y,
 void initialize_family_fixed_effects(vec &mu, vec &eta, double mean_y,
                                      const Family family_type,
                                      double safe_clamp_min) {
-  CAPYBARA_TIME_FUNCTION("initialize_family_fixed_effects");
+  
   double safe_mean_y = std::max(static_cast<double>(mean_y), safe_clamp_min);
 
   switch (family_type) {
@@ -177,12 +177,12 @@ void initialize_family_fixed_effects(vec &mu, vec &eta, double mean_y,
 }
 
 inline double dev_resids_gaussian(const vec &y, const vec &mu, const vec &w) {
-  CAPYBARA_TIME_FUNCTION("dev_resids_gaussian");
+  
   return dot(w, square(y - mu));
 }
 
 inline double dev_resids_poisson(const vec &y, const vec &mu, const vec &w) {
-  CAPYBARA_TIME_FUNCTION("dev_resids_poisson");
+  
   uvec p = find(y > 0);
   if (p.n_elem == 0) {
     return 0.0;
@@ -196,7 +196,7 @@ inline double dev_resids_poisson(const vec &y, const vec &mu, const vec &w) {
 }
 
 inline double dev_resids_binomial(const vec &y, const vec &mu, const vec &w) {
-  CAPYBARA_TIME_FUNCTION("dev_resids_binomial");
+  
   vec r(y.n_elem, fill::zeros);
 
   uvec p = find(y == 1);
@@ -214,7 +214,7 @@ inline double dev_resids_binomial(const vec &y, const vec &mu, const vec &w) {
 
 inline double dev_resids_gamma(const vec &y, const vec &mu, const vec &w,
                                double safe_clamp_min) {
-  CAPYBARA_TIME_FUNCTION("dev_resids_gamma");
+  
   vec y_adj = clamp(y, safe_clamp_min, datum::inf);
   vec mu_adj = clamp(mu, safe_clamp_min, datum::inf);
 
@@ -223,7 +223,7 @@ inline double dev_resids_gamma(const vec &y, const vec &mu, const vec &w,
 
 inline double dev_resids_invgaussian(const vec &y, const vec &mu,
                                      const vec &w) {
-  CAPYBARA_TIME_FUNCTION("dev_resids_invgaussian");
+  
   vec diff = y - mu;
   vec mu_sq = mu % mu;
   return dot(w, (diff % diff) / (y % mu_sq));
@@ -232,7 +232,7 @@ inline double dev_resids_invgaussian(const vec &y, const vec &mu,
 inline double dev_resids_negbin(const vec &y, const vec &mu,
                                 const double &theta, const vec &w,
                                 double safe_clamp_min) {
-  CAPYBARA_TIME_FUNCTION("dev_resids_negbin");
+  
   vec y_adj = clamp(y, safe_clamp_min, datum::inf);
 
   return 2.0 * accu(w % (y % log(y_adj / mu) -
@@ -242,7 +242,7 @@ inline double dev_resids_negbin(const vec &y, const vec &mu,
 inline double dev_resids(const vec &y, const vec &mu, const double &theta,
                          const vec &w, const Family family_type,
                          double safe_clamp_min) {
-  CAPYBARA_TIME_FUNCTION("dev_resids");
+  
   switch (family_type) {
   case Family::GAUSSIAN:
     return dev_resids_gaussian(y, mu, w);
@@ -263,7 +263,7 @@ inline double dev_resids(const vec &y, const vec &mu, const double &theta,
 
 inline void variance(const vec &mu, const double &theta, vec &result,
                      const Family family_type) {
-  CAPYBARA_TIME_FUNCTION("variance");
+  
   switch (family_type) {
   case Family::GAUSSIAN:
     result.ones();
@@ -289,7 +289,7 @@ inline void variance(const vec &mu, const double &theta, vec &result,
 }
 
 inline bool valid_eta(const vec &eta, const Family family_type) {
-  CAPYBARA_TIME_FUNCTION("valid_eta");
+  
   switch (family_type) {
   case Family::GAUSSIAN:
   case Family::POISSON:
@@ -306,7 +306,7 @@ inline bool valid_eta(const vec &eta, const Family family_type) {
 }
 
 inline bool valid_mu(const vec &mu, const Family family_type) {
-  CAPYBARA_TIME_FUNCTION("valid_mu");
+  
   switch (family_type) {
   case Family::GAUSSIAN:
     return is_finite(mu);
@@ -325,7 +325,7 @@ inline bool valid_mu(const vec &mu, const Family family_type) {
 }
 
 inline bool valid_response(const vec &y, const Family family_type) {
-  CAPYBARA_TIME_FUNCTION("valid_response");
+  
   switch (family_type) {
   case Family::GAUSSIAN:
     return is_finite(y);
@@ -358,7 +358,7 @@ struct InferenceWLM {
       : coefficients(p, fill::zeros), fitted_values(n, fill::zeros),
         coef_status(p, fill::ones), success(false), hessian(p, p, fill::zeros),
         is_regular(true), has_fe(false) {
-    CAPYBARA_TIME_FUNCTION("InferenceWLM::constructor");
+    
   }
 };
 
@@ -393,11 +393,11 @@ struct InferenceGLM {
         conv(false), iter(0), coef_status(p, fill::ones),
         residuals_working(n, fill::zeros), residuals_response(n, fill::zeros),
         is_regular(true), has_fe(false), has_mx(false) {
-    CAPYBARA_TIME_FUNCTION("InferenceGLM::constructor");
+    
   }
 
   cpp11::list to_list(bool keep_dmx = true) const {
-    CAPYBARA_TIME_FUNCTION("InferenceGLM::to_list");
+    
     auto out = writable::list(
         {"coefficients"_nm = as_doubles(coefficients),
          "eta"_nm = as_doubles(eta),
@@ -435,7 +435,7 @@ inline InferenceWLM wlm_fit(const mat &X_reduced, const vec &y,
                             const CapybaraParameters &params,
                             bool compute_hessian = false,
                             bool compute_fixed_effects = false) {
-  CAPYBARA_TIME_FUNCTION("wlm_fit");
+  
   const size_t n = y.n_elem;
   const size_t p_orig = collin_result.coef_status.n_elem;
   const bool has_fixed_effects =
@@ -563,7 +563,7 @@ inline InferenceGLM feglm_fit(mat &X, const vec &y_orig, const vec &w,
                               const std::string &family,
                               const CapybaraParameters &params,
                               const double &theta = 0.0) {
-  CAPYBARA_TIME_FUNCTION("feglm_fit");
+  
   const size_t n = y_orig.n_elem;
   const size_t p_orig = X.n_cols;
   const bool has_fixed_effects =
