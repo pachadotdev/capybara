@@ -154,7 +154,7 @@ NULL
 #' @param demean_extra_projections number of extra projections in demeaning
 #'  algorithm. The default is \code{0L}.
 #' @param demean_warmup_iterations number of warmup iterations in demeaning.
-#'  The default is \code{15L}.
+#'  The default is \code{5L}.
 #' @param demean_projections_after_acc projections after acceleration in
 #'  demeaning. The default is \code{5L}.
 #' @param demean_grand_acc_frequency frequency of grand acceleration in
@@ -223,7 +223,7 @@ fit_control <- function(
     alpha_iter_max = 10000L,
     # Demean algorithm
     demean_extra_projections = 0L,
-    demean_warmup_iterations = 15L,
+    demean_warmup_iterations = 5L,
     demean_projections_after_acc = 5L,
     demean_grand_acc_frequency = 20L,
     demean_ssr_check_frequency = 40L,
@@ -540,13 +540,13 @@ nobs_ <- function(nobs_full, nobs_na, y, yhat) {
 #' @noRd
 model_response_ <- function(data, formula) {
   # Get the full model frame with BOTH response and predictors
-  mf <- model.frame(formula, data)
+  X <- model.frame(formula, data)
 
   # Extract the transformed response
-  y <- model.response(mf)
+  y <- model.response(X)
 
   # Create the model matrix for predictors
-  X <- model.matrix(formula, mf)[, -1L, drop = FALSE]
+  X <- model.matrix(formula, X)[, -1L, drop = FALSE]
   nms_sp <- colnames(X)
   attr(X, "dimnames") <- NULL
 

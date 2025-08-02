@@ -142,39 +142,6 @@ inline void initialize_family(vec &mu, vec &eta, const vec &y, double mean_y,
   }
 }
 
-inline void initialize_family_fixed_effects(vec &mu, vec &eta, double mean_y,
-                                            const Family family_type,
-                                            double safe_clamp_min) {
-
-  double safe_mean_y = std::max(static_cast<double>(mean_y), safe_clamp_min);
-
-  switch (family_type) {
-  case Family::GAUSSIAN:
-    mu.fill(mean_y);
-    eta.fill(mean_y);
-    break;
-  case Family::POISSON:
-  case Family::NEGBIN:
-    mu.fill(safe_mean_y);
-    eta.fill(log(safe_mean_y));
-    break;
-  case Family::BINOMIAL:
-    mu.fill(0.5);
-    eta.zeros();
-    break;
-  case Family::GAMMA:
-    mu.fill(safe_mean_y);
-    eta.fill(1.0 / safe_mean_y);
-    break;
-  case Family::INV_GAUSSIAN:
-    mu.fill(safe_mean_y);
-    eta.fill(1.0 / (safe_mean_y * safe_mean_y));
-    break;
-  default:
-    stop("Unknown family");
-  }
-}
-
 inline double dev_resids_gaussian(const vec &y, const vec &mu, const vec &w) {
   return dot(w, square(y - mu));
 }
@@ -375,6 +342,7 @@ struct InferenceGLM {
   vec residuals_response;
 
   field<vec> fixed_effects;
+  vec fe_coefficients; // Fixed effects coefficients for warm-starting
   uvec nb_references; // Number of references per dimension
   bool is_regular;    // Whether fixed effects are regular
   bool has_fe = false;
@@ -573,8 +541,14 @@ inline InferenceGLM feglm_fit(mat &X, const vec &y_orig, const vec &w,
 
   // Initialize mu and eta
   if (has_fixed_effects) {
-    initialize_family_fixed_effects(mu, eta, mean_y, family_type,
-                                    params.safe_clamp_min);
+    vec temp_mu(n), temp_eta(n);
+    temp_mu.fill(mean_y);
+    temp_eta.fill(mean_y);
+    initialize_family(temp_mu, temp_eta, temp_mu, mean_y, family_type,
+                      params.binomial_mu_min, params.binomial_mu_max,
+                      params.safe_clamp_min, params.safe_clamp_max);
+    mu = temp_mu;
+    eta = temp_eta;
   } else {
     initialize_family(mu, eta, y_orig, mean_y, family_type,
                       params.binomial_mu_min, params.binomial_mu_max,

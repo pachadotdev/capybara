@@ -136,9 +136,11 @@ public:
     const double *sum_weights_b_ptr = sum_weights_.memptr() + nb_coefs_(0);
 
     for (size_t iter = 0; iter < max_iter; ++iter) {
-      // Store old coefficients for convergence check
-      vec fe_a_old = fe_coef_a;
-      vec fe_b_old = fe_coef_b;
+      // Store old coefficients for convergence check using workspace
+      vec &fe_a_old = ws.fe_coef_a;
+      vec &fe_b_old = ws.fe_coef_b;
+      fe_a_old = fe_coef_a;
+      fe_b_old = fe_coef_b;
 
       // Broadcast FE A to prediction - vectorized
       for (size_t i = 0; i < n_obs_; ++i) {
@@ -404,9 +406,18 @@ DemeanResult demean_variables(const field<vec> &variables, const vec &weights,
       }
 
     } else {
-      // General case: 3+ FE groups - optimized with pre-allocated vectors
-      vec &all_fe_coef = ws.sum_in_out; // Reuse workspace vector
+      // General case: 3+ FE groups - use Irons-Tuck acceleration like fixest
+      vec &all_fe_coef = ws.sum_in_out; // X vector
+      vec &GX = ws.X;                   // GX vector  
+      vec &GGX = ws.GX;                 // GGX vector
+      vec &delta_GX = ws.delta_GX;      // Delta vectors
+      vec &delta2_X = ws.delta2_X;
+      
       all_fe_coef.set_size(fe_proc.total_coefficients());
+      GX.set_size(fe_proc.total_coefficients());
+      GGX.set_size(fe_proc.total_coefficients());
+      delta_GX.set_size(fe_proc.total_coefficients());
+      delta2_X.set_size(fe_proc.total_coefficients());
 
       if (init_fe_coef.n_elem == fe_proc.total_coefficients() && i == 0) {
         all_fe_coef = init_fe_coef;
@@ -417,35 +428,72 @@ DemeanResult demean_variables(const field<vec> &variables, const vec &weights,
       vec &prediction = ws.mu_current; // Use workspace vector
       vec &residual = ws.residual;     // Use workspace vector
 
-      residual = variables(i);
       size_t max_iter =
           (init_fe_coef.n_elem > 0 && i == 0)
               ? std::max(size_t(3), params.demean_2fe_max_iter / 5)
               : params.demean_2fe_max_iter;
 
-      // Optimized iteration using pre-allocated vectors
-      for (size_t iter = 0; iter < max_iter; ++iter) {
-        vec old_coef = all_fe_coef; // Only allocation in hot loop
+      // Step 1: Compute GX (first projection from X)
+      for (size_t q = 0; q < n_fe_groups; ++q) {
+        prediction.zeros();
+        for (size_t other_q = 0; other_q < n_fe_groups; ++other_q) {
+          if (other_q != q) {
+            fe_proc.add_fe_to_prediction(other_q, all_fe_coef, prediction);
+          }
+        }
+        residual = variables(i) - prediction;
+        fe_proc.compute_fe_coef_general(q, residual, GX);
+      }
+      
+      // Check initial convergence
+      vec &old_coef = ws.fe_coef_a; // Reuse workspace for convergence check
+      old_coef.set_size(fe_proc.total_coefficients());
+      
+      bool keepGoing = norm(all_fe_coef - GX, 2) > params.demean_2fe_tolerance;
+      
+      size_t iter = 0;
+      
+      while (keepGoing && iter < max_iter) {
+        ++iter;
+        old_coef = all_fe_coef;
 
+        // Step 2: Compute GGX (second projection from GX) 
         for (size_t q = 0; q < n_fe_groups; ++q) {
           prediction.zeros();
+          for (size_t other_q = 0; other_q < n_fe_groups; ++other_q) {
+            if (other_q != q) {
+              fe_proc.add_fe_to_prediction(other_q, GX, prediction);
+            }
+          }
+          residual = variables(i) - prediction;
+          fe_proc.compute_fe_coef_general(q, residual, GGX);
+        }
 
-          // Vectorized computation of other FE contributions
+        // Step 3: Try Irons-Tuck acceleration after warmup
+        if (iter >= params.demean_warmup_iterations) {
+          bool converged = irons_tuck(all_fe_coef, GX, GGX, delta_GX, delta2_X, params);
+          if (converged) {
+            break; // Convergence achieved through acceleration
+          }
+        } else {
+          // Before warmup, use regular updates
+          all_fe_coef = GGX;
+        }
+        
+        // Recompute GX for next iteration (from updated all_fe_coef)
+        for (size_t q = 0; q < n_fe_groups; ++q) {
+          prediction.zeros();
           for (size_t other_q = 0; other_q < n_fe_groups; ++other_q) {
             if (other_q != q) {
               fe_proc.add_fe_to_prediction(other_q, all_fe_coef, prediction);
             }
           }
-
-          // Vectorized residual computation
           residual = variables(i) - prediction;
-          fe_proc.compute_fe_coef_general(q, residual, all_fe_coef);
+          fe_proc.compute_fe_coef_general(q, residual, GX);
         }
 
-        // Vectorized convergence check
-        if (norm(all_fe_coef - old_coef, 2) < params.demean_2fe_tolerance) {
-          break;
-        }
+        // Check convergence
+        keepGoing = norm(all_fe_coef - old_coef, 2) > params.demean_2fe_tolerance;
       }
 
       fe_proc.compute_full_prediction(all_fe_coef, prediction);

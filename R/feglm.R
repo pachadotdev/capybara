@@ -134,13 +134,6 @@ feglm <- function(
     beta_start = NULL,
     eta_start = NULL,
     control = NULL) {
-  # start_time <- Sys.time()
-  # on.exit({
-  #   end_time <- Sys.time()
-  #   elapsed_ms <- as.numeric(difftime(end_time, start_time, units = "secs")) * 1000
-  #   cat(sprintf("[R timing] feglm: %.0f ms\n", elapsed_ms), file = stderr())
-  # })
-
   # Check validity of formula ----
   check_formula_(formula)
 
@@ -240,6 +233,10 @@ feglm <- function(
   # Fit generalized linear model ----
   if (is.integer(y)) {
     y <- as.numeric(y)
+  }
+
+  if (storage.mode(X) != "double") {
+    storage.mode(X) <- "double"
   }
 
   fit <- structure(feglm_fit_(

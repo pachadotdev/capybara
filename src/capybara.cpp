@@ -107,7 +107,7 @@ struct CapybaraParameters {
         nb_step_max_increase(0.5), direct_qr_threshold(0.9),
         qr_collin_tol_multiplier(1.0e-7), chol_stability_threshold(1.0e-12),
         alpha_convergence_tol(1.0e-8), alpha_iter_max(10000),
-        demean_extra_projections(0), demean_warmup_iterations(15),
+        demean_extra_projections(0), demean_warmup_iterations(5),
         demean_projections_after_acc(5), demean_grand_acc_frequency(20),
         demean_ssr_check_frequency(40), demean_2fe_max_iter(100),
         demean_2fe_tolerance(1.0e-12), keep_dmx(false), use_weights(true) {}
