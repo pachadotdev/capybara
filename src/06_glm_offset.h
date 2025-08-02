@@ -71,11 +71,11 @@ feglm_offset_fit(vec eta, const vec &y, const vec &offset, const vec &wt,
       field<vec> variables_to_demean(1);
       variables_to_demean(0) = Myadj;
 
-      DemeanResult demean_result =
+      DemeanResult x_demean_result =
           demean_variables(variables_to_demean, w, fe_indices, nb_ids,
-                           fe_id_tables, false, params);
+                           fe_id_tables, false, params, vec());
 
-      Myadj = demean_result.demeaned_vars(0);
+      Myadj = x_demean_result.demeaned_vars(0);
     } else {
 
       Myadj = yadj;

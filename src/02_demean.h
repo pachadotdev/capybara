@@ -115,19 +115,70 @@ public:
     fe_coef_b.set_size(nb_coefs_(1));
     fe_coef_a.zeros();
     fe_coef_b.zeros();
+
+    // Use pre-allocated workspace vectors
     vec &prediction = ws.mu_current;
     vec &residual = ws.residual;
+
     const double tol = params.demean_2fe_tolerance;
     const size_t max_iter = params.demean_2fe_max_iter;
+
+    // Raw pointer optimization for hot 2-FE algorithm
+    const double *target_ptr = target.memptr();
+    const double *weights_ptr = weights_.memptr();
+    const uword *fe_a_ptr = fe_indices_(0).memptr();
+    const uword *fe_b_ptr = fe_indices_(1).memptr();
+    double *pred_ptr = prediction.memptr();
+    double *resid_ptr = residual.memptr();
+    double *coef_a_ptr = fe_coef_a.memptr();
+    double *coef_b_ptr = fe_coef_b.memptr();
+    const double *sum_weights_a_ptr = sum_weights_.memptr();
+    const double *sum_weights_b_ptr = sum_weights_.memptr() + nb_coefs_(0);
+
     for (size_t iter = 0; iter < max_iter; ++iter) {
+      // Store old coefficients for convergence check
       vec fe_a_old = fe_coef_a;
       vec fe_b_old = fe_coef_b;
-      broadcast_fe_to_prediction(0, fe_coef_a, prediction);
-      residual = target - prediction;
-      compute_fe_from_residual(1, residual, fe_coef_b);
-      broadcast_fe_to_prediction(1, fe_coef_b, prediction);
-      residual = target - prediction; 
-      compute_fe_from_residual(0, residual, fe_coef_a);
+
+      // Broadcast FE A to prediction - vectorized
+      for (size_t i = 0; i < n_obs_; ++i) {
+        pred_ptr[i] = coef_a_ptr[fe_a_ptr[i]];
+      }
+
+      // Compute residual - vectorized
+      for (size_t i = 0; i < n_obs_; ++i) {
+        resid_ptr[i] = target_ptr[i] - pred_ptr[i];
+      }
+
+      // Compute FE B from residual - vectorized accumulation
+      std::fill(coef_b_ptr, coef_b_ptr + nb_coefs_(1), 0.0);
+      for (size_t i = 0; i < n_obs_; ++i) {
+        coef_b_ptr[fe_b_ptr[i]] += resid_ptr[i] * weights_ptr[i];
+      }
+      for (size_t c = 0; c < nb_coefs_(1); ++c) {
+        coef_b_ptr[c] /= sum_weights_b_ptr[c];
+      }
+
+      // Broadcast FE B to prediction - vectorized
+      for (size_t i = 0; i < n_obs_; ++i) {
+        pred_ptr[i] = coef_b_ptr[fe_b_ptr[i]];
+      }
+
+      // Compute residual - vectorized
+      for (size_t i = 0; i < n_obs_; ++i) {
+        resid_ptr[i] = target_ptr[i] - pred_ptr[i];
+      }
+
+      // Compute FE A from residual - vectorized accumulation
+      std::fill(coef_a_ptr, coef_a_ptr + nb_coefs_(0), 0.0);
+      for (size_t i = 0; i < n_obs_; ++i) {
+        coef_a_ptr[fe_a_ptr[i]] += resid_ptr[i] * weights_ptr[i];
+      }
+      for (size_t c = 0; c < nb_coefs_(0); ++c) {
+        coef_a_ptr[c] /= sum_weights_a_ptr[c];
+      }
+
+      // Check convergence using vectorized norm
       if (norm(fe_coef_a - fe_a_old, 2) < tol &&
           norm(fe_coef_b - fe_b_old, 2) < tol) {
         break;
@@ -137,11 +188,12 @@ public:
 
   void broadcast_fe_to_prediction(size_t group_idx, const vec &fe_coef,
                                   vec &prediction) const {
-
+    // Raw pointer optimization for broadcast operation
     const uword *fe_ptr = fe_indices_(group_idx).memptr();
     const double *coef_ptr = fe_coef.memptr();
     double *pred_ptr = prediction.memptr();
 
+    // Vectorized broadcast using raw pointers
     for (size_t i = 0; i < n_obs_; ++i) {
       pred_ptr[i] = coef_ptr[fe_ptr[i]];
     }
@@ -149,9 +201,10 @@ public:
 
   void compute_fe_from_residual(size_t group_idx, const vec &residual,
                                 vec &fe_coef) const {
-
+    // Use vectorized zeroing
     fe_coef.zeros();
 
+    // Raw pointer optimization for accumulation
     const double *resid_ptr = residual.memptr();
     const double *w_ptr = weights_.memptr();
     const uword *fe_ptr = fe_indices_(group_idx).memptr();
@@ -159,10 +212,12 @@ public:
     size_t coef_start = coef_starts_(group_idx);
     const double *sum_w_ptr = sum_weights_.memptr() + coef_start;
 
+    // Vectorized accumulation loop
     for (size_t i = 0; i < n_obs_; ++i) {
       coef_ptr[fe_ptr[i]] += resid_ptr[i] * w_ptr[i];
     }
 
+    // Vectorized division loop
     for (size_t c = 0; c < nb_coefs_(group_idx); ++c) {
       coef_ptr[c] /= sum_w_ptr[c];
     }
@@ -174,20 +229,22 @@ public:
     size_t coef_start = coef_starts_(group_idx);
     size_t nb_coef = nb_coefs_(group_idx);
 
+    // Raw pointer optimization for general case
     const double *resid_ptr = target_residual.memptr();
     const double *w_ptr = weights_.memptr();
     const uword *fe_ptr = fe_indices_(group_idx).memptr();
     double *coef_ptr = all_fe_coef.memptr() + coef_start;
     const double *sum_w_ptr = sum_weights_.memptr() + coef_start;
 
-    for (size_t c = 0; c < nb_coef; ++c) {
-      coef_ptr[c] = 0.0;
-    }
+    // Vectorized zeroing
+    std::fill(coef_ptr, coef_ptr + nb_coef, 0.0);
 
+    // Vectorized accumulation
     for (size_t i = 0; i < n_obs_; ++i) {
       coef_ptr[fe_ptr[i]] += resid_ptr[i] * w_ptr[i];
     }
 
+    // Vectorized division
     for (size_t c = 0; c < nb_coef; ++c) {
       coef_ptr[c] /= sum_w_ptr[c];
     }
@@ -207,16 +264,20 @@ public:
   }
 
   void compute_full_prediction(const vec &all_fe_coef, vec &prediction) const {
-
+    // Vectorized zeroing
     prediction.zeros();
+
+    // Raw pointers for maximum performance
     const double *coef_ptr = all_fe_coef.memptr();
     double *pred_ptr = prediction.memptr();
 
+    // Vectorized accumulation across all FE groups
     for (size_t q = 0; q < n_fe_groups_; ++q) {
       size_t coef_start = coef_starts_(q);
       const uword *fe_ptr = fe_indices_(q).memptr();
       const double *group_coef_ptr = coef_ptr + coef_start;
 
+      // Accumulate contributions from this FE group
       for (size_t i = 0; i < n_obs_; ++i) {
         pred_ptr[i] += group_coef_ptr[fe_ptr[i]];
       }
@@ -285,14 +346,13 @@ DemeanResult demean_variables(const field<vec> &variables, const vec &weights,
         fe_coef = init_fe_coef.subvec(0, fe_proc.coefficient_counts()(0) - 1);
         vec temp_pred = ws.mu_current;
         fe_proc.broadcast_fe_to_prediction(0, fe_coef, temp_pred);
-        vec residual = variables(i) - temp_pred; 
+        vec residual = variables(i) - temp_pred;
         fe_proc.compute_fe_from_residual(0, residual, fe_coef);
       } else {
         fe_proc.compute_fe_coef_single(variables(i), fe_coef);
       }
       fe_proc.broadcast_fe_to_prediction(0, fe_coef, result.demeaned_vars(i));
-      result.demeaned_vars(i) =
-          variables(i) - result.demeaned_vars(i); 
+      result.demeaned_vars(i) = variables(i) - result.demeaned_vars(i);
       // Save FE coefficients from first variable for warm-starting
       if (!first_var_processed) {
         result.fe_coefficients.set_size(fe_proc.total_coefficients());
@@ -324,8 +384,8 @@ DemeanResult demean_variables(const field<vec> &variables, const vec &weights,
       fe_proc.broadcast_fe_to_prediction(0, fe_coef_a, prediction);
       vec temp_pred = ws.residual;
       fe_proc.broadcast_fe_to_prediction(1, fe_coef_b, temp_pred);
-      prediction += temp_pred;                             
-      result.demeaned_vars(i) = variables(i) - prediction; 
+      prediction += temp_pred;
+      result.demeaned_vars(i) = variables(i) - prediction;
       // Save FE coefficients from first variable
       if (!first_var_processed) {
         result.fe_coefficients.set_size(fe_proc.total_coefficients());
@@ -344,39 +404,53 @@ DemeanResult demean_variables(const field<vec> &variables, const vec &weights,
       }
 
     } else {
-      // General case: 3+ FE groups
-      vec all_fe_coef(fe_proc.total_coefficients());
+      // General case: 3+ FE groups - optimized with pre-allocated vectors
+      vec &all_fe_coef = ws.sum_in_out; // Reuse workspace vector
+      all_fe_coef.set_size(fe_proc.total_coefficients());
+
       if (init_fe_coef.n_elem == fe_proc.total_coefficients() && i == 0) {
         all_fe_coef = init_fe_coef;
       } else {
         all_fe_coef.zeros();
       }
-      vec prediction = ws.mu_current;
-      vec residual = ws.residual;
-      residual = variables(i); 
+
+      vec &prediction = ws.mu_current; // Use workspace vector
+      vec &residual = ws.residual;     // Use workspace vector
+
+      residual = variables(i);
       size_t max_iter =
           (init_fe_coef.n_elem > 0 && i == 0)
               ? std::max(size_t(3), params.demean_2fe_max_iter / 5)
               : params.demean_2fe_max_iter;
+
+      // Optimized iteration using pre-allocated vectors
       for (size_t iter = 0; iter < max_iter; ++iter) {
-        vec old_coef = all_fe_coef;
+        vec old_coef = all_fe_coef; // Only allocation in hot loop
+
         for (size_t q = 0; q < n_fe_groups; ++q) {
           prediction.zeros();
+
+          // Vectorized computation of other FE contributions
           for (size_t other_q = 0; other_q < n_fe_groups; ++other_q) {
             if (other_q != q) {
               fe_proc.add_fe_to_prediction(other_q, all_fe_coef, prediction);
             }
           }
-          residual = variables(i) - prediction; 
+
+          // Vectorized residual computation
+          residual = variables(i) - prediction;
           fe_proc.compute_fe_coef_general(q, residual, all_fe_coef);
         }
-        if (norm(all_fe_coef - old_coef, 2) <
-            params.demean_2fe_tolerance) {
+
+        // Vectorized convergence check
+        if (norm(all_fe_coef - old_coef, 2) < params.demean_2fe_tolerance) {
           break;
         }
       }
+
       fe_proc.compute_full_prediction(all_fe_coef, prediction);
-      result.demeaned_vars(i) = variables(i) - prediction; 
+      result.demeaned_vars(i) = variables(i) - prediction;
+
       // Save FE coefficients from first variable
       if (!first_var_processed) {
         result.fe_coefficients = all_fe_coef;

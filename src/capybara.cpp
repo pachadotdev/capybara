@@ -326,8 +326,9 @@ demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   CapybaraParameters params;
 
   // Use the demean_variables function
-  capybara::DemeanResult demean_result = capybara::demean_variables(
-      variables_to_demean, w, fe_ids, nb_ids, fe_id_tables, false, params);
+  capybara::DemeanResult demean_result =
+      capybara::demean_variables(variables_to_demean, w, fe_ids, nb_ids,
+                                 fe_id_tables, false, params, vec());
 
   // Convert back to matrix
   mat result_mat(V.n_rows, V.n_cols);
@@ -385,7 +386,23 @@ demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
     res.coefficients.elem(find(collinear_mask)).fill(NA_REAL);
   }
 
-  return res.to_list();
+  auto out = writable::list({"coefficients"_nm = as_doubles(res.coefficients),
+                             "fitted.values"_nm = as_doubles(res.fitted_values),
+                             "weights"_nm = as_doubles(res.weights),
+                             "residuals"_nm = as_doubles(res.residuals),
+                             "hessian"_nm = as_doubles_matrix(res.hessian)});
+
+  if (res.has_fe && res.fixed_effects.n_elem > 0) {
+    writable::list fe_list(res.fixed_effects.n_elem);
+    for (size_t k = 0; k < res.fixed_effects.n_elem; ++k) {
+      fe_list[k] = as_doubles(res.fixed_effects(k));
+    }
+    out.push_back({"fixed.effects"_nm = fe_list});
+    out.push_back({"nb_references"_nm = as_integers(res.nb_references)});
+    out.push_back({"is_regular"_nm = writable::logicals(res.is_regular)});
+  }
+
+  return out;
 }
 
 [[cpp11::register]] list feglm_fit_(const doubles_matrix<> &X_r,
@@ -439,7 +456,33 @@ demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   if (any(collinear_mask)) {
     res.coefficients.elem(find(collinear_mask)).fill(NA_REAL);
   }
-  return res.to_list(params.keep_dmx);
+
+  auto out =
+      writable::list({"coefficients"_nm = as_doubles(res.coefficients),
+                      "eta"_nm = as_doubles(res.eta),
+                      "fitted.values"_nm = as_doubles(res.fitted_values),
+                      "weights"_nm = as_doubles(res.weights),
+                      "hessian"_nm = as_doubles_matrix(res.hessian),
+                      "deviance"_nm = writable::doubles(res.deviance),
+                      "null.deviance"_nm = writable::doubles(res.null_deviance),
+                      "conv"_nm = writable::logicals(res.conv),
+                      "iter"_nm = writable::integers(res.iter)});
+
+  if (res.has_fe && res.fixed_effects.n_elem > 0) {
+    writable::list fe_list(res.fixed_effects.n_elem);
+    for (size_t k = 0; k < res.fixed_effects.n_elem; ++k) {
+      fe_list[k] = as_doubles(res.fixed_effects(k));
+    }
+    out.push_back({"fixed.effects"_nm = fe_list});
+    out.push_back({"nb_references"_nm = as_integers(res.nb_references)});
+    out.push_back({"is_regular"_nm = writable::logicals(res.is_regular)});
+  }
+
+  if (params.keep_dmx && res.has_mx) {
+    out.push_back({"MX"_nm = as_doubles_matrix(res.X_dm)});
+  }
+
+  return out;
 }
 
 [[cpp11::register]] doubles
@@ -540,8 +583,6 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
     res.coefficients.elem(find(collinear_mask)).fill(NA_REAL);
   }
 
-  // Create the result list manually (since InferenceNegBin doesn't have
-  // to_list)
   auto out = writable::list(
       {"coefficients"_nm = as_doubles(res.coefficients),
        "eta"_nm = as_doubles(res.eta),

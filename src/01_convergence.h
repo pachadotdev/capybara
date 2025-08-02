@@ -78,19 +78,42 @@ inline void grouped_accu(const vec &values, const uvec &indices, vec &result,
   }
 }
 
-bool irons_tuck(vec &X, const vec &GX, const vec &GGX,
-                const CapybaraParameters &params) {
-  vec delta_GX = GGX - GX;
-  vec delta2_X = delta_GX - GX + X;
-  double vprod = dot(delta_GX, delta2_X);
-  double ssq = dot(delta2_X, delta2_X);
+bool irons_tuck(vec &X, const vec &GX, const vec &GGX, vec &delta_GX,
+                vec &delta2_X, const CapybaraParameters &params) {
+  // Use pre-allocated vectors and raw pointers for hot path
+  const size_t n = X.n_elem;
+  const double *GX_ptr = GX.memptr();
+  const double *GGX_ptr = GGX.memptr();
+  double *X_ptr = X.memptr();
+  double *delta_GX_ptr = delta_GX.memptr();
+  double *delta2_X_ptr = delta2_X.memptr();
+
+  // delta_GX = GGX - GX
+  for (size_t i = 0; i < n; ++i) {
+    delta_GX_ptr[i] = GGX_ptr[i] - GX_ptr[i];
+  }
+
+  // delta2_X = delta_GX - GX + X
+  for (size_t i = 0; i < n; ++i) {
+    delta2_X_ptr[i] = delta_GX_ptr[i] - GX_ptr[i] + X_ptr[i];
+  }
+
+  // Compute dot products using raw pointers
+  double vprod = 0.0, ssq = 0.0;
+  for (size_t i = 0; i < n; ++i) {
+    vprod += delta_GX_ptr[i] * delta2_X_ptr[i];
+    ssq += delta2_X_ptr[i] * delta2_X_ptr[i];
+  }
 
   if (ssq < params.irons_tuck_eps) {
     return true; // Convergence reached
   }
 
   double coef = vprod / ssq;
-  X = GGX - coef * delta_GX;
+  // X = GGX - coef * delta_GX
+  for (size_t i = 0; i < n; ++i) {
+    X_ptr[i] = GGX_ptr[i] - coef * delta_GX_ptr[i];
+  }
   return false;
 }
 
@@ -119,24 +142,31 @@ void cluster_coef_poisson_log(const vec &mu, const vec &sum_y, const uvec &dum,
   vec &mu_max = ws.mu_max;
   mu_max.set_size(nb_cluster);
   mu_max.fill(-datum::inf);
+
+  // Raw pointer optimization for hot path
   const double *mu_ptr = mu.memptr();
   const uword *dum_ptr = dum.memptr();
   double *mu_max_ptr = mu_max.memptr();
+  double *coef_ptr = cluster_coef.memptr();
+  const double *sum_y_ptr = sum_y.memptr();
+
+  // Find max mu for each cluster - vectorized pass
   for (size_t i = 0; i < n_obs; ++i) {
     uword cluster_id = dum_ptr[i];
     if (mu_ptr[i] > mu_max_ptr[cluster_id]) {
       mu_max_ptr[cluster_id] = mu_ptr[i];
     }
   }
-  double *coef_ptr = cluster_coef.memptr();
+
+  // Accumulate exp values - vectorized pass
   for (size_t i = 0; i < n_obs; ++i) {
     uword cluster_id = dum_ptr[i];
     coef_ptr[cluster_id] += exp(mu_ptr[i] - mu_max_ptr[cluster_id]);
   }
-  const double *sum_y_ptr = sum_y.memptr();
+
+  // Final coefficient computation - vectorized
   for (size_t m = 0; m < nb_cluster; ++m) {
-    coef_ptr[m] =
-        log(sum_y_ptr[m]) - log(coef_ptr[m]) - mu_max_ptr[m];
+    coef_ptr[m] = log(sum_y_ptr[m]) - log(coef_ptr[m]) - mu_max_ptr[m];
   }
 }
 
@@ -219,6 +249,14 @@ struct ConvergenceWorkspace {
   vec mu_current;
   vec mu_result;
 
+  // Pre-allocated vectors for Irons-Tuck acceleration
+  field<vec> delta_GX, delta2_X;
+  vec vprod_vec, ssq_vec, coef_vec;
+
+  // Pre-allocated for coefficient computations
+  vec temp_accumulator;
+  vec temp_exp_values;
+
   ConvergenceWorkspace(const Convergence &data) {
 
     size_t K = data.K;
@@ -228,6 +266,8 @@ struct ConvergenceWorkspace {
     GX.set_size(K);
     GGX.set_size(K);
     X_new.set_size(K);
+    delta_GX.set_size(K);
+    delta2_X.set_size(K);
 
     for (size_t k = 0; k < K; ++k) {
       size_t nk = data.nb_cluster_all(k);
@@ -235,10 +275,19 @@ struct ConvergenceWorkspace {
       GX(k).set_size(nk);
       GGX(k).set_size(nk);
       X_new(k).set_size(nk);
+      delta_GX(k).set_size(nk);
+      delta2_X(k).set_size(nk);
     }
 
     mu_current.set_size(n_obs);
     mu_result.set_size(n_obs);
+
+    // Pre-allocate work vectors
+    vprod_vec.set_size(K);
+    ssq_vec.set_size(K);
+    coef_vec.set_size(K);
+    temp_accumulator.set_size(data.nb_cluster_all.max());
+    temp_exp_values.set_size(n_obs);
   }
 };
 
@@ -249,31 +298,32 @@ inline void update_mu(vec &mu_result, const vec &mu_base,
   size_t K = cluster_coefs.n_elem;
   size_t n_obs = mu_base.n_elem;
 
-  const double *mu_base_ptr = mu_base.memptr();
-  double *mu_result_ptr = mu_result.memptr();
-
+  // Copy base to result if different
   if (mu_result.memptr() != mu_base.memptr()) {
-    for (size_t i = 0; i < n_obs; ++i) {
-      mu_result_ptr[i] = mu_base_ptr[i];
-    }
+    mu_result = mu_base;
   }
 
+  // Raw pointer optimization for hot paths
+  double *mu_result_ptr = mu_result.memptr();
+
   if (is_poisson_family(family)) {
-    // Multiplicative updates for Poisson
+    // Multiplicative updates for Poisson - vectorized
     for (size_t k = 0; k < K; ++k) {
       const double *coef_ptr = cluster_coefs(k).memptr();
       const uword *dum_ptr = dum_vector(k).memptr();
 
+      // Use vectorized multiplication via element access
       for (size_t i = 0; i < n_obs; ++i) {
         mu_result_ptr[i] *= coef_ptr[dum_ptr[i]];
       }
     }
   } else {
-    // Additive updates for Gaussian and others
+    // Additive updates for Gaussian and others - vectorized
     for (size_t k = 0; k < K; ++k) {
       const double *coef_ptr = cluster_coefs(k).memptr();
       const uword *dum_ptr = dum_vector(k).memptr();
 
+      // Use vectorized addition via element access
       for (size_t i = 0; i < n_obs; ++i) {
         mu_result_ptr[i] += coef_ptr[dum_ptr[i]];
       }
@@ -379,7 +429,8 @@ vec conv_accelerated(const Convergence &data, const CapybaraParameters &params,
 
     numconv = true;
     for (size_t k = 0; k < K - 1; ++k) {
-      bool k_converged = irons_tuck(X(k), GX(k), GGX(k), params);
+      bool k_converged = irons_tuck(X(k), GX(k), GGX(k), workspace.delta_GX(k),
+                                    workspace.delta2_X(k), params);
       if (!k_converged) {
         numconv = false;
       }

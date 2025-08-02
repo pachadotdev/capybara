@@ -109,7 +109,7 @@ fenegbin_fit(mat &X, const vec &y_orig, const vec &w,
   double theta = (init_theta > 0) ? init_theta : 1.0;
 
   std::string poisson_family = "poisson";
-  
+
   // Modify X directly for initial Poisson fit
   InferenceGLM poisson_fit =
       feglm_fit(X, y_orig, w, fe_indices, nb_ids, fe_id_tables, poisson_family,
@@ -148,7 +148,6 @@ fenegbin_fit(mat &X, const vec &y_orig, const vec &w,
       break;
     }
 
-    
     vec fitted_vals_copy = glm_fit.fitted_values;
     double dev = glm_fit.deviance;
 

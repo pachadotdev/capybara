@@ -159,6 +159,7 @@ feglm <- function(
   nobs_full <- NA
   weights_vec <- NA
   weights_col <- NA
+  original_row_indices <- NA
 
   model_frame_(data, formula, weights)
 
@@ -191,14 +192,21 @@ feglm <- function(
 
   model_response_(data, formula)
 
-  # Extract weights if required ----
+  # Extract weights if required (AFTER all filtering is complete) ----
   if (is.null(weights)) {
     w <- rep(1.0, nt)
   } else if (!all(is.na(weights_vec))) {
-    # Weights provided as vector
-    w <- weights_vec
-    if (length(w) != nrow(data)) {
-      stop("Length of weights vector must equal number of observations.", call. = FALSE)
+    # Weights provided as vector - subset using row indices
+    if ("__original_idx__" %in% names(data)) {
+      remaining_indices <- data[["__original_idx__"]]
+      w <- weights_vec[remaining_indices]
+      # Remove the tracking column
+      data[, "__original_idx__" := NULL]
+    } else {
+      w <- weights_vec
+      if (length(w) != nrow(data)) {
+        stop("Length of weights vector must equal number of observations.", call. = FALSE)
+      }
     }
   } else if (!all(is.na(weights_col))) {
     # Weights provided as formula - use the extracted column name

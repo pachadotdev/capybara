@@ -30,22 +30,6 @@ struct InferenceAlpha {
   bool success;
 
   InferenceAlpha() : is_regular(true), success(false) {}
-
-  cpp11::list to_list() const {
-
-    writable::list Alpha_r(Alpha.n_elem);
-    for (size_t k = 0; k < Alpha.n_elem; ++k) {
-      Alpha_r[k] = as_doubles_matrix(Alpha(k).eval());
-    }
-
-    writable::list result;
-    result.push_back({"fixed_effects"_nm = Alpha_r});
-    result.push_back({"nb_references"_nm = as_integers(nb_references)});
-    result.push_back({"is_regular"_nm = writable::logicals({is_regular})});
-    result.push_back({"success"_nm = writable::logicals({success})});
-
-    return result;
-  }
 };
 
 struct CollinearityResult {

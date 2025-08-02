@@ -438,10 +438,12 @@ model_frame_ <- function(data, formula, weights) {
     # Store the extracted column name for later use
     assign("weights_col", weight_col, envir = parent.frame())
   } else if (is.numeric(weights)) {
-    # Weights as vector - store for later use
+    # Weights as vector - store for later use with row indices
     weight_col <- NULL
     needed_cols <- formula_vars
     assign("weights_vec", weights, envir = parent.frame())
+    # Store original row indices to track filtering
+    assign("original_row_indices", seq_len(nrow(data)), envir = parent.frame())
   } else {
     stop("'weights' must be a column name, formula, or numeric vector", call. = FALSE)
   }
@@ -451,15 +453,25 @@ model_frame_ <- function(data, formula, weights) {
 
   lhs <- names(data)[1L]
   nobs_full <- nrow(data)
+  
+  # Track row indices through filtering
+  if (is.numeric(weights)) {
+    data[, "__original_idx__" := seq_len(nrow(data))]
+  }
+  
   data <- na.omit(data)
 
   # Remove observations with infinite values in any column
   # This is crucial for preventing issues with log(0) or other transformations
-  infinite_rows <- apply(data, 1, function(x) any(is.infinite(x)))
+  if ("__original_idx__" %in% names(data)) {
+    infinite_rows <- apply(data[, .SD, .SDcols = !c("__original_idx__")], 1, function(x) any(is.infinite(x)))
+  } else {
+    infinite_rows <- apply(data, 1, function(x) any(is.infinite(x)))
+  }
   if (any(infinite_rows)) {
     n_infinite <- sum(infinite_rows)
     data <- data[!infinite_rows, ]
-    message(sprintf("Removed %d observations with infinite values", n_infinite))
+    message(sprintf("Removed %d observation(s) with infinite values after formula transformation", n_infinite))
   }
 
   # Convert columns of type "units" to numeric
@@ -538,39 +550,12 @@ model_response_ <- function(data, formula) {
   nms_sp <- colnames(X)
   attr(X, "dimnames") <- NULL
 
-  # Check for Inf values in model matrix and response after transformation
-  inf_X <- is.infinite(X)
-  inf_y <- is.infinite(y)
-  
-  if (any(inf_X) || any(inf_y)) {
-    # Find which observations have infinite values
-    inf_obs_X <- apply(inf_X, 1, any)
-    inf_obs_y <- inf_y
-    inf_obs <- inf_obs_X | inf_obs_y
-    
-    if (any(inf_obs)) {
-      n_inf <- sum(inf_obs)
-      
-      # Remove infinite observations
-      keep_obs <- !inf_obs
-      y <- y[keep_obs]
-      X <- X[keep_obs, , drop = FALSE]
-      
-      # Update row indices in data to match
-      if (nrow(data) == length(inf_obs)) {
-        data <- data[keep_obs, ]
-      }
-      
-      message(sprintf("Removed %d observation(s) with infinite values after formula transformation", n_inf))
-    }
-  }
-
   # Assign results to parent environment
   assign("y", y, envir = parent.frame())
   assign("X", X, envir = parent.frame())
   assign("nms_sp", nms_sp, envir = parent.frame())
   assign("p", ncol(X), envir = parent.frame())
-  assign("data", data, envir = parent.frame()) # Update data frame
+  assign("data", data, envir = parent.frame())
 }
 
 #' @title Check weights

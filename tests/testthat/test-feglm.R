@@ -24,10 +24,11 @@ test_that("feglm is similar to glm", {
   # see test-fepoisson.R
 
   # Binomial ----
+  devtools::load_all()
   mod_binom <- feglm(am ~ wt + mpg | cyl, mtcars, family = binomial())
   mod_binom_base <- glm(am ~ wt + mpg + as.factor(cyl), mtcars, family = binomial())
-  # coef(mod_binom)
-  # coef(mod_binom_base)
+  coef(mod_binom)
+  coef(mod_binom_base)[2:3]
 
   expect_equal(unname(coef(mod_binom) - coef(mod_binom_base)[2:3]), c(0, 0), tolerance = 1e-2)
 
@@ -123,8 +124,16 @@ test_that("predicted values increase the error outside the inter-quartile range 
   d2 <- mtcars[mtcars$mpg < quantile(mtcars$mpg, 0.25) | mtcars$mpg > quantile(mtcars$mpg, 0.75), ]
 
   # Binomial GLM ----
+
+  devtools::load_all()
+
   m1_binom <- feglm(am ~ wt + disp | cyl, mtcars, family = binomial())
+  # m2_binom <- fixest::feglm(am ~ wt + disp | cyl, mtcars, family = binomial())
   m2_binom <- glm(am ~ wt + disp + as.factor(cyl), mtcars, family = binomial())
+
+  coef(m1_binom)
+  # coef(m2_binom)
+  coef(m2_binom)[2:3]
 
   pred1_binom <- predict(m1_binom, newdata = d1, type = "response")
   pred2_binom <- predict(m1_binom, newdata = d2, type = "response")
