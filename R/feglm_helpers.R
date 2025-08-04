@@ -310,11 +310,14 @@ drop_by_link_type_ <- function(data, lhs, family, tmp_var, k_vars, control) {
 #' @param formula Formula object
 #' @noRd
 model_response_ <- function(data, formula) {
+  # Evaluate the left-hand side of the formula in the context of data
+  mf <- model.frame(formula, data, na.action = na.pass)
+  y <- model.response(mf)
   X <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
   nms_sp <- colnames(X)
   attr(X, "dimnames") <- NULL
 
-  assign("y", data[[1L]], envir = parent.frame())
+  assign("y", y, envir = parent.frame())
   assign("X", X, envir = parent.frame())
   assign("nms_sp", nms_sp, envir = parent.frame())
   assign("p", ncol(X), envir = parent.frame())
