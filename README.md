@@ -58,15 +58,40 @@ remotes::install_github("pachadotdev/capybara")
 
 ## Examples
 
-See the documentation in progress: <https://pacha.dev/capybara/>.
+See the documentation: <https://pacha.dev/capybara/>.
+
+Here is simple example of estimating a linear model and a Poisson model
+with fixed effects:
+
+``` r
+m1 <- felm(mpg ~ wt | cyl, mtcars)
+m2 <- fepoisson(mpg ~ wt | cyl, mtcars)
+summary_table(m1, m2, model_names = c("Linear", "Poisson"))
+
+|     Variable     |       Linear        |      Poisson      |
+|------------------|---------------------|-------------------|
+| wt               |           -3.206*** |           -0.180* |
+|                  |             (0.295) |           (0.072) |
+|                  |                     |                   |
+| Fixed effects    |                     |                   |
+| cyl              |                 Yes |               Yes |
+|                  |                     |                   |
+| N                |                  32 |                32 |
+| R-squared        |               0.837 |             0.616 |
+
+Standard errors in parenthesis
+Significance levels: *** p < 0.001; ** p < 0.01; * p < 0.05; . p < 0.1
+```
 
 ## Design choices
 
 Capybara is full of trade-offs. I have used ‘data.table’ to benefit from
 in-place modifications. The model fitting is done on C++ side. While the
 code aims to be fast, I prefer to have some bottlenecks instead of low
-numerical stability. The principle was: “He who gives up code safety for
-code speed deserves neither.” (Wickham, 2014).
+numerical stability or reinvent the wheel. Armadillo works great for the
+size of data and the models that I use for my research. The principle
+was: “He who gives up code safety for code speed deserves neither.”
+(Wickham, 2014).
 
 ## Benchmarks
 
@@ -75,7 +100,7 @@ Median time and memory footprint for the different models in the book
 Analysis](https://www.wto.org/english/res_e/publications_e/advancedguide2016_e.htm).
 
 | Model             | Package  | Median Time   | Memory        |
-| :---------------- | :------- | :------------ | :------------ |
+|:------------------|:---------|:--------------|:--------------|
 | PPML              | Alpaca   | 720.07 ms - 3 | 302.64 MB - 3 |
 | PPML              | Base R   | 41.72 s - 4   | 2.73 GB - 4   |
 | PPML              | Capybara | 405.89 ms - 2 | 19.22 MB - 1  |
@@ -108,11 +133,12 @@ Analysis](https://www.wto.org/english/res_e/publications_e/advancedguide2016_e.h
 
 ## Changing the number of cores
 
-Note that you can edit the `Makevars` file to change the number of cores
-that capybara uses, here is an example of how it affects the performance
+Note that you can use `Sys.setenv(CAPYBARA_NCORES = 4)` (or other
+positive integers) to change the number of cores that capybara uses,
+here is an example of how it affects the performance
 
 | cores | PPML | Trade Diversion |
-| :---- | ---: | --------------: |
+|:------|-----:|----------------:|
 | 2     | 1.8s |           16.2s |
 | 4     | 1.5s |           14.0s |
 | 6     | 0.8s |            2.4s |
@@ -144,8 +170,7 @@ significantly improve performance (sometimes 2-4x faster than just using
 portable flags).
 
 ``` r
-Sys.setenv(CAPYBARA_PORTABLE = "no")
-Sys.setenv(CAPYBARA_USE_FAST_MATH = "yes")
+Sys.setenv(CAPYBARA_OPTIMIZATIONS = "yes")
 
 # CRAN version
 install.packages("capybara", type = "source")
@@ -159,98 +184,6 @@ devtools::install()
 This will determine if your hardware allows hardware-specific compiler
 flags that provide significant performance improvements (sometimes 2-4x
 faster than just using portable flags).
-
-## Testing and debugging
-
-## Testing
-
-I use `testthat` (e.g., `devtools::test()`) to compare the results with
-base R. These tests are about the correctness of the results.
-
-### Debuging
-
-I run `r_valgrind "dev/valgrind-kendall-correlation.r"` or the
-corresponding test from the project’s root in a new terminal (bash)
-after running `devtools::install()`. These tests are about memory leaks
-(e.g., I use repeteated computations and sometimes things such as “pi =
-3”).
-
-This works because I previously defined this in `.bashrc`, to make it
-work you need to run `source ~/.bashrc` or reboot your computer.
-
-    function r_debug_symbols () {
-        # if src/Makevars does not exist, exit
-        if [ ! -f src/Makevars ]; then
-            echo "File src/Makevars does not exist"
-            return 1
-        fi
-    
-        # if src/Makevars contains a line that says "PKG_CPPFLAGS"
-        # but there is no "-UDEBUG -g" on it
-        # then add "PKG_CPPFLAGS += -UDEBUG -g" at the end
-        if grep -q "PKG_CPPFLAGS" src/Makevars; then
-            if ! grep -q "PKG_CPPFLAGS.*-UDEBUG.*-g" src/Makevars; then
-                echo "PKG_CPPFLAGS += -UDEBUG -g" >> src/Makevars
-            fi
-        fi
-    
-        # if src/Makevars does not contain a line that reads
-        # PKG_CPPFLAGS ...something... -UDEBUG -g ...something...
-        # then add PKG_CPPFLAGS = -UDEBUG -g to it
-        if ! grep -q "PKG_CPPFLAGS.*-UDEBUG.*-g" src/Makevars; then
-            echo "PKG_CPPFLAGS = -UDEBUG -g" >> src/Makevars
-        fi
-    }
-    
-    function r_valgrind () {
-        # if no argument is provided, ask for a file
-        if [ -z "$1" ]; then
-            read -p "Enter the script to debug: " script
-        else
-            script=$1
-        fi
-    
-        # if no output file is provided, use the same filename but ended in txt
-        if [ -z "$2" ]; then
-            output="${script%.*}.txt"
-        else
-            output=$2
-        fi
-    
-        # if the file does not exist, exit
-        if [ ! -f "$script" ]; then
-            echo "File $script does not exist"
-            return 1
-        fi
-    
-        # if the file does not end in .R/.r, exit
-        shopt -s nocasematch
-        if [[ "$script" != *.R ]]; then
-            echo "File $script does not end in .R or .r"
-            return 1
-        fi
-        shopt -u nocasematch
-    
-        # run R in debug mode, but after that we compiled with debug symbols
-        # see https://reside-ic.github.io/blog/debugging-memory-errors-with-valgrind-and-gdb/
-        # R -d 'valgrind -s --leak-check=full --show-leak-kinds=all --track-origins=yes' -f $script 2>&1 | tee valgrind.txt
-        R --vanilla -d 'valgrind -s --track-origins=yes' -f $script 2>&1 | tee $output
-    }
-    
-    # create an alias for R
-    alias r="R"
-    alias rvalgrind="R --vanilla -d 'valgrind -s --track-origins=yes'"
-
-`r_debug_symbols` makes everything slower, but makes sure that all
-compiler optimizations are disabled and then valgrind will point us to
-the lines that create memory leaks.
-
-`r_valgrind` will run an R script and use Linux system tools to test for
-initialized values and all kinds of problems that result in memory
-leaks.
-
-When you are ready testing, you need to remove `-UDEBUG` from
-`src/Makevars`.
 
 ## Code of Conduct
 
