@@ -30,9 +30,9 @@ feglm_offset_ <- function(object, offset) {
   data <- object[["data"]]
   wt <- object[["weights"]]
   family <- object[["family"]]
-  lvls_k <- object[["lvls_k"]]
-  nt <- object[["nobs"]][["nobs_full"]] - object[["nobs"]][["nobs_pc"]]
-  k_vars <- names(lvls_k)
+  fe_levels <- object[["fe_levels"]]
+  nt <- object[["nobs"]][["nobs"]]
+  k_vars <- names(fe_levels)
 
   # Extract dependent variable
   y <- data[[1L]]

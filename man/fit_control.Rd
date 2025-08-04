@@ -16,6 +16,7 @@ fit_control(
   iter_alpha_max = 10000L,
   iter_interrupt = 1000L,
   iter_ssr = 10L,
+  return_fe = TRUE,
   keep_tx = FALSE
 )
 }
@@ -60,6 +61,11 @@ iterations before the algorithm is interrupted. The default is \code{1000L}.}
 \item{iter_ssr}{unsigned integer indicating the number of iterations
 to skip before checking if the sum of squared residuals improves. The default
 is \code{10L}.}
+
+\item{return_fe}{logical indicating if the fixed effects should be returned.
+This can be useful when fitting general equilibrium models where skipping the
+fixed effects for intermediate steps speeds up computation. The default is
+\code{TRUE} and only applies to the \code{feglm} class.}
 
 \item{keep_tx}{logical indicating if the centered regressor matrix should be
 stored. The centered regressor matrix is required for some covariance

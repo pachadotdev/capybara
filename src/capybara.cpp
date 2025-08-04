@@ -29,35 +29,38 @@ struct CapybaraParameters {
   double dev_tol;
   double center_tol;
   double collin_tol;
+  double step_halving_factor;
+  double alpha_tol;
   size_t iter_max;
   size_t iter_center_max;
   size_t iter_inner_max;
+  size_t iter_alpha_max;
   size_t iter_interrupt;
   size_t iter_ssr;
-  double step_halving_factor;
+  bool return_fe;
   bool keep_tx;
-  double alpha_tol;
-  size_t iter_alpha_max;
 
   CapybaraParameters()
-      : dev_tol(1.0e-8), center_tol(1.0e-8), collin_tol(1.0e-7), iter_max(25),
-        iter_center_max(10000), iter_inner_max(50), iter_interrupt(1000), iter_ssr(10),
-        step_halving_factor(0.5), keep_tx(false), alpha_tol(1.0e-8),
-        iter_alpha_max(10000) {}
+      : dev_tol(1.0e-6), center_tol(1.0e-6), collin_tol(1.0e-7),
+        step_halving_factor(0.5), alpha_tol(1.0e-6), iter_max(25),
+        iter_center_max(10000), iter_inner_max(50),
+        iter_alpha_max(10000), iter_interrupt(1000), iter_ssr(10),
+        return_fe(true), keep_tx(false) {}
 
   explicit CapybaraParameters(const cpp11::list &control) {
     dev_tol = as_cpp<double>(control["dev_tol"]);
     center_tol = as_cpp<double>(control["center_tol"]);
     collin_tol = as_cpp<double>(control["collin_tol"]);
+    step_halving_factor = as_cpp<double>(control["step_halving_factor"]);
+    alpha_tol = as_cpp<double>(control["alpha_tol"]);
     iter_max = as_cpp<size_t>(control["iter_max"]);
     iter_center_max = as_cpp<size_t>(control["iter_center_max"]);
     iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]);
+    iter_alpha_max = as_cpp<size_t>(control["iter_alpha_max"]);
     iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]);
     iter_ssr = as_cpp<size_t>(control["iter_ssr"]);
-    step_halving_factor = as_cpp<double>(control["step_halving_factor"]);
+    return_fe = as_cpp<bool>(control["return_fe"]);
     keep_tx = as_cpp<bool>(control["keep_tx"]);
-    alpha_tol = as_cpp<double>(control["alpha_tol"]);
-    iter_alpha_max = as_cpp<size_t>(control["iter_alpha_max"]);
   }
 };
 
@@ -101,11 +104,6 @@ inline field<field<uvec>> R_list_to_Armadillo_field(const list &FEs) {
     group_indices(k).set_size(n_groups);
     for (size_t g = 0; g < n_groups; ++g) {
       const integers group_obs = as_cpp<integers>(group_list[g]);
-
-      // Print indices for debugging (without arbitrary limit)
-      if (group_obs.size() > 0) {
-        // Debugging can be added here if needed
-      }
 
       // Create indices vector with validation
       uvec indices(group_obs.size());
@@ -256,7 +254,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
 
   // Add design matrix if kept
   if (params.keep_tx && result.has_tx) {
-    ret.push_back({"TX"_nm = as_doubles_matrix(result.X_dm)});
+    ret.push_back({"TX"_nm = as_doubles_matrix(result.TX)});
   }
 
   return ret;
@@ -378,7 +376,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
 
   // Add design matrix if kept
   if (params.keep_tx && result.has_tx) {
-    out.push_back({"TX"_nm = as_doubles_matrix(result.X_dm)});
+    out.push_back({"TX"_nm = as_doubles_matrix(result.TX)});
   }
 
   return out;
@@ -468,7 +466,7 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
 
   // Add design matrix if requested
   if (result.has_tx) {
-    out.push_back({"TX"_nm = as_doubles_matrix(result.X_dm)});
+    out.push_back({"TX"_nm = as_doubles_matrix(result.TX)});
   }
 
   return out;

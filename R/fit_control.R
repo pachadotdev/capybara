@@ -53,6 +53,10 @@ NULL
 #' is \code{10L}.
 #' @param iter_alpha_max maximum iterations for fixed effects computation.
 #'  The default is \code{10000L}.
+#' @param return_fe logical indicating if the fixed effects should be returned.
+#'  This can be useful when fitting general equilibrium models where skipping the
+#'  fixed effects for intermediate steps speeds up computation. The default is
+#'  \code{TRUE} and only applies to the \code{feglm} class.
 #' @param keep_tx logical indicating if the centered regressor matrix should be
 #'  stored. The centered regressor matrix is required for some covariance
 #'  estimators, bias corrections, and average partial effects. This option saves
@@ -78,71 +82,54 @@ fit_control <- function(
     iter_alpha_max = 10000L,
     iter_interrupt = 1000L,
     iter_ssr = 10L,
+    return_fe = TRUE,
     keep_tx = FALSE) {
   # Check validity of tolerance parameters
-  if (dev_tol <= 0.0 || center_tol <= 0.0 || collin_tol <= 0.0) {
+  if (dev_tol <= 0.0 || center_tol <= 0.0 || collin_tol <= 0.0 ||
+      step_halving_factor <= 0.0 || alpha_tol <= 0.0) {
     stop(
       "All tolerance parameters should be greater than zero.",
       call. = FALSE
     )
   }
 
-  # Check validity of 'iter_max'
+  # Check validity of iter parameters
   iter_max <- as.integer(iter_max)
-  if (iter_max < 1L) {
-    stop(
-      "Maximum number of iterations should be at least one.",
-      call. = FALSE
-    )
-  }
-
-  # iter_center_max replaces iter_center_max
   iter_center_max <- as.integer(iter_center_max)
-  if (iter_center_max < 1L) {
-    stop(
-      "Maximum number of iterations for centering should be at least one.",
-      call. = FALSE
-    )
-  }
-
-  # Check validity of 'iter_inner_max'
   iter_inner_max <- as.integer(iter_inner_max)
-  if (iter_inner_max < 1L) {
-    stop(
-      "Maximum number of iterations for inner loop should be at least one.",
-      call. = FALSE
-    )
-  }
-
-  # Check validity of 'iter_interrupt'
   iter_interrupt <- as.integer(iter_interrupt)
-  if (iter_interrupt < 1L) {
+  iter_ssr <- as.integer(iter_ssr)
+  if (iter_max < 1L || iter_center_max < 1L ||
+      iter_inner_max < 1L || iter_interrupt < 1L || iter_ssr < 1L) {
     stop(
-      "Maximum number of iterations for interrupt should be at least one.",
+      "All iteration parameters should be greater than or equal to one.",
       call. = FALSE
     )
   }
 
-  # Check validity of 'iter_ssr'
-  iter_ssr <- as.integer(iter_ssr)
-  if (iter_ssr < 1L) {
+  # Check validity of logical parameters
+  return_fe <- as.logical(return_fe)
+  keep_tx <- as.logical(keep_tx)
+  if (is.na(return_fe) || is.na(keep_tx)) {
     stop(
-      "Maximum number of iterations for SSR should be at least one.",
+      "All logical parameters should be TRUE or FALSE.",
       call. = FALSE
     )
   }
+
   list(
     dev_tol = dev_tol,
     center_tol = center_tol,
     collin_tol = collin_tol,
+    step_halving_factor = step_halving_factor,
+    alpha_tol = alpha_tol,
     iter_max = iter_max,
     iter_center_max = iter_center_max,
     iter_inner_max = iter_inner_max,
+    iter_alpha_max = iter_alpha_max,
     iter_interrupt = iter_interrupt,
     iter_ssr = iter_ssr,
-    step_halving_factor = step_halving_factor,
-    keep_tx = as.logical(keep_tx),
-    alpha_tol = alpha_tol,
-    iter_alpha_max = iter_alpha_max
+    return_fe = return_fe,
+    keep_tx = keep_tx
   )
 }

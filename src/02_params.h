@@ -129,8 +129,7 @@ inline bool rank_revealing_cholesky(uvec &excluded, const mat &XtX,
 }
 
 inline CollinearityResult check_collinearity(mat &X, const vec &w,
-                                             bool has_weights, double tolerance,
-                                             bool store_qr = false) {
+                                             bool has_weights, double tolerance) {
 
   const size_t p = X.n_cols;
   const size_t n = X.n_rows;
@@ -217,14 +216,6 @@ inline CollinearityResult check_collinearity(mat &X, const vec &w,
   result.has_collinearity = (indep.n_elem < p);
   result.n_valid = indep.n_elem;
   result.non_collinear_cols = indep;
-
-  if (store_qr && !result.has_collinearity && result.n_valid > 0) {
-    mat XtX_reduced = XtX.submat(indep, indep);
-    mat L;
-    if (chol(L, XtX_reduced, "lower")) {
-      result.R = std::move(L);
-    }
-  }
 
   if (result.has_collinearity && !indep.is_empty()) {
     X = X.cols(indep);

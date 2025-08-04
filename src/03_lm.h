@@ -21,7 +21,7 @@ struct InferenceLM {
   bool has_fe = true;
   uvec iterations;
 
-  mat X_dm; // Centered design matrix
+  mat TX; // Centered design matrix
   bool has_tx = false;
 
   InferenceLM(size_t n, size_t p)
@@ -49,13 +49,13 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
   result.weights = w;
 
   // Keep a copy of original X and y before any modifications
-  mat X_original = X;
-  vec y_original = y;
+  mat X0 = X;
+  vec y0 = y;
 
   // Check for collinearity using parameters from control
   bool use_weights = !all(w == 1.0);
   CollinearityResult collin_result =
-      check_collinearity(X, w, use_weights, params.collin_tol, false);
+      check_collinearity(X, w, use_weights, params.collin_tol);
 
   // Check if we have fixed effects
   const bool has_fixed_effects = fe_groups.n_elem > 0;
@@ -80,7 +80,7 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
 
   // Store centered design matrix if requested
   if (params.keep_tx && X.n_cols > 0) {
-    result.X_dm = X;
+    result.TX = X;
     result.has_tx = true;
   }
 
@@ -97,23 +97,24 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
   result.hessian = beta_result.hessian;
   result.success = beta_result.success;
 
-  // Compute X * beta using original (non-demeaned) data
-  vec x_beta;
+
+  // Compute fitted values as X0 * beta + alpha (if fixed effects are present), matching GLM approach
+  vec x_beta(y.n_elem, fill::none);
   if (collin_result.has_collinearity &&
       !collin_result.non_collinear_cols.is_empty()) {
-    x_beta = X_original.cols(collin_result.non_collinear_cols) *
+    x_beta = X0.cols(collin_result.non_collinear_cols) *
              result.coefficients.elem(collin_result.non_collinear_cols);
-  } else if (!collin_result.has_collinearity && X.n_cols > 0) {
-    x_beta = X_original * result.coefficients;
+  } else if (!collin_result.has_collinearity && X0.n_cols > 0) {
+    x_beta = X0 * result.coefficients;
   } else {
     x_beta.zeros(y.n_elem);
   }
 
   // Extract fixed effects and compute final fitted values
+  vec alpha(y.n_elem, fill::zeros);
   if (has_fixed_effects) {
-    // Compute pi = y - X*beta (using original data)
-    vec pi = y_original - x_beta;
-
+    // pi = y0 - x_beta (using original data)
+    vec pi = y0 - x_beta;
     // Use get_alpha to solve for individual fixed effects from pi
     result.fixed_effects = get_alpha(
         pi, fe_groups, params.alpha_tol, params.iter_alpha_max);
@@ -135,7 +136,7 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
   }
 
   // Compute residuals
-  result.residuals = y_original - result.fitted_values;
+  result.residuals = y0 - result.fitted_values;
 
   return result;
 }

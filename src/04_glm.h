@@ -43,7 +43,7 @@ struct InferenceGLM {
   bool has_fe = false;
   uvec iterations;
 
-  mat X_dm;
+  mat TX;
   bool has_tx = false;
 
   vec means;
@@ -307,7 +307,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   const bool has_fixed_effects = fe_groups.n_elem > 0;
 
   // Keep a copy of original X before centering for fixed effects computation
-  mat X_original = X;
+  mat X0 = X;
 
   // Initialize result object
   InferenceGLM result(n, p);
@@ -324,8 +324,8 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   vec ymean = mean(y) * vec(n, fill::ones);
   vec mu_eta(n, fill::none), w_working(n, fill::none);
   vec nu(n, fill::none), beta_upd(k, fill::none);
-  vec eta_upd(n, fill::none), eta_old(n, fill::none);
-  vec beta_old(k, fill::none), nu_old = vec(n, fill::zeros);
+  vec eta_upd(n, fill::none), eta0(n, fill::none);
+  vec beta0(k, fill::none), nu0 = vec(n, fill::zeros);
   mat H(p, p, fill::none);
 
   // Create a workspace for get_beta
@@ -334,18 +334,18 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   // Initial deviance
   double dev = dev_resids_(y, mu, theta, w, family_type);
   double null_dev = dev_resids_(y, ymean, theta, w, family_type);
-  double dev_old, dev_ratio, dev_ratio_inner, rho;
+  double dev0, dev_ratio, dev_ratio_inner, rho;
   bool dev_crit, val_crit, imp_crit, conv = false;
 
   CollinearityResult collin_result =
-      check_collinearity(X, w, /*use_weights =*/true, params.collin_tol, false);
+      check_collinearity(X, w, /*use_weights =*/true, params.collin_tol);
 
   // Maximize the log-likelihood
   for (size_t iter = 0; iter < params.iter_max; ++iter) {
     rho = 1.0;
-    eta_old = eta;
-    beta_old = beta;
-    dev_old = dev;
+    eta0 = eta;
+    beta0 = beta;
+    dev0 = dev;
 
     // Compute weights and dependent variable
     mu_eta = mu_eta_(eta, family_type);
@@ -353,8 +353,8 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     nu = (y - mu) / mu_eta;
 
     // Center variables
-    MNU += (nu - nu_old);
-    nu_old = nu;
+    MNU += (nu - nu0);
+    nu0 = nu;
 
     if (has_fixed_effects) {
       center_variables(MNU, w_working, fe_groups, params.center_tol,
@@ -398,25 +398,25 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     // Step-halving with three checks
     for (size_t iter_inner = 0; iter_inner < params.iter_inner_max;
          ++iter_inner) {
-      eta = eta_old + rho * eta_upd;
+      eta = eta0 + rho * eta_upd;
 
       // Update beta by expanding the reduced coefficients back to full size
-      vec beta_new = beta_old;
+      vec beta_new = beta0;
       if (collin_result.has_collinearity &&
           collin_result.non_collinear_cols.n_elem > 0) {
         // Update only the non-collinear coefficients
-        vec beta_old_reduced = beta_old.elem(collin_result.non_collinear_cols);
-        vec beta_upd_step = beta_old_reduced + rho * beta_upd_reduced;
+        vec beta0_reduced = beta0.elem(collin_result.non_collinear_cols);
+        vec beta_upd_step = beta0_reduced + rho * beta_upd_reduced;
         beta_new.elem(collin_result.non_collinear_cols) = beta_upd_step;
       } else {
         // No collinearity, update all coefficients
-        beta_new = beta_old + rho * beta_upd_reduced;
+        beta_new = beta0 + rho * beta_upd_reduced;
       }
       beta = beta_new;
 
       mu = link_inv_(eta, family_type);
       dev = dev_resids_(y, mu, theta, w, family_type);
-      dev_ratio_inner = (dev - dev_old) / (0.1 + fabs(dev));
+      dev_ratio_inner = (dev - dev0) / (0.1 + fabs(dev));
 
       dev_crit = is_finite(dev);
       val_crit = valid_eta_(eta, family_type) && valid_mu_(mu, family_type);
@@ -437,14 +437,14 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 
     // If step halving does not improve the deviance
     if (!imp_crit) {
-      eta = eta_old;
-      beta = beta_old;
-      dev = dev_old;
+      eta = eta0;
+      beta = beta0;
+      dev = dev0;
       mu = link_inv_(eta, family_type);
     }
 
     // Check convergence
-    dev_ratio = fabs(dev - dev_old) / (0.1 + fabs(dev));
+    dev_ratio = fabs(dev - dev0) / (0.1 + fabs(dev));
     if (dev_ratio < params.dev_tol) {
       conv = true;
       break;
@@ -466,16 +466,16 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 
       // Compute X * beta using original (non-centered) data and handling
       // collinearity
-      vec x_beta;
-      if (X_original.n_cols > 0) {
+      vec x_beta(n, fill::zeros);
+      if (X0.n_cols > 0) {
         if (collin_result.has_collinearity &&
             collin_result.non_collinear_cols.n_elem > 0) {
           // Use only non-collinear columns and coefficients
-          x_beta = X_original.cols(collin_result.non_collinear_cols) *
+          x_beta = X0.cols(collin_result.non_collinear_cols) *
                    beta.elem(collin_result.non_collinear_cols);
         } else {
           // No collinearity, use all columns and coefficients
-          x_beta = X_original * beta;
+          x_beta = X0 * beta;
         }
       } else {
         x_beta.zeros(n);
@@ -486,9 +486,11 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       vec pi = eta - x_beta;
 
       // Store fixed effects results
-      result.fixed_effects = get_alpha(
-          pi, fe_groups, params.alpha_tol, params.iter_alpha_max);
       result.has_fe = true;
+      if (params.return_fe) {
+        result.fixed_effects = get_alpha(
+          pi, fe_groups, params.alpha_tol, params.iter_alpha_max);
+      }
     }
 
     // Populate result
@@ -505,7 +507,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 
     // Keep design matrix if requested
     if (params.keep_tx) {
-      result.X_dm = X;
+      result.TX = X;
       result.has_tx = true;
     }
   }
@@ -524,17 +526,17 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
   vec Myadj = vec(n, fill::zeros);
   vec mu = link_inv_(eta, family_type);
   vec mu_eta(n, fill::none), yadj(n, fill::none);
-  vec w_working(n, fill::none), eta_upd(n, fill::none), eta_old(n, fill::none);
+  vec w_working(n, fill::none), eta_upd(n, fill::none), eta0(n, fill::none);
 
   double dev = dev_resids_(y, mu, 0.0, w, family_type);
-  double dev_old, dev_ratio, dev_ratio_inner, rho;
+  double dev0, dev_ratio, dev_ratio_inner, rho;
   bool dev_crit, val_crit, imp_crit;
 
   // Maximize the log-likelihood
   for (size_t iter = 0; iter < params.iter_max; ++iter) {
     rho = 1.0;
-    eta_old = eta;
-    dev_old = dev;
+    eta0 = eta;
+    dev0 = dev;
 
     // Compute weights and dependent variable
     mu_eta = mu_eta_(eta, family_type);
@@ -554,10 +556,10 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
 
     for (size_t iter_inner = 0; iter_inner < params.iter_inner_max;
          ++iter_inner) {
-      eta = eta_old + (rho * eta_upd);
+      eta = eta0 + (rho * eta_upd);
       mu = link_inv_(eta, family_type);
       dev = dev_resids_(y, mu, 0.0, w, family_type);
-      dev_ratio_inner = (dev - dev_old) / (0.1 + fabs(dev_old));
+      dev_ratio_inner = (dev - dev0) / (0.1 + fabs(dev0));
 
       dev_crit = is_finite(dev);
       val_crit = (valid_eta_(eta, family_type) && valid_mu_(mu, family_type));
@@ -572,13 +574,13 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
 
     // Check if step-halving failed
     if (!dev_crit || !val_crit) {
-      eta = eta_old;
+      eta = eta0;
       mu = link_inv_(eta, family_type);
       break;
     }
 
     // Check convergence
-    dev_ratio = fabs(dev - dev_old) / (0.1 + fabs(dev));
+    dev_ratio = fabs(dev - dev0) / (0.1 + fabs(dev));
     if (dev_ratio < params.dev_tol) {
       break;
     }
@@ -660,8 +662,8 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
     theta = estimate_theta(y, mu);
   }
 
-  double dev_old = poisson_fit.deviance;
-  double theta_old = theta;
+  double dev0 = poisson_fit.deviance;
+  double theta0 = theta;
   bool converged = false;
 
   // Alternate between fitting GLM and updating theta
@@ -669,7 +671,7 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
     result.iter_outer = iter + 1;
 
     // Save old theta
-    theta_old = theta;
+    theta0 = theta;
 
     // Fit GLM with current theta
     Family negbin_family = NEG_BIN;
@@ -693,9 +695,9 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
     }
 
     // Check convergence criteria
-    double dev_crit = std::abs(dev - dev_old) / (0.1 + std::abs(dev));
+    double dev_crit = std::abs(dev - dev0) / (0.1 + std::abs(dev));
     double theta_crit =
-        std::abs(theta_new - theta_old) / (0.1 + std::abs(theta_old));
+        std::abs(theta_new - theta0) / (0.1 + std::abs(theta0));
 
     if (dev_crit <= params.dev_tol && theta_crit <= params.dev_tol) {
       converged = true;
@@ -714,7 +716,7 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
       result.coef_status = std::move(glm_fit.coef_status);
       result.fixed_effects = std::move(glm_fit.fixed_effects);
       result.has_fe = glm_fit.has_fe;
-      result.X_dm = std::move(glm_fit.X_dm);
+      result.TX = std::move(glm_fit.TX);
       result.has_tx = glm_fit.has_tx;
       result.theta = theta;
       result.conv_outer = true;
@@ -724,7 +726,7 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
 
     // Update values for next iteration
     theta = theta_new;
-    dev_old = dev;
+    dev0 = dev;
 
     // Save latest results for next iteration
     beta = glm_fit.coefficients;
@@ -743,7 +745,7 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
     result.coef_status = std::move(glm_fit.coef_status);
     result.fixed_effects = std::move(glm_fit.fixed_effects);
     result.has_fe = glm_fit.has_fe;
-    result.X_dm = std::move(glm_fit.X_dm);
+    result.TX = std::move(glm_fit.TX);
     result.has_tx = glm_fit.has_tx;
   }
 

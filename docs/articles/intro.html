@@ -6,16 +6,15 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors • capybara</title>
-<!-- favicons --><link rel="icon" type="image/png" sizes="16x16" href="../favicon-16x16.png">
-<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32x32.png">
-<link rel="apple-touch-icon" type="image/png" sizes="180x180" href="../apple-touch-icon.png">
-<link rel="apple-touch-icon" type="image/png" sizes="120x120" href="../apple-touch-icon-120x120.png">
-<link rel="apple-touch-icon" type="image/png" sizes="76x76" href="../apple-touch-icon-76x76.png">
-<link rel="apple-touch-icon" type="image/png" sizes="60x60" href="../apple-touch-icon-60x60.png">
+<!-- favicons --><link rel="icon" type="image/png" sizes="96x96" href="../favicon-96x96.png">
+<link rel="icon" type="”image/svg+xml”" href="../favicon.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
+<link rel="icon" sizes="any" href="../favicon.ico">
+<link rel="manifest" href="../site.webmanifest">
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.4.2/css/all.min.css" rel="stylesheet">
-<link href="../deps/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors">
 </head>
 <body>
@@ -26,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">capybara</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">2.0.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -58,7 +57,8 @@
 
 
 
-<script src="intro_files/accessible-code-block-0.0.1/empty-anchor.js"></script><div class="row">
+
+<div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.svg" class="logo" alt=""><h1>Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors</h1>
             
@@ -69,17 +69,27 @@
 
     
     
-<p>We will estimate a Poisson Pseudo-Maximum Likelihood (PPML) model using the data available in this package with the idea of replicating the PPML results from Table 3 in <span class="citation">Yotov et al. (2016)</span>.</p>
-<p>This requires to include exporter-time and importer-time fixed effects, and to cluster the standard errors by exporter-importer pairs.</p>
-<p>The PPML especification corresponds to: <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtable><mtr><mtd columnalign="right"><msub><mi>X</mi><mrow><mi>i</mi><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>=</mo></mtd><mtd columnalign="left"><mspace width="0.222em"></mspace><mo>exp</mo><mrow><mo stretchy="true" form="prefix">[</mo><msub><mi>β</mi><mn>1</mn></msub><mo>log</mo><mo stretchy="false" form="prefix">(</mo><mi>D</mi><mi>I</mi><mi>S</mi><mi>T</mi><msub><mo stretchy="false" form="postfix">)</mo><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>+</mo><msub><mi>β</mi><mn>2</mn></msub><mi>C</mi><mi>N</mi><mi>T</mi><msub><mi>G</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>+</mo></mrow></mtd></mtr><mtr><mtd columnalign="right"><mrow><mspace width="0.333em"></mspace><mtext mathvariant="normal"></mtext><mspace width="0.333em"></mspace></mrow></mtd><mtd columnalign="left"><mspace width="0.222em"></mspace><mrow><msub><mi>β</mi><mn>3</mn></msub><mi>L</mi><mi>A</mi><mi>N</mi><msub><mi>G</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>+</mo><msub><mi>β</mi><mn>4</mn></msub><mi>C</mi><mi>L</mi><mi>N</mi><msub><mi>Y</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>+</mo><msub><mi>π</mi><mrow><mi>i</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>+</mo><msub><mi>χ</mi><mrow><mi>i</mi><mo>,</mo><mi>t</mi></mrow></msub><mo stretchy="true" form="postfix">]</mo></mrow><mo>×</mo><msub><mi>ε</mi><mrow><mi>i</mi><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><mi>.</mi></mtd></mtr></mtable><annotation encoding="application/x-tex">\begin{align}
+<p>We will estimate a Poisson Pseudo-Maximum Likelihood (PPML) model
+using the data available in this package with the idea of replicating
+the PPML results from Table 3 in <span class="citation">Yotov et al.
+(2016)</span>.</p>
+<p>This requires to include exporter-time and importer-time fixed
+effects, and to cluster the standard errors by exporter-importer
+pairs.</p>
+<p>The PPML especification corresponds to:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtable><mtr><mtd columnalign="right" style="text-align: right"><msub><mi>X</mi><mrow><mi>i</mi><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>=</mo></mtd><mtd columnalign="left" style="text-align: left"><mspace width="0.222em"></mspace><mo>exp</mo><mrow><mo stretchy="true" form="prefix">[</mo><msub><mi>β</mi><mn>1</mn></msub><mo>log</mo><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mi>I</mi><mi>S</mi><mi>T</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>+</mo><msub><mi>β</mi><mn>2</mn></msub><mi>C</mi><mi>N</mi><mi>T</mi><msub><mi>G</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>+</mo></mrow></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><mrow><mspace width="0.333em"></mspace><mtext mathvariant="normal"></mtext><mspace width="0.333em"></mspace></mrow></mtd><mtd columnalign="left" style="text-align: left"><mspace width="0.222em"></mspace><mrow><msub><mi>β</mi><mn>3</mn></msub><mi>L</mi><mi>A</mi><mi>N</mi><msub><mi>G</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>+</mo><msub><mi>β</mi><mn>4</mn></msub><mi>C</mi><mi>L</mi><mi>N</mi><msub><mi>Y</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>+</mo><msub><mi>π</mi><mrow><mi>i</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>+</mo><msub><mi>χ</mi><mrow><mi>i</mi><mo>,</mo><mi>t</mi></mrow></msub><mo stretchy="true" form="postfix">]</mo></mrow><mo>×</mo><msub><mi>ε</mi><mrow><mi>i</mi><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><mi>.</mi></mtd></mtr></mtable><annotation encoding="application/x-tex">\begin{align}
 X_{ij,t} =&amp; \:\exp\left[\beta_1 \log(DIST)_{i,j} + \beta_2 CNTG_{i,j} +\right.\\
 \text{ }&amp; \:\left.\beta_3 LANG_{i,j} + \beta_4 CLNY_{i,j} + \pi_{i,t} + \chi_{i,t}\right] \times \varepsilon_{ij,t}.
 \end{align}</annotation></semantics></math></p>
-<p>We use <code>dplyr</code> to obtain the log of the distance. This model excludes domestic flows, therefore we need to subset the data also with <code>dplyr</code>.</p>
+<p>We use <code>dplyr</code> to obtain the log of the distance. This
+model excludes domestic flows, therefore we need to subset the data also
+with <code>dplyr</code>.</p>
 <p>Required packages:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://pacha.dev/capybara/">capybara</a></span><span class="op">)</span></span></code></pre></div>
-<p>We can use the <code><a href="../reference/fepoisson.html">fepoisson()</a></code> function to obtain the estimated coefficients and we add the fixed effects as <code>| exp_year + imp_year</code> in the formula.</p>
+<p>We can use the <code><a href="../reference/fepoisson.html">fepoisson()</a></code> function to obtain the
+estimated coefficients and we add the fixed effects as
+<code>| exp_year + imp_year</code> in the formula.</p>
 <p>Model estimation:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fepoisson.html">fepoisson</a></span><span class="op">(</span></span>
@@ -88,28 +98,31 @@ X_{ij,t} =&amp; \:\exp\left[\beta_1 \log(DIST)_{i,j} + \beta_2 CNTG_{i,j} +\righ
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true"></a>Formula<span class="op">:</span><span class="st"> </span>trade <span class="op">~</span><span class="st"> </span>log_dist <span class="op">+</span><span class="st"> </span>cntg <span class="op">+</span><span class="st"> </span>lang <span class="op">+</span><span class="st"> </span>clny <span class="op">+</span><span class="st"> </span>rta <span class="op">|</span><span class="st"> </span>exp_year <span class="op">+</span><span class="st"> </span>imp_year</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true"></a></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true"></a>Family<span class="op">:</span><span class="st"> </span>Poisson</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true"></a></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true"></a>Estimates<span class="op">:</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true"></a></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true"></a><span class="er">|</span><span class="st">          </span><span class="er">|</span><span class="st"> </span>Estimate <span class="op">|</span><span class="st"> </span>Std. Error <span class="op">|</span><span class="st"> </span>z value    <span class="op">|</span><span class="st"> </span><span class="kw">Pr</span>(<span class="op">&gt;</span><span class="er">|</span>z<span class="op">|</span>)   <span class="op">|</span></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true"></a><span class="er">|</span><span class="op">----------</span><span class="er">|</span><span class="op">----------</span><span class="er">|</span><span class="op">------------</span><span class="er">|</span><span class="op">------------</span><span class="er">|</span><span class="op">------------</span><span class="er">|</span></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true"></a><span class="er">|</span><span class="st"> </span>log_dist <span class="op">|</span><span class="st">  </span><span class="fl">-0.8216</span> <span class="op">|</span><span class="st">     </span><span class="fl">0.0004</span> <span class="op">|</span><span class="st"> </span><span class="fl">-2194.0448</span> <span class="op">|</span><span class="st"> </span><span class="fl">0.0000</span> <span class="op">**</span><span class="er">*</span><span class="st"> </span><span class="er">|</span></span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true"></a><span class="er">|</span><span class="st"> </span>cntg     <span class="op">|</span><span class="st">   </span><span class="fl">0.4155</span> <span class="op">|</span><span class="st">     </span><span class="fl">0.0009</span> <span class="op">|</span><span class="st">   </span><span class="fl">476.0613</span> <span class="op">|</span><span class="st"> </span><span class="fl">0.0000</span> <span class="op">**</span><span class="er">*</span><span class="st"> </span><span class="er">|</span></span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true"></a><span class="er">|</span><span class="st"> </span>lang     <span class="op">|</span><span class="st">   </span><span class="fl">0.2499</span> <span class="op">|</span><span class="st">     </span><span class="fl">0.0008</span> <span class="op">|</span><span class="st">   </span><span class="fl">296.8884</span> <span class="op">|</span><span class="st"> </span><span class="fl">0.0000</span> <span class="op">**</span><span class="er">*</span><span class="st"> </span><span class="er">|</span></span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true"></a><span class="er">|</span><span class="st"> </span>clny     <span class="op">|</span><span class="st">  </span><span class="fl">-0.2054</span> <span class="op">|</span><span class="st">     </span><span class="fl">0.0010</span> <span class="op">|</span><span class="st">  </span><span class="fl">-206.3476</span> <span class="op">|</span><span class="st"> </span><span class="fl">0.0000</span> <span class="op">**</span><span class="er">*</span><span class="st"> </span><span class="er">|</span></span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true"></a><span class="er">|</span><span class="st"> </span>rta      <span class="op">|</span><span class="st">   </span><span class="fl">0.1907</span> <span class="op">|</span><span class="st">     </span><span class="fl">0.0010</span> <span class="op">|</span><span class="st">   </span><span class="fl">191.0964</span> <span class="op">|</span><span class="st"> </span><span class="fl">0.0000</span> <span class="op">**</span><span class="er">*</span><span class="st"> </span><span class="er">|</span></span>
-<span id="cb3-14"><a href="#cb3-14" aria-hidden="true"></a></span>
-<span id="cb3-15"><a href="#cb3-15" aria-hidden="true"></a>Significance codes<span class="op">:</span><span class="st"> </span><span class="er">***</span><span class="st"> </span><span class="fl">99.9</span><span class="op">%; ** 99%</span>; <span class="op">*</span><span class="st"> </span><span class="dv">95</span><span class="op">%; . 90%</span></span>
-<span id="cb3-16"><a href="#cb3-16" aria-hidden="true"></a></span>
-<span id="cb3-17"><a href="#cb3-17" aria-hidden="true"></a>Pseudo R<span class="op">-</span>squared<span class="op">:</span><span class="st"> </span><span class="fl">0.587</span> </span>
-<span id="cb3-18"><a href="#cb3-18" aria-hidden="true"></a></span>
-<span id="cb3-19"><a href="#cb3-19" aria-hidden="true"></a>Number of observations<span class="op">:</span><span class="st"> </span>Full <span class="dv">28152</span>; Missing <span class="dv">0</span>; Perfect classification <span class="dv">0</span> </span>
-<span id="cb3-20"><a href="#cb3-20" aria-hidden="true"></a></span>
-<span id="cb3-21"><a href="#cb3-21" aria-hidden="true"></a>Number of Fisher Scoring iterations<span class="op">:</span><span class="st"> </span><span class="dv">11</span></span></code></pre></div>
-<p>The coefficients are almost identical to those in Table 3 from <span class="citation">Yotov et al. (2016)</span> that were obtained with Stata. The difference is attributed to the different fitting algorithms used by the software. Capybara uses the demeaning algorithm proposed by <span class="citation">Stammann (2018)</span>.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>Formula<span class="sc">:</span> trade <span class="sc">~</span> log_dist <span class="sc">+</span> cntg <span class="sc">+</span> lang <span class="sc">+</span> clny <span class="sc">+</span> rta <span class="sc">|</span> exp_year <span class="sc">+</span> imp_year</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>Family<span class="sc">:</span> Poisson</span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>Estimates<span class="sc">:</span></span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a><span class="er">|</span>          <span class="er">|</span> Estimate <span class="sc">|</span> Std. Error <span class="sc">|</span> z value    <span class="sc">|</span> <span class="fu">Pr</span>(<span class="sc">&gt;</span><span class="er">|</span>z<span class="sc">|</span>)   <span class="sc">|</span></span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="er">|</span><span class="sc">----------</span><span class="er">|</span><span class="sc">----------</span><span class="er">|</span><span class="sc">------------</span><span class="er">|</span><span class="sc">------------</span><span class="er">|</span><span class="sc">------------</span><span class="er">|</span></span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a><span class="er">|</span> log_dist <span class="sc">|</span>  <span class="sc">-</span><span class="fl">0.8216</span> <span class="sc">|</span>     <span class="fl">0.0004</span> <span class="sc">|</span> <span class="sc">-</span><span class="fl">2194.0448</span> <span class="sc">|</span> <span class="fl">0.0000</span> <span class="sc">**</span><span class="er">*</span> <span class="er">|</span></span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a><span class="er">|</span> cntg     <span class="sc">|</span>   <span class="fl">0.4155</span> <span class="sc">|</span>     <span class="fl">0.0009</span> <span class="sc">|</span>   <span class="fl">476.0613</span> <span class="sc">|</span> <span class="fl">0.0000</span> <span class="sc">**</span><span class="er">*</span> <span class="er">|</span></span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a><span class="er">|</span> lang     <span class="sc">|</span>   <span class="fl">0.2499</span> <span class="sc">|</span>     <span class="fl">0.0008</span> <span class="sc">|</span>   <span class="fl">296.8884</span> <span class="sc">|</span> <span class="fl">0.0000</span> <span class="sc">**</span><span class="er">*</span> <span class="er">|</span></span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a><span class="er">|</span> clny     <span class="sc">|</span>  <span class="sc">-</span><span class="fl">0.2054</span> <span class="sc">|</span>     <span class="fl">0.0010</span> <span class="sc">|</span>  <span class="sc">-</span><span class="fl">206.3476</span> <span class="sc">|</span> <span class="fl">0.0000</span> <span class="sc">**</span><span class="er">*</span> <span class="er">|</span></span>
+<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a><span class="er">|</span> rta      <span class="sc">|</span>   <span class="fl">0.1907</span> <span class="sc">|</span>     <span class="fl">0.0010</span> <span class="sc">|</span>   <span class="fl">191.0964</span> <span class="sc">|</span> <span class="fl">0.0000</span> <span class="sc">**</span><span class="er">*</span> <span class="er">|</span></span>
+<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a></span>
+<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a>Significance codes<span class="sc">:</span> <span class="er">***</span> <span class="fl">99.9</span><span class="sc">%; ** 99%</span>; <span class="sc">*</span> <span class="dv">95</span><span class="sc">%; . 90%</span></span>
+<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a></span>
+<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a>Pseudo R<span class="sc">-</span>squared<span class="sc">:</span> <span class="fl">0.587</span> </span>
+<span id="cb3-18"><a href="#cb3-18" tabindex="-1"></a></span>
+<span id="cb3-19"><a href="#cb3-19" tabindex="-1"></a>Number of observations<span class="sc">:</span> Full <span class="dv">28152</span>; Missing <span class="dv">0</span>; Perfect classification <span class="dv">0</span> </span>
+<span id="cb3-20"><a href="#cb3-20" tabindex="-1"></a></span>
+<span id="cb3-21"><a href="#cb3-21" tabindex="-1"></a>Number of Fisher Scoring iterations<span class="sc">:</span> <span class="dv">11</span></span></code></pre></div>
+<p>The coefficients are almost identical to those in Table 3 from <span class="citation">Yotov et al. (2016)</span> that were obtained with
+Stata. The difference is attributed to the different fitting algorithms
+used by the software. Capybara uses the demeaning algorithm proposed by
+<span class="citation">Stammann (2018)</span>.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fepoisson.html">fepoisson</a></span><span class="op">(</span></span>
 <span>  <span class="va">trade</span> <span class="op">~</span> <span class="va">log_dist</span> <span class="op">+</span> <span class="va">cntg</span> <span class="op">+</span> <span class="va">lang</span> <span class="op">+</span> <span class="va">clny</span> <span class="op">+</span> <span class="va">rta</span> <span class="op">|</span> <span class="va">exp_year</span> <span class="op">+</span> <span class="va">imp_year</span> <span class="op">|</span> <span class="va">pair</span>,</span>
@@ -117,41 +130,51 @@ X_{ij,t} =&amp; \:\exp\left[\beta_1 \log(DIST)_{i,j} + \beta_2 CNTG_{i,j} +\righ
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span>, type <span class="op">=</span> <span class="st">"clustered"</span><span class="op">)</span></span></code></pre></div>
-<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true"></a>Formula<span class="op">:</span><span class="st"> </span>trade <span class="op">~</span><span class="st"> </span>log_dist <span class="op">+</span><span class="st"> </span>cntg <span class="op">+</span><span class="st"> </span>lang <span class="op">+</span><span class="st"> </span>clny <span class="op">+</span><span class="st"> </span>rta <span class="op">|</span><span class="st"> </span>exp_year <span class="op">+</span><span class="st"> </span>imp_year <span class="op">|</span><span class="st"> </span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true"></a><span class="st">    </span>pair</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true"></a></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true"></a>Family<span class="op">:</span><span class="st"> </span>Poisson</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true"></a></span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true"></a>Estimates<span class="op">:</span></span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true"></a></span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true"></a><span class="er">|</span><span class="st">          </span><span class="er">|</span><span class="st"> </span>Estimate <span class="op">|</span><span class="st"> </span>Std. Error <span class="op">|</span><span class="st"> </span>z value <span class="op">|</span><span class="st"> </span><span class="kw">Pr</span>(<span class="op">&gt;</span><span class="er">|</span>z<span class="op">|</span>)   <span class="op">|</span></span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true"></a><span class="er">|</span><span class="op">----------</span><span class="er">|</span><span class="op">----------</span><span class="er">|</span><span class="op">------------</span><span class="er">|</span><span class="op">---------</span><span class="er">|</span><span class="op">------------</span><span class="er">|</span></span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true"></a><span class="er">|</span><span class="st"> </span>log_dist <span class="op">|</span><span class="st">  </span><span class="fl">-0.8216</span> <span class="op">|</span><span class="st">     </span><span class="fl">0.1567</span> <span class="op">|</span><span class="st"> </span><span class="fl">-5.2437</span> <span class="op">|</span><span class="st"> </span><span class="fl">0.0000</span> <span class="op">**</span><span class="er">*</span><span class="st"> </span><span class="er">|</span></span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true"></a><span class="er">|</span><span class="st"> </span>cntg     <span class="op">|</span><span class="st">   </span><span class="fl">0.4155</span> <span class="op">|</span><span class="st">     </span><span class="fl">0.4568</span> <span class="op">|</span><span class="st">  </span><span class="fl">0.9097</span> <span class="op">|</span><span class="st"> </span><span class="fl">0.3630</span>     <span class="op">|</span></span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true"></a><span class="er">|</span><span class="st"> </span>lang     <span class="op">|</span><span class="st">   </span><span class="fl">0.2499</span> <span class="op">|</span><span class="st">     </span><span class="fl">0.3997</span> <span class="op">|</span><span class="st">  </span><span class="fl">0.6252</span> <span class="op">|</span><span class="st"> </span><span class="fl">0.5319</span>     <span class="op">|</span></span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true"></a><span class="er">|</span><span class="st"> </span>clny     <span class="op">|</span><span class="st">  </span><span class="fl">-0.2054</span> <span class="op">|</span><span class="st">     </span><span class="fl">0.3287</span> <span class="op">|</span><span class="st"> </span><span class="fl">-0.6250</span> <span class="op">|</span><span class="st"> </span><span class="fl">0.5320</span>     <span class="op">|</span></span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true"></a><span class="er">|</span><span class="st"> </span>rta      <span class="op">|</span><span class="st">   </span><span class="fl">0.1907</span> <span class="op">|</span><span class="st">     </span><span class="fl">0.7657</span> <span class="op">|</span><span class="st">  </span><span class="fl">0.2491</span> <span class="op">|</span><span class="st"> </span><span class="fl">0.8033</span>     <span class="op">|</span></span>
-<span id="cb5-15"><a href="#cb5-15" aria-hidden="true"></a></span>
-<span id="cb5-16"><a href="#cb5-16" aria-hidden="true"></a>Significance codes<span class="op">:</span><span class="st"> </span><span class="er">***</span><span class="st"> </span><span class="fl">99.9</span><span class="op">%; ** 99%</span>; <span class="op">*</span><span class="st"> </span><span class="dv">95</span><span class="op">%; . 90%</span></span>
-<span id="cb5-17"><a href="#cb5-17" aria-hidden="true"></a></span>
-<span id="cb5-18"><a href="#cb5-18" aria-hidden="true"></a>Pseudo R<span class="op">-</span>squared<span class="op">:</span><span class="st"> </span><span class="fl">0.587</span> </span>
-<span id="cb5-19"><a href="#cb5-19" aria-hidden="true"></a></span>
-<span id="cb5-20"><a href="#cb5-20" aria-hidden="true"></a>Number of observations<span class="op">:</span><span class="st"> </span>Full <span class="dv">28152</span>; Missing <span class="dv">0</span>; Perfect classification <span class="dv">0</span> </span>
-<span id="cb5-21"><a href="#cb5-21" aria-hidden="true"></a></span>
-<span id="cb5-22"><a href="#cb5-22" aria-hidden="true"></a>Number of Fisher Scoring iterations<span class="op">:</span><span class="st"> </span><span class="dv">11</span></span></code></pre></div>
-<p>The result is similar and the numerical difference comes fom the variance-covariance matrix estimation method. Capybara clustering algorithm is based on <span class="citation">Cameron, Gelbach, and Miller (2011)</span>.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>Formula<span class="sc">:</span> trade <span class="sc">~</span> log_dist <span class="sc">+</span> cntg <span class="sc">+</span> lang <span class="sc">+</span> clny <span class="sc">+</span> rta <span class="sc">|</span> exp_year <span class="sc">+</span> imp_year <span class="sc">|</span> </span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>    pair</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>Family<span class="sc">:</span> Poisson</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>Estimates<span class="sc">:</span></span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a></span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a><span class="er">|</span>          <span class="er">|</span> Estimate <span class="sc">|</span> Std. Error <span class="sc">|</span> z value <span class="sc">|</span> <span class="fu">Pr</span>(<span class="sc">&gt;</span><span class="er">|</span>z<span class="sc">|</span>)   <span class="sc">|</span></span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a><span class="er">|</span><span class="sc">----------</span><span class="er">|</span><span class="sc">----------</span><span class="er">|</span><span class="sc">------------</span><span class="er">|</span><span class="sc">---------</span><span class="er">|</span><span class="sc">------------</span><span class="er">|</span></span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a><span class="er">|</span> log_dist <span class="sc">|</span>  <span class="sc">-</span><span class="fl">0.8216</span> <span class="sc">|</span>     <span class="fl">0.1567</span> <span class="sc">|</span> <span class="sc">-</span><span class="fl">5.2437</span> <span class="sc">|</span> <span class="fl">0.0000</span> <span class="sc">**</span><span class="er">*</span> <span class="er">|</span></span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a><span class="er">|</span> cntg     <span class="sc">|</span>   <span class="fl">0.4155</span> <span class="sc">|</span>     <span class="fl">0.4568</span> <span class="sc">|</span>  <span class="fl">0.9097</span> <span class="sc">|</span> <span class="fl">0.3630</span>     <span class="sc">|</span></span>
+<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a><span class="er">|</span> lang     <span class="sc">|</span>   <span class="fl">0.2499</span> <span class="sc">|</span>     <span class="fl">0.3997</span> <span class="sc">|</span>  <span class="fl">0.6252</span> <span class="sc">|</span> <span class="fl">0.5319</span>     <span class="sc">|</span></span>
+<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a><span class="er">|</span> clny     <span class="sc">|</span>  <span class="sc">-</span><span class="fl">0.2054</span> <span class="sc">|</span>     <span class="fl">0.3287</span> <span class="sc">|</span> <span class="sc">-</span><span class="fl">0.6250</span> <span class="sc">|</span> <span class="fl">0.5320</span>     <span class="sc">|</span></span>
+<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a><span class="er">|</span> rta      <span class="sc">|</span>   <span class="fl">0.1907</span> <span class="sc">|</span>     <span class="fl">0.7657</span> <span class="sc">|</span>  <span class="fl">0.2491</span> <span class="sc">|</span> <span class="fl">0.8033</span>     <span class="sc">|</span></span>
+<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a></span>
+<span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a>Significance codes<span class="sc">:</span> <span class="er">***</span> <span class="fl">99.9</span><span class="sc">%; ** 99%</span>; <span class="sc">*</span> <span class="dv">95</span><span class="sc">%; . 90%</span></span>
+<span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a></span>
+<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a>Pseudo R<span class="sc">-</span>squared<span class="sc">:</span> <span class="fl">0.587</span> </span>
+<span id="cb5-19"><a href="#cb5-19" tabindex="-1"></a></span>
+<span id="cb5-20"><a href="#cb5-20" tabindex="-1"></a>Number of observations<span class="sc">:</span> Full <span class="dv">28152</span>; Missing <span class="dv">0</span>; Perfect classification <span class="dv">0</span> </span>
+<span id="cb5-21"><a href="#cb5-21" tabindex="-1"></a></span>
+<span id="cb5-22"><a href="#cb5-22" tabindex="-1"></a>Number of Fisher Scoring iterations<span class="sc">:</span> <span class="dv">11</span></span></code></pre></div>
+<p>The result is similar and the numerical difference comes fom the
+variance-covariance matrix estimation method. Capybara clustering
+algorithm is based on <span class="citation">Cameron, Gelbach, and
+Miller (2011)</span>.</p>
 <div class="section level2">
 <h2 class="unnumbered" id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
 </h2>
-<div id="refs" class="references hanging-indent">
-<div id="ref-cameron2011robust">
-<p>Cameron, A Colin, Jonah B Gelbach, and Douglas L Miller. 2011. “Robust Inference with Multiway Clustering.” <em>Journal of Business &amp; Economic Statistics</em> 29 (2): 238–49.</p>
+<div id="refs" class="references csl-bib-body hanging-indent" entry-spacing="0">
+<div id="ref-cameron2011robust" class="csl-entry">
+Cameron, A Colin, Jonah B Gelbach, and Douglas L Miller. 2011.
+<span>“Robust Inference with Multiway Clustering.”</span> <em>Journal of
+Business &amp; Economic Statistics</em> 29 (2): 238–49.
 </div>
-<div id="ref-stammann2018fast">
-<p>Stammann, Amrei. 2018. “Fast and Feasible Estimation of Generalized Linear Models with High-Dimensional K-Way Fixed Effects.” arXiv. <a href="https://doi.org/10.48550/arXiv.1707.01815" class="external-link">https://doi.org/10.48550/arXiv.1707.01815</a>.</p>
+<div id="ref-stammann2018fast" class="csl-entry">
+Stammann, Amrei. 2018. <span>“Fast and <span>Feasible</span>
+<span>Estimation</span> of <span>Generalized</span> <span>Linear</span>
+<span>Models</span> with <span>High</span>-<span>Dimensional</span>
+k-Way <span>Fixed</span> <span>Effects</span>.”</span> arXiv. <a href="https://doi.org/10.48550/arXiv.1707.01815" class="external-link">https://doi.org/10.48550/arXiv.1707.01815</a>.
 </div>
-<div id="ref-yotov2016advanced">
-<p>Yotov, Yoto V, Roberta Piermartini, Mario Larch, and others. 2016. <em>An Advanced Guide to Trade Policy Analysis​: The Structural Gravity Model</em>. WTO iLibrary.</p>
+<div id="ref-yotov2016advanced" class="csl-entry">
+Yotov, Yoto V, Roberta Piermartini, Mario Larch, et al. 2016. <em>An
+Advanced Guide to Trade Policy Analysis​: The Structural Gravity
+Model</em>. WTO iLibrary.
 </div>
 </div>
 </div>
@@ -165,7 +188,7 @@ X_{ij,t} =&amp; \:\exp\left[\beta_1 \log(DIST)_{i,j} + \beta_2 CNTG_{i,j} +\righ
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.1.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
 </div>
 
     </footer>

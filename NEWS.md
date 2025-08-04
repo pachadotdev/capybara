@@ -3,10 +3,11 @@
 * There are no breaking changes, even when the internal code was completely
   rewritten. All the computation is done on C++ side.
 * Implements a rank-revealing Cholesky factorisation like fixest.
+* Returns estimated fixed effects by default (with an option not to).
 
 # capybara 1.6.0
 
-* Handles collinearities in the model matrix by using a QR decomposition
+* Handles collinearities in the model matrix by using a QR decomposition.
   when Cholesky fails. Otherwise, the estimation fails, and now it can return
   NA coefficients.
 
