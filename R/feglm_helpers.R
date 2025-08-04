@@ -224,69 +224,6 @@ check_family_ <- function(family) {
   }
 }
 
-#' @title Column types
-#' @description Returns the column types of a data frame
-#' @param data Data frame
-#' @noRd
-col_types <- function(data) {
-  vapply(data, class, character(1L), USE.NAMES = FALSE)
-}
-
-#' @title Model frame
-#' @description Creates model frame for GLM/NegBin models
-#' @param data Data frame
-#' @param formula Formula object
-#' @param weights Weights
-#' @noRd
-model_frame_ <- function(data, formula, weights) {
-  # Necessary columns
-  formula_vars <- all.vars(formula)
-
-  # Handle different ways weights might be specified
-  if (is.null(weights)) {
-    # No weights specified
-    weight_col <- NULL
-    needed_cols <- formula_vars
-  } else if (is.character(weights) && length(weights) == 1) {
-    # Weights as column name
-    weight_col <- weights
-    needed_cols <- c(formula_vars, weight_col)
-  } else if (inherits(weights, "formula")) {
-    # Weights as formula like ~cyl
-    weight_col <- all.vars(weights)
-    needed_cols <- c(formula_vars, weight_col)
-    # Store the extracted column name for later use
-    assign("weights_col", weight_col, envir = parent.frame())
-  } else if (is.numeric(weights)) {
-    # Weights as vector - store for later use
-    weight_col <- NULL
-    needed_cols <- formula_vars
-    assign("weights_vec", weights, envir = parent.frame())
-  } else {
-    stop("'weights' must be a column name, formula, or numeric vector", call. = FALSE)
-  }
-
-  # Extract needed columns
-  data <- data[, .SD, .SDcols = needed_cols]
-
-  lhs <- names(data)[1L]
-  nobs_full <- nrow(data)
-  data <- na.omit(data)
-
-  # Convert columns of type "units" to numeric
-  unit_cols <- names(data)[vapply(data, inherits, what = "units", logical(1))]
-  if (length(unit_cols) > 0) {
-    data[, (unit_cols) := lapply(.SD, as.numeric), .SDcols = unit_cols]
-  }
-
-  nobs_na <- nobs_full - nrow(data)
-
-  assign("data", data, envir = parent.frame())
-  assign("lhs", lhs, envir = parent.frame())
-  assign("nobs_na", nobs_na, envir = parent.frame())
-  assign("nobs_full", nobs_full, envir = parent.frame())
-}
-
 #' @title Check response
 #' @description Checks response for GLM/NegBin models
 #' @param data Data frame
@@ -365,38 +302,6 @@ drop_by_link_type_ <- function(data, lhs, family, tmp_var, k_vars, control) {
   }
 
   data
-}
-
-#' @title Transform fixed effects
-#' @description Transforms fixed effects that are factors
-#' @param data Data frame
-#' @param formula Formula object
-#' @param k_vars Fixed effects
-#' @noRd
-transform_fe_ <- function(data, formula, k_vars) {
-  data[, (k_vars) := lapply(.SD, check_factor_), .SDcols = k_vars]
-
-  if (length(formula)[[2L]] > 2L) {
-    add_vars <- attr(terms(formula, rhs = 3L), "term.labels")
-    data[, (add_vars) := lapply(.SD, check_factor_), .SDcols = add_vars]
-  }
-
-  return(data)
-}
-
-#' @title Number of observations
-#' @description Computes the number of observations
-#' @param nobs_full Number of observations in the full data set
-#' @param nobs_na Number of observations with missing values
-#' @param nt Number of observations after dropping
-#' @noRd
-nobs_ <- function(nobs_full, nobs_na, nt) {
-  c(
-    nobs_full = nobs_full,
-    nobs_na   = nobs_na,
-    nobs_pc   = nobs_full - nt,
-    nobs      = nobs_full + nobs_na
-  )
 }
 
 #' @title Model response
@@ -556,7 +461,7 @@ get_score_matrix_feglm_ <- function(object) {
     attr(X, "dimnames") <- NULL
 
     # Center variables
-    X <- center_variables_r_(X, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["interrupt_iter"]], control[["iter_ssr"]])
+    X <- center_variables_(X, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["interrupt_iter"]], control[["iter_ssr"]])
     colnames(X) <- nms_sp
   }
 

@@ -15,10 +15,10 @@ fepoisson(
 }
 \arguments{
 \item{formula}{an object of class \code{"formula"}: a symbolic description of
-the model to be fitted. \code{formula} must be of type \code{y ~ x | k},
+the model to be fitted. \code{formula} must be of type \code{y ~ X | k},
 where the second part of the formula refers to factors to be concentrated
 out. It is also possible to pass clustering variables to \code{\link{feglm}}
-as \code{y ~ x | k | c}.}
+as \code{y ~ X | k | c}.}
 
 \item{data}{an object of class \code{"data.frame"} containing the variables
 in the model. The expected input is a dataset with the variables specified
@@ -36,7 +36,7 @@ parameters in the linear predictor. Default is
 predictor.}
 
 \item{control}{a named list of parameters for controlling the fitting
-process. See \code{\link{feglm_control}} for details.}
+process. See \code{\link{fit_control}} for details.}
 }
 \value{
 A named list of class \code{"feglm"}.

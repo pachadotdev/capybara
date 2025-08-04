@@ -99,7 +99,7 @@ test_that("fepoisson is similar to fixest", {
   # mod$coefficients
   # mod_base$coefficients
 
-  expect_equal(mod[["fitted.values"]], mod_base[["fitted.values"]], tolerance = 1e-2)
+  expect_equal(mod[["fitted_values"]], mod_base[["fitted.values"]], tolerance = 1e-2)
 
   pred_mod <- predict(mod, type = "response")
   pred_mod_base <- predict(mod_base, type = "response")

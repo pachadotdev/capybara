@@ -78,11 +78,11 @@ NULL
 #'  \item{conv}{a logical indicating whether the model converged}
 #'  \item{iter}{the number of iterations needed to converge}
 #'  \item{theta}{the estimated theta parameter}
-#'  \item{iter.outer}{the number of outer iterations}
-#'  \item{conv.outer}{a logical indicating whether the outer loop converged}
+#'  \item{iter_outer}{the number of outer iterations}
+#'  \item{conv_outer}{a logical indicating whether the outer loop converged}
 #'  \item{nobs}{a named vector with the number of observations used in the
 #'   estimation indicating the dropped and perfectly predicted observations}
-#'  \item{lvls_k}{a named vector with the number of levels in each fixed
+#'  \item{fe_levels}{a named vector with the number of levels in each fixed
 #'   effects}
 #'  \item{nms_fe}{a list with the names of the fixed effects variables}
 #'  \item{formula}{the formula used in the model}
@@ -122,6 +122,9 @@ fenegbin <- function(
 
   # Ensure that model response is in line with the chosen model ----
   check_response_(data, lhs, family)
+
+  # Get names of the fixed effects variables ----
+  fe_vars <- check_fe_(formula, data)
 
   # Get names of the fixed effects variables and sort ----
   fe_names <- attr(terms(formula, rhs = 2L), "term.labels")
@@ -167,11 +170,22 @@ fenegbin <- function(
   }
 
   # Get names and number of levels in each fixed effects category ----
-  nms_fe <- lapply(data[, .SD, .SDcols = fe_names], levels)
-  fe.levels <- vapply(nms_fe, length, integer(1))
+  nms_fe <- lapply(data[, .SD, .SDcols = fe_vars], levels)
+  if (length(nms_fe) > 0L) {
+    fe_levels <- vapply(nms_fe, length, integer(1))
+  } else {
+    fe_levels <- c("missing_fe" = 1L)
+  }
 
   # Generate auxiliary list of indexes for different sub panels ----
-  FEs <- get_index_list_(fe_names, data)
+  if (!any(fe_levels %in% "missing_fe")) {
+    FEs <- get_index_list_(fe_vars, data)
+  } else {
+    FEs <- list(missing_fe = seq_len(nt))
+  }
+
+  # Set names on the FEs list to ensure they're passed to C++
+  names(FEs) <- fe_vars
 
   # Set init_theta to 0 if NULL (C++ will handle default)
   if (is.null(init_theta)) {
@@ -196,20 +210,20 @@ fenegbin <- function(
   nobs <- nobs_(nobs_full, nobs_na, y, predict(fit))
 
   # Information if convergence failed ----
-  if (!fit[["conv.outer"]]) {
+  if (!fit[["conv_outer"]]) {
     cat("Algorithm did not converge.\n")
   }
 
   # Add names to beta, hessian, and X_dm (if provided) ----
   names(fit[["coefficients"]]) <- nms_sp
   if (control[["keep_tx"]]) {
-    colnames(fit[["X_tx"]]) <- nms_sp
+    colnames(fit[["tx"]]) <- nms_sp
   }
   dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
 
   # Add to fit list ----
   fit[["nobs"]] <- nobs
-  fit[["fe.levels"]] <- fe.levels
+  fit[["fe_levels"]] <- fe_levels
   fit[["nms_fe"]] <- nms_fe
   fit[["formula"]] <- formula
   fit[["data"]] <- data
@@ -231,15 +245,15 @@ fenegbin_check_convergence_ <- function(dev, dev_old, theta, theta_old, tol) {
 # Generate result list ----
 
 fenegbin_result_list_ <- function(
-    fit, theta, iter, conv, nobs, lvls_k,
+    fit, theta, iter, conv, nobs, fe_levels,
     nms_fe, formula, data, family, control) {
   reslist <- c(
     fit, list(
       theta      = theta,
-      iter.outer = iter,
-      conv.outer = conv,
+      iter_outer = iter,
+      conv_outer = conv,
       nobs       = nobs,
-      lvls_k     = lvls_k,
+      fe_levels  = fe_levels,
       nms_fe     = nms_fe,
       formula    = formula,
       data       = data,

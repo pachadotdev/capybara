@@ -59,13 +59,13 @@ NULL
 #' @return A named list of class \code{"felm"}. The list contains the following
 #'  eleven elements:
 #'  \item{coefficients}{a named vector of the estimated coefficients}
-#'  \item{fitted.values}{a vector of the estimated dependent variable}
+#'  \item{fitted_values}{a vector of the estimated dependent variable}
 #'  \item{weights}{a vector of the weights used in the estimation}
 #'  \item{hessian}{a matrix with the numerical second derivatives}
 #'  \item{null_deviance}{the null deviance of the model}
 #'  \item{nobs}{a named vector with the number of observations used in the
 #'    estimation indicating the dropped and perfectly predicted observations}
-#'  \item{lvls_k}{a named vector with the number of levels in each fixed
+#'  \item{fe_levels}{a named vector with the number of levels in each fixed
 #'    effect}
 #'  \item{nms_fe}{a list with the names of the fixed effects variables}
 #'  \item{formula}{the formula used in the model}
@@ -98,7 +98,7 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   # Check validity of control + Extract control list ----
   check_control_(control)
 
-  # Generate model.frame
+  # Generate model.frame ----
   lhs <- NA # just to avoid global variable warning
   nobs_na <- NA
   nobs_full <- NA
@@ -106,23 +106,15 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   weights_col <- NA
   model_frame_(data, formula, weights)
 
-  # Get names of the fixed effects variables and sort ----
-  # the no FEs warning is printed in the check_formula_ function
-  fe_vars <- suppressWarnings(attr(terms(formula, rhs = 2L), "term.labels"))
-  if (length(fe_vars) < 1L) {
-    fe_vars <- "missing_fe"
-    data[, `:=`("missing_fe", 1L)]
-  }
+  # Get names of the fixed effects variables ----
+  fe_vars <- check_fe_(formula, data)
 
   # Generate temporary variable ----
   tmp_var <- temp_var_(data)
 
   # Transform fixed effects and clusters to factors ----
   data <- transform_fe_(data, formula, fe_vars)
-
-  # Determine the number of dropped observations ----
   nt <- nrow(data)
-  nobs <- nobs_(nobs_full, nobs_na, nt)
 
   # Extract model response and regressor matrix ----
   nms_sp <- NA
@@ -152,16 +144,16 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   # Get names and number of levels in each fixed effects category ----
   nms_fe <- lapply(data[, .SD, .SDcols = fe_vars], levels)
   if (length(nms_fe) > 0L) {
-    lvls_k <- vapply(nms_fe, length, integer(1))
+    fe_levels <- vapply(nms_fe, length, integer(1))
   } else {
-    lvls_k <- c("missing_fe" = 1L)
+    fe_levels <- c("missing_fe" = 1L)
   }
 
   # Generate auxiliary list of indexes for different sub panels ----
-  if (!any(lvls_k %in% "missing_fe")) {
+  if (!any(fe_levels %in% "missing_fe")) {
     FEs <- get_index_list_(fe_vars, data)
   } else {
-    FEs <- list(list(`1` = seq_len(nt)))
+    FEs <- list(missing_fe = seq_len(nt))
   }
 
   # Set names on the FEs list to ensure they're passed to C++
@@ -174,18 +166,21 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
 
   fit <- felm_fit_(X, y, w, FEs, control)
 
+  nobs <- nobs_(nobs_full, nobs_na, y, fit[["fitted_values"]])
+
   y <- NULL
   X <- NULL
 
-  # Add names to beta, hessian, and tx (if provided) ----
+  # Add names to beta, hessian, T(X) (if provided), and fitted values ----
   names(fit[["coefficients"]]) <- nms_sp
   if (control[["keep_tx"]]) {
     colnames(fit[["tx"]]) <- nms_sp
   }
+  names(fit[["fitted_values"]]) <- seq_along(fit[["fitted_values"]])
 
   # Add to fit list ----
   fit[["nobs"]] <- nobs
-  fit[["lvls_k"]] <- lvls_k
+  fit[["fe_levels"]] <- fe_levels
   fit[["nms_fe"]] <- nms_fe
   fit[["formula"]] <- formula
   fit[["data"]] <- data

@@ -247,6 +247,8 @@ inline field<field<uvec>> R_list_to_Armadillo_field(const list &FEs) {
   return group_indices;
 }
 
+// this function is not visible by the end-user, so we use multiple parameters
+// instead of a CapybaraParameters object
 [[cpp11::register]] doubles_matrix<>
 center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
                   const list &klist, const double &tol, const size_t &max_iter,
@@ -316,12 +318,13 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   // Create the return list using initializer list syntax
   auto ret = writable::list(
       {"coefficients"_nm = as_doubles(result.coefficients),
-       "fitted.values"_nm = as_doubles(result.fitted_values),
+       "fitted_values"_nm = as_doubles(result.fitted_values),
        "residuals"_nm = as_doubles(result.residuals),
        "weights"_nm = as_doubles(result.weights),
        "hessian"_nm = as_doubles_matrix(result.hessian),
        "coef_status"_nm = as_integers(result.coef_status),
-       "success"_nm = result.success, "has_fe"_nm = result.has_fe});
+       "success"_nm = result.success,
+       "has_fe"_nm = result.has_fe});
 
   // Add fixed effects information if available
   if (result.has_fe && result.fixed_effects.n_elem > 0) {
@@ -362,7 +365,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
     fe_list.names() = fe_list_names;
 
     // Add the fixed effects list to the output
-    ret.push_back({"fixed.effects"_nm = fe_list});
+    ret.push_back({"fixed_effects"_nm = fe_list});
 
     ret.push_back({"has_fe"_nm = result.has_fe});
   }
@@ -443,7 +446,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   auto out = writable::list(
       {"coefficients"_nm = as_doubles(result.coefficients),
        "eta"_nm = as_doubles(result.eta),
-       "fitted.values"_nm = as_doubles(result.fitted_values),
+       "fitted_values"_nm = as_doubles(result.fitted_values),
        "weights"_nm = as_doubles(result.weights),
        "hessian"_nm = as_doubles_matrix(result.hessian),
        "deviance"_nm = writable::doubles({result.deviance}),
@@ -491,7 +494,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
     fe_list.names() = fe_list_names;
 
     // Add the fixed effects list to the output
-    out.push_back({"fixed.effects"_nm = fe_list});
+    out.push_back({"fixed_effects"_nm = fe_list});
   }
 
   // Add design matrix if kept
@@ -561,7 +564,7 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
   auto out = writable::list(
       {"coefficients"_nm = as_doubles(result.coefficients),
        "eta"_nm = as_doubles(result.eta),
-       "fitted.values"_nm = as_doubles(result.fitted_values),
+       "fitted_values"_nm = as_doubles(result.fitted_values),
        "weights"_nm = as_doubles(result.weights),
        "hessian"_nm = as_doubles_matrix(result.hessian),
        "deviance"_nm = writable::doubles({result.deviance}),
@@ -571,7 +574,7 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
        "theta"_nm = writable::doubles({result.theta}),
        "iter.outer"_nm =
            writable::integers({static_cast<int>(result.iter_outer)}),
-       "conv.outer"_nm = writable::logicals({result.conv_outer})});
+       "conv_outer"_nm = writable::logicals({result.conv_outer})});
 
   // Add fixed effects if available
   if (result.has_fe && result.fixed_effects.n_elem > 0) {
@@ -579,7 +582,7 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
     for (size_t k = 0; k < result.fixed_effects.n_elem; ++k) {
       fe_list[k] = as_doubles(result.fixed_effects(k));
     }
-    out.push_back({"fixed.effects"_nm = fe_list});
+    out.push_back({"fixed_effects"_nm = fe_list});
 
     out.push_back({"has_fe"_nm = result.has_fe});
   }

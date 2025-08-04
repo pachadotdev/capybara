@@ -99,7 +99,7 @@ summary.felm <- function(
   y <- unlist(object[["data"]][, 1], use.names = FALSE)
   w <- object[["weights"]]
   ydemeaned_sq <- (y - mean(y))^2
-  e_sq <- (y - object[["fitted.values"]])^2
+  e_sq <- (y - object[["fitted_values"]])^2
   tss <- sum(w * ydemeaned_sq)
   rss <- sum(w * e_sq)
   n <- unname(object[["nobs"]]["nobs_full"])

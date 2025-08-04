@@ -40,7 +40,7 @@ predict.feglm <- function(object, newdata = NULL, type = c("link", "response"), 
     p <- NA
     model_response_(data, object$formula)
 
-    fes <- object[["fixed.effects"]]
+    fes <- object[["fixed_effects"]]
     fes2 <- list()
 
     for (name in names(fes)) {
@@ -95,7 +95,7 @@ predict.felm <- function(object, newdata = NULL, type = c("response", "terms"), 
     p <- NA
     model_response_(data, object$formula)
 
-    fes <- object[["fixed.effects"]]
+    fes <- object[["fixed_effects"]]
     fes2 <- list()
 
     for (name in names(fes)) {
@@ -117,7 +117,7 @@ predict.felm <- function(object, newdata = NULL, type = c("response", "terms"), 
 
     y <- X %*% coef0 + Reduce("+", fes2)
   } else {
-    y <- object[["fitted.values"]]
+    y <- object[["fitted_values"]]
   }
 
   # Ensure y is a vector and assign names

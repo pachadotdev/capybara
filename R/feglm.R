@@ -100,7 +100,7 @@ NULL
 #'  \item{iter}{the number of iterations needed to converge}
 #'  \item{nobs}{a named vector with the number of observations used in the
 #'   estimation indicating the dropped and perfectly predicted observations}
-#'  \item{lvls_k}{a named vector with the number of levels in each fixed
+#'  \item{fe_levels}{a named vector with the number of levels in each fixed
 #'   effects}
 #'  \item{nms_fe}{a list with the names of the fixed effects variables}
 #'  \item{formula}{the formula used in the model}
@@ -157,26 +157,18 @@ feglm <- function(
   # Ensure that model response is in line with the chosen model ----
   check_response_(data, lhs, family)
 
-  # Get names of the fixed effects variables and sort ----
-  # the no FEs warning is printed in the check_formula_ function
-  k_vars <- suppressWarnings(attr(terms(formula, rhs = 2L), "term.labels"))
-  if (length(k_vars) < 1L) {
-    k_vars <- "missing_fe"
-    data[, `:=`("missing_fe", 1L)]
-  }
+  # Get names of the fixed effects variables ----
+  fe_vars <- check_fe_(formula, data)
 
   # Generate temporary variable ----
   tmp_var <- temp_var_(data)
 
   # Drop observations that do not contribute to the log likelihood ----
-  data <- drop_by_link_type_(data, lhs, family, tmp_var, k_vars, control)
+  data <- drop_by_link_type_(data, lhs, family, tmp_var, fe_vars, control)
 
   # Transform fixed effects and clusters to factors ----
-  data <- transform_fe_(data, formula, k_vars)
-
-  # Determine the number of dropped observations ----
+  data <- transform_fe_(data, formula, fe_vars)
   nt <- nrow(data)
-  nobs <- nobs_(nobs_full, nobs_na, nt)
 
   # Extract model response and regressor matrix ----
   nms_sp <- NA
@@ -207,22 +199,22 @@ feglm <- function(
   start_guesses_(beta_start, eta_start, y, X, beta, nt, wt, p, family)
 
   # Get names and number of levels in each fixed effects category ----
-  nms_fe <- lapply(data[, .SD, .SDcols = k_vars], levels)
+  nms_fe <- lapply(data[, .SD, .SDcols = fe_vars], levels)
   if (length(nms_fe) > 0L) {
-    lvls_k <- vapply(nms_fe, length, integer(1))
+    fe_levels <- vapply(nms_fe, length, integer(1))
   } else {
-    lvls_k <- c("missing_fe" = 1L)
+    fe_levels <- c("missing_fe" = 1L)
   }
 
   # Generate auxiliary list of indexes for different sub panels ----
-  if (!any(lvls_k %in% "missing_fe")) {
-    k_list <- get_index_list_(k_vars, data)
+  if (!any(fe_levels %in% "missing_fe")) {
+    FEs <- get_index_list_(fe_vars, data)
   } else {
-    k_list <- list(list(`1` = seq_len(nt) - 1L))
+    FEs <- list(missing_fe = seq_len(nt))
   }
 
-  # Set names on the k_list to ensure they're passed to C++
-  names(k_list) <- k_vars
+  # Set names on the FEs to ensure they're passed to C++
+  names(FEs) <- fe_vars
 
   # Fit generalized linear model ----
   if (is.integer(y)) {
@@ -230,23 +222,27 @@ feglm <- function(
   }
 
   fit <- feglm_fit_(
-    beta, eta, y, X, wt, 0.0, family[["family"]], control, k_list
+    beta, eta, y, X, wt, 0.0, family[["family"]], control, FEs
   )
+
+  nobs <- nobs_(nobs_full, nobs_na, y, fit[["fitted_values"]])
 
   y <- NULL
   X <- NULL
   eta <- NULL
 
-  # Add names to beta, hessian, and tx (if provided) ----
+  # Add names to beta, hessian, T(X) (if provided), and fitted values ----
   names(fit[["coefficients"]]) <- nms_sp
   if (control[["keep_tx"]]) {
     colnames(fit[["tx"]]) <- nms_sp
   }
-  dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
+  non_na_nms_sp <- nms_sp[!is.na(fit[["coefficients"]])]
+  dimnames(fit[["hessian"]]) <- list(non_na_nms_sp, non_na_nms_sp)
+  names(fit[["fitted_values"]]) <- seq_along(fit[["fitted_values"]])
 
   # Add to fit list ----
   fit[["nobs"]] <- nobs
-  fit[["lvls_k"]] <- lvls_k
+  fit[["fe_levels"]] <- fe_levels
   fit[["nms_fe"]] <- nms_fe
   fit[["formula"]] <- formula
   fit[["data"]] <- data

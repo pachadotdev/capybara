@@ -21,5 +21,5 @@ fitted.feglm <- function(object, ...) {
 #' @export
 #' @noRd
 fitted.felm <- function(object, ...) {
-  object[["fitted.values"]]
+  object[["fitted_values"]]
 }

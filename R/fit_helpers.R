@@ -1,3 +1,79 @@
+#' srr_stats
+#' #' @srrstats {G1.0} Implements controls for efficient and numerically stable
+#'  fitting of generalized linear models with fixed effects.
+#' @srrstats {G2.0} Validates the integrity of inputs such as
+#'  factors, formulas, data, and control parameters.
+#' @srrstats {G2.0a} Gives informative errors (e.g. "tolerance must be
+#'  unidimensional").
+#' @srrstats {G2.1a} Ensures inputs have expected types and structures, such as
+#'  formulas being of class `formula` and data being a `data.frame`.
+#'  Ensures the proper data types for arguments (e.g., integer for `iter_max`).
+#' @srrstats {G2.3a} Implements strict argument validation for ranges and
+#'  constraints (e.g., numeric weights must be non-negative).
+#' @srrstats {G2.3b} Converts inputs (e.g., character vectors) to appropriate
+#'  formats when required, ensuring consistency.
+#' @srrstats {G2.4a} Validates input arguments to ensure they meet expected
+#'  formats and values, providing meaningful error messages for invalid inputs
+#'  to guide users.
+#' @srrstats {G2.4b} Implements checks to detect incompatible parameter
+#'  combinations, preventing runtime errors and ensuring consistent function
+#'  behavior.
+#' @srrstats {G2.4c} Ensures numeric inputs (e.g., convergence thresholds,
+#'  tolerances) are within acceptable ranges to avoid unexpected results.
+#' @srrstats {G2.4d} Verifies the structure and completeness of input data,
+#'  including the absence of missing values and correct dimensionality for
+#'  matrices.
+#' @srrstats {G2.4e} Issues warnings when deprecated or redundant arguments are
+#'  used, encouraging users to adopt updated practices while maintaining
+#'  backward compatibility.
+#' @srrstats {G2.7} The input accepts data frames, tibbles and data table
+#'  objects, from which it creates the design matrix.
+#' @srrstats {G2.8} The pre-processing for all main functions (e.g., `feglm`,
+#'  `felm`, `fepois`, `fenegbin`) is the same. The helper functions discard
+#'  unusable observations dependening on the link function, and then create the
+#'  design matrix.
+#' @srrstats {G2.10} For data frames, tibbles and data tables the
+#'  column-extraction operations are consistent.
+#' @srrstats {G2.11} `data.frame`-like tabular objects which have can have
+#'  atypical columns (i.e., `vector`) do not error without reason.
+#' @srrstats {G2.13} Checks for and handles missing data in input datasets.
+#' @srrstats {G2.14a} Issues informative errors for invalid inputs, such as
+#'  incorrect link functions or missing data.
+#' @srrstats {G2.14b} Provides clear error messages when the data structure is
+#'  incompatible with the model requirements.
+#' @srrstats {G2.15} The functions check for unusable observations (i.e.,
+#'  one column has an NA), and these are discarded before creating the design
+#'  matrix.
+#' @srrstats {G2.16} `NaN`, `Inf` and `-Inf` cannot be used for the design
+#'  matrix, and all observations with these values are removed.
+#' @srrstats {G5.2a} Ensures that all error and warning messages are unique and
+#'  descriptive. All parameter validations provide clear error messages
+#' @srrstats {G5.4a} Includes tests for edge cases, such as binary and
+#'  continuous response variables, and validates all input arguments.
+#' @srrstats {RE3.0} If the deviance difference between 2 iterations is not less
+#'  than tolerance after the max number of iterations, it
+#'  prints a convergence warning.
+#' @srrstats {RE4.4} The model is specified using a formula object, or a
+#'  character-type object convertible to a formula, which is then used to create
+#'  the design matrix.
+#' @srrstats {RE4.5} Fitted models have an nobs element that can be called with
+#'  `nobs()`.
+#' @srrstats {RE4.12} The `check_data_()` function drops observations that are
+#'  not useable with link function or that do not contribute to the
+#'  log-likelihood.
+#' @srrstats {RE5.0} Supports control over algorithmic complexity, such as
+#'  dropping perfectly separated observations (`drop_pc`) and optional matrix
+#'  storage (`keep_dmx`).
+#' @noRd
+NULL
+
+#' NA_standards
+#' @srrstatsNA {G2.14} Missing observations are dropped, otherwise providing
+#'  imputation methods would bias the estimation (i.e., replacing all missing
+#'  values with the median).
+#' @noRd
+NULL
+
 #' @title Get index list
 #' @description Generates an auxiliary list of indexes to project out the fixed
 #'  effects (on C++ side the outputs are 0-indexed)
@@ -9,4 +85,120 @@ get_index_list_ <- function(k_vars, data) {
   lapply(k_vars, function(X, indexes, data) {
     split(indexes, data[[X]])
   }, indexes = indexes, data = data)
+}
+
+#' @title Model frame
+#' @description Creates model frame for GLM/NegBin models
+#' @param data Data frame
+#' @param formula Formula object
+#' @param weights Weights
+#' @noRd
+model_frame_ <- function(data, formula, weights) {
+  # Necessary columns
+  formula_vars <- all.vars(formula)
+
+  # Handle different ways weights might be specified
+  if (is.null(weights)) {
+    # No weights specified
+    weight_col <- NULL
+    needed_cols <- formula_vars
+  } else if (is.character(weights) && length(weights) == 1) {
+    # Weights as column name
+    weight_col <- weights
+    needed_cols <- c(formula_vars, weight_col)
+  } else if (inherits(weights, "formula")) {
+    # Weights as formula like ~cyl
+    weight_col <- all.vars(weights)
+    needed_cols <- c(formula_vars, weight_col)
+    # Store the extracted column name for later use
+    assign("weights_col", weight_col, envir = parent.frame())
+  } else if (is.numeric(weights)) {
+    # Weights as vector - store for later use
+    weight_col <- NULL
+    needed_cols <- formula_vars
+    assign("weights_vec", weights, envir = parent.frame())
+  } else {
+    stop("'weights' must be a column name, formula, or numeric vector", call. = FALSE)
+  }
+
+  # Extract needed columns
+  data <- data[, .SD, .SDcols = needed_cols]
+
+  lhs <- names(data)[1L]
+  nobs_full <- nrow(data)
+  data <- na.omit(data)
+
+  # Convert columns of type "units" to numeric
+  unit_cols <- names(data)[vapply(data, inherits, what = "units", logical(1))]
+  if (length(unit_cols) > 0) {
+    data[, (unit_cols) := lapply(.SD, as.numeric), .SDcols = unit_cols]
+  }
+
+  nobs_na <- nobs_full - nrow(data)
+
+  assign("data", data, envir = parent.frame())
+  assign("lhs", lhs, envir = parent.frame())
+  assign("nobs_na", nobs_na, envir = parent.frame())
+  assign("nobs_full", nobs_full, envir = parent.frame())
+}
+
+#' @title Transform fixed effects
+#' @description Transforms fixed effects that are factors
+#' @param data Data frame
+#' @param formula Formula object
+#' @param k_vars Fixed effects
+#' @noRd
+transform_fe_ <- function(data, formula, k_vars) {
+  data[, (k_vars) := lapply(.SD, check_factor_), .SDcols = k_vars]
+
+  if (length(formula)[[2L]] > 2L) {
+    add_vars <- attr(terms(formula, rhs = 3L), "term.labels")
+    data[, (add_vars) := lapply(.SD, check_factor_), .SDcols = add_vars]
+  }
+
+  return(data)
+}
+
+
+#' @title Number of observations
+#' @description Computes the number of observations
+#' @param nobs_full Number of observations in the full data set
+#' @param nobs_na Number of observations with missing values (NA values)
+#' @param y Dependent variable
+#' @param yhat Predicted values
+#' @noRd
+nobs_ <- function(nobs_full, nobs_na, y, yhat) {
+  # Use tolerance for floating-point comparisons
+  tol <- sqrt(.Machine$double.eps)
+
+  # Count observations with perfect prediction
+  nobs_pc <- sum(abs(y - yhat) < tol, na.rm = TRUE)
+
+  # Number of observations used in the model (length of predictions)
+  nobs_used <- length(yhat)
+
+  # Total missing observations (original NA values + dropped during fitting)
+  total_missing <- nobs_full - nobs_used
+
+  c(
+    nobs_full = nobs_full, # Original dataset size
+    nobs_na   = total_missing, # Total missing (NA + dropped)
+    nobs_pc   = nobs_pc, # Perfect classification count
+    nobs      = nobs_used # Observations used in model
+  )
+}
+
+#' @title Ensure fixed effects variables
+#' @description Ensures at least one fixed effect variable is present; adds a dummy if not.
+#' @param formula Formula object
+#' @param data Data frame (modified in place if dummy is added)
+#' @return Character vector of fixed effect variable names
+#' @noRd
+check_fe_ <- function(formula, data) {
+  fe_vars <- suppressWarnings(attr(terms(formula, rhs = 2L), "term.labels"))
+  if (length(fe_vars) < 1L) {
+    fe_vars <- "missing_fe"
+    data[, `:=`("missing_fe", 1L)]
+  }
+  fe_vars
 }
