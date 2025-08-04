@@ -130,8 +130,8 @@ bias_corr <- function(
   }
 
   # Center regressor matrix (if required)
-  if (control[["keep_mx"]]) {
-    x <- object[["mx"]]
+  if (control[["keep_tx"]]) {
+    x <- object[["tx"]]
   } else {
     x <- center_variables_r_(x, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]])
   }
@@ -190,7 +190,7 @@ bias_corr <- function(
   # Update result list
   object[["coefficients"]] <- beta
   object[["eta"]] <- eta
-  if (control[["keep_mx"]]) object[["mx"]] <- x
+  if (control[["keep_tx"]]) object[["tx"]] <- x
   object[["hessian"]] <- h
   object[["coefficients_uncorr"]] <- beta_uncorr
   object[["bias_term"]] <- b

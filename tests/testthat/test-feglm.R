@@ -151,7 +151,7 @@ test_that("proportional regressors return NA coefficients", {
   d <- data.frame(
     y = rnorm(100),
     x1 = rnorm(100),
-    f = factor(sample(1:2, 100, replace = TRUE))  # Fixed: was 1000, now 100
+    f = factor(sample(1:2, 100, replace = TRUE)) # Fixed: was 1000, now 100
   )
   d$x2 <- 2 * d$x1
 

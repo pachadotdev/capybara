@@ -158,7 +158,7 @@ fenegbin <- function(
   } else {
     numeric(0) # Empty vector for default initialization in C++
   }
-  
+
   # Get eta starting guesses if provided
   eta_vec <- if (!is.null(eta_start)) {
     as.numeric(eta_start)
@@ -202,8 +202,8 @@ fenegbin <- function(
 
   # Add names to beta, hessian, and X_dm (if provided) ----
   names(fit[["coefficients"]]) <- nms_sp
-  if (control[["keep_dmx"]]) {
-    colnames(fit[["X_dm"]]) <- nms_sp
+  if (control[["keep_tx"]]) {
+    colnames(fit[["X_tx"]]) <- nms_sp
   }
   dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
 

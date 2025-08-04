@@ -4,9 +4,9 @@
 #ifndef CAPYBARA_GLM_H
 #define CAPYBARA_GLM_H
 
-#include <unordered_map>
 #include <algorithm>
 #include <string>
+#include <unordered_map>
 
 namespace capybara {
 
@@ -23,7 +23,7 @@ enum Family {
 
 // Utility function to clamp scalar values
 template <typename T>
-inline T clamp(const T& value, const T& lower, const T& upper) {
+inline T clamp(const T &value, const T &lower, const T &upper) {
   return (value < lower) ? lower : ((value > upper) ? upper : value);
 }
 
@@ -44,7 +44,7 @@ struct InferenceGLM {
   uvec iterations;
 
   mat X_dm;
-  bool has_mx = false;
+  bool has_tx = false;
 
   vec means;
 
@@ -52,8 +52,8 @@ struct InferenceGLM {
       : coefficients(p, fill::zeros), eta(n, fill::zeros),
         fitted_values(n, fill::zeros), weights(n, fill::ones),
         hessian(p, p, fill::zeros), deviance(0.0), null_deviance(0.0),
-        conv(false), iter(0), coef_status(p, fill::ones),
-        has_fe(false), has_mx(false) {}
+        conv(false), iter(0), coef_status(p, fill::ones), has_fe(false),
+        has_tx(false) {}
 };
 
 std::string tidy_family_(const std::string &family) {
@@ -277,8 +277,7 @@ vec mu_eta_(const vec &eta, const Family family_type) {
   return result;
 }
 
-vec variance_(const vec &mu, const double &theta,
-              const Family family_type) {
+vec variance_(const vec &mu, const double &theta, const Family family_type) {
   switch (family_type) {
   case GAUSSIAN:
     return ones<vec>(mu.n_elem);
@@ -298,35 +297,27 @@ vec variance_(const vec &mu, const double &theta,
 }
 
 // Core implementation function using pure C++/Armadillo types
-InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y,
-                     mat &MX, const vec &w, const double &theta,
-                     const Family family_type,
-                     const field<field<uvec>> &fe_groups,
-                     const double center_tol, 
-                     const size_t iter_max,
-                     const size_t iter_center_max,
-                     const size_t iter_inner_max,
-                     const size_t iter_interrupt,
-                     const size_t iter_ssr,
-                     const double dev_tol,
-                     bool keep_mx) {
+InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
+                       const double &theta, const Family family_type,
+                       const field<field<uvec>> &fe_groups,
+                       const CapybaraParameters &params) {
   const size_t n = y.n_elem;
-  const size_t p = MX.n_cols;
+  const size_t p = X.n_cols;
   const size_t k = beta.n_elem;
   const bool has_fixed_effects = fe_groups.n_elem > 0;
-    
-  // Keep a copy of original MX before centering for fixed effects computation
-  mat MX_original = MX;
-  
+
+  // Keep a copy of original X before centering for fixed effects computation
+  mat X_original = X;
+
   // Initialize result object
   InferenceGLM result(n, p);
-  
+
   // Check input data
-  if (!is_finite(y) || !is_finite(MX)) {
+  if (!is_finite(y) || !is_finite(X)) {
     result.conv = false;
     return result;
   }
-  
+
   // Auxiliary variables (storage)
   vec MNU = vec(n, fill::zeros);
   vec mu = link_inv_(eta, family_type);
@@ -336,7 +327,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y,
   vec eta_upd(n, fill::none), eta_old(n, fill::none);
   vec beta_old(k, fill::none), nu_old = vec(n, fill::zeros);
   mat H(p, p, fill::none);
-  
+
   // Create a workspace for get_beta
   BetaWorkspace beta_workspace(n, p);
 
@@ -346,8 +337,11 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y,
   double dev_old, dev_ratio, dev_ratio_inner, rho;
   bool dev_crit, val_crit, imp_crit, conv = false;
 
+  CollinearityResult collin_result =
+      check_collinearity(X, w, /*use_weights =*/true, params.collin_tol, false);
+
   // Maximize the log-likelihood
-  for (size_t iter = 0; iter < iter_max; ++iter) {
+  for (size_t iter = 0; iter < params.iter_max; ++iter) {
     rho = 1.0;
     eta_old = eta;
     beta_old = beta;
@@ -363,68 +357,76 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y,
     nu_old = nu;
 
     if (has_fixed_effects) {
-      center_variables(MNU, w_working, fe_groups, center_tol, iter_center_max,
-                        iter_interrupt, iter_ssr);
-      center_variables(MX, w_working, fe_groups, center_tol, iter_center_max,
-                        iter_interrupt, iter_ssr);
+      center_variables(MNU, w_working, fe_groups, params.demean_tol,
+                       params.iter_demean_max, params.iter_interrupt,
+                       params.iter_ssr);
+      center_variables(X, w_working, fe_groups, params.demean_tol,
+                       params.iter_demean_max, params.iter_interrupt,
+                       params.iter_ssr);
     }
 
-    // Set up a basic collinearity result for get_beta
-    CollinearityResult collin_result(p);
-    collin_result.has_collinearity = false;
-    
-    // Check for collinearity in the centered matrix
-    if (p > 0) {
-      // Define has_weights before using it
-      bool has_weights = !all(w_working == 1.0);
-      collin_result = check_collinearity(MX, w_working, has_weights, 1e-10, false);
-      
-      // If all columns are collinear, we can't proceed
-      if (collin_result.has_collinearity &&collin_result.non_collinear_cols.n_elem == 0) {
-          result.conv = false;
-          return result;
-      }
-    }
-    
     // Use the full version of get_beta that returns InferenceBeta
-    InferenceBeta beta_result = get_beta(MX, MNU, MNU, w_working, collin_result, false, false, &beta_workspace);
-    
-    // Get the coefficients update - making sure to resize properly
-    beta_upd.zeros();
-    if (beta_upd.n_elem != beta_result.coefficients.n_elem) {
-      beta_upd.resize(beta_result.coefficients.n_elem);
+    InferenceBeta beta_result = get_beta(X, MNU, MNU, w_working, collin_result,
+                                         false, false, &beta_workspace);
+
+    // Handle collinearity properly - work with reduced coefficients throughout
+    vec beta_upd_reduced;
+    if (collin_result.has_collinearity &&
+        collin_result.non_collinear_cols.n_elem > 0) {
+      // Extract only non-collinear coefficients for the reduced system
+      beta_upd_reduced =
+          beta_result.coefficients.elem(collin_result.non_collinear_cols);
+    } else {
+      // No collinearity, use all coefficients
+      beta_upd_reduced = beta_result.coefficients;
     }
-    beta_upd = beta_result.coefficients;
-    
-    // Make sure beta and beta_upd have the same size
-    if (beta.n_elem != beta_upd.n_elem) {
-      beta.resize(beta_upd.n_elem);
+
+    // Ensure beta has the right size for the full parameter vector
+    const size_t full_p =
+        collin_result.has_collinearity ? collin_result.coef_status.n_elem : p;
+    if (beta.n_elem != full_p) {
+      beta.resize(full_p);
     }
-    
-    // Compute eta update - avoid using non-existent columns
-    if (MX.n_cols > 0) {
-      eta_upd = MX * beta_upd + nu - MNU;
+
+    // Compute eta update using reduced coefficients with reduced X
+    if (X.n_cols > 0) {
+      eta_upd = X * beta_upd_reduced + nu - MNU;
     } else {
       eta_upd = nu - MNU;
     }
 
     // Step-halving with three checks
-    for (size_t iter_inner = 0; iter_inner < iter_inner_max; ++iter_inner) {
+    for (size_t iter_inner = 0; iter_inner < params.iter_inner_max;
+         ++iter_inner) {
       eta = eta_old + rho * eta_upd;
-      beta = beta_old + rho * beta_upd;
+
+      // Update beta by expanding the reduced coefficients back to full size
+      vec beta_new = beta_old;
+      if (collin_result.has_collinearity &&
+          collin_result.non_collinear_cols.n_elem > 0) {
+        // Update only the non-collinear coefficients
+        vec beta_old_reduced = beta_old.elem(collin_result.non_collinear_cols);
+        vec beta_upd_step = beta_old_reduced + rho * beta_upd_reduced;
+        beta_new.elem(collin_result.non_collinear_cols) = beta_upd_step;
+      } else {
+        // No collinearity, update all coefficients
+        beta_new = beta_old + rho * beta_upd_reduced;
+      }
+      beta = beta_new;
+
       mu = link_inv_(eta, family_type);
       dev = dev_resids_(y, mu, theta, w, family_type);
       dev_ratio_inner = (dev - dev_old) / (0.1 + fabs(dev));
 
       dev_crit = is_finite(dev);
       val_crit = valid_eta_(eta, family_type) && valid_mu_(mu, family_type);
-      imp_crit = (dev_ratio_inner <= -dev_tol);
+      imp_crit = (dev_ratio_inner <= -params.dev_tol);
 
       if (dev_crit && val_crit && imp_crit) {
         break;
       }
 
-      rho *= 0.5;
+      rho *= params.step_halving_factor;
     }
 
     // Check if step-halving failed
@@ -443,43 +445,56 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y,
 
     // Check convergence
     dev_ratio = fabs(dev - dev_old) / (0.1 + fabs(dev));
-    if (dev_ratio < dev_tol) {
+    if (dev_ratio < params.dev_tol) {
       conv = true;
       break;
     }
-    
+
     result.iter = iter + 1;
   }
 
   // Final computations if converged
   if (conv) {
     // Compute final Hessian
-    H = crossprod(MX, w_working);
-    
+    H = crossprod(X, w_working);
+
     // Recover fixed effects if needed
     if (has_fixed_effects) {
       // Following alpaca's getFE approach exactly for GLMs:
       // pi = eta - X %*% beta where eta is the linear predictor
       // We use the original (non-centered) X matrix, just like in felm_fit
-      
-      // Compute X * beta using original (non-centered) data
+
+      // Compute X * beta using original (non-centered) data and handling
+      // collinearity
       vec x_beta;
-      if (MX_original.n_cols > 0) {
-        x_beta = MX_original * beta;
+      if (X_original.n_cols > 0) {
+        if (collin_result.has_collinearity &&
+            collin_result.non_collinear_cols.n_elem > 0) {
+          // Use only non-collinear columns and coefficients
+          x_beta = X_original.cols(collin_result.non_collinear_cols) *
+                   beta.elem(collin_result.non_collinear_cols);
+        } else {
+          // No collinearity, use all columns and coefficients
+          x_beta = X_original * beta;
+        }
       } else {
         x_beta.zeros(n);
       }
-      
-      // Compute pi = eta - X*beta (using original data, matching alpaca's getFE)
+
+      // Compute pi = eta - X*beta (using original data, matching alpaca's
+      // getFE)
       vec pi = eta - x_beta;
-      
+
       // Store fixed effects results
-      result.fixed_effects = get_alpha(pi, fe_groups);
+      result.fixed_effects = get_alpha(
+          pi, fe_groups, params.alpha_convergence_tol, params.alpha_iter_max);
       result.has_fe = true;
     }
-    
+
     // Populate result
     result.coefficients = beta;
+    result.coef_status =
+        collin_result.coef_status; // Include collinearity status
     result.eta = eta;
     result.fitted_values = mu;
     result.weights = w;
@@ -487,42 +502,36 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y,
     result.deviance = dev;
     result.null_deviance = null_dev;
     result.conv = true;
-    
+
     // Keep design matrix if requested
-    if (keep_mx) {
-      result.X_dm = MX;
-      result.has_mx = true;
+    if (params.keep_tx) {
+      result.X_dm = X;
+      result.has_tx = true;
     }
   }
-  
+
   return result;
 }
 
 vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
-                    const Family family_type,
-                    const field<field<uvec>> &fe_groups,
-                    const double center_tol, 
-                    const size_t iter_max,
-                    const size_t iter_center_max,
-                    const size_t iter_inner_max,
-                    const size_t iter_interrupt,
-                    const size_t iter_ssr,
-                    const double dev_tol) {
-  
+                     const Family family_type,
+                     const field<field<uvec>> &fe_groups,
+                     const CapybaraParameters &params) {
+
   const size_t n = y.n_elem;
-  
+
   // Auxiliary variables (storage)
   vec Myadj = vec(n, fill::zeros);
   vec mu = link_inv_(eta, family_type);
   vec mu_eta(n, fill::none), yadj(n, fill::none);
   vec w_working(n, fill::none), eta_upd(n, fill::none), eta_old(n, fill::none);
-  
+
   double dev = dev_resids_(y, mu, 0.0, w, family_type);
   double dev_old, dev_ratio, dev_ratio_inner, rho;
   bool dev_crit, val_crit, imp_crit;
 
   // Maximize the log-likelihood
-  for (size_t iter = 0; iter < iter_max; ++iter) {
+  for (size_t iter = 0; iter < params.iter_max; ++iter) {
     rho = 1.0;
     eta_old = eta;
     dev_old = dev;
@@ -534,15 +543,17 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
 
     // Center variables
     Myadj += yadj;
-    
+
     // Use C++/Armadillo types for centering
-    center_variables(Myadj, w_working, fe_groups, center_tol, iter_center_max,
-                    iter_interrupt, iter_ssr);
+    center_variables(Myadj, w_working, fe_groups, params.demean_tol,
+                     params.iter_demean_max, params.iter_interrupt,
+                     params.iter_ssr);
 
     // Compute update step and update eta
     eta_upd = yadj - Myadj + offset - eta;
 
-    for (size_t iter_inner = 0; iter_inner < iter_inner_max; ++iter_inner) {
+    for (size_t iter_inner = 0; iter_inner < params.iter_inner_max;
+         ++iter_inner) {
       eta = eta_old + (rho * eta_upd);
       mu = link_inv_(eta, family_type);
       dev = dev_resids_(y, mu, 0.0, w, family_type);
@@ -550,13 +561,13 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
 
       dev_crit = is_finite(dev);
       val_crit = (valid_eta_(eta, family_type) && valid_mu_(mu, family_type));
-      imp_crit = (dev_ratio_inner <= -dev_tol);
+      imp_crit = (dev_ratio_inner <= -params.dev_tol);
 
       if (dev_crit && val_crit && imp_crit) {
         break;
       }
 
-      rho *= 0.5;
+      rho *= params.step_halving_factor;
     }
 
     // Check if step-halving failed
@@ -568,7 +579,7 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
 
     // Check convergence
     dev_ratio = fabs(dev - dev_old) / (0.1 + fabs(dev));
-    if (dev_ratio < dev_tol) {
+    if (dev_ratio < params.dev_tol) {
       break;
     }
 
@@ -590,117 +601,106 @@ struct InferenceNegBin : public InferenceGLM {
 };
 
 // Method of moments: theta = mu^2 / (var - mu)
-inline double estimate_theta(const vec &y, const vec &mu, 
-                           double theta_min = 0.1, 
-                           double theta_max = 1.0e6, 
-                           double overdispersion_threshold = 0.01) {
+inline double estimate_theta(const vec &y, const vec &mu,
+                             double theta_min = 0.1, double theta_max = 1.0e6,
+                             double overdispersion_threshold = 0.01) {
   const double y_mean = mean(y);
   const double y_var = var(y);
   const double overdispersion = y_var - y_mean;
-  
+
   // Very little overdispersion => return very large theta (Poisson-like)
   if (overdispersion <= overdispersion_threshold * y_mean) {
     return theta_max;
   }
-  
+
   // Estimate theta using method of moments
   double theta = y_mean * y_mean / overdispersion;
-  
+
   // Ensure theta is within reasonable bounds
   return clamp(theta, theta_min, theta_max);
 }
 
 // Dedicated implementation for negative binomial models
 InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
-                           const field<field<uvec>> &fe_groups,
-                           const double center_tol,
-                           const size_t iter_max,
-                           const size_t iter_center_max,
-                           const size_t iter_inner_max,
-                           const size_t iter_interrupt,
-                           const size_t iter_ssr,
-                           const double dev_tol,
-                           bool keep_mx,
-                           double init_theta = 0.0) {
+                             const field<field<uvec>> &fe_groups,
+                             const CapybaraParameters &params,
+                             double init_theta = 0.0) {
   const size_t n = y.n_elem;
   const size_t p = X.n_cols;
-  
+
   InferenceNegBin result(n, p);
-  
+
   // Initialize theta if not provided
   double theta = (init_theta > 0) ? init_theta : 1.0;
-  
+
   // Start with Poisson for initialization
   Family poisson_family = POISSON;
-  
+
   // Initialize beta and eta with Poisson fit
   vec beta(p, fill::zeros);
   vec eta(n, fill::zeros);
-  
+
   // Get initial fit using Poisson
-  InferenceGLM poisson_fit = feglm_fit(beta, eta, y, X, w, 0.0, poisson_family,
-                                    fe_groups, center_tol, iter_max, 
-                                    iter_center_max, iter_inner_max,
-                                    iter_interrupt, iter_ssr, dev_tol, false);
-  
+  InferenceGLM poisson_fit =
+      feglm_fit(beta, eta, y, X, w, 0.0, poisson_family, fe_groups, params);
+
   if (!poisson_fit.conv) {
     result.conv = false;
     result.conv_outer = false;
     return result;
   }
-  
+
   // Transfer initial values from Poisson fit
   beta = poisson_fit.coefficients;
   eta = poisson_fit.eta;
   vec mu = poisson_fit.fitted_values;
-  
+
   // Estimate initial theta if not provided
   if (init_theta <= 0) {
     theta = estimate_theta(y, mu);
   }
-  
+
   double dev_old = poisson_fit.deviance;
   double theta_old = theta;
   bool converged = false;
-  
+
   // Alternate between fitting GLM and updating theta
-  for (size_t iter = 0; iter < iter_max; ++iter) {
+  for (size_t iter = 0; iter < params.iter_max; ++iter) {
     result.iter_outer = iter + 1;
-    
+
     // Save old theta
     theta_old = theta;
-    
+
     // Fit GLM with current theta
     Family negbin_family = NEG_BIN;
-    InferenceGLM glm_fit = feglm_fit(beta, eta, y, X, w, theta, negbin_family,
-                                  fe_groups, center_tol, iter_max, 
-                                  iter_center_max, iter_inner_max,
-                                  iter_interrupt, iter_ssr, dev_tol, keep_mx);
-    
+    InferenceGLM glm_fit =
+        feglm_fit(beta, eta, y, X, w, theta, negbin_family, fe_groups, params);
+
     if (!glm_fit.conv) {
       break;
     }
-    
+
     // Update mu and compute new theta
     mu = glm_fit.fitted_values;
     double dev = glm_fit.deviance;
-    
+
     // Estimate new theta based on current fit
     double theta_new = estimate_theta(y, mu);
-    
+
     // Check validity
     if (!is_finite(theta_new) || theta_new <= 0) {
       theta_new = theta;
     }
-    
+
     // Check convergence criteria
     double dev_crit = std::abs(dev - dev_old) / (0.1 + std::abs(dev));
-    double theta_crit = std::abs(theta_new - theta_old) / (0.1 + std::abs(theta_old));
-    
-    if (dev_crit <= dev_tol && theta_crit <= dev_tol) {
+    double theta_crit =
+        std::abs(theta_new - theta_old) / (0.1 + std::abs(theta_old));
+
+    if (dev_crit <= params.dev_tol && theta_crit <= params.dev_tol) {
       converged = true;
       theta = theta_new;
-      
+
       // Transfer results from glm_fit to result
       result.coefficients = beta;
       result.eta = eta;
@@ -715,21 +715,21 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
       result.fixed_effects = std::move(glm_fit.fixed_effects);
       result.has_fe = glm_fit.has_fe;
       result.X_dm = std::move(glm_fit.X_dm);
-      result.has_mx = glm_fit.has_mx;
+      result.has_tx = glm_fit.has_tx;
       result.theta = theta;
       result.conv_outer = true;
-      
+
       break;
     }
-    
+
     // Update values for next iteration
     theta = theta_new;
     dev_old = dev;
-    
+
     // Save latest results for next iteration
     beta = glm_fit.coefficients;
     eta = glm_fit.eta;
-    
+
     // Save results to return in case we hit max iterations
     result.coefficients = std::move(glm_fit.coefficients);
     result.eta = std::move(glm_fit.eta);
@@ -744,13 +744,13 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
     result.fixed_effects = std::move(glm_fit.fixed_effects);
     result.has_fe = glm_fit.has_fe;
     result.X_dm = std::move(glm_fit.X_dm);
-    result.has_mx = glm_fit.has_mx;
+    result.has_tx = glm_fit.has_tx;
   }
-  
+
   // Set final theta and convergence status
   result.theta = theta;
   result.conv_outer = converged;
-  
+
   return result;
 }
 

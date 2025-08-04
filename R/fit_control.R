@@ -8,7 +8,7 @@
 #' @srrstats {G2.14b} Provides clear error messages when the data structure is incompatible with the model requirements.
 #' @srrstats {G5.2a} Produces unique and descriptive error messages for all validation checks.
 #' @srrstats {RE3.0} If the deviance difference between 2 iterations is not less than tolerance after the max number of iterations, it prints a convergence warning.
-#' @srrstats {RE5.0} Supports control over algorithmic complexity, such as dropping perfectly separated observations (`drop_pc`) and optional matrix storage (`keep_mx`).
+#' @srrstats {RE5.0} Supports control over algorithmic complexity, such as dropping perfectly separated observations (`drop_pc`) and optional matrix storage (`keep_tx`).
 #' @srrstats {G5.4a} Includes robust edge case handling, such as enforcing positive tolerance and iteration counts.
 #' @noRd
 NULL
@@ -54,7 +54,7 @@ NULL
 #'  problem and improves the numerical stability of the algorithm. Note that
 #'  dropping perfectly separated observations does not affect the estimates.
 #'  The default is \code{TRUE}.
-#' @param keep_mx logical indicating if the centered regressor matrix should be
+#' @param keep_tx logical indicating if the centered regressor matrix should be
 #'  stored. The centered regressor matrix is required for some covariance
 #'  estimators, bias corrections, and average partial effects. This option saves
 #'  some computation time at the cost of memory. The default is \code{TRUE}.
@@ -79,8 +79,7 @@ fit_control <- function(
     limit = 10L,
     trace = FALSE,
     drop_pc = TRUE,
-    keep_mx = FALSE,
-    keep_dmx = FALSE) {
+    keep_tx = FALSE) {
   # Check validity of tolerance parameters
   if (dev_tol <= 0.0 || center_tol <= 0.0 || collin_tol <= 0.0) {
     stop(
@@ -153,8 +152,7 @@ fit_control <- function(
     limit = limit,
     trace = as.logical(trace),
     drop_pc = as.logical(drop_pc),
-    keep_mx = as.logical(keep_mx),
-    keep_dmx = as.logical(keep_dmx),
+    keep_tx = as.logical(keep_tx),
     # Add all other parameters from CapybaraParameters
     demean_tol = center_tol,
     rel_tol_denom = 0.1,

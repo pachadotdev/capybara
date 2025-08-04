@@ -5,18 +5,19 @@
 
 namespace capybara {
 
-void center_variables(mat &V, const vec &w, const field<field<uvec>> &group_indices,
-                       const double &tol, const size_t &max_iter,
-                       const size_t &iter_interrupt, const size_t &iter_ssr) {
+void center_variables(mat &V, const vec &w,
+                      const field<field<uvec>> &group_indices,
+                      const double &tol, const size_t &max_iter,
+                      const size_t &iter_interrupt, const size_t &iter_ssr) {
   // Safety check for dimensions
   if (V.n_rows != w.n_elem) {
-    
+
     return;
   }
-  
+
   // If no groups, just return
   if (group_indices.n_elem == 0) {
-    
+
     return;
   }
 
@@ -37,29 +38,27 @@ void center_variables(mat &V, const vec &w, const field<field<uvec>> &group_indi
   field<vec> group_inv_w(K);
   for (k = 0; k < K; ++k) {
     if (k >= group_indices.n_elem) {
-      
+
       continue;
     }
-    
+
     const field<uvec> &idxs = group_indices(k);
     const size_t L = idxs.n_elem;
-    
-    
-    
+
     vec invs(L);
     for (l = 0; l < L; ++l) {
       if (l >= idxs.n_elem) {
-        
+
         continue;
       }
-      
+
       // Skip empty groups
       if (idxs(l).n_elem == 0) {
-        
-        invs(l) = 0.0;  // Set to 0 for empty groups
+
+        invs(l) = 0.0; // Set to 0 for empty groups
         continue;
       }
-      
+
       // Check if all indices are valid
       bool all_valid = true;
       for (uword i = 0; i < idxs(l).n_elem; ++i) {
@@ -68,18 +67,18 @@ void center_variables(mat &V, const vec &w, const field<field<uvec>> &group_indi
           break;
         }
       }
-      
+
       if (!all_valid) {
-        invs(l) = 0.0;  // Set to 0 for groups with invalid indices
+        invs(l) = 0.0; // Set to 0 for groups with invalid indices
         continue;
       }
-      
+
       // Safely compute the inverse weight sum
       try {
         double sum_w = accu(w.elem(idxs(l)));
         invs(l) = (sum_w > 0.0) ? 1.0 / sum_w : 0.0;
-      } catch (const std::exception& e) {
-        
+      } catch (const std::exception &e) {
+
         invs(l) = 0.0;
       }
     }
@@ -91,43 +90,43 @@ void center_variables(mat &V, const vec &w, const field<field<uvec>> &group_indi
     for (k = 0; k < K; ++k) {
       // Check if we have a valid group
       if (k >= group_indices.n_elem) {
-        
+
         continue;
       }
-      
+
       const auto &idxs = group_indices(k);
-      
+
       // Check if we have valid group weights
       if (k >= group_inv_w.n_elem) {
-        
+
         continue;
       }
-      
+
       const auto &invs = group_inv_w(k);
       L = idxs.n_elem;
-      
+
       if (L == 0)
         continue;
-        
+
       // Make sure we don't have more groups than weights
       if (L > invs.n_elem) {
-        
+
         continue;
       }
-      
+
       for (l = 0; l < L; ++l) {
         // Check if the group exists
         if (l >= idxs.n_elem) {
-          
+
           continue;
         }
-        
+
         const uvec &coords = idxs(l);
         const uword coord_size = coords.n_elem;
-        
+
         if (coord_size <= 1)
           continue;
-          
+
         // Check if all indices are within bounds
         bool valid_indices = true;
         for (uword i = 0; i < coord_size; ++i) {
@@ -136,13 +135,13 @@ void center_variables(mat &V, const vec &w, const field<field<uvec>> &group_indi
             break;
           }
         }
-        
+
         if (!valid_indices)
           continue;
-          
+
         // Now safely compute the group mean and demean
-          xbar = dot(w.elem(coords), v.elem(coords)) * invs(l);
-          v.elem(coords) -= xbar;
+        xbar = dot(w.elem(coords), v.elem(coords)) * invs(l);
+        v.elem(coords) -= xbar;
       }
     }
   };

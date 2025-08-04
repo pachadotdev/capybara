@@ -191,7 +191,7 @@ check_control_ <- function(control) {
       }
     }
     # 2. logical params
-    logical_params <- c("trace", "drop_pc", "keep_mx")
+    logical_params <- c("trace", "drop_pc", "keep_tx")
     for (param_name in logical_params) {
       if (!is.logical(merged_control[[param_name]])) {
         stop(sprintf("'%s' must be logical.", param_name), call. = FALSE)
@@ -520,19 +520,6 @@ start_guesses_ <- function(
   assign("eta", eta, envir = parent.frame())
 }
 
-#' @title Get index list
-#' @description Generates an auxiliary list of indexes to project out the fixed
-#'  effects
-#' @param k_vars Fixed effects
-#' @param data Data frame
-#' @noRd
-get_index_list_ <- function(k_vars, data) {
-  indexes <- seq.int(1L, nrow(data))
-  lapply(k_vars, function(X, indexes, data) {
-    split(indexes, data[[X]])
-  }, indexes = indexes, data = data)
-}
-
 #' @title Get score matrix
 #' @description Computes the score matrix
 #' @param object Result list
@@ -553,8 +540,8 @@ get_score_matrix_feglm_ <- function(object) {
   nu <- (y - mu) / mu_eta
 
   # Center regressor matrix (if required)
-  if (control[["keep_mx"]]) {
-    mx <- object[["mx"]]
+  if (control[["keep_tx"]]) {
+    tx <- object[["tx"]]
   } else {
     # Extract additional required quantities from result list
     formula <- object[["formula"]]
@@ -579,14 +566,14 @@ get_score_matrix_feglm_ <- function(object) {
 
 #' @title Gamma computation
 #' @description Computes the gamma matrix for the APES function
-#' @param mx Regressor matrix
+#' @param tx Regressor matrix
 #' @param h Hessian matrix
 #' @param j Jacobian matrix
 #' @param ppsi Psi matrix
 #' @param v Vector of weights
 #' @param nt Number of observations
 #' @noRd
-gamma_ <- function(mx, h, j, ppsi, v, nt) {
+gamma_ <- function(tx, h, j, ppsi, v, nt) {
   inv_nt <- 1.0 / nt
-  (mx %*% solve(h * inv_nt, j) - ppsi) * v * inv_nt
+  (tx %*% solve(h * inv_nt, j) - ppsi) * v * inv_nt
 }

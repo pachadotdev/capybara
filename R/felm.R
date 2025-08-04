@@ -163,24 +163,24 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   } else {
     FEs <- list(list(`1` = seq_len(nt)))
   }
-  
+
   # Set names on the FEs list to ensure they're passed to C++
   names(FEs) <- fe_vars
-  
+
   # Fit linear model ----
   if (is.integer(y)) {
     y <- as.numeric(y)
   }
-  
+
   fit <- felm_fit_(X, y, w, FEs, control)
 
   y <- NULL
   X <- NULL
 
-  # Add names to beta, hessian, and mx (if provided) ----
+  # Add names to beta, hessian, and tx (if provided) ----
   names(fit[["coefficients"]]) <- nms_sp
-  if (control[["keep_mx"]]) {
-    colnames(fit[["mx"]]) <- nms_sp
+  if (control[["keep_tx"]]) {
+    colnames(fit[["tx"]]) <- nms_sp
   }
 
   # Add to fit list ----

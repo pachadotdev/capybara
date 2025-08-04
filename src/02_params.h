@@ -8,23 +8,23 @@ namespace capybara {
 
 // Define InferenceBeta structure
 struct InferenceBeta {
-  vec beta;          // Main coefficient vector (same as coefficients)
-  vec coefficients;  // Alias for beta
+  vec beta;         // Main coefficient vector (same as coefficients)
+  vec coefficients; // Alias for beta
   vec fitted_values;
   vec residuals;
   vec weights;
   mat hessian;
-  uvec coef_status;  // 1 = estimable, 0 = collinear
+  uvec coef_status; // 1 = estimable, 0 = collinear
   double scale;
   uvec pivot;
   double rank;
   bool success;
-  
+
   // Default constructor
   InferenceBeta() : scale(0.0), rank(0.0), success(false) {}
-  
+
   // Constructor with size parameters
-  InferenceBeta(size_t n, size_t p) 
+  InferenceBeta(size_t n, size_t p)
       : beta(p, fill::zeros), coefficients(p, fill::zeros),
         fitted_values(n, fill::zeros), residuals(n, fill::zeros),
         weights(n, fill::ones), hessian(p, p, fill::zeros),
@@ -36,24 +36,23 @@ struct InferenceAlpha {
   uvec nb_references;
   bool is_regular;
   bool success;
-  field<std::string> fe_names;      // Names for fixed effects categories
+  field<std::string> fe_names;         // Names for fixed effects categories
   field<field<std::string>> fe_levels; // Names for levels within each category
 
   InferenceAlpha() : is_regular(true), success(false) {}
 };
 
 struct CollinearityResult {
-  uvec coef_status;     // 1 = estimable, 0 = collinear
-  uvec collinear_cols;  // Vector of collinear columns (if any)
+  uvec coef_status;        // 1 = estimable, 0 = collinear
+  uvec collinear_cols;     // Vector of collinear columns (if any)
   uvec non_collinear_cols; // Vector of non-collinear columns (if any)
   bool has_collinearity;   // Collinearity detected?
-  size_t n_valid;         // Number of valid (non-collinear) columns
-  mat R;                  // R matrix from QR decomposition
-  
+  size_t n_valid;          // Number of valid (non-collinear) columns
+  mat R;                   // R matrix from QR decomposition
+
   // Default constructor
-  CollinearityResult() 
-      : has_collinearity(false), n_valid(0) {}
-  
+  CollinearityResult() : has_collinearity(false), n_valid(0) {}
+
   // Constructor with size
   CollinearityResult(size_t p)
       : coef_status(p, fill::ones), collinear_cols(p), non_collinear_cols(p),
@@ -135,7 +134,7 @@ inline CollinearityResult check_collinearity(mat &X, const vec &w,
 
   const size_t p = X.n_cols;
   const size_t n = X.n_rows;
-  
+
   CollinearityResult result(p);
 
   if (p == 0) {
@@ -245,7 +244,7 @@ struct BetaWorkspace {
 
   // Add default constructor
   BetaWorkspace() {}
-  
+
   BetaWorkspace(size_t n, size_t p) {
     size_t safe_n = std::max(n, size_t(1));
     size_t safe_p = std::max(p, size_t(1));
@@ -260,17 +259,19 @@ struct BetaWorkspace {
 
 // Optimized get_beta function
 inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
-                            const vec &w, const CollinearityResult &collin_result,
-                            bool weighted, bool scale_X, BetaWorkspace *workspace) {
+                              const vec &w,
+                              const CollinearityResult &collin_result,
+                              bool weighted, bool scale_X,
+                              BetaWorkspace *workspace) {
   const size_t n = X.n_rows;
   const size_t p = X.n_cols;
-  const size_t p_orig = collin_result.has_collinearity ? 
-                         collin_result.coef_status.n_elem : p;
+  const size_t p_orig =
+      collin_result.has_collinearity ? collin_result.coef_status.n_elem : p;
   const bool has_weights = !all(w == 1.0);
-  
+
   // Initialize result with appropriate dimensions
   InferenceBeta result(n, p_orig);
-    
+
   // If p = 0, there's nothing to estimate
   if (p == 0) {
     result.success = true;
@@ -282,17 +283,17 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
     result.hessian.zeros();
     return result;
   }
-  
+
   // If there's no workspace provided or y has zero size, return with error
   if (!workspace || y.n_elem == 0) {
     result.success = false;
     return result;
   }
-  
+
   // Use workspace for computation
   mat &XtX = workspace->XtX;
   vec &Xty = workspace->XtY;
-  
+
   // Resize workspace matrices if needed
   if (XtX.n_rows < p || XtX.n_cols < p) {
     XtX.set_size(p, p);
@@ -300,37 +301,37 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
   if (Xty.n_elem < p) {
     Xty.set_size(p);
   }
-  
+
   // Compute XtX and Xty with vectorization
   if (has_weights) {
     vec sqrt_w = sqrt(w);
     mat X_weighted = X.each_col() % sqrt_w;
     vec y_weighted = y % sqrt_w;
-    
+
     XtX = X_weighted.t() * X_weighted;
     Xty = X_weighted.t() * y_weighted;
   } else {
     XtX = X.t() * X;
     Xty = X.t() * y;
   }
-  
+
   // Solve the system using Cholesky decomposition
   vec beta_reduced(p, fill::none);
-  
+
   mat L;
   bool chol_success = chol(L, XtX, "lower");
-  
+
   if (chol_success) {
     // Solve L * z = Xty
     vec z = solve(trimatl(L), Xty, solve_opts::fast);
-    
+
     // Solve Lt * beta = z
     beta_reduced = solve(trimatu(L.t()), z, solve_opts::fast);
   } else {
     // Fallback to standard solve if Cholesky fails
     beta_reduced = solve(XtX, Xty, solve_opts::likely_sympd);
   }
-  
+
   // Set the coefficient vector in the result
   result.coefficients.zeros();
   if (collin_result.has_collinearity) {
@@ -338,34 +339,34 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
   } else {
     result.coefficients = beta_reduced;
   }
-  
+
   // Copy to beta field as well
   result.beta = result.coefficients;
   result.coef_status = collin_result.coef_status;
-  
+
   // Calculate fitted values - vectorized
   result.fitted_values = X * beta_reduced;
-  
+
   // Calculate residuals
   result.residuals = y_orig - result.fitted_values;
-  
+
   result.weights = w;
-  
+
   // Store hessian for standard errors
   result.hessian.set_size(p_orig, p_orig);
   result.hessian.zeros();
-  
+
   if (collin_result.has_collinearity) {
     if (collin_result.non_collinear_cols.n_elem > 0) {
       result.hessian(collin_result.non_collinear_cols,
-                    collin_result.non_collinear_cols) = XtX;
+                     collin_result.non_collinear_cols) = XtX;
     }
   } else {
     result.hessian = XtX;
   }
-  
+
   result.success = true;
-  
+
   return result;
 }
 

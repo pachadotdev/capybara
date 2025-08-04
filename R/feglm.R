@@ -160,7 +160,7 @@ feglm <- function(
   # Get names of the fixed effects variables and sort ----
   # the no FEs warning is printed in the check_formula_ function
   k_vars <- suppressWarnings(attr(terms(formula, rhs = 2L), "term.labels"))
-  if (length(k_vars) <1L) {
+  if (length(k_vars) < 1L) {
     k_vars <- "missing_fe"
     data[, `:=`("missing_fe", 1L)]
   }
@@ -220,7 +220,7 @@ feglm <- function(
   } else {
     k_list <- list(list(`1` = seq_len(nt) - 1L))
   }
-  
+
   # Set names on the k_list to ensure they're passed to C++
   names(k_list) <- k_vars
 
@@ -237,10 +237,10 @@ feglm <- function(
   X <- NULL
   eta <- NULL
 
-  # Add names to beta, hessian, and mx (if provided) ----
+  # Add names to beta, hessian, and tx (if provided) ----
   names(fit[["coefficients"]]) <- nms_sp
-  if (control[["keep_mx"]]) {
-    colnames(fit[["mx"]]) <- nms_sp
+  if (control[["keep_tx"]]) {
+    colnames(fit[["tx"]]) <- nms_sp
   }
   dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
 

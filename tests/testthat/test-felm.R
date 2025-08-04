@@ -157,10 +157,10 @@ test_that("felm correctly predicts values outside the inter-quartile range", {
 
   # print(coef(m1_lm))
   # print(coef(m2_lm)[2:3])
-  
+
   # print(m1_lm$fixed.effects)
   # print(coef(m2_lm)[c(1,4:5)] + c(0, coef(m2_lm)[1], coef(m2_lm)[1]))
-  
+
   pred1_lm <- predict(m1_lm, newdata = d1)
   pred2_lm <- predict(m1_lm, newdata = d2)
 

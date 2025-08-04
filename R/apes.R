@@ -180,14 +180,14 @@ apes <- function(
   }
 
   # Center regressor matrix (if required)
-  if (control[["keep_mx"]]) {
-    mx <- object[["mx"]]
+  if (control[["keep_tx"]]) {
+    tx <- object[["tx"]]
   } else {
-    mx <- center_variables_r_(X, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]])
+    tx <- center_variables_r_(X, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]])
   }
 
   # Compute average partial effects, derivatives, and Jacobian
-  px <- X - mx
+  px <- X - tx
   delta <- matrix(NA_real_, nt, p)
   delta1 <- matrix(NA_real_, nt, p)
   j <- matrix(NA_real_, p, p)
@@ -210,7 +210,7 @@ apes <- function(
     } else {
       delta[, i] <- beta[[i]] * delta[, i]
       delta1[, i] <- beta[[i]] * delta1[, i]
-      j[, i] <- colSums(mx * delta1[, i]) / nt_full
+      j[, i] <- colSums(tx * delta1[, i]) / nt_full
       j[i, i] <- sum(mu_eta) / nt_full + j[i, i]
     }
   }
@@ -235,7 +235,7 @@ apes <- function(
   rm(eta, w, z, mpsi)
 
   # Compute covariance matrix
-  gamma <- gamma_(mx, object[["hessian"]], j, ppsi, v, nt_full)
+  gamma <- gamma_(tx, object[["hessian"]], j, ppsi, v, nt_full)
   v <- crossprod(gamma)
 
   v <- apes_adjust_covariance_(

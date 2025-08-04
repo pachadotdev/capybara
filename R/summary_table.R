@@ -333,39 +333,39 @@ format_latex_table <- function(result_df, result2_df, stars, include_environment
   # Process coefficients
   for (i in 1:nrow(result_df)) {
     row <- result_df[i, ]
-    
+
     # First process variable name
     var_name <- as.character(row[1])
-    
+
     # Create coefficient row
     coef_values <- character(ncol(row))
-    coef_values[1] <- var_name  # Variable name
-    
+    coef_values[1] <- var_name # Variable name
+
     # Create SE row (empty in first column)
     se_values <- character(ncol(row))
-    se_values[1] <- ""  # Empty first column
-    
+    se_values[1] <- "" # Empty first column
+
     # Fill in coefficient and SE values for each model
     for (j in 2:ncol(row)) {
       cell <- row[j]
-      
+
       if (is.na(cell) || cell == "") {
         coef_values[j] <- ""
         se_values[j] <- ""
       } else if (grepl("\n", cell)) {
         # Split into coef and SE
         parts <- strsplit(as.character(cell), "\n")[[1]]
-        coef_values[j] <- parts[1]  # Coefficient with stars
-        se_values[j] <- parts[2]    # SE with parentheses
+        coef_values[j] <- parts[1] # Coefficient with stars
+        se_values[j] <- parts[2] # SE with parentheses
       } else {
         coef_values[j] <- as.character(cell)
         se_values[j] <- ""
       }
     }
-    
+
     # Add the coefficient row
     latex <- c(latex, paste(coef_values, collapse = " & "), "\\\\")
-    
+
     # Add the SE row if it has any content
     if (any(nchar(se_values) > 0)) {
       latex <- c(latex, paste(se_values, collapse = " & "), "\\\\")

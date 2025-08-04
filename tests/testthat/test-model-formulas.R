@@ -22,5 +22,5 @@ test_that("formulas with operators are handled correctly", {
   # interaction terms
   m1 <- felm(mpg ~ wt * qsec | cyl, mtcars)
   m2 <- lm(mpg ~ wt * qsec + as.factor(cyl), mtcars)
-  expect_equal(coef(m1), coef(m2)[c(2,3,6)], tolerance = 1e-2)
+  expect_equal(coef(m1), coef(m2)[c(2, 3, 6)], tolerance = 1e-2)
 })
