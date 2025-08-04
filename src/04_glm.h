@@ -129,7 +129,7 @@ double dev_resids_poisson_(const vec &y, const vec &mu, const vec &wt) {
 }
 
 // Adapted from binomial_dev_resids()
-// in R base it can be found in src/library/stats/src/family.c
+// in base R it can be found in src/library/stats/src/family.c
 // unfortunately the functions that work with a SEXP won't work with a Col<>
 double dev_resids_logit_(const vec &y, const vec &mu, const vec &wt) {
   vec r(y.n_elem, fill::zeros);
@@ -322,6 +322,9 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y,
   const size_t k = beta.n_elem;
   const bool has_fixed_effects = fe_groups.n_elem > 0;
     
+  // Keep a copy of original MX before centering for fixed effects computation
+  mat MX_original = MX;
+  
   // Initialize result object
   InferenceGLM result(n, p);
   
@@ -462,11 +465,23 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y,
     
     // Recover fixed effects if needed
     if (has_fixed_effects) {
-      // Calculate total fixed effects
-      vec sum_fe = eta - MX * beta;
+      // Following alpaca's getFE approach exactly for GLMs:
+      // pi = eta - X %*% beta where eta is the linear predictor
+      // We use the original (non-centered) X matrix, just like in felm_fit
       
-      // Use get_alpha to recover fixed effects
-      InferenceAlpha alpha_result = get_alpha(sum_fe, fe_groups, center_tol, iter_center_max);
+      // Compute X * beta using original (non-centered) data
+      vec x_beta;
+      if (MX_original.n_cols > 0) {
+        x_beta = MX_original * beta;
+      } else {
+        x_beta.zeros(n);
+      }
+      
+      // Compute pi = eta - X*beta (using original data, matching alpaca's getFE)
+      vec pi = eta - x_beta;
+      
+      // Use get_alpha to recover individual fixed effects from pi
+      InferenceAlpha alpha_result = get_alpha(pi, fe_groups);
       
       // Store fixed effects results
       result.fixed_effects = std::move(alpha_result.Alpha);
@@ -558,8 +573,6 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
 
     // Check if step-halving failed
     if (!dev_crit || !val_crit) {
-      // In a non-R context, we would handle this differently
-      // For now, we'll just use the last valid eta
       eta = eta_old;
       mu = link_inv_(eta, family_type);
       break;

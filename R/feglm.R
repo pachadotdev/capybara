@@ -220,6 +220,9 @@ feglm <- function(
   } else {
     k_list <- list(list(`1` = seq_len(nt) - 1L))
   }
+  
+  # Set names on the k_list to ensure they're passed to C++
+  names(k_list) <- k_vars
 
   # Fit generalized linear model ----
   if (is.integer(y)) {

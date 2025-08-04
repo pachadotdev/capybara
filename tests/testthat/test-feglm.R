@@ -124,15 +124,12 @@ test_that("predicted values increase the error outside the inter-quartile range 
 
   # Binomial GLM ----
 
-  devtools::load_all()
-
   m1_binom <- feglm(am ~ wt + disp | cyl, mtcars, family = binomial())
   # m2_binom <- fixest::feglm(am ~ wt + disp | cyl, mtcars, family = binomial())
   m2_binom <- glm(am ~ wt + disp + as.factor(cyl), mtcars, family = binomial())
 
-  coef(m1_binom)
-  # coef(m2_binom)
-  coef(m2_binom)[2:3]
+  # coef(m1_binom)
+  # coef(m2_binom)[2:3]
 
   pred1_binom <- predict(m1_binom, newdata = d1, type = "response")
   pred2_binom <- predict(m1_binom, newdata = d2, type = "response")

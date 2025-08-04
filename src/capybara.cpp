@@ -310,10 +310,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
       }
     }
   }
-  
-  // DON'T RECALCULATE FIXED EFFECTS - felm_fit already did this correctly!
-  // Just use what felm_fit computed
-  
+    
   // Replace collinear coefficients with R's NA_REAL using vectorized approach
   uvec collinear_mask = (result.coef_status == 0);
   if (any(collinear_mask)) {
@@ -419,11 +416,36 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   // Convert FEs list to Armadillo field
   field<field<uvec>> fe_groups = R_list_to_Armadillo_field(k_list);
   
-  // Call the implementation function with proper namespace
   capybara::InferenceGLM result = capybara::feglm_fit(beta, eta, y, MX, w, theta, family_type,
                                 fe_groups, center_tol, iter_max, iter_center_max, 
                                 iter_inner_max, iter_interrupt, iter_ssr, 
                                 dev_tol, keep_mx);
+  
+  // Extract names from the k_list if available
+  field<std::string> fe_names(k_list.size());
+  field<field<std::string>> fe_levels(k_list.size());
+  
+  // Check if names attribute exists on the k_list
+  if (!k_list.names().empty()) {
+    cpp11::strings fe_names_r = k_list.names();
+    for (size_t i = 0; i < static_cast<size_t>(fe_names_r.size()); i++) {
+      fe_names(i) = std::string(fe_names_r[i]);
+    }
+  }
+  
+  // Extract level names from each FE group
+  for (size_t k = 0; k < static_cast<size_t>(k_list.size()); k++) {
+    const list &group_list = as_cpp<list>(k_list[k]);
+    fe_levels(k).set_size(group_list.size());
+    
+    // Check if names attribute exists on this group
+    if (!group_list.names().empty()) {
+      cpp11::strings level_names = group_list.names();
+      for (size_t j = 0; j < static_cast<size_t>(level_names.size()); j++) {
+        fe_levels(k)(j) = std::string(level_names[j]);
+      }
+    }
+  }
   
   // Replace collinear coefficients with R's NA_REAL using vectorized approach
   uvec collinear_mask = (result.coef_status == 0);
@@ -444,12 +466,45 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
      "iter"_nm = writable::integers({static_cast<int>(result.iter + 1)})}
   );
   
-  // Add fixed effects if available
+  // Add fixed effects information if available
   if (result.has_fe && result.fixed_effects.n_elem > 0) {
     writable::list fe_list(result.fixed_effects.n_elem);
+    
+    // Create a vector of names for the list elements
+    writable::strings fe_list_names(result.fixed_effects.n_elem);
+    
     for (size_t k = 0; k < result.fixed_effects.n_elem; ++k) {
-      fe_list[k] = as_doubles(result.fixed_effects(k));
+      // Create a doubles object with the fixed effects values
+      writable::doubles fe_values = as_doubles(result.fixed_effects(k));
+      
+      // Add level names as row names if available
+      if (k < fe_levels.n_elem && fe_levels(k).n_elem > 0) {
+        writable::strings level_names(fe_levels(k).n_elem);
+        for (size_t j = 0; j < fe_levels(k).n_elem; j++) {
+          if (!fe_levels(k)(j).empty()) {
+            level_names[j] = fe_levels(k)(j);
+          } else {
+            level_names[j] = std::to_string(j+1); // Default numeric names
+          }
+        }
+        fe_values.attr("names") = level_names;
+      }
+      
+      // Store the fixed effect values in the list
+      fe_list[k] = fe_values;
+      
+      // Save the name for this fixed effect
+      if (!k_list.names().empty() && k < static_cast<size_t>(k_list.names().size())) {
+        fe_list_names[k] = k_list.names()[k];
+      } else {
+        fe_list_names[k] = std::to_string(k+1);
+      }
     }
+    
+    // Set the names on the list
+    fe_list.names() = fe_list_names;
+    
+    // Add the fixed effects list to the output
     out.push_back({"fixed.effects"_nm = fe_list});
     
     if (!result.nb_references.is_empty()) {

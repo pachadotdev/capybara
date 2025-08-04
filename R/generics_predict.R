@@ -44,9 +44,16 @@ predict.feglm <- function(object, newdata = NULL, type = c("link", "response"), 
     fes2 <- list()
 
     for (name in names(fes)) {
-      # # match the FE rownames and replace each level in the data with the FE
       fe <- fes[[name]]
-      fes2[[name]] <- fe[match(data[[name]], rownames(fe)), ]
+
+      fe_values <- fe
+      fe_names <- names(fe_values)
+
+      # Match values and handle missing levels
+      data_values <- data[[name]]
+      matched_values <- fe_values[match(data_values, fe_names)]
+      matched_values[is.na(matched_values)] <- 0 # Set missing levels to 0
+      fes2[[name]] <- matched_values
     }
 
     eta <- X %*% object$coefficients + Reduce("+", fes2)
@@ -58,7 +65,11 @@ predict.feglm <- function(object, newdata = NULL, type = c("link", "response"), 
     eta <- object[["family"]][["linkinv"]](eta)
   }
 
-  as.numeric(eta)
+  # Convert to vector and assign names
+  eta <- as.vector(eta)
+  names(eta) <- seq_along(eta)
+
+  eta
 }
 
 #' @title Predict method for 'felm' objects
@@ -104,8 +115,14 @@ predict.felm <- function(object, newdata = NULL, type = c("response", "terms"), 
     coef0 <- object$coefficients
     coef0[is.na(coef0)] <- 0
 
-    return(as.numeric(X %*% coef0 + Reduce("+", fes2)))
+    y <- X %*% coef0 + Reduce("+", fes2)
   } else {
-    return(object[["fitted.values"]])
+    y <- object[["fitted.values"]]
   }
+
+  # Ensure y is a vector and assign names
+  y <- as.vector(y)
+  names(y) <- seq_along(y)
+
+  y
 }
