@@ -369,12 +369,8 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
     
     // Add the fixed effects list to the output
     ret.push_back({"fixed.effects"_nm = fe_list});
-    
-    if (!result.nb_references.is_empty()) {
-      ret.push_back({"nb_references"_nm = as_integers(result.nb_references)});
-    }
-    
-    ret.push_back({"is_regular"_nm = result.is_regular});
+
+    ret.push_back({"has_fe"_nm = result.has_fe});
   }
   
   // Add iterations if available
@@ -506,12 +502,8 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
     
     // Add the fixed effects list to the output
     out.push_back({"fixed.effects"_nm = fe_list});
-    
-    if (!result.nb_references.is_empty()) {
-      out.push_back({"nb_references"_nm = as_integers(result.nb_references)});
-    }
-    
-    out.push_back({"is_regular"_nm = result.is_regular});
+   
+
   }
   
   // Add design matrix if kept
@@ -621,11 +613,7 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
     }
     out.push_back({"fixed.effects"_nm = fe_list});
     
-    if (!result.nb_references.is_empty()) {
-      out.push_back({"nb_references"_nm = as_integers(result.nb_references)});
-    }
-    
-    out.push_back({"is_regular"_nm = writable::logicals({result.is_regular})});
+    out.push_back({"has_fe"_nm = result.has_fe});
   }
   
   // Add design matrix if requested

@@ -39,13 +39,7 @@ struct InferenceGLM {
   size_t iter;
   uvec coef_status; // 1 = estimable, 0 = collinear
 
-  vec residuals_working;
-  vec residuals_response;
-
   field<vec> fixed_effects;
-  vec fe_coefficients; // Fixed effects coefficients for warm-starting
-  uvec nb_references; // Number of references per dimension
-  bool is_regular;    // Whether fixed effects are regular
   bool has_fe = false;
   uvec iterations;
 
@@ -59,8 +53,7 @@ struct InferenceGLM {
         fitted_values(n, fill::zeros), weights(n, fill::ones),
         hessian(p, p, fill::zeros), deviance(0.0), null_deviance(0.0),
         conv(false), iter(0), coef_status(p, fill::ones),
-        residuals_working(n, fill::zeros), residuals_response(n, fill::zeros),
-        is_regular(true), has_fe(false), has_mx(false) {}
+        has_fe(false), has_mx(false) {}
 };
 
 std::string tidy_family_(const std::string &family) {
@@ -480,13 +473,8 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y,
       // Compute pi = eta - X*beta (using original data, matching alpaca's getFE)
       vec pi = eta - x_beta;
       
-      // Use get_alpha to recover individual fixed effects from pi
-      InferenceAlpha alpha_result = get_alpha(pi, fe_groups);
-      
       // Store fixed effects results
-      result.fixed_effects = std::move(alpha_result.Alpha);
-      result.nb_references = std::move(alpha_result.nb_references);
-      result.is_regular = alpha_result.is_regular;
+      result.fixed_effects = get_alpha(pi, fe_groups);
       result.has_fe = true;
     }
     
@@ -724,11 +712,7 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
       result.conv = glm_fit.conv;
       result.iter = glm_fit.iter;
       result.coef_status = std::move(glm_fit.coef_status);
-      result.residuals_working = std::move(glm_fit.residuals_working);
-      result.residuals_response = std::move(glm_fit.residuals_response);
       result.fixed_effects = std::move(glm_fit.fixed_effects);
-      result.nb_references = std::move(glm_fit.nb_references);
-      result.is_regular = glm_fit.is_regular;
       result.has_fe = glm_fit.has_fe;
       result.X_dm = std::move(glm_fit.X_dm);
       result.has_mx = glm_fit.has_mx;
@@ -757,11 +741,7 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
     result.conv = glm_fit.conv;
     result.iter = glm_fit.iter;
     result.coef_status = std::move(glm_fit.coef_status);
-    result.residuals_working = std::move(glm_fit.residuals_working);
-    result.residuals_response = std::move(glm_fit.residuals_response);
     result.fixed_effects = std::move(glm_fit.fixed_effects);
-    result.nb_references = std::move(glm_fit.nb_references);
-    result.is_regular = glm_fit.is_regular;
     result.has_fe = glm_fit.has_fe;
     result.X_dm = std::move(glm_fit.X_dm);
     result.has_mx = glm_fit.has_mx;

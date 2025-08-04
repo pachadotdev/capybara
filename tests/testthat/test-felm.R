@@ -135,11 +135,11 @@ test_that("proportional regressors return NA coefficients", {
   fit1 <- lm(y ~ x1 + x2 + as.factor(f), data = d)
   fit2 <- felm(y ~ x1 + x2 | f, data = d)
 
-  fit1$coefficients
-  fit2$coefficients
+  # fit1$coefficients
+  # fit2$coefficients
 
   expect_equal(coef(fit2), coef(fit1)[2:3], tolerance = 1e-2)
-  expect_equal(predict(fit2), unname(predict(fit1)), tolerance = 1e-2)
+  expect_equal(predict(fit2), predict(fit1), tolerance = 1e-2)
 })
 
 test_that("felm correctly predicts values outside the inter-quartile range", {
@@ -173,11 +173,11 @@ test_that("felm correctly predicts values outside the inter-quartile range", {
   pred1_base_lm <- predict(m2_lm, newdata = d1)
   pred2_base_lm <- predict(m2_lm, newdata = d2)
 
-  pred1_base_lm
-  pred2_base_lm
+  # pred1_base_lm
+  # pred2_base_lm
 
-  expect_equal(pred1_lm, unname(pred1_base_lm), tolerance = 1e-2)
-  expect_equal(pred2_lm, unname(pred2_base_lm), tolerance = 1e-2)
+  expect_equal(pred1_lm, pred1_base_lm, tolerance = 1e-2)
+  expect_equal(pred2_lm, pred2_base_lm, tolerance = 1e-2)
 })
 
 test_that("felm with weights works", {

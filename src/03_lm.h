@@ -15,8 +15,6 @@ struct InferenceLM {
   bool success;
 
   field<vec> fixed_effects;
-  uvec nb_references; // Number of references per dimension
-  bool is_regular;    // Whether fixed effects are regular
   bool has_fe = true;
   uvec iterations;
 
@@ -24,7 +22,7 @@ struct InferenceLM {
       : coefficients(p, fill::zeros), fitted_values(n, fill::zeros),
         residuals(n, fill::zeros), weights(n, fill::ones),
         hessian(p, p, fill::zeros), coef_status(p, fill::ones), success(false),
-        is_regular(true), has_fe(false) {}
+        has_fe(false) {}
 };
 
 mat crossprod(const mat &X, const vec &w) {
@@ -105,8 +103,8 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
     vec pi = y_original - x_beta;
     
     // Use get_alpha to solve for individual fixed effects from pi
-    InferenceAlpha alpha_result = get_alpha(pi, fe_groups);
-    result.fixed_effects = alpha_result.Alpha;
+    result.fixed_effects = get_alpha(pi, fe_groups);
+    result.has_fe = true;
     
     // Compute final fitted values = X*beta + fixed effects
     result.fitted_values = x_beta;

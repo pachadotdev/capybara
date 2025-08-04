@@ -369,42 +369,30 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
   return result;
 }
 
-// Simplified, optimized get_alpha function that matches alpaca's getAlpha exactly
-inline InferenceAlpha get_alpha(const vec &pi,
-                                      const field<field<uvec>> &group_indices,
-                                      double tol = 1e-8, size_t iter_max = 10000) {
+// Simplified, optimized get_alpha function that returns only field<vec>
+inline field<vec> get_alpha(const vec &pi,
+                            const field<field<uvec>> &group_indices,
+                            double tol = 1e-8, size_t iter_max = 10000) {
   const size_t K = group_indices.n_elem;
   const size_t N = pi.n_elem;
-  InferenceAlpha result;
-  
-  // Initialize fields
-  result.Alpha.set_size(K);
-  result.nb_references.set_size(K);
-  result.nb_references.zeros();
-  result.is_regular = true;
-  result.success = true;
-  
+  field<vec> Alpha(K);
   if (K == 0 || N == 0) {
-    return result;
+    return Alpha;
   }
-  
   // Pre-allocate Alpha vectors
   for (size_t k = 0; k < K; ++k) {
     const size_t J = group_indices(k).n_elem;
-    result.Alpha(k).set_size(J);
-    result.Alpha(k).zeros();
+    Alpha(k).set_size(J);
+    Alpha(k).zeros();
   }
-  
   // Alternating algorithm
   vec y(N);
   field<vec> Alpha0(K);
   double crit = 1.0;
   size_t iter = 0;
-  
   while (crit > tol && iter < iter_max) {
     // Store previous iteration
-    Alpha0 = result.Alpha;
-    
+    Alpha0 = Alpha;
     // Solve normal equations for each category k
     for (size_t k = 0; k < K; ++k) {
       // Compute adjusted dependent variable y = pi - sum of other fixed effects
@@ -416,40 +404,35 @@ inline InferenceAlpha get_alpha(const vec &pi,
             const uvec &indexes = group_indices(kk)(j);
             const size_t T = indexes.n_elem;
             for (size_t t = 0; t < T; ++t) {
-              y(indexes[t]) -= result.Alpha(kk)(j);
+              y(indexes[t]) -= Alpha(kk)(j);
             }
           }
         }
       }
-      
       // Compute group means for category k
       const size_t J = group_indices(k).n_elem;
       for (size_t j = 0; j < J; ++j) {
         const uvec &indexes = group_indices(k)(j);
         const size_t T = indexes.n_elem;
-        
         if (T > 0) {
           // Compute group sum
           double sum = 0.0;
           for (size_t t = 0; t < T; ++t) {
             sum += y(indexes[t]);
           }
-          
           // Store group mean
-          result.Alpha(k)(j) = sum / T;
+          Alpha(k)(j) = sum / T;
         } else {
-          result.Alpha(k)(j) = 0.0;
+          Alpha(k)(j) = 0.0;
         }
       }
     }
-    
     // Compute convergence criterion
     double num = 0.0, denom = 0.0;
     for (size_t k = 0; k < K; ++k) {
-      num += arma::accu(arma::square(result.Alpha(k) - Alpha0(k)));
+      num += arma::accu(arma::square(Alpha(k) - Alpha0(k)));
       denom += arma::accu(arma::square(Alpha0(k)));
     }
-    
     // Handle case where denom is zero (all Alpha0 values are zero)
     if (denom > 0.0) {
       crit = std::sqrt(num / denom);
@@ -458,19 +441,9 @@ inline InferenceAlpha get_alpha(const vec &pi,
     } else {
       crit = 0.0;
     }
-    
-    if (iter % 100 == 0 || iter < 10) {
-      std::cout << "get_alpha iter " << iter << ": crit = " << crit;
-      if (K > 0 && result.Alpha(0).n_elem > 0) {
-        std::cout << ", Alpha[0][0] = " << result.Alpha(0)(0);
-      }
-      std::cout << std::endl;
-    }
-    
     ++iter;
-  }  
-  
-  return result;
+  }
+  return Alpha;
 }
 
 } // namespace capybara
