@@ -26,159 +26,38 @@ using cpp11::strings;
 
 // Passing parameters from R to C++ functions
 struct CapybaraParameters {
-  // Core tolerance parameters
   double dev_tol;
-  double demean_tol;
+  double center_tol;
   double collin_tol;
-
-  // Iteration parameters
   size_t iter_max;
-  size_t iter_max_cluster;
-  size_t iter_full_dicho;
   size_t iter_demean_max;
   size_t iter_inner_max;
   size_t iter_interrupt;
   size_t iter_ssr;
-
-  // Convergence parameters
-  double rel_tol_denom;
-  double irons_tuck_eps;
-  double safe_division_min;
-  double safe_log_min;
-  double newton_raphson_tol;
-  size_t convergence_iter_max;
-  size_t convergence_iter_full_dicho;
-
-  // GLM parameters
   double step_halving_factor;
-  double binomial_mu_min;
-  double binomial_mu_max;
-  double safe_clamp_min;
-  double safe_clamp_max;
-  double glm_init_eta;
-
-  // Negative binomial parameters
-  size_t iter_nb_theta;
-  double nb_theta_tol;
-  double nb_info_min;
-  double nb_overdispersion_threshold;
-  double nb_theta_min;
-  double nb_theta_max;
-  double nb_step_max_decrease;
-  double nb_step_max_increase;
-
-  // Algorithm configuration
-  double direct_qr_threshold;
-  double qr_collin_tol_multiplier;
-  double chol_stability_threshold;
-
-  // Alpha computation
+  bool keep_tx;
   double alpha_convergence_tol;
   size_t alpha_iter_max;
 
-  // Demean algorithm
-  size_t demean_extra_projections;
-  size_t demean_warmup_iterations;
-  size_t demean_projections_after_acc;
-  size_t demean_grand_acc_frequency;
-  size_t demean_ssr_check_frequency;
-
-  // 2-FEs specific parameters
-  size_t demean_2fe_max_iter;
-  double demean_2fe_tolerance;
-
-  // Configuration flags
-  bool keep_tx;
-  bool use_weights;
-
-  // Constructor with default initialization (matching fit_control defaults)
   CapybaraParameters()
-      : dev_tol(1.0e-8), demean_tol(1.0e-8), collin_tol(1.0e-7), iter_max(25),
-        iter_max_cluster(100), iter_full_dicho(10), iter_demean_max(10000),
-        iter_inner_max(50), iter_interrupt(1000), iter_ssr(10),
-        rel_tol_denom(0.1), irons_tuck_eps(1.0e-14), safe_division_min(1.0e-12),
-        safe_log_min(1.0e-12), newton_raphson_tol(1.0e-8),
-        convergence_iter_max(100), convergence_iter_full_dicho(10),
-        step_halving_factor(0.5), binomial_mu_min(0.001),
-        binomial_mu_max(0.999), safe_clamp_min(1.0e-15), safe_clamp_max(1.0e12),
-        glm_init_eta(1.0e-5), iter_nb_theta(10), nb_theta_tol(1.0e-6),
-        nb_info_min(1.0e-12), nb_overdispersion_threshold(0.01),
-        nb_theta_min(0.1), nb_theta_max(1.0e6), nb_step_max_decrease(0.1),
-        nb_step_max_increase(0.5), direct_qr_threshold(0.9),
-        qr_collin_tol_multiplier(1.0e-7), chol_stability_threshold(1.0e-12),
-        alpha_convergence_tol(1.0e-8), alpha_iter_max(10000),
-        demean_extra_projections(0), demean_warmup_iterations(5),
-        demean_projections_after_acc(5), demean_grand_acc_frequency(20),
-        demean_ssr_check_frequency(40), demean_2fe_max_iter(100),
-        demean_2fe_tolerance(1.0e-12), keep_tx(false), use_weights(true) {}
+      : dev_tol(1.0e-8), center_tol(1.0e-8), collin_tol(1.0e-7), iter_max(25),
+        iter_demean_max(10000), iter_inner_max(50), iter_interrupt(1000), iter_ssr(10),
+        step_halving_factor(0.5), keep_tx(false), alpha_convergence_tol(1.0e-8),
+        alpha_iter_max(10000) {}
 
-  // Constructor from R control list
   explicit CapybaraParameters(const cpp11::list &control) {
-    // Extract all parameters from R control list
     dev_tol = as_cpp<double>(control["dev_tol"]);
-    demean_tol = as_cpp<double>(control["demean_tol"]);
+    center_tol = as_cpp<double>(control["center_tol"]);
     collin_tol = as_cpp<double>(control["collin_tol"]);
-
     iter_max = as_cpp<size_t>(control["iter_max"]);
-    iter_max_cluster = as_cpp<size_t>(control["iter_max_cluster"]);
-    iter_full_dicho = as_cpp<size_t>(control["iter_full_dicho"]);
     iter_demean_max = as_cpp<size_t>(control["iter_demean_max"]);
     iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]);
     iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]);
     iter_ssr = as_cpp<size_t>(control["iter_ssr"]);
-
-    rel_tol_denom = as_cpp<double>(control["rel_tol_denom"]);
-    irons_tuck_eps = as_cpp<double>(control["irons_tuck_eps"]);
-    safe_division_min = as_cpp<double>(control["safe_division_min"]);
-    safe_log_min = as_cpp<double>(control["safe_log_min"]);
-    newton_raphson_tol = as_cpp<double>(control["newton_raphson_tol"]);
-
-    convergence_iter_max = as_cpp<size_t>(control["convergence_iter_max"]);
-    convergence_iter_full_dicho =
-        as_cpp<size_t>(control["convergence_iter_full_dicho"]);
-
     step_halving_factor = as_cpp<double>(control["step_halving_factor"]);
-    binomial_mu_min = as_cpp<double>(control["binomial_mu_min"]);
-    binomial_mu_max = as_cpp<double>(control["binomial_mu_max"]);
-    safe_clamp_min = as_cpp<double>(control["safe_clamp_min"]);
-    safe_clamp_max = as_cpp<double>(control["safe_clamp_max"]);
-    glm_init_eta = as_cpp<double>(control["glm_init_eta"]);
-
-    iter_nb_theta = as_cpp<size_t>(control["iter_nb_theta"]);
-    nb_theta_tol = as_cpp<double>(control["nb_theta_tol"]);
-    nb_info_min = as_cpp<double>(control["nb_info_min"]);
-    nb_overdispersion_threshold =
-        as_cpp<double>(control["nb_overdispersion_threshold"]);
-    nb_theta_min = as_cpp<double>(control["nb_theta_min"]);
-    nb_theta_max = as_cpp<double>(control["nb_theta_max"]);
-    nb_step_max_decrease = as_cpp<double>(control["nb_step_max_decrease"]);
-    nb_step_max_increase = as_cpp<double>(control["nb_step_max_increase"]);
-
-    direct_qr_threshold = as_cpp<double>(control["direct_qr_threshold"]);
-    qr_collin_tol_multiplier =
-        as_cpp<double>(control["qr_collin_tol_multiplier"]);
-    chol_stability_threshold =
-        as_cpp<double>(control["chol_stability_threshold"]);
-
+    keep_tx = as_cpp<bool>(control["keep_tx"]);
     alpha_convergence_tol = as_cpp<double>(control["alpha_convergence_tol"]);
     alpha_iter_max = as_cpp<size_t>(control["alpha_iter_max"]);
-
-    demean_extra_projections =
-        as_cpp<size_t>(control["demean_extra_projections"]);
-    demean_warmup_iterations =
-        as_cpp<size_t>(control["demean_warmup_iterations"]);
-    demean_projections_after_acc =
-        as_cpp<size_t>(control["demean_projections_after_acc"]);
-    demean_grand_acc_frequency =
-        as_cpp<size_t>(control["demean_grand_acc_frequency"]);
-    demean_ssr_check_frequency =
-        as_cpp<size_t>(control["demean_ssr_check_frequency"]);
-
-    demean_2fe_max_iter = as_cpp<size_t>(control["demean_2fe_max_iter"]);
-    demean_2fe_tolerance = as_cpp<double>(control["demean_2fe_tolerance"]);
-
-    keep_tx = as_cpp<bool>(control["keep_tx"]);
-    use_weights = as_cpp<bool>(control["use_weights"]);
   }
 };
 

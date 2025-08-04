@@ -357,10 +357,10 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     nu_old = nu;
 
     if (has_fixed_effects) {
-      center_variables(MNU, w_working, fe_groups, params.demean_tol,
+      center_variables(MNU, w_working, fe_groups, params.center_tol,
                        params.iter_demean_max, params.iter_interrupt,
                        params.iter_ssr);
-      center_variables(X, w_working, fe_groups, params.demean_tol,
+      center_variables(X, w_working, fe_groups, params.center_tol,
                        params.iter_demean_max, params.iter_interrupt,
                        params.iter_ssr);
     }
@@ -545,7 +545,7 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
     Myadj += yadj;
 
     // Use C++/Armadillo types for centering
-    center_variables(Myadj, w_working, fe_groups, params.demean_tol,
+    center_variables(Myadj, w_working, fe_groups, params.center_tol,
                      params.iter_demean_max, params.iter_interrupt,
                      params.iter_ssr);
 

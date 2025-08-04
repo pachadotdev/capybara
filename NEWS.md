@@ -1,18 +1,10 @@
 # capybara 2.0.0
 
-* Uses `fixest` demeaning approach.
 * There are no breaking changes, even when the internal code was completely
-  rewritten.
-* For the fixed effects, there is an open problem about which normalization to
-  use, and in this case I used the same as `fixest` and tested against base R
-  to check for correctness.
+  rewritten. All the computation is done on C++ side.
+* Implements a rank-revealing Cholesky factorisation like fixest.
 
 # capybara 1.6.0
-
-* Uses the same Poisson separation property and closed-form 2 FE solutions
-  as in `ppmlhdfe`.
-
-# capybara 1.5.0
 
 * Handles collinearities in the model matrix by using a QR decomposition
   when Cholesky fails. Otherwise, the estimation fails, and now it can return

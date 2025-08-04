@@ -66,13 +66,13 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
 
   if (has_fixed_effects) {
     // Demean y
-    center_variables(y_demeaned, w, fe_groups, params.demean_tol,
+    center_variables(y_demeaned, w, fe_groups, params.center_tol,
                      params.iter_demean_max, params.iter_interrupt,
                      params.iter_ssr);
 
     // Demean X columns
     if (X.n_cols > 0) {
-      center_variables(X, w, fe_groups, params.demean_tol,
+      center_variables(X, w, fe_groups, params.center_tol,
                        params.iter_demean_max, params.iter_interrupt,
                        params.iter_ssr);
     }

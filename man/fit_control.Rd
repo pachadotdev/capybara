@@ -9,14 +9,14 @@ fit_control(
   center_tol = 1e-06,
   collin_tol = 1e-07,
   iter_max = 25L,
-  iter_center_max = 10000L,
+  iter_demean_max = 10000L,
   iter_inner_max = 50L,
   iter_interrupt = 1000L,
   iter_ssr = 10L,
-  limit = 10L,
-  trace = FALSE,
-  drop_pc = TRUE,
-  keep_tx = FALSE
+  step_halving_factor = 0.5,
+  keep_tx = FALSE,
+  alpha_convergence_tol = 1e-08,
+  alpha_iter_max = 10000L
 )
 }
 \arguments{
@@ -34,9 +34,6 @@ centered variable similar to the \code{'lfe'} package. The default is
 \item{iter_max}{unsigned integer indicating the maximum number of iterations
 in the maximization routine. The default is \code{25L}.}
 
-\item{iter_center_max}{unsigned integer indicating the maximum number of
-iterations in the centering algorithm. The default is \code{10000L}.}
-
 \item{iter_inner_max}{unsigned integer indicating the maximum number of
 iterations in the inner loop of the centering algorithm. The default is
 \code{50L}.}
@@ -47,6 +44,18 @@ iterations before the algorithm is interrupted. The default is \code{1000L}.}
 \item{iter_ssr}{unsigned integer indicating the number of iterations
 to skip before checking if the sum of squared residuals improves. The default
 is \code{10L}.}
+
+\item{step_halving_factor}{numeric indicating the factor by which the step
+size is halved to iterate towards convergence. This is used to control the
+step size during optimization. The default is \code{0.5}.}
+
+\item{keep_tx}{logical indicating if the centered regressor matrix should be
+stored. The centered regressor matrix is required for some covariance
+estimators, bias corrections, and average partial effects. This option saves
+some computation time at the cost of memory. The default is \code{TRUE}.}
+
+\item{iter_center_max}{unsigned integer indicating the maximum number of
+iterations in the centering algorithm. The default is \code{10000L}.}
 
 \item{limit}{unsigned integer indicating the maximum number of iterations of
 \code{\link[MASS]{theta.ml}}. The default is \code{10L}.}
@@ -60,11 +69,6 @@ option is useful to reduce the computational costs of the maximization
 problem and improves the numerical stability of the algorithm. Note that
 dropping perfectly separated observations does not affect the estimates.
 The default is \code{TRUE}.}
-
-\item{keep_tx}{logical indicating if the centered regressor matrix should be
-stored. The centered regressor matrix is required for some covariance
-estimators, bias corrections, and average partial effects. This option saves
-some computation time at the cost of memory. The default is \code{TRUE}.}
 }
 \value{
 A named list of control parameters.

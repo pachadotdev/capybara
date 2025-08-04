@@ -59,11 +59,11 @@ eighteen elements:
 \item{conv}{a logical indicating whether the model converged}
 \item{iter}{the number of iterations needed to converge}
 \item{theta}{the estimated theta parameter}
-\item{iter.outer}{the number of outer iterations}
-\item{conv.outer}{a logical indicating whether the outer loop converged}
+\item{iter_outer}{the number of outer iterations}
+\item{conv_outer}{a logical indicating whether the outer loop converged}
 \item{nobs}{a named vector with the number of observations used in the
 estimation indicating the dropped and perfectly predicted observations}
-\item{lvls_k}{a named vector with the number of levels in each fixed
+\item{fe_levels}{a named vector with the number of levels in each fixed
 effects}
 \item{nms_fe}{a list with the names of the fixed effects variables}
 \item{formula}{the formula used in the model}

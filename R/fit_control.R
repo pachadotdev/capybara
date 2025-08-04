@@ -54,6 +54,9 @@ NULL
 #'  problem and improves the numerical stability of the algorithm. Note that
 #'  dropping perfectly separated observations does not affect the estimates.
 #'  The default is \code{TRUE}.
+#' @param step_halving_factor numeric indicating the factor by which the step
+#'  size is halved to iterate towards convergence. This is used to control the
+#'  step size during optimization. The default is \code{0.5}.
 #' @param keep_tx logical indicating if the centered regressor matrix should be
 #'  stored. The centered regressor matrix is required for some covariance
 #'  estimators, bias corrections, and average partial effects. This option saves
@@ -72,14 +75,14 @@ fit_control <- function(
     center_tol = 1.0e-06,
     collin_tol = 1.0e-07,
     iter_max = 25L,
-    iter_center_max = 10000L,
+    iter_demean_max = 10000L,
     iter_inner_max = 50L,
     iter_interrupt = 1000L,
     iter_ssr = 10L,
-    limit = 10L,
-    trace = FALSE,
-    drop_pc = TRUE,
-    keep_tx = FALSE) {
+    step_halving_factor = 0.5,
+    keep_tx = FALSE,
+    alpha_convergence_tol = 1.0e-8,
+    alpha_iter_max = 10000L) {
   # Check validity of tolerance parameters
   if (dev_tol <= 0.0 || center_tol <= 0.0 || collin_tol <= 0.0) {
     stop(
@@ -97,9 +100,9 @@ fit_control <- function(
     )
   }
 
-  # Check validity of 'iter_center_max'
-  iter_center_max <- as.integer(iter_center_max)
-  if (iter_center_max < 1L) {
+  # iter_demean_max replaces iter_center_max
+  iter_demean_max <- as.integer(iter_demean_max)
+  if (iter_demean_max < 1L) {
     stop(
       "Maximum number of iterations for centering should be at least one.",
       call. = FALSE
@@ -132,65 +135,18 @@ fit_control <- function(
       call. = FALSE
     )
   }
-
-  # Check validity of 'limit'
-  limit <- as.integer(limit)
-  if (limit < 1L) {
-    stop("Maximum number of iterations should be at least one.", call. = FALSE)
-  }
-
-  # Return list with control parameters
   list(
     dev_tol = dev_tol,
     center_tol = center_tol,
     collin_tol = collin_tol,
     iter_max = iter_max,
-    iter_center_max = iter_center_max,
+    iter_demean_max = iter_demean_max,
     iter_inner_max = iter_inner_max,
     iter_interrupt = iter_interrupt,
     iter_ssr = iter_ssr,
-    limit = limit,
-    trace = as.logical(trace),
-    drop_pc = as.logical(drop_pc),
+    step_halving_factor = step_halving_factor,
     keep_tx = as.logical(keep_tx),
-    # Add all other parameters from CapybaraParameters
-    demean_tol = center_tol,
-    rel_tol_denom = 0.1,
-    irons_tuck_eps = 1.0e-14,
-    safe_division_min = 1.0e-12,
-    safe_log_min = 1.0e-12,
-    newton_raphson_tol = 1.0e-8,
-    convergence_iter_max = 100L,
-    convergence_iter_full_dicho = 10L,
-    iter_max_cluster = 100L,
-    iter_full_dicho = 10L,
-    iter_demean_max = 10000L,
-    step_halving_factor = 0.5,
-    binomial_mu_min = 0.001,
-    binomial_mu_max = 0.999,
-    safe_clamp_min = 1.0e-15,
-    safe_clamp_max = 1.0e12,
-    glm_init_eta = 1.0e-5,
-    iter_nb_theta = 10L,
-    nb_theta_tol = 1.0e-6,
-    nb_info_min = 1.0e-12,
-    nb_overdispersion_threshold = 0.01,
-    nb_theta_min = 0.1,
-    nb_theta_max = 1.0e6,
-    nb_step_max_decrease = 0.1,
-    nb_step_max_increase = 0.5,
-    direct_qr_threshold = 0.9,
-    qr_collin_tol_multiplier = 1.0e-7,
-    chol_stability_threshold = 1.0e-12,
-    alpha_convergence_tol = 1.0e-8,
-    alpha_iter_max = 10000L,
-    demean_extra_projections = 0L,
-    demean_warmup_iterations = 5L,
-    demean_projections_after_acc = 5L,
-    demean_grand_acc_frequency = 20L,
-    demean_ssr_check_frequency = 40L,
-    demean_2fe_max_iter = 100L,
-    demean_2fe_tolerance = 1.0e-12,
-    use_weights = TRUE
+    alpha_convergence_tol = alpha_convergence_tol,
+    alpha_iter_max = alpha_iter_max
   )
 }

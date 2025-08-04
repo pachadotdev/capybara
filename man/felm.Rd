@@ -28,13 +28,13 @@ process. See \code{\link{fit_control}} for details.}
 A named list of class \code{"felm"}. The list contains the following
 eleven elements:
 \item{coefficients}{a named vector of the estimated coefficients}
-\item{fitted.values}{a vector of the estimated dependent variable}
+\item{fitted_values}{a vector of the estimated dependent variable}
 \item{weights}{a vector of the weights used in the estimation}
 \item{hessian}{a matrix with the numerical second derivatives}
 \item{null_deviance}{the null deviance of the model}
 \item{nobs}{a named vector with the number of observations used in the
 estimation indicating the dropped and perfectly predicted observations}
-\item{lvls_k}{a named vector with the number of levels in each fixed
+\item{fe_levels}{a named vector with the number of levels in each fixed
 effect}
 \item{nms_fe}{a list with the names of the fixed effects variables}
 \item{formula}{the formula used in the model}

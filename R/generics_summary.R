@@ -55,7 +55,7 @@ summary.feglm <- function(
     null_deviance = object[["null_deviance"]],
     iter = object[["iter"]],
     nobs = object[["nobs"]],
-    lvls_k = object[["lvls_k"]],
+    fe_levels = object[["fe_levels"]],
     formula = object[["formula"]],
     family = object[["family"]]
   )
@@ -96,7 +96,9 @@ summary.felm <- function(
   rownames(coefficients) <- names(est)
   colnames(coefficients) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
 
-  y <- unlist(object[["data"]][, 1], use.names = FALSE)
+  # Evaluate the response using the formula and data to handle transformations
+  mf <- model.frame(object[["formula"]], object[["data"]], na.action = na.pass)
+  y <- model.response(mf)
   w <- object[["weights"]]
   ydemeaned_sq <- (y - mean(y))^2
   e_sq <- (y - object[["fitted_values"]])^2
@@ -111,7 +113,7 @@ summary.felm <- function(
   res <- list(
     coefficients = coefficients,
     nobs = object[["nobs"]],
-    lvls_k = object[["lvls_k"]],
+    fe_levels = object[["fe_levels"]],
     formula = object[["formula"]],
     r.squared = rsq,
     adj.r.squared = 1 - (1 - rsq) * (n - 1) / (n - k + 1)
