@@ -90,11 +90,11 @@ bias_corr <- function(
   data <- object[["data"]]
   family <- object[["family"]]
   formula <- object[["formula"]]
-  lvls_k <- object[["lvls_k"]]
+  fe_levels <- object[["fe_levels"]]
   nms_sp <- names(beta_uncorr)
   nt <- object[["nobs"]][["nobs"]]
-  k_vars <- names(lvls_k)
-  k <- length(lvls_k)
+  k_vars <- names(fe_levels)
+  k <- length(fe_levels)
 
   # Check if binary choice model
   apes_bias_check_binary_model_(family, fun = "bias_corr")
@@ -204,8 +204,8 @@ bias_corr <- function(
   object
 }
 
-bias_corr_check_fixed_effects_ <- function(lvls_k) {
-  if (length(lvls_k) > 3) {
+bias_corr_check_fixed_effects_ <- function(fe_levels) {
+  if (length(fe_levels) > 3) {
     stop(
       "bias_corr() only supports models with up to three-way fixed effects.",
       call. = FALSE

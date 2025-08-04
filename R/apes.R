@@ -134,11 +134,11 @@ apes <- function(
   data <- object[["data"]]
   family <- object[["family"]]
   formula <- object[["formula"]]
-  lvls_k <- object[["lvls_k"]]
+  fe_levels <- object[["fe_levels"]]
   nt <- nrow(data)
   nt_full <- object[["nobs"]][["nobs_full"]]
-  k <- length(lvls_k)
-  k_vars <- names(lvls_k)
+  k <- length(fe_levels)
+  k_vars <- names(fe_levels)
   p <- length(beta)
 
   # Check if binary choice model
