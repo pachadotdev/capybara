@@ -30,34 +30,34 @@ struct CapybaraParameters {
   double center_tol;
   double collin_tol;
   size_t iter_max;
-  size_t iter_demean_max;
+  size_t iter_center_max;
   size_t iter_inner_max;
   size_t iter_interrupt;
   size_t iter_ssr;
   double step_halving_factor;
   bool keep_tx;
-  double alpha_convergence_tol;
-  size_t alpha_iter_max;
+  double alpha_tol;
+  size_t iter_alpha_max;
 
   CapybaraParameters()
       : dev_tol(1.0e-8), center_tol(1.0e-8), collin_tol(1.0e-7), iter_max(25),
-        iter_demean_max(10000), iter_inner_max(50), iter_interrupt(1000), iter_ssr(10),
-        step_halving_factor(0.5), keep_tx(false), alpha_convergence_tol(1.0e-8),
-        alpha_iter_max(10000) {}
+        iter_center_max(10000), iter_inner_max(50), iter_interrupt(1000), iter_ssr(10),
+        step_halving_factor(0.5), keep_tx(false), alpha_tol(1.0e-8),
+        iter_alpha_max(10000) {}
 
   explicit CapybaraParameters(const cpp11::list &control) {
     dev_tol = as_cpp<double>(control["dev_tol"]);
     center_tol = as_cpp<double>(control["center_tol"]);
     collin_tol = as_cpp<double>(control["collin_tol"]);
     iter_max = as_cpp<size_t>(control["iter_max"]);
-    iter_demean_max = as_cpp<size_t>(control["iter_demean_max"]);
+    iter_center_max = as_cpp<size_t>(control["iter_center_max"]);
     iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]);
     iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]);
     iter_ssr = as_cpp<size_t>(control["iter_ssr"]);
     step_halving_factor = as_cpp<double>(control["step_halving_factor"]);
     keep_tx = as_cpp<bool>(control["keep_tx"]);
-    alpha_convergence_tol = as_cpp<double>(control["alpha_convergence_tol"]);
-    alpha_iter_max = as_cpp<size_t>(control["alpha_iter_max"]);
+    alpha_tol = as_cpp<double>(control["alpha_tol"]);
+    iter_alpha_max = as_cpp<size_t>(control["iter_alpha_max"]);
   }
 };
 

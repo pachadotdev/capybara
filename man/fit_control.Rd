@@ -8,15 +8,15 @@ fit_control(
   dev_tol = 1e-06,
   center_tol = 1e-06,
   collin_tol = 1e-07,
+  step_halving_factor = 0.5,
+  alpha_tol = 1e-06,
   iter_max = 25L,
-  iter_demean_max = 10000L,
+  iter_center_max = 10000L,
   iter_inner_max = 50L,
+  iter_alpha_max = 10000L,
   iter_interrupt = 1000L,
   iter_ssr = 10L,
-  step_halving_factor = 0.5,
-  keep_tx = FALSE,
-  alpha_convergence_tol = 1e-08,
-  alpha_iter_max = 10000L
+  keep_tx = FALSE
 )
 }
 \arguments{
@@ -31,12 +31,28 @@ algorithm. The stopping condition is based on the relative change of the
 centered variable similar to the \code{'lfe'} package. The default is
 \code{1.0e-08}.}
 
+\item{collin_tol}{tolerance level for detecting collinearity. The default is
+\code{1.0e-07}.}
+
+\item{step_halving_factor}{numeric indicating the factor by which the step
+size is halved to iterate towards convergence. This is used to control the
+step size during optimization. The default is \code{0.5}.}
+
+\item{alpha_tol}{tolerance for fixed effects (alpha) convergence.
+The default is \code{1.0e-06}.}
+
 \item{iter_max}{unsigned integer indicating the maximum number of iterations
 in the maximization routine. The default is \code{25L}.}
+
+\item{iter_center_max}{unsigned integer indicating the maximum number of
+iterations in the centering algorithm. The default is \code{10000L}.}
 
 \item{iter_inner_max}{unsigned integer indicating the maximum number of
 iterations in the inner loop of the centering algorithm. The default is
 \code{50L}.}
+
+\item{iter_alpha_max}{maximum iterations for fixed effects computation.
+The default is \code{10000L}.}
 
 \item{iter_interrupt}{unsigned integer indicating the maximum number of
 iterations before the algorithm is interrupted. The default is \code{1000L}.}
@@ -45,30 +61,10 @@ iterations before the algorithm is interrupted. The default is \code{1000L}.}
 to skip before checking if the sum of squared residuals improves. The default
 is \code{10L}.}
 
-\item{step_halving_factor}{numeric indicating the factor by which the step
-size is halved to iterate towards convergence. This is used to control the
-step size during optimization. The default is \code{0.5}.}
-
 \item{keep_tx}{logical indicating if the centered regressor matrix should be
 stored. The centered regressor matrix is required for some covariance
 estimators, bias corrections, and average partial effects. This option saves
 some computation time at the cost of memory. The default is \code{TRUE}.}
-
-\item{iter_center_max}{unsigned integer indicating the maximum number of
-iterations in the centering algorithm. The default is \code{10000L}.}
-
-\item{limit}{unsigned integer indicating the maximum number of iterations of
-\code{\link[MASS]{theta.ml}}. The default is \code{10L}.}
-
-\item{trace}{logical indicating if output should be produced in each
-iteration. Default is \code{FALSE}.}
-
-\item{drop_pc}{logical indicating to drop observations that are perfectly
-classified/separated and hence do not contribute to the log-likelihood. This
-option is useful to reduce the computational costs of the maximization
-problem and improves the numerical stability of the algorithm. Note that
-dropping perfectly separated observations does not affect the estimates.
-The default is \code{TRUE}.}
 }
 \value{
 A named list of control parameters.

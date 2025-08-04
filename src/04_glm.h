@@ -358,10 +358,10 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 
     if (has_fixed_effects) {
       center_variables(MNU, w_working, fe_groups, params.center_tol,
-                       params.iter_demean_max, params.iter_interrupt,
+                       params.iter_center_max, params.iter_interrupt,
                        params.iter_ssr);
       center_variables(X, w_working, fe_groups, params.center_tol,
-                       params.iter_demean_max, params.iter_interrupt,
+                       params.iter_center_max, params.iter_interrupt,
                        params.iter_ssr);
     }
 
@@ -487,7 +487,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 
       // Store fixed effects results
       result.fixed_effects = get_alpha(
-          pi, fe_groups, params.alpha_convergence_tol, params.alpha_iter_max);
+          pi, fe_groups, params.alpha_tol, params.iter_alpha_max);
       result.has_fe = true;
     }
 
@@ -546,7 +546,7 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
 
     // Use C++/Armadillo types for centering
     center_variables(Myadj, w_working, fe_groups, params.center_tol,
-                     params.iter_demean_max, params.iter_interrupt,
+                     params.iter_center_max, params.iter_interrupt,
                      params.iter_ssr);
 
     // Compute update step and update eta

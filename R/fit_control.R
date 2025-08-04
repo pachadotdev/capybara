@@ -32,6 +32,13 @@ NULL
 #'  algorithm. The stopping condition is based on the relative change of the
 #'  centered variable similar to the \code{'lfe'} package. The default is
 #'  \code{1.0e-08}.
+#' @param collin_tol tolerance level for detecting collinearity. The default is
+#'  \code{1.0e-07}. 
+#' @param alpha_tol tolerance for fixed effects (alpha) convergence.
+#'  The default is \code{1.0e-06}.
+#' @param step_halving_factor numeric indicating the factor by which the step
+#'  size is halved to iterate towards convergence. This is used to control the
+#'  step size during optimization. The default is \code{0.5}.
 #' @param iter_max unsigned integer indicating the maximum number of iterations
 #'  in the maximization routine. The default is \code{25L}.
 #' @param iter_center_max unsigned integer indicating the maximum number of
@@ -44,19 +51,8 @@ NULL
 #' @param iter_ssr unsigned integer indicating the number of iterations
 #' to skip before checking if the sum of squared residuals improves. The default
 #' is \code{10L}.
-#' @param limit unsigned integer indicating the maximum number of iterations of
-#'  \code{\link[MASS]{theta.ml}}. The default is \code{10L}.
-#' @param trace logical indicating if output should be produced in each
-#'  iteration. Default is \code{FALSE}.
-#' @param drop_pc logical indicating to drop observations that are perfectly
-#'  classified/separated and hence do not contribute to the log-likelihood. This
-#'  option is useful to reduce the computational costs of the maximization
-#'  problem and improves the numerical stability of the algorithm. Note that
-#'  dropping perfectly separated observations does not affect the estimates.
-#'  The default is \code{TRUE}.
-#' @param step_halving_factor numeric indicating the factor by which the step
-#'  size is halved to iterate towards convergence. This is used to control the
-#'  step size during optimization. The default is \code{0.5}.
+#' @param iter_alpha_max maximum iterations for fixed effects computation.
+#'  The default is \code{10000L}.
 #' @param keep_tx logical indicating if the centered regressor matrix should be
 #'  stored. The centered regressor matrix is required for some covariance
 #'  estimators, bias corrections, and average partial effects. This option saves
@@ -74,15 +70,15 @@ fit_control <- function(
     dev_tol = 1.0e-06,
     center_tol = 1.0e-06,
     collin_tol = 1.0e-07,
+    step_halving_factor = 0.5,
+    alpha_tol = 1.0e-06,
     iter_max = 25L,
-    iter_demean_max = 10000L,
+    iter_center_max = 10000L,
     iter_inner_max = 50L,
+    iter_alpha_max = 10000L,
     iter_interrupt = 1000L,
     iter_ssr = 10L,
-    step_halving_factor = 0.5,
-    keep_tx = FALSE,
-    alpha_convergence_tol = 1.0e-8,
-    alpha_iter_max = 10000L) {
+    keep_tx = FALSE) {
   # Check validity of tolerance parameters
   if (dev_tol <= 0.0 || center_tol <= 0.0 || collin_tol <= 0.0) {
     stop(
@@ -100,9 +96,9 @@ fit_control <- function(
     )
   }
 
-  # iter_demean_max replaces iter_center_max
-  iter_demean_max <- as.integer(iter_demean_max)
-  if (iter_demean_max < 1L) {
+  # iter_center_max replaces iter_center_max
+  iter_center_max <- as.integer(iter_center_max)
+  if (iter_center_max < 1L) {
     stop(
       "Maximum number of iterations for centering should be at least one.",
       call. = FALSE
@@ -140,13 +136,13 @@ fit_control <- function(
     center_tol = center_tol,
     collin_tol = collin_tol,
     iter_max = iter_max,
-    iter_demean_max = iter_demean_max,
+    iter_center_max = iter_center_max,
     iter_inner_max = iter_inner_max,
     iter_interrupt = iter_interrupt,
     iter_ssr = iter_ssr,
     step_halving_factor = step_halving_factor,
     keep_tx = as.logical(keep_tx),
-    alpha_convergence_tol = alpha_convergence_tol,
-    alpha_iter_max = alpha_iter_max
+    alpha_tol = alpha_tol,
+    iter_alpha_max = iter_alpha_max
   )
 }

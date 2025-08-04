@@ -67,13 +67,13 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
   if (has_fixed_effects) {
     // Demean y
     center_variables(y_demeaned, w, fe_groups, params.center_tol,
-                     params.iter_demean_max, params.iter_interrupt,
+                     params.iter_center_max, params.iter_interrupt,
                      params.iter_ssr);
 
     // Demean X columns
     if (X.n_cols > 0) {
       center_variables(X, w, fe_groups, params.center_tol,
-                       params.iter_demean_max, params.iter_interrupt,
+                       params.iter_center_max, params.iter_interrupt,
                        params.iter_ssr);
     }
   }
@@ -116,7 +116,7 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
 
     // Use get_alpha to solve for individual fixed effects from pi
     result.fixed_effects = get_alpha(
-        pi, fe_groups, params.alpha_convergence_tol, params.alpha_iter_max);
+        pi, fe_groups, params.alpha_tol, params.iter_alpha_max);
     result.has_fe = true;
 
     // Compute final fitted values = X*beta + fixed effects
