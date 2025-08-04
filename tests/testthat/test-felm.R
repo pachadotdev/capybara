@@ -14,7 +14,7 @@ NULL
 test_that("felm works", {
   # 1-FE ----
 
-  m1 <- felm(mpg ~ wt | cyl, mtcars)
+  m1 <- felm(formula = mpg ~ wt | cyl, data = mtcars)
   # m1_fixest <- fixest::feols(mpg ~ wt | cyl, mtcars)
   m2 <- lm(mpg ~ wt + as.factor(cyl), mtcars)
 
@@ -149,12 +149,57 @@ test_that("felm correctly predicts values outside the inter-quartile range", {
   }
 
   # Create data subsets once
+  load_all()
   d1 <- mtcars[mtcars$mpg >= quantile(mtcars$mpg, 0.25) & mtcars$mpg <= quantile(mtcars$mpg, 0.75), ]
   d2 <- mtcars[mtcars$mpg < quantile(mtcars$mpg, 0.25) | mtcars$mpg > quantile(mtcars$mpg, 0.75), ]
+
+  load_all()
 
   m1_lm <- felm(mpg ~ wt + disp | cyl, mtcars)
   m2_lm <- lm(mpg ~ wt + disp + as.factor(cyl), mtcars)
 
+  print(coef(m1_lm))
+  print(coef(m2_lm)[2:3])
+  
+  print(m1_lm$fixed.effects)
+  print(coef(m2_lm)[c(1,4:5)] + c(0, coef(m2_lm)[1], coef(m2_lm)[1]))
+  
+  # Compare numeric values
+  cat("DEBUG R - Numeric values for cyl=4:", expected_fe[1], "\n")
+  cat("DEBUG R - Numeric values for cyl=6:", expected_fe[2], "\n")
+  cat("DEBUG R - Numeric values for cyl=8:", expected_fe[3], "\n")
+
+  m3_lm <- felm(mpg ~ wt + disp | am, mtcars)
+  m4_lm <- lm(mpg ~ wt + disp + as.factor(am), mtcars)
+
+  load_all()
+
+  m1 <- fepoisson(mpg ~ wt + disp | cyl, mtcars)
+  m2 <- alpaca::feglm(mpg ~ wt + disp | cyl, mtcars, family = poisson())
+  m3 <- glm(mpg ~ wt + disp + as.factor(cyl), mtcars, family = poisson())
+
+  m1$fixed.effects
+  alpaca::getFEs(m2)[1,1]
+  coef(m3)[c(1,4:5)] + c(0, coef(m3)[1], coef(m3)[1])
+
+  # Print detailed debug info for am factor
+  cat("DEBUG R - Coefficients comparison for am factor:\n")
+  cat("felm coefficients:\n")
+  print(coef(m3_lm))
+  cat("lm coefficients (excluding intercept and factor):\n")
+  print(coef(m4_lm)[2:3])
+  
+  cat("DEBUG R - Fixed effects for am factor:\n")
+  cat("felm fixed effects:\n")
+  print(m3_lm$fixed.effects)
+  cat("Expected fixed effects from lm (intercept + factors):\n")
+  expected_fe_am <- coef(m4_lm)[c(1,4)] + c(0, coef(m4_lm)[1])
+  print(expected_fe_am)
+  
+  # Compare numeric values
+  cat("DEBUG R - Numeric values for am=0:", expected_fe_am[1], "\n")
+  cat("DEBUG R - Numeric values for am=1:", expected_fe_am[2], "\n")
+ 
   pred1_lm <- predict(m1_lm, newdata = d1)
   pred2_lm <- predict(m1_lm, newdata = d2)
 
@@ -166,6 +211,10 @@ test_that("felm correctly predicts values outside the inter-quartile range", {
   # Compare with base R linear model
   pred1_base_lm <- predict(m2_lm, newdata = d1)
   pred2_base_lm <- predict(m2_lm, newdata = d2)
+
+  pred1_base_lm
+  pred2_base_lm
+
   expect_equal(pred1_lm, unname(pred1_base_lm), tolerance = 1e-2)
   expect_equal(pred2_lm, unname(pred2_base_lm), tolerance = 1e-2)
 })

@@ -71,13 +71,6 @@ fepoisson <- function(
     beta_start = NULL,
     eta_start = NULL,
     control = NULL) {
-  # start_time <- Sys.time()
-  # on.exit({
-  #   end_time <- Sys.time()
-  #   elapsed_ms <- as.numeric(difftime(end_time, start_time, units = "secs")) * 1000
-  #   cat(sprintf("[R timing] fepoisson: %.0f ms\n", elapsed_ms), file = stderr())
-  # })
-
   feglm(
     formula = formula, data = data, weights = weights, family = poisson(),
     beta_start = beta_start, eta_start = eta_start, control = control

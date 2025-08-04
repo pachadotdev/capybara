@@ -15,9 +15,7 @@ NULL
 #' @export
 #' @noRd
 fitted.feglm <- function(object, ...) {
-  # The C++ code already stores fitted values on the response scale (mu)
-  # so we don't need to apply the inverse link function again
-  object[["fitted.values"]]
+  object[["family"]][["linkinv"]](object[["eta"]])
 }
 
 #' @export

@@ -54,8 +54,8 @@ augment.feglm <- function(x, newdata = NULL, ...) {
     res <- newdata
   }
 
-  res[[".fitted"]] <- x$fitted_values
-  res[[".residuals"]] <- x$residuals
+  res[[".fitted"]] <- predict(x, type = "response")
+  res[[".residuals"]] <- res[[names(x$data)[1]]] - res[[".fitted"]]
 
   class(res) <- c("tbl_df", "tbl", "data.frame")
   res

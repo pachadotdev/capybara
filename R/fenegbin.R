@@ -50,7 +50,8 @@
 #' @noRd
 NULL
 
-#' @title Negative Binomial model fitting with high-dimensional k-way fixed effects
+#' @title Negative Binomial model fitting with high-dimensional k-way fixed
+#'  effects
 #'
 #' @description A routine that uses the same internals as \code{\link{feglm}}.
 #'
@@ -81,7 +82,7 @@ NULL
 #'  \item{conv.outer}{a logical indicating whether the outer loop converged}
 #'  \item{nobs}{a named vector with the number of observations used in the
 #'   estimation indicating the dropped and perfectly predicted observations}
-#'  \item{fe.levels}{a named vector with the number of levels in each fixed
+#'  \item{lvls_k}{a named vector with the number of levels in each fixed
 #'   effects}
 #'  \item{nms_fe}{a list with the names of the fixed effects variables}
 #'  \item{formula}{the formula used in the model}
@@ -151,8 +152,19 @@ fenegbin <- function(
   # Check validity of weights ----
   check_weights_(w)
 
-  # Compute and check starting guesses ----
-  start_guesses_(X, y, w, beta, family, nt, p, beta_start, eta_start)
+  # Get starting guesses if provided
+  beta <- if (!is.null(beta_start)) {
+    as.numeric(beta_start)
+  } else {
+    numeric(0) # Empty vector for default initialization in C++
+  }
+  
+  # Get eta starting guesses if provided
+  eta_vec <- if (!is.null(eta_start)) {
+    as.numeric(eta_start)
+  } else {
+    numeric(0) # Empty vector for default initialization in C++
+  }
 
   # Get names and number of levels in each fixed effects category ----
   nms_fe <- lapply(data[, .SD, .SDcols = fe_names], levels)
@@ -171,13 +183,13 @@ fenegbin <- function(
     }
   }
 
-  # Fit negative binomial model using C++ implementation
+  # Fit negative binomial model using C++ implementation - now just one call
   if (is.integer(y)) {
     y <- as.numeric(y)
   }
 
   fit <- structure(fenegbin_fit_(
-    X, y, w, FEs, link, beta, eta, init_theta, control
+    X, y, w, FEs, link, beta, eta_vec, init_theta, control
   ), class = c("feglm", "fenegbin"))
 
   # Compute nobs using y and fitted values
@@ -206,4 +218,36 @@ fenegbin <- function(
 
   # Return result ----
   fit
+}
+
+# Convergence Check ----
+
+fenegbin_check_convergence_ <- function(dev, dev_old, theta, theta_old, tol) {
+  dev_crit <- abs(dev - dev_old) / (0.1 + abs(dev))
+  theta_crit <- abs(theta - theta_old) / (0.1 + abs(theta_old))
+  dev_crit <= tol && theta_crit <= tol
+}
+
+# Generate result list ----
+
+fenegbin_result_list_ <- function(
+    fit, theta, iter, conv, nobs, lvls_k,
+    nms_fe, formula, data, family, control) {
+  reslist <- c(
+    fit, list(
+      theta      = theta,
+      iter.outer = iter,
+      conv.outer = conv,
+      nobs       = nobs,
+      lvls_k     = lvls_k,
+      nms_fe     = nms_fe,
+      formula    = formula,
+      data       = data,
+      family     = family,
+      control    = control
+    )
+  )
+
+  # Return result list ----
+  structure(reslist, class = c("feglm", "fenegbin"))
 }

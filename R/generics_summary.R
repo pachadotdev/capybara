@@ -52,10 +52,10 @@ summary.feglm <- function(
   res <- list(
     coefficients = coefficients,
     deviance = object[["deviance"]],
-    null.deviance = object[["null.deviance"]],
+    null_deviance = object[["null_deviance"]],
     iter = object[["iter"]],
     nobs = object[["nobs"]],
-    fe.levels = object[["fe.levels"]],
+    lvls_k = object[["lvls_k"]],
     formula = object[["formula"]],
     family = object[["family"]]
   )
@@ -64,20 +64,10 @@ summary.feglm <- function(
     # Compute pseudo R-squared
     # http://personal.lse.ac.uk/tenreyro/r2.do
     # pass matrix with y and yhat as columns
-    y_obs <- unlist(object$data[, 1], use.names = FALSE)
-    y_pred <- predict(object, type = "response")
-
-    # Debug: check lengths
-    if (length(y_obs) != length(y_pred)) {
-      warning(sprintf(
-        "Length mismatch: y_obs has %d elements, y_pred has %d elements",
-        length(y_obs), length(y_pred)
-      ))
-      # Skip pseudo R-squared calculation if lengths don't match
-      res[["pseudo.rsq"]] <- NA
-    } else {
-      res[["pseudo.rsq"]] <- (kendall_cor(y_obs, y_pred))^2
-    }
+    res[["pseudo.rsq"]] <- (kendall_cor(
+      unlist(object$data[, 1], use.names = FALSE),
+      predict(object, type = "response")
+    ))^2
   }
 
   if (inherits(object, "fenegbin")) {
@@ -121,7 +111,7 @@ summary.felm <- function(
   res <- list(
     coefficients = coefficients,
     nobs = object[["nobs"]],
-    fe.levels = object[["fe.levels"]],
+    lvls_k = object[["lvls_k"]],
     formula = object[["formula"]],
     r.squared = rsq,
     adj.r.squared = 1 - (1 - rsq) * (n - 1) / (n - k + 1)

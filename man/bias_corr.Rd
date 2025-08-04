@@ -5,12 +5,7 @@
 \title{Asymptotic bias correction after fitting binary choice models with a
 1,2,3-way error component}
 \usage{
-bias_corr(
-  object = NULL,
-  l = 0L,
-  panel_structure = c("classic", "network"),
-  weights = NULL
-)
+bias_corr(object = NULL, l = 0L, panel_structure = c("classic", "network"))
 }
 \arguments{
 \item{object}{an object of class \code{"feglm"}.}
@@ -29,9 +24,6 @@ panel structures where for example the same cross-sectional units are
 observed several times (this includes pseudo panels). \code{"network"}
 denotes panel structures where for example bilateral trade flows are
 observed for several time periods. Default is \code{"classic"}.}
-
-\item{weights}{a numeric vector of observation weights. If \code{NULL}
-(default), unit weights are used.}
 }
 \value{
 A named list of classes \code{"bias_corr"} and \code{"feglm"}.

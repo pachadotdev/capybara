@@ -61,10 +61,10 @@ NULL
 #'  having intercepts for each level in each category.
 #'
 #' @param formula an object of class \code{"formula"}: a symbolic description of
-#'  the model to be fitted. \code{formula} must be of type \code{y ~ x | k},
+#'  the model to be fitted. \code{formula} must be of type \code{y ~ X | k},
 #'  where the second part of the formula refers to factors to be concentrated
 #'  out. It is also possible to pass clustering variables to \code{\link{feglm}}
-#'  as \code{y ~ x | k | c}.
+#'  as \code{y ~ X | k | c}.
 #' @param data an object of class \code{"data.frame"} containing the variables
 #'  in the model. The expected input is a dataset with the variables specified
 #'  in \code{formula} and a number of rows at least equal to the number of
@@ -100,7 +100,7 @@ NULL
 #'  \item{iter}{the number of iterations needed to converge}
 #'  \item{nobs}{a named vector with the number of observations used in the
 #'   estimation indicating the dropped and perfectly predicted observations}
-#'  \item{fe.levels}{a named vector with the number of levels in each fixed
+#'  \item{lvls_k}{a named vector with the number of levels in each fixed
 #'   effects}
 #'  \item{nms_fe}{a list with the names of the fixed effects variables}
 #'  \item{formula}{the formula used in the model}
@@ -143,7 +143,7 @@ feglm <- function(
   # Check validity of family ----
   check_family_(family)
 
-  # Check validity of control ----
+  # Check validity of control + Extract control list ----
   check_control_(control)
 
   # Generate model.frame
@@ -152,8 +152,6 @@ feglm <- function(
   nobs_full <- NA
   weights_vec <- NA
   weights_col <- NA
-  original_row_indices <- NA
-
   model_frame_(data, formula, weights)
 
   # Ensure that model response is in line with the chosen model ----
@@ -161,9 +159,9 @@ feglm <- function(
 
   # Get names of the fixed effects variables and sort ----
   # the no FEs warning is printed in the check_formula_ function
-  fe_names <- suppressWarnings(attr(terms(formula, rhs = 2L), "term.labels"))
-  if (length(fe_names) < 1L) {
-    fe_names <- "missing_fe"
+  k_vars <- suppressWarnings(attr(terms(formula, rhs = 2L), "term.labels"))
+  if (length(k_vars) <1L) {
+    k_vars <- "missing_fe"
     data[, `:=`("missing_fe", 1L)]
   }
 
@@ -171,63 +169,56 @@ feglm <- function(
   tmp_var <- temp_var_(data)
 
   # Drop observations that do not contribute to the log likelihood ----
-  data <- drop_by_link_type_(data, lhs, family, tmp_var, fe_names, control)
+  data <- drop_by_link_type_(data, lhs, family, tmp_var, k_vars, control)
 
   # Transform fixed effects and clusters to factors ----
-  data <- transform_fe_(data, formula, fe_names)
+  data <- transform_fe_(data, formula, k_vars)
 
   # Determine the number of dropped observations ----
   nt <- nrow(data)
+  nobs <- nobs_(nobs_full, nobs_na, nt)
 
   # Extract model response and regressor matrix ----
   nms_sp <- NA
   p <- NA
-
   model_response_(data, formula)
 
-  # Extract weights if required (AFTER all filtering is complete) ----
+  # Extract weights if required ----
   if (is.null(weights)) {
-    w <- rep(1.0, nt)
+    wt <- rep(1.0, nt)
   } else if (!all(is.na(weights_vec))) {
-    # Weights provided as vector - subset using row indices
-    if ("__original_idx__" %in% names(data)) {
-      remaining_indices <- data[["__original_idx__"]]
-      w <- weights_vec[remaining_indices]
-      # Remove the tracking column
-      data[, "__original_idx__" := NULL]
-    } else {
-      w <- weights_vec
-      if (length(w) != nrow(data)) {
-        stop("Length of weights vector must equal number of observations.", call. = FALSE)
-      }
+    # Weights provided as vector
+    wt <- weights_vec
+    if (length(wt) != nrow(data)) {
+      stop("Length of weights vector must equal number of observations.", call. = FALSE)
     }
   } else if (!all(is.na(weights_col))) {
     # Weights provided as formula - use the extracted column name
-    w <- data[[weights_col]]
+    wt <- data[[weights_col]]
   } else {
     # Weights provided as column name
-    w <- data[[weights]]
+    wt <- data[[weights]]
   }
 
   # Check validity of weights ----
-  check_weights_(w)
+  check_weights_(wt)
 
   # Compute and check starting guesses ----
-  start_guesses_(X, y, w, beta, family, nt, p, beta_start, eta_start)
+  start_guesses_(beta_start, eta_start, y, X, beta, nt, wt, p, family)
 
   # Get names and number of levels in each fixed effects category ----
-  nms_fe <- lapply(data[, .SD, .SDcols = fe_names], levels)
+  nms_fe <- lapply(data[, .SD, .SDcols = k_vars], levels)
   if (length(nms_fe) > 0L) {
-    fe_levels <- vapply(nms_fe, length, integer(1))
+    lvls_k <- vapply(nms_fe, length, integer(1))
   } else {
-    fe_levels <- c("missing_fe" = 1L)
+    lvls_k <- c("missing_fe" = 1L)
   }
 
   # Generate auxiliary list of indexes for different sub panels ----
-  if (!any(fe_levels %in% "missing_fe")) {
-    FEs <- get_index_list_(fe_names, data)
+  if (!any(lvls_k %in% "missing_fe")) {
+    k_list <- get_index_list_(k_vars, data)
   } else {
-    FEs <- list(list(`1` = seq_len(nt) - 1L))
+    k_list <- list(list(`1` = seq_len(nt) - 1L))
   }
 
   # Fit generalized linear model ----
@@ -235,59 +226,30 @@ feglm <- function(
     y <- as.numeric(y)
   }
 
-  if (storage.mode(X) != "double") {
-    storage.mode(X) <- "double"
-  }
+  fit <- feglm_fit_(
+    beta, eta, y, X, wt, 0.0, family[["family"]], control, k_list
+  )
 
-  fit <- structure(feglm_fit_(
-    X, y, w, FEs, family[["family"]], beta, eta,
-    theta = 0.0, control
-  ), class = "feglm")
-
-  # Compute nobs using y and fitted values
-  nobs <- nobs_(nobs_full, nobs_na, y, predict(fit))
-
-  X <- NULL
   y <- NULL
+  X <- NULL
   eta <- NULL
 
-  # Add names to beta, hessian, and X_dm (if provided) ----
+  # Add names to beta, hessian, and mx (if provided) ----
   names(fit[["coefficients"]]) <- nms_sp
-  if (control[["keep_dmx"]]) {
-    colnames(fit[["X_dm"]]) <- nms_sp
+  if (control[["keep_mx"]]) {
+    colnames(fit[["mx"]]) <- nms_sp
   }
   dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
 
-  # Add row names to fitted values and other vectors ----
-  if (nrow(data) == length(fit[["fitted.values"]])) {
-    names(fit[["fitted.values"]]) <- rownames(data)
-    names(fit[["eta"]]) <- rownames(data)
-    names(fit[["weights"]]) <- rownames(data)
-  }
-
-  # Add names to fixed effects if they exist ----
-  if (!is.null(fit[["fixed.effects"]]) && length(fit[["fixed.effects"]]) > 0) {
-    k <- length(fit[["fixed.effects"]])
-    if (k == length(fe_names) && k == length(nms_fe)) {
-      # Add names to the fixed effects list and individual vectors
-      names(fit[["fixed.effects"]]) <- fe_names
-      for (i in seq_len(k)) {
-        if (length(fit[["fixed.effects"]][[i]]) == length(nms_fe[[i]])) {
-          names(fit[["fixed.effects"]][[i]]) <- nms_fe[[i]]
-        }
-      }
-    }
-  }
-
   # Add to fit list ----
   fit[["nobs"]] <- nobs
-  fit[["fe.levels"]] <- fe_levels
+  fit[["lvls_k"]] <- lvls_k
   fit[["nms_fe"]] <- nms_fe
   fit[["formula"]] <- formula
   fit[["data"]] <- data
   fit[["family"]] <- family
   fit[["control"]] <- control
 
-  # Return result ----
-  fit
+  # Return result list ----
+  structure(fit, class = "feglm")
 }

@@ -17,30 +17,26 @@ get_score_matrix_felm_ <- function(object) {
   y <- data[[1L]]
 
   # Center regressor matrix (if required)
-  if (control[["keep_dmx"]]) {
-    X_dm <- object[["X_dm"]]
+  if (control[["keep_mx"]]) {
+    mx <- object[["mx"]]
   } else {
     # Extract additional required quantities from result list
     formula <- object[["formula"]]
-    fe_names <- names(object[["fe.levels"]])
+    k_vars <- names(object[["lvls_k"]])
 
     # Generate auxiliary list of indexes to project out the fixed effects
-    FEs <- get_index_list_(fe_names, data)
+    k_list <- get_index_list_(k_vars, data)
 
     # Extract regressor matrix
-    x <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
-    nms_sp <- attr(x, "dimnames")[[2L]]
-    attr(x, "dimnames") <- NULL
+    X <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
+    nms_sp <- attr(X, "dimnames")[[2L]]
+    attr(X, "dimnames") <- NULL
 
     # Center variables
-    X_dm <- demean_variables_(
-      x, w, FEs, control[["demean_tol"]],
-      control[["iter_max"]], control[["iter_interrupt"]],
-      control[["iter_ssr"]], "gaussian"
-    )
-    colnames(X_dm) <- nms_sp
+    mx <- center_variables_r_(X, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]])
+    colnames(mx) <- nms_sp
   }
 
   # Return score matrix
-  X_dm * (y * w)
+  mx * (y * w)
 }

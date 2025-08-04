@@ -65,7 +65,7 @@ NULL
 #'  \item{null_deviance}{the null deviance of the model}
 #'  \item{nobs}{a named vector with the number of observations used in the
 #'    estimation indicating the dropped and perfectly predicted observations}
-#'  \item{fe.levels}{a named vector with the number of levels in each fixed
+#'  \item{lvls_k}{a named vector with the number of levels in each fixed
 #'    effect}
 #'  \item{nms_fe}{a list with the names of the fixed effects variables}
 #'  \item{formula}{the formula used in the model}
@@ -108,9 +108,9 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
 
   # Get names of the fixed effects variables and sort ----
   # the no FEs warning is printed in the check_formula_ function
-  fe_names <- suppressWarnings(attr(terms(formula, rhs = 2L), "term.labels"))
-  if (length(fe_names) < 1L) {
-    fe_names <- "missing_fe"
+  fe_vars <- suppressWarnings(attr(terms(formula, rhs = 2L), "term.labels"))
+  if (length(fe_vars) < 1L) {
+    fe_vars <- "missing_fe"
     data[, `:=`("missing_fe", 1L)]
   }
 
@@ -118,10 +118,11 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   tmp_var <- temp_var_(data)
 
   # Transform fixed effects and clusters to factors ----
-  data <- transform_fe_(data, formula, fe_names)
+  data <- transform_fe_(data, formula, fe_vars)
 
   # Determine the number of dropped observations ----
   nt <- nrow(data)
+  nobs <- nobs_(nobs_full, nobs_na, nt)
 
   # Extract model response and regressor matrix ----
   nms_sp <- NA
@@ -149,60 +150,47 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   check_weights_(w)
 
   # Get names and number of levels in each fixed effects category ----
-  nms_fe <- lapply(data[, .SD, .SDcols = fe_names], levels)
+  nms_fe <- lapply(data[, .SD, .SDcols = fe_vars], levels)
   if (length(nms_fe) > 0L) {
-    fe.levels <- vapply(nms_fe, length, integer(1))
+    lvls_k <- vapply(nms_fe, length, integer(1))
   } else {
-    fe.levels <- c("missing_fe" = 1L)
+    lvls_k <- c("missing_fe" = 1L)
   }
 
   # Generate auxiliary list of indexes for different sub panels ----
-  if (!any(fe.levels %in% "missing_fe")) {
-    FEs <- get_index_list_(fe_names, data)
+  if (!any(lvls_k %in% "missing_fe")) {
+    FEs <- get_index_list_(fe_vars, data)
   } else {
     FEs <- list(list(`1` = seq_len(nt)))
   }
-
+  
+  # Set names on the FEs list to ensure they're passed to C++
+  names(FEs) <- fe_vars
+  
   # Fit linear model ----
   if (is.integer(y)) {
     y <- as.numeric(y)
   }
-  fit <- structure(felm_fit_(X, y, w, FEs, control), class = "felm")
+  
+  fit <- felm_fit_(X, y, w, FEs, control)
 
-  # Compute nobs using y and fitted values
-  nobs <- nobs_(nobs_full, nobs_na, y, predict(fit))
-
-  X <- NULL
   y <- NULL
+  X <- NULL
 
-  # Add names to beta, hessian, and X_dm (if provided) ----
+  # Add names to beta, hessian, and mx (if provided) ----
   names(fit[["coefficients"]]) <- nms_sp
-  if (control[["keep_dmx"]]) {
-    colnames(fit[["X_dm"]]) <- nms_sp
-  }
-
-  # Add names to fixed effects if they exist ----
-  if (!is.null(fit[["fixed.effects"]]) && length(fit[["fixed.effects"]]) > 0) {
-    k <- length(fit[["fixed.effects"]])
-    if (k == length(fe_names) && k == length(nms_fe)) {
-      # Add names to the fixed effects list and individual vectors
-      names(fit[["fixed.effects"]]) <- fe_names
-      for (i in seq_len(k)) {
-        if (length(fit[["fixed.effects"]][[i]]) == length(nms_fe[[i]])) {
-          names(fit[["fixed.effects"]][[i]]) <- nms_fe[[i]]
-        }
-      }
-    }
+  if (control[["keep_mx"]]) {
+    colnames(fit[["mx"]]) <- nms_sp
   }
 
   # Add to fit list ----
   fit[["nobs"]] <- nobs
-  fit[["fe.levels"]] <- fe.levels
+  fit[["lvls_k"]] <- lvls_k
   fit[["nms_fe"]] <- nms_fe
   fit[["formula"]] <- formula
   fit[["data"]] <- data
   fit[["control"]] <- control
 
-  # Return result ----
-  fit
+  # Return result list ----
+  structure(fit, class = "felm")
 }

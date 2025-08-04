@@ -23,7 +23,7 @@ glance.feglm <- function(x, ...) {
     summary(x),
     data.frame(
       deviance = deviance,
-      null_deviance = null.deviance,
+      null_deviance = null_deviance,
       nobs_full = nobs["nobs_full"],
       nobs_na = nobs["nobs_na"],
       nobs_pc = nobs["nobs_pc"],

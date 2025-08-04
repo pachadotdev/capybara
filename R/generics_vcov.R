@@ -58,7 +58,7 @@ vcov.apes <- function(object, ...) {
 #' @examples
 #' # same as the example in feglm but extracting the covariance matrix
 #' mod <- fepoisson(mpg ~ wt | cyl | am, mtcars)
-#' vcov(mod, type = "clustered")
+#' round(vcov(mod, type = "clustered"), 5)
 #'
 #' @return A named matrix of covariance estimates.
 #'
@@ -87,7 +87,7 @@ vcov.feglm <- function(
     # If the hessian is invertible, compute its inverse
     v <- vcov_feglm_hessian_covariance_(h, p)
   } else {
-    g <- get_score_matrix_feglm_(object)
+    g <- get_score_matrix_felm_(object)
     if (type == "outer.product") {
       # Check if the OP is invertible and compute its inverse
       v <- vcov_feglm_outer_covariance_(g, p)

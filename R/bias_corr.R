@@ -40,8 +40,6 @@ NULL
 #'  observed several times (this includes pseudo panels). \code{"network"}
 #'  denotes panel structures where for example bilateral trade flows are
 #'  observed for several time periods. Default is \code{"classic"}.
-#' @param weights a numeric vector of observation weights. If \code{NULL}
-#'  (default), unit weights are used.
 #'
 #' @return A named list of classes \code{"bias_corr"} and \code{"feglm"}.
 #'
@@ -79,8 +77,7 @@ NULL
 bias_corr <- function(
     object = NULL,
     l = 0L,
-    panel_structure = c("classic", "network"),
-    weights = NULL) {
+    panel_structure = c("classic", "network")) {
   # Check validity of 'object'
   apes_bias_check_object_(object, fun = "bias_corr")
 
@@ -93,11 +90,11 @@ bias_corr <- function(
   data <- object[["data"]]
   family <- object[["family"]]
   formula <- object[["formula"]]
-  fe.levels <- object[["fe.levels"]]
+  lvls_k <- object[["lvls_k"]]
   nms_sp <- names(beta_uncorr)
   nt <- object[["nobs"]][["nobs"]]
-  fe_names <- names(fe.levels)
-  k <- length(fe.levels)
+  k_vars <- names(lvls_k)
+  k <- length(lvls_k)
 
   # Check if binary choice model
   apes_bias_check_binary_model_(family, fun = "bias_corr")
@@ -112,80 +109,56 @@ bias_corr <- function(
   y <- data[[1L]]
   x <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
   attr(x, "dimnames") <- NULL
-
-  # Extract weights - default to unit weights if not provided
-  if (is.null(weights)) {
-    w <- rep(1.0, nrow(data))
-  } else {
-    # If weights is a character string (column name), extract from data
-    if (is.character(weights) && length(weights) == 1) {
-      if (!(weights %in% names(data))) {
-        stop("Weight variable '", weights, "' not found in data.", call. = FALSE)
-      }
-      w <- data[[weights]]
-    } else if (is.numeric(weights)) {
-      # If weights is a numeric vector, use directly
-      if (length(weights) != nrow(data)) {
-        stop("Length of weights must equal number of observations.", call. = FALSE)
-      }
-      w <- weights
-    } else {
-      stop("'weights' must be NULL, a column name, or a numeric vector.", call. = FALSE)
-    }
-  }
+  wt <- object[["weights"]]
 
   # Generate auxiliary list of indexes for different sub panels
-  FEs <- get_index_list_(fe_names, data)
+  k_list <- get_index_list_(k_vars, data)
 
   # Compute derivatives and weights
   eta <- object[["eta"]]
   mu <- family[["linkinv"]](eta)
   mu_eta <- family[["mu.eta"]](eta)
-  v <- w * (y - mu)
-  w_working <- w * mu_eta # Working weights for GLM
-  z <- w * partial_mu_eta_(eta, family, 2L)
+  v <- wt * (y - mu)
+  w <- wt * mu_eta
+  z <- wt * partial_mu_eta_(eta, family, 2L)
   if (family[["link"]] != "logit") {
     h <- mu_eta / family[["variance"]](mu)
     v <- h * v
-    w_working <- h * w_working
+    w <- h * w
     z <- h * z
     rm(h)
   }
 
-  # Center regressor matrix (if required) - use working weights
-  if (control[["keep_dmx"]]) {
-    x <- object[["X_dm"]]
+  # Center regressor matrix (if required)
+  if (control[["keep_mx"]]) {
+    x <- object[["mx"]]
   } else {
-    x <- demean_variables_(
-      x, w_working, FEs, control[["demean_tol"]],
-      control[["iter_max"]], control[["iter_interrupt"]],
-      control[["iter_ssr"]], "gaussian"
-    )
+    x <- center_variables_r_(x, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]])
   }
 
   # Compute bias terms for requested bias correction
   if (panel_structure == "classic") {
     # Compute \hat{B} and \hat{D}
-    b <- as.vector(group_sums_(x * z, w_working, FEs[[1L]])) / 2.0 / nt
+    b <- as.vector(group_sums_(x * z, w, k_list[[1L]])) / 2.0 / nt
     if (k > 1L) {
-      b <- b + as.vector(group_sums_(x * z, w_working, FEs[[2L]])) / 2.0 / nt
+      b <- b + as.vector(group_sums_(x * z, w, k_list[[2L]])) / 2.0 / nt
     }
 
     # Compute spectral density part of \hat{B}
     if (l > 0L) {
-      b <- (b + group_sums_spectral_(x * w_working, v, w_working, l, FEs[[1L]])) / nt
+      b <- (b + group_sums_spectral_(x * w, v, w, l, k_list[[1L]])) / nt
     }
   } else {
     # Compute \hat{D}_{1}, \hat{D}_{2}, and \hat{B}
-    b <- group_sums_(x * z, w_working, FEs[[1L]]) / (2.0 * nt)
-    b <- (b + group_sums_(x * z, w_working, FEs[[2L]])) / (2.0 * nt)
+    b <- group_sums_(x * z, w, k_list[[1L]]) / (2.0 * nt)
+    b <- (b + group_sums_(x * z, w, k_list[[2L]])) / (2.0 * nt)
     if (k > 2L) {
-      b <- (b + group_sums_(x * z, w_working, FEs[[3L]])) / (2.0 * nt)
+      b <- (b + group_sums_(x * z, w, k_list[[3L]])) / (2.0 * nt)
     }
 
     # Compute spectral density part of \hat{B}
     if (k > 2L && l > 0L) {
-      b <- (b + group_sums_spectral_(x * w_working, v, w_working, l, FEs[[3L]])) / nt
+      b <- (b + group_sums_spectral_(x * w, v, w, l, k_list[[3L]])) / nt
     }
   }
 
@@ -197,31 +170,27 @@ bias_corr <- function(
   eta <- feglm_offset_(object, x %*% beta)
   mu <- family[["linkinv"]](eta)
   mu_eta <- family[["mu.eta"]](eta)
-  v <- w * (y - mu) # Use original weights
-  w_working <- w * mu_eta # Recompute working weights
+  v <- wt * (y - mu)
+  w <- wt * mu_eta
   if (family[["link"]] != "logit") {
     h <- mu_eta / family[["variance"]](mu)
     v <- h * v
-    w_working <- h * w_working
+    w <- h * w
     rm(h)
   }
 
   # Update centered regressor matrix
-  x <- demean_variables_(
-    x, w_working, FEs, control[["demean_tol"]],
-    control[["iter_max"]], control[["iter_interrupt"]],
-    control[["iter_ssr"]], "gaussian"
-  )
+  x <- center_variables_r_(x, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]])
   colnames(x) <- nms_sp
 
   # Update hessian
-  h <- crossprod(x * sqrt(w_working))
+  h <- crossprod(x * sqrt(w))
   dimnames(h) <- list(nms_sp, nms_sp)
 
   # Update result list
   object[["coefficients"]] <- beta
   object[["eta"]] <- eta
-  if (control[["keep_dmx"]]) object[["X_dm"]] <- x
+  if (control[["keep_mx"]]) object[["mx"]] <- x
   object[["hessian"]] <- h
   object[["coefficients_uncorr"]] <- beta_uncorr
   object[["bias_term"]] <- b
@@ -235,8 +204,8 @@ bias_corr <- function(
   object
 }
 
-bias_corr_check_fixed_effects_ <- function(fe.levels) {
-  if (length(fe.levels) > 3) {
+bias_corr_check_fixed_effects_ <- function(lvls_k) {
+  if (length(lvls_k) > 3) {
     stop(
       "bias_corr() only supports models with up to three-way fixed effects.",
       call. = FALSE

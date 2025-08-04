@@ -22,7 +22,7 @@ variables in the model.}
 variable in \code{data}.}
 
 \item{control}{a named list of parameters for controlling the fitting
-process. See \code{\link{fit_control}} for details.}
+process. See \code{\link{feglm_control}} for details.}
 }
 \value{
 A named list of class \code{"felm"}. The list contains the following
@@ -34,7 +34,7 @@ eleven elements:
 \item{null_deviance}{the null deviance of the model}
 \item{nobs}{a named vector with the number of observations used in the
 estimation indicating the dropped and perfectly predicted observations}
-\item{fe.levels}{a named vector with the number of levels in each fixed
+\item{lvls_k}{a named vector with the number of levels in each fixed
 effect}
 \item{nms_fe}{a list with the names of the fixed effects variables}
 \item{formula}{the formula used in the model}

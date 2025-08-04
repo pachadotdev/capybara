@@ -83,7 +83,7 @@ struct CapybaraParameters {
   size_t demean_grand_acc_frequency;
   size_t demean_ssr_check_frequency;
 
-  // 2-FE specific parameters
+  // 2-FEs specific parameters
   size_t demean_2fe_max_iter;
   double demean_2fe_tolerance;
 
@@ -184,14 +184,12 @@ struct CapybaraParameters {
 
 // Modular code structure
 
-#include "01_convergence.h"
-#include "02_demean.h"
-#include "03_parameters.h"
-#include "04_lm.h"
-#include "05_glm.h"
-#include "06_glm_offset.h"
-#include "07_negbin.h"
-#include "08_group_sums.h"
+// Include all the necessary headers
+#include "01_center.h"
+#include "02_params.h"
+#include "03_lm.h"
+#include "04_glm.h"
+#include "05_sums.h"
 
 // Type aliases for easier access
 using LMResult = capybara::InferenceLM;
@@ -206,10 +204,6 @@ inline uvec R_1based_to_Cpp_0based_indices(const integers &r_indices) {
   // Use std::transform for efficient vectorized conversion
   std::transform(r_indices.begin(), r_indices.end(), cpp_indices.begin(),
                  [](int r_val) -> uword {
-                   // if (r_val < 1) {
-                   //   cpp11::stop("Invalid R index: %d (R indices must be >=
-                   //   1)", r_val);
-                   // }
                    return static_cast<uword>(r_val - 1); // Convert to 0-based
                  });
 
@@ -220,468 +214,457 @@ inline uvec R_1based_to_Cpp_0based_indices(const integers &r_indices) {
 inline field<field<uvec>> R_list_to_Armadillo_field(const list &FEs) {
   const size_t K = FEs.size();
   field<field<uvec>> group_indices(K);
-
+  
   for (size_t k = 0; k < K; ++k) {
     const list group_list = as_cpp<list>(FEs[k]);
     const size_t n_groups = group_list.size();
-
+    
     group_indices(k).set_size(n_groups);
     for (size_t g = 0; g < n_groups; ++g) {
       const integers group_obs = as_cpp<integers>(group_list[g]);
-      group_indices(k)(g) =
-          R_1based_to_Cpp_0based_indices(group_obs); // Convert to 0-based
+      
+      // Print indices for debugging (without arbitrary limit)
+      if (group_obs.size() > 0) {
+        // Debugging can be added here if needed
+      }
+      
+      // Create indices vector with validation
+      uvec indices(group_obs.size());
+      size_t I = group_obs.size();
+      for (size_t i = 0; i < I; ++i) {
+        // R uses 1-based indexing, C++ uses 0-based
+        int r_idx = group_obs[i];
+        // if (r_idx < 1) {
+        //   r_idx = 1; // Set to first element if invalid
+        // }
+        indices[i] = static_cast<uword>(r_idx - 1); // Convert to 0-based
+      }
+      
+      group_indices(k)(g) = indices;
     }
   }
 
   return group_indices;
 }
 
-// Convert field<field<uvec>> to umat format for modern functions
-inline umat convert_field_to_umat(const field<field<uvec>> &group_indices,
-                                  size_t n_obs) {
-  const size_t K = group_indices.n_elem;
-
-  if (K == 0) {
-    return umat(n_obs, 0);
-  }
-
-  umat fe_matrix(n_obs, K);
-  fe_matrix.zeros();
-
-  for (size_t k = 0; k < K; ++k) {
-    const field<uvec> &groups = group_indices(k);
-    const size_t n_groups = groups.n_elem;
-
-    for (size_t g = 0; g < n_groups; ++g) {
-      const uvec &group_obs = groups(g);
-      for (size_t i = 0; i < group_obs.n_elem; ++i) {
-        fe_matrix(group_obs(i), k) = g; // 0-based group IDs
-      }
-    }
-  }
-
-  return fe_matrix;
-}
-
-// Helper function to convert field<field<uvec>> to field<uvec> format for
-// joint_demean
-inline field<uvec>
-convert_groupindices_to_feids(const field<field<uvec>> &group_indices,
-                              size_t n_obs) {
-  const size_t K = group_indices.n_elem;
-  field<uvec> fe_ids(K);
-
-  for (size_t k = 0; k < K; ++k) {
-    const field<uvec> &groups = group_indices(k);
-    const size_t n_groups = groups.n_elem;
-
-    fe_ids(k).set_size(n_obs);
-    fe_ids(k).fill(0); // Initialize with zeros
-
-    // Assign group IDs
-    for (size_t g = 0; g < n_groups; ++g) {
-      const uvec &group_obs = groups(g);
-      for (size_t i = 0; i < group_obs.n_elem; ++i) {
-        fe_ids(k)(group_obs(i)) = g; // Use 0-based group IDs
-      }
-    }
-  }
-
-  return fe_ids;
-}
-
 [[cpp11::register]] doubles_matrix<>
-demean_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
-                  const list &FEs, const double &tol, const int &max_iter,
-                  const int &iter_interrupt, const int &iter_ssr,
-                  const std::string &family) {
+center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
+                   const list &klist, const double &tol, const size_t &max_iter,
+                   const size_t &iter_interrupt, const size_t &iter_ssr) {
   mat V = as_mat(V_r);
   vec w = as_col(w_r);
-
-  // Convert R list to field<field<uvec>> format
-  field<field<uvec>> group_indices = R_list_to_Armadillo_field(FEs);
-
-  // Convert to the format expected by demean_variables
-  field<uvec> fe_ids = convert_groupindices_to_feids(group_indices, V.n_rows);
-
-  // Prepare variables for demeaning - convert matrix columns to field<vec>
-  field<vec> variables_to_demean(V.n_cols);
-  for (size_t j = 0; j < V.n_cols; ++j) {
-    variables_to_demean(j) = V.col(j);
-  }
-
-  // Create dummy nb_ids and fe_id_tables for the demean function
-  uvec nb_ids(fe_ids.n_elem);
-  field<uvec> fe_id_tables(fe_ids.n_elem);
-  for (size_t k = 0; k < fe_ids.n_elem; ++k) {
-    uvec unique_ids = unique(fe_ids(k));
-    nb_ids(k) = unique_ids.n_elem;
-    fe_id_tables(k).set_size(nb_ids(k));
-    for (size_t id = 0; id < nb_ids(k); ++id) {
-      fe_id_tables(k)(id) = sum(fe_ids(k) == unique_ids(id));
-    }
-  }
-
-  // Create CapybaraParameters object with custom values
-  CapybaraParameters params;
-
-  // Use the demean_variables function
-  capybara::DemeanResult demean_result =
-      capybara::demean_variables(variables_to_demean, w, fe_ids, nb_ids,
-                                 fe_id_tables, false, params, vec());
-
-  // Convert back to matrix
-  mat result_mat(V.n_rows, V.n_cols);
-  for (size_t j = 0; j < V.n_cols; ++j) {
-    result_mat.col(j) = demean_result.demeaned_vars(j);
-  }
-
-  return as_doubles_matrix(result_mat);
+  
+  // Convert R list to Armadillo field
+  field<field<uvec>> group_indices = R_list_to_Armadillo_field(klist);
+  
+  // Call the C++ version with Armadillo types and proper namespace
+  capybara::center_variables(V, w, group_indices, tol, max_iter, iter_interrupt, iter_ssr);
+  
+  return as_doubles_matrix(V);
 }
 
 [[cpp11::register]] list felm_fit_(const doubles_matrix<> &X_r,
-                                   const doubles &y_r, const doubles &w_r,
-                                   const list &FE, const list &control) {
-  mat X = as_Mat(X_r);
-  const vec y = as_Col(y_r);
-  const vec w = as_Col(w_r);
+                                  const doubles &y_r, const doubles &w_r,
+                                  const list &FEs, const list &control) {
+  // Extract control parameters
+  double center_tol = as_cpp<double>(control["center_tol"]);
+  size_t iter_center_max = as_cpp<size_t>(control["iter_center_max"]);
+  size_t iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]);
+  size_t iter_ssr = as_cpp<size_t>(control["iter_ssr"]);
+  
+  // Convert R types to C++ types
+  mat X = as_mat(X_r);
+  vec y = as_col(y_r);
+  vec w = as_col(w_r);
+  
+  // Convert FEs list to Armadillo field
+  field<field<uvec>> fe_groups = R_list_to_Armadillo_field(FEs);
 
-  // Convert R list to efficient field format
-  field<field<uvec>> group_indices = R_list_to_Armadillo_field(FE);
-
-  // Parameters passed from R's capybara::fit_control()
-  CapybaraParameters params(control);
-
-  // Convert to field<uvec> format for the new API
-  field<uvec> fe_indices(group_indices.n_elem);
-  uvec nb_ids(group_indices.n_elem);
-  field<uvec> fe_id_tables(group_indices.n_elem);
-
-  for (size_t k = 0; k < group_indices.n_elem; ++k) {
-    // Create a single uvec for all observations in this FE dimension
-    fe_indices(k).set_size(y.n_elem);
-    const field<uvec> &groups_k = group_indices(k);
-    nb_ids(k) = groups_k.n_elem;
-
-    // Create frequency table
-    fe_id_tables(k).set_size(nb_ids(k));
-
-    for (size_t g = 0; g < groups_k.n_elem; ++g) {
-      const uvec &group_obs = groups_k(g);
-      fe_id_tables(k)(g) = group_obs.n_elem;
-
-      // Assign group ID to all observations in this group
-      for (size_t i = 0; i < group_obs.n_elem; ++i) {
-        fe_indices(k)(group_obs(i)) = g;
+  // Call the main function - it already computes fixed effects correctly!
+  capybara::InferenceLM result = capybara::felm_fit(X, y, w, fe_groups, 
+                               center_tol, iter_center_max, 
+                               iter_interrupt, iter_ssr);
+    
+  // Extract names from the FEs list if available
+  field<std::string> fe_names(FEs.size());
+  field<field<std::string>> fe_levels(FEs.size());
+  
+  // Check if names attribute exists on the FEs list
+  if (!FEs.names().empty()) {
+    cpp11::strings fe_names_r = FEs.names();
+    for (size_t i = 0; i < static_cast<size_t>(fe_names_r.size()); i++) {
+      fe_names(i) = std::string(fe_names_r[i]);
+    }
+  }
+  
+  // Extract level names from each FE group
+  for (size_t k = 0; k < static_cast<size_t>(FEs.size()); k++) {
+    const list &group_list = as_cpp<list>(FEs[k]);
+    fe_levels(k).set_size(group_list.size());
+    
+    // Check if names attribute exists on this group
+    if (!group_list.names().empty()) {
+      cpp11::strings level_names = group_list.names();
+      for (size_t j = 0; j < static_cast<size_t>(level_names.size()); j++) {
+        fe_levels(k)(j) = std::string(level_names[j]);
       }
     }
   }
-
-  LMResult res =
-      capybara::felm_fit(X, y, w, fe_indices, nb_ids, fe_id_tables, params);
-
-  // Replace collinear coefficients with R's NA_REAL
-  uvec collinear_mask = (res.coef_status == 0);
-  if (any(collinear_mask)) {
-    res.coefficients.elem(find(collinear_mask)).fill(NA_REAL);
-  }
-
-  auto out = writable::list({"coefficients"_nm = as_doubles(res.coefficients),
-                             "fitted.values"_nm = as_doubles(res.fitted_values),
-                             "weights"_nm = as_doubles(res.weights),
-                             "residuals"_nm = as_doubles(res.residuals),
-                             "hessian"_nm = as_doubles_matrix(res.hessian)});
-
-  if (res.has_fe && res.fixed_effects.n_elem > 0) {
-    writable::list fe_list(res.fixed_effects.n_elem);
-    for (size_t k = 0; k < res.fixed_effects.n_elem; ++k) {
-      fe_list[k] = as_doubles(res.fixed_effects(k));
-    }
-    out.push_back({"fixed.effects"_nm = fe_list});
-    out.push_back({"nb_references"_nm = as_integers(res.nb_references)});
-    out.push_back({"is_regular"_nm = writable::logicals(res.is_regular)});
-  }
-
-  return out;
-}
-
-[[cpp11::register]] list feglm_fit_(const doubles_matrix<> &X_r,
-                                    const doubles &y_r, const doubles &w_r,
-                                    const list &FE, const std::string &family,
-                                    const doubles &beta_r, const doubles &eta_r,
-                                    const double &theta, const list &control) {
-  mat X = as_Mat(X_r);
-  const vec y = as_Col(y_r);
-  const vec w = as_Col(w_r);
-  const std::string fam = capybara::tidy_family(family);
-  vec beta = as_Col(beta_r);
-  vec eta = as_Col(eta_r);
-
-  // Parameters passed from R's capybara::fit_control()
-  CapybaraParameters params(control);
-
-  // Convert R list to field<uvec> format for modern API
-  field<field<uvec>> group_indices = R_list_to_Armadillo_field(FE);
-
-  // Convert to field<uvec> format for the new API
-  field<uvec> fe_indices(group_indices.n_elem);
-  uvec nb_ids(group_indices.n_elem);
-  field<uvec> fe_id_tables(group_indices.n_elem);
-
-  for (size_t k = 0; k < group_indices.n_elem; ++k) {
-    // Create a single uvec for all observations in this FE dimension
-    fe_indices(k).set_size(y.n_elem);
-    const field<uvec> &groups_k = group_indices(k);
-    nb_ids(k) = groups_k.n_elem;
-
-    // Create frequency table
-    fe_id_tables(k).set_size(nb_ids(k));
-
-    for (size_t g = 0; g < groups_k.n_elem; ++g) {
-      const uvec &group_obs = groups_k(g);
-      fe_id_tables(k)(g) = group_obs.n_elem;
-
-      // Assign group ID to all observations in this group
-      for (size_t i = 0; i < group_obs.n_elem; ++i) {
-        fe_indices(k)(group_obs(i)) = g;
-      }
-    }
-  }
-
-  GLMResult res = capybara::feglm_fit(X, y, w, fe_indices, nb_ids, fe_id_tables,
-                                      fam, params, theta);
-
+  
+  // DON'T RECALCULATE FIXED EFFECTS - felm_fit already did this correctly!
+  // Just use what felm_fit computed
+  
   // Replace collinear coefficients with R's NA_REAL using vectorized approach
-  uvec collinear_mask = (res.coef_status == 0);
+  uvec collinear_mask = (result.coef_status == 0);
   if (any(collinear_mask)) {
-    res.coefficients.elem(find(collinear_mask)).fill(NA_REAL);
+    result.coefficients.elem(find(collinear_mask)).fill(NA_REAL);
   }
-
-  auto out =
-      writable::list({"coefficients"_nm = as_doubles(res.coefficients),
-                      "eta"_nm = as_doubles(res.eta),
-                      "fitted.values"_nm = as_doubles(res.fitted_values),
-                      "weights"_nm = as_doubles(res.weights),
-                      "hessian"_nm = as_doubles_matrix(res.hessian),
-                      "deviance"_nm = writable::doubles(res.deviance),
-                      "null.deviance"_nm = writable::doubles(res.null_deviance),
-                      "conv"_nm = writable::logicals(res.conv),
-                      "iter"_nm = writable::integers(res.iter)});
-
-  if (res.has_fe && res.fixed_effects.n_elem > 0) {
-    writable::list fe_list(res.fixed_effects.n_elem);
-    for (size_t k = 0; k < res.fixed_effects.n_elem; ++k) {
-      fe_list[k] = as_doubles(res.fixed_effects(k));
-    }
-    out.push_back({"fixed.effects"_nm = fe_list});
-    out.push_back({"nb_references"_nm = as_integers(res.nb_references)});
-    out.push_back({"is_regular"_nm = writable::logicals(res.is_regular)});
-  }
-
-  if (params.keep_dmx && res.has_mx) {
-    out.push_back({"MX"_nm = as_doubles_matrix(res.X_dm)});
-  }
-
-  return out;
-}
-
-[[cpp11::register]] doubles
-feglm_offset_fit_(const doubles &y_r, const doubles &offset_r,
-                  const doubles &w_r, const list &FEs,
-                  const std::string &family, const doubles &eta_r,
-                  const list &control) {
-  vec y = as_Col(y_r);
-  vec offset = as_Col(offset_r);
-  const vec w = as_Col(w_r);
-  const std::string fam = capybara::tidy_family(family);
-  vec eta = as_Col(eta_r);
-
-  // Parameters passed from R's capybara::fit_control()
-  CapybaraParameters params(control);
-
-  // Convert R list to field<uvec> format for modern API
-  field<field<uvec>> group_indices = R_list_to_Armadillo_field(FEs);
-
-  // Convert to field<uvec> format for the new API
-  field<uvec> fe_indices(group_indices.n_elem);
-  uvec nb_ids(group_indices.n_elem);
-  field<uvec> fe_id_tables(group_indices.n_elem);
-
-  for (size_t k = 0; k < group_indices.n_elem; ++k) {
-    // Create a single uvec for all observations in this FE dimension
-    fe_indices(k).set_size(y.n_elem);
-    const field<uvec> &groups_k = group_indices(k);
-    nb_ids(k) = groups_k.n_elem;
-
-    // Create frequency table
-    fe_id_tables(k).set_size(nb_ids(k));
-
-    for (size_t g = 0; g < groups_k.n_elem; ++g) {
-      const uvec &group_obs = groups_k(g);
-      fe_id_tables(k)(g) = group_obs.n_elem;
-
-      // Assign group ID to all observations in this group
-      for (size_t i = 0; i < group_obs.n_elem; ++i) {
-        fe_indices(k)(group_obs(i)) = g;
+  
+  // Create the return list using initializer list syntax
+  auto ret = writable::list(
+    {"coefficients"_nm = as_doubles(result.coefficients),
+     "fitted.values"_nm = as_doubles(result.fitted_values),
+     "residuals"_nm = as_doubles(result.residuals),
+     "weights"_nm = as_doubles(result.weights),
+     "hessian"_nm = as_doubles_matrix(result.hessian),
+     "coef_status"_nm = as_integers(result.coef_status),
+     "success"_nm = result.success,
+     "has_fe"_nm = result.has_fe}
+  );
+  
+  // Add fixed effects information if available
+  if (result.has_fe && result.fixed_effects.n_elem > 0) {
+    writable::list fe_list(result.fixed_effects.n_elem);
+    
+    // Create a vector of names for the list elements
+    writable::strings fe_list_names(result.fixed_effects.n_elem);
+    
+    for (size_t k = 0; k < result.fixed_effects.n_elem; ++k) {
+      // Create a doubles object with the fixed effects values
+      writable::doubles fe_values = as_doubles(result.fixed_effects(k));
+      
+      // Add level names as row names if available
+      if (k < fe_levels.n_elem && fe_levels(k).n_elem > 0) {
+        writable::strings level_names(fe_levels(k).n_elem);
+        for (size_t j = 0; j < fe_levels(k).n_elem; j++) {
+          if (!fe_levels(k)(j).empty()) {
+            level_names[j] = fe_levels(k)(j);
+          } else {
+            level_names[j] = std::to_string(j+1); // Default numeric names
+          }
+        }
+        fe_values.attr("names") = level_names;
+      }
+      
+      // Store the fixed effect values in the list
+      fe_list[k] = fe_values;
+      
+      // Save the name for this fixed effect
+      if (!FEs.names().empty() && k < static_cast<size_t>(FEs.names().size())) {
+        fe_list_names[k] = FEs.names()[k];
+      } else {
+        fe_list_names[k] = std::to_string(k+1);
       }
     }
+    
+    // Set the names on the list
+    fe_list.names() = fe_list_names;
+    
+    // Add the fixed effects list to the output
+    ret.push_back({"fixed.effects"_nm = fe_list});
+    
+    if (!result.nb_references.is_empty()) {
+      ret.push_back({"nb_references"_nm = as_integers(result.nb_references)});
+    }
+    
+    ret.push_back({"is_regular"_nm = result.is_regular});
   }
-
-  capybara::InferenceGLMOffset res = capybara::feglm_offset_fit(
-      eta, y, offset, w, fe_indices, nb_ids, fe_id_tables, fam, params);
-  return res.to_doubles();
+  
+  // Add iterations if available
+  if (!result.iterations.is_empty()) {
+    ret.push_back({"iterations"_nm = as_integers(result.iterations)});
+  }
+  
+  return ret;
 }
 
-[[cpp11::register]] list
-fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
-              const doubles &w_r, const list &FE, const std::string &link,
-              const doubles &beta_r, const doubles &eta_r,
-              const double &init_theta, const list &control) {
-  mat X = as_Mat(X_r);
-  const vec y = as_Col(y_r);
-  const vec w = as_Col(w_r);
-  vec beta = as_Col(beta_r);
-  vec eta = as_Col(eta_r);
+// Wrapper function for R interface
+[[cpp11::register]] list feglm_fit_(const doubles &beta_r, const doubles &eta_r,
+                                    const doubles &y_r,
+                                    const doubles_matrix<> &x_r,
+                                    const doubles &wt_r, const double &theta,
+                                    const std::string &family,
+                                    const list &control, const list &k_list) {
+  // Type conversion
+  mat MX = as_mat(x_r);
+  vec beta = as_col(beta_r);
+  vec eta = as_col(eta_r);
+  vec y = as_col(y_r);
+  vec w = as_col(wt_r);
 
-  // Parameters passed from R's capybara::fit_control()
-  CapybaraParameters params(control);
-
-  // Convert R list to field<uvec> format for modern API
-  field<field<uvec>> group_indices = R_list_to_Armadillo_field(FE);
-
-  // Convert to field<uvec> format for the new API
-  field<uvec> fe_indices(group_indices.n_elem);
-  uvec nb_ids(group_indices.n_elem);
-  field<uvec> fe_id_tables(group_indices.n_elem);
-
-  for (size_t k = 0; k < group_indices.n_elem; ++k) {
-    // Create a single uvec for all observations in this FE dimension
-    fe_indices(k).set_size(y.n_elem);
-    const field<uvec> &groups_k = group_indices(k);
-    nb_ids(k) = groups_k.n_elem;
-
-    // Create frequency table
-    fe_id_tables(k).set_size(nb_ids(k));
-
-    for (size_t g = 0; g < groups_k.n_elem; ++g) {
-      const uvec &group_obs = groups_k(g);
-      fe_id_tables(k)(g) = group_obs.n_elem;
-
-      // Assign group ID to all observations in this group
-      for (size_t i = 0; i < group_obs.n_elem; ++i) {
-        fe_indices(k)(group_obs(i)) = g;
-      }
-    }
-  }
-
-  NegBinResult res = capybara::fenegbin_fit(
-      X, y, w, fe_indices, nb_ids, fe_id_tables, link, params, init_theta);
-
+  // Get family type using proper namespace
+  std::string fam = capybara::tidy_family_(family);
+  capybara::Family family_type = capybara::get_family_type(fam);
+  
+  // Extract control parameters
+  double center_tol = as_cpp<double>(control["center_tol"]);
+  double dev_tol = as_cpp<double>(control["dev_tol"]);
+  bool keep_mx = as_cpp<bool>(control["keep_mx"]);
+  size_t iter_max = as_cpp<size_t>(control["iter_max"]);
+  size_t iter_center_max = as_cpp<size_t>(control["iter_center_max"]);
+  size_t iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]);
+  size_t iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]);
+  size_t iter_ssr = as_cpp<size_t>(control["iter_ssr"]);
+  
+  // Convert FEs list to Armadillo field
+  field<field<uvec>> fe_groups = R_list_to_Armadillo_field(k_list);
+  
+  // Call the implementation function with proper namespace
+  capybara::InferenceGLM result = capybara::feglm_fit(beta, eta, y, MX, w, theta, family_type,
+                                fe_groups, center_tol, iter_max, iter_center_max, 
+                                iter_inner_max, iter_interrupt, iter_ssr, 
+                                dev_tol, keep_mx);
+  
   // Replace collinear coefficients with R's NA_REAL using vectorized approach
-  uvec collinear_mask = (res.coef_status == 0);
+  uvec collinear_mask = (result.coef_status == 0);
   if (any(collinear_mask)) {
-    res.coefficients.elem(find(collinear_mask)).fill(NA_REAL);
+    result.coefficients.elem(find(collinear_mask)).fill(NA_REAL);
   }
-
+  
+  // Create the return list using initializer list syntax
   auto out = writable::list(
-      {"coefficients"_nm = as_doubles(res.coefficients),
-       "eta"_nm = as_doubles(res.eta),
-       "fitted.values"_nm = as_doubles(res.fitted_values),
-       "weights"_nm = as_doubles(res.weights),
-       "hessian"_nm = as_doubles_matrix(res.hessian),
-       "deviance"_nm = writable::doubles({res.deviance}),
-       "null.deviance"_nm = writable::doubles({res.null_deviance}),
-       "conv"_nm = writable::logicals({res.conv}),
-       "iter"_nm = writable::integers({static_cast<int>(res.iter)}),
-       "theta"_nm = writable::doubles({res.theta}),
-       "iter.outer"_nm = writable::integers({static_cast<int>(res.iter_outer)}),
-       "conv.outer"_nm = writable::logicals({res.conv_outer})});
-
-  if (res.has_fe && res.fixed_effects.n_elem > 0) {
-    writable::list fe_list(res.fixed_effects.n_elem);
-    for (size_t k = 0; k < res.fixed_effects.n_elem; ++k) {
-      fe_list[k] = as_doubles(res.fixed_effects(k));
+    {"coefficients"_nm = as_doubles(result.coefficients),
+     "eta"_nm = as_doubles(result.eta),
+     "fitted.values"_nm = as_doubles(result.fitted_values),
+     "weights"_nm = as_doubles(result.weights),
+     "hessian"_nm = as_doubles_matrix(result.hessian),
+     "deviance"_nm = writable::doubles({result.deviance}),
+     "null_deviance"_nm = writable::doubles({result.null_deviance}),
+     "conv"_nm = writable::logicals({result.conv}),
+     "iter"_nm = writable::integers({static_cast<int>(result.iter + 1)})}
+  );
+  
+  // Add fixed effects if available
+  if (result.has_fe && result.fixed_effects.n_elem > 0) {
+    writable::list fe_list(result.fixed_effects.n_elem);
+    for (size_t k = 0; k < result.fixed_effects.n_elem; ++k) {
+      fe_list[k] = as_doubles(result.fixed_effects(k));
     }
     out.push_back({"fixed.effects"_nm = fe_list});
-    out.push_back({"nb_references"_nm = as_integers(res.nb_references)});
-    out.push_back({"is_regular"_nm = writable::logicals({res.is_regular})});
+    
+    if (!result.nb_references.is_empty()) {
+      out.push_back({"nb_references"_nm = as_integers(result.nb_references)});
+    }
+    
+    out.push_back({"is_regular"_nm = result.is_regular});
   }
-
-  if (params.keep_dmx && res.has_mx) {
-    out.push_back({"MX"_nm = as_doubles_matrix(res.X_dm)});
+  
+  // Add design matrix if kept
+  if (keep_mx) {
+    out.push_back({"MX"_nm = as_doubles_matrix(result.X_dm)});
   }
+  
+  return out;
+}
 
+// R-facing wrapper function
+[[cpp11::register]] doubles
+feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
+                  const doubles &offset_r, const doubles &wt_r,
+                  const std::string &family, const list &control,
+                  const list &k_list) {
+  vec eta = as_col(eta_r);
+  vec y = as_col(y_r);
+  vec offset = as_col(offset_r);
+  vec w = as_col(wt_r);
+  
+  // Get control parameters
+  double center_tol = as_cpp<double>(control["center_tol"]);
+  double dev_tol = as_cpp<double>(control["dev_tol"]);
+  size_t iter_max = as_cpp<size_t>(control["iter_max"]);
+  size_t iter_center_max = as_cpp<size_t>(control["iter_center_max"]);
+  size_t iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]);
+  size_t iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]);
+  size_t iter_ssr = as_cpp<size_t>(control["iter_ssr"]);
+  
+  // Convert R list to Armadillo field
+  field<field<uvec>> fe_groups = R_list_to_Armadillo_field(k_list);
+  
+  // Get family type
+  std::string fam = capybara::tidy_family_(family);
+  capybara::Family family_type = capybara::get_family_type(fam);
+  
+  // Call the C++ implementation
+  vec result = capybara::feglm_offset_fit(eta, y, offset, w, family_type, 
+                               fe_groups, center_tol, iter_max, iter_center_max, 
+                               iter_inner_max, iter_interrupt, iter_ssr, dev_tol);
+  
+  return as_doubles(result);
+}
+
+// R-facing wrapper function for negative binomial models - fix parameter type
+[[cpp11::register]] list fenegbin_fit_(const doubles_matrix<> &X_r,
+                                     const doubles &y_r, 
+                                     const doubles &w_r,
+                                     const list &FEs, 
+                                     const std::string &link,
+                                     const doubles &beta_r,
+                                     const doubles &eta_r,
+                                     const double &init_theta,
+                                     const list &control) {
+  // Convert R types to Armadillo types
+  mat X = as_mat(X_r);
+  vec y = as_col(y_r);
+  vec w = as_col(w_r);
+  
+  // Get control parameters
+  double center_tol = as_cpp<double>(control["center_tol"]);
+  double dev_tol = as_cpp<double>(control["dev_tol"]);
+  size_t iter_max = as_cpp<size_t>(control["iter_max"]);
+  size_t iter_center_max = as_cpp<size_t>(control["iter_center_max"]);
+  size_t iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]);
+  size_t iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]);
+  size_t iter_ssr = as_cpp<size_t>(control["iter_ssr"]);
+  bool keep_mx = as_cpp<bool>(control["keep_mx"]);
+  
+  // Convert R list to Armadillo field
+  field<field<uvec>> fe_groups = R_list_to_Armadillo_field(FEs);
+  
+  // Call the C++ implementation
+  capybara::InferenceNegBin result = capybara::fenegbin_fit(X, y, w, fe_groups, 
+                                      center_tol, iter_max, iter_center_max, 
+                                      iter_inner_max, iter_interrupt, iter_ssr, 
+                                      dev_tol, keep_mx, init_theta);
+  
+  // Replace collinear coefficients with R's NA_REAL using vectorized approach
+  uvec collinear_mask = (result.coef_status == 0);
+  if (any(collinear_mask)) {
+    result.coefficients.elem(find(collinear_mask)).fill(NA_REAL);
+  }
+  
+  // Create return list using initializer list syntax
+  auto out = writable::list(
+    {"coefficients"_nm = as_doubles(result.coefficients),
+     "eta"_nm = as_doubles(result.eta),
+     "fitted.values"_nm = as_doubles(result.fitted_values),
+     "weights"_nm = as_doubles(result.weights),
+     "hessian"_nm = as_doubles_matrix(result.hessian),
+     "deviance"_nm = writable::doubles({result.deviance}),
+     "null_deviance"_nm = writable::doubles({result.null_deviance}),
+     "conv"_nm = writable::logicals({result.conv}),
+     "iter"_nm = writable::integers({static_cast<int>(result.iter + 1)}),
+     "theta"_nm = writable::doubles({result.theta}),
+     "iter.outer"_nm = writable::integers({static_cast<int>(result.iter_outer)}),
+     "conv.outer"_nm = writable::logicals({result.conv_outer})}
+  );
+  
+  // Add fixed effects if available
+  if (result.has_fe && result.fixed_effects.n_elem > 0) {
+    writable::list fe_list(result.fixed_effects.n_elem);
+    for (size_t k = 0; k < result.fixed_effects.n_elem; ++k) {
+      fe_list[k] = as_doubles(result.fixed_effects(k));
+    }
+    out.push_back({"fixed.effects"_nm = fe_list});
+    
+    if (!result.nb_references.is_empty()) {
+      out.push_back({"nb_references"_nm = as_integers(result.nb_references)});
+    }
+    
+    out.push_back({"is_regular"_nm = writable::logicals({result.is_regular})});
+  }
+  
+  // Add design matrix if requested
+  if (result.has_mx) {
+    out.push_back({"MX"_nm = as_doubles_matrix(result.X_dm)});
+  }
+  
   return out;
 }
 
 [[cpp11::register]] doubles_matrix<> group_sums_(const doubles_matrix<> &M_r,
-                                                 const doubles &w_r,
-                                                 const list &jlist) {
-  const mat M = as_Mat(M_r);
-  const vec w = as_Col(w_r);
-
-  // Convert R list to single-level Armadillo field
+                                               const doubles_matrix<> &w_r,
+                                               const list &jlist) {
+  // Convert R types to C++ types
+  const mat M = as_mat(M_r);
+  const mat w = as_mat(w_r);
+  
+  // Convert R list of indices to C++ field of uvec
   const size_t J = jlist.size();
   field<uvec> group_indices(J);
+  
   for (size_t j = 0; j < J; ++j) {
-    group_indices(j) =
-        R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
+    group_indices(j) = R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
   }
-
-  capybara::GroupSums res = capybara::group_sums(M, w, group_indices);
-  return res.to_matrix();
+  
+  // Call the C++ implementation
+  mat result = capybara::group_sums(M, w, group_indices);
+  
+  // Convert result back to R type
+  return as_doubles_matrix(result);
 }
 
 [[cpp11::register]] doubles_matrix<>
-group_sums_spectral_(const doubles_matrix<> &M_r, const doubles &v_r,
-                     const doubles &w_r, const int K, const list &jlist) {
-  const mat M = as_Mat(M_r);
-  const vec v = as_Col(v_r);
-  const vec w = as_Col(w_r);
-
-  // Convert R list to single-level Armadillo field
+group_sums_spectral_(const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
+                     const doubles_matrix<> &w_r, const int K,
+                     const list &jlist) {
+  // Convert R types to C++ types
+  const mat M = as_mat(M_r);
+  const mat v = as_mat(v_r);
+  const mat w = as_mat(w_r);
+  
+  // Convert R list of indices to C++ field of uvec
   const size_t J = jlist.size();
   field<uvec> group_indices(J);
+  
   for (size_t j = 0; j < J; ++j) {
-    group_indices(j) =
-        R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
+    group_indices(j) = R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
   }
-
-  capybara::GroupSums res =
-      capybara::group_sums_spectral(M, v, w, K, group_indices);
-  return res.to_matrix();
+  
+  // Call the C++ implementation
+  mat result = capybara::group_sums_spectral(M, v, w, K, group_indices);
+  
+  // Convert result back to R type
+  return as_doubles_matrix(result);
 }
 
 [[cpp11::register]] doubles_matrix<>
 group_sums_var_(const doubles_matrix<> &M_r, const list &jlist) {
-  const mat M = as_Mat(M_r);
-
-  // Convert R list to single-level Armadillo field
+  // Convert R types to C++ types
+  const mat M = as_mat(M_r);
+  
+  // Convert R list of indices to C++ field of uvec
   const size_t J = jlist.size();
   field<uvec> group_indices(J);
+  
   for (size_t j = 0; j < J; ++j) {
-    group_indices(j) =
-        R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
+    group_indices(j) = R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
   }
-
-  capybara::GroupSums res = capybara::group_sums_var(M, group_indices);
-  return res.to_matrix();
+  
+  // Call the C++ implementation
+  mat result = capybara::group_sums_var(M, group_indices);
+  
+  // Convert result back to R type
+  return as_doubles_matrix(result);
 }
 
 [[cpp11::register]] doubles_matrix<>
 group_sums_cov_(const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
                 const list &jlist) {
-  const mat M = as_Mat(M_r);
-  const mat N = as_Mat(N_r);
-
-  // Convert R list to single-level Armadillo field
+  // Convert R types to C++ types
+  const mat M = as_mat(M_r);
+  const mat N = as_mat(N_r);
+  
+  // Convert R list of indices to C++ field of uvec
   const size_t J = jlist.size();
   field<uvec> group_indices(J);
+  
   for (size_t j = 0; j < J; ++j) {
-    group_indices(j) =
-        R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
+    group_indices(j) = R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
   }
-
-  capybara::GroupSums res = capybara::group_sums_cov(M, N, group_indices);
-  return res.to_matrix();
+  
+  // Call the C++ implementation
+  mat result = capybara::group_sums_cov(M, N, group_indices);
+  
+  // Convert result back to R type
+  return as_doubles_matrix(result);
 }

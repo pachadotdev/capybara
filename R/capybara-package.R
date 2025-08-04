@@ -63,8 +63,8 @@ NULL
 #'  coord_flip autoplot
 #' @importFrom kendallknight kendall_cor kendall_cor_test
 #' @importFrom MASS negative.binomial theta.ml
-#' @importFrom stats as.formula fitted.values gaussian model.frame model.matrix
-#'  model.response na.omit pnorm poisson predict printCoefmat qnorm terms vcov
+#' @importFrom stats as.formula fitted.values gaussian model.matrix na.omit
+#'  pnorm poisson predict printCoefmat qnorm terms vcov
 #' @importFrom utils combn
 #' @useDynLib capybara, .registration = TRUE
 "_PACKAGE"

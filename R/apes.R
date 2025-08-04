@@ -134,11 +134,11 @@ apes <- function(
   data <- object[["data"]]
   family <- object[["family"]]
   formula <- object[["formula"]]
-  fe.levels <- object[["fe.levels"]]
+  lvls_k <- object[["lvls_k"]]
   nt <- nrow(data)
   nt_full <- object[["nobs"]][["nobs_full"]]
-  k <- length(fe.levels)
-  fe_names <- names(fe.levels)
+  k <- length(lvls_k)
+  k_vars <- names(lvls_k)
   p <- length(beta)
 
   # Check if binary choice model
@@ -153,24 +153,24 @@ apes <- function(
 
   # Extract model response, regressor matrix, and weights
   y <- data[[1L]]
-  x <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
-  nms_sp <- attr(x, "dimnames")[[2L]]
-  attr(x, "dimnames") <- NULL
-  w <- object[["weights"]]
+  X <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
+  nms_sp <- attr(X, "dimnames")[[2L]]
+  attr(X, "dimnames") <- NULL
+  wt <- object[["weights"]]
 
   # Determine which of the regressors are binary
-  binary <- apply(x, 2L, function(x) all(x %in% c(0.0, 1.0)))
+  binary <- apply(X, 2L, function(X) all(X %in% c(0.0, 1.0)))
 
   # Generate auxiliary list of indexes for different sub panels
-  FEs <- get_index_list_(fe_names, data)
+  k_list <- get_index_list_(k_vars, data)
 
   # Compute derivatives and weights
   eta <- object[["eta"]]
   mu <- family[["linkinv"]](eta)
   mu_eta <- family[["mu.eta"]](eta)
-  v <- w * (y - mu)
-  w <- w * mu_eta
-  z <- w * partial_mu_eta_(eta, family, 2L)
+  v <- wt * (y - mu)
+  w <- wt * mu_eta
+  z <- wt * partial_mu_eta_(eta, family, 2L)
   if (family[["link"]] != "logit") {
     h <- mu_eta / family[["variance"]](mu)
     v <- h * v
@@ -180,14 +180,14 @@ apes <- function(
   }
 
   # Center regressor matrix (if required)
-  if (control[["keep_dmx"]]) {
-    X_dm <- object[["X_dm"]]
+  if (control[["keep_mx"]]) {
+    mx <- object[["mx"]]
   } else {
-    X_dm <- demean_variables_(x, w, FEs, control[["demean_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]], "gaussian")
+    mx <- center_variables_r_(X, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]])
   }
 
   # Compute average partial effects, derivatives, and Jacobian
-  px <- x - X_dm
+  px <- X - mx
   delta <- matrix(NA_real_, nt, p)
   delta1 <- matrix(NA_real_, nt, p)
   j <- matrix(NA_real_, p, p)
@@ -197,20 +197,20 @@ apes <- function(
   }
   for (i in seq.int(p)) {
     if (binary[[i]]) {
-      eta0 <- eta - x[, i] * beta[[i]]
+      eta0 <- eta - X[, i] * beta[[i]]
       eta1 <- eta0 + beta[[i]]
       f1 <- family[["mu.eta"]](eta1)
       delta[, i] <- (family[["linkinv"]](eta1) - family[["linkinv"]](eta0))
       delta1[, i] <- f1 - family[["mu.eta"]](eta0)
       j[, i] <- -colSums(px * delta1[, i]) / nt_full
       j[i, i] <- sum(f1) / nt_full + j[i, i]
-      j[-i, i] <- colSums(x[, -i, drop = FALSE] * delta1[, i]) /
+      j[-i, i] <- colSums(X[, -i, drop = FALSE] * delta1[, i]) /
         nt_full + j[-i, i]
       rm(eta0, f1)
     } else {
       delta[, i] <- beta[[i]] * delta[, i]
       delta1[, i] <- beta[[i]] * delta1[, i]
-      j[, i] <- colSums(X_dm * delta1[, i]) / nt_full
+      j[, i] <- colSums(mx * delta1[, i]) / nt_full
       j[i, i] <- sum(mu_eta) / nt_full + j[i, i]
     }
   }
@@ -220,26 +220,26 @@ apes <- function(
 
   # Compute projection and residual projection of \psi
   psi <- -delta1 / w
-  mpsi <- demean_variables_(psi, w, FEs, control[["demean_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]], "gaussian")
+  mpsi <- center_variables_r_(psi, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]])
   ppsi <- psi - mpsi
   rm(delta1, psi)
 
   # Compute analytical bias correction of average partial effects
   if (bias_corr) {
     b <- apes_bias_correction_(
-      eta, family, x, beta, binary, nt, p, ppsi, z,
-      w, FEs, panel_structure, l, k, mpsi, v
+      eta, family, X, beta, binary, nt, p, ppsi, z,
+      w, k_list, panel_structure, l, k, mpsi, v
     )
     delta_aux <- delta_aux - b
   }
   rm(eta, w, z, mpsi)
 
   # Compute covariance matrix
-  gamma <- gamma_(X_dm, object[["hessian"]], j, ppsi, v, nt_full)
+  gamma <- gamma_(mx, object[["hessian"]], j, ppsi, v, nt_full)
   v <- crossprod(gamma)
 
   v <- apes_adjust_covariance_(
-    v, delta, gamma, FEs, adj, sampling_fe,
+    v, delta, gamma, k_list, adj, sampling_fe,
     weak_exo, panel_structure
   )
 
@@ -304,28 +304,28 @@ apes_set_adj_ <- function(n_pop, nt_full) {
 NULL
 
 apes_adjust_covariance_ <- function(
-    v, delta, gamma, FEs, adj, sampling_fe,
+    v, delta, gamma, k_list, adj, sampling_fe,
     weak_exo, panel_structure) {
   if (adj > 0.0) {
     # Simplify covariance if sampling assumptions are imposed
     if (sampling_fe == "independence") {
-      v <- v + adj * group_sums_var_(delta, FEs[[1L]])
-      if (length(FEs) > 1L) {
-        v <- v + adj * (group_sums_var_(delta, FEs[[2L]]) - crossprod(delta))
+      v <- v + adj * group_sums_var_(delta, k_list[[1L]])
+      if (length(k_list) > 1L) {
+        v <- v + adj * (group_sums_var_(delta, k_list[[2L]]) - crossprod(delta))
       }
-      if (panel_structure == "network" && length(FEs) > 2L) {
-        v <- v + adj * (group_sums_var_(delta, FEs[[3L]]) - crossprod(delta))
+      if (panel_structure == "network" && length(k_list) > 2L) {
+        v <- v + adj * (group_sums_var_(delta, k_list[[3L]]) - crossprod(delta))
       }
     }
 
     # Add covariance in case of weak exogeneity
     if (weak_exo) {
       if (panel_structure == "classic") {
-        cl <- group_sums_cov_(delta, gamma, FEs[[1L]])
+        cl <- group_sums_cov_(delta, gamma, k_list[[1L]])
         v <- v + adj * (cl + t(cl))
         rm(cl)
-      } else if (length(FEs) > 2L) {
-        cl <- group_sums_cov_(delta, gamma, FEs[[3L]])
+      } else if (length(k_list) > 2L) {
+        cl <- group_sums_cov_(delta, gamma, k_list[[3L]])
         v <- v + adj * (cl + t(cl))
         rm(cl)
       }
@@ -343,14 +343,14 @@ apes_adjust_covariance_ <- function(
 NULL
 
 apes_bias_correction_ <- function(
-    eta, family, x, beta, binary, nt, p, ppsi,
-    z, w, FEs, panel_structure, l, k, mpsi, v) {
+    eta, family, X, beta, binary, nt, p, ppsi,
+    z, w, k_list, panel_structure, l, k, mpsi, v) {
   # Compute second-order partial derivatives
   delta2 <- matrix(NA_real_, nt, p)
   delta2[, !binary] <- partial_mu_eta_(eta, family, 3L)
   for (i in seq.int(p)) {
     if (binary[[i]]) {
-      eta0 <- eta - x[, i] * beta[[i]]
+      eta0 <- eta - X[, i] * beta[[i]]
       delta2[, i] <- partial_mu_eta_(eta0 + beta[[i]], family, 2L) -
         partial_mu_eta_(eta0, family, 2L)
       rm(eta0)
@@ -362,26 +362,26 @@ apes_bias_correction_ <- function(
   # Compute bias terms for requested bias correction
   if (panel_structure == "classic") {
     # Compute \hat{B} and \hat{D}
-    b <- group_sums_(delta2 + ppsi * z, w, FEs[[1L]]) / (2.0 * nt)
+    b <- group_sums_(delta2 + ppsi * z, w, k_list[[1L]]) / (2.0 * nt)
     if (k > 1L) {
-      b <- (b + group_sums_(delta2 + ppsi * z, w, FEs[[2L]])) / (2.0 * nt)
+      b <- (b + group_sums_(delta2 + ppsi * z, w, k_list[[2L]])) / (2.0 * nt)
     }
 
     # Compute spectral density part of \hat{B}
     if (l > 0L) {
-      b <- (b - group_sums_spectral_(mpsi * w, v, w, l, FEs[[1L]])) / nt
+      b <- (b - group_sums_spectral_(mpsi * w, v, w, l, k_list[[1L]])) / nt
     }
   } else {
     # Compute \hat{D}_{1}, \hat{D}_{2}, and \hat{B}
-    b <- group_sums_(delta2 + ppsi * z, w, FEs[[1L]]) / (2.0 * nt)
-    b <- (b + group_sums_(delta2 + ppsi * z, w, FEs[[2L]])) / (2.0 * nt)
+    b <- group_sums_(delta2 + ppsi * z, w, k_list[[1L]]) / (2.0 * nt)
+    b <- (b + group_sums_(delta2 + ppsi * z, w, k_list[[2L]])) / (2.0 * nt)
     if (k > 2L) {
-      b <- (b + group_sums_(delta2 + ppsi * z, w, FEs[[3L]])) / (2.0 * nt)
+      b <- (b + group_sums_(delta2 + ppsi * z, w, k_list[[3L]])) / (2.0 * nt)
     }
 
     # Compute spectral density part of \hat{B}
     if (k > 2L && l > 0L) {
-      b <- (b - group_sums_spectral_(mpsi * w, v, w, l, FEs[[3L]])) / nt
+      b <- (b - group_sums_spectral_(mpsi * w, v, w, l, k_list[[3L]])) / nt
     }
   }
   rm(delta2)

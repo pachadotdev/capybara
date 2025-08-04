@@ -26,12 +26,14 @@ predict.feglm <- function(object, newdata = NULL, type = c("link", "response"), 
   if (!is.null(newdata)) {
     check_data_(newdata)
 
-    # Initialize variables that will be assigned by helper functions
-    data <- NA
+    data <- NA # just to avoid global variable warning
+    lhs <- NA
+    nobs_na <- NA
+    nobs_full <- NA
     model_frame_(newdata, object$formula, NULL)
-    # Extract fixed effects variables using proper pipe parsing
-    fe_names <- attr(terms(object$formula, rhs = 2L), "term.labels")
-    data <- transform_fe_(data, object$formula, fe_names)
+    check_response_(data, lhs, object$family)
+    k_vars <- attr(terms(object$formula, rhs = 2L), "term.labels")
+    data <- transform_fe_(data, object$formula, k_vars)
 
     X <- NA
     nms_sp <- NA
@@ -42,39 +44,21 @@ predict.feglm <- function(object, newdata = NULL, type = c("link", "response"), 
     fes2 <- list()
 
     for (name in names(fes)) {
+      # # match the FE rownames and replace each level in the data with the FE
       fe <- fes[[name]]
-
-      fe_values <- fe
-      fe_names <- names(fe_values)
-
-      # Match values and handle missing levels
-      data_values <- data[[name]]
-      matched_values <- fe_values[match(data_values, fe_names)]
-      matched_values[is.na(matched_values)] <- 0 # Set missing levels to 0
-      fes2[[name]] <- matched_values
+      fes2[[name]] <- fe[match(data[[name]], rownames(fe)), ]
     }
 
-    # Replace NA coefficients with 0 for prediction
-    coef0 <- object$coefficients
-    coef0[is.na(coef0)] <- 0
-
-    # Compute linear predictor
-    z <- as.numeric(X %*% coef0 + Reduce("+", fes2))
-    names(z) <- rownames(newdata)
+    eta <- X %*% object$coefficients + Reduce("+", fes2)
   } else {
-    # Use appropriate object component based on type
-    if (type == "link") {
-      return(object[["eta"]])
-    } else {
-      return(object[["fitted.values"]])
-    }
+    eta <- object[["eta"]]
   }
 
-  if (type == "link") {
-    return(z)
-  } else {
-    return(object[["family"]][["linkinv"]](z))
+  if (type == "response") {
+    eta <- object[["family"]][["linkinv"]](eta)
   }
+
+  as.numeric(eta)
 }
 
 #' @title Predict method for 'felm' objects
