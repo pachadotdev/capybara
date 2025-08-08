@@ -97,8 +97,8 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
   result.hessian = beta_result.hessian;
   result.success = beta_result.success;
 
-
-  // Compute fitted values as X0 * beta + alpha (if fixed effects are present), matching GLM approach
+  // Compute fitted values as X0 * beta + alpha (if fixed effects are present),
+  // matching GLM approach
   vec x_beta(y.n_elem, fill::none);
   if (collin_result.has_collinearity &&
       !collin_result.non_collinear_cols.is_empty()) {
@@ -116,8 +116,8 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
     // pi = y0 - x_beta (using original data)
     vec pi = y0 - x_beta;
     // Use get_alpha to solve for individual fixed effects from pi
-    result.fixed_effects = get_alpha(
-        pi, fe_groups, params.alpha_tol, params.iter_alpha_max);
+    result.fixed_effects =
+        get_alpha(pi, fe_groups, params.alpha_tol, params.iter_alpha_max);
     result.has_fe = true;
 
     // Compute final fitted values = X*beta + fixed effects

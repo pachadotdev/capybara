@@ -1,12 +1,7 @@
 #!/bin/sh
 # Capybara's anticonf script by Pacha (2025)
 
-echo "🦫 Capybara High-Performance Build Configuration"
-echo "================================================"
-
-
 # Detect number of cores
-echo "Detecting system configuration..."
 if [ -n "$CAPYBARA_NCORES" ]; then
   num_cores="$CAPYBARA_NCORES"
 else
@@ -23,10 +18,7 @@ else
   fi
 fi
 
-echo "Detected cores: $num_cores"
-
 # Find compiler
-echo "Detecting compiler and libraries..."
 CXX=$(${R_HOME}/bin/R CMD config CXX)
 CXXFLAGS=$(${R_HOME}/bin/R CMD config CXXFLAGS)
 SHLIB_OPENMP_CXXFLAGS=$(${R_HOME}/bin/R CMD config SHLIB_OPENMP_CXXFLAGS 2>/dev/null || echo "")
@@ -35,10 +27,7 @@ SHLIB_OPENMP_CXXFLAGS=$(${R_HOME}/bin/R CMD config SHLIB_OPENMP_CXXFLAGS 2>/dev/
 BLAS_LIBS=$(${R_HOME}/bin/R CMD config BLAS_LIBS)
 LAPACK_LIBS=$(${R_HOME}/bin/R CMD config LAPACK_LIBS)
 
-echo "C++ Compiler: $CXX"
-
 # OpenMP support
-echo "Checking OpenMP support..."
 OPENMP_SUPPORT="no"
 cat > testomp.cpp <<EOF
 #include <omp.h>
@@ -52,14 +41,10 @@ int main() {
 EOF
 if $CXX $CXXFLAGS -fopenmp testomp.cpp -o testomp >/dev/null 2>&1; then
   OPENMP_SUPPORT="yes"
-  echo "✓ OpenMP support detected"
-else
-  echo "⚠ OpenMP not available"
 fi
 rm -f testomp testomp.cpp
 
 # Detect CPU features for SIMD optimization
-echo "Detecting CPU features..."
 SIMD_SUPPORT=""
 AVX2_SUPPORT="no"
 SSE42_SUPPORT="no"
@@ -68,26 +53,20 @@ if [ -f /proc/cpuinfo ]; then
     if grep -q avx2 /proc/cpuinfo 2>/dev/null; then
         AVX2_SUPPORT="yes"
         SIMD_SUPPORT="AVX2"
-        echo "✓ AVX2 support detected"
     elif grep -q sse4_2 /proc/cpuinfo 2>/dev/null; then
         SSE42_SUPPORT="yes"
         SIMD_SUPPORT="SSE4.2"
-        echo "✓ SSE4.2 support detected"
+        echo "- [V] SSE4.2 support detected"
     fi
 elif [ "$(uname)" = "Darwin" ]; then
     if sysctl machdep.cpu.features 2>/dev/null | grep -q AVX2; then
         AVX2_SUPPORT="yes"
         SIMD_SUPPORT="AVX2"
-        echo "✓ AVX2 support detected"
     elif sysctl machdep.cpu.features 2>/dev/null | grep -q SSE4.2; then
         SSE42_SUPPORT="yes"
         SIMD_SUPPORT="SSE4.2"
-        echo "✓ SSE4.2 support detected"
+        echo "- [V] SSE4.2 support detected"
     fi
-fi
-
-if [ -z "$SIMD_SUPPORT" ]; then
-    echo "⚠ No advanced SIMD features detected"
 fi
 
 # Test compiler flag
@@ -103,44 +82,34 @@ test_flag() {
   fi
 }
 
-# Remove any -std=... from CXX and CXXFLAGS
+# Remove any -std= from CXX and CXXFLAGS
 CXX=$(echo "$CXX" | sed -E 's/ *-std=[^ ]+//g')
 CXXFLAGS=$(echo "$CXXFLAGS" | sed -E 's/ *-std=[^ ]+//g')
 
 # C++ standard detection (must come after test_flag is defined)
-echo "Detecting C++ standard support..."
 CXX_STD="CXX11"  # Default fallback
 STD_FLAG="-std=c++11"
 if test_flag "-std=c++20"; then
   CXX_STD="CXX20"
   STD_FLAG="-std=c++20"
-  echo "✓ C++20 support detected"
 elif test_flag "-std=c++17"; then
   CXX_STD="CXX17"
   STD_FLAG="-std=c++17"
-  echo "✓ C++17 support detected"
 elif test_flag "-std=c++14"; then
   CXX_STD="CXX14"
   STD_FLAG="-std=c++14"
-  echo "✓ C++14 support detected"
-else
-  echo "⚠ Using C++11 (default)"
 fi
 
 # Add the detected standard to CXXFLAGS
 CXXFLAGS="$CXXFLAGS $STD_FLAG"
 
 # High-performance optimization flags
-echo "Configuring optimization flags..."
 OPTFLAGS=""
 if [ "$CAPYBARA_OPTIMIZATIONS" = "yes" ]; then
-  echo "High-performance optimizations enabled"
-  
   # Core optimization flags
   for flag in -O3 -DNDEBUG -ffast-math; do
     if test_flag "$flag"; then
       OPTFLAGS="$OPTFLAGS $flag"
-      echo "  ✓ $flag"
     fi
   done
   
@@ -148,7 +117,6 @@ if [ "$CAPYBARA_OPTIMIZATIONS" = "yes" ]; then
   for flag in -march=native -mtune=native; do
     if test_flag "$flag"; then
       OPTFLAGS="$OPTFLAGS $flag"
-      echo "  ✓ $flag"
     fi
   done
   
@@ -157,14 +125,12 @@ if [ "$CAPYBARA_OPTIMIZATIONS" = "yes" ]; then
     for flag in -mavx -mavx2 -mfma; do
       if test_flag "$flag"; then
         OPTFLAGS="$OPTFLAGS $flag"
-        echo "  ✓ $flag"
       fi
     done
   elif [ "$SSE42_SUPPORT" = "yes" ]; then
     for flag in -msse2 -msse3 -msse4.1 -msse4.2; do
       if test_flag "$flag"; then
         OPTFLAGS="$OPTFLAGS $flag"
-        echo "  ✓ $flag"
       fi
     done
   fi
@@ -173,7 +139,6 @@ if [ "$CAPYBARA_OPTIMIZATIONS" = "yes" ]; then
   for flag in -funroll-loops -fprefetch-loop-arrays; do
     if test_flag "$flag"; then
       OPTFLAGS="$OPTFLAGS $flag"
-      echo "  ✓ $flag"
     fi
   done
   
@@ -181,27 +146,20 @@ if [ "$CAPYBARA_OPTIMIZATIONS" = "yes" ]; then
   for flag in -ftree-vectorize -ftree-slp-vectorize; do
     if test_flag "$flag"; then
       OPTFLAGS="$OPTFLAGS $flag"
-      echo "  ✓ $flag"
     fi
   done
   
   # Link-time optimization
   if test_flag "-flto"; then
     OPTFLAGS="$OPTFLAGS -flto"
-    echo "  ✓ -flto"
   fi
-  
-else
-  echo "Standard optimizations (set CAPYBARA_OPTIMIZATIONS=yes for high-performance mode)"
 fi
 
 # Compose ARMA_FLAGS
-echo "Configuring Armadillo..."
 ARMA_FLAGS="-DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_OPENMP_THREADS=$num_cores"
 
 # Add 64-bit word size for better SIMD alignment
 ARMA_FLAGS="$ARMA_FLAGS -DARMA_64BIT_WORD"
-echo "✓ Armadillo configured with $num_cores threads"
 
 # Compose Makevars
 if [ ! -f "src/Makevars.in" ]; then
@@ -217,7 +175,7 @@ sed -e "s|@CXX_STD@|${CXX_STD}|g" \
 # Print summary
 cat <<EOF
 ==========================================================================
-🦫 Capybara Configuration Summary
+Capybara configuration summary
 
   C++ Compiler:           $CXX
   C++ Standard:           $CXX_STD
@@ -230,12 +188,17 @@ cat <<EOF
   Optimization Flags:     $OPTFLAGS
 
 EOF
+echo "For faster computation"
+echo " "
 if [ "${CAPYBARA_OPTIMIZATIONS:-no}" != "yes" ]; then
-  echo "💡 To enable high-performance optimizations:"
-  echo "   export CAPYBARA_OPTIMIZATIONS=yes"
-  echo "   Then reinstall the package"
+  echo " Enable high-performance optimizations run:"
+  echo " export CAPYBARA_OPTIMIZATIONS=yes"
+  echo " "
 fi
-echo "💡 To change thread count: export CAPYBARA_NCORES=<number>"
+echo " Change thread count run:"
+echo " export CAPYBARA_NCORES=<number>"
+echo " "
+echo " Then reinstall the package"
 cat <<EOF
 ==========================================================================
 EOF

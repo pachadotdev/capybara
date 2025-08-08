@@ -20,3 +20,5 @@
 ^CRAN-SUBMISSION$
 ^cran-comments\.md$
 ^benchmarks$
+^doc$
+^Meta$

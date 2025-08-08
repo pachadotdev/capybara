@@ -43,9 +43,8 @@ struct CapybaraParameters {
   CapybaraParameters()
       : dev_tol(1.0e-6), center_tol(1.0e-6), collin_tol(1.0e-7),
         step_halving_factor(0.5), alpha_tol(1.0e-6), iter_max(25),
-        iter_center_max(10000), iter_inner_max(50),
-        iter_alpha_max(10000), iter_interrupt(1000), iter_ssr(10),
-        return_fe(true), keep_tx(false) {}
+        iter_center_max(10000), iter_inner_max(50), iter_alpha_max(10000),
+        iter_interrupt(1000), iter_ssr(10), return_fe(true), keep_tx(false) {}
 
   explicit CapybaraParameters(const cpp11::list &control) {
     dev_tol = as_cpp<double>(control["dev_tol"]);
@@ -200,8 +199,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
        "weights"_nm = as_doubles(result.weights),
        "hessian"_nm = as_doubles_matrix(result.hessian),
        "coef_status"_nm = as_integers(result.coef_status),
-       "success"_nm = result.success,
-       "has_fe"_nm = result.has_fe});
+       "success"_nm = result.success, "has_fe"_nm = result.has_fe});
 
   // Add fixed effects information if available
   if (result.has_fe && result.fixed_effects.n_elem > 0) {

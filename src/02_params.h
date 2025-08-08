@@ -128,8 +128,8 @@ inline bool rank_revealing_cholesky(uvec &excluded, const mat &XtX,
   return n_excluded < p;
 }
 
-inline CollinearityResult check_collinearity(mat &X, const vec &w,
-                                             bool has_weights, double tolerance) {
+inline CollinearityResult
+check_collinearity(mat &X, const vec &w, bool has_weights, double tolerance) {
 
   const size_t p = X.n_cols;
   const size_t n = X.n_rows;

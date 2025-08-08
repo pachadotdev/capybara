@@ -21,7 +21,7 @@ partial effects based on functional forms like interactions and polynomials."><m
 
     <a class="navbar-brand me-2" href="../index.html">capybara</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">2.0.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -161,7 +161,7 @@ partially consistent observations". Econometrica, 16(1), 1-32.</p>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod_ape</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Estimates:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    Estimate Std. Error z value Pr(&gt;|z|)    </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> wt -0.14679    0.01586  -9.258   &lt;2e-16 ***</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> wt  -0.1468     0.0308  -4.767 1.87e-06 ***</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> ---</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1</span>
 <span class="r-in"><span></span></span>
@@ -169,30 +169,28 @@ partially consistent observations". Econometrica, 16(1), 1-32.</p>
 <span class="r-in"><span><span class="va">mod_bc</span> <span class="op">&lt;-</span> <span class="fu"><a href="bias_corr.html">bias_corr</a></span><span class="op">(</span><span class="va">mod</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod_bc</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Formula: mpg01 ~ wt | cyl</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x556ac733f840&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x564a515a7a78&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Family: Binomial</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Estimates:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> |    | Estimate | Std. Error | z value | Pr(&gt;|z|)   |</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> |----|----------|------------|---------|------------|</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> | wt |  -4.7290 |     0.5897 | -8.0194 | 0.0000 *** |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |    | Estimate | Std. Error | z value | Pr(&gt;|z|) |</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> |----|----------|------------|---------|----------|</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> | wt |  -4.7290 |     3.2203 | -1.4685 |   0.1420 |</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Significance codes: *** 99.9%; ** 99%; * 95%; . 90%</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Number of observations: Full 32; Missing 0; Perfect classification 0 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Number of observations: Full 32; Missing 0; Perfect classification 9 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Number of Fisher Scoring iterations: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Number of Fisher Scoring iterations: 16 </span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Compute bias-corrected average partial effects</span></span></span>
 <span class="r-in"><span><span class="va">mod_ape_bc</span> <span class="op">&lt;-</span> <span class="fu">apes</span><span class="op">(</span><span class="va">mod_bc</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod_ape_bc</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Estimates:</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>      Estimate Std. Error    z value Pr(&gt;|z|)    </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> wt -3.246e+07  5.787e-03 -5.609e+09   &lt;2e-16 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> ---</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     Estimate Std. Error z value Pr(&gt;|z|)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> wt -0.003525   0.014922  -0.236    0.813</span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

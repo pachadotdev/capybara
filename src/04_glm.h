@@ -488,8 +488,8 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       // Store fixed effects results
       result.has_fe = true;
       if (params.return_fe) {
-        result.fixed_effects = get_alpha(
-          pi, fe_groups, params.alpha_tol, params.iter_alpha_max);
+        result.fixed_effects =
+            get_alpha(pi, fe_groups, params.alpha_tol, params.iter_alpha_max);
       }
     }
 
@@ -696,8 +696,7 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
 
     // Check convergence criteria
     double dev_crit = std::abs(dev - dev0) / (0.1 + std::abs(dev));
-    double theta_crit =
-        std::abs(theta_new - theta0) / (0.1 + std::abs(theta0));
+    double theta_crit = std::abs(theta_new - theta0) / (0.1 + std::abs(theta0));
 
     if (dev_crit <= params.dev_tol && theta_crit <= params.dev_tol) {
       converged = true;

@@ -1,15 +1,14 @@
-# capybara 2.0.0
+# capybara 1.7.0
 
-* There are no breaking changes, even when the internal code was completely
-  rewritten. All the computation is done on C++ side.
+* All the computation is done on C++ side. R does just do the data cleaning/wrangling.
 * Implements a rank-revealing Cholesky factorisation like fixest.
 * Returns estimated fixed effects by default (with an option not to).
 
 # capybara 1.6.0
 
 * Handles collinearities in the model matrix by using a QR decomposition.
-  when Cholesky fails. Otherwise, the estimation fails, and now it can return
-  NA coefficients.
+  when Cholesky fails.
+* It can return NA coefficients when there is collinearity to match base R outputs.
 
 # capybara 1.4.0
 
