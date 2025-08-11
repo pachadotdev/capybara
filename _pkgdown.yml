@@ -1,0 +1,5 @@
+template:
+  bootstrap: 5
+
+url: ../capybara/
+destination: docs

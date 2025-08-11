@@ -1,0 +1,47 @@
+── R CMD INSTALL ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ─  installing *source* package ‘capybara’ ...
+   ** this is package ‘capybara’ version ‘2.0.0’
+     ** using staged installation
+     🦫 Capybara High-Performance Build Configuration
+   ================================================
+   Detecting system configuration...
+     Detected cores: 4
+   Detecting compiler and libraries...
+     C++ Compiler: g++ -std=gnu++17
+   Checking OpenMP support...
+     ✓ OpenMP support detected
+     Detecting CPU features...
+     ✓ AVX2 support detected
+     Detecting C++ standard support...
+     ✓ C++20 support detected
+   Configuring optimization flags...
+   Standard optimizations (set CAPYBARA_OPTIMIZATIONS=yes for high-performance mode)
+   Configuring Armadillo...
+   ✓ Armadillo configured with 4 threads
+     ==========================================================================
+   🦫 Capybara Configuration Summary
+   
+     C++ Compiler:           g++
+     C++ Standard:           CXX20
+     OpenMP Support:         yes
+     OpenMP Threads:         4
+     SIMD Support:           AVX2
+     BLAS:                   -lblas
+     LAPACK:                 -llapack
+     High-Performance Mode:  no
+     Optimization Flags:     
+   
+   💡 To enable high-performance optimizations:
+      export CAPYBARA_OPTIMIZATIONS=yes
+        Then reinstall the package
+   💡 To change thread count: export CAPYBARA_NCORES=<number>
+   ==========================================================================
+     ** libs
+     using C++ compiler: ‘g++ (GCC) 15.1.1 20250425’
+     g++ -std=gnu++17 -I"/usr/include/R/" -DNDEBUG  -I'/home/pacha/R/x86_64-pc-linux-gnu-library/4.5/cpp11/include' -I'/home/pacha/R/x86_64-pc-linux-gnu-library/4.5/cpp11armadillo/include' -I/usr/local/include   -fopenmp  -fpic  -O3 -UNDEBUG -Wall -pedantic -g -O0  -c capybara.cpp -o capybara.o
+     g++ -std=gnu++17 -I"/usr/include/R/" -DNDEBUG  -I'/home/pacha/R/x86_64-pc-linux-gnu-library/4.5/cpp11/include' -I'/home/pacha/R/x86_64-pc-linux-gnu-library/4.5/cpp11armadillo/include' -I/usr/local/include   -fopenmp  -fpic  -O3 -UNDEBUG -Wall -pedantic -g -O0  -c cpp11.cpp -o cpp11.o
+     g++ -std=gnu++17 -shared -L/usr/lib64/R/lib -Wl,-O1 -Wl,--sort-common -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,-z,pack-relative-relocs -flto=auto -o capybara.so capybara.o cpp11.o -fopenmp -llapack -lblas -lgfortran -lm -lquadmath -L/usr/lib64/R/lib -lR
+     installing to /tmp/Rtmp9zd5qq/devtools_install_3c7b495cd919/00LOCK-capybara/00new/capybara/libs
+     ** checking absolute paths in shared objects and dynamic libraries
+  ─  DONE (capybara)
+
