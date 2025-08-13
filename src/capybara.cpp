@@ -39,12 +39,19 @@ struct CapybaraParameters {
   size_t iter_ssr;
   bool return_fe;
   bool keep_tx;
+  // Separation detection parameters
+  double sep_tol;
+  size_t sep_max_iter;
+  bool sep_accelerate;
+  bool check_separation;
 
   CapybaraParameters()
       : dev_tol(1.0e-6), center_tol(1.0e-6), collin_tol(1.0e-7),
         step_halving_factor(0.5), alpha_tol(1.0e-6), iter_max(25),
         iter_center_max(10000), iter_inner_max(50), iter_alpha_max(10000),
-        iter_interrupt(1000), iter_ssr(10), return_fe(true), keep_tx(false) {}
+        iter_interrupt(1000), iter_ssr(10), return_fe(true), keep_tx(false),
+        sep_tol(1e-6), sep_max_iter(100), sep_accelerate(true),
+        check_separation(true) {}
 
   explicit CapybaraParameters(const cpp11::list &control) {
     dev_tol = as_cpp<double>(control["dev_tol"]);
@@ -60,6 +67,10 @@ struct CapybaraParameters {
     iter_ssr = as_cpp<size_t>(control["iter_ssr"]);
     return_fe = as_cpp<bool>(control["return_fe"]);
     keep_tx = as_cpp<bool>(control["keep_tx"]);
+    sep_tol = as_cpp<double>(control["sep_tol"]);
+    sep_max_iter = as_cpp<size_t>(control["sep_max_iter"]);
+    sep_accelerate = as_cpp<bool>(control["sep_accelerate"]);
+    check_separation = as_cpp<bool>(control["check_separation"]);
   }
 };
 

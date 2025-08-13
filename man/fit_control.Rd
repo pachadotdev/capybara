@@ -16,6 +16,10 @@ fit_control(
   iter_alpha_max = 10000L,
   iter_interrupt = 1000L,
   iter_ssr = 10L,
+  sep_tol = 1e-06,
+  sep_max_iter = 100,
+  sep_accelerate = TRUE,
+  check_separation = TRUE,
   return_fe = TRUE,
   keep_tx = FALSE
 )
@@ -61,6 +65,14 @@ iterations before the algorithm is interrupted. The default is \code{1000L}.}
 \item{iter_ssr}{unsigned integer indicating the number of iterations
 to skip before checking if the sum of squared residuals improves. The default
 is \code{10L}.}
+
+\item{sep_tol}{tolerance for separation detection in Poisson models. Controls the threshold for identifying separated observations. Default is \code{1e-6}.}
+
+\item{sep_max_iter}{maximum number of iterations for separation detection. Default is \code{100}.}
+
+\item{sep_accelerate}{logical indicating whether to use acceleration in separation detection. Default is \code{TRUE}.}
+
+\item{check_separation}{logical indicating whether to check for separation in Poisson models. Default is \code{TRUE}.}
 
 \item{return_fe}{logical indicating if the fixed effects should be returned.
 This can be useful when fitting general equilibrium models where skipping the

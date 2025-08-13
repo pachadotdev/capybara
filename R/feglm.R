@@ -240,6 +240,17 @@ feglm <- function(
   dimnames(fit[["hessian"]]) <- list(non_na_nms_sp, non_na_nms_sp)
   names(fit[["fitted_values"]]) <- seq_along(fit[["fitted_values"]])
 
+  # Add separation info if present ----
+  if (isTRUE(fit$has_separation)) {
+    warning(
+      "Separation detected in Poisson model. ",
+      "Some observations are perfectly predicted and may need to be removed. ",
+      "Consider refitting the model after excluding separated observations."
+    )
+    fit[["separated_obs"]] <- fit$separated_obs
+    fit[["separation_certificate"]] <- fit$separation_certificate
+  }
+
   # Add to fit list ----
   fit[["nobs"]] <- nobs
   fit[["fe_levels"]] <- fe_levels

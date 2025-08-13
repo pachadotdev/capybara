@@ -53,6 +53,14 @@ NULL
 #' is \code{10L}.
 #' @param iter_alpha_max maximum iterations for fixed effects computation.
 #'  The default is \code{10000L}.
+#' @param sep_tol tolerance for separation detection in Poisson models. Controls
+#'  the threshold for identifying separated observations. Default is \code{1e-6}.
+#' @param sep_max_iter maximum number of iterations for separation detection.
+#'  The default is \code{100}.
+#' @param sep_accelerate logical indicating whether to use acceleration in
+#'  separation detection. The default is \code{TRUE}.
+#' @param check_separation logical indicating whether to check for separation in
+#'  Poisson models. The default is \code{TRUE}.
 #' @param return_fe logical indicating if the fixed effects should be returned.
 #'  This can be useful when fitting general equilibrium models where skipping the
 #'  fixed effects for intermediate steps speeds up computation. The default is
@@ -82,6 +90,10 @@ fit_control <- function(
     iter_alpha_max = 10000L,
     iter_interrupt = 1000L,
     iter_ssr = 10L,
+    sep_tol = 1e-6,
+    sep_max_iter = 100,
+    sep_accelerate = TRUE,
+    check_separation = TRUE,
     return_fe = TRUE,
     keep_tx = FALSE) {
   # Check validity of tolerance parameters
@@ -129,6 +141,10 @@ fit_control <- function(
     iter_alpha_max = iter_alpha_max,
     iter_interrupt = iter_interrupt,
     iter_ssr = iter_ssr,
+    sep_tol = sep_tol,
+    sep_max_iter = sep_max_iter,
+    sep_accelerate = sep_accelerate,
+    check_separation = check_separation,
     return_fe = return_fe,
     keep_tx = keep_tx
   )
