@@ -68,13 +68,13 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
     // Demean y
     center_variables(y_demeaned, w, fe_groups, params.center_tol,
                      params.iter_center_max, params.iter_interrupt,
-                     params.iter_ssr);
+                     params.iter_ssr, params.accel_start, params.use_cg);
 
     // Demean X columns
     if (X.n_cols > 0) {
       center_variables(X, w, fe_groups, params.center_tol,
                        params.iter_center_max, params.iter_interrupt,
-                       params.iter_ssr);
+                       params.iter_ssr, params.accel_start, params.use_cg);
     }
   }
 

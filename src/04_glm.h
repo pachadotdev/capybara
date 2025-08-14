@@ -21,6 +21,33 @@ enum Family {
   NEG_BIN
 };
 
+// Helper function to predict convergence based on history
+inline double predict_convergence(const vec& eps_history, double current_eps) {
+  if (eps_history.n_elem < 3 || !is_finite(eps_history)) {
+    return current_eps;
+  }
+  
+  // Count non-infinite values
+  uvec finite_indices = find_finite(eps_history);
+  if (finite_indices.n_elem < 3) {
+    return current_eps;
+  }
+  
+  // Linear extrapolation based on last 3 values
+  vec log_eps = log(eps_history.elem(finite_indices.tail(3)));
+  vec x_vals = linspace(1, 3, 3);
+  
+  // Linear regression: log(eps) = a + b*x
+  double x_mean = mean(x_vals);
+  double y_mean = mean(log_eps);
+  double slope = dot(x_vals - x_mean, log_eps - y_mean) / dot(x_vals - x_mean, x_vals - x_mean);
+  double intercept = y_mean - slope * x_mean;
+  
+  // Predict next value
+  double hat_log_eps = intercept + slope * 4.0;
+  return std::max(exp(hat_log_eps), datum::eps);
+}
+
 // Utility function to clamp scalar values
 template <typename T>
 inline T clamp(const T &value, const T &lower, const T &upper) {
@@ -381,10 +408,10 @@ SeparationResult detect_poisson_separation(
     if (fe_groups.n_elem > 0) {
       center_variables(u_centered, w_lse, fe_groups, params.center_tol,
                        params.iter_center_max, params.iter_interrupt,
-                       params.iter_ssr);
+                       params.iter_ssr, params.accel_start, params.use_cg);
       center_variables(X_centered, w_lse, fe_groups, params.center_tol,
                        params.iter_center_max, params.iter_interrupt,
-                       params.iter_ssr);
+                       params.iter_ssr, params.accel_start, params.use_cg);
     }
 
     // Solve weighted least squares
@@ -557,6 +584,29 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     }
   }
 
+  // Adaptive tolerance variables
+  double hdfe_tolerance = params.center_tol;
+  double highest_inner_tol = std::max(1e-12, std::min(params.center_tol, 0.1 * params.dev_tol));
+  double start_inner_tol = params.start_inner_tol;
+  
+  // Looser tolerance
+  if (has_fixed_effects) {
+    hdfe_tolerance = std::max(start_inner_tol, params.dev_tol);
+  }
+
+  // Fast partial out variables  
+  vec MNU_increment = vec(n, fill::zeros);
+  bool use_fast_partial = false;
+  
+  // Step halving with memory variables
+  double step_halving_memory = params.step_halving_memory;
+  size_t num_step_halving = 0;
+  size_t max_step_halving = params.max_step_halving;
+  
+  // Convergence history prediction
+  vec eps_history(3, fill::value(datum::inf));
+  double predicted_eps = datum::inf;
+
   // Maximize the log-likelihood
   for (size_t iter = 0; iter < params.iter_max; ++iter) {
     rho = 1.0;
@@ -569,17 +619,48 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     w_working = (w % square(mu_eta)) / variance_(mu, theta, family_type);
     nu = (y - mu) / mu_eta;
 
-    // Center variables
-    MNU += (nu - nu0);
-    nu0 = nu;
+    // Calculate current HDFE tolerance BEFORE using it
+    // Use prediction to decide on solver accuracy (following ppmlhdfe.mata logic)
+    bool iter_fast_solver = has_fixed_effects && (hdfe_tolerance > params.dev_tol * 11) && 
+                           (predicted_eps > params.dev_tol);
+    
+    // Adjust centering tolerance based on solver speed requirements
+    double current_hdfe_tol = iter_fast_solver ? hdfe_tolerance : 
+                              std::min(hdfe_tolerance, highest_inner_tol);
 
-    if (has_fixed_effects) {
-      center_variables(MNU, w_working, fe_groups, params.center_tol,
-                       params.iter_center_max, params.iter_interrupt,
-                       params.iter_ssr);
-      center_variables(X, w_working, fe_groups, params.center_tol,
-                       params.iter_center_max, params.iter_interrupt,
-                       params.iter_ssr);
+    // Fast partial out: only update the increment after first iteration
+    // Following ppmlhdfe.mata approach: use incremental updates for speed
+    if (use_fast_partial && iter > 1) {
+      MNU_increment = nu - nu0;
+      MNU += MNU_increment;
+      
+      if (has_fixed_effects) {
+        center_variables(MNU, w_working, fe_groups, current_hdfe_tol,
+                         params.iter_center_max, params.iter_interrupt,
+                         params.iter_ssr, params.accel_start, params.use_cg);
+        center_variables(X, w_working, fe_groups, current_hdfe_tol,
+                         params.iter_center_max, params.iter_interrupt,
+                         params.iter_ssr, params.accel_start, params.use_cg);
+      }
+      nu0 = nu;
+    } else {
+      // Full update: data = (z, x) in ppmlhdfe.mata
+      MNU += (nu - nu0);
+      nu0 = nu;
+      
+      if (has_fixed_effects) {
+        center_variables(MNU, w_working, fe_groups, current_hdfe_tol,
+                         params.iter_center_max, params.iter_interrupt,
+                         params.iter_ssr, params.accel_start, params.use_cg);
+        center_variables(X, w_working, fe_groups, current_hdfe_tol,
+                         params.iter_center_max, params.iter_interrupt,
+                         params.iter_ssr, params.accel_start, params.use_cg);
+      }
+    }
+    
+    // Enable fast partial out after first iteration
+    if (params.use_acceleration) {
+      use_fast_partial = true;
     }
 
     // Use the full version of get_beta that returns InferenceBeta
@@ -660,11 +741,59 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       mu = link_inv_(eta, family_type);
     }
 
-    // Check convergence
+    // Check convergence with history tracking
     dev_ratio = fabs(dev - dev0) / (0.1 + fabs(dev));
+    double delta_deviance = dev0 - dev;
+    
+    // Update convergence history if acceleration is enabled
+    if (params.use_acceleration) {
+      eps_history(0) = eps_history(1);
+      eps_history(1) = eps_history(2);
+      eps_history(2) = dev_ratio;
+      
+      // Predict next epsilon for adaptive tolerance decisions
+      predicted_eps = predict_convergence(eps_history, dev_ratio);
+    }
+     
     if (dev_ratio < params.dev_tol) {
       conv = true;
       break;
+    }
+    
+    // Post-convergence step-halving following ppmlhdfe.mata exactly
+    if (delta_deviance < 0 && num_step_halving < max_step_halving) {
+      // Run step-halving after checking for convergence as in ppmlhdfe.mata
+      if (params.use_acceleration) {
+        eta = step_halving_memory * eta0 + (1.0 - step_halving_memory) * eta;
+      } else {
+        eta = params.step_halving_factor * eta0 + (1.0 - params.step_halving_factor) * eta;
+      }
+      
+      // If the first step halving was not enough, clip very low values of eta
+      if (num_step_halving > 0 && family_type == POISSON) {
+        eta = arma::max(eta, vec(n, fill::value(-10.0)));
+      }
+      
+      mu = link_inv_(eta, family_type);
+      dev = dev_resids_(y, mu, theta, w, family_type);
+      num_step_halving++;
+      
+      // Continue to next iteration without breaking
+      result.iter = iter + 1;
+      continue;
+    } else {
+      // Reset step halving counter 
+      num_step_halving = 0;
+    }
+
+    // After checking convergence, update HDFE tolerance following ppmlhdfe.mata
+    if (has_fixed_effects && params.use_acceleration) {
+      // As IRLS starts to converge, switch to stricter tolerances when partialling out
+      if (dev_ratio < hdfe_tolerance) {
+        // Increase HDFE tol by at least 10x, but don't increase beyond user-requested tol
+        double alt_tol = std::pow(10.0, -std::ceil(std::log10(1.0 / std::max(0.1 * dev_ratio, 1e-16))));
+        hdfe_tolerance = std::max(std::min(0.1 * hdfe_tolerance, alt_tol), highest_inner_tol);
+      }
     }
 
     result.iter = iter + 1;
@@ -766,7 +895,7 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
     // Use C++/Armadillo types for centering
     center_variables(Myadj, w_working, fe_groups, params.center_tol,
                      params.iter_center_max, params.iter_interrupt,
-                     params.iter_ssr);
+                     params.iter_ssr, params.accel_start, params.use_cg);
 
     // Compute update step and update eta
     eta_upd = yadj - Myadj + offset - eta;
