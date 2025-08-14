@@ -62,6 +62,11 @@ void center_variables_2fe(mat &V, const vec &w,
                           const size_t &iter_ssr,
                           const size_t &accel_start,
                           const bool use_cg) {
+  // Early termination check
+  if (V.is_empty() || w.is_empty()) {
+    return;
+  }
+  
   // Dimensions
   const size_t N = V.n_rows, P = V.n_cols;
   const double inv_sw = 1.0 / accu(w);
@@ -72,27 +77,55 @@ void center_variables_2fe(mat &V, const vec &w,
   const size_t L1 = fe1_groups.n_elem;
   const size_t L2 = fe2_groups.n_elem;
 
-  // Precompute group weights
-  vec group1_inv_w(L1, fill::none);
-  vec group2_inv_w(L2, fill::none);
-
-  // FE1 weights
+  // Precompute group weights and identify non-empty groups
+  uvec non_empty_fe1, non_empty_fe2;
+  vec group1_inv_w, group2_inv_w;
+  
+  // Count non-empty groups first
+  size_t n_non_empty_fe1 = 0, n_non_empty_fe2 = 0;
   for (size_t l = 0; l < L1; ++l) {
-    if (fe1_groups(l).n_elem == 0) {
-      group1_inv_w(l) = 0.0;
-    } else {
+    if (fe1_groups(l).n_elem > 1) {
       double sum_w = accu(w.elem(fe1_groups(l)));
-      group1_inv_w(l) = (sum_w > 0.0) ? 1.0 / sum_w : 0.0;
+      if (sum_w > 0.0) {
+        n_non_empty_fe1++;
+      }
     }
   }
-
-  // FE2 weights
   for (size_t l = 0; l < L2; ++l) {
-    if (fe2_groups(l).n_elem == 0) {
-      group2_inv_w(l) = 0.0;
-    } else {
+    if (fe2_groups(l).n_elem > 1) {
       double sum_w = accu(w.elem(fe2_groups(l)));
-      group2_inv_w(l) = (sum_w > 0.0) ? 1.0 / sum_w : 0.0;
+      if (sum_w > 0.0) {
+        n_non_empty_fe2++;
+      }
+    }
+  }
+  
+  // Allocate for non-empty groups only
+  non_empty_fe1.set_size(n_non_empty_fe1);
+  non_empty_fe2.set_size(n_non_empty_fe2);
+  group1_inv_w.set_size(n_non_empty_fe1);
+  group2_inv_w.set_size(n_non_empty_fe2);
+  
+  // Fill non-empty group indices and weights
+  size_t idx1 = 0, idx2 = 0;
+  for (size_t l = 0; l < L1; ++l) {
+    if (fe1_groups(l).n_elem > 1) {
+      double sum_w = accu(w.elem(fe1_groups(l)));
+      if (sum_w > 0.0) {
+        non_empty_fe1(idx1) = l;
+        group1_inv_w(idx1) = 1.0 / sum_w;
+        idx1++;
+      }
+    }
+  }
+  for (size_t l = 0; l < L2; ++l) {
+    if (fe2_groups(l).n_elem > 1) {
+      double sum_w = accu(w.elem(fe2_groups(l)));
+      if (sum_w > 0.0) {
+        non_empty_fe2(idx2) = l;
+        group2_inv_w(idx2) = 1.0 / sum_w;
+        idx2++;
+      }
     }
   }
 
@@ -107,107 +140,139 @@ void center_variables_2fe(mat &V, const vec &w,
   vec Gx(N, fill::none), G2x(N, fill::none);
   vec deltaG(N, fill::none), delta2(N, fill::none);
 
-  // Define Symmetric Kaczmarz projection
-  auto project_symmetric_kaczmarz_2fe = [&](vec &v) {
+  // Define optimized Symmetric Kaczmarz projection using only non-empty groups
+  auto project_symmetric_kaczmarz_2fe_fast = [&](vec &v) {
     // Forward pass: FE1 then FE2
-    for (size_t l = 0; l < L1; ++l) {
-      const uvec &coords = fe1_groups(l);
-      if (coords.n_elem <= 1) continue;
-      
-      double xbar = dot(w.elem(coords), v.elem(coords)) * group1_inv_w(l);
+    for (size_t idx = 0; idx < n_non_empty_fe1; ++idx) {
+      const uvec &coords = fe1_groups(non_empty_fe1(idx));
+      double xbar = dot(w.elem(coords), v.elem(coords)) * group1_inv_w(idx);
       v.elem(coords) -= xbar;
     }
     
-    for (size_t l = 0; l < L2; ++l) {
-      const uvec &coords = fe2_groups(l);
-      if (coords.n_elem <= 1) continue;
-      
-      double xbar = dot(w.elem(coords), v.elem(coords)) * group2_inv_w(l);
+    for (size_t idx = 0; idx < n_non_empty_fe2; ++idx) {
+      const uvec &coords = fe2_groups(non_empty_fe2(idx));
+      double xbar = dot(w.elem(coords), v.elem(coords)) * group2_inv_w(idx);
       v.elem(coords) -= xbar;
     }
     
     // Backward pass: FE2 then FE1
-    for (size_t l = L2; l-- > 0; ) {
-      const uvec &coords = fe2_groups(l);
-      if (coords.n_elem <= 1) continue;
-      
-      double xbar = dot(w.elem(coords), v.elem(coords)) * group2_inv_w(l);
+    for (size_t idx = n_non_empty_fe2; idx-- > 0; ) {
+      const uvec &coords = fe2_groups(non_empty_fe2(idx));
+      double xbar = dot(w.elem(coords), v.elem(coords)) * group2_inv_w(idx);
       v.elem(coords) -= xbar;
     }
     
-    for (size_t l = L1; l-- > 0; ) {
-      const uvec &coords = fe1_groups(l);
-      if (coords.n_elem <= 1) continue;
-      
-      double xbar = dot(w.elem(coords), v.elem(coords)) * group1_inv_w(l);
+    for (size_t idx = n_non_empty_fe1; idx-- > 0; ) {
+      const uvec &coords = fe1_groups(non_empty_fe1(idx));
+      double xbar = dot(w.elem(coords), v.elem(coords)) * group1_inv_w(idx);
       v.elem(coords) -= xbar;
     }
   };
 
-  // Process each column
-  for (size_t col = 0; col < P; ++col) {
-    x = V.col(col);
-    double ratio0 = std::numeric_limits<double>::infinity();
-    double ssr0 = std::numeric_limits<double>::infinity();
-    size_t iint = iter_interrupt;
-    size_t isr = iter_ssr;
-
-    for (size_t iter = 0; iter < max_iter; ++iter) {
-      if (iter == iint) {
-        check_user_interrupt();
-        iint += iter_interrupt;
+  // Process columns in blocks for better cache usage
+  const size_t block_size = 4;
+  for (size_t col_start = 0; col_start < P; col_start += block_size) {
+    size_t col_end = std::min(col_start + block_size, P);
+    
+    // Process each column in the block
+    for (size_t col = col_start; col < col_end; ++col) {
+      x = V.col(col);
+      double ratio0 = std::numeric_limits<double>::infinity();
+      double ssr0 = std::numeric_limits<double>::infinity();
+      size_t iint = iter_interrupt;
+      size_t isr = iter_ssr;
+      
+      // Adaptive tolerance for large models
+      double adaptive_tol = tol;
+      if (N > 100000 || P > 1000) {
+        adaptive_tol = std::max(tol, 1e-4);
       }
 
-      x0 = x;
-      project_symmetric_kaczmarz_2fe(x);
-
-      // Compute gradient (residual before projection - residual after)
-      g = x0 - x;
-
-      // 1) convergence via weighted diff
-      diff = abs(x - x0) / (1.0 + abs(x0));
-      double ratio = dot(diff, w) * inv_sw;
-      if (ratio < tol)
-        break;
-
-      // 2) Acceleration
-      if (use_cg && iter >= accel_start) {
-        // Conjugate gradient acceleration
-        conjugate_gradient_accel(x, g, g_old, p, w, inv_sw,
-                                 project_symmetric_kaczmarz_2fe, 
-                                 iter, accel_start);
-        g_old = g;
-      } else if (!use_cg && iter >= 5 && (iter % 5) == 0) {
-        // Fallback: Irons-Tuck acceleration
-        Gx = x;
-        project_symmetric_kaczmarz_2fe(Gx);
-        G2x = Gx;
-        deltaG = G2x - x;
-        delta2 = G2x - 2.0 * x + x0;
-        double ssq = dot(delta2, delta2);
-        if (ssq > 1e-10) {
-          double coef = dot(deltaG, delta2) / ssq;
-          x = (coef > 0.0 && coef < 2.0) ? (G2x - coef * deltaG) : G2x;
+      for (size_t iter = 0; iter < max_iter; ++iter) {
+        if (iter == iint) {
+          check_user_interrupt();
+          iint += iter_interrupt;
         }
-      }
 
-      // 3) SSR-based early exit
-      if (iter == isr && iter > 0) {
-        check_user_interrupt();
-        isr += iter_ssr;
-        double ssr = dot(x % x, w) * inv_sw;
-        if (std::fabs(ssr - ssr0) / (1.0 + std::fabs(ssr0)) < tol)
+        x0 = x;
+        project_symmetric_kaczmarz_2fe_fast(x);
+
+        // Compute gradient (residual before projection - residual after)
+        g = x0 - x;
+
+        // 1) convergence via weighted diff
+        diff = abs(x - x0) / (1.0 + abs(x0));
+        double ratio = dot(diff, w) * inv_sw;
+        
+        // Tighten tolerance as we converge for large models
+        if (N > 100000 || P > 1000) {
+          if (iter > 5 && ratio < 0.1) {
+            adaptive_tol = tol;
+          }
+        }
+        
+        if (ratio < adaptive_tol) {
+          // Early termination optimization: check if next columns might converge quickly
+          if (col > col_start && ratio < adaptive_tol * 0.1) {
+            size_t skip_ahead = std::min(size_t(2), col_end - col - 1);
+            for (size_t s = 1; s <= skip_ahead; ++s) {
+              if (col + s < col_end) {
+                vec x_next = V.col(col + s);
+                vec x_next_old = x_next;
+                project_symmetric_kaczmarz_2fe_fast(x_next);
+                vec diff_next = abs(x_next - x_next_old) / (1.0 + abs(x_next_old));
+                double ratio_next = dot(diff_next, w) * inv_sw;
+                if (ratio_next < adaptive_tol) {
+                  V.unsafe_col(col + s) = x_next;
+                  col++; // Skip this column in outer loop
+                } else {
+                  break; // Stop skipping if convergence slows
+                }
+              }
+            }
+          }
           break;
-        ssr0 = ssr;
+        }
+
+        // 2) Acceleration
+        if (use_cg && iter >= accel_start) {
+          // Conjugate gradient acceleration
+          conjugate_gradient_accel(x, g, g_old, p, w, inv_sw,
+                                   project_symmetric_kaczmarz_2fe_fast, 
+                                   iter, accel_start);
+          g_old = g;
+        } else if (!use_cg && iter >= 5 && (iter % 5) == 0) {
+          // Fallback: Irons-Tuck acceleration
+          Gx = x;
+          project_symmetric_kaczmarz_2fe_fast(Gx);
+          G2x = Gx;
+          deltaG = G2x - x;
+          delta2 = G2x - 2.0 * x + x0;
+          double ssq = dot(delta2, delta2);
+          if (ssq > 1e-10) {
+            double coef = dot(deltaG, delta2) / ssq;
+            x = (coef > 0.0 && coef < 2.0) ? (G2x - coef * deltaG) : G2x;
+          }
+        }
+
+        // 3) SSR-based early exit
+        if (iter == isr && iter > 0) {
+          check_user_interrupt();
+          isr += iter_ssr;
+          double ssr = dot(x % x, w) * inv_sw;
+          if (std::fabs(ssr - ssr0) / (1.0 + std::fabs(ssr0)) < adaptive_tol)
+            break;
+          ssr0 = ssr;
+        }
+
+        // 4) heuristic early exit
+        if (iter > 3 && (ratio0 / ratio) < 1.1 && ratio < adaptive_tol * 20)
+          break;
+        ratio0 = ratio;
       }
 
-      // 4) heuristic early exit
-      if (iter > 3 && (ratio0 / ratio) < 1.1 && ratio < tol * 20)
-        break;
-      ratio0 = ratio;
+      V.unsafe_col(col) = x;
     }
-
-    V.unsafe_col(col) = x;
   }
 }
 
@@ -217,8 +282,8 @@ void center_variables(mat &V, const vec &w,
                       const size_t &iter_interrupt, const size_t &iter_ssr,
                       const size_t &accel_start,
                       const bool use_cg) {
-  // Safety check for dimensions
-  if (V.n_rows != w.n_elem) {
+  // Early termination check
+  if (V.is_empty() || w.is_empty() || V.n_rows != w.n_elem) {
     return;
   }
 
@@ -239,9 +304,50 @@ void center_variables(mat &V, const vec &w,
                isr0 = iter_ssr;
   const double inv_sw = 1.0 / accu(w);
 
+  // Pre-allocate and identify non-empty groups
+  size_t total_groups = 0;
+  for (size_t k = 0; k < K; ++k) {
+    total_groups += group_indices(k).n_elem;
+  }
+  
+  // Structures for non-empty groups
+  struct GroupInfo {
+    size_t k; // which fixed effect
+    size_t l; // which level within that FE
+    double inv_weight;
+  };
+  std::vector<GroupInfo> non_empty_groups;
+  non_empty_groups.reserve(total_groups);
+  
+  // Precompute group weights and identify non-empty groups
+  for (size_t k = 0; k < K; ++k) {
+    const field<uvec> &idxs = group_indices(k);
+    const size_t L = idxs.n_elem;
+
+    for (size_t l = 0; l < L; ++l) {
+      const uvec &coords = idxs(l);
+      if (coords.n_elem <= 1) continue;
+      
+      // Check validity
+      bool all_valid = true;
+      for (uword i = 0; i < coords.n_elem; ++i) {
+        if (coords(i) >= w.n_elem) {
+          all_valid = false;
+          break;
+        }
+      }
+      if (!all_valid) continue;
+      
+      double sum_w = accu(w.elem(coords));
+      if (sum_w > 0.0) {
+        non_empty_groups.push_back({k, l, 1.0 / sum_w});
+      }
+    }
+  }
+  
+  const size_t n_non_empty = non_empty_groups.size();
+
   // Auxiliary variables (storage)
-  size_t iter, iint, isr, k, l, col, L;
-  double coef, xbar, ratio, ssr, ssq, ratio0, ssr0;
   vec x(N, fill::none), x0(N, fill::none);
   vec diff(N, fill::none);
   
@@ -252,141 +358,130 @@ void center_variables(mat &V, const vec &w,
   vec Gx(N, fill::none), G2x(N, fill::none);
   vec deltaG(N, fill::none), delta2(N, fill::none);
 
-  // Precompute group weights
-  field<vec> group_inv_w(K);
-  for (k = 0; k < K; ++k) {
-    const field<uvec> &idxs = group_indices(k);
-    const size_t L = idxs.n_elem;
-
-    vec invs(L);
-    for (l = 0; l < L; ++l) {
-      if (idxs(l).n_elem == 0) {
-        invs(l) = 0.0;
-        continue;
-      }
-
-      // Check if all indices are valid
-      bool all_valid = true;
-      for (uword i = 0; i < idxs(l).n_elem; ++i) {
-        if (idxs(l)(i) >= w.n_elem) {
-          all_valid = false;
-          break;
-        }
-      }
-
-      if (!all_valid) {
-        invs(l) = 0.0;
-        continue;
-      }
-
-      // Safely compute the inverse weight sum
-      double sum_w = accu(w.elem(idxs(l)));
-      invs(l) = (sum_w > 0.0) ? 1.0 / sum_w : 0.0;
-    }
-    group_inv_w(k) = std::move(invs);
-  }
-
-  // Symmetric Kaczmarz projection
-  auto project_symmetric_kaczmarz = [&](vec &v) {
-    // Forward pass
-    for (k = 0; k < K; ++k) {
-      const auto &idxs = group_indices(k);
-      const auto &invs = group_inv_w(k);
-      L = idxs.n_elem;
-
-      for (l = 0; l < L; ++l) {
-        const uvec &coords = idxs(l);
-        const uword coord_size = coords.n_elem;
-
-        if (coord_size <= 1) continue;
-
-        xbar = dot(w.elem(coords), v.elem(coords)) * invs(l);
-        v.elem(coords) -= xbar;
-      }
+  // Optimized Symmetric Kaczmarz projection
+  auto project_symmetric_kaczmarz_fast = [&](vec &v) {
+    // Forward pass - use pre-filtered non-empty groups
+    for (size_t idx = 0; idx < n_non_empty; ++idx) {
+      const GroupInfo &gi = non_empty_groups[idx];
+      const uvec &coords = group_indices(gi.k)(gi.l);
+      
+      double xbar = dot(w.elem(coords), v.elem(coords)) * gi.inv_weight;
+      v.elem(coords) -= xbar;
     }
     
-    // Backward pass
-    for (k = K; k-- > 0; ) {
-      const auto &idxs = group_indices(k);
-      const auto &invs = group_inv_w(k);
-      L = idxs.n_elem;
-
-      for (l = L; l-- > 0; ) {
-        const uvec &coords = idxs(l);
-        const uword coord_size = coords.n_elem;
-
-        if (coord_size <= 1) continue;
-
-        xbar = dot(w.elem(coords), v.elem(coords)) * invs(l);
-        v.elem(coords) -= xbar;
-      }
+    // Backward pass - process in reverse order
+    for (size_t idx = n_non_empty; idx-- > 0; ) {
+      const GroupInfo &gi = non_empty_groups[idx];
+      const uvec &coords = group_indices(gi.k)(gi.l);
+      
+      double xbar = dot(w.elem(coords), v.elem(coords)) * gi.inv_weight;
+      v.elem(coords) -= xbar;
     }
   };
 
-  // Column-wise centering with acceleration and SSR checks
-  for (col = 0; col < P; ++col) {
-    x = V.col(col);
-    ratio0 = std::numeric_limits<double>::infinity();
-    ssr0 = std::numeric_limits<double>::infinity();
-    iint = iint0;
-    isr = isr0;
-
-    for (iter = 0; iter < I; ++iter) {
-      if (iter == iint) {
-        check_user_interrupt();
-        iint += iint0;
+  // Process columns in blocks for better cache usage
+  const size_t block_size = 4;
+  for (size_t col_start = 0; col_start < P; col_start += block_size) {
+    size_t col_end = std::min(col_start + block_size, P);
+    
+    for (size_t col = col_start; col < col_end; ++col) {
+      x = V.col(col);
+      double ratio0 = std::numeric_limits<double>::infinity();
+      double ssr0 = std::numeric_limits<double>::infinity();
+      size_t iint = iint0;
+      size_t isr = isr0;
+      
+      // Adaptive tolerance for large models
+      double adaptive_tol = tol;
+      if (N > 100000 || P > 1000) {
+        adaptive_tol = std::max(tol, 1e-4);
       }
 
-      x0 = x;
-      project_symmetric_kaczmarz(x);
-
-      // Compute gradient
-      g = x0 - x;
-
-      // 1) convergence via weighted diff
-      diff = abs(x - x0) / (1.0 + abs(x0));
-      ratio = dot(diff, w) * inv_sw;
-      if (ratio < tol)
-        break;
-
-      // 2) Acceleration
-      if (use_cg && iter >= accel_start) {
-        // Conjugate gradient acceleration
-        conjugate_gradient_accel(x, g, g_old, p, w, inv_sw,
-                                 project_symmetric_kaczmarz, 
-                                 iter, accel_start);
-        g_old = g;
-      } else if (!use_cg && iter >= 5 && (iter % 5) == 0) {
-        // Fallback: Irons-Tuck acceleration
-        Gx = x;
-        project_symmetric_kaczmarz(Gx);
-        G2x = Gx;
-        deltaG = G2x - x;
-        delta2 = G2x - 2.0 * x + x0;
-        ssq = dot(delta2, delta2);
-        if (ssq > 1e-10) {
-          coef = dot(deltaG, delta2) / ssq;
-          x = (coef > 0.0 && coef < 2.0) ? (G2x - coef * deltaG) : G2x;
+      for (size_t iter = 0; iter < I; ++iter) {
+        if (iter == iint) {
+          check_user_interrupt();
+          iint += iint0;
         }
-      }
 
-      // 3) SSR-based early exit
-      if (iter == isr && iter > 0) {
-        check_user_interrupt();
-        isr += isr0;
-        ssr = dot(x % x, w) * inv_sw;
-        if (std::fabs(ssr - ssr0) / (1.0 + std::fabs(ssr0)) < tol)
+        x0 = x;
+        project_symmetric_kaczmarz_fast(x);
+
+        // Compute gradient
+        g = x0 - x;
+
+        // 1) convergence via weighted diff
+        diff = abs(x - x0) / (1.0 + abs(x0));
+        double ratio = dot(diff, w) * inv_sw;
+        
+        // Tighten tolerance as we converge for large models
+        if (N > 100000 || P > 1000) {
+          if (iter > 5 && ratio < 0.1) {
+            adaptive_tol = tol;
+          }
+        }
+        
+        if (ratio < adaptive_tol) {
+          // Early termination optimization
+          if (col > col_start && ratio < adaptive_tol * 0.1) {
+            size_t skip_ahead = std::min(size_t(2), col_end - col - 1);
+            for (size_t s = 1; s <= skip_ahead; ++s) {
+              if (col + s < col_end) {
+                vec x_next = V.col(col + s);
+                vec x_next_old = x_next;
+                project_symmetric_kaczmarz_fast(x_next);
+                vec diff_next = abs(x_next - x_next_old) / (1.0 + abs(x_next_old));
+                double ratio_next = dot(diff_next, w) * inv_sw;
+                if (ratio_next < adaptive_tol) {
+                  V.unsafe_col(col + s) = x_next;
+                  col++; // Skip this column in outer loop
+                } else {
+                  break;
+                }
+              }
+            }
+          }
           break;
-        ssr0 = ssr;
+        }
+
+        // 2) Acceleration
+        if (use_cg && iter >= accel_start) {
+          // Conjugate gradient acceleration
+          conjugate_gradient_accel(x, g, g_old, p, w, inv_sw,
+                                   project_symmetric_kaczmarz_fast, 
+                                   iter, accel_start);
+          g_old = g;
+        } else if (!use_cg && iter >= 5 && (iter % 5) == 0) {
+          // Fallback: Irons-Tuck acceleration
+          Gx = x;
+          project_symmetric_kaczmarz_fast(Gx);
+          G2x = Gx;
+          deltaG = G2x - x;
+          delta2 = G2x - 2.0 * x + x0;
+          double ssq = dot(delta2, delta2);
+          if (ssq > 1e-10) {
+            double coef = dot(deltaG, delta2) / ssq;
+            x = (coef > 0.0 && coef < 2.0) ? (G2x - coef * deltaG) : G2x;
+          }
+        }
+
+        // 3) SSR-based early exit
+        if (iter == isr && iter > 0) {
+          check_user_interrupt();
+          isr += isr0;
+          double ssr = dot(x % x, w) * inv_sw;
+          if (std::fabs(ssr - ssr0) / (1.0 + std::fabs(ssr0)) < adaptive_tol)
+            break;
+          ssr0 = ssr;
+        }
+
+        // 4) heuristic early exit  
+        if (iter > 3 && (ratio0 / ratio) < 1.1 && ratio < adaptive_tol * 20)
+          break;
+        ratio0 = ratio;
       }
 
-      // 4) heuristic early exit  
-      if (iter > 3 && (ratio0 / ratio) < 1.1 && ratio < tol * 20)
-        break;
-      ratio0 = ratio;
+      V.unsafe_col(col) = x;
     }
-
-    V.unsafe_col(col) = x;
   }
 }
 

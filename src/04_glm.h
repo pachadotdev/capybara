@@ -380,6 +380,12 @@ SeparationResult detect_poisson_separation(
   // Create workspace for weighted regression
   BetaWorkspace beta_workspace(n, p);
 
+  // Adaptive tolerance for separation detection in large models
+  double adaptive_sep_tol = params.center_tol;
+  if (n > 100000 || p > 1000) {
+    adaptive_sep_tol = std::max(params.center_tol, 1e-3);
+  }
+
   for (size_t iter = 1; iter <= max_iter; ++iter) {
     // Rotate previous xbd values
     xbd_prev2 = xbd_prev1;
@@ -406,10 +412,11 @@ SeparationResult detect_poisson_separation(
     vec u_centered = utilde;
     mat X_centered = xtilde;
     if (fe_groups.n_elem > 0) {
-      center_variables(u_centered, w_lse, fe_groups, params.center_tol,
+      // Use adaptive tolerance for separation detection
+      center_variables(u_centered, w_lse, fe_groups, adaptive_sep_tol,
                        params.iter_center_max, params.iter_interrupt,
                        params.iter_ssr, params.accel_start, params.use_cg);
-      center_variables(X_centered, w_lse, fe_groups, params.center_tol,
+      center_variables(X_centered, w_lse, fe_groups, adaptive_sep_tol,
                        params.iter_center_max, params.iter_interrupt,
                        params.iter_ssr, params.accel_start, params.use_cg);
     }
@@ -584,14 +591,22 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     }
   }
 
-  // Adaptive tolerance variables
+  // Adaptive tolerance variables - more aggressive for large models
   double hdfe_tolerance = params.center_tol;
   double highest_inner_tol = std::max(1e-12, std::min(params.center_tol, 0.1 * params.dev_tol));
   double start_inner_tol = params.start_inner_tol;
   
-  // Looser tolerance
+  // Model size-based initial tolerance
+  bool is_large_model = (n > 100000) || (p > 1000) || 
+                        (has_fixed_effects && fe_groups.n_elem > 1);
+  
   if (has_fixed_effects) {
-    hdfe_tolerance = std::max(start_inner_tol, params.dev_tol);
+    if (is_large_model) {
+      // Much looser initial tolerance for large models
+      hdfe_tolerance = std::max(1e-3, std::max(start_inner_tol, params.dev_tol * 10));
+    } else {
+      hdfe_tolerance = std::max(start_inner_tol, params.dev_tol);
+    }
   }
 
   // Fast partial out variables  
@@ -606,6 +621,10 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   // Convergence history prediction
   vec eps_history(3, fill::value(datum::inf));
   double predicted_eps = datum::inf;
+  
+  // Adaptive tolerance scheduling
+  size_t fast_convergence_count = 0;
+  double last_dev_ratio = datum::inf;
 
   // Maximize the log-likelihood
   for (size_t iter = 0; iter < params.iter_max; ++iter) {
@@ -619,14 +638,28 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     w_working = (w % square(mu_eta)) / variance_(mu, theta, family_type);
     nu = (y - mu) / mu_eta;
 
-    // Calculate current HDFE tolerance BEFORE using it
-    // Use prediction to decide on solver accuracy (following ppmlhdfe.mata logic)
+    // Calculate current HDFE tolerance with model size awareness
     bool iter_fast_solver = has_fixed_effects && (hdfe_tolerance > params.dev_tol * 11) && 
                            (predicted_eps > params.dev_tol);
     
-    // Adjust centering tolerance based on solver speed requirements
-    double current_hdfe_tol = iter_fast_solver ? hdfe_tolerance : 
-                              std::min(hdfe_tolerance, highest_inner_tol);
+    // More aggressive tolerance management for large models
+    double current_hdfe_tol;
+    if (is_large_model) {
+      if (iter < 5) {
+        // Very loose tolerance in early iterations for large models
+        current_hdfe_tol = std::max(hdfe_tolerance, 1e-2);
+      } else if (iter_fast_solver) {
+        // Still use fast solver but with tighter bound
+        current_hdfe_tol = std::min(hdfe_tolerance, 1e-3);
+      } else {
+        // Tighten as we converge
+        current_hdfe_tol = std::min(hdfe_tolerance, highest_inner_tol);
+      }
+    } else {
+      // Standard tolerance scheduling for smaller models
+      current_hdfe_tol = iter_fast_solver ? hdfe_tolerance : 
+                         std::min(hdfe_tolerance, highest_inner_tol);
+    }
 
     // Fast partial out: only update the increment after first iteration
     // Following ppmlhdfe.mata approach: use incremental updates for speed
@@ -745,6 +778,14 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     dev_ratio = fabs(dev - dev0) / (0.1 + fabs(dev));
     double delta_deviance = dev0 - dev;
     
+    // Track fast convergence for large models
+    if (is_large_model && dev_ratio < last_dev_ratio * 0.5) {
+      fast_convergence_count++;
+    } else {
+      fast_convergence_count = 0;
+    }
+    last_dev_ratio = dev_ratio;
+    
     // Update convergence history if acceleration is enabled
     if (params.use_acceleration) {
       eps_history(0) = eps_history(1);
@@ -786,13 +827,24 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       num_step_halving = 0;
     }
 
-    // After checking convergence, update HDFE tolerance following ppmlhdfe.mata
+    // Adaptive HDFE tolerance update with model size awareness
     if (has_fixed_effects && params.use_acceleration) {
-      // As IRLS starts to converge, switch to stricter tolerances when partialling out
-      if (dev_ratio < hdfe_tolerance) {
-        // Increase HDFE tol by at least 10x, but don't increase beyond user-requested tol
-        double alt_tol = std::pow(10.0, -std::ceil(std::log10(1.0 / std::max(0.1 * dev_ratio, 1e-16))));
-        hdfe_tolerance = std::max(std::min(0.1 * hdfe_tolerance, alt_tol), highest_inner_tol);
+      if (is_large_model) {
+        // More aggressive tolerance scheduling for large models
+        if (fast_convergence_count >= 3 || dev_ratio < hdfe_tolerance * 0.1) {
+          // Rapid convergence detected, tighten significantly
+          hdfe_tolerance = std::max(highest_inner_tol, hdfe_tolerance * 0.01);
+        } else if (dev_ratio < hdfe_tolerance) {
+          // Normal tightening for large models
+          double alt_tol = std::pow(10.0, -std::ceil(std::log10(1.0 / std::max(0.1 * dev_ratio, 1e-16))));
+          hdfe_tolerance = std::max(std::min(0.1 * hdfe_tolerance, alt_tol), highest_inner_tol);
+        }
+      } else {
+        // Standard tolerance update for smaller models
+        if (dev_ratio < hdfe_tolerance) {
+          double alt_tol = std::pow(10.0, -std::ceil(std::log10(1.0 / std::max(0.1 * dev_ratio, 1e-16))));
+          hdfe_tolerance = std::max(std::min(0.1 * hdfe_tolerance, alt_tol), highest_inner_tol);
+        }
       }
     }
 
@@ -878,6 +930,12 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
   double dev0, dev_ratio, dev_ratio_inner, rho;
   bool dev_crit, val_crit, imp_crit;
 
+  // Adaptive tolerance for offset fitting
+  double adaptive_tol = params.center_tol;
+  if (n > 100000) {
+    adaptive_tol = std::max(params.center_tol, 1e-3);
+  }
+
   // Maximize the log-likelihood
   for (size_t iter = 0; iter < params.iter_max; ++iter) {
     rho = 1.0;
@@ -892,8 +950,8 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
     // Center variables
     Myadj += yadj;
 
-    // Use C++/Armadillo types for centering
-    center_variables(Myadj, w_working, fe_groups, params.center_tol,
+    // Use adaptive tolerance for centering
+    center_variables(Myadj, w_working, fe_groups, adaptive_tol,
                      params.iter_center_max, params.iter_interrupt,
                      params.iter_ssr, params.accel_start, params.use_cg);
 
@@ -927,6 +985,12 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
 
     // Check convergence
     dev_ratio = fabs(dev - dev0) / (0.1 + fabs(dev));
+    
+    // Tighten tolerance as we converge
+    if (n > 100000 && iter > 5 && dev_ratio < 0.1) {
+      adaptive_tol = params.center_tol;
+    }
+    
     if (dev_ratio < params.dev_tol) {
       break;
     }
