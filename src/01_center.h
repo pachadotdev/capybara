@@ -1,15 +1,67 @@
-// Method of alternating projections (Halperin)
+// Symmetric Kaczmarz with Conjugate Gradient acceleration
 
 #ifndef CAPYBARA_CENTER_H
 #define CAPYBARA_CENTER_H
 
 namespace capybara {
 
+// Helper function for conjugate gradient acceleration
+// Based on reghdfe's accelerate_cg implementation
+template <typename ProjectFunc>
+void conjugate_gradient_accel(vec &x, vec &g, vec &g_old, vec &p, 
+                              const vec &w, const double &inv_sw,
+                              ProjectFunc project, 
+                              const size_t iter,
+                              const size_t accel_start) {
+  // g = gradient = residual = x_old - x_new (after projection)
+  // p = search direction
+  
+  if (iter == accel_start) {
+    // First CG iteration: p = g
+    p = g;
+  } else if (iter > accel_start) {
+    // Hestenes-Stiefel formula (more stable than Fletcher-Reeves for MAP)
+    // beta = <g, g - g_old> / <p, g - g_old>
+    vec diff_g = g - g_old;
+    double num = dot(g % diff_g, w) * inv_sw;
+    double denom = dot(p % diff_g, w) * inv_sw;
+    
+    if (std::abs(denom) > 1e-10) {
+      double beta = num / denom;
+      // Restart if beta is negative or too large
+      if (beta < 0.0 || beta > 10.0) {
+        p = g; // Restart CG
+      } else {
+        p = g + beta * p;
+      }
+    } else {
+      p = g; // Restart if denominator too small
+    }
+  }
+  
+  // Line search along direction p
+  vec Ap = p;
+  project(Ap); // Apply projection to get Ap
+  Ap = p - Ap;  // Now Ap = (I - P)*p
+  
+  double pAp = dot(p % Ap, w) * inv_sw;
+  if (pAp > 1e-10) {
+    double gg = dot(g % g, w) * inv_sw;
+    double alpha = gg / pAp;
+    
+    // Update x: x = x - alpha * p
+    // Note: in reghdfe, they use x = x - alpha * p because g = x_old - x_new
+    x = x - alpha * p;
+  }
+}
+
 void center_variables_2fe(mat &V, const vec &w,
                           const field<field<uvec>> &group_indices,
                           const double &tol, const size_t &max_iter,
                           const size_t &iter_interrupt,
-                          const size_t &iter_ssr) {
+                          const size_t &iter_ssr,
+                          const size_t &accel_start,
+                          const bool use_cg) {
   // Dimensions
   const size_t N = V.n_rows, P = V.n_cols;
   const double inv_sw = 1.0 / accu(w);
@@ -20,7 +72,7 @@ void center_variables_2fe(mat &V, const vec &w,
   const size_t L1 = fe1_groups.n_elem;
   const size_t L2 = fe2_groups.n_elem;
 
-  // Precompute group weights exactly like the general version
+  // Precompute group weights
   vec group1_inv_w(L1, fill::none);
   vec group2_inv_w(L2, fill::none);
 
@@ -47,39 +99,54 @@ void center_variables_2fe(mat &V, const vec &w,
   // Working vectors
   vec x(N, fill::none), x0(N, fill::none);
   vec diff(N, fill::none);
+  
+  // CG-specific vectors
+  vec g(N, fill::none), g_old(N, fill::none), p(N, fill::none);
+  
+  // Fallback acceleration vectors
   vec Gx(N, fill::none), G2x(N, fill::none);
   vec deltaG(N, fill::none), delta2(N, fill::none);
 
-  // Define projection function
-  auto project_2fe = [&](vec &v) {
-    // Project FE1
+  // Define Symmetric Kaczmarz projection
+  auto project_symmetric_kaczmarz_2fe = [&](vec &v) {
+    // Forward pass: FE1 then FE2
     for (size_t l = 0; l < L1; ++l) {
       const uvec &coords = fe1_groups(l);
-      const uword coord_size = coords.n_elem;
-
-      if (coord_size <= 1)
-        continue; // Skip singleton/empty groups
-
+      if (coords.n_elem <= 1) continue;
+      
       double xbar = dot(w.elem(coords), v.elem(coords)) * group1_inv_w(l);
       v.elem(coords) -= xbar;
     }
-
-    // Project FE2
+    
     for (size_t l = 0; l < L2; ++l) {
       const uvec &coords = fe2_groups(l);
-      const uword coord_size = coords.n_elem;
-
-      if (coord_size <= 1)
-        continue; // Skip singleton/empty groups
-
+      if (coords.n_elem <= 1) continue;
+      
       double xbar = dot(w.elem(coords), v.elem(coords)) * group2_inv_w(l);
+      v.elem(coords) -= xbar;
+    }
+    
+    // Backward pass: FE2 then FE1
+    for (size_t l = L2; l-- > 0; ) {
+      const uvec &coords = fe2_groups(l);
+      if (coords.n_elem <= 1) continue;
+      
+      double xbar = dot(w.elem(coords), v.elem(coords)) * group2_inv_w(l);
+      v.elem(coords) -= xbar;
+    }
+    
+    for (size_t l = L1; l-- > 0; ) {
+      const uvec &coords = fe1_groups(l);
+      if (coords.n_elem <= 1) continue;
+      
+      double xbar = dot(w.elem(coords), v.elem(coords)) * group1_inv_w(l);
       v.elem(coords) -= xbar;
     }
   };
 
-  // Process each column (simplified from general version)
-  for (size_t p = 0; p < P; ++p) {
-    x = V.col(p);
+  // Process each column
+  for (size_t col = 0; col < P; ++col) {
+    x = V.col(col);
     double ratio0 = std::numeric_limits<double>::infinity();
     double ssr0 = std::numeric_limits<double>::infinity();
     size_t iint = iter_interrupt;
@@ -92,7 +159,10 @@ void center_variables_2fe(mat &V, const vec &w,
       }
 
       x0 = x;
-      project_2fe(x);
+      project_symmetric_kaczmarz_2fe(x);
+
+      // Compute gradient (residual before projection - residual after)
+      g = x0 - x;
 
       // 1) convergence via weighted diff
       diff = abs(x - x0) / (1.0 + abs(x0));
@@ -100,10 +170,17 @@ void center_variables_2fe(mat &V, const vec &w,
       if (ratio < tol)
         break;
 
-      // 2) Irons-Tuck acceleration every 5 iterations
-      if (iter >= 5 && (iter % 5) == 0) {
+      // 2) Acceleration
+      if (use_cg && iter >= accel_start) {
+        // Conjugate gradient acceleration
+        conjugate_gradient_accel(x, g, g_old, p, w, inv_sw,
+                                 project_symmetric_kaczmarz_2fe, 
+                                 iter, accel_start);
+        g_old = g;
+      } else if (!use_cg && iter >= 5 && (iter % 5) == 0) {
+        // Fallback: Irons-Tuck acceleration
         Gx = x;
-        project_2fe(Gx);
+        project_symmetric_kaczmarz_2fe(Gx);
         G2x = Gx;
         deltaG = G2x - x;
         delta2 = G2x - 2.0 * x + x0;
@@ -130,14 +207,16 @@ void center_variables_2fe(mat &V, const vec &w,
       ratio0 = ratio;
     }
 
-    V.unsafe_col(p) = x;
+    V.unsafe_col(col) = x;
   }
 }
 
 void center_variables(mat &V, const vec &w,
                       const field<field<uvec>> &group_indices,
                       const double &tol, const size_t &max_iter,
-                      const size_t &iter_interrupt, const size_t &iter_ssr) {
+                      const size_t &iter_interrupt, const size_t &iter_ssr,
+                      const size_t &accel_start,
+                      const bool use_cg) {
   // Safety check for dimensions
   if (V.n_rows != w.n_elem) {
     return;
@@ -145,13 +224,12 @@ void center_variables(mat &V, const vec &w,
 
   if (group_indices.n_elem == 2) {
     center_variables_2fe(V, w, group_indices, tol, max_iter, iter_interrupt,
-                         iter_ssr);
+                         iter_ssr, accel_start, use_cg);
     return;
   }
 
   // If no groups, just return
   if (group_indices.n_elem == 0) {
-
     return;
   }
 
@@ -162,34 +240,28 @@ void center_variables(mat &V, const vec &w,
   const double inv_sw = 1.0 / accu(w);
 
   // Auxiliary variables (storage)
-  size_t iter, iint, isr, k, l, p, L;
+  size_t iter, iint, isr, k, l, col, L;
   double coef, xbar, ratio, ssr, ssq, ratio0, ssr0;
-  vec x(N, fill::none), x0(N, fill::none), Gx(N, fill::none),
-      G2x(N, fill::none), deltaG(N, fill::none), delta2(N, fill::none),
-      diff(N, fill::none);
+  vec x(N, fill::none), x0(N, fill::none);
+  vec diff(N, fill::none);
+  
+  // CG-specific vectors
+  vec g(N, fill::none), g_old(N, fill::none), p(N, fill::none);
+  
+  // Fallback acceleration vectors
+  vec Gx(N, fill::none), G2x(N, fill::none);
+  vec deltaG(N, fill::none), delta2(N, fill::none);
 
   // Precompute group weights
   field<vec> group_inv_w(K);
   for (k = 0; k < K; ++k) {
-    if (k >= group_indices.n_elem) {
-
-      continue;
-    }
-
     const field<uvec> &idxs = group_indices(k);
     const size_t L = idxs.n_elem;
 
     vec invs(L);
     for (l = 0; l < L; ++l) {
-      if (l >= idxs.n_elem) {
-
-        continue;
-      }
-
-      // Skip empty groups
       if (idxs(l).n_elem == 0) {
-
-        invs(l) = 0.0; // Set to 0 for empty groups
+        invs(l) = 0.0;
         continue;
       }
 
@@ -203,77 +275,48 @@ void center_variables(mat &V, const vec &w,
       }
 
       if (!all_valid) {
-        invs(l) = 0.0; // Set to 0 for groups with invalid indices
+        invs(l) = 0.0;
         continue;
       }
 
       // Safely compute the inverse weight sum
-      try {
-        double sum_w = accu(w.elem(idxs(l)));
-        invs(l) = (sum_w > 0.0) ? 1.0 / sum_w : 0.0;
-      } catch (const std::exception &e) {
-
-        invs(l) = 0.0;
-      }
+      double sum_w = accu(w.elem(idxs(l)));
+      invs(l) = (sum_w > 0.0) ? 1.0 / sum_w : 0.0;
     }
     group_inv_w(k) = std::move(invs);
   }
 
-  // Single projection step (in-place)
-  auto project = [&](vec &v) {
+  // Symmetric Kaczmarz projection
+  auto project_symmetric_kaczmarz = [&](vec &v) {
+    // Forward pass
     for (k = 0; k < K; ++k) {
-      // Check if we have a valid group
-      if (k >= group_indices.n_elem) {
-
-        continue;
-      }
-
       const auto &idxs = group_indices(k);
-
-      // Check if we have valid group weights
-      if (k >= group_inv_w.n_elem) {
-
-        continue;
-      }
-
       const auto &invs = group_inv_w(k);
       L = idxs.n_elem;
 
-      if (L == 0)
-        continue;
-
-      // Make sure we don't have more groups than weights
-      if (L > invs.n_elem) {
-
-        continue;
-      }
-
       for (l = 0; l < L; ++l) {
-        // Check if the group exists
-        if (l >= idxs.n_elem) {
-
-          continue;
-        }
-
         const uvec &coords = idxs(l);
         const uword coord_size = coords.n_elem;
 
-        if (coord_size <= 1)
-          continue;
+        if (coord_size <= 1) continue;
 
-        // Check if all indices are within bounds
-        bool valid_indices = true;
-        for (uword i = 0; i < coord_size; ++i) {
-          if (coords(i) >= N) {
-            valid_indices = false;
-            break;
-          }
-        }
+        xbar = dot(w.elem(coords), v.elem(coords)) * invs(l);
+        v.elem(coords) -= xbar;
+      }
+    }
+    
+    // Backward pass
+    for (k = K; k-- > 0; ) {
+      const auto &idxs = group_indices(k);
+      const auto &invs = group_inv_w(k);
+      L = idxs.n_elem;
 
-        if (!valid_indices)
-          continue;
+      for (l = L; l-- > 0; ) {
+        const uvec &coords = idxs(l);
+        const uword coord_size = coords.n_elem;
 
-        // Now safely compute the group mean and demean
+        if (coord_size <= 1) continue;
+
         xbar = dot(w.elem(coords), v.elem(coords)) * invs(l);
         v.elem(coords) -= xbar;
       }
@@ -281,8 +324,8 @@ void center_variables(mat &V, const vec &w,
   };
 
   // Column-wise centering with acceleration and SSR checks
-  for (p = 0; p < P; ++p) {
-    x = V.col(p);
+  for (col = 0; col < P; ++col) {
+    x = V.col(col);
     ratio0 = std::numeric_limits<double>::infinity();
     ssr0 = std::numeric_limits<double>::infinity();
     iint = iint0;
@@ -295,7 +338,10 @@ void center_variables(mat &V, const vec &w,
       }
 
       x0 = x;
-      project(x);
+      project_symmetric_kaczmarz(x);
+
+      // Compute gradient
+      g = x0 - x;
 
       // 1) convergence via weighted diff
       diff = abs(x - x0) / (1.0 + abs(x0));
@@ -303,10 +349,17 @@ void center_variables(mat &V, const vec &w,
       if (ratio < tol)
         break;
 
-      // 2) Irons-Tuck acceleration every 5 iterations
-      if (iter >= 5 && (iter % 5) == 0) {
+      // 2) Acceleration
+      if (use_cg && iter >= accel_start) {
+        // Conjugate gradient acceleration
+        conjugate_gradient_accel(x, g, g_old, p, w, inv_sw,
+                                 project_symmetric_kaczmarz, 
+                                 iter, accel_start);
+        g_old = g;
+      } else if (!use_cg && iter >= 5 && (iter % 5) == 0) {
+        // Fallback: Irons-Tuck acceleration
         Gx = x;
-        project(Gx);
+        project_symmetric_kaczmarz(Gx);
         G2x = Gx;
         deltaG = G2x - x;
         delta2 = G2x - 2.0 * x + x0;
@@ -327,13 +380,13 @@ void center_variables(mat &V, const vec &w,
         ssr0 = ssr;
       }
 
-      // 4) heuristic early exit
+      // 4) heuristic early exit  
       if (iter > 3 && (ratio0 / ratio) < 1.1 && ratio < tol * 20)
         break;
       ratio0 = ratio;
     }
 
-    V.unsafe_col(p) = x;
+    V.unsafe_col(col) = x;
   }
 }
 

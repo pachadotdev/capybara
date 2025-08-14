@@ -44,6 +44,14 @@ struct CapybaraParameters {
   size_t sep_max_iter;
   bool sep_accelerate;
   bool check_separation;
+  // Acceleration parameters
+  bool use_acceleration;
+  double step_halving_memory;
+  size_t max_step_halving;
+  double start_inner_tol;
+  // CG acceleration parameters
+  size_t accel_start;
+  bool use_cg;
 
   CapybaraParameters()
       : dev_tol(1.0e-6), center_tol(1.0e-6), collin_tol(1.0e-7),
@@ -51,7 +59,9 @@ struct CapybaraParameters {
         iter_center_max(10000), iter_inner_max(50), iter_alpha_max(10000),
         iter_interrupt(1000), iter_ssr(10), return_fe(true), keep_tx(false),
         sep_tol(1e-6), sep_max_iter(100), sep_accelerate(true),
-        check_separation(true) {}
+        check_separation(true), use_acceleration(true), 
+        step_halving_memory(0.9), max_step_halving(2), 
+        start_inner_tol(1e-4), accel_start(6), use_cg(true) {}
 
   explicit CapybaraParameters(const cpp11::list &control) {
     dev_tol = as_cpp<double>(control["dev_tol"]);
@@ -71,6 +81,12 @@ struct CapybaraParameters {
     sep_max_iter = as_cpp<size_t>(control["sep_max_iter"]);
     sep_accelerate = as_cpp<bool>(control["sep_accelerate"]);
     check_separation = as_cpp<bool>(control["check_separation"]);
+    use_acceleration = as_cpp<bool>(control["use_acceleration"]);
+    step_halving_memory = as_cpp<double>(control["step_halving_memory"]);
+    max_step_halving = as_cpp<size_t>(control["max_step_halving"]);
+    start_inner_tol = as_cpp<double>(control["start_inner_tol"]);
+    accel_start = as_cpp<size_t>(control["accel_start"]);
+    use_cg = as_cpp<bool>(control["use_cg"]);
   }
 };
 
@@ -139,7 +155,8 @@ inline field<field<uvec>> R_list_to_Armadillo_field(const list &FEs) {
 [[cpp11::register]] doubles_matrix<>
 center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
                   const list &klist, const double &tol, const size_t &max_iter,
-                  const size_t &iter_interrupt, const size_t &iter_ssr) {
+                  const size_t &iter_interrupt, const size_t &iter_ssr,
+                  const size_t &accel_start, const bool &use_cg) {
   mat V = as_mat(V_r);
   vec w = as_col(w_r);
 
@@ -148,7 +165,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
 
   // Call the C++ version with Armadillo types and proper namespace
   capybara::center_variables(V, w, group_indices, tol, max_iter, iter_interrupt,
-                             iter_ssr);
+                             iter_ssr, accel_start, use_cg);
 
   return as_doubles_matrix(V);
 }
