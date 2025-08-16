@@ -54,7 +54,7 @@ NULL
 #' @param iter_alpha_max maximum iterations for fixed effects computation.
 #'  The default is \code{10000L}.
 #' @param sep_tol tolerance for separation detection in Poisson models. Controls
-#'  the threshold for identifying separated observations. Default is \code{1e-6}.
+#'  the threshold for identifying separated observations. Default is \code{1.0e-6}.
 #' @param sep_max_iter maximum number of iterations for separation detection.
 #'  The default is \code{100}.
 #' @param sep_accelerate logical indicating whether to use acceleration in
@@ -69,17 +69,19 @@ NULL
 #' @param max_step_halving maximum number of post-convergence step-halving attempts.
 #'  The default is \code{2}.
 #' @param start_inner_tol starting tolerance for inner solver iterations.
-#'  The default is \code{1e-4}.
+#'  The default is \code{1.0e-04}.
 #' @param return_fe logical indicating if the fixed effects should be returned.
 #'  This can be useful when fitting general equilibrium models where skipping the
 #'  fixed effects for intermediate steps speeds up computation. The default is
 #'  \code{TRUE} and only applies to the \code{feglm} class.
-#' @param accel_start Integer. Iteration to start conjugate gradient acceleration in centering. Default is 6.
+#' @param accel_start Integer. Iteration to start conjugate gradient acceleration in centering. Default is \code{6L}.
 #' @param use_cg Logical. Use conjugate gradient acceleration for centering. Default is TRUE.
 #' @param keep_tx logical indicating if the centered regressor matrix should be
 #'  stored. The centered regressor matrix is required for some covariance
 #'  estimators, bias corrections, and average partial effects. This option saves
 #'  some computation time at the cost of memory. The default is \code{TRUE}.
+#' @param init_theta Initial value for the negative binomial dispersion parameter (theta).
+#'  The default is \code{0.0}.
 #'
 #' @return A named list of control parameters.
 #'
@@ -101,18 +103,19 @@ fit_control <- function(
     iter_alpha_max = 10000L,
     iter_interrupt = 1000L,
     iter_ssr = 10L,
-    sep_tol = 1e-06,
+    sep_tol = 1.0e-06,
     sep_max_iter = 100,
     sep_accelerate = TRUE,
     check_separation = TRUE,
     use_acceleration = TRUE,
     step_halving_memory = 0.9,
     max_step_halving = 2L,
-    start_inner_tol = 1e-06,
+    start_inner_tol = 1.0e-06,
     accel_start = 6L,
     use_cg = TRUE,
     return_fe = TRUE,
-    keep_tx = FALSE) {
+    keep_tx = FALSE,
+    init_theta = 0.0) {
   # Check validity of tolerance parameters
   if (dev_tol <= 0.0 || center_tol <= 0.0 || collin_tol <= 0.0 ||
       step_halving_factor <= 0.0 || alpha_tol <= 0.0) {
@@ -204,6 +207,7 @@ fit_control <- function(
     accel_start = accel_start,
     use_cg = use_cg,
     return_fe = return_fe,
-    keep_tx = keep_tx
+    keep_tx = keep_tx,
+    init_theta = init_theta
   )
 }

@@ -248,7 +248,6 @@ struct BetaWorkspace {
   }
 };
 
-// Optimized get_beta function
 inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
                               const vec &w,
                               const CollinearityResult &collin_result,
@@ -293,7 +292,6 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
     Xty.set_size(p);
   }
 
-  // Compute XtX and Xty with vectorization
   if (has_weights) {
     vec sqrt_w = sqrt(w);
     mat X_weighted = X.each_col() % sqrt_w;
@@ -323,7 +321,6 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
     beta_reduced = solve(XtX, Xty, solve_opts::likely_sympd);
   }
 
-  // Set the coefficient vector in the result
   result.coefficients.zeros();
   if (collin_result.has_collinearity) {
     result.coefficients.elem(collin_result.non_collinear_cols) = beta_reduced;
@@ -331,19 +328,11 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
     result.coefficients = beta_reduced;
   }
 
-  // Copy to beta field as well
   result.beta = result.coefficients;
   result.coef_status = collin_result.coef_status;
-
-  // Calculate fitted values - vectorized
   result.fitted_values = X * beta_reduced;
-
-  // Calculate residuals
   result.residuals = y_orig - result.fitted_values;
-
   result.weights = w;
-
-  // Store hessian for standard errors
   result.hessian.set_size(p_orig, p_orig);
   result.hessian.zeros();
 
@@ -361,7 +350,6 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
   return result;
 }
 
-// Simplified, optimized get_alpha function that returns only field<vec>
 inline field<vec> get_alpha(const vec &pi,
                             const field<field<uvec>> &group_indices,
                             double tol = 1e-8, size_t iter_max = 10000) {

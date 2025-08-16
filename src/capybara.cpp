@@ -96,8 +96,10 @@ struct CapybaraParameters {
 #include "01_center.h"
 #include "02_params.h"
 #include "03_lm.h"
-#include "04_glm.h"
-#include "05_sums.h"
+#include "04_glm_helpers.h"
+#include "05_glm.h"
+#include "06_negbin.h"
+#include "07_sums.h"
 
 // Type aliases for easier access
 using LMResult = capybara::InferenceLM;

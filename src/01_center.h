@@ -140,8 +140,7 @@ void center_variables_2fe(mat &V, const vec &w,
   vec Gx(N, fill::none), G2x(N, fill::none);
   vec deltaG(N, fill::none), delta2(N, fill::none);
 
-  // Define optimized Symmetric Kaczmarz projection using only non-empty groups
-  auto project_symmetric_kaczmarz_2fe_fast = [&](vec &v) {
+  auto project_symmetric_kaczmarz_2fe = [&](vec &v) {
     // Forward pass: FE1 then FE2
     for (size_t idx = 0; idx < n_non_empty_fe1; ++idx) {
       const uvec &coords = fe1_groups(non_empty_fe1(idx));
@@ -195,7 +194,7 @@ void center_variables_2fe(mat &V, const vec &w,
         }
 
         x0 = x;
-        project_symmetric_kaczmarz_2fe_fast(x);
+        project_symmetric_kaczmarz_2fe(x);
 
         // Compute gradient (residual before projection - residual after)
         g = x0 - x;
@@ -212,14 +211,13 @@ void center_variables_2fe(mat &V, const vec &w,
         }
         
         if (ratio < adaptive_tol) {
-          // Early termination optimization: check if next columns might converge quickly
           if (col > col_start && ratio < adaptive_tol * 0.1) {
             size_t skip_ahead = std::min(size_t(2), col_end - col - 1);
             for (size_t s = 1; s <= skip_ahead; ++s) {
               if (col + s < col_end) {
                 vec x_next = V.col(col + s);
                 vec x_next_old = x_next;
-                project_symmetric_kaczmarz_2fe_fast(x_next);
+                project_symmetric_kaczmarz_2fe(x_next);
                 vec diff_next = abs(x_next - x_next_old) / (1.0 + abs(x_next_old));
                 double ratio_next = dot(diff_next, w) * inv_sw;
                 if (ratio_next < adaptive_tol) {
@@ -238,13 +236,13 @@ void center_variables_2fe(mat &V, const vec &w,
         if (use_cg && iter >= accel_start) {
           // Conjugate gradient acceleration
           conjugate_gradient_accel(x, g, g_old, p, w, inv_sw,
-                                   project_symmetric_kaczmarz_2fe_fast, 
+                                   project_symmetric_kaczmarz_2fe, 
                                    iter, accel_start);
           g_old = g;
         } else if (!use_cg && iter >= 5 && (iter % 5) == 0) {
           // Fallback: Irons-Tuck acceleration
           Gx = x;
-          project_symmetric_kaczmarz_2fe_fast(Gx);
+          project_symmetric_kaczmarz_2fe(Gx);
           G2x = Gx;
           deltaG = G2x - x;
           delta2 = G2x - 2.0 * x + x0;
@@ -287,7 +285,8 @@ void center_variables(mat &V, const vec &w,
     return;
   }
 
-  if (group_indices.n_elem == 2) {
+  const size_t K = group_indices.n_elem;
+  if (K == 2) {
     center_variables_2fe(V, w, group_indices, tol, max_iter, iter_interrupt,
                          iter_ssr, accel_start, use_cg);
     return;
@@ -300,7 +299,7 @@ void center_variables(mat &V, const vec &w,
 
   // Auxiliary variables (fixed)
   const size_t I = max_iter, N = V.n_rows, P = V.n_cols,
-               K = group_indices.n_elem, iint0 = iter_interrupt,
+               iint0 = iter_interrupt,
                isr0 = iter_ssr;
   const double inv_sw = 1.0 / accu(w);
 
@@ -358,8 +357,7 @@ void center_variables(mat &V, const vec &w,
   vec Gx(N, fill::none), G2x(N, fill::none);
   vec deltaG(N, fill::none), delta2(N, fill::none);
 
-  // Optimized Symmetric Kaczmarz projection
-  auto project_symmetric_kaczmarz_fast = [&](vec &v) {
+  auto project_symmetric_kaczmarz = [&](vec &v) {
     // Forward pass - use pre-filtered non-empty groups
     for (size_t idx = 0; idx < n_non_empty; ++idx) {
       const GroupInfo &gi = non_empty_groups[idx];
@@ -404,7 +402,7 @@ void center_variables(mat &V, const vec &w,
         }
 
         x0 = x;
-        project_symmetric_kaczmarz_fast(x);
+        project_symmetric_kaczmarz(x);
 
         // Compute gradient
         g = x0 - x;
@@ -421,14 +419,13 @@ void center_variables(mat &V, const vec &w,
         }
         
         if (ratio < adaptive_tol) {
-          // Early termination optimization
           if (col > col_start && ratio < adaptive_tol * 0.1) {
             size_t skip_ahead = std::min(size_t(2), col_end - col - 1);
             for (size_t s = 1; s <= skip_ahead; ++s) {
               if (col + s < col_end) {
                 vec x_next = V.col(col + s);
                 vec x_next_old = x_next;
-                project_symmetric_kaczmarz_fast(x_next);
+                project_symmetric_kaczmarz(x_next);
                 vec diff_next = abs(x_next - x_next_old) / (1.0 + abs(x_next_old));
                 double ratio_next = dot(diff_next, w) * inv_sw;
                 if (ratio_next < adaptive_tol) {
@@ -447,13 +444,13 @@ void center_variables(mat &V, const vec &w,
         if (use_cg && iter >= accel_start) {
           // Conjugate gradient acceleration
           conjugate_gradient_accel(x, g, g_old, p, w, inv_sw,
-                                   project_symmetric_kaczmarz_fast, 
+                                   project_symmetric_kaczmarz, 
                                    iter, accel_start);
           g_old = g;
         } else if (!use_cg && iter >= 5 && (iter % 5) == 0) {
           // Fallback: Irons-Tuck acceleration
           Gx = x;
-          project_symmetric_kaczmarz_fast(Gx);
+          project_symmetric_kaczmarz(Gx);
           G2x = Gx;
           deltaG = G2x - x;
           delta2 = G2x - 2.0 * x + x0;

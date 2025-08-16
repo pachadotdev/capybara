@@ -39,8 +39,6 @@ mat crossprod(const mat &X, const vec &w) {
   }
 }
 
-// Optimized felm_fit implementation - matching alpaca's approach for linear
-// models
 InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
                      const field<field<uvec>> &fe_groups,
                      const CapybaraParameters &params) {
