@@ -1,15 +1,13 @@
-// Computing beta and then alpha in a model with fixed effects
-// Y = alpha + X beta
+// Computing beta in a model with fixed effects Y = alpha + X beta
 
-#ifndef CAPYBARA_PARAMETERS_H
-#define CAPYBARA_PARAMETERS_H
+#ifndef CAPYBARA_BETA_H
+#define CAPYBARA_BETA_H
 
 namespace capybara {
 
 // Define InferenceBeta structure
 struct InferenceBeta {
-  vec beta;         // Main coefficient vector (same as coefficients)
-  vec coefficients; // Alias for beta
+  vec coefficients;
   vec fitted_values;
   vec residuals;
   vec weights;
@@ -25,21 +23,10 @@ struct InferenceBeta {
 
   // Constructor with size parameters
   InferenceBeta(size_t n, size_t p)
-      : beta(p, fill::zeros), coefficients(p, fill::zeros),
+      : coefficients(p, fill::zeros),
         fitted_values(n, fill::zeros), residuals(n, fill::zeros),
         weights(n, fill::ones), hessian(p, p, fill::zeros),
         coef_status(p, fill::ones), scale(0.0), rank(0.0), success(false) {}
-};
-
-struct InferenceAlpha {
-  field<vec> Alpha;
-  uvec nb_references;
-  bool is_regular;
-  bool success;
-  field<std::string> fe_names;         // Names for fixed effects categories
-  field<field<std::string>> fe_levels; // Names for levels within each category
-
-  InferenceAlpha() : is_regular(true), success(false) {}
 };
 
 struct CollinearityResult {
@@ -248,6 +235,7 @@ struct BetaWorkspace {
   }
 };
 
+// Optimized get_beta function
 inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
                               const vec &w,
                               const CollinearityResult &collin_result,
@@ -292,6 +280,7 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
     Xty.set_size(p);
   }
 
+  // Compute XtX and Xty with vectorization
   if (has_weights) {
     vec sqrt_w = sqrt(w);
     mat X_weighted = X.each_col() % sqrt_w;
@@ -321,6 +310,7 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
     beta_reduced = solve(XtX, Xty, solve_opts::likely_sympd);
   }
 
+  // Set the coefficient vector in the result
   result.coefficients.zeros();
   if (collin_result.has_collinearity) {
     result.coefficients.elem(collin_result.non_collinear_cols) = beta_reduced;
@@ -328,11 +318,17 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
     result.coefficients = beta_reduced;
   }
 
-  result.beta = result.coefficients;
   result.coef_status = collin_result.coef_status;
+
+  // Calculate fitted values - vectorized
   result.fitted_values = X * beta_reduced;
+
+  // Calculate residuals
   result.residuals = y_orig - result.fitted_values;
+
   result.weights = w;
+
+  // Store hessian for standard errors
   result.hessian.set_size(p_orig, p_orig);
   result.hessian.zeros();
 
@@ -350,82 +346,6 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
   return result;
 }
 
-inline field<vec> get_alpha(const vec &pi,
-                            const field<field<uvec>> &group_indices,
-                            double tol = 1e-8, size_t iter_max = 10000) {
-  const size_t K = group_indices.n_elem;
-  const size_t N = pi.n_elem;
-  field<vec> Alpha(K);
-  if (K == 0 || N == 0) {
-    return Alpha;
-  }
-  // Pre-allocate Alpha vectors
-  for (size_t k = 0; k < K; ++k) {
-    const size_t J = group_indices(k).n_elem;
-    Alpha(k).set_size(J);
-    Alpha(k).zeros();
-  }
-  // Alternating algorithm
-  vec y(N);
-  field<vec> Alpha0(K);
-  double crit = 1.0;
-  size_t iter = 0;
-  while (crit > tol && iter < iter_max) {
-    // Store previous iteration
-    Alpha0 = Alpha;
-    // Solve normal equations for each category k
-    for (size_t k = 0; k < K; ++k) {
-      // Compute adjusted dependent variable y = pi - sum of other fixed effects
-      y = pi;
-      for (size_t kk = 0; kk < K; ++kk) {
-        if (kk != k) {
-          const size_t J = group_indices(kk).n_elem;
-          for (size_t j = 0; j < J; ++j) {
-            const uvec &indexes = group_indices(kk)(j);
-            const size_t T = indexes.n_elem;
-            for (size_t t = 0; t < T; ++t) {
-              y(indexes[t]) -= Alpha(kk)(j);
-            }
-          }
-        }
-      }
-      // Compute group means for category k
-      const size_t J = group_indices(k).n_elem;
-      for (size_t j = 0; j < J; ++j) {
-        const uvec &indexes = group_indices(k)(j);
-        const size_t T = indexes.n_elem;
-        if (T > 0) {
-          // Compute group sum
-          double sum = 0.0;
-          for (size_t t = 0; t < T; ++t) {
-            sum += y(indexes[t]);
-          }
-          // Store group mean
-          Alpha(k)(j) = sum / T;
-        } else {
-          Alpha(k)(j) = 0.0;
-        }
-      }
-    }
-    // Compute convergence criterion
-    double num = 0.0, denom = 0.0;
-    for (size_t k = 0; k < K; ++k) {
-      num += arma::accu(arma::square(Alpha(k) - Alpha0(k)));
-      denom += arma::accu(arma::square(Alpha0(k)));
-    }
-    // Handle case where denom is zero (all Alpha0 values are zero)
-    if (denom > 0.0) {
-      crit = std::sqrt(num / denom);
-    } else if (num > 0.0) {
-      crit = std::sqrt(num);
-    } else {
-      crit = 0.0;
-    }
-    ++iter;
-  }
-  return Alpha;
-}
-
 } // namespace capybara
 
-#endif // CAPYBARA_PARAMETERS_H
+#endif // CAPYBARA_BETA_H
