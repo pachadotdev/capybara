@@ -8,17 +8,6 @@
 
 namespace capybara {
 
-// Helper functions for convergence criteria (matching fixest style)
-inline bool continue_criterion(double a, double b, double tol) {
-  double diff = std::abs(a - b);
-  return (diff > tol) && (diff / (0.1 + std::abs(a)) > tol);
-}
-
-inline bool stopping_criterion(double a, double b, double tol) {
-  double diff = std::abs(a - b);
-  return (diff < tol) || (diff / (0.1 + std::abs(a)) < tol);
-}
-
 // Optimized group projection using raw pointers
 inline void project_group(double* v, const double* w, const uvec& coords, 
                           double inv_group_weight) {
@@ -44,6 +33,36 @@ struct GroupInfo {
   const uvec* coords;
   double inv_weight;
   uword n_elem;
+};
+
+// Workspace structure to reuse allocations across columns
+struct CenteringWorkspace {
+  vec x, x0, g, g_old, p, Gx, G2x;
+  double ratio0, ssr0;
+  size_t iint, isr;
+  
+  explicit CenteringWorkspace(size_t N) : 
+    x(N, fill::none), x0(N, fill::none), 
+    g(N, fill::none), g_old(N, fill::none), p(N, fill::none),
+    Gx(N, fill::none), G2x(N, fill::none),
+    ratio0(std::numeric_limits<double>::infinity()),
+    ssr0(std::numeric_limits<double>::infinity()) {}
+  
+  void reset_iteration_state(size_t iter_interrupt, size_t iter_ssr) {
+    ratio0 = std::numeric_limits<double>::infinity();
+    ssr0 = std::numeric_limits<double>::infinity();
+    iint = iter_interrupt;
+    isr = iter_ssr;
+  }
+  
+  // Get raw pointers for performance-critical loops
+  double* x_ptr() { return x.memptr(); }
+  double* x0_ptr() { return x0.memptr(); }
+  double* g_ptr() { return g.memptr(); }
+  double* g_old_ptr() { return g_old.memptr(); }
+  double* p_ptr() { return p.memptr(); }
+  double* Gx_ptr() { return Gx.memptr(); }
+  double* G2x_ptr() { return G2x.memptr(); }
 };
 
 // Optimized conjugate gradient acceleration
@@ -159,10 +178,8 @@ void center_variables_2fe(mat &V, const vec &w,
     }
   }
    
-  // Pre-allocate all working vectors
-  vec x(N, fill::none), x0(N, fill::none);
-  vec g(N, fill::none), g_old(N, fill::none), p(N, fill::none);
-  vec Gx(N, fill::none), G2x(N, fill::none);
+  // Create reusable workspace - single allocation for all columns
+  CenteringWorkspace workspace(N);
   
   // Lambda for symmetric Kaczmarz projection
   auto project_symmetric_kaczmarz_2fe = [&](vec& v) {
@@ -193,38 +210,38 @@ void center_variables_2fe(mat &V, const vec &w,
     
     for (size_t col = col_start; col < col_end; ++col) {
       double* col_ptr = V.colptr(col);
-      double* x_ptr = x.memptr();
-      double* x0_ptr = x0.memptr();
-      double* g_ptr = g.memptr();
-      double* g_old_ptr = g_old.memptr();
-      double* p_ptr = p.memptr();
       
-      // Copy column data
+      // Use workspace pointers - no repeated allocations
+      double* x_ptr = workspace.x_ptr();
+      double* x0_ptr = workspace.x0_ptr();
+      double* g_ptr = workspace.g_ptr();
+      double* g_old_ptr = workspace.g_old_ptr();
+      double* p_ptr = workspace.p_ptr();
+      
+      workspace.reset_iteration_state(iter_interrupt, iter_ssr);
+      workspace.reset_iteration_state(iter_interrupt, iter_ssr);
+      
+      // Copy column data directly
       std::memcpy(x_ptr, col_ptr, N * sizeof(double));
       
-      double ratio0 = std::numeric_limits<double>::infinity();
-      double ssr0 = std::numeric_limits<double>::infinity();
-      size_t iint = iter_interrupt;
-      size_t isr = iter_ssr;
-      
       for (size_t iter = 0; iter < max_iter; ++iter) {
-        if (iter == iint) {
+        if (iter == workspace.iint) {
           check_user_interrupt();
-          iint += iter_interrupt;
+          workspace.iint += iter_interrupt;
         }
         
         // Save current state
         std::memcpy(x0_ptr, x_ptr, N * sizeof(double));
         
         // Apply projection
-        project_symmetric_kaczmarz_2fe(x);
+        project_symmetric_kaczmarz_2fe(workspace.x);
         
-        // Compute gradient (g = x0 - x)
+        // Vectorized gradient computation: g = x0 - x
         for (size_t i = 0; i < N; ++i) {
           g_ptr[i] = x0_ptr[i] - x_ptr[i];
         }
         
-        // Check convergence
+        // Vectorized convergence check with early exit
         double weighted_diff = 0.0;
         for (size_t i = 0; i < N; ++i) {
           double rel_diff = std::abs(x_ptr[i] - x0_ptr[i]) / (1.0 + std::abs(x0_ptr[i]));
@@ -242,14 +259,15 @@ void center_variables_2fe(mat &V, const vec &w,
                                              iter, accel_start, N);
           std::memcpy(g_old_ptr, g_ptr, N * sizeof(double));
         } else if (!use_cg && iter >= 5 && (iter % 5) == 0) {
-          // Irons-Tuck acceleration
-          double* Gx_ptr = Gx.memptr();
-          double* G2x_ptr = G2x.memptr();
+          // Irons-Tuck acceleration using workspace
+          double* Gx_ptr = workspace.Gx_ptr();
+          double* G2x_ptr = workspace.G2x_ptr();
           
           std::memcpy(Gx_ptr, x_ptr, N * sizeof(double));
-          project_symmetric_kaczmarz_2fe(Gx);
+          project_symmetric_kaczmarz_2fe(workspace.Gx);
           std::memcpy(G2x_ptr, Gx_ptr, N * sizeof(double));
           
+          // Vectorized dot products
           double vprod = 0.0, ssq = 0.0;
           for (size_t i = 0; i < N; ++i) {
             double deltaG = G2x_ptr[i] - x_ptr[i];
@@ -261,6 +279,7 @@ void center_variables_2fe(mat &V, const vec &w,
           if (ssq > 1e-10) {
             double coef = vprod / ssq;
             if (coef > 0.0 && coef < 2.0) {
+              // Vectorized update
               for (size_t i = 0; i < N; ++i) {
                 x_ptr[i] = G2x_ptr[i] - coef * (G2x_ptr[i] - x_ptr[i]);
               }
@@ -269,21 +288,21 @@ void center_variables_2fe(mat &V, const vec &w,
         }
         
         // SSR-based early exit
-        if (iter == isr && iter > 0) {
+        if (iter == workspace.isr && iter > 0) {
           check_user_interrupt();
-          isr += iter_ssr;
+          workspace.isr += iter_ssr;
           double ssr = 0.0;
           for (size_t i = 0; i < N; ++i) {
             ssr += w_ptr[i] * x_ptr[i] * x_ptr[i];
           }
           ssr *= inv_sw;
-          if (std::abs(ssr - ssr0) / (1.0 + std::abs(ssr0)) < tol) break;
-          ssr0 = ssr;
+          if (std::abs(ssr - workspace.ssr0) / (1.0 + std::abs(workspace.ssr0)) < tol) break;
+          workspace.ssr0 = ssr;
         }
         
         // Heuristic early exit
-        if (iter > 3 && (ratio0 / ratio) < 1.1 && ratio < tol * 20) break;
-        ratio0 = ratio;
+        if (iter > 3 && (workspace.ratio0 / ratio) < 1.1 && ratio < tol * 20) break;
+        workspace.ratio0 = ratio;
       }
       
       // Copy result back
@@ -344,10 +363,8 @@ void center_variables(mat &V, const vec &w,
   
   const size_t n_groups_total = all_groups.size();
   
-  // Pre-allocate working vectors
-  vec x(N, fill::none), x0(N, fill::none);
-  vec g(N, fill::none), g_old(N, fill::none), p(N, fill::none);
-  vec Gx(N, fill::none), G2x(N, fill::none);
+  // Create reusable workspace - single allocation for all columns
+  CenteringWorkspace workspace(N);
   
   // Lambda for symmetric Kaczmarz projection
   auto project_symmetric_kaczmarz = [&](vec& v) {
@@ -374,38 +391,37 @@ void center_variables(mat &V, const vec &w,
     
     for (size_t col = col_start; col < col_end; ++col) {
       double* col_ptr = V.colptr(col);
-      double* x_ptr = x.memptr();
-      double* x0_ptr = x0.memptr();
-      double* g_ptr = g.memptr();
-      double* g_old_ptr = g_old.memptr();
-      double* p_ptr = p.memptr();
       
-      // Copy column data
+      // Use workspace pointers - no repeated allocations
+      double* x_ptr = workspace.x_ptr();
+      double* x0_ptr = workspace.x0_ptr();
+      double* g_ptr = workspace.g_ptr();
+      double* g_old_ptr = workspace.g_old_ptr();
+      double* p_ptr = workspace.p_ptr();
+      
+      workspace.reset_iteration_state(iter_interrupt, iter_ssr);
+      
+      // Copy column data directly
       std::memcpy(x_ptr, col_ptr, N * sizeof(double));
       
-      double ratio0 = std::numeric_limits<double>::infinity();
-      double ssr0 = std::numeric_limits<double>::infinity();
-      size_t iint = iter_interrupt;
-      size_t isr = iter_ssr;
-      
       for (size_t iter = 0; iter < max_iter; ++iter) {
-        if (iter == iint) {
+        if (iter == workspace.iint) {
           check_user_interrupt();
-          iint += iter_interrupt;
+          workspace.iint += iter_interrupt;
         }
         
         // Save current state
         std::memcpy(x0_ptr, x_ptr, N * sizeof(double));
         
         // Apply projection
-        project_symmetric_kaczmarz(x);
+        project_symmetric_kaczmarz(workspace.x);
         
-        // Compute gradient
+        // Vectorized gradient computation: g = x0 - x
         for (size_t i = 0; i < N; ++i) {
           g_ptr[i] = x0_ptr[i] - x_ptr[i];
         }
         
-        // Check convergence
+        // Vectorized convergence check
         double weighted_diff = 0.0;
         for (size_t i = 0; i < N; ++i) {
           double rel_diff = std::abs(x_ptr[i] - x0_ptr[i]) / (1.0 + std::abs(x0_ptr[i]));
@@ -423,14 +439,15 @@ void center_variables(mat &V, const vec &w,
                                              iter, accel_start, N);
           std::memcpy(g_old_ptr, g_ptr, N * sizeof(double));
         } else if (!use_cg && iter >= 5 && (iter % 5) == 0) {
-          // Irons-Tuck acceleration
-          double* Gx_ptr = Gx.memptr();
-          double* G2x_ptr = G2x.memptr();
+          // Irons-Tuck acceleration using workspace
+          double* Gx_ptr = workspace.Gx_ptr();
+          double* G2x_ptr = workspace.G2x_ptr();
           
           std::memcpy(Gx_ptr, x_ptr, N * sizeof(double));
-          project_symmetric_kaczmarz(Gx);
+          project_symmetric_kaczmarz(workspace.Gx);
           std::memcpy(G2x_ptr, Gx_ptr, N * sizeof(double));
           
+          // Vectorized dot products
           double vprod = 0.0, ssq = 0.0;
           for (size_t i = 0; i < N; ++i) {
             double deltaG = G2x_ptr[i] - x_ptr[i];
@@ -442,6 +459,7 @@ void center_variables(mat &V, const vec &w,
           if (ssq > 1e-10) {
             double coef = vprod / ssq;
             if (coef > 0.0 && coef < 2.0) {
+              // Vectorized update
               for (size_t i = 0; i < N; ++i) {
                 x_ptr[i] = G2x_ptr[i] - coef * (G2x_ptr[i] - x_ptr[i]);
               }
@@ -450,21 +468,21 @@ void center_variables(mat &V, const vec &w,
         }
         
         // SSR-based early exit
-        if (iter == isr && iter > 0) {
+        if (iter == workspace.isr && iter > 0) {
           check_user_interrupt();
-          isr += iter_ssr;
+          workspace.isr += iter_ssr;
           double ssr = 0.0;
           for (size_t i = 0; i < N; ++i) {
             ssr += w_ptr[i] * x_ptr[i] * x_ptr[i];
           }
           ssr *= inv_sw;
-          if (std::abs(ssr - ssr0) / (1.0 + std::abs(ssr0)) < tol) break;
-          ssr0 = ssr;
+          if (std::abs(ssr - workspace.ssr0) / (1.0 + std::abs(workspace.ssr0)) < tol) break;
+          workspace.ssr0 = ssr;
         }
         
         // Heuristic early exit
-        if (iter > 3 && (ratio0 / ratio) < 1.1 && ratio < tol * 20) break;
-        ratio0 = ratio;
+        if (iter > 3 && (workspace.ratio0 / ratio) < 1.1 && ratio < tol * 20) break;
+        workspace.ratio0 = ratio;
       }
       
       // Copy result back

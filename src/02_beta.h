@@ -58,17 +58,23 @@ inline bool rank_revealing_cholesky(uvec &excluded, const mat &XtX,
 
   double *R_ptr = R.memptr();
   uword *excluded_ptr = excluded.memptr();
+  const double *XtX_ptr = XtX.memptr();
+
+  // Track number of excluded variables to avoid expensive checks
+  size_t n_excluded = 0;
 
   for (size_t j = 0; j < p; ++j) {
 
-    double R_jj = XtX(j, j);
+    double R_jj = XtX_ptr[j + j * p]; // Direct pointer access
 
     if (j > 0) {
-
+      // Vectorized sum of squares computation
       double sum_squares = 0.0;
+      const double *R_j_ptr = R_ptr + j * p;
+      
       for (size_t k = 0; k < j; ++k) {
         if (excluded_ptr[k] == 0) {
-          double R_kj = R_ptr[k + j * p];
+          double R_kj = R_j_ptr[k];
           sum_squares += R_kj * R_kj;
         }
       }
@@ -77,39 +83,34 @@ inline bool rank_revealing_cholesky(uvec &excluded, const mat &XtX,
 
     if (R_jj < tol) {
       excluded_ptr[j] = 1;
+      n_excluded++;
 
-      bool all_excluded = true;
-      for (size_t k = 0; k < p; ++k) {
-        if (excluded_ptr[k] == 0) {
-          all_excluded = false;
-          break;
-        }
-      }
-      if (all_excluded)
+      // Early exit when all variables excluded
+      if (n_excluded >= p)
         return false;
       continue;
     }
 
     R_jj = std::sqrt(R_jj);
     R_ptr[j + j * p] = R_jj;
+    const double inv_R_jj = 1.0 / R_jj;
 
+    // Vectorized computation of remaining columns
     for (size_t col = j + 1; col < p; ++col) {
-      double R_j_col = XtX(j, col);
+      double R_j_col = XtX_ptr[j + col * p];
 
+      // Optimize inner loop with pointer arithmetic
+      const double *R_col_ptr = R_ptr + col * p;
+      const double *R_j_ptr = R_ptr + j * p;
+      
       for (size_t k = 0; k < j; ++k) {
         if (excluded_ptr[k] == 0) {
-          R_j_col -= R_ptr[k + j * p] * R_ptr[k + col * p];
+          R_j_col -= R_j_ptr[k] * R_col_ptr[k];
         }
       }
 
-      R_ptr[j + col * p] = R_j_col / R_jj;
+      R_ptr[j + col * p] = R_j_col * inv_R_jj;
     }
-  }
-
-  size_t n_excluded = 0;
-  for (size_t j = 0; j < p; ++j) {
-    if (excluded_ptr[j] == 1)
-      n_excluded++;
   }
 
   return n_excluded < p;
@@ -164,18 +165,40 @@ check_collinearity(mat &X, const vec &w, bool has_weights, double tolerance) {
   mat XtX(p, p, fill::none);
   if (has_weights) {
     const double *w_ptr = w.memptr();
+    
+    // Blocked computation for better cache locality
+    const size_t block_size = 4; // Optimize for cache lines
+    
+    // Initialize upper triangle
     for (size_t i = 0; i < p; ++i) {
-      const double *Xi_ptr = X.colptr(i);
       for (size_t j = i; j < p; ++j) {
-        const double *Xj_ptr = X.colptr(j);
-        double sum = 0.0;
-        for (size_t obs = 0; obs < n; ++obs) {
-          sum += Xi_ptr[obs] * Xj_ptr[obs] * w_ptr[obs];
+        XtX(i, j) = 0.0;
+      }
+    }
+    
+    // Process in blocks to improve cache utilization
+    for (size_t block_start = 0; block_start < n; block_start += block_size) {
+      size_t block_end = std::min(block_start + block_size, n);
+      
+      for (size_t i = 0; i < p; ++i) {
+        const double *Xi_ptr = X.colptr(i);
+        for (size_t j = i; j < p; ++j) {
+          const double *Xj_ptr = X.colptr(j);
+          double block_sum = 0.0;
+          
+          // Vectorized inner loop over block
+          for (size_t obs = block_start; obs < block_end; ++obs) {
+            block_sum += Xi_ptr[obs] * Xj_ptr[obs] * w_ptr[obs];
+          }
+          XtX(i, j) += block_sum;
         }
-        XtX(i, j) = sum;
-        if (i != j) {
-          XtX(j, i) = sum;
-        }
+      }
+    }
+    
+    // Fill lower triangle
+    for (size_t i = 0; i < p; ++i) {
+      for (size_t j = 0; j < i; ++j) {
+        XtX(i, j) = XtX(j, i);
       }
     }
   } else {
@@ -219,11 +242,18 @@ struct BetaWorkspace {
   mat L;
   vec beta_work;
   mat X_weighted;
+  vec y_weighted;
+  vec sqrt_w;
+  vec z_solve;
+  
+  // Cache for reducing allocations
+  size_t cached_n, cached_p;
+  bool is_initialized;
 
-  // Add default constructor
-  BetaWorkspace() {}
+  // Default constructor
+  BetaWorkspace() : cached_n(0), cached_p(0), is_initialized(false) {}
 
-  BetaWorkspace(size_t n, size_t p) {
+  BetaWorkspace(size_t n, size_t p) : cached_n(n), cached_p(p), is_initialized(true) {
     size_t safe_n = std::max(n, size_t(1));
     size_t safe_p = std::max(p, size_t(1));
 
@@ -232,6 +262,50 @@ struct BetaWorkspace {
     L.set_size(safe_p, safe_p);
     beta_work.set_size(safe_p);
     X_weighted.set_size(safe_n, safe_p);
+    y_weighted.set_size(safe_n);
+    sqrt_w.set_size(safe_n);
+    z_solve.set_size(safe_p);
+  }
+  
+  // Efficient resize that avoids reallocation when possible
+  void ensure_size(size_t n, size_t p) {
+    if (!is_initialized || n > cached_n || p > cached_p) {
+      size_t new_n = std::max(n, cached_n);
+      size_t new_p = std::max(p, cached_p);
+      
+      if (XtX.n_rows < new_p || XtX.n_cols < new_p) XtX.set_size(new_p, new_p);
+      if (XtY.n_elem < new_p) XtY.set_size(new_p);
+      if (L.n_rows < new_p || L.n_cols < new_p) L.set_size(new_p, new_p);
+      if (beta_work.n_elem < new_p) beta_work.set_size(new_p);
+      if (X_weighted.n_rows < new_n || X_weighted.n_cols < new_p) X_weighted.set_size(new_n, new_p);
+      if (y_weighted.n_elem < new_n) y_weighted.set_size(new_n);
+      if (sqrt_w.n_elem < new_n) sqrt_w.set_size(new_n);
+      if (z_solve.n_elem < new_p) z_solve.set_size(new_p);
+      
+      cached_n = new_n;
+      cached_p = new_p;
+      is_initialized = true;
+    }
+  }
+  
+  // Explicit cleanup method
+  void clear() {
+    XtX.reset();
+    XtY.reset();
+    L.reset();
+    beta_work.reset();
+    X_weighted.reset();
+    y_weighted.reset();
+    sqrt_w.reset();
+    z_solve.reset();
+    cached_n = 0;
+    cached_p = 0;
+    is_initialized = false;
+  }
+  
+  // Destructor to ensure proper cleanup
+  ~BetaWorkspace() {
+    clear();
   }
 };
 
@@ -268,77 +342,138 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
     return result;
   }
 
-  // Use workspace for computation
+  // Ensure workspace has sufficient capacity
+  workspace->ensure_size(n, p);
+
+  // Use workspace references to avoid pointer overhead
   mat &XtX = workspace->XtX;
   vec &Xty = workspace->XtY;
+  mat &L = workspace->L;
+  vec &beta_work = workspace->beta_work;
+  vec &z_solve = workspace->z_solve;
+  
+  // Now that workspace is properly sized, use subviews to avoid resizing
+  // Only use the portion we need without reallocating
+  mat XtX_view = XtX.submat(0, 0, p-1, p-1);
+  vec Xty_view = Xty.subvec(0, p-1);
+  mat L_view = L.submat(0, 0, p-1, p-1);
+  vec beta_work_view = beta_work.subvec(0, p-1);
+  vec z_solve_view = z_solve.subvec(0, p-1);
 
-  // Resize workspace matrices if needed
-  if (XtX.n_rows < p || XtX.n_cols < p) {
-    XtX.set_size(p, p);
-  }
-  if (Xty.n_elem < p) {
-    Xty.set_size(p);
-  }
-
-  // Compute XtX and Xty with vectorization
+  // Compute XtX and Xty with optimized memory access
   if (has_weights) {
-    vec sqrt_w = sqrt(w);
-    mat X_weighted = X.each_col() % sqrt_w;
-    vec y_weighted = y % sqrt_w;
+    // Use workspace vectors to eliminate temporary allocations
+    vec &sqrt_w = workspace->sqrt_w;
+    mat &X_weighted = workspace->X_weighted;
+    vec &y_weighted = workspace->y_weighted;
+    
+    // Use subviews to avoid resizing
+    mat X_weighted_view = X_weighted.submat(0, 0, n-1, p-1);
+    vec y_weighted_view = y_weighted.subvec(0, n-1);
+    vec sqrt_w_view = sqrt_w.subvec(0, n-1);
+    
+    // Compute sqrt(w) once and reuse
+    const double* w_ptr = w.memptr();
+    double* sqrt_w_ptr = sqrt_w_view.memptr();
+    for (size_t i = 0; i < n; ++i) {
+      sqrt_w_ptr[i] = std::sqrt(w_ptr[i]);
+    }
+    
+    // Compute weighted X and y in-place without copies
+    const double* sqrt_w_ptr_const = sqrt_w_view.memptr();
+    
+    // Weighted X: reuse workspace matrix
+    for (size_t j = 0; j < p; ++j) {
+      const double* X_col = X.colptr(j);
+      double* X_weighted_col = X_weighted_view.colptr(j);
+      for (size_t i = 0; i < n; ++i) {
+        X_weighted_col[i] = X_col[i] * sqrt_w_ptr_const[i];
+      }
+    }
+    
+    // Weighted y: reuse workspace vector
+    const double* y_ptr = y.memptr();
+    double* y_weighted_ptr = y_weighted_view.memptr();
+    for (size_t i = 0; i < n; ++i) {
+      y_weighted_ptr[i] = y_ptr[i] * sqrt_w_ptr_const[i];
+    }
 
-    XtX = X_weighted.t() * X_weighted;
-    Xty = X_weighted.t() * y_weighted;
+    // Use optimized BLAS operations
+    XtX_view = X_weighted_view.t() * X_weighted_view;
+    Xty_view = X_weighted_view.t() * y_weighted_view;
   } else {
-    XtX = X.t() * X;
-    Xty = X.t() * y;
+    // Unweighted case - direct BLAS operations
+    XtX_view = X.t() * X;
+    Xty_view = X.t() * y;
   }
 
-  // Solve the system using Cholesky decomposition
-  vec beta_reduced(p, fill::none);
-
-  mat L;
-  bool chol_success = chol(L, XtX, "lower");
+  // Solve the system using workspace to avoid allocations
+  bool chol_success = chol(L_view, XtX_view, "lower");
 
   if (chol_success) {
-    // Solve L * z = Xty
-    vec z = solve(trimatl(L), Xty, solve_opts::fast);
-
-    // Solve Lt * beta = z
-    beta_reduced = solve(trimatu(L.t()), z, solve_opts::fast);
+    // Use workspace vectors for intermediate results
+    z_solve_view = solve(trimatl(L_view), Xty_view, solve_opts::fast);
+    beta_work_view = solve(trimatu(L_view.t()), z_solve_view, solve_opts::fast);
   } else {
     // Fallback to standard solve if Cholesky fails
-    beta_reduced = solve(XtX, Xty, solve_opts::likely_sympd);
+    beta_work_view = solve(XtX_view, Xty_view, solve_opts::likely_sympd);
   }
 
-  // Set the coefficient vector in the result
-  result.coefficients.zeros();
+  // Set the coefficient vector in the result (minimize copies)
+  result.coefficients.fill(datum::nan); // Initialize with NaN for collinear variables
   if (collin_result.has_collinearity) {
-    result.coefficients.elem(collin_result.non_collinear_cols) = beta_reduced;
+    // Only assign the coefficients for non-collinear columns
+    if (collin_result.non_collinear_cols.n_elem > 0 && 
+        collin_result.non_collinear_cols.n_elem <= p_orig &&
+        beta_work_view.n_elem >= collin_result.non_collinear_cols.n_elem) {
+      // Extract only the coefficients we computed
+      vec beta_subset = beta_work_view.subvec(0, collin_result.non_collinear_cols.n_elem - 1);
+      result.coefficients.elem(collin_result.non_collinear_cols) = beta_subset;
+    }
   } else {
-    result.coefficients = beta_reduced;
+    if (beta_work_view.n_elem >= p_orig) {
+      result.coefficients = beta_work_view.subvec(0, p_orig - 1);
+    } else {
+      result.coefficients = beta_work_view;
+    }
   }
 
   result.coef_status = collin_result.coef_status;
 
-  // Calculate fitted values - vectorized
-  result.fitted_values = X * beta_reduced;
+  // Calculate fitted values - handle collinearity case properly
+  if (collin_result.has_collinearity && collin_result.non_collinear_cols.n_elem > 0) {
+    // Extract only the coefficients we computed for matrix multiplication
+    vec beta_subset = beta_work_view.subvec(0, collin_result.non_collinear_cols.n_elem - 1);
+    result.fitted_values = X * beta_subset;
+  } else {
+    // No collinearity or edge case
+    if (beta_work_view.n_elem >= p) {
+      result.fitted_values = X * beta_work_view.subvec(0, p - 1);
+    } else {
+      result.fitted_values = X * beta_work_view;
+    }
+  }
 
-  // Calculate residuals
+  // Calculate residuals in-place to avoid temporary
   result.residuals = y_orig - result.fitted_values;
 
   result.weights = w;
 
-  // Store hessian for standard errors
+  // Store hessian for standard errors (minimize copies)
   result.hessian.set_size(p_orig, p_orig);
   result.hessian.zeros();
 
   if (collin_result.has_collinearity) {
     if (collin_result.non_collinear_cols.n_elem > 0) {
+      // Only assign the portion of XtX that corresponds to non-collinear variables
+      mat XtX_subset = XtX_view.submat(0, 0, 
+                                  collin_result.non_collinear_cols.n_elem - 1,
+                                  collin_result.non_collinear_cols.n_elem - 1);
       result.hessian(collin_result.non_collinear_cols,
-                     collin_result.non_collinear_cols) = XtX;
+                     collin_result.non_collinear_cols) = XtX_subset;
     }
   } else {
-    result.hessian = XtX;
+    result.hessian = XtX_view;
   }
 
   result.success = true;
