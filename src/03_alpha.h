@@ -5,6 +5,9 @@
 
 namespace capybara {
 
+// Forward declaration of helper function from 01_center.h
+inline size_t get_block_size(size_t n, size_t p);
+
 struct InferenceAlpha {
   field<vec> coefficients;
   uvec nb_references;
@@ -160,39 +163,52 @@ inline field<vec> get_alpha(const vec &pi,
       sum_sq_old += dot(alpha_old, alpha_old);
       
       // Compute residuals: y = pi - sum of other fixed effects
-      // Use direct pointer access for optimal performance
+      // Use blocking for better cache performance
       double *y_ptr = y.memptr();
       
       // Initialize y with pi (vectorized copy)
       std::memcpy(y_ptr, pi_ptr, N * sizeof(double));
       
-      // Subtract contributions from other fixed effects
+      // Determine optimal block size for observation processing
+      const size_t obs_block_size = get_block_size(N, K);
+      
+      // Subtract contributions from other fixed effects using blocks
       for (size_t kk = 0; kk < K; ++kk) {
         if (kk != k) {
           const AlphaGroupInfo &info_kk = group_info[kk];
           const double *coef_kk_ptr = coefficients(kk).memptr();
           const std::vector<size_t> &obs_to_group_kk = info_kk.obs_to_group;
           
-          // Vectorized subtraction with optimized memory access
-          for (size_t i = 0; i < N; ++i) {
-            size_t group = obs_to_group_kk[i];
-            if (group < info_kk.n_groups) {
-              y_ptr[i] -= coef_kk_ptr[group];
+          // Process observations in cache-friendly blocks
+          for (size_t block_start = 0; block_start < N; block_start += obs_block_size) {
+            const size_t block_end = std::min(block_start + obs_block_size, N);
+            
+            // Vectorized subtraction within block for better cache locality
+            for (size_t i = block_start; i < block_end; ++i) {
+              size_t group = obs_to_group_kk[i];
+              if (group < info_kk.n_groups) {
+                y_ptr[i] -= coef_kk_ptr[group];
+              }
             }
           }
         }
       }
       
-      // Compute group sums efficiently
+      // Compute group sums efficiently with blocking
       group_sums.zeros();
       double *group_sums_ptr = group_sums.memptr();
       const std::vector<size_t> &obs_to_group = info.obs_to_group;
       
-      // Optimized accumulation with direct pointer access
-      for (size_t i = 0; i < N; ++i) {
-        size_t group = obs_to_group[i];
-        if (group < J) {
-          group_sums_ptr[group] += y_ptr[i];
+      // Process observations in blocks for better cache performance
+      for (size_t block_start = 0; block_start < N; block_start += obs_block_size) {
+        const size_t block_end = std::min(block_start + obs_block_size, N);
+        
+        // Optimized accumulation within block with direct pointer access
+        for (size_t i = block_start; i < block_end; ++i) {
+          size_t group = obs_to_group[i];
+          if (group < J) {
+            group_sums_ptr[group] += y_ptr[i];
+          }
         }
       }
       

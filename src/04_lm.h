@@ -8,6 +8,9 @@ struct CapybaraParameters;
 
 namespace capybara {
 
+// Forward declaration of helper function from 01_center.h
+inline size_t get_block_size(size_t n, size_t p);
+
 struct InferenceLM {
   vec coefficients;
   vec fitted_values;
@@ -93,42 +96,17 @@ struct FelmWorkspace {
   }
 };
 
-// Optimized crossprod function with better branch prediction
-mat crossprod(const mat &X, const vec &w) {
-  const size_t n = X.n_rows;
-  const size_t p = X.n_cols;
-  
-  if (w.n_elem == 1) {
-    // Unweighted case - use optimized BLAS operations
-    return X.t() * X;
-  } else {
-    // Weighted case - optimize for cache efficiency
-    mat result(p, p);
-    const double* w_ptr = w.memptr();
-    
-    for (size_t i = 0; i < p; ++i) {
-      const double* Xi_ptr = X.colptr(i);
-      for (size_t j = i; j < p; ++j) {
-        const double* Xj_ptr = X.colptr(j);
-        
-        double sum = 0.0;
-        for (size_t k = 0; k < n; ++k) {
-          sum += Xi_ptr[k] * Xj_ptr[k] * w_ptr[k];
-        }
-        
-        result(i, j) = sum;
-        if (i != j) result(j, i) = sum; // Symmetry
-      }
-    }
-    return result;
-  }
-}
+// Workspace structure to eliminate repeated allocations in felm_fit
 
-// Optimized vectorized accumulation of fixed effects
+// Optimized vectorized accumulation of fixed effects with blocking
 inline void accumulate_fixed_effects(vec &fitted_values,
                                                const field<vec> &fixed_effects,
                                                const field<field<uvec>> &fe_groups) {
   const size_t K = fe_groups.n_elem;
+  const size_t N = fitted_values.n_elem;
+  
+  // Determine optimal block size for observation processing
+  const size_t obs_block_size = get_block_size(N, K);
   
   for (size_t k = 0; k < K; ++k) {
     const size_t J = fe_groups(k).n_elem;
@@ -138,13 +116,19 @@ inline void accumulate_fixed_effects(vec &fitted_values,
       const uvec &group_idx = fe_groups(k)(j);
       const double fe_value = fe_k(j);
       
-      // Vectorized addition using pointer arithmetic for cache efficiency
+      // Process observations in blocks for better cache locality
       const size_t group_size = group_idx.n_elem;
       const uword* idx_ptr = group_idx.memptr();
       double* fitted_ptr = fitted_values.memptr();
       
-      for (size_t t = 0; t < group_size; ++t) {
-        fitted_ptr[idx_ptr[t]] += fe_value;
+      // Process the group indices in cache-friendly blocks
+      for (size_t block_start = 0; block_start < group_size; block_start += obs_block_size) {
+        const size_t block_end = std::min(block_start + obs_block_size, group_size);
+        
+        // Vectorized addition within block for better cache efficiency
+        for (size_t t = block_start; t < block_end; ++t) {
+          fitted_ptr[idx_ptr[t]] += fe_value;
+        }
       }
     }
   }

@@ -5,7 +5,6 @@
 
 namespace capybara {
 
-// Define InferenceBeta structure
 struct InferenceBeta {
   vec coefficients;
   vec fitted_values;
@@ -45,6 +44,62 @@ struct CollinearityResult {
       : coef_status(p, fill::ones), collinear_cols(p), non_collinear_cols(p),
         has_collinearity(false), n_valid(0) {}
 };
+
+inline mat crossprod(const mat &X, const vec &w = vec()) {
+  const size_t n = X.n_rows;
+  const size_t p = X.n_cols;
+  mat result(p, p, fill::zeros);
+  
+  // Use blocking for better cache performance
+  const size_t block_size = get_block_size(n, p);
+  
+  if (w.is_empty() || w.n_elem == 1) {
+    // Unweighted case - optimize for cache efficiency and symmetry with blocking
+    for (size_t block_start = 0; block_start < n; block_start += block_size) {
+      const size_t block_end = std::min(block_start + block_size, n);
+      
+      // Only compute upper triangle and mirror to lower
+      for (size_t i = 0; i < p; ++i) {
+        const double* Xi_ptr = X.colptr(i) + block_start;
+        for (size_t j = i; j < p; ++j) {
+          const double* Xj_ptr = X.colptr(j) + block_start;
+          
+          double sum = 0.0;
+          for (size_t k = 0; k < (block_end - block_start); ++k) {
+            sum += Xi_ptr[k] * Xj_ptr[k];
+          }
+          
+          result(i, j) += sum;
+          if (i != j) result(j, i) += sum; // Symmetry
+        }
+      }
+    }
+  } else {
+    // Weighted case - optimize for cache efficiency and symmetry with blocking
+    const double* w_ptr = w.memptr();
+    
+    for (size_t block_start = 0; block_start < n; block_start += block_size) {
+      const size_t block_end = std::min(block_start + block_size, n);
+      
+      // Only compute upper triangle and mirror to lower
+      for (size_t i = 0; i < p; ++i) {
+        const double* Xi_ptr = X.colptr(i) + block_start;
+        for (size_t j = i; j < p; ++j) {
+          const double* Xj_ptr = X.colptr(j) + block_start;
+          
+          double sum = 0.0;
+          for (size_t k = 0; k < (block_end - block_start); ++k) {
+            sum += Xi_ptr[k] * Xj_ptr[k] * w_ptr[block_start + k];
+          }
+          
+          result(i, j) += sum;
+          if (i != j) result(j, i) += sum; // Symmetry
+        }
+      }
+    }
+  }
+  return result;
+}
 
 inline bool rank_revealing_cholesky(uvec &excluded, const mat &XtX,
                                     double tol) {
@@ -164,45 +219,10 @@ check_collinearity(mat &X, const vec &w, bool has_weights, double tolerance) {
 
   mat XtX(p, p, fill::none);
   if (has_weights) {
-    const double *w_ptr = w.memptr();
-    
-    // Blocked computation for better cache locality
-    const size_t block_size = 4; // Optimize for cache lines
-    
-    // Initialize upper triangle
-    for (size_t i = 0; i < p; ++i) {
-      for (size_t j = i; j < p; ++j) {
-        XtX(i, j) = 0.0;
-      }
-    }
-    
-    // Process in blocks to improve cache utilization
-    for (size_t block_start = 0; block_start < n; block_start += block_size) {
-      size_t block_end = std::min(block_start + block_size, n);
-      
-      for (size_t i = 0; i < p; ++i) {
-        const double *Xi_ptr = X.colptr(i);
-        for (size_t j = i; j < p; ++j) {
-          const double *Xj_ptr = X.colptr(j);
-          double block_sum = 0.0;
-          
-          // Vectorized inner loop over block
-          for (size_t obs = block_start; obs < block_end; ++obs) {
-            block_sum += Xi_ptr[obs] * Xj_ptr[obs] * w_ptr[obs];
-          }
-          XtX(i, j) += block_sum;
-        }
-      }
-    }
-    
-    // Fill lower triangle
-    for (size_t i = 0; i < p; ++i) {
-      for (size_t j = 0; j < i; ++j) {
-        XtX(i, j) = XtX(j, i);
-      }
-    }
+    // Use helper function for weighted crossprod
+    XtX = crossprod(X, w);
   } else {
-    XtX = X.t() * X;
+    XtX = crossprod(X);
   }
 
   uvec excluded(p);
@@ -399,11 +419,11 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
     }
 
     // Use optimized BLAS operations
-    XtX_view = X_weighted_view.t() * X_weighted_view;
+    XtX_view = crossprod(X_weighted_view);
     Xty_view = X_weighted_view.t() * y_weighted_view;
   } else {
     // Unweighted case - direct BLAS operations
-    XtX_view = X.t() * X;
+    XtX_view = crossprod(X);
     Xty_view = X.t() * y;
   }
 

@@ -8,6 +8,27 @@
 
 namespace capybara {
 
+// Helper function to determine optimal block size for cache efficiency
+inline size_t get_block_size(size_t n, size_t p) {
+  // L1 cache size estimation (32KB typical)
+  const size_t L1_CACHE_SIZE = 32 * 1024;
+  const size_t ELEMENT_SIZE = sizeof(double);
+  
+  // Target: fit block in L1 cache
+  // Block contains: block_size * p elements for X block + block_size for y block
+  size_t max_block_elements = L1_CACHE_SIZE / ELEMENT_SIZE;
+  size_t max_block_size = max_block_elements / (p + 1);
+  
+  // Ensure minimum block size for efficiency
+  const size_t MIN_BLOCK_SIZE = 64;
+  const size_t MAX_BLOCK_SIZE = 1024;
+  
+  size_t block_size = std::max(MIN_BLOCK_SIZE, std::min(max_block_size, MAX_BLOCK_SIZE));
+  
+  // Don't exceed matrix dimensions
+  return std::min(block_size, n);
+}
+
 // Optimized group projection using raw pointers
 inline void project_group(double* v, const double* w, const uvec& coords, 
                           double inv_group_weight) {
@@ -68,10 +89,10 @@ struct CenteringWorkspace {
 // Optimized conjugate gradient acceleration
 template <typename ProjectFunc>
 void cg_acceleration(double* x, double* g, double* g_old, double* p,
-                                        const double* w, double inv_sw,
-                                        ProjectFunc project,
-                                        size_t iter, size_t accel_start,
-                                        size_t n) {
+                     const double* w, double inv_sw,
+                     ProjectFunc project,
+                     size_t iter, size_t accel_start,
+                     size_t n) {
   if (iter == accel_start) {
     std::memcpy(p, g, n * sizeof(double));
   } else if (iter > accel_start) {
@@ -127,191 +148,38 @@ void cg_acceleration(double* x, double* g, double* g_old, double* p,
   }
 }
 
-// Specialized 2-FE implementation with optimizations
-void center_variables_2fe(mat &V, const vec &w,
-                          const field<field<uvec>> &group_indices,
-                          const double &tol, const size_t &max_iter,
-                          const size_t &iter_interrupt,
-                          const size_t &iter_ssr,
-                          const size_t &accel_start,
-                          const bool use_cg) {
-  if (V.is_empty() || w.is_empty()) return;
+// Irons-Tuck acceleration helper
+template <typename ProjectFunc>
+void it_acceleration(double* x, double* x0, CenteringWorkspace& workspace,
+                     ProjectFunc project, size_t n) {
+  double* Gx_ptr = workspace.Gx_ptr();
+  double* G2x_ptr = workspace.G2x_ptr();
   
-  const size_t N = V.n_rows, P = V.n_cols;
-  const double inv_sw = 1.0 / accu(w);
-  const double* w_ptr = w.memptr();
+  std::memcpy(Gx_ptr, x, n * sizeof(double));
+  project(workspace.Gx);
+  std::memcpy(G2x_ptr, Gx_ptr, n * sizeof(double));
+  project(workspace.G2x);
   
-  // Extract and precompute group information
-  const field<uvec>& fe1_groups = group_indices(0);
-  const field<uvec>& fe2_groups = group_indices(1);
-  
-  // Precompute non-empty groups with their weights
-  std::vector<GroupInfo> groups1, groups2;
-  groups1.reserve(fe1_groups.n_elem);
-  groups2.reserve(fe2_groups.n_elem);
-  
-  for (size_t l = 0; l < fe1_groups.n_elem; ++l) {
-    const uvec& coords = fe1_groups(l);
-    if (coords.n_elem > 1) {
-      double sum_w = 0.0;
-      const uword* coord_ptr = coords.memptr();
-      for (uword i = 0; i < coords.n_elem; ++i) {
-        sum_w += w_ptr[coord_ptr[i]];
-      }
-      if (sum_w > 0.0) {
-        groups1.push_back({&coords, 1.0 / sum_w, coords.n_elem});
-      }
-    }
+  // Vectorized dot products
+  double vprod = 0.0, ssq = 0.0;
+  for (size_t i = 0; i < n; ++i) {
+    double deltaG = G2x_ptr[i] - x[i];
+    double delta2 = G2x_ptr[i] - 2.0 * x[i] + x0[i];
+    vprod += deltaG * delta2;
+    ssq += delta2 * delta2;
   }
   
-  for (size_t l = 0; l < fe2_groups.n_elem; ++l) {
-    const uvec& coords = fe2_groups(l);
-    if (coords.n_elem > 1) {
-      double sum_w = 0.0;
-      const uword* coord_ptr = coords.memptr();
-      for (uword i = 0; i < coords.n_elem; ++i) {
-        sum_w += w_ptr[coord_ptr[i]];
+  if (ssq > 1e-10) {
+    double coef = vprod / ssq;
+    if (coef > 0.0 && coef < 2.0) {
+      // Vectorized update
+      for (size_t i = 0; i < n; ++i) {
+        x[i] = G2x_ptr[i] - coef * (G2x_ptr[i] - x[i]);
       }
-      if (sum_w > 0.0) {
-        groups2.push_back({&coords, 1.0 / sum_w, coords.n_elem});
-      }
-    }
-  }
-   
-  // Create reusable workspace - single allocation for all columns
-  CenteringWorkspace workspace(N);
-  
-  // Lambda for symmetric Kaczmarz projection
-  auto project_symmetric_kaczmarz_2fe = [&](vec& v) {
-    double* v_ptr = v.memptr();
-    
-    // Forward pass
-    for (const auto& group : groups1) {
-      project_group(v_ptr, w_ptr, *group.coords, group.inv_weight);
-    }
-    for (const auto& group : groups2) {
-      project_group(v_ptr, w_ptr, *group.coords, group.inv_weight);
-    }
-    
-    // Backward pass
-    for (auto it = groups2.rbegin(); it != groups2.rend(); ++it) {
-      project_group(v_ptr, w_ptr, *it->coords, it->inv_weight);
-    }
-    for (auto it = groups1.rbegin(); it != groups1.rend(); ++it) {
-      project_group(v_ptr, w_ptr, *it->coords, it->inv_weight);
-    }
-  };
-  
-  // Process columns with improved memory access pattern
-  const size_t block_size = 8; // Larger blocks for better cache usage
-  
-  for (size_t col_start = 0; col_start < P; col_start += block_size) {
-    size_t col_end = std::min(col_start + block_size, P);
-    
-    for (size_t col = col_start; col < col_end; ++col) {
-      double* col_ptr = V.colptr(col);
-      
-      // Use workspace pointers - no repeated allocations
-      double* x_ptr = workspace.x_ptr();
-      double* x0_ptr = workspace.x0_ptr();
-      double* g_ptr = workspace.g_ptr();
-      double* g_old_ptr = workspace.g_old_ptr();
-      double* p_ptr = workspace.p_ptr();
-      
-      workspace.reset_iteration_state(iter_interrupt, iter_ssr);
-      workspace.reset_iteration_state(iter_interrupt, iter_ssr);
-      
-      // Copy column data directly
-      std::memcpy(x_ptr, col_ptr, N * sizeof(double));
-      
-      for (size_t iter = 0; iter < max_iter; ++iter) {
-        if (iter == workspace.iint) {
-          check_user_interrupt();
-          workspace.iint += iter_interrupt;
-        }
-        
-        // Save current state
-        std::memcpy(x0_ptr, x_ptr, N * sizeof(double));
-        
-        // Apply projection
-        project_symmetric_kaczmarz_2fe(workspace.x);
-        
-        // Vectorized gradient computation: g = x0 - x
-        for (size_t i = 0; i < N; ++i) {
-          g_ptr[i] = x0_ptr[i] - x_ptr[i];
-        }
-        
-        // Vectorized convergence check with early exit
-        double weighted_diff = 0.0;
-        for (size_t i = 0; i < N; ++i) {
-          double rel_diff = std::abs(x_ptr[i] - x0_ptr[i]) / (1.0 + std::abs(x0_ptr[i]));
-          weighted_diff += w_ptr[i] * rel_diff;
-        }
-        double ratio = weighted_diff * inv_sw;
-        
-        if (ratio < tol) break;
-        
-        // Acceleration
-        if (use_cg && iter >= accel_start) {
-          cg_acceleration(x_ptr, g_ptr, g_old_ptr, p_ptr,
-                                             w_ptr, inv_sw,
-                                             project_symmetric_kaczmarz_2fe,
-                                             iter, accel_start, N);
-          std::memcpy(g_old_ptr, g_ptr, N * sizeof(double));
-        } else if (!use_cg && iter >= 5 && (iter % 5) == 0) {
-          // Irons-Tuck acceleration using workspace
-          double* Gx_ptr = workspace.Gx_ptr();
-          double* G2x_ptr = workspace.G2x_ptr();
-          
-          std::memcpy(Gx_ptr, x_ptr, N * sizeof(double));
-          project_symmetric_kaczmarz_2fe(workspace.Gx);
-          std::memcpy(G2x_ptr, Gx_ptr, N * sizeof(double));
-          
-          // Vectorized dot products
-          double vprod = 0.0, ssq = 0.0;
-          for (size_t i = 0; i < N; ++i) {
-            double deltaG = G2x_ptr[i] - x_ptr[i];
-            double delta2 = G2x_ptr[i] - 2.0 * x_ptr[i] + x0_ptr[i];
-            vprod += deltaG * delta2;
-            ssq += delta2 * delta2;
-          }
-          
-          if (ssq > 1e-10) {
-            double coef = vprod / ssq;
-            if (coef > 0.0 && coef < 2.0) {
-              // Vectorized update
-              for (size_t i = 0; i < N; ++i) {
-                x_ptr[i] = G2x_ptr[i] - coef * (G2x_ptr[i] - x_ptr[i]);
-              }
-            }
-          }
-        }
-        
-        // SSR-based early exit
-        if (iter == workspace.isr && iter > 0) {
-          check_user_interrupt();
-          workspace.isr += iter_ssr;
-          double ssr = 0.0;
-          for (size_t i = 0; i < N; ++i) {
-            ssr += w_ptr[i] * x_ptr[i] * x_ptr[i];
-          }
-          ssr *= inv_sw;
-          if (std::abs(ssr - workspace.ssr0) / (1.0 + std::abs(workspace.ssr0)) < tol) break;
-          workspace.ssr0 = ssr;
-        }
-        
-        // Heuristic early exit
-        if (iter > 3 && (workspace.ratio0 / ratio) < 1.1 && ratio < tol * 20) break;
-        workspace.ratio0 = ratio;
-      }
-      
-      // Copy result back
-      std::memcpy(col_ptr, x_ptr, N * sizeof(double));
     }
   }
 }
 
-// General K-FE implementation with optimizations
 void center_variables(mat &V, const vec &w,
                       const field<field<uvec>> &group_indices,
                       const double &tol, const size_t &max_iter,
@@ -321,172 +189,226 @@ void center_variables(mat &V, const vec &w,
   if (V.is_empty() || w.is_empty() || V.n_rows != w.n_elem) return;
   
   const size_t K = group_indices.n_elem;
-  
-  // Use specialized 2-FE version when applicable
-  if (K == 2) {
-    center_variables_2fe(V, w, group_indices, tol, max_iter, iter_interrupt,
-                         iter_ssr, accel_start, use_cg);
-    return;
-  }
-  
   if (K == 0) return;
   
   const size_t N = V.n_rows, P = V.n_cols;
   const double inv_sw = 1.0 / accu(w);
   const double* w_ptr = w.memptr();
   
-  // Precompute all non-empty groups
-  std::vector<GroupInfo> all_groups;
-  std::vector<size_t> fe_boundaries(K + 1, 0);
+  // Determine optimal block size for processing multiple columns
+  const size_t col_block_size = get_block_size(N, P);
   
-  for (size_t k = 0; k < K; ++k) {
-    const field<uvec>& fe_groups = group_indices(k);
-    fe_boundaries[k] = all_groups.size();
-    
-    for (size_t l = 0; l < fe_groups.n_elem; ++l) {
-      const uvec& coords = fe_groups(l);
-      if (coords.n_elem > 1) {
-        double sum_w = 0.0;
-        const uword* coord_ptr = coords.memptr();
-        for (uword i = 0; i < coords.n_elem; ++i) {
-          if (coord_ptr[i] < w.n_elem) {
-            sum_w += w_ptr[coord_ptr[i]];
-          }
-        }
-        if (sum_w > 0.0) {
-          all_groups.push_back({&coords, 1.0 / sum_w, coords.n_elem});
-        }
-      }
-    }
-  }
-  fe_boundaries[K] = all_groups.size();
-  
-  const size_t n_groups_total = all_groups.size();
-  
-  // Create reusable workspace - single allocation for all columns
+  // Create reusable workspace
   CenteringWorkspace workspace(N);
   
-  // Lambda for symmetric Kaczmarz projection
-  auto project_symmetric_kaczmarz = [&](vec& v) {
-    double* v_ptr = v.memptr();
+  // Process columns in blocks for better cache locality
+  for (size_t col_block = 0; col_block < P; col_block += col_block_size) {
+    const size_t col_end = std::min(col_block + col_block_size, P);
     
-    // Forward pass
-    for (size_t i = 0; i < n_groups_total; ++i) {
-      const auto& group = all_groups[i];
-      project_group(v_ptr, w_ptr, *group.coords, group.inv_weight);
-    }
-    
-    // Backward pass
-    for (size_t i = n_groups_total; i-- > 0;) {
-      const auto& group = all_groups[i];
-      project_group(v_ptr, w_ptr, *group.coords, group.inv_weight);
-    }
-  };
-  
-  // Process columns in blocks
-  const size_t block_size = 8;
-  
-  for (size_t col_start = 0; col_start < P; col_start += block_size) {
-    size_t col_end = std::min(col_start + block_size, P);
-    
-    for (size_t col = col_start; col < col_end; ++col) {
+    // Process each column in the current block
+    for (size_t col = col_block; col < col_end; ++col) {
       double* col_ptr = V.colptr(col);
       
-      // Use workspace pointers - no repeated allocations
+      // Use workspace pointers
       double* x_ptr = workspace.x_ptr();
       double* x0_ptr = workspace.x0_ptr();
-      double* g_ptr = workspace.g_ptr();
-      double* g_old_ptr = workspace.g_old_ptr();
-      double* p_ptr = workspace.p_ptr();
       
       workspace.reset_iteration_state(iter_interrupt, iter_ssr);
       
-      // Copy column data directly
+      // Copy column data
       std::memcpy(x_ptr, col_ptr, N * sizeof(double));
+    
+    for (size_t iter = 0; iter < max_iter; ++iter) {
+      if (iter == workspace.iint) {
+        check_user_interrupt();
+        workspace.iint += iter_interrupt;
+      }
       
-      for (size_t iter = 0; iter < max_iter; ++iter) {
-        if (iter == workspace.iint) {
-          check_user_interrupt();
-          workspace.iint += iter_interrupt;
-        }
-        
-        // Save current state
-        std::memcpy(x0_ptr, x_ptr, N * sizeof(double));
-        
-        // Apply projection
-        project_symmetric_kaczmarz(workspace.x);
-        
-        // Vectorized gradient computation: g = x0 - x
-        for (size_t i = 0; i < N; ++i) {
-          g_ptr[i] = x0_ptr[i] - x_ptr[i];
-        }
-        
-        // Vectorized convergence check
-        double weighted_diff = 0.0;
-        for (size_t i = 0; i < N; ++i) {
-          double rel_diff = std::abs(x_ptr[i] - x0_ptr[i]) / (1.0 + std::abs(x0_ptr[i]));
-          weighted_diff += w_ptr[i] * rel_diff;
-        }
-        double ratio = weighted_diff * inv_sw;
-        
-        if (ratio < tol) break;
-        
-        // Acceleration
-        if (use_cg && iter >= accel_start) {
-          cg_acceleration(x_ptr, g_ptr, g_old_ptr, p_ptr,
-                                             w_ptr, inv_sw,
-                                             project_symmetric_kaczmarz,
-                                             iter, accel_start, N);
-          std::memcpy(g_old_ptr, g_ptr, N * sizeof(double));
-        } else if (!use_cg && iter >= 5 && (iter % 5) == 0) {
-          // Irons-Tuck acceleration using workspace
-          double* Gx_ptr = workspace.Gx_ptr();
-          double* G2x_ptr = workspace.G2x_ptr();
-          
-          std::memcpy(Gx_ptr, x_ptr, N * sizeof(double));
-          project_symmetric_kaczmarz(workspace.Gx);
-          std::memcpy(G2x_ptr, Gx_ptr, N * sizeof(double));
-          
-          // Vectorized dot products
-          double vprod = 0.0, ssq = 0.0;
-          for (size_t i = 0; i < N; ++i) {
-            double deltaG = G2x_ptr[i] - x_ptr[i];
-            double delta2 = G2x_ptr[i] - 2.0 * x_ptr[i] + x0_ptr[i];
-            vprod += deltaG * delta2;
-            ssq += delta2 * delta2;
+      // Save current state
+      std::memcpy(x0_ptr, x_ptr, N * sizeof(double));
+      
+      // Apply projection based on K
+      if (K == 1) {
+        // Single FE case
+        const field<uvec>& fe_groups = group_indices(0);
+        for (size_t l = 0; l < fe_groups.n_elem; ++l) {
+          const uvec& coords = fe_groups(l);
+          if (coords.n_elem > 1) {
+            double sum_w = 0.0, weighted_sum = 0.0;
+            const uword* coord_ptr = coords.memptr();
+            for (uword i = 0; i < coords.n_elem; ++i) {
+              sum_w += w_ptr[coord_ptr[i]];
+              weighted_sum += w_ptr[coord_ptr[i]] * x_ptr[coord_ptr[i]];
+            }
+            if (sum_w > 0.0) {
+              double mean = weighted_sum / sum_w;
+              for (uword i = 0; i < coords.n_elem; ++i) {
+                x_ptr[coord_ptr[i]] -= mean;
+              }
+            }
           }
-          
-          if (ssq > 1e-10) {
-            double coef = vprod / ssq;
-            if (coef > 0.0 && coef < 2.0) {
-              // Vectorized update
-              for (size_t i = 0; i < N; ++i) {
-                x_ptr[i] = G2x_ptr[i] - coef * (G2x_ptr[i] - x_ptr[i]);
+        }
+      } else if (K == 2) {
+        // Two FE case - symmetric Kaczmarz
+        const field<uvec>& fe1_groups = group_indices(0);
+        const field<uvec>& fe2_groups = group_indices(1);
+        
+        // Forward pass
+        for (size_t l = 0; l < fe1_groups.n_elem; ++l) {
+          const uvec& coords = fe1_groups(l);
+          if (coords.n_elem > 1) {
+            double sum_w = 0.0, weighted_sum = 0.0;
+            const uword* coord_ptr = coords.memptr();
+            for (uword i = 0; i < coords.n_elem; ++i) {
+              sum_w += w_ptr[coord_ptr[i]];
+              weighted_sum += w_ptr[coord_ptr[i]] * x_ptr[coord_ptr[i]];
+            }
+            if (sum_w > 0.0) {
+              double mean = weighted_sum / sum_w;
+              for (uword i = 0; i < coords.n_elem; ++i) {
+                x_ptr[coord_ptr[i]] -= mean;
+              }
+            }
+          }
+        }
+        for (size_t l = 0; l < fe2_groups.n_elem; ++l) {
+          const uvec& coords = fe2_groups(l);
+          if (coords.n_elem > 1) {
+            double sum_w = 0.0, weighted_sum = 0.0;
+            const uword* coord_ptr = coords.memptr();
+            for (uword i = 0; i < coords.n_elem; ++i) {
+              sum_w += w_ptr[coord_ptr[i]];
+              weighted_sum += w_ptr[coord_ptr[i]] * x_ptr[coord_ptr[i]];
+            }
+            if (sum_w > 0.0) {
+              double mean = weighted_sum / sum_w;
+              for (uword i = 0; i < coords.n_elem; ++i) {
+                x_ptr[coord_ptr[i]] -= mean;
               }
             }
           }
         }
         
-        // SSR-based early exit
-        if (iter == workspace.isr && iter > 0) {
-          check_user_interrupt();
-          workspace.isr += iter_ssr;
-          double ssr = 0.0;
-          for (size_t i = 0; i < N; ++i) {
-            ssr += w_ptr[i] * x_ptr[i] * x_ptr[i];
+        // Backward pass
+        for (size_t l = fe2_groups.n_elem; l-- > 0;) {
+          const uvec& coords = fe2_groups(l);
+          if (coords.n_elem > 1) {
+            double sum_w = 0.0, weighted_sum = 0.0;
+            const uword* coord_ptr = coords.memptr();
+            for (uword i = 0; i < coords.n_elem; ++i) {
+              sum_w += w_ptr[coord_ptr[i]];
+              weighted_sum += w_ptr[coord_ptr[i]] * x_ptr[coord_ptr[i]];
+            }
+            if (sum_w > 0.0) {
+              double mean = weighted_sum / sum_w;
+              for (uword i = 0; i < coords.n_elem; ++i) {
+                x_ptr[coord_ptr[i]] -= mean;
+              }
+            }
           }
-          ssr *= inv_sw;
-          if (std::abs(ssr - workspace.ssr0) / (1.0 + std::abs(workspace.ssr0)) < tol) break;
-          workspace.ssr0 = ssr;
+        }
+        for (size_t l = fe1_groups.n_elem; l-- > 0;) {
+          const uvec& coords = fe1_groups(l);
+          if (coords.n_elem > 1) {
+            double sum_w = 0.0, weighted_sum = 0.0;
+            const uword* coord_ptr = coords.memptr();
+            for (uword i = 0; i < coords.n_elem; ++i) {
+              sum_w += w_ptr[coord_ptr[i]];
+              weighted_sum += w_ptr[coord_ptr[i]] * x_ptr[coord_ptr[i]];
+            }
+            if (sum_w > 0.0) {
+              double mean = weighted_sum / sum_w;
+              for (uword i = 0; i < coords.n_elem; ++i) {
+                x_ptr[coord_ptr[i]] -= mean;
+              }
+            }
+          }
+        }
+      } else {
+        // General K-FE case - symmetric Kaczmarz
+        // Forward pass
+        for (size_t k = 0; k < K; ++k) {
+          const field<uvec>& fe_groups = group_indices(k);
+          for (size_t l = 0; l < fe_groups.n_elem; ++l) {
+            const uvec& coords = fe_groups(l);
+            if (coords.n_elem > 1) {
+              double sum_w = 0.0, weighted_sum = 0.0;
+              const uword* coord_ptr = coords.memptr();
+              for (uword i = 0; i < coords.n_elem; ++i) {
+                if (coord_ptr[i] < w.n_elem) {
+                  sum_w += w_ptr[coord_ptr[i]];
+                  weighted_sum += w_ptr[coord_ptr[i]] * x_ptr[coord_ptr[i]];
+                }
+              }
+              if (sum_w > 0.0) {
+                double mean = weighted_sum / sum_w;
+                for (uword i = 0; i < coords.n_elem; ++i) {
+                  if (coord_ptr[i] < w.n_elem) {
+                    x_ptr[coord_ptr[i]] -= mean;
+                  }
+                }
+              }
+            }
+          }
         }
         
-        // Heuristic early exit
-        if (iter > 3 && (workspace.ratio0 / ratio) < 1.1 && ratio < tol * 20) break;
-        workspace.ratio0 = ratio;
+        // Backward pass
+        for (size_t k = K; k-- > 0;) {
+          const field<uvec>& fe_groups = group_indices(k);
+          for (size_t l = fe_groups.n_elem; l-- > 0;) {
+            const uvec& coords = fe_groups(l);
+            if (coords.n_elem > 1) {
+              double sum_w = 0.0, weighted_sum = 0.0;
+              const uword* coord_ptr = coords.memptr();
+              for (uword i = 0; i < coords.n_elem; ++i) {
+                if (coord_ptr[i] < w.n_elem) {
+                  sum_w += w_ptr[coord_ptr[i]];
+                  weighted_sum += w_ptr[coord_ptr[i]] * x_ptr[coord_ptr[i]];
+                }
+              }
+              if (sum_w > 0.0) {
+                double mean = weighted_sum / sum_w;
+                for (uword i = 0; i < coords.n_elem; ++i) {
+                  if (coord_ptr[i] < w.n_elem) {
+                    x_ptr[coord_ptr[i]] -= mean;
+                  }
+                }
+              }
+            }
+          }
+        }
       }
       
-      // Copy result back
-      std::memcpy(col_ptr, x_ptr, N * sizeof(double));
+      // Convergence check
+      double weighted_diff = 0.0;
+      for (size_t i = 0; i < N; ++i) {
+        double rel_diff = std::abs(x_ptr[i] - x0_ptr[i]) / (1.0 + std::abs(x0_ptr[i]));
+        weighted_diff += w_ptr[i] * rel_diff;
+      }
+      double ratio = weighted_diff * inv_sw;
+      
+      if (ratio < tol) break;
+      
+      // SSR-based early exit
+      if (iter == workspace.isr && iter > 0) {
+        check_user_interrupt();
+        workspace.isr += iter_ssr;
+        double ssr = 0.0;
+        for (size_t i = 0; i < N; ++i) {
+          ssr += w_ptr[i] * x_ptr[i] * x_ptr[i];
+        }
+        ssr *= inv_sw;
+        if (std::abs(ssr - workspace.ssr0) / (1.0 + std::abs(workspace.ssr0)) < tol) break;
+        workspace.ssr0 = ssr;
+      }
+      
+      // Heuristic early exit
+      if (iter > 3 && (workspace.ratio0 / ratio) < 1.1 && ratio < tol * 20) break;
+      workspace.ratio0 = ratio;
+    }
+    
+    // Copy result back
+    std::memcpy(col_ptr, x_ptr, N * sizeof(double));
     }
   }
 }
