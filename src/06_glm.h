@@ -109,7 +109,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   workspace->ensure_size(n, p);
 
   vec MNU = vec(n, fill::zeros);
-  vec mu = link_inv_(eta, family_type);
+  vec mu = link_inv(eta, family_type);
   vec ymean = mean(y) * vec(n, fill::ones);
   vec mu_eta(n, fill::none), w_working(n, fill::none);
   vec nu(n, fill::none), beta_upd(k, fill::none);
@@ -117,8 +117,8 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   vec beta0(k, fill::none), nu0 = vec(n, fill::zeros);
   mat H(p, p, fill::none);
 
-  double dev = dev_resids_(y, mu, theta, w, family_type);
-  double null_dev = dev_resids_(y, ymean, theta, w, family_type);
+  double dev = dev_resids(y, mu, theta, w, family_type);
+  double null_dev = dev_resids(y, ymean, theta, w, family_type);
   double dev0, dev_ratio, dev_ratio_inner, rho;
   bool dev_crit, val_crit, imp_crit, conv = false;
 
@@ -168,8 +168,8 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     beta0 = beta;
     dev0 = dev;
 
-    mu_eta = mu_eta_(eta, family_type);
-    w_working = (w % square(mu_eta)) / variance_(mu, theta, family_type);
+    mu_eta = inverse_link_derivative(eta, family_type);
+    w_working = (w % square(mu_eta)) / variance(mu, theta, family_type);
     nu = (y - mu) / mu_eta;
 
     bool iter_solver = has_fixed_effects &&
@@ -266,12 +266,12 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       }
       beta = beta_new;
 
-      mu = link_inv_(eta, family_type);
-      dev = dev_resids_(y, mu, theta, w, family_type);
+      mu = link_inv(eta, family_type);
+      dev = dev_resids(y, mu, theta, w, family_type);
       dev_ratio_inner = (dev - dev0) / (0.1 + fabs(dev));
 
       dev_crit = is_finite(dev);
-      val_crit = valid_eta_(eta, family_type) && valid_mu_(mu, family_type);
+      val_crit = valid_eta(eta, family_type) && valid_mu(mu, family_type);
       imp_crit = (dev_ratio_inner <= -params.dev_tol);
 
       if (dev_crit && val_crit && imp_crit) {
@@ -290,7 +290,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       eta = eta0;
       beta = beta0;
       dev = dev0;
-      mu = link_inv_(eta, family_type);
+      mu = link_inv(eta, family_type);
     }
 
     dev_ratio = fabs(dev - dev0) / (0.1 + fabs(dev));
@@ -328,8 +328,8 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
         eta = arma::max(eta, vec(n, fill::value(-10.0)));
       }
 
-      mu = link_inv_(eta, family_type);
-      dev = dev_resids_(y, mu, theta, w, family_type);
+      mu = link_inv(eta, family_type);
+      dev = dev_resids(y, mu, theta, w, family_type);
       num_step_halving++;
 
       result.iter = iter + 1;
@@ -418,11 +418,11 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
   const size_t n = y.n_elem;
 
   vec Myadj = vec(n, fill::zeros);
-  vec mu = link_inv_(eta, family_type);
+  vec mu = link_inv(eta, family_type);
   vec mu_eta(n, fill::none), yadj(n, fill::none);
   vec w_working(n, fill::none), eta_upd(n, fill::none), eta0(n, fill::none);
 
-  double dev = dev_resids_(y, mu, 0.0, w, family_type);
+  double dev = dev_resids(y, mu, 0.0, w, family_type);
   double dev0, dev_ratio, dev_ratio_inner, rho;
   bool dev_crit, val_crit, imp_crit;
 
@@ -437,8 +437,8 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
     eta0 = eta;
     dev0 = dev;
 
-    mu_eta = mu_eta_(eta, family_type);
-    w_working = (w % square(mu_eta)) / variance_(mu, 0.0, family_type);
+    mu_eta = inverse_link_derivative(eta, family_type);
+    w_working = (w % square(mu_eta)) / variance(mu, 0.0, family_type);
     yadj = (y - mu) / mu_eta + eta - offset;
 
     Myadj += yadj;
@@ -452,12 +452,12 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
     for (size_t iter_inner = 0; iter_inner < params.iter_inner_max;
          ++iter_inner) {
       eta = eta0 + (rho * eta_upd);
-      mu = link_inv_(eta, family_type);
-      dev = dev_resids_(y, mu, 0.0, w, family_type);
+      mu = link_inv(eta, family_type);
+      dev = dev_resids(y, mu, 0.0, w, family_type);
       dev_ratio_inner = (dev - dev0) / (0.1 + fabs(dev0));
 
       dev_crit = is_finite(dev);
-      val_crit = (valid_eta_(eta, family_type) && valid_mu_(mu, family_type));
+      val_crit = (valid_eta(eta, family_type) && valid_mu(mu, family_type));
       imp_crit = (dev_ratio_inner <= -params.dev_tol);
 
       if (dev_crit && val_crit && imp_crit) {
@@ -469,7 +469,7 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
 
     if (!dev_crit || !val_crit) {
       eta = eta0;
-      mu = link_inv_(eta, family_type);
+      mu = link_inv(eta, family_type);
       break;
     }
 

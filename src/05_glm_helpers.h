@@ -75,7 +75,7 @@ struct InferenceGLM {
         has_tx(false) {}
 };
 
-std::string tidy_family_(const std::string &family) {
+std::string tidy_family(const std::string &family) {
   std::string fam = family;
 
   std::transform(fam.begin(), fam.end(), fam.begin(),
@@ -109,23 +109,23 @@ Family get_family_type(const std::string &fam) {
   return (it != family_map.end()) ? it->second : UNKNOWN;
 }
 
-vec link_inv_gaussian_(const vec &eta) { return eta; }
+vec link_inv_gaussian(const vec &eta) { return eta; }
 
-vec link_inv_poisson_(const vec &eta) { return exp(eta); }
+vec link_inv_poisson(const vec &eta) { return exp(eta); }
 
-vec link_inv_logit_(const vec &eta) { return 1.0 / (1.0 + exp(-eta)); }
+vec link_inv_logit(const vec &eta) { return 1.0 / (1.0 + exp(-eta)); }
 
-vec link_inv_gamma_(const vec &eta) { return 1 / eta; }
+vec link_inv_gamma(const vec &eta) { return 1 / eta; }
 
-vec link_inv_invgaussian_(const vec &eta) { return 1 / sqrt(eta); }
+vec link_inv_invgaussian(const vec &eta) { return 1 / sqrt(eta); }
 
-vec link_inv_negbin_(const vec &eta) { return exp(eta); }
+vec link_inv_negbin(const vec &eta) { return exp(eta); }
 
-double dev_resids_gaussian_(const vec &y, const vec &mu, const vec &wt) {
+double dev_resids_gaussian(const vec &y, const vec &mu, const vec &wt) {
   return dot(wt, square(y - mu));
 }
 
-double dev_resids_poisson_(const vec &y, const vec &mu, const vec &wt) {
+double dev_resids_poisson(const vec &y, const vec &mu, const vec &wt) {
   vec r = mu % wt;
 
   uvec p = find(y > 0);
@@ -136,7 +136,7 @@ double dev_resids_poisson_(const vec &y, const vec &mu, const vec &wt) {
 
 // Adapted from binomial_dev_resids()
 // in base R it can be found in src/library/stats/src/family.c
-double dev_resids_logit_(const vec &y, const vec &mu, const vec &wt) {
+double dev_resids_logit(const vec &y, const vec &mu, const vec &wt) {
   vec r(y.n_elem, fill::zeros);
   vec s(y.n_elem, fill::zeros);
 
@@ -148,7 +148,7 @@ double dev_resids_logit_(const vec &y, const vec &mu, const vec &wt) {
   return 2 * dot(wt, r + s);
 }
 
-double dev_resids_gamma_(const vec &y, const vec &mu, const vec &wt) {
+double dev_resids_gamma(const vec &y, const vec &mu, const vec &wt) {
   vec r = y / mu;
 
   uvec p = find(y == 0);
@@ -158,12 +158,12 @@ double dev_resids_gamma_(const vec &y, const vec &mu, const vec &wt) {
   return -2 * accu(r);
 }
 
-double dev_resids_invgaussian_(const vec &y, const vec &mu, const vec &wt) {
+double dev_resids_invgaussian(const vec &y, const vec &mu, const vec &wt) {
   return dot(wt, square(y - mu) / (y % square(mu)));
 }
 
-double dev_resids_negbin_(const vec &y, const vec &mu, const double &theta,
-                          const vec &wt) {
+double dev_resids_negbin(const vec &y, const vec &mu, const double &theta,
+                         const vec &wt) {
   vec r = y;
 
   uvec p = find(y < 1);
@@ -173,29 +173,29 @@ double dev_resids_negbin_(const vec &y, const vec &mu, const double &theta,
   return 2 * accu(r);
 }
 
-vec variance_gaussian_(const vec &mu) { return ones<vec>(mu.n_elem); }
+vec variance_gaussian(const vec &mu) { return ones<vec>(mu.n_elem); }
 
-vec link_inv_(const vec &eta, const Family family_type) {
+vec link_inv(const vec &eta, const Family family_type) {
   vec result(eta.n_elem);
 
   switch (family_type) {
   case GAUSSIAN:
-    result = link_inv_gaussian_(eta);
+    result = link_inv_gaussian(eta);
     break;
   case POISSON:
-    result = link_inv_poisson_(eta);
+    result = link_inv_poisson(eta);
     break;
   case BINOMIAL:
-    result = link_inv_logit_(eta);
+    result = link_inv_logit(eta);
     break;
   case GAMMA:
-    result = link_inv_gamma_(eta);
+    result = link_inv_gamma(eta);
     break;
   case INV_GAUSSIAN:
-    result = link_inv_invgaussian_(eta);
+    result = link_inv_invgaussian(eta);
     break;
   case NEG_BIN:
-    result = link_inv_negbin_(eta);
+    result = link_inv_negbin(eta);
     break;
   default:
     stop("Unknown family");
@@ -204,27 +204,27 @@ vec link_inv_(const vec &eta, const Family family_type) {
   return result;
 }
 
-double dev_resids_(const vec &y, const vec &mu, const double &theta,
-                   const vec &wt, const Family family_type) {
+double dev_resids(const vec &y, const vec &mu, const double &theta,
+                  const vec &wt, const Family family_type) {
   switch (family_type) {
   case GAUSSIAN:
-    return dev_resids_gaussian_(y, mu, wt);
+    return dev_resids_gaussian(y, mu, wt);
   case POISSON:
-    return dev_resids_poisson_(y, mu, wt);
+    return dev_resids_poisson(y, mu, wt);
   case BINOMIAL:
-    return dev_resids_logit_(y, mu, wt);
+    return dev_resids_logit(y, mu, wt);
   case GAMMA:
-    return dev_resids_gamma_(y, mu, wt);
+    return dev_resids_gamma(y, mu, wt);
   case INV_GAUSSIAN:
-    return dev_resids_invgaussian_(y, mu, wt);
+    return dev_resids_invgaussian(y, mu, wt);
   case NEG_BIN:
-    return dev_resids_negbin_(y, mu, theta, wt);
+    return dev_resids_negbin(y, mu, theta, wt);
   default:
     stop("Unknown family");
   }
 }
 
-bool valid_eta_(const vec &eta, const Family family_type) {
+bool valid_eta(const vec &eta, const Family family_type) {
   switch (family_type) {
   case GAUSSIAN:
   case POISSON:
@@ -240,7 +240,7 @@ bool valid_eta_(const vec &eta, const Family family_type) {
   }
 }
 
-bool valid_mu_(const vec &mu, const Family family_type) {
+bool valid_mu(const vec &mu, const Family family_type) {
   switch (family_type) {
   case GAUSSIAN:
     return true;
@@ -258,7 +258,7 @@ bool valid_mu_(const vec &mu, const Family family_type) {
   }
 }
 
-vec mu_eta_(const vec &eta, const Family family_type) {
+vec inverse_link_derivative(const vec &eta, const Family family_type) {
   vec result(eta.n_elem);
 
   switch (family_type) {
@@ -287,7 +287,7 @@ vec mu_eta_(const vec &eta, const Family family_type) {
   return result;
 }
 
-vec variance_(const vec &mu, const double &theta, const Family family_type) {
+vec variance(const vec &mu, const double &theta, const Family family_type) {
   switch (family_type) {
   case GAUSSIAN:
     return ones<vec>(mu.n_elem);

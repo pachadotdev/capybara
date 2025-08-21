@@ -47,14 +47,12 @@ struct CapybaraParameters {
   bool use_cg;
 
   CapybaraParameters()
-      : dev_tol(1.0e-6), center_tol(1.0e-6), collin_tol(1.0e-7),
-        step_halving_factor(0.5), alpha_tol(1.0e-6), iter_max(25),
+      : dev_tol(1.0e-08), center_tol(1.0e-08), collin_tol(1.0e-10),
+        step_halving_factor(0.5), alpha_tol(1.0e-08), iter_max(25),
         iter_center_max(10000), iter_inner_max(50), iter_alpha_max(10000),
         iter_interrupt(1000), iter_ssr(10), return_fe(true), keep_tx(false),
-        sep_tol(1e-6), sep_max_iter(100), sep_accelerate(true),
-        check_separation(true), use_acceleration(true),
-        step_halving_memory(0.9), max_step_halving(2), start_inner_tol(1e-4),
-        accel_start(6), use_cg(true) {}
+        use_acceleration(true), step_halving_memory(0.9), max_step_halving(2),
+        start_inner_tol(1e-06), accel_start(6), use_cg(true) {}
 
   explicit CapybaraParameters(const cpp11::list &control) {
     dev_tol = as_cpp<double>(control["dev_tol"]);
@@ -70,10 +68,6 @@ struct CapybaraParameters {
     iter_ssr = as_cpp<size_t>(control["iter_ssr"]);
     return_fe = as_cpp<bool>(control["return_fe"]);
     keep_tx = as_cpp<bool>(control["keep_tx"]);
-    sep_tol = as_cpp<double>(control["sep_tol"]);
-    sep_max_iter = as_cpp<size_t>(control["sep_max_iter"]);
-    sep_accelerate = as_cpp<bool>(control["sep_accelerate"]);
-    check_separation = as_cpp<bool>(control["check_separation"]);
     use_acceleration = as_cpp<bool>(control["use_acceleration"]);
     step_halving_memory = as_cpp<double>(control["step_halving_memory"]);
     max_step_halving = as_cpp<size_t>(control["max_step_halving"]);
@@ -100,10 +94,9 @@ using NegBinResult = capybara::InferenceNegBin;
 inline uvec R_1based_to_Cpp_0based_indices(const integers &r_indices) {
   uvec cpp_indices(r_indices.size());
 
-  std::transform(r_indices.begin(), r_indices.end(), cpp_indices.begin(),
-                 [](int r_val) -> uword {
-                   return static_cast<uword>(r_val - 1);
-                 });
+  std::transform(
+      r_indices.begin(), r_indices.end(), cpp_indices.begin(),
+      [](int r_val) -> uword { return static_cast<uword>(r_val - 1); });
 
   return cpp_indices;
 }
@@ -266,7 +259,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   vec y = as_col(y_r);
   vec w = as_col(wt_r);
 
-  std::string fam = capybara::tidy_family_(family);
+  std::string fam = capybara::tidy_family(family);
   capybara::Family family_type = capybara::get_family_type(fam);
 
   CapybaraParameters params(control);
@@ -370,7 +363,7 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
 
   field<field<uvec>> fe_groups = R_list_to_Armadillo_field(k_list);
 
-  std::string fam = capybara::tidy_family_(family);
+  std::string fam = capybara::tidy_family(family);
   capybara::Family family_type = capybara::get_family_type(fam);
 
   vec result = capybara::feglm_offset_fit(eta, y, offset, w, family_type,

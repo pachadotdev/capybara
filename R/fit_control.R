@@ -53,14 +53,6 @@ NULL
 #' is \code{10L}.
 #' @param iter_alpha_max maximum iterations for fixed effects computation.
 #'  The default is \code{10000L}.
-#' @param sep_tol tolerance for separation detection in Poisson models. Controls
-#'  the threshold for identifying separated observations. Default is \code{1.0e-6}.
-#' @param sep_max_iter maximum number of iterations for separation detection.
-#'  The default is \code{100}.
-#' @param sep_accelerate logical indicating whether to use acceleration in
-#'  separation detection. The default is \code{TRUE}.
-#' @param check_separation logical indicating whether to check for separation in
-#'  Poisson models. The default is \code{TRUE}.
 #' @param use_acceleration logical indicating whether to use acceleration 
 #'  optimizations (fast partial out, adaptive tolerances, step-halving memory).
 #'  The default is \code{TRUE}.
@@ -196,10 +188,6 @@ fit_control <- function(
     iter_alpha_max = iter_alpha_max,
     iter_interrupt = iter_interrupt,
     iter_ssr = iter_ssr,
-    sep_tol = sep_tol,
-    sep_max_iter = sep_max_iter,
-    sep_accelerate = sep_accelerate,
-    check_separation = check_separation,
     use_acceleration = use_acceleration,
     step_halving_memory = step_halving_memory,
     max_step_halving = max_step_halving,
