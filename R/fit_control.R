@@ -53,14 +53,27 @@ NULL
 #' is \code{10L}.
 #' @param iter_alpha_max maximum iterations for fixed effects computation.
 #'  The default is \code{10000L}.
+#' @param use_acceleration logical indicating whether to use acceleration 
+#'  optimizations (fast partial out, adaptive tolerances, step-halving memory).
+#'  The default is \code{TRUE}.
+#' @param step_halving_memory numeric memory factor for step-halving algorithm.
+#'  Controls how much of the previous iteration is retained. The default is \code{0.9}.
+#' @param max_step_halving maximum number of post-convergence step-halving attempts.
+#'  The default is \code{2}.
+#' @param start_inner_tol starting tolerance for inner solver iterations.
+#'  The default is \code{1.0e-04}.
 #' @param return_fe logical indicating if the fixed effects should be returned.
 #'  This can be useful when fitting general equilibrium models where skipping the
 #'  fixed effects for intermediate steps speeds up computation. The default is
 #'  \code{TRUE} and only applies to the \code{feglm} class.
+#' @param accel_start Integer. Iteration to start conjugate gradient acceleration in centering. Default is \code{6L}.
+#' @param use_cg Logical. Use conjugate gradient acceleration for centering. Default is TRUE.
 #' @param keep_tx logical indicating if the centered regressor matrix should be
 #'  stored. The centered regressor matrix is required for some covariance
 #'  estimators, bias corrections, and average partial effects. This option saves
 #'  some computation time at the cost of memory. The default is \code{TRUE}.
+#' @param init_theta Initial value for the negative binomial dispersion parameter (theta).
+#'  The default is \code{0.0}.
 #'
 #' @return A named list of control parameters.
 #'
@@ -71,19 +84,30 @@ NULL
 #'
 #' @export
 fit_control <- function(
-    dev_tol = 1.0e-06,
-    center_tol = 1.0e-06,
-    collin_tol = 1.0e-07,
+    dev_tol = 1.0e-08,
+    center_tol = 1.0e-08,
+    collin_tol = 1.0e-10,
     step_halving_factor = 0.5,
-    alpha_tol = 1.0e-06,
+    alpha_tol = 1.0e-08,
     iter_max = 25L,
     iter_center_max = 10000L,
     iter_inner_max = 50L,
     iter_alpha_max = 10000L,
     iter_interrupt = 1000L,
     iter_ssr = 10L,
+    sep_tol = 1.0e-06,
+    sep_max_iter = 100,
+    sep_accelerate = TRUE,
+    check_separation = TRUE,
+    use_acceleration = TRUE,
+    step_halving_memory = 0.9,
+    max_step_halving = 2L,
+    start_inner_tol = 1.0e-06,
+    accel_start = 6L,
+    use_cg = TRUE,
     return_fe = TRUE,
-    keep_tx = FALSE) {
+    keep_tx = FALSE,
+    init_theta = 0.0) {
   # Check validity of tolerance parameters
   if (dev_tol <= 0.0 || center_tol <= 0.0 || collin_tol <= 0.0 ||
       step_halving_factor <= 0.0 || alpha_tol <= 0.0) {
@@ -110,11 +134,46 @@ fit_control <- function(
   # Check validity of logical parameters
   return_fe <- as.logical(return_fe)
   keep_tx <- as.logical(keep_tx)
-  if (is.na(return_fe) || is.na(keep_tx)) {
+  use_acceleration <- as.logical(use_acceleration)
+  if (is.na(return_fe) || is.na(keep_tx) || is.na(use_acceleration)) {
     stop(
       "All logical parameters should be TRUE or FALSE.",
       call. = FALSE
     )
+  }
+
+  # Check validity of integer parameters for acceleration
+  max_step_halving <- as.integer(max_step_halving)
+  if (max_step_halving < 0L) {
+    stop(
+      "max_step_halving should be greater than or equal to zero.",
+      call. = FALSE
+    )
+  }
+
+  # Check validity of numeric parameters for acceleration
+  if (step_halving_memory <= 0 || step_halving_memory >= 1) {
+    stop(
+      "step_halving_memory should be between 0 and 1 (exclusive).",
+      call. = FALSE
+    )
+  }
+  
+  if (start_inner_tol <= 0) {
+    stop(
+      "start_inner_tol should be greater than zero.",
+      call. = FALSE
+    )
+  }
+
+  # Validate accel_start
+  accel_start <- as.integer(accel_start)
+  if (accel_start < 0L) {
+    stop("accel_start should be >= 0.", call. = FALSE)
+  }
+  use_cg <- as.logical(use_cg)
+  if (is.na(use_cg)) {
+    stop("use_cg should be TRUE or FALSE.", call. = FALSE)
   }
 
   list(
@@ -129,7 +188,14 @@ fit_control <- function(
     iter_alpha_max = iter_alpha_max,
     iter_interrupt = iter_interrupt,
     iter_ssr = iter_ssr,
+    use_acceleration = use_acceleration,
+    step_halving_memory = step_halving_memory,
+    max_step_halving = max_step_halving,
+    start_inner_tol = start_inner_tol,
+    accel_start = accel_start,
+    use_cg = use_cg,
     return_fe = return_fe,
-    keep_tx = keep_tx
+    keep_tx = keep_tx,
+    init_theta = init_theta
   )
 }

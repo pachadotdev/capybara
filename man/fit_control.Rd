@@ -5,19 +5,30 @@
 \title{Set \code{feglm} Control Parameters}
 \usage{
 fit_control(
-  dev_tol = 1e-06,
-  center_tol = 1e-06,
-  collin_tol = 1e-07,
+  dev_tol = 1e-08,
+  center_tol = 1e-08,
+  collin_tol = 1e-10,
   step_halving_factor = 0.5,
-  alpha_tol = 1e-06,
+  alpha_tol = 1e-08,
   iter_max = 25L,
   iter_center_max = 10000L,
   iter_inner_max = 50L,
   iter_alpha_max = 10000L,
   iter_interrupt = 1000L,
   iter_ssr = 10L,
+  sep_tol = 1e-06,
+  sep_max_iter = 100,
+  sep_accelerate = TRUE,
+  check_separation = TRUE,
+  use_acceleration = TRUE,
+  step_halving_memory = 0.9,
+  max_step_halving = 2L,
+  start_inner_tol = 1e-06,
+  accel_start = 6L,
+  use_cg = TRUE,
   return_fe = TRUE,
-  keep_tx = FALSE
+  keep_tx = FALSE,
+  init_theta = 0
 )
 }
 \arguments{
@@ -62,6 +73,35 @@ iterations before the algorithm is interrupted. The default is \code{1000L}.}
 to skip before checking if the sum of squared residuals improves. The default
 is \code{10L}.}
 
+\item{sep_tol}{tolerance for separation detection in Poisson models. Controls
+the threshold for identifying separated observations. Default is \code{1.0e-6}.}
+
+\item{sep_max_iter}{maximum number of iterations for separation detection.
+The default is \code{100}.}
+
+\item{sep_accelerate}{logical indicating whether to use acceleration in
+separation detection. The default is \code{TRUE}.}
+
+\item{check_separation}{logical indicating whether to check for separation in
+Poisson models. The default is \code{TRUE}.}
+
+\item{use_acceleration}{logical indicating whether to use acceleration
+optimizations (fast partial out, adaptive tolerances, step-halving memory).
+The default is \code{TRUE}.}
+
+\item{step_halving_memory}{numeric memory factor for step-halving algorithm.
+Controls how much of the previous iteration is retained. The default is \code{0.9}.}
+
+\item{max_step_halving}{maximum number of post-convergence step-halving attempts.
+The default is \code{2}.}
+
+\item{start_inner_tol}{starting tolerance for inner solver iterations.
+The default is \code{1.0e-04}.}
+
+\item{accel_start}{Integer. Iteration to start conjugate gradient acceleration in centering. Default is \code{6L}.}
+
+\item{use_cg}{Logical. Use conjugate gradient acceleration for centering. Default is TRUE.}
+
 \item{return_fe}{logical indicating if the fixed effects should be returned.
 This can be useful when fitting general equilibrium models where skipping the
 fixed effects for intermediate steps speeds up computation. The default is
@@ -71,6 +111,9 @@ fixed effects for intermediate steps speeds up computation. The default is
 stored. The centered regressor matrix is required for some covariance
 estimators, bias corrections, and average partial effects. This option saves
 some computation time at the cost of memory. The default is \code{TRUE}.}
+
+\item{init_theta}{Initial value for the negative binomial dispersion parameter (theta).
+The default is \code{0.0}.}
 }
 \value{
 A named list of control parameters.

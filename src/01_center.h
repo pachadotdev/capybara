@@ -1,339 +1,349 @@
-// Method of alternating projections (Halperin)
+// Symmetric Kaczmarz with Conjugate Gradient acceleration
 
 #ifndef CAPYBARA_CENTER_H
 #define CAPYBARA_CENTER_H
 
+#include <cstring>
+#include <vector>
+
 namespace capybara {
 
-void center_variables_2fe(mat &V, const vec &w,
-                          const field<field<uvec>> &group_indices,
-                          const double &tol, const size_t &max_iter,
-                          const size_t &iter_interrupt,
-                          const size_t &iter_ssr) {
-  // Dimensions
-  const size_t N = V.n_rows, P = V.n_cols;
-  const double inv_sw = 1.0 / accu(w);
+inline size_t get_block_size(size_t n, size_t p) {
+  const size_t L1_CACHE_SIZE = 32 * 1024;
+  const size_t ELEMENT_SIZE = sizeof(double);
+  size_t max_block_elements = L1_CACHE_SIZE / ELEMENT_SIZE;
+  size_t max_block_size = max_block_elements / (p + 1);
+  const size_t MIN_BLOCK_SIZE = 64;
+  const size_t MAX_BLOCK_SIZE = 1024;
+  size_t block_size =
+      std::max(MIN_BLOCK_SIZE, std::min(max_block_size, MAX_BLOCK_SIZE));
+  return std::min(block_size, n);
+}
 
-  // Extract the two FE groups
-  const field<uvec> &fe1_groups = group_indices(0);
-  const field<uvec> &fe2_groups = group_indices(1);
-  const size_t L1 = fe1_groups.n_elem;
-  const size_t L2 = fe2_groups.n_elem;
+inline void project_group(double *v, const double *w, const uvec &coords,
+                          double inv_group_weight) {
+  double weighted_sum = 0.0;
+  const uword n = coords.n_elem;
+  const uword *coord_ptr = coords.memptr();
 
-  // Precompute group weights exactly like the general version
-  vec group1_inv_w(L1, fill::none);
-  vec group2_inv_w(L2, fill::none);
-
-  // FE1 weights
-  for (size_t l = 0; l < L1; ++l) {
-    if (fe1_groups(l).n_elem == 0) {
-      group1_inv_w(l) = 0.0;
-    } else {
-      double sum_w = accu(w.elem(fe1_groups(l)));
-      group1_inv_w(l) = (sum_w > 0.0) ? 1.0 / sum_w : 0.0;
-    }
+  for (uword i = 0; i < n; ++i) {
+    weighted_sum += w[coord_ptr[i]] * v[coord_ptr[i]];
   }
 
-  // FE2 weights
-  for (size_t l = 0; l < L2; ++l) {
-    if (fe2_groups(l).n_elem == 0) {
-      group2_inv_w(l) = 0.0;
-    } else {
-      double sum_w = accu(w.elem(fe2_groups(l)));
-      group2_inv_w(l) = (sum_w > 0.0) ? 1.0 / sum_w : 0.0;
-    }
+  double mean = weighted_sum * inv_group_weight;
+
+  for (uword i = 0; i < n; ++i) {
+    v[coord_ptr[i]] -= mean;
   }
+}
 
-  // Working vectors
-  vec x(N, fill::none), x0(N, fill::none);
-  vec diff(N, fill::none);
-  vec Gx(N, fill::none), G2x(N, fill::none);
-  vec deltaG(N, fill::none), delta2(N, fill::none);
+struct GroupInfo {
+  const uvec *coords;
+  double inv_weight;
+  uword n_elem;
+};
 
-  // Define projection function
-  auto project_2fe = [&](vec &v) {
-    // Project FE1
-    for (size_t l = 0; l < L1; ++l) {
-      const uvec &coords = fe1_groups(l);
-      const uword coord_size = coords.n_elem;
+template <typename ProjectFunc>
+void cg_acceleration(double *x, double *g, double *g0, double *p,
+                     const double *w, double inv_sw, ProjectFunc project,
+                     size_t iter, size_t accel_start, size_t n) {
+  if (iter == accel_start) {
+    std::memcpy(p, g, n * sizeof(double));
+  } else if (iter > accel_start) {
+    double num = 0.0, denom = 0.0;
 
-      if (coord_size <= 1)
-        continue; // Skip singleton/empty groups
-
-      double xbar = dot(w.elem(coords), v.elem(coords)) * group1_inv_w(l);
-      v.elem(coords) -= xbar;
+    for (size_t i = 0; i < n; ++i) {
+      double diff_g = g[i] - g0[i];
+      double weighted_diff = w[i] * diff_g;
+      num += g[i] * weighted_diff;
+      denom += p[i] * weighted_diff;
     }
 
-    // Project FE2
-    for (size_t l = 0; l < L2; ++l) {
-      const uvec &coords = fe2_groups(l);
-      const uword coord_size = coords.n_elem;
+    num *= inv_sw;
+    denom *= inv_sw;
 
-      if (coord_size <= 1)
-        continue; // Skip singleton/empty groups
-
-      double xbar = dot(w.elem(coords), v.elem(coords)) * group2_inv_w(l);
-      v.elem(coords) -= xbar;
-    }
-  };
-
-  // Process each column (simplified from general version)
-  for (size_t p = 0; p < P; ++p) {
-    x = V.col(p);
-    double ratio0 = std::numeric_limits<double>::infinity();
-    double ssr0 = std::numeric_limits<double>::infinity();
-    size_t iint = iter_interrupt;
-    size_t isr = iter_ssr;
-
-    for (size_t iter = 0; iter < max_iter; ++iter) {
-      if (iter == iint) {
-        check_user_interrupt();
-        iint += iter_interrupt;
-      }
-
-      x0 = x;
-      project_2fe(x);
-
-      // 1) convergence via weighted diff
-      diff = abs(x - x0) / (1.0 + abs(x0));
-      double ratio = dot(diff, w) * inv_sw;
-      if (ratio < tol)
-        break;
-
-      // 2) Irons-Tuck acceleration every 5 iterations
-      if (iter >= 5 && (iter % 5) == 0) {
-        Gx = x;
-        project_2fe(Gx);
-        G2x = Gx;
-        deltaG = G2x - x;
-        delta2 = G2x - 2.0 * x + x0;
-        double ssq = dot(delta2, delta2);
-        if (ssq > 1e-10) {
-          double coef = dot(deltaG, delta2) / ssq;
-          x = (coef > 0.0 && coef < 2.0) ? (G2x - coef * deltaG) : G2x;
+    if (std::abs(denom) > 1e-10) {
+      double beta = num / denom;
+      if (beta < 0.0 || beta > 10.0) {
+        std::memcpy(p, g, n * sizeof(double));
+      } else {
+        for (size_t i = 0; i < n; ++i) {
+          p[i] = g[i] + beta * p[i];
         }
       }
-
-      // 3) SSR-based early exit
-      if (iter == isr && iter > 0) {
-        check_user_interrupt();
-        isr += iter_ssr;
-        double ssr = dot(x % x, w) * inv_sw;
-        if (std::fabs(ssr - ssr0) / (1.0 + std::fabs(ssr0)) < tol)
-          break;
-        ssr0 = ssr;
-      }
-
-      // 4) heuristic early exit
-      if (iter > 3 && (ratio0 / ratio) < 1.1 && ratio < tol * 20)
-        break;
-      ratio0 = ratio;
+    } else {
+      std::memcpy(p, g, n * sizeof(double));
     }
+  }
 
-    V.unsafe_col(p) = x;
+  vec Ap(n, fill::none);
+  double *Ap_ptr = Ap.memptr();
+  std::memcpy(Ap_ptr, p, n * sizeof(double));
+
+  project(Ap);
+
+  double pAp = 0.0, gg = 0.0;
+  for (size_t i = 0; i < n; ++i) {
+    double Ap_i = p[i] - Ap_ptr[i];
+    pAp += w[i] * p[i] * Ap_i;
+    gg += w[i] * g[i] * g[i];
+  }
+
+  pAp *= inv_sw;
+  gg *= inv_sw;
+
+  if (pAp > 1e-10) {
+    double alpha = gg / pAp;
+    for (size_t i = 0; i < n; ++i) {
+      x[i] -= alpha * p[i];
+    }
+  }
+}
+
+template <typename ProjectFunc>
+void it_acceleration(double *x, double *x0, double *Gx, double *G2x,
+                     ProjectFunc project, size_t n) {
+  std::memcpy(Gx, x, n * sizeof(double));
+  project(Gx);
+  std::memcpy(G2x, Gx, n * sizeof(double));
+  project(G2x);
+
+  double vprod = 0.0, ssq = 0.0;
+  for (size_t i = 0; i < n; ++i) {
+    double deltaG = G2x[i] - x[i];
+    double delta2 = G2x[i] - 2.0 * x[i] + x0[i];
+    vprod += deltaG * delta2;
+    ssq += delta2 * delta2;
+  }
+
+  if (ssq > 1e-10) {
+    double coef = vprod / ssq;
+    if (coef > 0.0 && coef < 2.0) {
+      for (size_t i = 0; i < n; ++i) {
+        x[i] = G2x[i] - coef * (G2x[i] - x[i]);
+      }
+    }
   }
 }
 
 void center_variables(mat &V, const vec &w,
                       const field<field<uvec>> &group_indices,
                       const double &tol, const size_t &max_iter,
-                      const size_t &iter_interrupt, const size_t &iter_ssr) {
-  // Safety check for dimensions
-  if (V.n_rows != w.n_elem) {
+                      const size_t &iter_interrupt, const size_t &iter_ssr,
+                      const size_t &accel_start, const bool use_cg) {
+  if (V.is_empty() || w.is_empty() || V.n_rows != w.n_elem)
     return;
-  }
 
-  if (group_indices.n_elem == 2) {
-    center_variables_2fe(V, w, group_indices, tol, max_iter, iter_interrupt,
-                         iter_ssr);
+  const size_t K = group_indices.n_elem;
+  if (K == 0)
     return;
-  }
 
-  // If no groups, just return
-  if (group_indices.n_elem == 0) {
-
-    return;
-  }
-
-  // Auxiliary variables (fixed)
-  const size_t I = max_iter, N = V.n_rows, P = V.n_cols,
-               K = group_indices.n_elem, iint0 = iter_interrupt,
-               isr0 = iter_ssr;
+  const size_t N = V.n_rows, P = V.n_cols;
   const double inv_sw = 1.0 / accu(w);
+  const double *w_ptr = w.memptr();
 
-  // Auxiliary variables (storage)
-  size_t iter, iint, isr, k, l, p, L;
-  double coef, xbar, ratio, ssr, ssq, ratio0, ssr0;
-  vec x(N, fill::none), x0(N, fill::none), Gx(N, fill::none),
-      G2x(N, fill::none), deltaG(N, fill::none), delta2(N, fill::none),
-      diff(N, fill::none);
+  const size_t col_block_size = get_block_size(N, P);
 
-  // Precompute group weights
-  field<vec> group_inv_w(K);
-  for (k = 0; k < K; ++k) {
-    if (k >= group_indices.n_elem) {
+  for (size_t col_block = 0; col_block < P; col_block += col_block_size) {
+    const size_t col_end = std::min(col_block + col_block_size, P);
 
-      continue;
-    }
+    for (size_t col = col_block; col < col_end; ++col) {
+      double *col_ptr = V.colptr(col);
 
-    const field<uvec> &idxs = group_indices(k);
-    const size_t L = idxs.n_elem;
+      vec x(N, fill::none), x0(N, fill::none);
+      double *x_ptr = x.memptr();
+      double *x0_ptr = x0.memptr();
 
-    vec invs(L);
-    for (l = 0; l < L; ++l) {
-      if (l >= idxs.n_elem) {
+      double ratio0 = std::numeric_limits<double>::infinity();
+      double ssr0 = std::numeric_limits<double>::infinity();
+      size_t iint = iter_interrupt;
+      size_t isr = iter_ssr;
 
-        continue;
-      }
+      std::memcpy(x_ptr, col_ptr, N * sizeof(double));
 
-      // Skip empty groups
-      if (idxs(l).n_elem == 0) {
-
-        invs(l) = 0.0; // Set to 0 for empty groups
-        continue;
-      }
-
-      // Check if all indices are valid
-      bool all_valid = true;
-      for (uword i = 0; i < idxs(l).n_elem; ++i) {
-        if (idxs(l)(i) >= w.n_elem) {
-          all_valid = false;
-          break;
-        }
-      }
-
-      if (!all_valid) {
-        invs(l) = 0.0; // Set to 0 for groups with invalid indices
-        continue;
-      }
-
-      // Safely compute the inverse weight sum
-      try {
-        double sum_w = accu(w.elem(idxs(l)));
-        invs(l) = (sum_w > 0.0) ? 1.0 / sum_w : 0.0;
-      } catch (const std::exception &e) {
-
-        invs(l) = 0.0;
-      }
-    }
-    group_inv_w(k) = std::move(invs);
-  }
-
-  // Single projection step (in-place)
-  auto project = [&](vec &v) {
-    for (k = 0; k < K; ++k) {
-      // Check if we have a valid group
-      if (k >= group_indices.n_elem) {
-
-        continue;
-      }
-
-      const auto &idxs = group_indices(k);
-
-      // Check if we have valid group weights
-      if (k >= group_inv_w.n_elem) {
-
-        continue;
-      }
-
-      const auto &invs = group_inv_w(k);
-      L = idxs.n_elem;
-
-      if (L == 0)
-        continue;
-
-      // Make sure we don't have more groups than weights
-      if (L > invs.n_elem) {
-
-        continue;
-      }
-
-      for (l = 0; l < L; ++l) {
-        // Check if the group exists
-        if (l >= idxs.n_elem) {
-
-          continue;
+      for (size_t iter = 0; iter < max_iter; ++iter) {
+        if (iter == iint) {
+          check_user_interrupt();
+          iint += iter_interrupt;
         }
 
-        const uvec &coords = idxs(l);
-        const uword coord_size = coords.n_elem;
+        std::memcpy(x0_ptr, x_ptr, N * sizeof(double));
 
-        if (coord_size <= 1)
-          continue;
+        if (K == 1) {
+          const field<uvec> &fe_groups = group_indices(0);
+          for (size_t l = 0; l < fe_groups.n_elem; ++l) {
+            const uvec &coords = fe_groups(l);
+            if (coords.n_elem > 1) {
+              double sum_w = 0.0, weighted_sum = 0.0;
+              const uword *coord_ptr = coords.memptr();
+              for (uword i = 0; i < coords.n_elem; ++i) {
+                sum_w += w_ptr[coord_ptr[i]];
+                weighted_sum += w_ptr[coord_ptr[i]] * x_ptr[coord_ptr[i]];
+              }
+              if (sum_w > 0.0) {
+                double mean = weighted_sum / sum_w;
+                for (uword i = 0; i < coords.n_elem; ++i) {
+                  x_ptr[coord_ptr[i]] -= mean;
+                }
+              }
+            }
+          }
+        } else if (K == 2) {
+          const field<uvec> &fe1_groups = group_indices(0);
+          const field<uvec> &fe2_groups = group_indices(1);
 
-        // Check if all indices are within bounds
-        bool valid_indices = true;
-        for (uword i = 0; i < coord_size; ++i) {
-          if (coords(i) >= N) {
-            valid_indices = false;
-            break;
+          for (size_t l = 0; l < fe1_groups.n_elem; ++l) {
+            const uvec &coords = fe1_groups(l);
+            if (coords.n_elem > 1) {
+              double sum_w = 0.0, weighted_sum = 0.0;
+              const uword *coord_ptr = coords.memptr();
+              for (uword i = 0; i < coords.n_elem; ++i) {
+                sum_w += w_ptr[coord_ptr[i]];
+                weighted_sum += w_ptr[coord_ptr[i]] * x_ptr[coord_ptr[i]];
+              }
+              if (sum_w > 0.0) {
+                double mean = weighted_sum / sum_w;
+                for (uword i = 0; i < coords.n_elem; ++i) {
+                  x_ptr[coord_ptr[i]] -= mean;
+                }
+              }
+            }
+          }
+          for (size_t l = 0; l < fe2_groups.n_elem; ++l) {
+            const uvec &coords = fe2_groups(l);
+            if (coords.n_elem > 1) {
+              double sum_w = 0.0, weighted_sum = 0.0;
+              const uword *coord_ptr = coords.memptr();
+              for (uword i = 0; i < coords.n_elem; ++i) {
+                sum_w += w_ptr[coord_ptr[i]];
+                weighted_sum += w_ptr[coord_ptr[i]] * x_ptr[coord_ptr[i]];
+              }
+              if (sum_w > 0.0) {
+                double mean = weighted_sum / sum_w;
+                for (uword i = 0; i < coords.n_elem; ++i) {
+                  x_ptr[coord_ptr[i]] -= mean;
+                }
+              }
+            }
+          }
+
+          for (size_t l = fe2_groups.n_elem; l-- > 0;) {
+            const uvec &coords = fe2_groups(l);
+            if (coords.n_elem > 1) {
+              double sum_w = 0.0, weighted_sum = 0.0;
+              const uword *coord_ptr = coords.memptr();
+              for (uword i = 0; i < coords.n_elem; ++i) {
+                sum_w += w_ptr[coord_ptr[i]];
+                weighted_sum += w_ptr[coord_ptr[i]] * x_ptr[coord_ptr[i]];
+              }
+              if (sum_w > 0.0) {
+                double mean = weighted_sum / sum_w;
+                for (uword i = 0; i < coords.n_elem; ++i) {
+                  x_ptr[coord_ptr[i]] -= mean;
+                }
+              }
+            }
+          }
+          for (size_t l = fe1_groups.n_elem; l-- > 0;) {
+            const uvec &coords = fe1_groups(l);
+            if (coords.n_elem > 1) {
+              double sum_w = 0.0, weighted_sum = 0.0;
+              const uword *coord_ptr = coords.memptr();
+              for (uword i = 0; i < coords.n_elem; ++i) {
+                sum_w += w_ptr[coord_ptr[i]];
+                weighted_sum += w_ptr[coord_ptr[i]] * x_ptr[coord_ptr[i]];
+              }
+              if (sum_w > 0.0) {
+                double mean = weighted_sum / sum_w;
+                for (uword i = 0; i < coords.n_elem; ++i) {
+                  x_ptr[coord_ptr[i]] -= mean;
+                }
+              }
+            }
+          }
+        } else {
+          for (size_t k = 0; k < K; ++k) {
+            const field<uvec> &fe_groups = group_indices(k);
+            for (size_t l = 0; l < fe_groups.n_elem; ++l) {
+              const uvec &coords = fe_groups(l);
+              if (coords.n_elem > 1) {
+                double sum_w = 0.0, weighted_sum = 0.0;
+                const uword *coord_ptr = coords.memptr();
+                for (uword i = 0; i < coords.n_elem; ++i) {
+                  if (coord_ptr[i] < w.n_elem) {
+                    sum_w += w_ptr[coord_ptr[i]];
+                    weighted_sum += w_ptr[coord_ptr[i]] * x_ptr[coord_ptr[i]];
+                  }
+                }
+                if (sum_w > 0.0) {
+                  double mean = weighted_sum / sum_w;
+                  for (uword i = 0; i < coords.n_elem; ++i) {
+                    if (coord_ptr[i] < w.n_elem) {
+                      x_ptr[coord_ptr[i]] -= mean;
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          for (size_t k = K; k-- > 0;) {
+            const field<uvec> &fe_groups = group_indices(k);
+            for (size_t l = fe_groups.n_elem; l-- > 0;) {
+              const uvec &coords = fe_groups(l);
+              if (coords.n_elem > 1) {
+                double sum_w = 0.0, weighted_sum = 0.0;
+                const uword *coord_ptr = coords.memptr();
+                for (uword i = 0; i < coords.n_elem; ++i) {
+                  if (coord_ptr[i] < w.n_elem) {
+                    sum_w += w_ptr[coord_ptr[i]];
+                    weighted_sum += w_ptr[coord_ptr[i]] * x_ptr[coord_ptr[i]];
+                  }
+                }
+                if (sum_w > 0.0) {
+                  double mean = weighted_sum / sum_w;
+                  for (uword i = 0; i < coords.n_elem; ++i) {
+                    if (coord_ptr[i] < w.n_elem) {
+                      x_ptr[coord_ptr[i]] -= mean;
+                    }
+                  }
+                }
+              }
+            }
           }
         }
 
-        if (!valid_indices)
-          continue;
-
-        // Now safely compute the group mean and demean
-        xbar = dot(w.elem(coords), v.elem(coords)) * invs(l);
-        v.elem(coords) -= xbar;
-      }
-    }
-  };
-
-  // Column-wise centering with acceleration and SSR checks
-  for (p = 0; p < P; ++p) {
-    x = V.col(p);
-    ratio0 = std::numeric_limits<double>::infinity();
-    ssr0 = std::numeric_limits<double>::infinity();
-    iint = iint0;
-    isr = isr0;
-
-    for (iter = 0; iter < I; ++iter) {
-      if (iter == iint) {
-        check_user_interrupt();
-        iint += iint0;
-      }
-
-      x0 = x;
-      project(x);
-
-      // 1) convergence via weighted diff
-      diff = abs(x - x0) / (1.0 + abs(x0));
-      ratio = dot(diff, w) * inv_sw;
-      if (ratio < tol)
-        break;
-
-      // 2) Irons-Tuck acceleration every 5 iterations
-      if (iter >= 5 && (iter % 5) == 0) {
-        Gx = x;
-        project(Gx);
-        G2x = Gx;
-        deltaG = G2x - x;
-        delta2 = G2x - 2.0 * x + x0;
-        ssq = dot(delta2, delta2);
-        if (ssq > 1e-10) {
-          coef = dot(deltaG, delta2) / ssq;
-          x = (coef > 0.0 && coef < 2.0) ? (G2x - coef * deltaG) : G2x;
+        double weighted_diff = 0.0;
+        for (size_t i = 0; i < N; ++i) {
+          double rel_diff =
+              std::abs(x_ptr[i] - x0_ptr[i]) / (1.0 + std::abs(x0_ptr[i]));
+          weighted_diff += w_ptr[i] * rel_diff;
         }
-      }
+        double ratio = weighted_diff * inv_sw;
 
-      // 3) SSR-based early exit
-      if (iter == isr && iter > 0) {
-        check_user_interrupt();
-        isr += isr0;
-        ssr = dot(x % x, w) * inv_sw;
-        if (std::fabs(ssr - ssr0) / (1.0 + std::fabs(ssr0)) < tol)
+        if (ratio < tol)
           break;
-        ssr0 = ssr;
+
+        if (iter == isr && iter > 0) {
+          check_user_interrupt();
+          isr += iter_ssr;
+          double ssr = 0.0;
+          for (size_t i = 0; i < N; ++i) {
+            ssr += w_ptr[i] * x_ptr[i] * x_ptr[i];
+          }
+          ssr *= inv_sw;
+          if (std::abs(ssr - ssr0) / (1.0 + std::abs(ssr0)) < tol)
+            break;
+          ssr0 = ssr;
+        }
+
+        if (iter > 3 && (ratio0 / ratio) < 1.1 && ratio < tol * 20)
+          break;
+        ratio0 = ratio;
       }
 
-      // 4) heuristic early exit
-      if (iter > 3 && (ratio0 / ratio) < 1.1 && ratio < tol * 20)
-        break;
-      ratio0 = ratio;
+      std::memcpy(col_ptr, x_ptr, N * sizeof(double));
     }
-
-    V.unsafe_col(p) = x;
   }
 }
 
