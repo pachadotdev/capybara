@@ -1,12 +1,10 @@
-// Computing generalized linear models with fixed effects
-// eta = X beta + alpha + offset
+// Generalized linear models with fixed effects eta = alpha + X * beta
 
 #ifndef CAPYBARA_GLM_HELPERS_H
 #define CAPYBARA_GLM_HELPERS_H
 
 namespace capybara {
 
-// Define the family types enum
 enum Family {
   UNKNOWN = 0,
   GAUSSIAN,
@@ -17,34 +15,32 @@ enum Family {
   NEG_BIN
 };
 
-// Helper function to predict convergence based on history
-inline double predict_convergence(const vec& eps_history, double current_eps) {
+inline double predict_convergence(const vec &eps_history, double current_eps) {
   if (eps_history.n_elem < 3 || !is_finite(eps_history)) {
     return current_eps;
   }
-  
-  // Count non-infinite values
+
   uvec finite_indices = find_finite(eps_history);
   if (finite_indices.n_elem < 3) {
     return current_eps;
   }
-  
+
   // Linear extrapolation based on last 3 values
   vec log_eps = log(eps_history.elem(finite_indices.tail(3)));
   vec x_vals = linspace(1, 3, 3);
-  
-  // Linear regression: log(eps) = a + b*x
+
+  // Simple regression log(eps) = a + b*x
   double x_mean = mean(x_vals);
   double y_mean = mean(log_eps);
-  double slope = dot(x_vals - x_mean, log_eps - y_mean) / dot(x_vals - x_mean, x_vals - x_mean);
+  double slope = dot(x_vals - x_mean, log_eps - y_mean) /
+                 dot(x_vals - x_mean, x_vals - x_mean);
   double intercept = y_mean - slope * x_mean;
-  
+
   // Predict next value
   double hat_log_eps = intercept + slope * 4.0;
   return std::max(exp(hat_log_eps), datum::eps);
 }
 
-// Utility function to clamp scalar values
 template <typename T>
 inline T clamp(const T &value, const T &lower, const T &upper) {
   return (value < lower) ? lower : ((value > upper) ? upper : value);
@@ -71,41 +67,30 @@ struct InferenceGLM {
 
   vec means;
 
-  // Separation info
-  bool has_separation = false;
-  uvec separated_obs;
-  vec separation_certificate;
-
   InferenceGLM(size_t n, size_t p)
       : coefficients(p, fill::zeros), eta(n, fill::zeros),
         fitted_values(n, fill::zeros), weights(n, fill::ones),
         hessian(p, p, fill::zeros), deviance(0.0), null_deviance(0.0),
         conv(false), iter(0), coef_status(p, fill::ones), has_fe(false),
-        has_tx(false), has_separation(false) {}
+        has_tx(false) {}
 };
 
 std::string tidy_family_(const std::string &family) {
-  // tidy family param
   std::string fam = family;
 
-  // 1. put all in lowercase
   std::transform(fam.begin(), fam.end(), fam.begin(),
                  [](unsigned char c) { return std::tolower(c); });
 
-  // 2. remove numbers
   fam.erase(std::remove_if(fam.begin(), fam.end(), ::isdigit), fam.end());
 
-  // 3. remove parentheses and everything inside
   size_t pos = fam.find("(");
   if (pos != std::string::npos) {
     fam.erase(pos, fam.size());
   }
 
-  // 4. replace spaces and dots
   std::replace(fam.begin(), fam.end(), ' ', '_');
   std::replace(fam.begin(), fam.end(), '.', '_');
 
-  // 5. trim
   fam.erase(std::remove_if(fam.begin(), fam.end(), ::isspace), fam.end());
 
   return fam;
@@ -151,7 +136,6 @@ double dev_resids_poisson_(const vec &y, const vec &mu, const vec &wt) {
 
 // Adapted from binomial_dev_resids()
 // in base R it can be found in src/library/stats/src/family.c
-// unfortunately the functions that work with a SEXP won't work with a Col<>
 double dev_resids_logit_(const vec &y, const vec &mu, const vec &wt) {
   vec r(y.n_elem, fill::zeros);
   vec s(y.n_elem, fill::zeros);
@@ -273,8 +257,6 @@ bool valid_mu_(const vec &mu, const Family family_type) {
     stop("Unknown family");
   }
 }
-
-// mu_eta = d link_inv / d eta = d mu / d eta
 
 vec mu_eta_(const vec &eta, const Family family_type) {
   vec result(eta.n_elem);
