@@ -1,9 +1,38 @@
-// Generalized linear models with fixed effects eta = alpha + X * beta
+// Generalized linear model with fixed effects eta = alpha + X * beta
 
 #ifndef CAPYBARA_GLM_HELPERS_H
 #define CAPYBARA_GLM_HELPERS_H
 
 namespace capybara {
+
+struct InferenceGLM {
+  vec coefficients;
+  vec eta;
+  vec fitted_values; // mu values (response scale)
+  vec weights;
+  mat hessian;
+  double deviance;
+  double null_deviance;
+  bool conv;
+  size_t iter;
+  uvec coef_status; // 1 = estimable, 0 = collinear
+
+  field<vec> fixed_effects;
+  bool has_fe = false;
+  uvec iterations;
+
+  mat TX;
+  bool has_tx = false;
+
+  vec means;
+
+  InferenceGLM(size_t n, size_t p)
+      : coefficients(p, fill::zeros), eta(n, fill::zeros),
+        fitted_values(n, fill::zeros), weights(n, fill::ones),
+        hessian(p, p, fill::zeros), deviance(0.0), null_deviance(0.0),
+        conv(false), iter(0), coef_status(p, fill::ones), has_fe(false),
+        has_tx(false) {}
+};
 
 enum Family {
   UNKNOWN = 0,
@@ -45,35 +74,6 @@ template <typename T>
 inline T clamp(const T &value, const T &lower, const T &upper) {
   return (value < lower) ? lower : ((value > upper) ? upper : value);
 }
-
-struct InferenceGLM {
-  vec coefficients;
-  vec eta;
-  vec fitted_values; // mu values (response scale)
-  vec weights;
-  mat hessian;
-  double deviance;
-  double null_deviance;
-  bool conv;
-  size_t iter;
-  uvec coef_status; // 1 = estimable, 0 = collinear
-
-  field<vec> fixed_effects;
-  bool has_fe = false;
-  uvec iterations;
-
-  mat TX;
-  bool has_tx = false;
-
-  vec means;
-
-  InferenceGLM(size_t n, size_t p)
-      : coefficients(p, fill::zeros), eta(n, fill::zeros),
-        fitted_values(n, fill::zeros), weights(n, fill::ones),
-        hessian(p, p, fill::zeros), deviance(0.0), null_deviance(0.0),
-        conv(false), iter(0), coef_status(p, fill::ones), has_fe(false),
-        has_tx(false) {}
-};
 
 std::string tidy_family(const std::string &family) {
   std::string fam = family;

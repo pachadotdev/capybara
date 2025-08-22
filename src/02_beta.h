@@ -1,3 +1,5 @@
+// Computing beta a in a model with fixed effects Y = alpha + X beta
+
 #ifndef CAPYBARA_BETA_H
 #define CAPYBARA_BETA_H
 
@@ -61,8 +63,9 @@ inline mat crossprod(const mat &X, const vec &w = vec()) {
           }
 
           result(i, j) += sum;
-          if (i != j)
+          if (i != j) {
             result(j, i) += sum;
+          }
         }
       }
     }
@@ -83,8 +86,9 @@ inline mat crossprod(const mat &X, const vec &w = vec()) {
           }
 
           result(i, j) += sum;
-          if (i != j)
+          if (i != j) {
             result(j, i) += sum;
+          }
         }
       }
     }

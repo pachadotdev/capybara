@@ -1,5 +1,0 @@
-# A tibble: 2 × 3
-  package  median_time capybara_to_fixest
-  <chr>       <bch:tm>              <dbl>
-1 Fixest      168.77ms              NA   
-2 Capybara       1.44s               8.52

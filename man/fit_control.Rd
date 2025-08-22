@@ -16,16 +16,11 @@ fit_control(
   iter_alpha_max = 10000L,
   iter_interrupt = 1000L,
   iter_ssr = 10L,
-  sep_tol = 1e-06,
-  sep_max_iter = 100,
-  sep_accelerate = TRUE,
-  check_separation = TRUE,
-  use_acceleration = TRUE,
   step_halving_memory = 0.9,
   max_step_halving = 2L,
   start_inner_tol = 1e-06,
-  accel_start = 6L,
   use_cg = TRUE,
+  accel_start = 6L,
   return_fe = TRUE,
   keep_tx = FALSE,
   init_theta = 0
@@ -73,22 +68,6 @@ iterations before the algorithm is interrupted. The default is \code{1000L}.}
 to skip before checking if the sum of squared residuals improves. The default
 is \code{10L}.}
 
-\item{sep_tol}{tolerance for separation detection in Poisson models. Controls
-the threshold for identifying separated observations. Default is \code{1.0e-6}.}
-
-\item{sep_max_iter}{maximum number of iterations for separation detection.
-The default is \code{100}.}
-
-\item{sep_accelerate}{logical indicating whether to use acceleration in
-separation detection. The default is \code{TRUE}.}
-
-\item{check_separation}{logical indicating whether to check for separation in
-Poisson models. The default is \code{TRUE}.}
-
-\item{use_acceleration}{logical indicating whether to use acceleration
-optimizations (fast partial out, adaptive tolerances, step-halving memory).
-The default is \code{TRUE}.}
-
 \item{step_halving_memory}{numeric memory factor for step-halving algorithm.
 Controls how much of the previous iteration is retained. The default is \code{0.9}.}
 
@@ -98,9 +77,11 @@ The default is \code{2}.}
 \item{start_inner_tol}{starting tolerance for inner solver iterations.
 The default is \code{1.0e-04}.}
 
-\item{accel_start}{Integer. Iteration to start conjugate gradient acceleration in centering. Default is \code{6L}.}
+\item{use_cg}{Logical. Use conjugate gradient acceleration for centering. If set to \code{FALSE},
+Irons and Tuck acceleration is used. The default is \code{TRUE}.}
 
-\item{use_cg}{Logical. Use conjugate gradient acceleration for centering. Default is TRUE.}
+\item{accel_start}{Integer. Iteration to start conjugate gradient acceleration in centering.
+The default is \code{6L}.}
 
 \item{return_fe}{logical indicating if the fixed effects should be returned.
 This can be useful when fitting general equilibrium models where skipping the

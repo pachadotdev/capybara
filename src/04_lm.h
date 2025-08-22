@@ -1,4 +1,4 @@
-// Linear models with fixed effects Y = alpha + X beta
+// Linear model with fixed effects Y = alpha + X beta
 
 #ifndef CAPYBARA_LM_H
 #define CAPYBARA_LM_H
