@@ -50,8 +50,8 @@ struct CapybaraParameters {
         step_halving_factor(0.5), alpha_tol(1.0e-08), iter_max(25),
         iter_center_max(10000), iter_inner_max(50), iter_alpha_max(10000),
         iter_interrupt(1000), iter_ssr(10), return_fe(true), keep_tx(false),
-        step_halving_memory(0.9), max_step_halving(2),
-        start_inner_tol(1e-06), use_cg(true), accel_start(6) {}
+        step_halving_memory(0.9), max_step_halving(2), start_inner_tol(1e-06),
+        use_cg(true), accel_start(6) {}
 
   explicit CapybaraParameters(const cpp11::list &control) {
     dev_tol = as_cpp<double>(control["dev_tol"]);
