@@ -1,0 +1,886 @@
+% Options for packages loaded elsewhere
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+
+
+\PassOptionsToPackage{table}{xcolor}
+
+\documentclass[
+  10pt,
+  letterpaper,
+]{article}
+\usepackage{xcolor}
+\usepackage[top=0.85in,left=2.75in,footskip=0.75in]{geometry}
+\usepackage{amsmath,amssymb}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{241,243,245}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{#1}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.40,0.45,0.13}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\BuiltInTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.13,0.47,0.30}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{#1}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{\textit{#1}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{\textit{#1}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\ExtensionTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.28,0.35,0.67}{#1}}
+\newcommand{\ImportTok}[1]{\textcolor[rgb]{0.00,0.46,0.62}{#1}}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{#1}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{#1}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\RegionMarkerTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.13,0.47,0.30}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.13,0.47,0.30}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.07,0.07,0.07}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.13,0.47,0.30}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{\textit{#1}}}
+
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\usepackage{graphicx}
+\makeatletter
+\newsavebox\pandoc@box
+\newcommand*\pandocbounded[1]{% scales image to fit in text height/width
+  \sbox\pandoc@box{#1}%
+  \Gscale@div\@tempa{\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+  \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
+  \ifdim\@tempb\p@<\@tempa\p@\let\@tempa\@tempb\fi% select the smaller of both
+  \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}%
+  \else\usebox{\pandoc@box}%
+  \fi%
+}
+% Set default figure placement to htbp
+\def\fps@figure{htbp}
+\makeatother
+
+
+% definitions for citeproc citations
+\NewDocumentCommand\citeproctext{}{}
+\NewDocumentCommand\citeproc{mm}{%
+  \begingroup\def\citeproctext{#2}\cite{#1}\endgroup}
+\makeatletter
+ % allow citations to break across lines
+ \let\@cite@ofmt\@firstofone
+ % avoid brackets around text for \cite:
+ \def\@biblabel#1{}
+ \def\@cite#1#2{{#1\if@tempswa , #2\fi}}
+\makeatother
+\newlength{\cslhangindent}
+\setlength{\cslhangindent}{1.5em}
+\newlength{\csllabelwidth}
+\setlength{\csllabelwidth}{3em}
+\newenvironment{CSLReferences}[2] % #1 hanging-indent, #2 entry-spacing
+ {\begin{list}{}{%
+  \setlength{\itemindent}{0pt}
+  \setlength{\leftmargin}{0pt}
+  \setlength{\parsep}{0pt}
+  % turn on hanging indent if param 1 is 1
+  \ifodd #1
+   \setlength{\leftmargin}{\cslhangindent}
+   \setlength{\itemindent}{-1\cslhangindent}
+  \fi
+  % set entry spacing
+  \setlength{\itemsep}{#2\baselineskip}}}
+ {\end{list}}
+\usepackage{calc}
+\newcommand{\CSLBlock}[1]{\hfill\break\parbox[t]{\linewidth}{\strut\ignorespaces#1\strut}}
+\newcommand{\CSLLeftMargin}[1]{\parbox[t]{\csllabelwidth}{\strut#1\strut}}
+\newcommand{\CSLRightInline}[1]{\parbox[t]{\linewidth - \csllabelwidth}{\strut#1\strut}}
+\newcommand{\CSLIndent}[1]{\hspace{\cslhangindent}#1}
+
+
+
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+
+
+ 
+
+
+% Use adjustwidth environment to exceed column width (see example table in text)
+\usepackage{changepage}
+
+% marvosym package for additional characters
+\usepackage{marvosym}
+
+% cite package, to clean up citations in the main text. Do not remove.
+% Using natbib instead
+% \usepackage{cite}
+
+% Use nameref to cite supporting information files (see Supporting Information section for more info)
+\usepackage{nameref,hyperref}
+
+% line numbers
+\usepackage[right]{lineno}
+
+% ligatures disabled
+\usepackage{microtype}
+\DisableLigatures[f]{encoding = *, family = * }
+
+% create "+" rule type for thick vertical lines
+\newcolumntype{+}{!{\vrule width 2pt}}
+
+% create \thickcline for thick horizontal lines of variable length
+\newlength\savedwidth
+\newcommand\thickcline[1]{%
+  \noalign{\global\savedwidth\arrayrulewidth\global\arrayrulewidth 2pt}%
+  \cline{#1}%
+  \noalign{\vskip\arrayrulewidth}%
+  \noalign{\global\arrayrulewidth\savedwidth}%
+}
+
+% \thickhline command for thick horizontal lines that span the table
+\newcommand\thickhline{\noalign{\global\savedwidth\arrayrulewidth\global\arrayrulewidth 2pt}%
+\hline
+\noalign{\global\arrayrulewidth\savedwidth}}
+
+% Text layout
+\raggedright
+\setlength{\parindent}{0.5cm}
+\textwidth 5.25in 
+\textheight 8.75in
+
+% Bold the 'Figure #' in the caption and separate it from the title/caption with a period
+% Captions will be left justified
+\usepackage[aboveskip=1pt,labelfont=bf,labelsep=period,justification=raggedright,singlelinecheck=off]{caption}
+\renewcommand{\figurename}{Fig}
+
+% Remove brackets from numbering in List of References
+\makeatletter
+\renewcommand{\@biblabel}[1]{\quad#1.}
+\makeatother
+
+% Header and Footer with logo
+\usepackage{lastpage,fancyhdr}
+\usepackage{epstopdf}
+%\pagestyle{myheadings}
+\pagestyle{fancy}
+\fancyhf{}
+%\setlength{\headheight}{27.023pt}
+%\lhead{\includegraphics[width=2.0in]{PLOS-submission.eps}}
+\rfoot{\thepage/\pageref{LastPage}}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrule}{\hrule height 2pt \vspace{2mm}}
+\fancyheadoffset[L]{2.25in}
+\fancyfootoffset[L]{2.25in}
+\lfoot{\today}
+% Remove comment for double spacing
+% \usepackage{setspace}
+% \doublespacing
+% \usepackage{tikz}
+% \usetikzlibrary{arrows.meta, positioning, fit}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{multirow}
+\usepackage{float}
+\floatplacement{table}{H}
+\makeatletter
+\@ifpackageloaded{caption}{}{\usepackage{caption}}
+\AtBeginDocument{%
+\ifdefined\contentsname
+  \renewcommand*\contentsname{Table of contents}
+\else
+  \newcommand\contentsname{Table of contents}
+\fi
+\ifdefined\listfigurename
+  \renewcommand*\listfigurename{List of Figures}
+\else
+  \newcommand\listfigurename{List of Figures}
+\fi
+\ifdefined\listtablename
+  \renewcommand*\listtablename{List of Tables}
+\else
+  \newcommand\listtablename{List of Tables}
+\fi
+\ifdefined\figurename
+  \renewcommand*\figurename{Figure}
+\else
+  \newcommand\figurename{Figure}
+\fi
+\ifdefined\tablename
+  \renewcommand*\tablename{Table}
+\else
+  \newcommand\tablename{Table}
+\fi
+}
+\@ifpackageloaded{float}{}{\usepackage{float}}
+\floatstyle{ruled}
+\@ifundefined{c@chapter}{\newfloat{codelisting}{h}{lop}}{\newfloat{codelisting}{h}{lop}[chapter]}
+\floatname{codelisting}{Listing}
+\newcommand*\listoflistings{\listof{codelisting}{List of Listings}}
+\makeatother
+\makeatletter
+\makeatother
+\makeatletter
+\@ifpackageloaded{caption}{}{\usepackage{caption}}
+\@ifpackageloaded{subcaption}{}{\usepackage{subcaption}}
+\makeatother
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  pdftitle={Capybara: Efficient Estimation of Generalized Linear Models with High-Dimensional Fixed Effects},
+  pdfauthor={Mauricio Vargas Sepulveda},
+  pdfkeywords={econometrics, generalized linear models, structural
+gravity model of trade, trade economics},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+
+
+
+\begin{document}
+\vspace*{0.2in}
+
+% Title must be 250 characters or less.
+\begin{flushleft}
+{\Large
+\textbf\newline{Capybara: Efficient Estimation of Generalized Linear
+Models with High-Dimensional Fixed
+Effects} % Please use "sentence case" for title and headings (capitalize only the first word in a title (or heading), the first word in a subtitle (or subheading), and any proper nouns).
+}
+\newline
+\\
+% Insert author names, affiliations and corresponding author email (do not include titles, positions, or degrees).
+Mauricio Vargas Sepulveda\textsuperscript{1*}
+\\
+\bigskip
+\textbf{1} Department of Economics, University of
+Surrey, Guildford, United Kingdom, 
+\bigskip
+
+% Insert additional author notes using the symbols described below. Insert symbol callouts after author names as necessary.
+% 
+% Remove or comment out the author notes below if they aren't used.
+%
+% Primary Equal Contribution Note
+% \Yinyang These authors contributed equally to this work.
+
+% Additional Equal Contribution Note
+% Also use this double-dagger symbol for special authorship notes, such as senior authorship.
+%\ddag These authors also contributed equally to this work.
+
+% Current address notes
+% \textcurrency Current Address: Dept/Program/Center, Institution Name, City, State, Country % change symbol to "\textcurrency a" if more than one current address note
+% \textcurrency b Insert second current address 
+% \textcurrency c Insert third current address
+
+% Deceased author note
+% \dag Deceased
+
+% Group/Consortium Author Note
+% \textpilcrow Membership list can be found in the Acknowledgments section.
+
+% Use the asterisk to denote corresponding authorship and provide email address in note below.
+* m.vargas.sepulveda@gmail.com
+
+\end{flushleft}
+
+\section*{Abstract}
+This paper introduces capybara, an R package implementing
+computationally efficient algorithms for estimating generalized linear
+models (GLMs) with high-dimensional fixed effects. Building on Stammann
+(2018), we combine the Frisch-Waugh-Lovell (FWL) theorem with
+alternating projections to achieve memory-efficient estimation. Our
+benchmarks demonstrate that capybara reduces computation time by 95-99\%
+compared to traditional dummy variable approaches while maintaining
+numerical accuracy to 5 decimal places. For a complex gravity model with
+28,000 observations and 3,200 fixed effects, capybara completes
+estimation in just 6 seconds using 33 MB of memory, compared to 11
+minutes and 12 GB with base R. The package is particularly valuable for
+trade economics, labor economics, and other applications requiring
+multiple high-dimensional fixed effects to control for unobserved
+heterogeneity, making previously infeasible models computationally
+tractable on standard hardware.
+
+
+\linenumbers
+
+\subsection{Introduction}\label{introduction}
+
+Fixed effects models are essential tools for controlling unobserved
+heterogeneity in panel data analysis. In trade economics, structural
+gravity models routinely require thousands of exporter-time,
+importer-time, and bilateral fixed effects {[}1{]}. Similarly, labor
+economics applications often involve worker, firm, and time fixed
+effects that quickly become computationally prohibitive with traditional
+estimation methods.
+
+This article presents capybara, an R package that extends the
+alternating projections approach of {[}2{]}, also describe in {[}3{]},
+to provide memory-efficient estimation of GLMs with k-way fixed effects.
+Our contribution is threefold: (1) we provide a user-friendly
+implementation that significantly reduces memory usage by leveraging an
+efficient use of the C++ language with the tested and efficient linear
+algebra routines from the Armadillo library {[}4,5{]}; (2) we
+demonstrate significant reductions in memory footprint and computation
+time compared to standard Iteratively Weighted Least Squares (IWLS) in
+R, Python, and Stata; and (3) we maintain numerical precision suitable
+for academic research and policy analysis.
+
+The standard IWLS approach can fall short for structural gravity
+estimation. For context, some Poisson-Pseudo Maximum Likelihood (PPML)
+structural gravity model with three way exporter-time, importer-time,
+and exporter-importer fixed effects require around 12 GB of memory to
+obtain the estimated model coefficients, as we will detail in the
+benchmarks. The computational challenge is not merely one of patience,
+allowing a laptop to run overnight does not solve the fundamental
+constraint that memory represents a hard boundary. When estimation
+procedures require inverting matrices or storing intermediate results,
+memory requirements grow substantially, which can cause models to
+exhaust available RAM and render estimation unfeasible. It could be the
+case with importer-exporter-sector data such as agriculture, mining,
+energy, manufacturing, and services flows. Recent developments have
+addressed this challenge for linear models {[}2,3,6,7{]}, and this work
+builds on these advances to provide memory-efficient routines for Linear
+Models (LMs) and Generalized Linear Models (GLMs) with high-dimensional
+fixed effects.
+
+The remainder of this paper is organized as follows: describing the
+algorithmic approach to fitting GLMs with k-way fixed effects,
+explaining the software usage with the structural gravity model of
+trade, presenting comprehensive benchmarks, and providing a conclusion
+about the current implementation and future work derived from its
+limitations.
+
+\section{Generalized Linear Models with K-Way Fixed
+Effects}\label{generalized-linear-models-with-k-way-fixed-effects}
+
+Consider a GLM with k-way fixed effects:
+\[\eta = Z\gamma = D\alpha + X\beta = \sum_{k=1}^{K} D_k\alpha_k + X\beta\]
+
+where \(D_k\) are dummy matrices for fixed effects categories, \(X\)
+contains variables of interest, and the expected outcome is
+\(E(y) = \mu = h^{-1}(\eta)\) for link function \(h(\cdot)\).
+
+The computational challenge arises from the high-dimensional Hessian
+matrix. With thousands of fixed effects, direct computation of
+\((Z^{T}WZ)^{-1}\) can be unfeasible due to memory constraints.
+
+Following {[}2{]}, we adapt the FWL theorem to separate structural
+parameters from fixed effects in the Newton-Raphson update:
+
+\[\gamma^r - \gamma^{r-1} = (Z^{T}W^{r-1}Z)^{-1}Z^{T}W^{r-1}\nu^{r-1}\]
+
+This can be rewritten as a weighted regression:
+\[\tilde{\nu}^{r-1} = \tilde{D}^{r-1}(\alpha^r - \alpha^{r-1}) + \tilde{X}^{r-1}(\beta^r - \beta^{r-1})\]
+where \(\tilde{W}^r = (W^r)^{1/2}\) and tildes denote weighted
+variables.
+
+The key insight is that instead of computing the large projection matrix
+\(M_{\tilde{D}} = I - \tilde{D}(\tilde{D}^{T}\tilde{D})^{-1}\tilde{D}^{T}\),
+we approximate it using alternating projections over individual fixed
+effects categories.
+
+For each category \(k\), the projection simplifies to:
+\[(M_{\tilde{D}_k}v)_i = v_i - \tilde{w}_i \frac{\sum_{j \in g_{kj}} \tilde{w}_j v_j}{\sum_{j \in g_{kj}} w_j} \quad \forall i \in g_{kj}\]
+
+where \(g_{kj}\) denotes observations sharing level \(j\) in category
+\(k\).
+
+Adapting from the Newton-Raphson algorithm, we can iteratively update
+the parameters \(\beta\) and \(\eta\) until convergence for
+\(r = 1, \ldots, R\) iterations as in the following simplified
+algorithm:
+
+\begin{algorithm}
+\caption{Alternating Projections for GLM with High-Dimensional Fixed Effects}
+\begin{algorithmic}[1]
+\State Initialize $\beta^0$, $\eta^0$
+\State Initialize $W^{(0)}$ and $\nu^{(0)}$ based on initial estimates (model family specific)
+\Repeat
+  \State Compute weights $W^{(r-1)}$ and working response $\nu^{(r-1)}$
+  
+  \State Center variables using alternating projections
+  \For{each fixed effect category $k$}
+    \For{each observation $i$}
+      \State $\tilde{X}_i \gets X_i - \frac{\sum_{j \in \text{same group as }i} w_j X_j}{\sum_{j \in \text{same group as }i} w_j}$
+      \State $\tilde{\nu}_i \gets \nu_i - \frac{\sum_{j \in \text{same group as }i} w_j \nu_j}{\sum_{j \in \text{same group as }i} w_j}$
+    \EndFor
+  \EndFor
+  \State Repeat centering until convergence
+  
+  \State Solve for beta using transformed variables using Cholesky decomposition
+  \State $\beta^r \gets \beta^{(r-1)} + (\tilde{X}^{T}\tilde{X})^{-1}\tilde{X}^{T}\tilde{\nu}$
+  \State Update linear predictor $\eta^r$
+\Until{convergence}
+\State Return $\hat{\beta} \gets \beta^r$
+\end{algorithmic}
+\end{algorithm}
+
+For each group within each fixed effect category, we subtract the
+weighted group mean from each observation. By cycling through all fixed
+effect categories multiple times, we achieve the same effect as
+including thousands of dummy variables, but with minimal memory
+requirements. From the different alternatives to speed up the demeaning
+convergence, we used the Symmetric Kaczmarz method with a Conjugate
+Gradient acceleration {[}3,8{]}.
+
+The \(\hat{\alpha}\) parameters for the fixed effects are recovered in a
+posterior step, using the estimated \(\hat{\beta}\). This approach is a
+divide and conquer strategy that allows us to estimate models with
+thousands of fixed effects without running into memory issues and
+providing significant speedups compared to traditional methods at the
+same time.
+
+\section{Software usage}\label{software-usage}
+
+Consider the following functional form for a PPML gravity model
+{[}1,9{]}:
+
+\[X_{ijt} = \exp\left[\beta_1 \log(\text{DIST}_{ij}) + \beta_2 \text{CNTG}_{ij} + \beta_3 \text{LANG}_{ij} + \beta_4 \text{CLNY}_{ij} + \pi^{\text{OR}} + \pi^{\text{DE}}\right],\]
+
+where:
+
+\begin{itemize}
+\tightlist
+\item
+  \(X_{ijt}\) = exports from country \(i\) to country \(j\) at year
+  \(t\)
+\item
+  \(\text{DIST}_{ij}\) = distance between countries
+\item
+  \(\text{CNTG}_{ij}\) = common border dummy
+\item
+  \(\text{LANG}_{ij}\) = common language dummy
+\item
+  \(\text{CLNY}_{ij}\) = common colonial history dummy
+\item
+  \(\pi^{\text{OR}}, \pi^{\text{DE}}\) = exporter-year and importer-year
+  fixed effects.
+\end{itemize}
+
+Capybara computes the estimated slopes for this model as follows:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# install.packages("capybara")}
+\FunctionTok{library}\NormalTok{(capybara)}
+
+\CommentTok{\# Basic specification}
+\NormalTok{fit }\OtherTok{\textless{}{-}} \FunctionTok{fepoisson}\NormalTok{(}
+\NormalTok{  trade }\SpecialCharTok{\textasciitilde{}}\NormalTok{ log\_dist }\SpecialCharTok{+}\NormalTok{ cntg }\SpecialCharTok{+}\NormalTok{ lang }\SpecialCharTok{+}\NormalTok{ clny }\SpecialCharTok{+}\NormalTok{ rta }\SpecialCharTok{|}\NormalTok{ exp\_year }\SpecialCharTok{+}\NormalTok{ imp\_year,}
+  \AttributeTok{data =}\NormalTok{ trade\_panel}
+\NormalTok{)}
+
+\CommentTok{\# Clustered standard errors by "pair"}
+\NormalTok{fit\_clustered }\OtherTok{\textless{}{-}} \FunctionTok{fepoisson}\NormalTok{(}
+\NormalTok{  trade }\SpecialCharTok{\textasciitilde{}}\NormalTok{ log\_dist }\SpecialCharTok{+}\NormalTok{ cntg }\SpecialCharTok{+}\NormalTok{ lang }\SpecialCharTok{+}\NormalTok{ clny }\SpecialCharTok{+}\NormalTok{ rta }\SpecialCharTok{|} 
+\NormalTok{    exp\_year }\SpecialCharTok{+}\NormalTok{ imp\_year }\SpecialCharTok{|}\NormalTok{ pair,}
+  \AttributeTok{data =}\NormalTok{ trade\_panel}
+\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+Table~\ref{tbl-gravity-results} presents estimation results for the
+gravity model:
+
+\begin{table}
+
+\caption{\label{tbl-gravity-results}Estimation results for the PPML gravity model. Source: own creation.}
+
+\centering{
+
+\centering
+
+\begin{tabular}{lrrr}
+\toprule
+Variable & \multicolumn{1}{r}{Estimate} & \multicolumn{1}{r}{Regular SE} & \multicolumn{1}{r}{Clustered SE} \\
+\midrule
+log(dist) & -0.82 & 0.0004 & 0.0258 \\
+cntg      &  0.42 & 0.0004 & 0.0673 \\
+lang      &  0.25 & 0.0008 & 0.0623 \\
+clny      & -0.21 & 0.0010 & 0.0914 \\
+rta       &  0.19 & 0.0010 & 0.0554 \\
+\bottomrule
+\end{tabular}
+
+}
+
+\end{table}%
+
+The results align with the intuition behind the gravity model {[}10{]}:
+trade decreases with distance and increases with common borders, common
+language, and trade agreements.
+
+Furthermore, the \texttt{summary()} method provides a comprehensive
+overview of the model fit, including the number of observations, fixed
+effects, and convergence status.
+Table~\ref{tbl-detailed-gravity-results} and its footnote present the
+estimation results as returned by the \texttt{summary()} method:
+
+\begin{table}
+
+\caption{\label{tbl-detailed-gravity-results}Summary results for the PPML gravity model. Significance codes: (***) 99.9\%; (**) 99\%; (*) 95\%; (.) 90\%. Pseudo $R^2$: 0.587. Number of observations: 28,152. Source: own creation.}
+
+\centering{
+
+\centering
+
+\begin{tabular}{lrrrr}
+\toprule
+Variable & Estimate & Std. Error & $z$ value & Pr($>|z|$) \\
+\midrule
+log(dist) & -0.8216 & 0.0004 & -2194.0448 & $0.0000^{***}$ \\
+cntg & 0.4155 & 0.0009 & 476.0613 & $0.0000^{***}$ \\
+lang & 0.2499 & 0.0008 & 296.8884 & $0.0000^{***}$ \\
+clny & -0.2054 & 0.0010 & -206.3476 & $0.0000^{***}$ \\
+rta & 0.1907 & 0.0010 & 191.0964 & $0.0000^{***}$ \\
+\bottomrule
+\end{tabular}
+
+}
+
+\end{table}%
+
+In order to provide the pseudo \(R^2\) and the number of observations,
+capybara uses the methods described in {[}11{]}, as the pseudo-\(R^2\)
+is defined as the squared Kendall's \(\tau\) between the observed and
+predicted values {[}9{]}.
+
+The fixed effects can be recovered using the \texttt{fixed\_effects()}
+function (future versions will provide the fixed effects with the
+regression functions):
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{fixed\_effects}\NormalTok{(fit)}
+\end{Highlighting}
+\end{Shaded}
+
+This returns a list of fixed effects for each category, which can be
+summarized as in Table~\ref{tbl-fixed-effects}:
+
+\begin{table}
+
+\caption{\label{tbl-fixed-effects}Partial view of the returned fixed effects. Source: own creation.}
+
+\centering{
+
+\centering
+
+\begin{tabular}{lrr}
+\toprule
+Country-Year & Importer FE & Exporter FE \\
+\midrule
+ARG1986 & 9.57 & 10.03 \\
+ARG1990 & 9.59 & 10.90 \\
+ARG1994 & 11.30 & 11.08 \\
+ARG1998 & 11.67 & 11.55 \\
+ARG2002 & 10.40 & 11.49 \\
+\bottomrule
+\end{tabular}
+
+}
+
+\end{table}%
+
+Around seventy-percent of capybara's code has been tested against base R
+IWLS, as it is relevant to determine the correctness of the results
+besides the performance gains {[}12{]}.
+
+\subsection{Benchmark}\label{benchmark}
+
+We obtained the estimated model coefficients for the following a
+three-way fixed effects PPML gravity model with roughly 28,000
+observations and 3,200 fixed effects:
+
+\begin{align}
+\label{eq:benchmarks}
+X_{ijt} = \exp&\left[\beta_1 \text{RTA}_{ij}^{t-12} + \beta_2 \text{RTA}_{ij}^{t-8} + \beta_3 \text{RTA}_{ij}^{t-4} + \beta_4 \text{RTA}_{ijt} + \right. \tag{Globalization} \\
+\:& \left. \pi^{\text{OR}} + \pi^{\text{DE}} + \pi^{\text{DO}} + \pi^{\text{IN86}} + \pi^{\text{IN90}} + \pi^{\text{IN94}} + \right. \nonumber \\
+\:& \left. \pi^{\text{IN98}} + \pi^{\text{IN02}} \right], \nonumber
+\end{align}
+
+where:
+
+\begin{itemize}
+\tightlist
+\item
+  \(X_{ijt}\): exports from country \(i\) to country \(j\) at year \(t\)
+\item
+  \(\text{RTA}_{ijt}\): Regional Trade Agreement between countries \(i\)
+  and \(j\) at time \(t\)
+\item
+  \(\text{RTA}_{ij}^{t+k}\): RTA between countries \(i\) and \(j\) at
+  time \(t+k\)
+\item
+  \(\pi^{\text{IN86}}, \pi^{\text{IN90}}, \pi^{\text{IN94}}, \pi^{\text{IN98}}, \pi^{\text{IN02}}\):
+  dummy variables taking the value of one for international trade for
+  each year \(Y\), and zero otherwise.
+\item
+  \(\pi^{\text{OR}}, \pi^{\text{DE}}, \pi^{\text{DO}}\): exporter-year,
+  importer-year, and exporter-importer fixed effects
+\end{itemize}
+
+We compared the following implementations: base R IWLS (\texttt{glm()}
+with a Quasi-Poisson link) {[}13{]}, fixest concentrated likelihood
+{[}7{]}, and alpaca/capybara alternating projections {[}2,3{]}. The
+benchmarks used the same dataset and functional form, and results are
+summarized in Table~\ref{tbl-benchmarks-time} and
+Table~\ref{tbl-benchmarks-memory}.
+
+\begin{table}
+
+\caption{\label{tbl-benchmarks-time}Benchmark median time (seconds) for different packages on the Globalization model. Ratio is relative to the slowest package (Base R, 100\%). Source: own creation.}
+
+\centering{
+
+\centering
+
+\begin{tabular}{lrr}
+\toprule
+Package & Time (s) & Ratio (\%) \\
+\midrule
+Alpaca   & 6.4   & 0.9 \\
+Fixest   & 0.2   & 0.03 \\
+Capybara & 0.7   & 0.1 \\
+Base R   & 700   & 100.0 \\
+\bottomrule
+\end{tabular}
+
+}
+
+\end{table}%
+
+\begin{table}
+
+\caption{\label{tbl-benchmarks-memory}Benchmark memory allocation (MB) for different packages on the Globalization model. Ratio is relative to the largest allocation (Base R, 100\%). Source: own creation.}
+
+\centering{
+
+\centering
+
+\begin{tabular}{lrr}
+\toprule
+Package & Memory (MB) & Ratio (\%) \\
+\midrule
+Alpaca   & 572    & 4.7 \\
+Fixest   & 78     & 0.6 \\
+Capybara & 24     & 0.2 \\
+Base R   & 12,260 & 100.0 \\
+\bottomrule
+\end{tabular}
+
+}
+
+\end{table}%
+
+Key findings from the benchmark:
+
+\begin{itemize}
+\tightlist
+\item
+  Capybara completes estimation in 1.6 seconds using only 42 MB of
+  memory, compared to Base R's 700 seconds and 12,261 MB.
+\item
+  This represents a reduction of over 99\% in both computation time and
+  memory usage relative to the standard R approach.
+\item
+  While fixest achieves the fastest runtime at 0.3 seconds, Capybara
+  provides the smallest memory footprint (0.3\% of Base R), making it
+  especially suitable for memory-constrained environments.
+\item
+  These results highlight Capybara's ability to efficiently estimate
+  models with thousands of fixed effects, maintaining minimal memory
+  usage even for highly complex specifications.
+\end{itemize}
+
+The benchmark was conducted on a Lenovo ThinkPad X1 Carbon Gen 9 laptop
+equipped with an 11th Gen Intel Core i7-1185G7 processor (8 cores,
+3.00GHz), 15.3 GiB of RAM and Manjaro Linux operating system.
+
+\subsection{Conclusion}\label{conclusion}
+
+Capybara provides an efficient solution for estimating generalized
+linear models with high-dimensional fixed effects, a major computational
+challenge in applied econometrics. Using a memory-efficient algorithm
+based on the Frisch-Waugh-Lovell theorem and alternating projections,
+capybara achieves substantial improvements over conventional methods and
+similar solutions.
+
+The benchmark show that capybara reduces memory usage, making estimation
+feasible on standard laptops, even for models with a large number of
+fixed effects. Although packages like fixest may be faster in some
+cases, capybara lower memory usage makes it well-suited for large-scale
+or memory-constrained applications. It maintains numerical stability and
+offers fully open source solution for the R ecosystem. Future
+improvements to Capybara would consist in matching fixest speed while
+maintaining a minimal memory footprint.
+
+Capybara is available on
+\href{https://cran.r-project.org/package=capybara}{CRAN} and
+\href{https://github.com/pachadotdev/capybara}{GitHub}, with
+documentation and examples covering bias correction methods. Extensive
+testing ensures its reliability as an econometric tool. The benchmarking
+{[}script{]} and {[}results{]} are available on GitHub for direct
+download.
+
+\section{Acknowledgments}\label{acknowledgments}
+
+We thank the attendees of the Second Annual Workshop on Sanctions for
+their feedback on the initial version of this paper, and in particular
+to Yoto Yotov, Gabriel Felbermayr, and Pascal Langer for their comments
+on the benchmark and the software features.
+
+The underlying cpp11armadillo library {[}5{]} was funded by the R
+Consortium Infrastructure Steering Committee Grants Program.
+
+\phantomsection\label{refs}
+\begin{CSLReferences}{0}{1}
+\bibitem[\citeproctext]{ref-yotov}
+\CSLLeftMargin{1. }%
+\CSLRightInline{Yotov YV, Piermartini R, Monteiro J-A, Larch M. An
+{Advanced} {Guide} to {Trade} {Policy} {Analysis}: {The} {Structural}
+{Gravity} {Model}. United Nations; 2017.
+doi:\href{https://doi.org/10.18356/57a768e5-en}{10.18356/57a768e5-en}}
+
+\bibitem[\citeproctext]{ref-stammann}
+\CSLLeftMargin{2. }%
+\CSLRightInline{Stammann A. Fast and {Feasible} {Estimation} of
+{Generalized} {Linear} {Models} with {High}-{Dimensional} k-way {Fixed}
+{Effects}. arXiv; 2018.
+doi:\href{https://doi.org/10.48550/arXiv.1707.01815}{10.48550/arXiv.1707.01815}}
+
+\bibitem[\citeproctext]{ref-correia}
+\CSLLeftMargin{3. }%
+\CSLRightInline{Correia S, Guimarães P, Zylkin T. Ppmlhdfe: {Fast}
+{Poisson} {Estimation} with {High}-{Dimensional} {Fixed} {Effects}. The
+Stata Journal: Promoting communications on statistics and Stata.
+2020;20: 95--115.
+doi:\href{https://doi.org/10.1177/1536867X20909691}{10.1177/1536867X20909691}}
+
+\bibitem[\citeproctext]{ref-sanderson}
+\CSLLeftMargin{4. }%
+\CSLRightInline{Sanderson C. Armadillo: {C}++ library for linear algebra
+\& scientific computing. 2024. Available:
+\url{https://arma.sourceforge.net/speed.html}}
+
+\bibitem[\citeproctext]{ref-sepulveda}
+\CSLLeftMargin{5. }%
+\CSLRightInline{Vargas Sepulveda M, Schneider Malamud J. cpp11armadillo:
+{An} {R} package to use the {Armadillo} {C}++ library. SoftwareX.
+2025;30: 102087.
+doi:\href{https://doi.org/10.1016/j.softx.2025.102087}{10.1016/j.softx.2025.102087}}
+
+\bibitem[\citeproctext]{ref-gaure}
+\CSLLeftMargin{6. }%
+\CSLRightInline{Gaure S. {OLS} with multiple high dimensional category
+variables. Computational statistics \& data analysis. 2013;66: 8--18.
+doi:\href{https://doi.org/10.1016/j.csda.2013.03.024}{10.1016/j.csda.2013.03.024}}
+
+\bibitem[\citeproctext]{ref-berge}
+\CSLLeftMargin{7. }%
+\CSLRightInline{Bergé L. Efficient estimation of maximum likelihood
+models with multiple fixed-effects: The {R} package {FENmlm}. DEM
+Discussion Paper Series. 2018 {[}cited 27 Feb 2025{]}. Available:
+\url{https://ideas.repec.org//p/luc/wpaper/18-13.html}}
+
+\bibitem[\citeproctext]{ref-kindermann}
+\CSLLeftMargin{8. }%
+\CSLRightInline{Kindermann S, Leitão A. Convergence rates for
+{Kaczmarz}-type regularization methods. Inverse Problems and Imaging.
+2014;8: 149--172.
+doi:\href{https://doi.org/10.3934/ipi.2014.8.149}{10.3934/ipi.2014.8.149}}
+
+\bibitem[\citeproctext]{ref-santos}
+\CSLLeftMargin{9. }%
+\CSLRightInline{Silva JMCS, Tenreyro S. The {Log} of {Gravity}. The
+Review of Economics and Statistics. 2006;88: 641--658.
+doi:\href{https://doi.org/10.1162/rest.88.4.641}{10.1162/rest.88.4.641}}
+
+\bibitem[\citeproctext]{ref-yotov2}
+\CSLLeftMargin{10. }%
+\CSLRightInline{Yotov Y. Gravity for {Undergrads}. Working Papers. 2025
+{[}cited 14 Jun 2025{]}. Available:
+\url{https://ideas.repec.org//p/drx/wpaper/202519.html}}
+
+\bibitem[\citeproctext]{ref-kendallknight}
+\CSLLeftMargin{11. }%
+\CSLRightInline{Vargas Sepulveda M. Kendallknight: {An} {R} package for
+efficient implementation of {Kendall}'s correlation coefficient
+computation. PLOS ONE. 2025;20: e0326090.
+doi:\href{https://doi.org/10.1371/journal.pone.0326090}{10.1371/journal.pone.0326090}}
+
+\bibitem[\citeproctext]{ref-wickham}
+\CSLLeftMargin{12. }%
+\CSLRightInline{Wickham H. Testthat: {Get} {Started} with {Testing}. The
+R Journal. 2011;3: 5--10. Available:
+\url{https://journal.r-project.org/archive/2011/RJ-2011-002/index.html}}
+
+\bibitem[\citeproctext]{ref-base}
+\CSLLeftMargin{13. }%
+\CSLRightInline{R Core Team. R: A language and environment for
+statistical computing. Vienna, Austria: R Foundation for Statistical
+Computing; 2025. Available: \url{https://www.R-project.org/}}
+
+\end{CSLReferences}
+
+
+\nolinenumbers
+
+
+\end{document}

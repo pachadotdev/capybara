@@ -36,23 +36,22 @@ struct CapybaraParameters {
   bool return_fe;
   bool keep_tx;
 
-  // Acceleration parameters
-  bool use_acceleration;
+  // Step-halving parameters
   double step_halving_memory;
   size_t max_step_halving;
   double start_inner_tol;
 
   // CG acceleration parameters
-  size_t accel_start;
   bool use_cg;
+  size_t accel_start;
 
   CapybaraParameters()
       : dev_tol(1.0e-08), center_tol(1.0e-08), collin_tol(1.0e-10),
         step_halving_factor(0.5), alpha_tol(1.0e-08), iter_max(25),
         iter_center_max(10000), iter_inner_max(50), iter_alpha_max(10000),
         iter_interrupt(1000), iter_ssr(10), return_fe(true), keep_tx(false),
-        use_acceleration(true), step_halving_memory(0.9), max_step_halving(2),
-        start_inner_tol(1e-06), accel_start(6), use_cg(true) {}
+        step_halving_memory(0.9), max_step_halving(2), start_inner_tol(1e-06),
+        use_cg(true), accel_start(6) {}
 
   explicit CapybaraParameters(const cpp11::list &control) {
     dev_tol = as_cpp<double>(control["dev_tol"]);
@@ -68,12 +67,11 @@ struct CapybaraParameters {
     iter_ssr = as_cpp<size_t>(control["iter_ssr"]);
     return_fe = as_cpp<bool>(control["return_fe"]);
     keep_tx = as_cpp<bool>(control["keep_tx"]);
-    use_acceleration = as_cpp<bool>(control["use_acceleration"]);
     step_halving_memory = as_cpp<double>(control["step_halving_memory"]);
     max_step_halving = as_cpp<size_t>(control["max_step_halving"]);
     start_inner_tol = as_cpp<double>(control["start_inner_tol"]);
-    accel_start = as_cpp<size_t>(control["accel_start"]);
     use_cg = as_cpp<bool>(control["use_cg"]);
+    accel_start = as_cpp<size_t>(control["accel_start"]);
   }
 };
 

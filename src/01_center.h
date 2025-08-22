@@ -3,10 +3,21 @@
 #ifndef CAPYBARA_CENTER_H
 #define CAPYBARA_CENTER_H
 
-#include <cstring>
-#include <vector>
-
 namespace capybara {
+
+struct GroupInfo {
+  const uvec *coords;
+  double inv_weight;
+  uword n_elem;
+};
+
+inline size_t get_num_threads() {
+#ifdef _OPENMP
+  return static_cast<size_t>(omp_get_max_threads());
+#else
+  return 1;
+#endif
+}
 
 inline size_t get_block_size(size_t n, size_t p) {
   const size_t L1_CACHE_SIZE = 32 * 1024;
@@ -36,12 +47,6 @@ inline void project_group(double *v, const double *w, const uvec &coords,
     v[coord_ptr[i]] -= mean;
   }
 }
-
-struct GroupInfo {
-  const uvec *coords;
-  double inv_weight;
-  uword n_elem;
-};
 
 template <typename ProjectFunc>
 void cg_acceleration(double *x, double *g, double *g0, double *p,

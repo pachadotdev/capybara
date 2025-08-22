@@ -53,9 +53,6 @@ NULL
 #' is \code{10L}.
 #' @param iter_alpha_max maximum iterations for fixed effects computation.
 #'  The default is \code{10000L}.
-#' @param use_acceleration logical indicating whether to use acceleration 
-#'  optimizations (fast partial out, adaptive tolerances, step-halving memory).
-#'  The default is \code{TRUE}.
 #' @param step_halving_memory numeric memory factor for step-halving algorithm.
 #'  Controls how much of the previous iteration is retained. The default is \code{0.9}.
 #' @param max_step_halving maximum number of post-convergence step-halving attempts.
@@ -66,8 +63,10 @@ NULL
 #'  This can be useful when fitting general equilibrium models where skipping the
 #'  fixed effects for intermediate steps speeds up computation. The default is
 #'  \code{TRUE} and only applies to the \code{feglm} class.
-#' @param accel_start Integer. Iteration to start conjugate gradient acceleration in centering. Default is \code{6L}.
-#' @param use_cg Logical. Use conjugate gradient acceleration for centering. Default is TRUE.
+#' @param use_cg Logical. Use conjugate gradient acceleration for centering. If set to \code{FALSE},
+#'  Irons and Tuck acceleration is used. The default is \code{TRUE}.
+#' @param accel_start Integer. Iteration to start conjugate gradient acceleration in centering.
+#'  The default is \code{6L}.
 #' @param keep_tx logical indicating if the centered regressor matrix should be
 #'  stored. The centered regressor matrix is required for some covariance
 #'  estimators, bias corrections, and average partial effects. This option saves
@@ -95,16 +94,11 @@ fit_control <- function(
     iter_alpha_max = 10000L,
     iter_interrupt = 1000L,
     iter_ssr = 10L,
-    sep_tol = 1.0e-06,
-    sep_max_iter = 100,
-    sep_accelerate = TRUE,
-    check_separation = TRUE,
-    use_acceleration = TRUE,
     step_halving_memory = 0.9,
     max_step_halving = 2L,
     start_inner_tol = 1.0e-06,
-    accel_start = 6L,
     use_cg = TRUE,
+    accel_start = 6L,
     return_fe = TRUE,
     keep_tx = FALSE,
     init_theta = 0.0) {
@@ -132,10 +126,10 @@ fit_control <- function(
   }
 
   # Check validity of logical parameters
+  use_cg <- as.logical(use_cg)
   return_fe <- as.logical(return_fe)
   keep_tx <- as.logical(keep_tx)
-  use_acceleration <- as.logical(use_acceleration)
-  if (is.na(return_fe) || is.na(keep_tx) || is.na(use_acceleration)) {
+  if (is.na(use_cg) || is.na(return_fe) || is.na(keep_tx)) {
     stop(
       "All logical parameters should be TRUE or FALSE.",
       call. = FALSE
@@ -188,12 +182,11 @@ fit_control <- function(
     iter_alpha_max = iter_alpha_max,
     iter_interrupt = iter_interrupt,
     iter_ssr = iter_ssr,
-    use_acceleration = use_acceleration,
     step_halving_memory = step_halving_memory,
     max_step_halving = max_step_halving,
     start_inner_tol = start_inner_tol,
-    accel_start = accel_start,
     use_cg = use_cg,
+    accel_start = accel_start,
     return_fe = return_fe,
     keep_tx = keep_tx,
     init_theta = init_theta

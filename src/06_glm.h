@@ -1,4 +1,4 @@
-// Generalized linear models with fixed effects eta = alpha + X * beta
+// Generalized linear model with fixed effects eta = alpha + X * beta
 
 #ifndef CAPYBARA_GLM_H
 #define CAPYBARA_GLM_H
@@ -221,7 +221,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     }
 
     // Enable partial out after first iteration
-    if (params.use_acceleration) {
+    if (params.use_cg) {
       use_partial = true;
     }
 
@@ -303,7 +303,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     }
     last_dev_ratio = dev_ratio;
 
-    if (params.use_acceleration) {
+    if (params.use_cg) {
       eps_history(0) = eps_history(1);
       eps_history(1) = eps_history(2);
       eps_history(2) = dev_ratio;
@@ -317,7 +317,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     }
 
     if (delta_deviance < 0 && num_step_halving < max_step_halving) {
-      if (params.use_acceleration) {
+      if (params.use_cg) {
         eta = step_halving_memory * eta0 + (1.0 - step_halving_memory) * eta;
       } else {
         eta = params.step_halving_factor * eta0 +
@@ -339,7 +339,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     }
 
     // Adaptive HDFE tolerance update with model size awareness
-    if (has_fixed_effects && params.use_acceleration) {
+    if (has_fixed_effects && params.use_cg) {
       if (is_large_model) {
         if (convergence_count >= 3 || dev_ratio < hdfe_tolerance * 0.1) {
           hdfe_tolerance = std::max(highest_inner_tol, hdfe_tolerance * 0.01);
