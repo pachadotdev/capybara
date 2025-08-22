@@ -282,7 +282,7 @@ Capybara provides an efficient solution for estimating generalized linear models
 
 The benchmark show that capybara reduces memory usage, making estimation feasible on standard laptops, even for models with a large number of fixed effects. Although packages like fixest may be faster in some cases, capybara lower memory usage makes it well-suited for large-scale or memory-constrained applications. It maintains numerical stability and offers fully open source solution for the R ecosystem. Future improvements to Capybara would consist in matching fixest speed while maintaining a minimal memory footprint.
 
-Capybara is available on [CRAN](https://cran.r-project.org/package=capybara) and [GitHub](https://github.com/pachadotdev/capybara), with documentation and examples covering bias correction methods. Extensive testing ensures its reliability as an econometric tool. The benchmarking [script] and [results] are available on GitHub for direct download.
+Capybara is available on [CRAN](https://cran.r-project.org/package=capybara) and [GitHub](https://github.com/pachadotdev/capybara), with documentation and examples covering bias correction methods. Extensive testing ensures its reliability as an econometric tool. The benchmarking [script](https://github.com/pachadotdev/capybara/blob/main/dev/article/benchmark-globalization.r) and [results](https://github.com/pachadotdev/capybara/blob/main/dev/article/benchmark-globalization.csv) are available on GitHub for direct download.
 
 # Acknowledgments
 
