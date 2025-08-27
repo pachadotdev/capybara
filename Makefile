@@ -46,8 +46,5 @@ cran:
 	clear
 	@cp DESCRIPTION DESCRIPTION.bak
 	@awk '/^Remotes:/ {skip=1} /^Roxygen:/ {skip=1} skip && NF==0 {skip=0; next} !skip' DESCRIPTION.bak > DESCRIPTION
-	@echo "Running devtools::check()"
-	@Rscript -e 'devtools::check()'
-	@echo "Submitting to CRAN"
-	@Rscript -e 'devtools::submit_cran()'
+	@Rscript -e 'devtools::build()'
 	@mv DESCRIPTION.bak DESCRIPTION

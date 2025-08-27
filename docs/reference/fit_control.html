@@ -9,7 +9,7 @@ Termination conditions are similar to glm."><meta property="og:image" content=".
 
     <a class="navbar-brand me-2" href="../index.html">capybara</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.8.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -46,19 +46,33 @@ Termination conditions are similar to <code><a href="https://rdrr.io/r/stats/glm
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">fit_control</span><span class="op">(</span></span>
-<span>  dev_tol <span class="op">=</span> <span class="fl">1e-06</span>,</span>
-<span>  center_tol <span class="op">=</span> <span class="fl">1e-06</span>,</span>
-<span>  collin_tol <span class="op">=</span> <span class="fl">1e-07</span>,</span>
+<span>  dev_tol <span class="op">=</span> <span class="fl">1e-08</span>,</span>
+<span>  center_tol <span class="op">=</span> <span class="fl">1e-08</span>,</span>
+<span>  collin_tol <span class="op">=</span> <span class="fl">1e-10</span>,</span>
 <span>  step_halving_factor <span class="op">=</span> <span class="fl">0.5</span>,</span>
-<span>  alpha_tol <span class="op">=</span> <span class="fl">1e-06</span>,</span>
+<span>  alpha_tol <span class="op">=</span> <span class="fl">1e-08</span>,</span>
 <span>  iter_max <span class="op">=</span> <span class="fl">25L</span>,</span>
 <span>  iter_center_max <span class="op">=</span> <span class="fl">10000L</span>,</span>
 <span>  iter_inner_max <span class="op">=</span> <span class="fl">50L</span>,</span>
 <span>  iter_alpha_max <span class="op">=</span> <span class="fl">10000L</span>,</span>
 <span>  iter_interrupt <span class="op">=</span> <span class="fl">1000L</span>,</span>
 <span>  iter_ssr <span class="op">=</span> <span class="fl">10L</span>,</span>
+<span>  step_halving_memory <span class="op">=</span> <span class="fl">0.9</span>,</span>
+<span>  max_step_halving <span class="op">=</span> <span class="fl">2L</span>,</span>
+<span>  start_inner_tol <span class="op">=</span> <span class="fl">1e-06</span>,</span>
+<span>  accel_start <span class="op">=</span> <span class="fl">6L</span>,</span>
+<span>  project_tol_factor <span class="op">=</span> <span class="fl">0.001</span>,</span>
+<span>  grand_accel_tol <span class="op">=</span> <span class="fl">1e-10</span>,</span>
+<span>  project_group_tol <span class="op">=</span> <span class="fl">1e-12</span>,</span>
+<span>  irons_tuck_tol <span class="op">=</span> <span class="fl">1e-10</span>,</span>
+<span>  grand_accel_interval <span class="op">=</span> <span class="fl">5L</span>,</span>
+<span>  irons_tuck_interval <span class="op">=</span> <span class="fl">3L</span>,</span>
+<span>  ssr_check_interval <span class="op">=</span> <span class="fl">40L</span>,</span>
+<span>  convergence_factor <span class="op">=</span> <span class="fl">1.1</span>,</span>
+<span>  tol_multiplier <span class="op">=</span> <span class="fl">20</span>,</span>
 <span>  return_fe <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  keep_tx <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  keep_tx <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  init_theta <span class="op">=</span> <span class="fl">0</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -128,6 +142,71 @@ to skip before checking if the sum of squared residuals improves. The default
 is <code>10L</code>.</p></dd>
 
 
+<dt id="arg-step-halving-memory">step_halving_memory<a class="anchor" aria-label="anchor" href="#arg-step-halving-memory"></a></dt>
+<dd><p>numeric memory factor for step-halving algorithm.
+Controls how much of the previous iteration is retained. The default is <code>0.9</code>.</p></dd>
+
+
+<dt id="arg-max-step-halving">max_step_halving<a class="anchor" aria-label="anchor" href="#arg-max-step-halving"></a></dt>
+<dd><p>maximum number of post-convergence step-halving attempts.
+The default is <code>2</code>.</p></dd>
+
+
+<dt id="arg-start-inner-tol">start_inner_tol<a class="anchor" aria-label="anchor" href="#arg-start-inner-tol"></a></dt>
+<dd><p>starting tolerance for inner solver iterations.
+The default is <code>1.0e-04</code>.</p></dd>
+
+
+<dt id="arg-accel-start">accel_start<a class="anchor" aria-label="anchor" href="#arg-accel-start"></a></dt>
+<dd><p>Integer. Iteration to start conjugate gradient acceleration in centering.
+The default is <code>6L</code>.</p></dd>
+
+
+<dt id="arg-project-tol-factor">project_tol_factor<a class="anchor" aria-label="anchor" href="#arg-project-tol-factor"></a></dt>
+<dd><p>Factor to multiply center_tol for projection tolerance.
+The default is <code>1e-3</code>.</p></dd>
+
+
+<dt id="arg-grand-accel-tol">grand_accel_tol<a class="anchor" aria-label="anchor" href="#arg-grand-accel-tol"></a></dt>
+<dd><p>Tolerance for grand acceleration convergence.
+The default is <code>1e-10</code>.</p></dd>
+
+
+<dt id="arg-project-group-tol">project_group_tol<a class="anchor" aria-label="anchor" href="#arg-project-group-tol"></a></dt>
+<dd><p>Tolerance for individual group projections.
+The default is <code>1e-12</code>.</p></dd>
+
+
+<dt id="arg-irons-tuck-tol">irons_tuck_tol<a class="anchor" aria-label="anchor" href="#arg-irons-tuck-tol"></a></dt>
+<dd><p>Tolerance for Irons-Tuck acceleration.
+The default is <code>1e-10</code>.</p></dd>
+
+
+<dt id="arg-grand-accel-interval">grand_accel_interval<a class="anchor" aria-label="anchor" href="#arg-grand-accel-interval"></a></dt>
+<dd><p>Interval for applying grand acceleration.
+The default is <code>5L</code>.</p></dd>
+
+
+<dt id="arg-irons-tuck-interval">irons_tuck_interval<a class="anchor" aria-label="anchor" href="#arg-irons-tuck-interval"></a></dt>
+<dd><p>Interval for applying Irons-Tuck acceleration.
+The default is <code>3L</code>.</p></dd>
+
+
+<dt id="arg-ssr-check-interval">ssr_check_interval<a class="anchor" aria-label="anchor" href="#arg-ssr-check-interval"></a></dt>
+<dd><p>Interval for adaptive SSR convergence checks.
+The default is <code>40L</code>.</p></dd>
+
+
+<dt id="arg-convergence-factor">convergence_factor<a class="anchor" aria-label="anchor" href="#arg-convergence-factor"></a></dt>
+<dd><p>Factor for detecting slow convergence.
+The default is <code>1.1</code>.</p></dd>
+
+
+<dt id="arg-tol-multiplier">tol_multiplier<a class="anchor" aria-label="anchor" href="#arg-tol-multiplier"></a></dt>
+<dd><p>Multiplier for early termination tolerance check.
+The default is <code>20.0</code>.</p></dd>
+
+
 <dt id="arg-return-fe">return_fe<a class="anchor" aria-label="anchor" href="#arg-return-fe"></a></dt>
 <dd><p>logical indicating if the fixed effects should be returned.
 This can be useful when fitting general equilibrium models where skipping the
@@ -140,6 +219,11 @@ fixed effects for intermediate steps speeds up computation. The default is
 stored. The centered regressor matrix is required for some covariance
 estimators, bias corrections, and average partial effects. This option saves
 some computation time at the cost of memory. The default is <code>TRUE</code>.</p></dd>
+
+
+<dt id="arg-init-theta">init_theta<a class="anchor" aria-label="anchor" href="#arg-init-theta"></a></dt>
+<dd><p>Initial value for the negative binomial dispersion parameter (theta).
+The default is <code>0.0</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -187,11 +271,53 @@ some computation time at the cost of memory. The default is <code>TRUE</code>.</
 <span class="r-out co"><span class="r-pr">#&gt;</span> $iter_ssr</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 10</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $step_halving_memory</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.9</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $max_step_halving</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $start_inner_tol</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1e-06</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $accel_start</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 6</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $project_tol_factor</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.001</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $grand_accel_tol</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1e-10</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $project_group_tol</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1e-12</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $irons_tuck_tol</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1e-10</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $grand_accel_interval</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $irons_tuck_interval</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $ssr_check_interval</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 40</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $convergence_factor</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1.1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $tol_multiplier</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 20</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $return_fe</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $keep_tx</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] FALSE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $init_theta</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span></span></span>
 </code></pre></div>

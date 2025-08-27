@@ -55,7 +55,7 @@ equivalent_full_fepois <- function() {
 }
 
 # bench_globalization <- mark(
-#     # round(alpaca::feglm(form, data = d, family = poisson())$coefficients["rta"], 3),
+#     round(alpaca::feglm(form, data = d, family = poisson())$coefficients["rta"], 3),
 #     round(equivalent_full_fepois()$coefficients["rta"], 3),
 #     round(capybara::fepoisson(form, data = d)$coefficients["rta"], 3),
 #     iterations = 20L,
@@ -65,7 +65,7 @@ equivalent_full_fepois <- function() {
 #   )
 
 # bench_globalization %>%
-#   mutate(package = c("Fixest", "Capybara")) %>%
+#   mutate(package = c("Alpaca", "Fixest", "Capybara")) %>%
 #   select(package, median, mem_alloc) %>%
 #   mutate(
 #     median = round(as.numeric(median), 3),

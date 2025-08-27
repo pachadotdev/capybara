@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">capybara</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.8.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,6 +35,11 @@
       <small>Source: <a href="https://github.com/pachadotdev/capybara/blob/HEAD/NEWS.md"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.8.0" id="capybara-180">capybara 1.8.0<a class="anchor" aria-label="anchor" href="#capybara-180"></a></h2>
+<ul><li>Drops congujate gradient acceleration and uses Irons-Tuck acceleration instead. It is slightly faster.</li>
+<li>The benchmarks show a small overhead compared to fixest, which is much smaller memory footprint.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.7.0" id="capybara-170">capybara 1.7.0<a class="anchor" aria-label="anchor" href="#capybara-170"></a></h2>
 <ul><li>All the computation is done on C++ side. R does just do the data cleaning/wrangling.</li>
@@ -103,7 +108,7 @@
 </ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.9.3" id="capybara-093">capybara 0.9.3<a class="anchor" aria-label="anchor" href="#capybara-093"></a></h2><p class="text-muted">CRAN release: 2025-04-03</p>
-<ul><li>Fixes the <code><a href="https://rdrr.io/pkg/generics/man/tidy.html" class="external-link">tidy()</a></code> method for linear models (<code>felm</code> class). Now it does not require to load the <code>tibble</code> package to work.</li>
+<ul><li>Fixes the <code><a href="https://generics.r-lib.org/reference/tidy.html" class="external-link">tidy()</a></code> method for linear models (<code>felm</code> class). Now it does not require to load the <code>tibble</code> package to work.</li>
 <li>Adds a wrapper to present multiple models into a single table with the option to export to LaTeX.</li>
 </ul></div>
     <div class="section level2">
