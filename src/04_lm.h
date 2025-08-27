@@ -226,12 +226,18 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
 
     center_variables(ws->y_demeaned, w, fe_groups, params.center_tol,
                      params.iter_center_max, params.iter_interrupt,
-                     params.iter_ssr, params.accel_start, params.use_cg);
+                     params.iter_ssr, params.accel_start, params.project_tol_factor,
+                     params.grand_accel_tol, params.project_group_tol, params.irons_tuck_tol,
+                     params.grand_accel_interval, params.irons_tuck_interval, 
+                     params.ssr_check_interval, params.convergence_factor, params.tol_multiplier);
 
     if (X.n_cols > 0) {
       center_variables(X, w, fe_groups, params.center_tol,
                        params.iter_center_max, params.iter_interrupt,
-                       params.iter_ssr, params.accel_start, params.use_cg);
+                       params.iter_ssr, params.accel_start, params.project_tol_factor,
+                       params.grand_accel_tol, params.project_group_tol, params.irons_tuck_tol,
+                       params.grand_accel_interval, params.irons_tuck_interval, 
+                       params.ssr_check_interval, params.convergence_factor, params.tol_multiplier);
     }
   } else {
     ws->y_demeaned = y;

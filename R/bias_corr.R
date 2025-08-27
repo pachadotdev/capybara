@@ -133,7 +133,26 @@ bias_corr <- function(
   if (control[["keep_tx"]]) {
     X <- object[["tx"]]
   } else {
-    X <- center_variables_(X, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]], control[["accel_start"]], control[["use_cg"]])
+    defaults <- fit_control()
+    get_param <- function(name) {
+      if (is.null(control[[name]])) defaults[[name]] else control[[name]]
+    }
+    
+    X <- center_variables_(X, w, k_list, 
+                          control[["center_tol"]], 
+                          control[["iter_max"]], 
+                          control[["iter_interrupt"]], 
+                          control[["iter_ssr"]], 
+                          control[["accel_start"]], 
+                          get_param("project_tol_factor"), 
+                          get_param("grand_accel_tol"), 
+                          get_param("project_group_tol"), 
+                          get_param("irons_tuck_tol"), 
+                          get_param("grand_accel_interval"), 
+                          get_param("irons_tuck_interval"), 
+                          get_param("ssr_check_interval"), 
+                          get_param("convergence_factor"), 
+                          get_param("tol_multiplier"))
   }
 
   # Compute bias terms for requested bias correction
@@ -180,7 +199,21 @@ bias_corr <- function(
   }
 
   # Update centered regressor matrix
-  X <- center_variables_(X, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]], control[["accel_start"]], control[["use_cg"]])
+  X <- center_variables_(X, w, k_list, 
+                        control[["center_tol"]], 
+                        control[["iter_max"]], 
+                        control[["iter_interrupt"]], 
+                        control[["iter_ssr"]], 
+                        control[["accel_start"]], 
+                        get_param("project_tol_factor"), 
+                        get_param("grand_accel_tol"), 
+                        get_param("project_group_tol"), 
+                        get_param("irons_tuck_tol"), 
+                        get_param("grand_accel_interval"), 
+                        get_param("irons_tuck_interval"), 
+                        get_param("ssr_check_interval"), 
+                        get_param("convergence_factor"), 
+                        get_param("tol_multiplier"))
   colnames(X) <- nms_sp
 
   # Update hessian

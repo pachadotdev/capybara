@@ -1,3 +1,10 @@
+# capybara 1.8.0
+
+* Drops congujate gradient acceleration and uses Irons-Tuck acceleration instead. It is slightly 
+  faster.
+* The benchmarks show a small overhead compared to fixest, which is much smaller memory 
+  footprint.
+
 # capybara 1.7.0
 
 * All the computation is done on C++ side. R does just do the data cleaning/wrangling.
