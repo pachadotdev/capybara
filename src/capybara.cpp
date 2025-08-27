@@ -62,9 +62,9 @@ struct CapybaraParameters {
         iter_interrupt(1000), iter_ssr(10), return_fe(true), keep_tx(false),
         step_halving_memory(0.9), max_step_halving(2), start_inner_tol(1e-06),
         accel_start(6), project_tol_factor(1e-3), grand_accel_tol(1e-10),
-        project_group_tol(1e-12), irons_tuck_tol(1e-10), grand_accel_interval(5),
-        irons_tuck_interval(3), ssr_check_interval(40), convergence_factor(1.1),
-        tol_multiplier(20.0) {}
+        project_group_tol(1e-12), irons_tuck_tol(1e-10),
+        grand_accel_interval(5), irons_tuck_interval(3), ssr_check_interval(40),
+        convergence_factor(1.1), tol_multiplier(20.0) {}
 
   explicit CapybaraParameters(const cpp11::list &control) {
     dev_tol = as_cpp<double>(control["dev_tol"]);
@@ -152,25 +152,25 @@ inline field<field<uvec>> R_list_to_Armadillo_field(const list &FEs) {
 
 // this function is not visible by the end-user, so we use multiple parameters
 // instead of a CapybaraParameters object
-[[cpp11::register]] doubles_matrix<>
-center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
-                  const list &klist, const double &tol, const size_t &max_iter,
-                  const size_t &iter_interrupt, const size_t &iter_ssr,
-                  const size_t &accel_start, const double &project_tol_factor,
-                  const double &grand_accel_tol, const double &project_group_tol,
-                  const double &irons_tuck_tol, const size_t &grand_accel_interval,
-                  const size_t &irons_tuck_interval, const size_t &ssr_check_interval,
-                  const double &convergence_factor, const double &tol_multiplier) {
+[[cpp11::register]] doubles_matrix<> center_variables_(
+    const doubles_matrix<> &V_r, const doubles &w_r, const list &klist,
+    const double &tol, const size_t &max_iter, const size_t &iter_interrupt,
+    const size_t &iter_ssr, const size_t &accel_start,
+    const double &project_tol_factor, const double &grand_accel_tol,
+    const double &project_group_tol, const double &irons_tuck_tol,
+    const size_t &grand_accel_interval, const size_t &irons_tuck_interval,
+    const size_t &ssr_check_interval, const double &convergence_factor,
+    const double &tol_multiplier) {
   mat V = as_mat(V_r);
   vec w = as_col(w_r);
 
   field<field<uvec>> group_indices = R_list_to_Armadillo_field(klist);
 
-  capybara::center_variables(V, w, group_indices, tol, max_iter, iter_interrupt,
-                             iter_ssr, accel_start, project_tol_factor,
-                             grand_accel_tol, project_group_tol, irons_tuck_tol,
-                             grand_accel_interval, irons_tuck_interval, 
-                             ssr_check_interval, convergence_factor, tol_multiplier);
+  capybara::center_variables(
+      V, w, group_indices, tol, max_iter, iter_interrupt, iter_ssr, accel_start,
+      project_tol_factor, grand_accel_tol, project_group_tol, irons_tuck_tol,
+      grand_accel_interval, irons_tuck_interval, ssr_check_interval,
+      convergence_factor, tol_multiplier);
 
   return as_doubles_matrix(V);
 }

@@ -200,16 +200,20 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       if (has_fixed_effects) {
         center_variables(MNU, w_working, fe_groups, current_hdfe_tol,
                          params.iter_center_max, params.iter_interrupt,
-                         params.iter_ssr, params.accel_start, params.project_tol_factor,
-                         params.grand_accel_tol, params.project_group_tol, params.irons_tuck_tol,
-                         params.grand_accel_interval, params.irons_tuck_interval, 
-                         params.ssr_check_interval, params.convergence_factor, params.tol_multiplier);
+                         params.iter_ssr, params.accel_start,
+                         params.project_tol_factor, params.grand_accel_tol,
+                         params.project_group_tol, params.irons_tuck_tol,
+                         params.grand_accel_interval,
+                         params.irons_tuck_interval, params.ssr_check_interval,
+                         params.convergence_factor, params.tol_multiplier);
         center_variables(X, w_working, fe_groups, current_hdfe_tol,
                          params.iter_center_max, params.iter_interrupt,
-                         params.iter_ssr, params.accel_start, params.project_tol_factor,
-                         params.grand_accel_tol, params.project_group_tol, params.irons_tuck_tol,
-                         params.grand_accel_interval, params.irons_tuck_interval, 
-                         params.ssr_check_interval, params.convergence_factor, params.tol_multiplier);
+                         params.iter_ssr, params.accel_start,
+                         params.project_tol_factor, params.grand_accel_tol,
+                         params.project_group_tol, params.irons_tuck_tol,
+                         params.grand_accel_interval,
+                         params.irons_tuck_interval, params.ssr_check_interval,
+                         params.convergence_factor, params.tol_multiplier);
       }
       nu0 = nu;
     } else {
@@ -219,16 +223,20 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       if (has_fixed_effects) {
         center_variables(MNU, w_working, fe_groups, current_hdfe_tol,
                          params.iter_center_max, params.iter_interrupt,
-                         params.iter_ssr, params.accel_start, params.project_tol_factor,
-                         params.grand_accel_tol, params.project_group_tol, params.irons_tuck_tol,
-                         params.grand_accel_interval, params.irons_tuck_interval, 
-                         params.ssr_check_interval, params.convergence_factor, params.tol_multiplier);
+                         params.iter_ssr, params.accel_start,
+                         params.project_tol_factor, params.grand_accel_tol,
+                         params.project_group_tol, params.irons_tuck_tol,
+                         params.grand_accel_interval,
+                         params.irons_tuck_interval, params.ssr_check_interval,
+                         params.convergence_factor, params.tol_multiplier);
         center_variables(X, w_working, fe_groups, current_hdfe_tol,
                          params.iter_center_max, params.iter_interrupt,
-                         params.iter_ssr, params.accel_start, params.project_tol_factor,
-                         params.grand_accel_tol, params.project_group_tol, params.irons_tuck_tol,
-                         params.grand_accel_interval, params.irons_tuck_interval, 
-                         params.ssr_check_interval, params.convergence_factor, params.tol_multiplier);
+                         params.iter_ssr, params.accel_start,
+                         params.project_tol_factor, params.grand_accel_tol,
+                         params.project_group_tol, params.irons_tuck_tol,
+                         params.grand_accel_interval,
+                         params.irons_tuck_interval, params.ssr_check_interval,
+                         params.convergence_factor, params.tol_multiplier);
       }
     }
 
@@ -313,12 +321,11 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     }
     last_dev_ratio = dev_ratio;
 
+    eps_history(0) = eps_history(1);
+    eps_history(1) = eps_history(2);
+    eps_history(2) = dev_ratio;
 
-      eps_history(0) = eps_history(1);
-      eps_history(1) = eps_history(2);
-      eps_history(2) = dev_ratio;
-
-      predicted_eps = predict_convergence(eps_history, dev_ratio);
+    predicted_eps = predict_convergence(eps_history, dev_ratio);
 
     if (dev_ratio < params.dev_tol) {
       conv = true;
@@ -449,10 +456,12 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
 
     center_variables(Myadj, w_working, fe_groups, adaptive_tol,
                      params.iter_center_max, params.iter_interrupt,
-                     params.iter_ssr, params.accel_start, params.project_tol_factor,
-                     params.grand_accel_tol, params.project_group_tol, params.irons_tuck_tol,
-                     params.grand_accel_interval, params.irons_tuck_interval, 
-                     params.ssr_check_interval, params.convergence_factor, params.tol_multiplier);
+                     params.iter_ssr, params.accel_start,
+                     params.project_tol_factor, params.grand_accel_tol,
+                     params.project_group_tol, params.irons_tuck_tol,
+                     params.grand_accel_interval, params.irons_tuck_interval,
+                     params.ssr_check_interval, params.convergence_factor,
+                     params.tol_multiplier);
 
     eta_upd = yadj - Myadj + offset - eta;
 
