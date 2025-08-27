@@ -21,7 +21,7 @@ partial effects based on functional forms like interactions and polynomials."><m
 
     <a class="navbar-brand me-2" href="../index.html">capybara</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.8.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -169,7 +169,7 @@ partially consistent observations". Econometrica, 16(1), 1-32.</p>
 <span class="r-in"><span><span class="va">mod_bc</span> <span class="op">&lt;-</span> <span class="fu"><a href="bias_corr.html">bias_corr</a></span><span class="op">(</span><span class="va">mod</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod_bc</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Formula: mpg01 ~ wt | cyl</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x564a515a7a78&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x55b1b60b1548&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Family: Binomial</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
@@ -181,16 +181,16 @@ partially consistent observations". Econometrica, 16(1), 1-32.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Significance codes: *** 99.9%; ** 99%; * 95%; . 90%</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Number of observations: Full 32; Missing 0; Perfect classification 9 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Number of observations: Full 32; Missing 0; Perfect classification 25 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Number of Fisher Scoring iterations: 16 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Number of Fisher Scoring iterations: 20 </span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Compute bias-corrected average partial effects</span></span></span>
 <span class="r-in"><span><span class="va">mod_ape_bc</span> <span class="op">&lt;-</span> <span class="fu">apes</span><span class="op">(</span><span class="va">mod_bc</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod_ape_bc</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Estimates:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     Estimate Std. Error z value Pr(&gt;|z|)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> wt -0.003525   0.014922  -0.236    0.813</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> wt -0.003524   0.014922  -0.236    0.813</span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

@@ -6,10 +6,10 @@
 #include <R_ext/Visibility.h>
 
 // capybara.cpp
-doubles_matrix<> center_variables_(const doubles_matrix<> & V_r, const doubles & w_r, const list & klist, const double & tol, const size_t & max_iter, const size_t & iter_interrupt, const size_t & iter_ssr, const size_t & accel_start, const bool & use_cg);
-extern "C" SEXP _capybara_center_variables_(SEXP V_r, SEXP w_r, SEXP klist, SEXP tol, SEXP max_iter, SEXP iter_interrupt, SEXP iter_ssr, SEXP accel_start, SEXP use_cg) {
+doubles_matrix<> center_variables_(const doubles_matrix<> & V_r, const doubles & w_r, const list & klist, const double & tol, const size_t & max_iter, const size_t & iter_interrupt, const size_t & iter_ssr, const size_t & accel_start, const double & project_tol_factor, const double & grand_accel_tol, const double & project_group_tol, const double & irons_tuck_tol, const size_t & grand_accel_interval, const size_t & irons_tuck_interval, const size_t & ssr_check_interval, const double & convergence_factor, const double & tol_multiplier);
+extern "C" SEXP _capybara_center_variables_(SEXP V_r, SEXP w_r, SEXP klist, SEXP tol, SEXP max_iter, SEXP iter_interrupt, SEXP iter_ssr, SEXP accel_start, SEXP project_tol_factor, SEXP grand_accel_tol, SEXP project_group_tol, SEXP irons_tuck_tol, SEXP grand_accel_interval, SEXP irons_tuck_interval, SEXP ssr_check_interval, SEXP convergence_factor, SEXP tol_multiplier) {
   BEGIN_CPP11
-    return cpp11::as_sexp(center_variables_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(V_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(w_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(klist), cpp11::as_cpp<cpp11::decay_t<const double &>>(tol), cpp11::as_cpp<cpp11::decay_t<const size_t &>>(max_iter), cpp11::as_cpp<cpp11::decay_t<const size_t &>>(iter_interrupt), cpp11::as_cpp<cpp11::decay_t<const size_t &>>(iter_ssr), cpp11::as_cpp<cpp11::decay_t<const size_t &>>(accel_start), cpp11::as_cpp<cpp11::decay_t<const bool &>>(use_cg)));
+    return cpp11::as_sexp(center_variables_(cpp11::as_cpp<cpp11::decay_t<const doubles_matrix<> &>>(V_r), cpp11::as_cpp<cpp11::decay_t<const doubles &>>(w_r), cpp11::as_cpp<cpp11::decay_t<const list &>>(klist), cpp11::as_cpp<cpp11::decay_t<const double &>>(tol), cpp11::as_cpp<cpp11::decay_t<const size_t &>>(max_iter), cpp11::as_cpp<cpp11::decay_t<const size_t &>>(iter_interrupt), cpp11::as_cpp<cpp11::decay_t<const size_t &>>(iter_ssr), cpp11::as_cpp<cpp11::decay_t<const size_t &>>(accel_start), cpp11::as_cpp<cpp11::decay_t<const double &>>(project_tol_factor), cpp11::as_cpp<cpp11::decay_t<const double &>>(grand_accel_tol), cpp11::as_cpp<cpp11::decay_t<const double &>>(project_group_tol), cpp11::as_cpp<cpp11::decay_t<const double &>>(irons_tuck_tol), cpp11::as_cpp<cpp11::decay_t<const size_t &>>(grand_accel_interval), cpp11::as_cpp<cpp11::decay_t<const size_t &>>(irons_tuck_interval), cpp11::as_cpp<cpp11::decay_t<const size_t &>>(ssr_check_interval), cpp11::as_cpp<cpp11::decay_t<const double &>>(convergence_factor), cpp11::as_cpp<cpp11::decay_t<const double &>>(tol_multiplier)));
   END_CPP11
 }
 // capybara.cpp
@@ -71,15 +71,15 @@ extern "C" SEXP _capybara_group_sums_cov_(SEXP M_r, SEXP N_r, SEXP jlist) {
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
-    {"_capybara_center_variables_",    (DL_FUNC) &_capybara_center_variables_,    9},
-    {"_capybara_feglm_fit_",           (DL_FUNC) &_capybara_feglm_fit_,           9},
-    {"_capybara_feglm_offset_fit_",    (DL_FUNC) &_capybara_feglm_offset_fit_,    7},
-    {"_capybara_felm_fit_",            (DL_FUNC) &_capybara_felm_fit_,            5},
-    {"_capybara_fenegbin_fit_",        (DL_FUNC) &_capybara_fenegbin_fit_,        9},
-    {"_capybara_group_sums_",          (DL_FUNC) &_capybara_group_sums_,          3},
-    {"_capybara_group_sums_cov_",      (DL_FUNC) &_capybara_group_sums_cov_,      3},
-    {"_capybara_group_sums_spectral_", (DL_FUNC) &_capybara_group_sums_spectral_, 5},
-    {"_capybara_group_sums_var_",      (DL_FUNC) &_capybara_group_sums_var_,      2},
+    {"_capybara_center_variables_",    (DL_FUNC) &_capybara_center_variables_,    17},
+    {"_capybara_feglm_fit_",           (DL_FUNC) &_capybara_feglm_fit_,            9},
+    {"_capybara_feglm_offset_fit_",    (DL_FUNC) &_capybara_feglm_offset_fit_,     7},
+    {"_capybara_felm_fit_",            (DL_FUNC) &_capybara_felm_fit_,             5},
+    {"_capybara_fenegbin_fit_",        (DL_FUNC) &_capybara_fenegbin_fit_,         9},
+    {"_capybara_group_sums_",          (DL_FUNC) &_capybara_group_sums_,           3},
+    {"_capybara_group_sums_cov_",      (DL_FUNC) &_capybara_group_sums_cov_,       3},
+    {"_capybara_group_sums_spectral_", (DL_FUNC) &_capybara_group_sums_spectral_,  5},
+    {"_capybara_group_sums_var_",      (DL_FUNC) &_capybara_group_sums_var_,       2},
     {NULL, NULL, 0}
 };
 }

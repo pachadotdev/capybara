@@ -200,10 +200,20 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       if (has_fixed_effects) {
         center_variables(MNU, w_working, fe_groups, current_hdfe_tol,
                          params.iter_center_max, params.iter_interrupt,
-                         params.iter_ssr, params.accel_start, params.use_cg);
+                         params.iter_ssr, params.accel_start,
+                         params.project_tol_factor, params.grand_accel_tol,
+                         params.project_group_tol, params.irons_tuck_tol,
+                         params.grand_accel_interval,
+                         params.irons_tuck_interval, params.ssr_check_interval,
+                         params.convergence_factor, params.tol_multiplier);
         center_variables(X, w_working, fe_groups, current_hdfe_tol,
                          params.iter_center_max, params.iter_interrupt,
-                         params.iter_ssr, params.accel_start, params.use_cg);
+                         params.iter_ssr, params.accel_start,
+                         params.project_tol_factor, params.grand_accel_tol,
+                         params.project_group_tol, params.irons_tuck_tol,
+                         params.grand_accel_interval,
+                         params.irons_tuck_interval, params.ssr_check_interval,
+                         params.convergence_factor, params.tol_multiplier);
       }
       nu0 = nu;
     } else {
@@ -213,17 +223,25 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       if (has_fixed_effects) {
         center_variables(MNU, w_working, fe_groups, current_hdfe_tol,
                          params.iter_center_max, params.iter_interrupt,
-                         params.iter_ssr, params.accel_start, params.use_cg);
+                         params.iter_ssr, params.accel_start,
+                         params.project_tol_factor, params.grand_accel_tol,
+                         params.project_group_tol, params.irons_tuck_tol,
+                         params.grand_accel_interval,
+                         params.irons_tuck_interval, params.ssr_check_interval,
+                         params.convergence_factor, params.tol_multiplier);
         center_variables(X, w_working, fe_groups, current_hdfe_tol,
                          params.iter_center_max, params.iter_interrupt,
-                         params.iter_ssr, params.accel_start, params.use_cg);
+                         params.iter_ssr, params.accel_start,
+                         params.project_tol_factor, params.grand_accel_tol,
+                         params.project_group_tol, params.irons_tuck_tol,
+                         params.grand_accel_interval,
+                         params.irons_tuck_interval, params.ssr_check_interval,
+                         params.convergence_factor, params.tol_multiplier);
       }
     }
 
     // Enable partial out after first iteration
-    if (params.use_cg) {
-      use_partial = true;
-    }
+    use_partial = true;
 
     InferenceBeta beta_result =
         get_beta(X, MNU, MNU, w_working, collin_result, false, false);
@@ -303,13 +321,11 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     }
     last_dev_ratio = dev_ratio;
 
-    if (params.use_cg) {
-      eps_history(0) = eps_history(1);
-      eps_history(1) = eps_history(2);
-      eps_history(2) = dev_ratio;
+    eps_history(0) = eps_history(1);
+    eps_history(1) = eps_history(2);
+    eps_history(2) = dev_ratio;
 
-      predicted_eps = predict_convergence(eps_history, dev_ratio);
-    }
+    predicted_eps = predict_convergence(eps_history, dev_ratio);
 
     if (dev_ratio < params.dev_tol) {
       conv = true;
@@ -317,12 +333,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     }
 
     if (delta_deviance < 0 && num_step_halving < max_step_halving) {
-      if (params.use_cg) {
-        eta = step_halving_memory * eta0 + (1.0 - step_halving_memory) * eta;
-      } else {
-        eta = params.step_halving_factor * eta0 +
-              (1.0 - params.step_halving_factor) * eta;
-      }
+      eta = step_halving_memory * eta0 + (1.0 - step_halving_memory) * eta;
 
       if (num_step_halving > 0 && family_type == POISSON) {
         eta = arma::max(eta, vec(n, fill::value(-10.0)));
@@ -339,7 +350,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     }
 
     // Adaptive HDFE tolerance update with model size awareness
-    if (has_fixed_effects && params.use_cg) {
+    if (has_fixed_effects) {
       if (is_large_model) {
         if (convergence_count >= 3 || dev_ratio < hdfe_tolerance * 0.1) {
           hdfe_tolerance = std::max(highest_inner_tol, hdfe_tolerance * 0.01);
@@ -445,7 +456,12 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
 
     center_variables(Myadj, w_working, fe_groups, adaptive_tol,
                      params.iter_center_max, params.iter_interrupt,
-                     params.iter_ssr, params.accel_start, params.use_cg);
+                     params.iter_ssr, params.accel_start,
+                     params.project_tol_factor, params.grand_accel_tol,
+                     params.project_group_tol, params.irons_tuck_tol,
+                     params.grand_accel_interval, params.irons_tuck_interval,
+                     params.ssr_check_interval, params.convergence_factor,
+                     params.tol_multiplier);
 
     eta_upd = yadj - Myadj + offset - eta;
 

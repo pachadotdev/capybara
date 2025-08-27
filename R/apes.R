@@ -183,7 +183,21 @@ apes <- function(
   if (control[["keep_tx"]]) {
     tx <- object[["tx"]]
   } else {
-    tx <- center_variables_(X, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]], control[["accel_start"]], control[["use_cg"]])
+    tx <- center_variables_(X, w, k_list, 
+                           control[["center_tol"]], 
+                           control[["iter_center_max"]], 
+                           control[["iter_interrupt"]], 
+                           control[["iter_ssr"]], 
+                           control[["accel_start"]], 
+                           control[["project_tol_factor"]], 
+                           control[["grand_accel_tol"]], 
+                           control[["project_group_tol"]], 
+                           control[["irons_tuck_tol"]], 
+                           control[["grand_accel_interval"]], 
+                           control[["irons_tuck_interval"]], 
+                           control[["ssr_check_interval"]], 
+                           control[["convergence_factor"]], 
+                           control[["tol_multiplier"]])
   }
 
   # Compute average partial effects, derivatives, and Jacobian
@@ -220,7 +234,21 @@ apes <- function(
 
   # Compute projection and residual projection of \psi
   psi <- -delta1 / w
-  mpsi <- center_variables_(psi, w, k_list, control[["center_tol"]], control[["iter_max"]], control[["iter_interrupt"]], control[["iter_ssr"]], control[["accel_start"]], control[["use_cg"]])
+  mpsi <- center_variables_(psi, w, k_list, 
+                           control[["center_tol"]], 
+                           control[["iter_max"]], 
+                           control[["iter_interrupt"]], 
+                           control[["iter_ssr"]], 
+                           control[["accel_start"]], 
+                           control[["project_tol_factor"]], 
+                           control[["grand_accel_tol"]], 
+                           control[["project_group_tol"]], 
+                           control[["irons_tuck_tol"]], 
+                           control[["grand_accel_interval"]], 
+                           control[["irons_tuck_interval"]], 
+                           control[["ssr_check_interval"]], 
+                           control[["convergence_factor"]], 
+                           control[["tol_multiplier"]])
   ppsi <- psi - mpsi
   rm(delta1, psi)
 
