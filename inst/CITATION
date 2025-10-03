@@ -1,0 +1,10 @@
+bibentry(
+  "Article",
+  title = "Capybara: Efficient estimation of generalized linear models with high-dimensional fixed effects",
+  author = "Mauricio Vargas Sepulveda",
+  year = 2025,
+  journal = "PLOS One",
+  volume = 20,
+  pages = "e0331178",
+  doi = "10.1371/journal.pone.0331178"
+)

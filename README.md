@@ -16,10 +16,17 @@ status](https://www.r-pkg.org/badges/version/capybara)](https://CRAN.R-project.o
 
 ## About
 
-tldr; If you have a 2-4GB dataset and you need to estimate a
-(generalized) linear model with a large number of fixed effects, this
-package is for you. It works with larger datasets as well and facilites
-computing clustered standard errors.
+Please read my article for the full details of this project (Open
+Access):
+
+> Vargas Sepulveda, Mauricio. 2025. ‘Capybara: Efficient Estimation of
+> Generalized Linear Models with High-Dimensional Fixed Effects’. *PLOS
+> ONE* 20 (9): e0331178. <https://doi.org/10.1371/journal.pone.0331178>.
+
+If you have a 2-4GB dataset and you need to estimate a (generalized)
+linear model with a large number of fixed effects, this package is for
+you. It works with larger datasets as well and facilites computing
+clustered standard errors.
 
 ‘capybara’ is a fast and small footprint software that provides
 efficient functions for demeaning variables before conducting a GLM

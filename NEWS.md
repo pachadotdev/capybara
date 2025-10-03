@@ -1,3 +1,7 @@
+# capybara 1.8.1
+
+* Link to published article and citation info.
+
 # capybara 1.8.0
 
 * Drops congujate gradient acceleration and uses Irons-Tuck acceleration instead. It is slightly 
