@@ -5,7 +5,7 @@
 #endif
 #endif
 
-#include <cpp11armadillo.hpp>
+#include <armadillo4r.hpp>
 
 using arma::field;
 using arma::mat;
@@ -13,11 +13,11 @@ using arma::uvec;
 using arma::uword;
 using arma::vec;
 
-using cpp11::doubles;
-using cpp11::doubles_matrix;
-using cpp11::integers;
-using cpp11::list;
-using cpp11::strings;
+using cpp4r::doubles;
+using cpp4r::doubles_matrix;
+using cpp4r::integers;
+using cpp4r::list;
+using cpp4r::strings;
 
 // Passing parameters from R to C++ functions
 // see R/fit_control.R
@@ -66,7 +66,7 @@ struct CapybaraParameters {
         grand_accel_interval(5), irons_tuck_interval(3), ssr_check_interval(40),
         convergence_factor(1.1), tol_multiplier(20.0) {}
 
-  explicit CapybaraParameters(const cpp11::list &control) {
+  explicit CapybaraParameters(const cpp4r::list &control) {
     dev_tol = as_cpp<double>(control["dev_tol"]);
     center_tol = as_cpp<double>(control["center_tol"]);
     collin_tol = as_cpp<double>(control["collin_tol"]);
@@ -152,7 +152,7 @@ inline field<field<uvec>> R_list_to_Armadillo_field(const list &FEs) {
 
 // this function is not visible by the end-user, so we use multiple parameters
 // instead of a CapybaraParameters object
-[[cpp11::register]] doubles_matrix<> center_variables_(
+[[cpp4r::register]] doubles_matrix<> center_variables_(
     const doubles_matrix<> &V_r, const doubles &w_r, const list &klist,
     const double &tol, const size_t &max_iter, const size_t &iter_interrupt,
     const size_t &iter_ssr, const size_t &accel_start,
@@ -175,7 +175,7 @@ inline field<field<uvec>> R_list_to_Armadillo_field(const list &FEs) {
   return as_doubles_matrix(V);
 }
 
-[[cpp11::register]] list felm_fit_(const doubles_matrix<> &X_r,
+[[cpp4r::register]] list felm_fit_(const doubles_matrix<> &X_r,
                                    const doubles &y_r, const doubles &w_r,
                                    const list &FEs, const list &control) {
   CapybaraParameters params(control);
@@ -192,7 +192,7 @@ inline field<field<uvec>> R_list_to_Armadillo_field(const list &FEs) {
   field<field<std::string>> fe_levels(FEs.size());
 
   if (!FEs.names().empty()) {
-    cpp11::strings fe_names_r = FEs.names();
+    cpp4r::strings fe_names_r = FEs.names();
     for (size_t i = 0; i < static_cast<size_t>(fe_names_r.size()); i++) {
       fe_names(i) = std::string(fe_names_r[i]);
     }
@@ -203,7 +203,7 @@ inline field<field<uvec>> R_list_to_Armadillo_field(const list &FEs) {
     fe_levels(k).set_size(group_list.size());
 
     if (!group_list.names().empty()) {
-      cpp11::strings level_names = group_list.names();
+      cpp4r::strings level_names = group_list.names();
       for (size_t j = 0; j < static_cast<size_t>(level_names.size()); j++) {
         fe_levels(k)(j) = std::string(level_names[j]);
       }
@@ -273,7 +273,7 @@ inline field<field<uvec>> R_list_to_Armadillo_field(const list &FEs) {
   return ret;
 }
 
-[[cpp11::register]] list feglm_fit_(const doubles &beta_r, const doubles &eta_r,
+[[cpp4r::register]] list feglm_fit_(const doubles &beta_r, const doubles &eta_r,
                                     const doubles &y_r,
                                     const doubles_matrix<> &x_r,
                                     const doubles &wt_r, const double &theta,
@@ -299,7 +299,7 @@ inline field<field<uvec>> R_list_to_Armadillo_field(const list &FEs) {
   field<field<std::string>> fe_levels(k_list.size());
 
   if (!k_list.names().empty()) {
-    cpp11::strings fe_names_r = k_list.names();
+    cpp4r::strings fe_names_r = k_list.names();
     for (size_t i = 0; i < static_cast<size_t>(fe_names_r.size()); i++) {
       fe_names(i) = std::string(fe_names_r[i]);
     }
@@ -310,7 +310,7 @@ inline field<field<uvec>> R_list_to_Armadillo_field(const list &FEs) {
     fe_levels(k).set_size(group_list.size());
 
     if (!group_list.names().empty()) {
-      cpp11::strings level_names = group_list.names();
+      cpp4r::strings level_names = group_list.names();
       for (size_t j = 0; j < static_cast<size_t>(level_names.size()); j++) {
         fe_levels(k)(j) = std::string(level_names[j]);
       }
@@ -375,7 +375,7 @@ inline field<field<uvec>> R_list_to_Armadillo_field(const list &FEs) {
   return out;
 }
 
-[[cpp11::register]] doubles
+[[cpp4r::register]] doubles
 feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
                   const doubles &offset_r, const doubles &wt_r,
                   const std::string &family, const list &control,
@@ -398,7 +398,7 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
   return as_doubles(result);
 }
 
-[[cpp11::register]] list
+[[cpp4r::register]] list
 fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
               const doubles &w_r, const list &FEs, const std::string &link,
               const doubles &beta_r, const doubles &eta_r,
@@ -451,7 +451,7 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
   return out;
 }
 
-[[cpp11::register]] doubles_matrix<> group_sums_(const doubles_matrix<> &M_r,
+[[cpp4r::register]] doubles_matrix<> group_sums_(const doubles_matrix<> &M_r,
                                                  const doubles_matrix<> &w_r,
                                                  const list &jlist) {
   const mat M = as_mat(M_r);
@@ -470,7 +470,7 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
   return as_doubles_matrix(result);
 }
 
-[[cpp11::register]] doubles_matrix<>
+[[cpp4r::register]] doubles_matrix<>
 group_sums_spectral_(const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
                      const doubles_matrix<> &w_r, const int K,
                      const list &jlist) {
@@ -491,7 +491,7 @@ group_sums_spectral_(const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
   return as_doubles_matrix(result);
 }
 
-[[cpp11::register]] doubles_matrix<>
+[[cpp4r::register]] doubles_matrix<>
 group_sums_var_(const doubles_matrix<> &M_r, const list &jlist) {
   const mat M = as_mat(M_r);
 
@@ -508,7 +508,7 @@ group_sums_var_(const doubles_matrix<> &M_r, const list &jlist) {
   return as_doubles_matrix(result);
 }
 
-[[cpp11::register]] doubles_matrix<>
+[[cpp4r::register]] doubles_matrix<>
 group_sums_cov_(const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
                 const list &jlist) {
   const mat M = as_mat(M_r);

@@ -45,7 +45,7 @@ enum Family {
 };
 
 inline double predict_convergence(const vec &eps_history, double current_eps) {
-  if (eps_history.n_elem < 3 || !is_finite(eps_history)) {
+  if (eps_history.n_elem < 3 || !eps_history.is_finite()) {
     return current_eps;
   }
 
@@ -232,9 +232,9 @@ bool valid_eta(const vec &eta, const Family family_type) {
   case NEG_BIN:
     return true;
   case GAMMA:
-    return is_finite(eta) && all(eta != 0.0);
+    return eta.is_finite() && all(eta != 0.0);
   case INV_GAUSSIAN:
-    return is_finite(eta) && all(eta > 0.0);
+    return eta.is_finite() && all(eta > 0.0);
   default:
     stop("Unknown family");
   }
@@ -246,11 +246,11 @@ bool valid_mu(const vec &mu, const Family family_type) {
     return true;
   case POISSON:
   case NEG_BIN:
-    return is_finite(mu) && all(mu > 0);
+    return mu.is_finite() && all(mu > 0);
   case BINOMIAL:
-    return is_finite(mu) && all(mu > 0 && mu < 1);
+    return mu.is_finite() && all(mu > 0 && mu < 1);
   case GAMMA:
-    return is_finite(mu) && all(mu > 0.0);
+    return mu.is_finite() && all(mu > 0.0);
   case INV_GAUSSIAN:
     return true;
   default:

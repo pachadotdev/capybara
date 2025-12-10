@@ -126,7 +126,7 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
 
     double theta_new = estimate_theta(y, mu);
 
-    if (!is_finite(theta_new) || theta_new <= 0) {
+    if (!std::isfinite(theta_new) || theta_new <= 0) {
       theta_new = theta;
     }
 

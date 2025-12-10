@@ -97,7 +97,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 
   InferenceGLM result(n, p);
 
-  if (!is_finite(y) || !is_finite(X)) {
+  if (!y.is_finite() || !X.is_finite()) {
     result.conv = false;
     return result;
   }
@@ -288,7 +288,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       dev = dev_resids(y, mu, theta, w, family_type);
       dev_ratio_inner = (dev - dev0) / (0.1 + fabs(dev));
 
-      dev_crit = is_finite(dev);
+      dev_crit = std::isfinite(dev);
       val_crit = valid_eta(eta, family_type) && valid_mu(mu, family_type);
       imp_crit = (dev_ratio_inner <= -params.dev_tol);
 
@@ -472,7 +472,7 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
       dev = dev_resids(y, mu, 0.0, w, family_type);
       dev_ratio_inner = (dev - dev0) / (0.1 + fabs(dev0));
 
-      dev_crit = is_finite(dev);
+      dev_crit = std::isfinite(dev);
       val_crit = (valid_eta(eta, family_type) && valid_mu(mu, family_type));
       imp_crit = (dev_ratio_inner <= -params.dev_tol);
 
