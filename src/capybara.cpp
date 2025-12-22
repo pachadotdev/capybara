@@ -104,6 +104,7 @@ struct CapybaraParameters {
 #include "06_glm.h"
 #include "07_negbin.h"
 #include "08_sums.h"
+#include "09_separation.h"
 
 using LMResult = capybara::InferenceLM;
 using GLMResult = capybara::InferenceGLM;
@@ -524,4 +525,49 @@ group_sums_cov_(const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
   mat result = capybara::group_sums_cov(M, N, group_indices);
 
   return as_doubles_matrix(result);
+}
+
+// Separation detection for Poisson models
+// Based on Correia, Guimarães, Zylkin (2019)
+[[cpp4r::register]] list
+check_separation_(const doubles &y_r, const doubles_matrix<> &X_r,
+                  const doubles &w_r, const double &tol,
+                  const double &zero_tol, const size_t &max_iter,
+                  const size_t &simplex_max_iter, const bool &use_relu,
+                  const bool &use_simplex, const bool &verbose) {
+  vec y = as_col(y_r);
+  mat X = as_mat(X_r);
+  vec w = as_col(w_r);
+
+  capybara::SeparationParameters params;
+  params.tol = tol;
+  params.zero_tol = zero_tol;
+  params.max_iter = max_iter;
+  params.simplex_max_iter = simplex_max_iter;
+  params.use_relu = use_relu;
+  params.use_simplex = use_simplex;
+  params.verbose = verbose;
+
+  capybara::SeparationResult result =
+      capybara::check_separation(y, X, w, params);
+
+  // Convert 0-based indices to 1-based for R
+  vec separated_obs_r(result.separated_obs.n_elem);
+  for (size_t i = 0; i < result.separated_obs.n_elem; ++i) {
+    separated_obs_r(i) = static_cast<double>(result.separated_obs(i) + 1);
+  }
+
+  auto out = writable::list({
+      "separated_obs"_nm = as_doubles(separated_obs_r),
+      "num_separated"_nm =
+          writable::integers({static_cast<int>(result.num_separated)}),
+      "converged"_nm = writable::logicals({result.converged}),
+      "iterations"_nm =
+          writable::integers({static_cast<int>(result.iterations)})});
+
+  if (result.certificate.n_elem > 0) {
+    out.push_back({"certificate"_nm = as_doubles(result.certificate)});
+  }
+
+  return out;
 }

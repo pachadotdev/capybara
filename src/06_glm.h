@@ -12,6 +12,18 @@ struct GlmWorkspace {
   vec beta_work;
   vec z_solve;
 
+  // Reusable iteration buffers to avoid reallocations
+  vec mu;
+  vec mu_eta;
+  vec w_working;
+  vec nu;
+  vec MNU;
+  vec MNU_increment;
+  vec eta_upd;
+  vec eta0;
+  vec beta0;
+  vec nu0;
+
   vec y;
   vec alpha0;
   vec group_sums;
@@ -31,6 +43,18 @@ struct GlmWorkspace {
     L.set_size(safe_p, safe_p);
     beta_work.set_size(safe_p);
     z_solve.set_size(safe_p);
+
+    mu.set_size(safe_n);
+    mu_eta.set_size(safe_n);
+    w_working.set_size(safe_n);
+    nu.set_size(safe_n);
+    MNU.set_size(safe_n);
+    MNU_increment.set_size(safe_n);
+    eta_upd.set_size(safe_n);
+    eta0.set_size(safe_n);
+
+    beta0.set_size(safe_p);
+    nu0.set_size(safe_n);
 
     y.set_size(safe_n);
     alpha0.set_size(safe_n);
@@ -52,6 +76,28 @@ struct GlmWorkspace {
         beta_work.set_size(new_p);
       if (z_solve.n_elem < new_p)
         z_solve.set_size(new_p);
+
+      if (mu.n_elem < new_n)
+        mu.set_size(new_n);
+      if (mu_eta.n_elem < new_n)
+        mu_eta.set_size(new_n);
+      if (w_working.n_elem < new_n)
+        w_working.set_size(new_n);
+      if (nu.n_elem < new_n)
+        nu.set_size(new_n);
+      if (MNU.n_elem < new_n)
+        MNU.set_size(new_n);
+      if (MNU_increment.n_elem < new_n)
+        MNU_increment.set_size(new_n);
+      if (eta_upd.n_elem < new_n)
+        eta_upd.set_size(new_n);
+      if (eta0.n_elem < new_n)
+        eta0.set_size(new_n);
+
+      if (beta0.n_elem < new_p)
+        beta0.set_size(new_p);
+      if (nu0.n_elem < new_n)
+        nu0.set_size(new_n);
 
       if (y.n_elem < new_n)
         y.set_size(new_n);
@@ -77,6 +123,16 @@ struct GlmWorkspace {
     y.reset();
     alpha0.reset();
     group_sums.reset();
+    mu.reset();
+    mu_eta.reset();
+    w_working.reset();
+    nu.reset();
+    MNU.reset();
+    MNU_increment.reset();
+    eta_upd.reset();
+    eta0.reset();
+    beta0.reset();
+    nu0.reset();
     cached_n = 0;
     cached_p = 0;
     is_initialized = false;
@@ -93,7 +149,10 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   const uword k = beta.n_elem;
   const bool has_fixed_effects = fe_groups.n_elem > 0;
 
-  mat X0 = X;
+  mat X0;
+  if (has_fixed_effects) {
+    X0 = X; // Keep original design only when fixed effects are present
+  }
 
   InferenceGLM result(n, p);
 
@@ -108,13 +167,22 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   }
   workspace->ensure_size(n, p);
 
+  CenteringWorkspace centering_workspace;
+
   vec MNU = vec(n, fill::zeros);
-  vec mu = link_inv(eta, family_type);
+  vec &mu = workspace->mu;
+  vec &mu_eta = workspace->mu_eta;
+  vec &w_working = workspace->w_working;
+  vec &nu = workspace->nu;
+  vec &MNU_increment = workspace->MNU_increment;
+  vec &eta_upd = workspace->eta_upd;
+  vec &eta0 = workspace->eta0;
+  vec &beta0 = workspace->beta0;
+  vec &nu0 = workspace->nu0;
+
+  mu = link_inv(eta, family_type);
   vec ymean = mean(y) * vec(n, fill::ones);
-  vec mu_eta(n, fill::none), w_working(n, fill::none);
-  vec nu(n, fill::none), beta_upd(k, fill::none);
-  vec eta_upd(n, fill::none), eta0(n, fill::none);
-  vec beta0(k, fill::none), nu0 = vec(n, fill::zeros);
+  vec beta_upd(k, fill::none);
   mat H(p, p, fill::none);
 
   double dev = dev_resids(y, mu, theta, w, family_type);
@@ -145,7 +213,6 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     }
   }
 
-  vec MNU_increment = vec(n, fill::zeros);
   bool use_partial = false; // Partial out variables
 
   // Step halving with memory variables
@@ -156,6 +223,9 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   // Convergence history prediction
   vec eps_history(3, fill::value(datum::inf));
   double predicted_eps = datum::inf;
+
+  MNU_increment.zeros();
+  nu0.zeros();
 
   // Adaptive tolerance scheduling
   uword convergence_count = 0;
@@ -171,6 +241,13 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     mu_eta = inverse_link_derivative(eta, family_type);
     w_working = (w % square(mu_eta)) / variance(mu, theta, family_type);
     nu = (y - mu) / mu_eta;
+
+    const field<field<GroupInfo>> *group_info_ptr = nullptr;
+    field<field<GroupInfo>> group_info;
+    if (has_fixed_effects) {
+      group_info = precompute_group_info(fe_groups, w_working);
+      group_info_ptr = &group_info;
+    }
 
     bool iter_solver = has_fixed_effects &&
                        (hdfe_tolerance > params.dev_tol * 11) &&
@@ -205,7 +282,8 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
                          params.project_group_tol, params.irons_tuck_tol,
                          params.grand_accel_interval,
                          params.irons_tuck_interval, params.ssr_check_interval,
-                         params.convergence_factor, params.tol_multiplier);
+                         params.convergence_factor, params.tol_multiplier,
+                         group_info_ptr, &centering_workspace);
         center_variables(X, w_working, fe_groups, current_hdfe_tol,
                          params.iter_center_max, params.iter_interrupt,
                          params.iter_ssr, params.accel_start,
@@ -213,7 +291,8 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
                          params.project_group_tol, params.irons_tuck_tol,
                          params.grand_accel_interval,
                          params.irons_tuck_interval, params.ssr_check_interval,
-                         params.convergence_factor, params.tol_multiplier);
+                         params.convergence_factor, params.tol_multiplier,
+                         group_info_ptr, &centering_workspace);
       }
       nu0 = nu;
     } else {
@@ -228,7 +307,8 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
                          params.project_group_tol, params.irons_tuck_tol,
                          params.grand_accel_interval,
                          params.irons_tuck_interval, params.ssr_check_interval,
-                         params.convergence_factor, params.tol_multiplier);
+                         params.convergence_factor, params.tol_multiplier,
+                         group_info_ptr, &centering_workspace);
         center_variables(X, w_working, fe_groups, current_hdfe_tol,
                          params.iter_center_max, params.iter_interrupt,
                          params.iter_ssr, params.accel_start,
@@ -236,7 +316,8 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
                          params.project_group_tol, params.irons_tuck_tol,
                          params.grand_accel_interval,
                          params.irons_tuck_interval, params.ssr_check_interval,
-                         params.convergence_factor, params.tol_multiplier);
+                         params.convergence_factor, params.tol_multiplier,
+                         group_info_ptr, &centering_workspace);
       }
     }
 
@@ -433,6 +514,8 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
   vec mu_eta(n, fill::none), yadj(n, fill::none);
   vec w_working(n, fill::none), eta_upd(n, fill::none), eta0(n, fill::none);
 
+  CenteringWorkspace centering_workspace;
+
   double dev = dev_resids(y, mu, 0.0, w, family_type);
   double dev0, dev_ratio, dev_ratio_inner, rho;
   bool dev_crit, val_crit, imp_crit;
@@ -452,6 +535,13 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
     w_working = (w % square(mu_eta)) / variance(mu, 0.0, family_type);
     yadj = (y - mu) / mu_eta + eta - offset;
 
+    const field<field<GroupInfo>> *group_info_ptr = nullptr;
+    field<field<GroupInfo>> group_info;
+    if (fe_groups.n_elem > 0) {
+      group_info = precompute_group_info(fe_groups, w_working);
+      group_info_ptr = &group_info;
+    }
+
     Myadj += yadj;
 
     center_variables(Myadj, w_working, fe_groups, adaptive_tol,
@@ -461,7 +551,8 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
                      params.project_group_tol, params.irons_tuck_tol,
                      params.grand_accel_interval, params.irons_tuck_interval,
                      params.ssr_check_interval, params.convergence_factor,
-                     params.tol_multiplier);
+                     params.tol_multiplier, group_info_ptr,
+                     &centering_workspace);
 
     eta_upd = yadj - Myadj + offset - eta;
 

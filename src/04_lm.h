@@ -222,6 +222,10 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
   result.has_fe = has_fixed_effects;
 
   if (has_fixed_effects) {
+    CenteringWorkspace centering_workspace;
+    field<field<GroupInfo>> group_info = precompute_group_info(fe_groups, w);
+    const field<field<GroupInfo>> *group_info_ptr = &group_info;
+
     ws->y_demeaned = y;
 
     center_variables(ws->y_demeaned, w, fe_groups, params.center_tol,
@@ -231,7 +235,8 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
                      params.project_group_tol, params.irons_tuck_tol,
                      params.grand_accel_interval, params.irons_tuck_interval,
                      params.ssr_check_interval, params.convergence_factor,
-                     params.tol_multiplier);
+                     params.tol_multiplier, group_info_ptr,
+                     &centering_workspace);
 
     if (X.n_cols > 0) {
       center_variables(X, w, fe_groups, params.center_tol,
@@ -241,7 +246,8 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
                        params.project_group_tol, params.irons_tuck_tol,
                        params.grand_accel_interval, params.irons_tuck_interval,
                        params.ssr_check_interval, params.convergence_factor,
-                       params.tol_multiplier);
+                       params.tol_multiplier, group_info_ptr,
+                       &centering_workspace);
     }
   } else {
     ws->y_demeaned = y;

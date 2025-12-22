@@ -42,58 +42,19 @@ struct CollinearityResult {
 };
 
 inline mat crossprod(const mat &X, const vec &w = vec()) {
-  const uword n = X.n_rows;
-  const uword p = X.n_cols;
-  mat result(p, p, fill::zeros);
-
-  const uword block_size = get_block_size(n, p);
-
-  if (w.is_empty() || w.n_elem == 1) {
-    for (uword block_start = 0; block_start < n; block_start += block_size) {
-      const uword block_end = std::min(block_start + block_size, n);
-
-      for (uword i = 0; i < p; ++i) {
-        const double *Xi_ptr = X.colptr(i) + block_start;
-        for (uword j = i; j < p; ++j) {
-          const double *Xj_ptr = X.colptr(j) + block_start;
-
-          double sum = 0.0;
-          for (uword k = 0; k < (block_end - block_start); ++k) {
-            sum += Xi_ptr[k] * Xj_ptr[k];
-          }
-
-          result(i, j) += sum;
-          if (i != j) {
-            result(j, i) += sum;
-          }
-        }
-      }
-    }
-  } else {
-    const double *w_ptr = w.memptr();
-
-    for (uword block_start = 0; block_start < n; block_start += block_size) {
-      const uword block_end = std::min(block_start + block_size, n);
-
-      for (uword i = 0; i < p; ++i) {
-        const double *Xi_ptr = X.colptr(i) + block_start;
-        for (uword j = i; j < p; ++j) {
-          const double *Xj_ptr = X.colptr(j) + block_start;
-
-          double sum = 0.0;
-          for (uword k = 0; k < (block_end - block_start); ++k) {
-            sum += Xi_ptr[k] * Xj_ptr[k] * w_ptr[block_start + k];
-          }
-
-          result(i, j) += sum;
-          if (i != j) {
-            result(j, i) += sum;
-          }
-        }
-      }
-    }
+  if (X.is_empty()) {
+    return mat();
   }
-  return result;
+
+  // Unweighted case: fall back to BLAS-backed X.t() * X
+  if (w.is_empty() || w.n_elem == 1) {
+    return arma::symmatu(X.t() * X);
+  }
+
+  // Weighted case: apply sqrt(w) once and reuse Armadillo's GEMM
+  vec sqrt_w = sqrt(w);
+  mat X_weighted = X.each_col() % sqrt_w;
+  return arma::symmatu(X_weighted.t() * X_weighted);
 }
 
 inline bool rank_revealing_cholesky(uvec &excluded, const mat &XtX,

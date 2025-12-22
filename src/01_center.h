@@ -3,6 +3,10 @@
 #ifndef CAPYBARA_CENTER_H
 #define CAPYBARA_CENTER_H
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 namespace capybara {
 
 // Store group information
@@ -11,6 +15,47 @@ struct GroupInfo {
   double inv_weight;
   uword n_elem;
   bool is_singleton;
+};
+
+// Workspace for centering to avoid repeated allocations
+struct CenteringWorkspace {
+  vec x, x0, Gx, GGx;
+  vec Y, GY, GGY;
+  vec delta_GX, delta2_X;
+  uword cached_n;
+  bool is_initialized;
+
+  CenteringWorkspace() : cached_n(0), is_initialized(false) {}
+
+  void ensure_size(uword n) {
+    if (!is_initialized || n > cached_n) {
+      x.set_size(n);
+      x0.set_size(n);
+      Gx.set_size(n);
+      GGx.set_size(n);
+      Y.set_size(n);
+      GY.set_size(n);
+      GGY.set_size(n);
+      delta_GX.set_size(n);
+      delta2_X.set_size(n);
+      cached_n = n;
+      is_initialized = true;
+    }
+  }
+
+  void clear() {
+    x.reset();
+    x0.reset();
+    Gx.reset();
+    GGx.reset();
+    Y.reset();
+    GY.reset();
+    GGY.reset();
+    delta_GX.reset();
+    delta2_X.reset();
+    cached_n = 0;
+    is_initialized = false;
+  }
 };
 
 // Cache-friendly block size calculation
@@ -92,7 +137,33 @@ inline bool grand_acceleration(double *x, double *Y, double *GY, double *GGY,
     double *delta_GX_ptr = delta_GX.memptr();
     double *delta2_X_ptr = delta2_X.memptr();
 
-    for (uword i = 0; i < n; ++i) {
+    // Unrolled loop for better vectorization
+    uword i = 0;
+    for (; i + 4 <= n; i += 4) {
+      double dG0 = GGY[i] - GY[i];
+      double dG1 = GGY[i + 1] - GY[i + 1];
+      double dG2 = GGY[i + 2] - GY[i + 2];
+      double dG3 = GGY[i + 3] - GY[i + 3];
+
+      double d2_0 = dG0 - GY[i] + Y[i];
+      double d2_1 = dG1 - GY[i + 1] + Y[i + 1];
+      double d2_2 = dG2 - GY[i + 2] + Y[i + 2];
+      double d2_3 = dG3 - GY[i + 3] + Y[i + 3];
+
+      delta_GX_ptr[i] = dG0;
+      delta_GX_ptr[i + 1] = dG1;
+      delta_GX_ptr[i + 2] = dG2;
+      delta_GX_ptr[i + 3] = dG3;
+
+      delta2_X_ptr[i] = d2_0;
+      delta2_X_ptr[i + 1] = d2_1;
+      delta2_X_ptr[i + 2] = d2_2;
+      delta2_X_ptr[i + 3] = d2_3;
+
+      vprod += dG0 * d2_0 + dG1 * d2_1 + dG2 * d2_2 + dG3 * d2_3;
+      ssq += d2_0 * d2_0 + d2_1 * d2_1 + d2_2 * d2_2 + d2_3 * d2_3;
+    }
+    for (; i < n; ++i) {
       double delta_G = GGY[i] - GY[i];
       double delta2 = delta_G - GY[i] + Y[i];
       delta_GX_ptr[i] = delta_G;
@@ -106,7 +177,14 @@ inline bool grand_acceleration(double *x, double *Y, double *GY, double *GGY,
     } else {
       double coef = vprod / ssq;
       if (coef > 0.0 && coef < 2.0) {
-        for (uword i = 0; i < n; ++i) {
+        i = 0;
+        for (; i + 4 <= n; i += 4) {
+          x[i] = GGY[i] - coef * delta_GX_ptr[i];
+          x[i + 1] = GGY[i + 1] - coef * delta_GX_ptr[i + 1];
+          x[i + 2] = GGY[i + 2] - coef * delta_GX_ptr[i + 2];
+          x[i + 3] = GGY[i + 3] - coef * delta_GX_ptr[i + 3];
+        }
+        for (; i < n; ++i) {
           x[i] = GGY[i] - coef * delta_GX_ptr[i];
         }
       } else {
@@ -125,7 +203,16 @@ inline bool grand_acceleration(double *x, double *Y, double *GY, double *GGY,
 inline bool adaptive_ssr_check(double *x, const double *w, uword n,
                                double &ssr_old, double inv_sw, double tol) {
   double ssr = 0.0;
-  for (uword i = 0; i < n; ++i) {
+
+  // Unrolled loop for better vectorization
+  uword i = 0;
+  for (; i + 4 <= n; i += 4) {
+    ssr += w[i] * x[i] * x[i];
+    ssr += w[i + 1] * x[i + 1] * x[i + 1];
+    ssr += w[i + 2] * x[i + 2] * x[i + 2];
+    ssr += w[i + 3] * x[i + 3] * x[i + 3];
+  }
+  for (; i < n; ++i) {
     ssr += w[i] * x[i] * x[i];
   }
   ssr *= inv_sw;
@@ -142,16 +229,19 @@ inline void project_group(double *v, const double *w, const GroupInfo &info,
 
   double weighted_sum = 0.0;
   const uword *coord_ptr = info.coords->memptr();
+  const uword n = info.n_elem;
 
-  // Unroll loop for small groups for better cache performance
-  if (info.n_elem <= 4) {
-    for (uword i = 0; i < info.n_elem; ++i) {
-      weighted_sum += w[coord_ptr[i]] * v[coord_ptr[i]];
-    }
-  } else {
-    for (uword i = 0; i < info.n_elem; ++i) {
-      weighted_sum += w[coord_ptr[i]] * v[coord_ptr[i]];
-    }
+  // Unrolled loop for better vectorization (4x unroll)
+  uword i = 0;
+  for (; i + 4 <= n; i += 4) {
+    weighted_sum += w[coord_ptr[i]] * v[coord_ptr[i]];
+    weighted_sum += w[coord_ptr[i + 1]] * v[coord_ptr[i + 1]];
+    weighted_sum += w[coord_ptr[i + 2]] * v[coord_ptr[i + 2]];
+    weighted_sum += w[coord_ptr[i + 3]] * v[coord_ptr[i + 3]];
+  }
+  // Handle remainder
+  for (; i < n; ++i) {
+    weighted_sum += w[coord_ptr[i]] * v[coord_ptr[i]];
   }
 
   double mean = weighted_sum * info.inv_weight;
@@ -159,7 +249,15 @@ inline void project_group(double *v, const double *w, const GroupInfo &info,
   // Check if change is significant for early convergence detection
   if (std::abs(mean) > tol) {
     any_change = true;
-    for (uword i = 0; i < info.n_elem; ++i) {
+    // Unrolled subtraction for better vectorization
+    i = 0;
+    for (; i + 4 <= n; i += 4) {
+      v[coord_ptr[i]] -= mean;
+      v[coord_ptr[i + 1]] -= mean;
+      v[coord_ptr[i + 2]] -= mean;
+      v[coord_ptr[i + 3]] -= mean;
+    }
+    for (; i < n; ++i) {
       v[coord_ptr[i]] -= mean;
     }
   }
@@ -170,7 +268,25 @@ inline bool irons_tuck_acceleration(double *x, const double *Gx,
                                     double tol) {
   double vprod = 0.0, ssq = 0.0;
 
-  for (uword i = 0; i < n; ++i) {
+  // Unrolled loop for better vectorization
+  uword i = 0;
+  for (; i + 4 <= n; i += 4) {
+    double delta_G0 = GGx[i] - Gx[i];
+    double delta_G1 = GGx[i + 1] - Gx[i + 1];
+    double delta_G2 = GGx[i + 2] - Gx[i + 2];
+    double delta_G3 = GGx[i + 3] - Gx[i + 3];
+
+    double delta2_0 = delta_G0 - Gx[i] + x[i];
+    double delta2_1 = delta_G1 - Gx[i + 1] + x[i + 1];
+    double delta2_2 = delta_G2 - Gx[i + 2] + x[i + 2];
+    double delta2_3 = delta_G3 - Gx[i + 3] + x[i + 3];
+
+    vprod += delta_G0 * delta2_0 + delta_G1 * delta2_1 + delta_G2 * delta2_2 +
+             delta_G3 * delta2_3;
+    ssq += delta2_0 * delta2_0 + delta2_1 * delta2_1 + delta2_2 * delta2_2 +
+           delta2_3 * delta2_3;
+  }
+  for (; i < n; ++i) {
     double delta_G = GGx[i] - Gx[i];
     double delta2 = delta_G - Gx[i] + x[i];
     vprod += delta_G * delta2;
@@ -185,7 +301,14 @@ inline bool irons_tuck_acceleration(double *x, const double *Gx,
 
   // Apply acceleration if coefficient is reasonable
   if (coef > 0.0 && coef < 2.0) {
-    for (uword i = 0; i < n; ++i) {
+    i = 0;
+    for (; i + 4 <= n; i += 4) {
+      x[i] = GGx[i] - coef * (GGx[i] - Gx[i]);
+      x[i + 1] = GGx[i + 1] - coef * (GGx[i + 1] - Gx[i + 1]);
+      x[i + 2] = GGx[i + 2] - coef * (GGx[i + 2] - Gx[i + 2]);
+      x[i + 3] = GGx[i + 3] - coef * (GGx[i + 3] - Gx[i + 3]);
+    }
+    for (; i < n; ++i) {
       x[i] = GGx[i] - coef * (GGx[i] - Gx[i]);
     }
   } else {
@@ -228,16 +351,50 @@ project_kfe(double *x, const double *w,
 
   // Forward pass
   for (uword k = 0; k < K; ++k) {
-    for (uword l = 0; l < all_group_info(k).n_elem; ++l) {
-      project_group(x, w, all_group_info(k)(l), any_change, tol);
+    const uword n_groups = all_group_info(k).n_elem;
+#ifdef _OPENMP
+    // Parallel processing for large group counts
+    if (n_groups > 100) {
+      bool local_change = false;
+#pragma omp parallel for reduction(|| : local_change) schedule(dynamic, 32)
+      for (uword l = 0; l < n_groups; ++l) {
+        bool group_change = false;
+        project_group(x, w, all_group_info(k)(l), group_change, tol);
+        local_change = local_change || group_change;
+      }
+      any_change = any_change || local_change;
+    } else {
+#endif
+      for (uword l = 0; l < n_groups; ++l) {
+        project_group(x, w, all_group_info(k)(l), any_change, tol);
+      }
+#ifdef _OPENMP
     }
+#endif
   }
 
   // Backward pass (symmetric Kaczmarz)
   for (uword k = K; k-- > 0;) {
-    for (uword l = all_group_info(k).n_elem; l-- > 0;) {
-      project_group(x, w, all_group_info(k)(l), any_change, tol);
+    const uword n_groups = all_group_info(k).n_elem;
+#ifdef _OPENMP
+    if (n_groups > 100) {
+      bool local_change = false;
+#pragma omp parallel for reduction(|| : local_change) schedule(dynamic, 32)
+      for (uword l = 0; l < n_groups; ++l) {
+        uword rev_l = n_groups - 1 - l;
+        bool group_change = false;
+        project_group(x, w, all_group_info(k)(rev_l), group_change, tol);
+        local_change = local_change || group_change;
+      }
+      any_change = any_change || local_change;
+    } else {
+#endif
+      for (uword l = n_groups; l-- > 0;) {
+        project_group(x, w, all_group_info(k)(l), any_change, tol);
+      }
+#ifdef _OPENMP
     }
+#endif
   }
 
   return !any_change; // Converged if no changes
@@ -250,8 +407,10 @@ void center_variables(
     const double &project_tol_factor, const double &grand_accel_tol,
     const double &project_group_tol, const double &irons_tuck_tol,
     const uword &grand_accel_interval, const uword &irons_tuck_interval,
-    const uword &ssr_check_interval, const double &convergence_factor,
-    const double &tol_multiplier) {
+  const uword &ssr_check_interval, const double &convergence_factor,
+  const double &tol_multiplier,
+  const field<field<GroupInfo>> *precomputed_group_info = nullptr,
+  CenteringWorkspace *workspace = nullptr) {
   if (V.is_empty() || w.is_empty() || V.n_rows != w.n_elem)
     return;
 
@@ -263,8 +422,18 @@ void center_variables(
   const double inv_sw = 1.0 / accu(w);
   const double *w_ptr = w.memptr();
 
-  // Precompute group information
-  field<field<GroupInfo>> all_group_info = precompute_group_info(group_indices, w);
+  // Reuse precomputed group metadata when available
+  const field<field<GroupInfo>> *group_info_ptr = precomputed_group_info;
+  field<field<GroupInfo>> local_group_info;
+  if (!group_info_ptr) {
+    local_group_info = precompute_group_info(group_indices, w);
+    group_info_ptr = &local_group_info;
+  }
+  const field<field<GroupInfo>> &all_group_info = *group_info_ptr;
+
+  CenteringWorkspace local_workspace;
+  CenteringWorkspace *ws = workspace ? workspace : &local_workspace;
+  ws->ensure_size(N);
 
   const uword col_block_size = get_block_size(N, P);
 
@@ -274,19 +443,13 @@ void center_variables(
     for (uword col = col_block; col < col_end; ++col) {
       double *col_ptr = V.colptr(col);
 
-      // Working vectors for acceleration
-      vec x(N, fill::none), x0(N, fill::none), Gx(N, fill::none),
-          GGx(N, fill::none);
-      vec Y(N, fill::none), GY(N, fill::none), GGY(N, fill::none);
-      double *x_ptr = x.memptr();
-      double *x0_ptr = x0.memptr();
-      double *Gx_ptr = Gx.memptr();
-      double *GGx_ptr = GGx.memptr();
-      double *Y_ptr = Y.memptr();
-      double *GY_ptr = GY.memptr();
-      double *GGY_ptr = GGY.memptr();
-
-      vec delta_GX(N, fill::none), delta2_X(N, fill::none);
+        double *x_ptr = ws->x.memptr();
+        double *x0_ptr = ws->x0.memptr();
+        double *Gx_ptr = ws->Gx.memptr();
+        double *GGx_ptr = ws->GGx.memptr();
+        double *Y_ptr = ws->Y.memptr();
+        double *GY_ptr = ws->GY.memptr();
+        double *GGY_ptr = ws->GGY.memptr();
 
       double ratio0 = std::numeric_limits<double>::infinity();
       double ssr0 = std::numeric_limits<double>::infinity();
@@ -308,10 +471,9 @@ void center_variables(
         } else if (K == 2) {
           return project_2fe(x_ptr, w_ptr, all_group_info[0], all_group_info[1],
                              tol * project_tol_factor);
-        } else {
-          return project_kfe(x_ptr, w_ptr, all_group_info,
-                             tol * project_tol_factor);
         }
+        return project_kfe(x_ptr, w_ptr, all_group_info,
+                           tol * project_tol_factor);
       };
 
       for (uword iter = 0; iter < max_iter; ++iter) {
@@ -327,8 +489,8 @@ void center_variables(
         }
 
         if (iter >= accel_start && iter % grand_accel_interval == 0) {
-          if (grand_acceleration(x_ptr, Y_ptr, GY_ptr, GGY_ptr, delta_GX,
-                                 delta2_X, N, grand_acc, grand_accel_tol)) {
+          if (grand_acceleration(x_ptr, Y_ptr, GY_ptr, GGY_ptr, ws->delta_GX,
+                                 ws->delta2_X, N, grand_acc, grand_accel_tol)) {
             break; // Converged via grand acceleration
           }
           // Apply projection after acceleration
