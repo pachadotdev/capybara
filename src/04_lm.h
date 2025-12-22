@@ -21,7 +21,7 @@ struct InferenceLM {
   mat TX; // Centered design matrix
   bool has_tx = false;
 
-  InferenceLM(size_t n, size_t p)
+  InferenceLM(uword n, uword p)
       : coefficients(p, fill::zeros), fitted_values(n, fill::zeros),
         residuals(n, fill::zeros), weights(n, fill::ones),
         hessian(p, p, fill::zeros), coef_status(p, fill::ones), success(false),
@@ -44,15 +44,15 @@ struct FelmWorkspace {
   vec alpha0;
   vec group_sums;
 
-  size_t cached_N, cached_P;
+  uword cached_N, cached_P;
   bool is_initialized;
 
   FelmWorkspace() : cached_N(0), cached_P(0), is_initialized(false) {}
 
-  FelmWorkspace(size_t N, size_t P)
+  FelmWorkspace(uword N, uword P)
       : cached_N(N), cached_P(P), is_initialized(true) {
-    size_t safe_N = std::max(N, size_t(1));
-    size_t safe_P = std::max(P, size_t(1));
+    uword safe_N = std::max(N, uword(1));
+    uword safe_P = std::max(P, uword(1));
 
     y_demeaned.set_size(safe_N);
     x_beta.set_size(safe_N);
@@ -70,10 +70,10 @@ struct FelmWorkspace {
     group_sums.set_size(safe_N);
   }
 
-  void ensure_size(size_t N, size_t P) {
+  void ensure_size(uword N, uword P) {
     if (!is_initialized || N > cached_N || P > cached_P) {
-      size_t new_N = std::max(N, cached_N);
-      size_t new_P = std::max(P, cached_P);
+      uword new_N = std::max(N, cached_N);
+      uword new_P = std::max(P, cached_P);
 
       if (y_demeaned.n_elem < new_N)
         y_demeaned.set_size(new_N);
@@ -132,29 +132,29 @@ struct FelmWorkspace {
 inline void accumulate_fixed_effects(vec &fitted_values,
                                      const field<vec> &fixed_effects,
                                      const field<field<uvec>> &fe_groups) {
-  const size_t K = fe_groups.n_elem;
-  const size_t N = fitted_values.n_elem;
+  const uword K = fe_groups.n_elem;
+  const uword N = fitted_values.n_elem;
 
-  const size_t obs_block_size = get_block_size(N, K);
+  const uword obs_block_size = get_block_size(N, K);
 
-  for (size_t k = 0; k < K; ++k) {
-    const size_t J = fe_groups(k).n_elem;
+  for (uword k = 0; k < K; ++k) {
+    const uword J = fe_groups(k).n_elem;
     const vec &fe_k = fixed_effects(k);
 
-    for (size_t j = 0; j < J; ++j) {
+    for (uword j = 0; j < J; ++j) {
       const uvec &group_idx = fe_groups(k)(j);
       const double fe_value = fe_k(j);
 
-      const size_t group_size = group_idx.n_elem;
+      const uword group_size = group_idx.n_elem;
       const uword *idx_ptr = group_idx.memptr();
       double *fitted_ptr = fitted_values.memptr();
 
-      for (size_t block_start = 0; block_start < group_size;
+      for (uword block_start = 0; block_start < group_size;
            block_start += obs_block_size) {
-        const size_t block_end =
+        const uword block_end =
             std::min(block_start + obs_block_size, group_size);
 
-        for (size_t t = block_start; t < block_end; ++t) {
+        for (uword t = block_start; t < block_end; ++t) {
           fitted_ptr[idx_ptr[t]] += fe_value;
         }
       }
@@ -166,7 +166,7 @@ inline void fitted_values(FelmWorkspace *ws, InferenceLM &result,
                           const CollinearityResult &collin_result,
                           const field<field<uvec>> &fe_groups,
                           const CapybaraParameters &params) {
-  const size_t N = ws->y_original.n_elem;
+  const uword N = ws->y_original.n_elem;
 
   if (collin_result.has_collinearity &&
       !collin_result.non_collinear_cols.is_empty()) {
@@ -201,8 +201,8 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
                      const field<field<uvec>> &fe_groups,
                      const CapybaraParameters &params,
                      FelmWorkspace *workspace = nullptr) {
-  const size_t N = y.n_elem;
-  const size_t P = X.n_cols;
+  const uword N = y.n_elem;
+  const uword P = X.n_cols;
 
   InferenceLM result(N, P);
   result.weights = w;

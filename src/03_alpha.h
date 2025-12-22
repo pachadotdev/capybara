@@ -17,40 +17,41 @@ struct InferenceAlpha {
 };
 
 struct AlphaGroupInfo {
-  std::vector<size_t> group_start;
-  std::vector<size_t> group_size;
-  std::vector<size_t> obs_to_group;
-  size_t n_groups;
+  uvec group_start;
+  uvec group_size;
+  uvec obs_to_group;
+  uword n_groups;
 };
 
 inline field<vec> get_alpha(const vec &pi,
                             const field<field<uvec>> &group_indices,
-                            double tol = 1e-8, size_t iter_max = 10000) {
-  const size_t K = group_indices.n_elem;
-  const size_t N = pi.n_elem;
+                            double tol = 1e-8, uword iter_max = 10000) {
+  const uword K = group_indices.n_elem;
+  const uword N = pi.n_elem;
   field<vec> coefficients(K);
 
   if (K == 0 || N == 0) {
     return coefficients;
   }
 
-  std::vector<AlphaGroupInfo> group_info(K);
+  field<AlphaGroupInfo> group_info(K);
 
-  for (size_t k = 0; k < K; ++k) {
-    const size_t J = group_indices(k).n_elem;
+  for (uword k = 0; k < K; ++k) {
+    const uword J = group_indices(k).n_elem;
     coefficients(k).set_size(J);
     coefficients(k).zeros();
 
-    group_info[k].n_groups = J;
-    group_info[k].group_size.resize(J);
-    group_info[k].obs_to_group.resize(N, J);
+    group_info(k).n_groups = J;
+    group_info(k).group_size.set_size(J);
+    group_info(k).obs_to_group.set_size(N);
+    group_info(k).obs_to_group.fill(J);  // Initialize with invalid index
 
-    for (size_t j = 0; j < J; ++j) {
+    for (uword j = 0; j < J; ++j) {
       const uvec &indexes = group_indices(k)(j);
-      group_info[k].group_size[j] = indexes.n_elem;
+      group_info(k).group_size(j) = indexes.n_elem;
 
-      for (size_t t = 0; t < indexes.n_elem; ++t) {
-        group_info[k].obs_to_group[indexes(t)] = j;
+      for (uword t = 0; t < indexes.n_elem; ++t) {
+        group_info(k).obs_to_group(indexes(t)) = j;
       }
     }
   }
@@ -59,16 +60,16 @@ inline field<vec> get_alpha(const vec &pi,
   vec alpha0, group_sums;
 
   double crit = 1.0;
-  size_t iter = 0;
+  uword iter = 0;
 
   const double *pi_ptr = pi.memptr();
 
   while (crit > tol && iter < iter_max) {
     double sum_sq0 = 0.0, sum_sq_diff = 0.0;
 
-    for (size_t k = 0; k < K; ++k) {
-      const AlphaGroupInfo &info = group_info[k];
-      const size_t J = info.n_groups;
+    for (uword k = 0; k < K; ++k) {
+      const AlphaGroupInfo &info = group_info(k);
+      const uword J = info.n_groups;
 
       alpha0.set_size(J);
       group_sums.set_size(J);
@@ -76,7 +77,7 @@ inline field<vec> get_alpha(const vec &pi,
       double *alpha0_ptr = alpha0.memptr();
       const double *coef_k_ptr = coefficients(k).memptr();
 
-      for (size_t j = 0; j < J; ++j) {
+      for (uword j = 0; j < J; ++j) {
         alpha0_ptr[j] = coef_k_ptr[j];
       }
       sum_sq0 += dot(alpha0, alpha0);
@@ -85,20 +86,20 @@ inline field<vec> get_alpha(const vec &pi,
 
       std::memcpy(y_ptr, pi_ptr, N * sizeof(double));
 
-      const size_t obs_block_size = get_block_size(N, K);
+      const uword obs_block_size = get_block_size(N, K);
 
-      for (size_t kk = 0; kk < K; ++kk) {
+      for (uword kk = 0; kk < K; ++kk) {
         if (kk != k) {
-          const AlphaGroupInfo &info_kk = group_info[kk];
+          const AlphaGroupInfo &info_kk = group_info(kk);
           const double *coef_kk_ptr = coefficients(kk).memptr();
-          const std::vector<size_t> &obs_to_group_kk = info_kk.obs_to_group;
+          const uword *obs_to_group_kk = info_kk.obs_to_group.memptr();
 
-          for (size_t block_start = 0; block_start < N;
+          for (uword block_start = 0; block_start < N;
                block_start += obs_block_size) {
-            const size_t block_end = std::min(block_start + obs_block_size, N);
+            const uword block_end = std::min(block_start + obs_block_size, N);
 
-            for (size_t i = block_start; i < block_end; ++i) {
-              size_t group = obs_to_group_kk[i];
+            for (uword i = block_start; i < block_end; ++i) {
+              uword group = obs_to_group_kk[i];
               if (group < info_kk.n_groups) {
                 y_ptr[i] -= coef_kk_ptr[group];
               }
@@ -109,14 +110,14 @@ inline field<vec> get_alpha(const vec &pi,
 
       group_sums.zeros();
       double *group_sums_ptr = group_sums.memptr();
-      const std::vector<size_t> &obs_to_group = info.obs_to_group;
+      const uword *obs_to_group = info.obs_to_group.memptr();
 
-      for (size_t block_start = 0; block_start < N;
+      for (uword block_start = 0; block_start < N;
            block_start += obs_block_size) {
-        const size_t block_end = std::min(block_start + obs_block_size, N);
+        const uword block_end = std::min(block_start + obs_block_size, N);
 
-        for (size_t i = block_start; i < block_end; ++i) {
-          size_t group = obs_to_group[i];
+        for (uword i = block_start; i < block_end; ++i) {
+          uword group = obs_to_group[i];
           if (group < J) {
             group_sums_ptr[group] += y_ptr[i];
           }
@@ -124,9 +125,9 @@ inline field<vec> get_alpha(const vec &pi,
       }
 
       double *coef_k_ptr_new = coefficients(k).memptr();
-      const std::vector<size_t> &group_size = info.group_size;
+      const uword *group_size = info.group_size.memptr();
 
-      for (size_t j = 0; j < J; ++j) {
+      for (uword j = 0; j < J; ++j) {
         if (group_size[j] > 0) {
           coef_k_ptr_new[j] =
               group_sums_ptr[j] / static_cast<double>(group_size[j]);
@@ -136,7 +137,7 @@ inline field<vec> get_alpha(const vec &pi,
       }
 
       double local_sum_sq_diff = 0.0;
-      for (size_t j = 0; j < J; ++j) {
+      for (uword j = 0; j < J; ++j) {
         double diff = coef_k_ptr_new[j] - alpha0_ptr[j];
         local_sum_sq_diff += diff * diff;
       }

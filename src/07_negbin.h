@@ -7,10 +7,10 @@ namespace capybara {
 
 struct InferenceNegBin : public InferenceGLM {
   double theta;
-  size_t iter_outer;
+  uword iter_outer;
   bool conv_outer;
 
-  InferenceNegBin(size_t n, size_t p)
+  InferenceNegBin(uword n, uword p)
       : InferenceGLM(n, p), theta(1.0), iter_outer(0), conv_outer(false) {}
 };
 
@@ -37,8 +37,8 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
                              const CapybaraParameters &params,
                              double init_theta = 0.0,
                              GlmWorkspace *workspace = nullptr) {
-  const size_t n = y.n_elem;
-  const size_t p = X.n_cols;
+  const uword n = y.n_elem;
+  const uword p = X.n_cols;
 
   InferenceNegBin result(n, p);
 
@@ -93,7 +93,7 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
   bool converged = false;
 
   // Alternate between fitting GLM and updating theta
-  for (size_t iter = 0; iter < params.iter_max; ++iter) {
+  for (uword iter = 0; iter < params.iter_max; ++iter) {
     result.iter_outer = iter + 1;
 
     theta0 = theta;

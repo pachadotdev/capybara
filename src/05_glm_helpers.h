@@ -14,7 +14,7 @@ struct InferenceGLM {
   double deviance;
   double null_deviance;
   bool conv;
-  size_t iter;
+  uword iter;
   uvec coef_status; // 1 = estimable, 0 = collinear
 
   field<vec> fixed_effects;
@@ -26,7 +26,7 @@ struct InferenceGLM {
 
   vec means;
 
-  InferenceGLM(size_t n, size_t p)
+  InferenceGLM(uword n, uword p)
       : coefficients(p, fill::zeros), eta(n, fill::zeros),
         fitted_values(n, fill::zeros), weights(n, fill::ones),
         hessian(p, p, fill::zeros), deviance(0.0), null_deviance(0.0),
@@ -83,7 +83,7 @@ std::string tidy_family(const std::string &family) {
 
   fam.erase(std::remove_if(fam.begin(), fam.end(), ::isdigit), fam.end());
 
-  size_t pos = fam.find("(");
+  uword pos = fam.find("(");
   if (pos != std::string::npos) {
     fam.erase(pos, fam.size());
   }

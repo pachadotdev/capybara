@@ -16,15 +16,15 @@ struct GlmWorkspace {
   vec alpha0;
   vec group_sums;
 
-  size_t cached_n, cached_p;
+  uword cached_n, cached_p;
   bool is_initialized;
 
   GlmWorkspace() : cached_n(0), cached_p(0), is_initialized(false) {}
 
-  GlmWorkspace(size_t n, size_t p)
+  GlmWorkspace(uword n, uword p)
       : cached_n(n), cached_p(p), is_initialized(true) {
-    size_t safe_n = std::max(n, size_t(1));
-    size_t safe_p = std::max(p, size_t(1));
+    uword safe_n = std::max(n, uword(1));
+    uword safe_p = std::max(p, uword(1));
 
     XtX.set_size(safe_p, safe_p);
     XtY.set_size(safe_p);
@@ -37,10 +37,10 @@ struct GlmWorkspace {
     group_sums.set_size(safe_n);
   }
 
-  void ensure_size(size_t n, size_t p) {
+  void ensure_size(uword n, uword p) {
     if (!is_initialized || n > cached_n || p > cached_p) {
-      size_t new_n = std::max(n, cached_n);
-      size_t new_p = std::max(p, cached_p);
+      uword new_n = std::max(n, cached_n);
+      uword new_p = std::max(p, cached_p);
 
       if (XtX.n_rows < new_p || XtX.n_cols < new_p)
         XtX.set_size(new_p, new_p);
@@ -88,9 +88,9 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
                        const field<field<uvec>> &fe_groups,
                        const CapybaraParameters &params,
                        GlmWorkspace *workspace = nullptr) {
-  const size_t n = y.n_elem;
-  const size_t p = X.n_cols;
-  const size_t k = beta.n_elem;
+  const uword n = y.n_elem;
+  const uword p = X.n_cols;
+  const uword k = beta.n_elem;
   const bool has_fixed_effects = fe_groups.n_elem > 0;
 
   mat X0 = X;
@@ -150,19 +150,19 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 
   // Step halving with memory variables
   double step_halving_memory = params.step_halving_memory;
-  size_t num_step_halving = 0;
-  size_t max_step_halving = params.max_step_halving;
+  uword num_step_halving = 0;
+  uword max_step_halving = params.max_step_halving;
 
   // Convergence history prediction
   vec eps_history(3, fill::value(datum::inf));
   double predicted_eps = datum::inf;
 
   // Adaptive tolerance scheduling
-  size_t convergence_count = 0;
+  uword convergence_count = 0;
   double last_dev_ratio = datum::inf;
 
   // Maximize the log-likelihood
-  for (size_t iter = 0; iter < params.iter_max; ++iter) {
+  for (uword iter = 0; iter < params.iter_max; ++iter) {
     rho = 1.0;
     eta0 = eta;
     beta0 = beta;
@@ -256,7 +256,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       beta_upd_reduced = beta_result.coefficients;
     }
 
-    const size_t full_p =
+    const uword full_p =
         collin_result.has_collinearity ? collin_result.coef_status.n_elem : p;
     if (beta.n_elem != full_p) {
       beta.resize(full_p);
@@ -269,7 +269,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     }
 
     // Step-halving with checks
-    for (size_t iter_inner = 0; iter_inner < params.iter_inner_max;
+    for (uword iter_inner = 0; iter_inner < params.iter_inner_max;
          ++iter_inner) {
       eta = eta0 + rho * eta_upd;
 
@@ -426,7 +426,7 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
                      const field<field<uvec>> &fe_groups,
                      const CapybaraParameters &params) {
 
-  const size_t n = y.n_elem;
+  const uword n = y.n_elem;
 
   vec Myadj = vec(n, fill::zeros);
   vec mu = link_inv(eta, family_type);
@@ -443,7 +443,7 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
   }
 
   // Maximize the log-likelihood
-  for (size_t iter = 0; iter < params.iter_max; ++iter) {
+  for (uword iter = 0; iter < params.iter_max; ++iter) {
     rho = 1.0;
     eta0 = eta;
     dev0 = dev;
@@ -465,7 +465,7 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
 
     eta_upd = yadj - Myadj + offset - eta;
 
-    for (size_t iter_inner = 0; iter_inner < params.iter_inner_max;
+    for (uword iter_inner = 0; iter_inner < params.iter_inner_max;
          ++iter_inner) {
       eta = eta0 + (rho * eta_upd);
       mu = link_inv(eta, family_type);

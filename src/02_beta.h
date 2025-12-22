@@ -19,7 +19,7 @@ struct InferenceBeta {
 
   InferenceBeta() : scale(0.0), rank(0.0), success(false) {}
 
-  InferenceBeta(size_t n, size_t p)
+  InferenceBeta(uword n, uword p)
       : coefficients(p, fill::zeros), fitted_values(n, fill::zeros),
         residuals(n, fill::zeros), weights(n, fill::ones),
         hessian(p, p, fill::zeros), coef_status(p, fill::ones), scale(0.0),
@@ -31,34 +31,34 @@ struct CollinearityResult {
   uvec collinear_cols;
   uvec non_collinear_cols;
   bool has_collinearity;
-  size_t n_valid;
+  uword n_valid;
   mat R;
 
   CollinearityResult() : has_collinearity(false), n_valid(0) {}
 
-  CollinearityResult(size_t p)
+  CollinearityResult(uword p)
       : coef_status(p, fill::ones), collinear_cols(p), non_collinear_cols(p),
         has_collinearity(false), n_valid(0) {}
 };
 
 inline mat crossprod(const mat &X, const vec &w = vec()) {
-  const size_t n = X.n_rows;
-  const size_t p = X.n_cols;
+  const uword n = X.n_rows;
+  const uword p = X.n_cols;
   mat result(p, p, fill::zeros);
 
-  const size_t block_size = get_block_size(n, p);
+  const uword block_size = get_block_size(n, p);
 
   if (w.is_empty() || w.n_elem == 1) {
-    for (size_t block_start = 0; block_start < n; block_start += block_size) {
-      const size_t block_end = std::min(block_start + block_size, n);
+    for (uword block_start = 0; block_start < n; block_start += block_size) {
+      const uword block_end = std::min(block_start + block_size, n);
 
-      for (size_t i = 0; i < p; ++i) {
+      for (uword i = 0; i < p; ++i) {
         const double *Xi_ptr = X.colptr(i) + block_start;
-        for (size_t j = i; j < p; ++j) {
+        for (uword j = i; j < p; ++j) {
           const double *Xj_ptr = X.colptr(j) + block_start;
 
           double sum = 0.0;
-          for (size_t k = 0; k < (block_end - block_start); ++k) {
+          for (uword k = 0; k < (block_end - block_start); ++k) {
             sum += Xi_ptr[k] * Xj_ptr[k];
           }
 
@@ -72,16 +72,16 @@ inline mat crossprod(const mat &X, const vec &w = vec()) {
   } else {
     const double *w_ptr = w.memptr();
 
-    for (size_t block_start = 0; block_start < n; block_start += block_size) {
-      const size_t block_end = std::min(block_start + block_size, n);
+    for (uword block_start = 0; block_start < n; block_start += block_size) {
+      const uword block_end = std::min(block_start + block_size, n);
 
-      for (size_t i = 0; i < p; ++i) {
+      for (uword i = 0; i < p; ++i) {
         const double *Xi_ptr = X.colptr(i) + block_start;
-        for (size_t j = i; j < p; ++j) {
+        for (uword j = i; j < p; ++j) {
           const double *Xj_ptr = X.colptr(j) + block_start;
 
           double sum = 0.0;
-          for (size_t k = 0; k < (block_end - block_start); ++k) {
+          for (uword k = 0; k < (block_end - block_start); ++k) {
             sum += Xi_ptr[k] * Xj_ptr[k] * w_ptr[block_start + k];
           }
 
@@ -98,7 +98,7 @@ inline mat crossprod(const mat &X, const vec &w = vec()) {
 
 inline bool rank_revealing_cholesky(uvec &excluded, const mat &XtX,
                                     double tol) {
-  const size_t p = XtX.n_cols;
+  const uword p = XtX.n_cols;
   excluded.zeros(p);
 
   if (p == 0)
@@ -110,15 +110,15 @@ inline bool rank_revealing_cholesky(uvec &excluded, const mat &XtX,
   uword *excluded_ptr = excluded.memptr();
   const double *XtX_ptr = XtX.memptr();
 
-  size_t n_excluded = 0;
+  uword n_excluded = 0;
 
-  for (size_t j = 0; j < p; ++j) {
+  for (uword j = 0; j < p; ++j) {
 
     double R_jj = XtX_ptr[j + j * p];
 
     if (j > 0) {
       const double *R_j_ptr = R_ptr + j * p;
-      for (size_t k = 0; k < j; ++k) {
+      for (uword k = 0; k < j; ++k) {
         if (excluded_ptr[k] == 0) {
           double R_jk = R_j_ptr[k];
           R_jj -= R_jk * R_jk;
@@ -136,13 +136,13 @@ inline bool rank_revealing_cholesky(uvec &excluded, const mat &XtX,
     R_ptr[j + j * p] = R_jj;
     const double inv_R_jj = 1.0 / R_jj;
 
-    for (size_t col = j + 1; col < p; ++col) {
+    for (uword col = j + 1; col < p; ++col) {
       double R_j_col = XtX_ptr[j + col * p];
 
       const double *R_col_ptr = R_ptr + col * p;
       const double *R_j_ptr = R_ptr + j * p;
 
-      for (size_t k = 0; k < j; ++k) {
+      for (uword k = 0; k < j; ++k) {
         if (excluded_ptr[k] == 0) {
           R_j_col -= R_j_ptr[k] * R_col_ptr[k];
         }
@@ -158,8 +158,8 @@ inline bool rank_revealing_cholesky(uvec &excluded, const mat &XtX,
 inline CollinearityResult
 check_collinearity(mat &X, const vec &w, bool has_weights, double tolerance) {
 
-  const size_t p = X.n_cols;
-  const size_t n = X.n_rows;
+  const uword p = X.n_cols;
+  const uword n = X.n_rows;
 
   CollinearityResult result(p);
 
@@ -174,7 +174,7 @@ check_collinearity(mat &X, const vec &w, bool has_weights, double tolerance) {
 
     double mean_val = 0.0, sum_sq = 0.0, sum_w = 0.0;
 
-    for (size_t i = 0; i < n; ++i) {
+    for (uword i = 0; i < n; ++i) {
       double val = col_ptr[i];
       double weight = has_weights ? w_ptr[i] : 1.0;
 
@@ -243,9 +243,9 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
                               const vec &w,
                               const CollinearityResult &collin_result,
                               bool weighted, bool scale_X) {
-  const size_t n = X.n_rows;
-  const size_t p = X.n_cols;
-  const size_t p_orig =
+  const uword n = X.n_rows;
+  const uword p = X.n_cols;
+  const uword p_orig =
       collin_result.has_collinearity ? collin_result.coef_status.n_elem : p;
   const bool has_weights = !all(w == 1.0);
 
@@ -313,8 +313,8 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
 
   if (collin_result.has_collinearity) {
     const uvec &valid_cols = collin_result.non_collinear_cols;
-    for (size_t i = 0; i < valid_cols.n_elem; ++i) {
-      for (size_t j = 0; j < valid_cols.n_elem; ++j) {
+    for (uword i = 0; i < valid_cols.n_elem; ++i) {
+      for (uword j = 0; j < valid_cols.n_elem; ++j) {
         result.hessian(valid_cols(i), valid_cols(j)) = XtX(i, j);
       }
     }

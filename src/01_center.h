@@ -14,31 +14,31 @@ struct GroupInfo {
 };
 
 // Cache-friendly block size calculation
-inline size_t get_block_size(size_t n, size_t p) {
-  const size_t L1_CACHE_SIZE = 32 * 1024;
-  const size_t ELEMENT_SIZE = sizeof(double);
-  size_t max_block_elements = L1_CACHE_SIZE / ELEMENT_SIZE;
-  size_t max_block_size = max_block_elements / (p + 1);
-  const size_t MIN_BLOCK_SIZE = 64;
-  const size_t MAX_BLOCK_SIZE = 1024;
-  size_t block_size =
+inline uword get_block_size(uword n, uword p) {
+  const uword L1_CACHE_SIZE = 32 * 1024;
+  const uword ELEMENT_SIZE = sizeof(double);
+  uword max_block_elements = L1_CACHE_SIZE / ELEMENT_SIZE;
+  uword max_block_size = max_block_elements / (p + 1);
+  const uword MIN_BLOCK_SIZE = 64;
+  const uword MAX_BLOCK_SIZE = 1024;
+  uword block_size =
       std::max(MIN_BLOCK_SIZE, std::min(max_block_size, MAX_BLOCK_SIZE));
   return std::min(block_size, n);
 }
 
 // Precompute group information for all variables
-inline std::vector<std::vector<GroupInfo>>
+inline field<field<GroupInfo>>
 precompute_group_info(const field<field<uvec>> &group_indices, const vec &w) {
-  const size_t K = group_indices.n_elem;
+  const uword K = group_indices.n_elem;
   const double *w_ptr = w.memptr();
 
-  std::vector<std::vector<GroupInfo>> group_info(K);
+  field<field<GroupInfo>> group_info(K);
 
-  for (size_t k = 0; k < K; ++k) {
+  for (uword k = 0; k < K; ++k) {
     const field<uvec> &fe_groups = group_indices(k);
-    group_info[k].reserve(fe_groups.n_elem);
+    group_info(k).set_size(fe_groups.n_elem);
 
-    for (size_t l = 0; l < fe_groups.n_elem; ++l) {
+    for (uword l = 0; l < fe_groups.n_elem; ++l) {
       const uvec &coords = fe_groups(l);
       GroupInfo info;
       info.coords = &coords;
@@ -56,7 +56,7 @@ precompute_group_info(const field<field<uvec>> &group_indices, const vec &w) {
         info.inv_weight = 0.0;
       }
 
-      group_info[k].push_back(info);
+      group_info(k)(l) = info;
     }
   }
 
@@ -76,9 +76,8 @@ inline bool continue_criterion(double x_old, double x_new, double tol) {
 
 // Grand acceleration (based on fixest)
 inline bool grand_acceleration(double *x, double *Y, double *GY, double *GGY,
-                               std::vector<double> &delta_GX,
-                               std::vector<double> &delta2_X, size_t n,
-                               int &grand_acc, double tol) {
+                               vec &delta_GX, vec &delta2_X, uword n,
+                               size_t &grand_acc, double tol) {
   bool converged = false;
 
   if (grand_acc == 0) {
@@ -90,12 +89,14 @@ inline bool grand_acceleration(double *x, double *Y, double *GY, double *GGY,
 
     // Apply Irons-Tuck with the saved vectors
     double vprod = 0.0, ssq = 0.0;
+    double *delta_GX_ptr = delta_GX.memptr();
+    double *delta2_X_ptr = delta2_X.memptr();
 
-    for (size_t i = 0; i < n; ++i) {
+    for (uword i = 0; i < n; ++i) {
       double delta_G = GGY[i] - GY[i];
       double delta2 = delta_G - GY[i] + Y[i];
-      delta_GX[i] = delta_G;
-      delta2_X[i] = delta2;
+      delta_GX_ptr[i] = delta_G;
+      delta2_X_ptr[i] = delta2;
       vprod += delta_G * delta2;
       ssq += delta2 * delta2;
     }
@@ -105,8 +106,8 @@ inline bool grand_acceleration(double *x, double *Y, double *GY, double *GGY,
     } else {
       double coef = vprod / ssq;
       if (coef > 0.0 && coef < 2.0) {
-        for (size_t i = 0; i < n; ++i) {
-          x[i] = GGY[i] - coef * delta_GX[i];
+        for (uword i = 0; i < n; ++i) {
+          x[i] = GGY[i] - coef * delta_GX_ptr[i];
         }
       } else {
         std::memcpy(x, GGY, n * sizeof(double));
@@ -121,10 +122,10 @@ inline bool grand_acceleration(double *x, double *Y, double *GY, double *GGY,
 }
 
 // Adaptive SSR checking
-inline bool adaptive_ssr_check(double *x, const double *w, size_t n,
+inline bool adaptive_ssr_check(double *x, const double *w, uword n,
                                double &ssr_old, double inv_sw, double tol) {
   double ssr = 0.0;
-  for (size_t i = 0; i < n; ++i) {
+  for (uword i = 0; i < n; ++i) {
     ssr += w[i] * x[i] * x[i];
   }
   ssr *= inv_sw;
@@ -165,11 +166,11 @@ inline void project_group(double *v, const double *w, const GroupInfo &info,
 }
 
 inline bool irons_tuck_acceleration(double *x, const double *Gx,
-                                    const double *GGx, double *x0, size_t n,
+                                    const double *GGx, double *x0, uword n,
                                     double tol) {
   double vprod = 0.0, ssq = 0.0;
 
-  for (size_t i = 0; i < n; ++i) {
+  for (uword i = 0; i < n; ++i) {
     double delta_G = GGx[i] - Gx[i];
     double delta2 = delta_G - Gx[i] + x[i];
     vprod += delta_G * delta2;
@@ -184,7 +185,7 @@ inline bool irons_tuck_acceleration(double *x, const double *Gx,
 
   // Apply acceleration if coefficient is reasonable
   if (coef > 0.0 && coef < 2.0) {
-    for (size_t i = 0; i < n; ++i) {
+    for (uword i = 0; i < n; ++i) {
       x[i] = GGx[i] - coef * (GGx[i] - Gx[i]);
     }
   } else {
@@ -196,24 +197,24 @@ inline bool irons_tuck_acceleration(double *x, const double *Gx,
 }
 
 inline bool project_2fe(double *x, const double *w,
-                        const std::vector<GroupInfo> &fe1_info,
-                        const std::vector<GroupInfo> &fe2_info, double tol) {
+                        const field<GroupInfo> &fe1_info,
+                        const field<GroupInfo> &fe2_info, double tol) {
   bool any_change = false;
 
   // Forward pass: FE1 then FE2
-  for (const auto &info : fe1_info) {
-    project_group(x, w, info, any_change, tol);
+  for (uword i = 0; i < fe1_info.n_elem; ++i) {
+    project_group(x, w, fe1_info(i), any_change, tol);
   }
-  for (const auto &info : fe2_info) {
-    project_group(x, w, info, any_change, tol);
+  for (uword i = 0; i < fe2_info.n_elem; ++i) {
+    project_group(x, w, fe2_info(i), any_change, tol);
   }
 
   // Backward pass: FE2 then FE1 (symmetric Kaczmarz)
-  for (auto it = fe2_info.rbegin(); it != fe2_info.rend(); ++it) {
-    project_group(x, w, *it, any_change, tol);
+  for (uword i = fe2_info.n_elem; i-- > 0;) {
+    project_group(x, w, fe2_info(i), any_change, tol);
   }
-  for (auto it = fe1_info.rbegin(); it != fe1_info.rend(); ++it) {
-    project_group(x, w, *it, any_change, tol);
+  for (uword i = fe1_info.n_elem; i-- > 0;) {
+    project_group(x, w, fe1_info(i), any_change, tol);
   }
 
   return !any_change; // Converged if no changes
@@ -221,23 +222,21 @@ inline bool project_2fe(double *x, const double *w,
 
 inline bool
 project_kfe(double *x, const double *w,
-            const std::vector<std::vector<GroupInfo>> &all_group_info,
-            double tol) {
-  const size_t K = all_group_info.size();
+            const field<field<GroupInfo>> &all_group_info, double tol) {
+  const uword K = all_group_info.n_elem;
   bool any_change = false;
 
   // Forward pass
-  for (size_t k = 0; k < K; ++k) {
-    for (const auto &info : all_group_info[k]) {
-      project_group(x, w, info, any_change, tol);
+  for (uword k = 0; k < K; ++k) {
+    for (uword l = 0; l < all_group_info(k).n_elem; ++l) {
+      project_group(x, w, all_group_info(k)(l), any_change, tol);
     }
   }
 
   // Backward pass (symmetric Kaczmarz)
-  for (size_t k = K; k-- > 0;) {
-    for (auto it = all_group_info[k].rbegin(); it != all_group_info[k].rend();
-         ++it) {
-      project_group(x, w, *it, any_change, tol);
+  for (uword k = K; k-- > 0;) {
+    for (uword l = all_group_info(k).n_elem; l-- > 0;) {
+      project_group(x, w, all_group_info(k)(l), any_change, tol);
     }
   }
 
@@ -246,33 +245,33 @@ project_kfe(double *x, const double *w,
 
 void center_variables(
     mat &V, const vec &w, const field<field<uvec>> &group_indices,
-    const double &tol, const size_t &max_iter, const size_t &iter_interrupt,
-    const size_t &iter_ssr, const size_t &accel_start,
+    const double &tol, const uword &max_iter, const uword &iter_interrupt,
+    const uword &iter_ssr, const uword &accel_start,
     const double &project_tol_factor, const double &grand_accel_tol,
     const double &project_group_tol, const double &irons_tuck_tol,
-    const size_t &grand_accel_interval, const size_t &irons_tuck_interval,
-    const size_t &ssr_check_interval, const double &convergence_factor,
+    const uword &grand_accel_interval, const uword &irons_tuck_interval,
+    const uword &ssr_check_interval, const double &convergence_factor,
     const double &tol_multiplier) {
   if (V.is_empty() || w.is_empty() || V.n_rows != w.n_elem)
     return;
 
-  const size_t K = group_indices.n_elem;
+  const uword K = group_indices.n_elem;
   if (K == 0)
     return;
 
-  const size_t N = V.n_rows, P = V.n_cols;
+  const uword N = V.n_rows, P = V.n_cols;
   const double inv_sw = 1.0 / accu(w);
   const double *w_ptr = w.memptr();
 
   // Precompute group information
-  auto all_group_info = precompute_group_info(group_indices, w);
+  field<field<GroupInfo>> all_group_info = precompute_group_info(group_indices, w);
 
-  const size_t col_block_size = get_block_size(N, P);
+  const uword col_block_size = get_block_size(N, P);
 
-  for (size_t col_block = 0; col_block < P; col_block += col_block_size) {
-    const size_t col_end = std::min(col_block + col_block_size, P);
+  for (uword col_block = 0; col_block < P; col_block += col_block_size) {
+    const uword col_end = std::min(col_block + col_block_size, P);
 
-    for (size_t col = col_block; col < col_end; ++col) {
+    for (uword col = col_block; col < col_end; ++col) {
       double *col_ptr = V.colptr(col);
 
       // Working vectors for acceleration
@@ -287,13 +286,13 @@ void center_variables(
       double *GY_ptr = GY.memptr();
       double *GGY_ptr = GGY.memptr();
 
-      std::vector<double> delta_GX(N), delta2_X(N);
+      vec delta_GX(N, fill::none), delta2_X(N, fill::none);
 
       double ratio0 = std::numeric_limits<double>::infinity();
       double ssr0 = std::numeric_limits<double>::infinity();
-      size_t iint = iter_interrupt;
-      size_t isr = iter_ssr;
-      int grand_acc = 0;
+      uword iint = iter_interrupt;
+      uword isr = iter_ssr;
+      size_t grand_acc = 0;
 
       std::memcpy(x_ptr, col_ptr, N * sizeof(double));
 
@@ -315,7 +314,7 @@ void center_variables(
         }
       };
 
-      for (size_t iter = 0; iter < max_iter; ++iter) {
+      for (uword iter = 0; iter < max_iter; ++iter) {
         if (iter == iint) {
           check_user_interrupt();
           iint += iter_interrupt;
@@ -354,7 +353,7 @@ void center_variables(
 
         // Check convergence based on relative change
         double weighted_diff = 0.0;
-        for (size_t i = 0; i < N; ++i) {
+        for (uword i = 0; i < N; ++i) {
           double rel_diff =
               std::abs(x_ptr[i] - x0_ptr[i]) / (1.0 + std::abs(x0_ptr[i]));
           weighted_diff += w_ptr[i] * rel_diff;
@@ -377,7 +376,7 @@ void center_variables(
           check_user_interrupt();
           isr += iter_ssr;
           double ssr = 0.0;
-          for (size_t i = 0; i < N; ++i) {
+          for (uword i = 0; i < N; ++i) {
             ssr += w_ptr[i] * x_ptr[i] * x_ptr[i];
           }
           ssr *= inv_sw;

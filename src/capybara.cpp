@@ -115,7 +115,7 @@ inline uvec R_1based_to_Cpp_0based_indices(const integers &r_indices) {
 
   std::transform(
       r_indices.begin(), r_indices.end(), cpp_indices.begin(),
-      [](int r_val) -> uword { return static_cast<uword>(r_val - 1); });
+      [](size_t r_val) -> uword { return static_cast<uword>(r_val - 1); });
 
   return cpp_indices;
 }
@@ -136,7 +136,7 @@ inline field<field<uvec>> R_list_to_Armadillo_field(const list &FEs) {
       uvec indices(group_obs.size());
       size_t I = group_obs.size();
       for (size_t i = 0; i < I; ++i) {
-        int r_idx = group_obs[i];
+        size_t r_idx = group_obs[i];
         // if (r_idx < 1) {
         //   r_idx = 1; // Set to first element if invalid
         // }
@@ -193,18 +193,18 @@ inline field<field<uvec>> R_list_to_Armadillo_field(const list &FEs) {
 
   if (!FEs.names().empty()) {
     cpp4r::strings fe_names_r = FEs.names();
-    for (size_t i = 0; i < static_cast<size_t>(fe_names_r.size()); i++) {
+    for (R_xlen_t i = 0; i < fe_names_r.size(); i++) {
       fe_names(i) = std::string(fe_names_r[i]);
     }
   }
 
-  for (size_t k = 0; k < static_cast<size_t>(FEs.size()); k++) {
+  for (R_xlen_t k = 0; k < FEs.size(); k++) {
     const list &group_list = as_cpp<list>(FEs[k]);
     fe_levels(k).set_size(group_list.size());
 
     if (!group_list.names().empty()) {
       cpp4r::strings level_names = group_list.names();
-      for (size_t j = 0; j < static_cast<size_t>(level_names.size()); j++) {
+      for (R_xlen_t j = 0; j < level_names.size(); j++) {
         fe_levels(k)(j) = std::string(level_names[j]);
       }
     }
@@ -300,18 +300,18 @@ inline field<field<uvec>> R_list_to_Armadillo_field(const list &FEs) {
 
   if (!k_list.names().empty()) {
     cpp4r::strings fe_names_r = k_list.names();
-    for (size_t i = 0; i < static_cast<size_t>(fe_names_r.size()); i++) {
+    for (R_xlen_t i = 0; i < fe_names_r.size(); i++) {
       fe_names(i) = std::string(fe_names_r[i]);
     }
   }
 
-  for (size_t k = 0; k < static_cast<size_t>(k_list.size()); k++) {
+  for (R_xlen_t k = 0; k < k_list.size(); k++) {
     const list &group_list = as_cpp<list>(k_list[k]);
     fe_levels(k).set_size(group_list.size());
 
     if (!group_list.names().empty()) {
       cpp4r::strings level_names = group_list.names();
-      for (size_t j = 0; j < static_cast<size_t>(level_names.size()); j++) {
+      for (R_xlen_t j = 0; j < level_names.size(); j++) {
         fe_levels(k)(j) = std::string(level_names[j]);
       }
     }
@@ -355,8 +355,7 @@ inline field<field<uvec>> R_list_to_Armadillo_field(const list &FEs) {
 
       fe_list[k] = fe_values;
 
-      if (!k_list.names().empty() &&
-          k < static_cast<size_t>(k_list.names().size())) {
+      if (!k_list.names().empty() && k < static_cast<size_t>(k_list.names().size())) {
         fe_list_names[k] = k_list.names()[k];
       } else {
         fe_list_names[k] = std::to_string(k + 1);
@@ -472,7 +471,7 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
 
 [[cpp4r::register]] doubles_matrix<>
 group_sums_spectral_(const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
-                     const doubles_matrix<> &w_r, const int K,
+                     const doubles_matrix<> &w_r, const size_t K,
                      const list &jlist) {
   const mat M = as_mat(M_r);
   const mat v = as_mat(v_r);

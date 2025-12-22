@@ -48,10 +48,10 @@ extern "C" SEXP _capybara_group_sums_(SEXP M_r, SEXP w_r, SEXP jlist) {
   END_CPP4R
 }
 // capybara.cpp
-doubles_matrix<> group_sums_spectral_(const doubles_matrix<> & M_r, const doubles_matrix<> & v_r, const doubles_matrix<> & w_r, const int K, const list & jlist);
+doubles_matrix<> group_sums_spectral_(const doubles_matrix<> & M_r, const doubles_matrix<> & v_r, const doubles_matrix<> & w_r, const size_t K, const list & jlist);
 extern "C" SEXP _capybara_group_sums_spectral_(SEXP M_r, SEXP v_r, SEXP w_r, SEXP K, SEXP jlist) {
   BEGIN_CPP4R
-    return cpp4r::as_sexp(group_sums_spectral_(cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(M_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(v_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(w_r), cpp4r::as_cpp<cpp4r::decay_t<const int>>(K), cpp4r::as_cpp<cpp4r::decay_t<const list &>>(jlist)));
+    return cpp4r::as_sexp(group_sums_spectral_(cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(M_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(v_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(w_r), cpp4r::as_cpp<cpp4r::decay_t<const size_t>>(K), cpp4r::as_cpp<cpp4r::decay_t<const list &>>(jlist)));
   END_CPP4R
 }
 // capybara.cpp
