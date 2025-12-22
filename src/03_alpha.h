@@ -5,6 +5,14 @@
 
 namespace capybara {
 
+// Get block size for cache-friendly indexed scatter operations
+inline uword get_block_size(uword n, uword k) {
+  constexpr uword L1_CACHE = 32768;
+  constexpr uword element_size = sizeof(double) + sizeof(uword);
+  return std::max(static_cast<uword>(1000),
+                  std::min(n, L1_CACHE / (k * element_size)));
+}
+
 struct InferenceAlpha {
   field<vec> coefficients;
   uvec nb_references;

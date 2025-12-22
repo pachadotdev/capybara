@@ -32,7 +32,6 @@ struct CapybaraParameters {
   size_t iter_inner_max;
   size_t iter_alpha_max;
   size_t iter_interrupt;
-  size_t iter_ssr;
   bool return_fe;
   bool keep_tx;
 
@@ -41,30 +40,12 @@ struct CapybaraParameters {
   size_t max_step_halving;
   double start_inner_tol;
 
-  // CG acceleration parameters
-  size_t accel_start;
-
-  // Centering algorithm parameters
-  double project_tol_factor;
-  double grand_accel_tol;
-  double project_group_tol;
-  double irons_tuck_tol;
-  size_t grand_accel_interval;
-  size_t irons_tuck_interval;
-  size_t ssr_check_interval;
-  double convergence_factor;
-  double tol_multiplier;
-
   CapybaraParameters()
       : dev_tol(1.0e-08), center_tol(1.0e-08), collin_tol(1.0e-10),
         step_halving_factor(0.5), alpha_tol(1.0e-08), iter_max(25),
         iter_center_max(10000), iter_inner_max(50), iter_alpha_max(10000),
-        iter_interrupt(1000), iter_ssr(10), return_fe(true), keep_tx(false),
-        step_halving_memory(0.9), max_step_halving(2), start_inner_tol(1e-06),
-        accel_start(6), project_tol_factor(1e-3), grand_accel_tol(1e-10),
-        project_group_tol(1e-12), irons_tuck_tol(1e-10),
-        grand_accel_interval(5), irons_tuck_interval(3), ssr_check_interval(40),
-        convergence_factor(1.1), tol_multiplier(20.0) {}
+        iter_interrupt(1000), return_fe(true), keep_tx(false),
+        step_halving_memory(0.9), max_step_halving(2), start_inner_tol(1e-06) {}
 
   explicit CapybaraParameters(const cpp4r::list &control) {
     dev_tol = as_cpp<double>(control["dev_tol"]);
@@ -77,22 +58,11 @@ struct CapybaraParameters {
     iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]);
     iter_alpha_max = as_cpp<size_t>(control["iter_alpha_max"]);
     iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]);
-    iter_ssr = as_cpp<size_t>(control["iter_ssr"]);
     return_fe = as_cpp<bool>(control["return_fe"]);
     keep_tx = as_cpp<bool>(control["keep_tx"]);
     step_halving_memory = as_cpp<double>(control["step_halving_memory"]);
     max_step_halving = as_cpp<size_t>(control["max_step_halving"]);
     start_inner_tol = as_cpp<double>(control["start_inner_tol"]);
-    accel_start = as_cpp<size_t>(control["accel_start"]);
-    project_tol_factor = as_cpp<double>(control["project_tol_factor"]);
-    grand_accel_tol = as_cpp<double>(control["grand_accel_tol"]);
-    project_group_tol = as_cpp<double>(control["project_group_tol"]);
-    irons_tuck_tol = as_cpp<double>(control["irons_tuck_tol"]);
-    grand_accel_interval = as_cpp<size_t>(control["grand_accel_interval"]);
-    irons_tuck_interval = as_cpp<size_t>(control["irons_tuck_interval"]);
-    ssr_check_interval = as_cpp<size_t>(control["ssr_check_interval"]);
-    convergence_factor = as_cpp<double>(control["convergence_factor"]);
-    tol_multiplier = as_cpp<double>(control["tol_multiplier"]);
   }
 };
 
@@ -155,23 +125,13 @@ inline field<field<uvec>> R_list_to_Armadillo_field(const list &FEs) {
 // instead of a CapybaraParameters object
 [[cpp4r::register]] doubles_matrix<> center_variables_(
     const doubles_matrix<> &V_r, const doubles &w_r, const list &klist,
-    const double &tol, const size_t &max_iter, const size_t &iter_interrupt,
-    const size_t &iter_ssr, const size_t &accel_start,
-    const double &project_tol_factor, const double &grand_accel_tol,
-    const double &project_group_tol, const double &irons_tuck_tol,
-    const size_t &grand_accel_interval, const size_t &irons_tuck_interval,
-    const size_t &ssr_check_interval, const double &convergence_factor,
-    const double &tol_multiplier) {
+    const double &tol, const size_t &max_iter, const size_t &iter_interrupt) {
   mat V = as_mat(V_r);
   vec w = as_col(w_r);
 
   field<field<uvec>> group_indices = R_list_to_Armadillo_field(klist);
 
-  capybara::center_variables(
-      V, w, group_indices, tol, max_iter, iter_interrupt, iter_ssr, accel_start,
-      project_tol_factor, grand_accel_tol, project_group_tol, irons_tuck_tol,
-      grand_accel_interval, irons_tuck_interval, ssr_check_interval,
-      convergence_factor, tol_multiplier);
+  capybara::center_variables(V, w, group_indices, tol, max_iter, iter_interrupt);
 
   return as_doubles_matrix(V);
 }

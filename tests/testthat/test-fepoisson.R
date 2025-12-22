@@ -11,15 +11,12 @@
 #' @noRd
 NULL
 
-test_that("fepoisson is similar to fixest", {
+test_that("fepoisson is similar to base", {
   skip_on_cran()
 
   # K = 1
 
   mod <- fepoisson(mpg ~ wt | cyl | am, mtcars)
-
-  # fixest::fepois(mpg ~ wt | cyl, mtcars)
-  # wt -0.179882
 
   mod_base <- glm(
     mpg ~ wt + as.factor(cyl),
@@ -72,8 +69,7 @@ test_that("fepoisson is similar to fixest", {
 
   # mod$coefficients
   # mod_base$coefficients
-  # fixest::fepois(mpg ~ wt | cyl + am, mtcars)
-
+  
   coef_dist_base <- coef(mod_base)[2]
 
   dist_variation <- abs((coef(mod)[1] - coef_dist_base) / coef(mod)[1])

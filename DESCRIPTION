@@ -2,7 +2,7 @@ Package: capybara
 Type: Package
 Title: Fast and Memory Efficient Fitting of Linear Models with High-Dimensional
     Fixed Effects
-Version: 1.8.1
+Version: 2.0.0
 Authors@R: c(
     person(
         given = "Mauricio",

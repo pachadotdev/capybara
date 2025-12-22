@@ -277,21 +277,9 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       if (has_fixed_effects) {
         center_variables(MNU, w_working, fe_groups, current_hdfe_tol,
                          params.iter_center_max, params.iter_interrupt,
-                         params.iter_ssr, params.accel_start,
-                         params.project_tol_factor, params.grand_accel_tol,
-                         params.project_group_tol, params.irons_tuck_tol,
-                         params.grand_accel_interval,
-                         params.irons_tuck_interval, params.ssr_check_interval,
-                         params.convergence_factor, params.tol_multiplier,
                          group_info_ptr, &centering_workspace);
         center_variables(X, w_working, fe_groups, current_hdfe_tol,
                          params.iter_center_max, params.iter_interrupt,
-                         params.iter_ssr, params.accel_start,
-                         params.project_tol_factor, params.grand_accel_tol,
-                         params.project_group_tol, params.irons_tuck_tol,
-                         params.grand_accel_interval,
-                         params.irons_tuck_interval, params.ssr_check_interval,
-                         params.convergence_factor, params.tol_multiplier,
                          group_info_ptr, &centering_workspace);
       }
       nu0 = nu;
@@ -302,21 +290,9 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       if (has_fixed_effects) {
         center_variables(MNU, w_working, fe_groups, current_hdfe_tol,
                          params.iter_center_max, params.iter_interrupt,
-                         params.iter_ssr, params.accel_start,
-                         params.project_tol_factor, params.grand_accel_tol,
-                         params.project_group_tol, params.irons_tuck_tol,
-                         params.grand_accel_interval,
-                         params.irons_tuck_interval, params.ssr_check_interval,
-                         params.convergence_factor, params.tol_multiplier,
                          group_info_ptr, &centering_workspace);
         center_variables(X, w_working, fe_groups, current_hdfe_tol,
                          params.iter_center_max, params.iter_interrupt,
-                         params.iter_ssr, params.accel_start,
-                         params.project_tol_factor, params.grand_accel_tol,
-                         params.project_group_tol, params.irons_tuck_tol,
-                         params.grand_accel_interval,
-                         params.irons_tuck_interval, params.ssr_check_interval,
-                         params.convergence_factor, params.tol_multiplier,
                          group_info_ptr, &centering_workspace);
       }
     }
@@ -546,13 +522,7 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
 
     center_variables(Myadj, w_working, fe_groups, adaptive_tol,
                      params.iter_center_max, params.iter_interrupt,
-                     params.iter_ssr, params.accel_start,
-                     params.project_tol_factor, params.grand_accel_tol,
-                     params.project_group_tol, params.irons_tuck_tol,
-                     params.grand_accel_interval, params.irons_tuck_interval,
-                     params.ssr_check_interval, params.convergence_factor,
-                     params.tol_multiplier, group_info_ptr,
-                     &centering_workspace);
+                     group_info_ptr, &centering_workspace);
 
     eta_upd = yadj - Myadj + offset - eta;
 

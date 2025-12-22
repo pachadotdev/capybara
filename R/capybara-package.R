@@ -66,7 +66,7 @@ NULL
 #' @importFrom stats as.formula fitted.values gaussian model.frame model.matrix
 #'  model.response na.omit na.pass pnorm poisson predict printCoefmat qnorm terms
 #'  vcov
-#' @importFrom utils combn
+#' @importFrom utils combn head
 #' @useDynLib capybara, .registration = TRUE
 "_PACKAGE"
 

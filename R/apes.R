@@ -186,18 +186,7 @@ apes <- function(
     tx <- center_variables_(X, w, k_list, 
                            control[["center_tol"]], 
                            control[["iter_center_max"]], 
-                           control[["iter_interrupt"]], 
-                           control[["iter_ssr"]], 
-                           control[["accel_start"]], 
-                           control[["project_tol_factor"]], 
-                           control[["grand_accel_tol"]], 
-                           control[["project_group_tol"]], 
-                           control[["irons_tuck_tol"]], 
-                           control[["grand_accel_interval"]], 
-                           control[["irons_tuck_interval"]], 
-                           control[["ssr_check_interval"]], 
-                           control[["convergence_factor"]], 
-                           control[["tol_multiplier"]])
+                           control[["iter_interrupt"]])
   }
 
   # Compute average partial effects, derivatives, and Jacobian
@@ -237,18 +226,7 @@ apes <- function(
   mpsi <- center_variables_(psi, w, k_list, 
                            control[["center_tol"]], 
                            control[["iter_max"]], 
-                           control[["iter_interrupt"]], 
-                           control[["iter_ssr"]], 
-                           control[["accel_start"]], 
-                           control[["project_tol_factor"]], 
-                           control[["grand_accel_tol"]], 
-                           control[["project_group_tol"]], 
-                           control[["irons_tuck_tol"]], 
-                           control[["grand_accel_interval"]], 
-                           control[["irons_tuck_interval"]], 
-                           control[["ssr_check_interval"]], 
-                           control[["convergence_factor"]], 
-                           control[["tol_multiplier"]])
+                           control[["iter_interrupt"]])
   ppsi <- psi - mpsi
   rm(delta1, psi)
 

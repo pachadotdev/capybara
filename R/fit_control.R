@@ -48,9 +48,6 @@ NULL
 #'  \code{50L}.
 #' @param iter_interrupt unsigned integer indicating the maximum number of
 #' iterations before the algorithm is interrupted. The default is \code{1000L}.
-#' @param iter_ssr unsigned integer indicating the number of iterations
-#' to skip before checking if the sum of squared residuals improves. The default
-#' is \code{10L}.
 #' @param iter_alpha_max maximum iterations for fixed effects computation.
 #'  The default is \code{10000L}.
 #' @param step_halving_memory numeric memory factor for step-halving algorithm.
@@ -63,26 +60,6 @@ NULL
 #'  This can be useful when fitting general equilibrium models where skipping the
 #'  fixed effects for intermediate steps speeds up computation. The default is
 #'  \code{TRUE} and only applies to the \code{feglm} class.
-#' @param accel_start Integer. Iteration to start conjugate gradient acceleration in centering.
-#'  The default is \code{6L}.
-#' @param project_tol_factor Factor to multiply center_tol for projection tolerance.
-#'  The default is \code{1e-3}.
-#' @param grand_accel_tol Tolerance for grand acceleration convergence.
-#'  The default is \code{1e-10}.
-#' @param project_group_tol Tolerance for individual group projections.
-#'  The default is \code{1e-12}.
-#' @param irons_tuck_tol Tolerance for Irons-Tuck acceleration.
-#'  The default is \code{1e-10}.
-#' @param grand_accel_interval Interval for applying grand acceleration.
-#'  The default is \code{5L}.
-#' @param irons_tuck_interval Interval for applying Irons-Tuck acceleration.
-#'  The default is \code{3L}.
-#' @param ssr_check_interval Interval for adaptive SSR convergence checks.
-#'  The default is \code{40L}.
-#' @param convergence_factor Factor for detecting slow convergence.
-#'  The default is \code{1.1}.
-#' @param tol_multiplier Multiplier for early termination tolerance check.
-#'  The default is \code{20.0}.
 #' @param keep_tx logical indicating if the centered regressor matrix should be
 #'  stored. The centered regressor matrix is required for some covariance
 #'  estimators, bias corrections, and average partial effects. This option saves
@@ -109,28 +86,15 @@ fit_control <- function(
     iter_inner_max = 50L,
     iter_alpha_max = 10000L,
     iter_interrupt = 1000L,
-    iter_ssr = 10L,
     step_halving_memory = 0.9,
     max_step_halving = 2L,
     start_inner_tol = 1.0e-06,
-    accel_start = 6L,
-    project_tol_factor = 1e-3,
-    grand_accel_tol = 1e-10,
-    project_group_tol = 1e-12,
-    irons_tuck_tol = 1e-10,
-    grand_accel_interval = 5L,
-    irons_tuck_interval = 3L,
-    ssr_check_interval = 40L,
-    convergence_factor = 1.1,
-    tol_multiplier = 20.0,
     return_fe = TRUE,
     keep_tx = FALSE,
     init_theta = 0.0) {
   # Check validity of tolerance parameters
   if (dev_tol <= 0.0 || center_tol <= 0.0 || collin_tol <= 0.0 ||
-      step_halving_factor <= 0.0 || alpha_tol <= 0.0 ||
-      project_tol_factor <= 0.0 || grand_accel_tol <= 0.0 ||
-      project_group_tol <= 0.0 || irons_tuck_tol <= 0.0) {
+      step_halving_factor <= 0.0 || alpha_tol <= 0.0) {
     stop(
       "All tolerance parameters should be greater than zero.",
       call. = FALSE
@@ -142,16 +106,10 @@ fit_control <- function(
   iter_center_max <- as.integer(iter_center_max)
   iter_inner_max <- as.integer(iter_inner_max)
   iter_interrupt <- as.integer(iter_interrupt)
-  iter_ssr <- as.integer(iter_ssr)
-  grand_accel_interval <- as.integer(grand_accel_interval)
-  irons_tuck_interval <- as.integer(irons_tuck_interval)
-  ssr_check_interval <- as.integer(ssr_check_interval)
   if (iter_max < 1L || iter_center_max < 1L ||
-      iter_inner_max < 1L || iter_interrupt < 1L || iter_ssr < 1L ||
-      grand_accel_interval < 1L || irons_tuck_interval < 1L || 
-      ssr_check_interval < 1L) {
+      iter_inner_max < 1L || iter_interrupt < 1L) {
     stop(
-      "All iteration and interval parameters should be greater than or equal to one.",
+      "All iteration parameters should be greater than or equal to one.",
       call. = FALSE
     )
   }
@@ -189,26 +147,6 @@ fit_control <- function(
       call. = FALSE
     )
   }
-  
-  if (convergence_factor <= 1.0) {
-    stop(
-      "convergence_factor should be greater than 1.0.",
-      call. = FALSE
-    )
-  }
-  
-  if (tol_multiplier <= 0.0) {
-    stop(
-      "tol_multiplier should be greater than zero.",
-      call. = FALSE
-    )
-  }
-
-  # Validate accel_start
-  accel_start <- as.integer(accel_start)
-  if (accel_start < 0L) {
-    stop("accel_start should be >= 0.", call. = FALSE)
-  }
 
   list(
     dev_tol = dev_tol,
@@ -221,20 +159,9 @@ fit_control <- function(
     iter_inner_max = iter_inner_max,
     iter_alpha_max = iter_alpha_max,
     iter_interrupt = iter_interrupt,
-    iter_ssr = iter_ssr,
     step_halving_memory = step_halving_memory,
     max_step_halving = max_step_halving,
     start_inner_tol = start_inner_tol,
-    accel_start = accel_start,
-    project_tol_factor = project_tol_factor,
-    grand_accel_tol = grand_accel_tol,
-    project_group_tol = project_group_tol,
-    irons_tuck_tol = irons_tuck_tol,
-    grand_accel_interval = grand_accel_interval,
-    irons_tuck_interval = irons_tuck_interval,
-    ssr_check_interval = ssr_check_interval,
-    convergence_factor = convergence_factor,
-    tol_multiplier = tol_multiplier,
     return_fe = return_fe,
     keep_tx = keep_tx,
     init_theta = init_theta

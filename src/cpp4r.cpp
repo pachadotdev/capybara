@@ -6,10 +6,10 @@
 #include <R_ext/Visibility.h>
 
 // capybara.cpp
-doubles_matrix<> center_variables_(const doubles_matrix<> & V_r, const doubles & w_r, const list & klist, const double & tol, const size_t & max_iter, const size_t & iter_interrupt, const size_t & iter_ssr, const size_t & accel_start, const double & project_tol_factor, const double & grand_accel_tol, const double & project_group_tol, const double & irons_tuck_tol, const size_t & grand_accel_interval, const size_t & irons_tuck_interval, const size_t & ssr_check_interval, const double & convergence_factor, const double & tol_multiplier);
-extern "C" SEXP _capybara_center_variables_(SEXP V_r, SEXP w_r, SEXP klist, SEXP tol, SEXP max_iter, SEXP iter_interrupt, SEXP iter_ssr, SEXP accel_start, SEXP project_tol_factor, SEXP grand_accel_tol, SEXP project_group_tol, SEXP irons_tuck_tol, SEXP grand_accel_interval, SEXP irons_tuck_interval, SEXP ssr_check_interval, SEXP convergence_factor, SEXP tol_multiplier) {
+doubles_matrix<> center_variables_(const doubles_matrix<> & V_r, const doubles & w_r, const list & klist, const double & tol, const size_t & max_iter, const size_t & iter_interrupt);
+extern "C" SEXP _capybara_center_variables_(SEXP V_r, SEXP w_r, SEXP klist, SEXP tol, SEXP max_iter, SEXP iter_interrupt) {
   BEGIN_CPP4R
-    return cpp4r::as_sexp(center_variables_(cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(V_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(w_r), cpp4r::as_cpp<cpp4r::decay_t<const list &>>(klist), cpp4r::as_cpp<cpp4r::decay_t<const double &>>(tol), cpp4r::as_cpp<cpp4r::decay_t<const size_t &>>(max_iter), cpp4r::as_cpp<cpp4r::decay_t<const size_t &>>(iter_interrupt), cpp4r::as_cpp<cpp4r::decay_t<const size_t &>>(iter_ssr), cpp4r::as_cpp<cpp4r::decay_t<const size_t &>>(accel_start), cpp4r::as_cpp<cpp4r::decay_t<const double &>>(project_tol_factor), cpp4r::as_cpp<cpp4r::decay_t<const double &>>(grand_accel_tol), cpp4r::as_cpp<cpp4r::decay_t<const double &>>(project_group_tol), cpp4r::as_cpp<cpp4r::decay_t<const double &>>(irons_tuck_tol), cpp4r::as_cpp<cpp4r::decay_t<const size_t &>>(grand_accel_interval), cpp4r::as_cpp<cpp4r::decay_t<const size_t &>>(irons_tuck_interval), cpp4r::as_cpp<cpp4r::decay_t<const size_t &>>(ssr_check_interval), cpp4r::as_cpp<cpp4r::decay_t<const double &>>(convergence_factor), cpp4r::as_cpp<cpp4r::decay_t<const double &>>(tol_multiplier)));
+    return cpp4r::as_sexp(center_variables_(cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(V_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(w_r), cpp4r::as_cpp<cpp4r::decay_t<const list &>>(klist), cpp4r::as_cpp<cpp4r::decay_t<const double &>>(tol), cpp4r::as_cpp<cpp4r::decay_t<const size_t &>>(max_iter), cpp4r::as_cpp<cpp4r::decay_t<const size_t &>>(iter_interrupt)));
   END_CPP4R
 }
 // capybara.cpp
@@ -78,7 +78,7 @@ extern "C" SEXP _capybara_check_separation_(SEXP y_r, SEXP X_r, SEXP w_r, SEXP t
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
-    {"_capybara_center_variables_",    (DL_FUNC) &_capybara_center_variables_,    17},
+    {"_capybara_center_variables_",    (DL_FUNC) &_capybara_center_variables_,     6},
     {"_capybara_check_separation_",    (DL_FUNC) &_capybara_check_separation_,    10},
     {"_capybara_feglm_fit_",           (DL_FUNC) &_capybara_feglm_fit_,            9},
     {"_capybara_feglm_offset_fit_",    (DL_FUNC) &_capybara_feglm_offset_fit_,     7},

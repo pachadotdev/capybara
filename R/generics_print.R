@@ -293,3 +293,20 @@ print.summary_table <- function(x, ...) {
   cat(x$content, sep = "\n")
   invisible(x)
 }
+
+#' Print method for regression tables
+#' @export
+#' @noRd
+print.capybara_separation <- function(x, ...) {
+  cat("Separation Check Result\n")
+  cat("-----------------------\n")
+  cat("Separated observations:", x$num_separated, "\n")
+  cat("Converged:", x$converged, "\n")
+  if (x$num_separated > 0 && length(x$separated_obs) <= 20) {
+    cat("Observation indices:", paste(x$separated_obs, collapse = ", "), "\n")
+  } else if (x$num_separated > 0) {
+    cat("First 20 observation indices:",
+        paste(head(x$separated_obs, 20), collapse = ", "), "...\n")
+  }
+  invisible(x)
+}
