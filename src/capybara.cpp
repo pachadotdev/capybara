@@ -123,15 +123,17 @@ inline field<field<uvec>> R_list_to_Armadillo_field(const list &FEs) {
 
 // this function is not visible by the end-user, so we use multiple parameters
 // instead of a CapybaraParameters object
-[[cpp4r::register]] doubles_matrix<> center_variables_(
-    const doubles_matrix<> &V_r, const doubles &w_r, const list &klist,
-    const double &tol, const size_t &max_iter, const size_t &iter_interrupt) {
+[[cpp4r::register]] doubles_matrix<>
+center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
+                  const list &klist, const double &tol, const size_t &max_iter,
+                  const size_t &iter_interrupt) {
   mat V = as_mat(V_r);
   vec w = as_col(w_r);
 
   field<field<uvec>> group_indices = R_list_to_Armadillo_field(klist);
 
-  capybara::center_variables(V, w, group_indices, tol, max_iter, iter_interrupt);
+  capybara::center_variables(V, w, group_indices, tol, max_iter,
+                             iter_interrupt);
 
   return as_doubles_matrix(V);
 }
@@ -316,7 +318,8 @@ inline field<field<uvec>> R_list_to_Armadillo_field(const list &FEs) {
 
       fe_list[k] = fe_values;
 
-      if (!k_list.names().empty() && k < static_cast<size_t>(k_list.names().size())) {
+      if (!k_list.names().empty() &&
+          k < static_cast<size_t>(k_list.names().size())) {
         fe_list_names[k] = k_list.names()[k];
       } else {
         fe_list_names[k] = std::to_string(k + 1);
@@ -491,10 +494,10 @@ group_sums_cov_(const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
 // Based on Correia, Guimarães, Zylkin (2019)
 [[cpp4r::register]] list
 check_separation_(const doubles &y_r, const doubles_matrix<> &X_r,
-                  const doubles &w_r, const double &tol,
-                  const double &zero_tol, const size_t &max_iter,
-                  const size_t &simplex_max_iter, const bool &use_relu,
-                  const bool &use_simplex, const bool &verbose) {
+                  const doubles &w_r, const double &tol, const double &zero_tol,
+                  const size_t &max_iter, const size_t &simplex_max_iter,
+                  const bool &use_relu, const bool &use_simplex,
+                  const bool &verbose) {
   vec y = as_col(y_r);
   mat X = as_mat(X_r);
   vec w = as_col(w_r);
@@ -517,13 +520,13 @@ check_separation_(const doubles &y_r, const doubles_matrix<> &X_r,
     separated_obs_r(i) = static_cast<double>(result.separated_obs(i) + 1);
   }
 
-  auto out = writable::list({
-      "separated_obs"_nm = as_doubles(separated_obs_r),
-      "num_separated"_nm =
-          writable::integers({static_cast<int>(result.num_separated)}),
-      "converged"_nm = writable::logicals({result.converged}),
-      "iterations"_nm =
-          writable::integers({static_cast<int>(result.iterations)})});
+  auto out = writable::list(
+      {"separated_obs"_nm = as_doubles(separated_obs_r),
+       "num_separated"_nm =
+           writable::integers({static_cast<int>(result.num_separated)}),
+       "converged"_nm = writable::logicals({result.converged}),
+       "iterations"_nm =
+           writable::integers({static_cast<int>(result.iterations)})});
 
   if (result.certificate.n_elem > 0) {
     out.push_back({"certificate"_nm = as_doubles(result.certificate)});

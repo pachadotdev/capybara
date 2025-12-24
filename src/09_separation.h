@@ -10,25 +10,24 @@ namespace capybara {
 
 // Result structure for separation detection
 struct SeparationResult {
-  uvec separated_obs;   // Indices of separated observations (0-based)
-  vec certificate;      // z vector proving separation (certificate)
-  uword num_separated;  // Count of separated observations
-  bool converged;       // Whether the algorithm converged
-  uword iterations;     // Number of iterations used
+  uvec separated_obs;  // Indices of separated observations (0-based)
+  vec certificate;     // z vector proving separation (certificate)
+  uword num_separated; // Count of separated observations
+  bool converged;      // Whether the algorithm converged
+  uword iterations;    // Number of iterations used
 
-  SeparationResult()
-      : num_separated(0), converged(false), iterations(0) {}
+  SeparationResult() : num_separated(0), converged(false), iterations(0) {}
 };
 
 // Parameters for separation detection
 struct SeparationParameters {
-  double tol;              // Convergence tolerance
-  double zero_tol;         // Tolerance for treating values as zero
-  uword max_iter;          // Maximum iterations for ReLU method
-  uword simplex_max_iter;  // Maximum iterations for simplex method
-  bool use_relu;           // Whether to use ReLU method
-  bool use_simplex;        // Whether to use simplex method
-  bool verbose;            // Verbose output
+  double tol;             // Convergence tolerance
+  double zero_tol;        // Tolerance for treating values as zero
+  uword max_iter;         // Maximum iterations for ReLU method
+  uword simplex_max_iter; // Maximum iterations for simplex method
+  bool use_relu;          // Whether to use ReLU method
+  bool use_simplex;       // Whether to use simplex method
+  bool verbose;           // Verbose output
 
   SeparationParameters()
       : tol(1e-8), zero_tol(1e-12), max_iter(1000), simplex_max_iter(10000),
@@ -109,7 +108,7 @@ inline vec solve_wls(const mat &X, const vec &y, const vec &w, vec &residuals) {
   if (!success) {
     // Fall back to normal equations with regularization
     mat XtWX = X.t() * (X.each_col() % w);
-    XtWX.diag() += 1e-10;  // Ridge regularization
+    XtWX.diag() += 1e-10; // Ridge regularization
     vec XtWy = X.t() * (y % w);
     beta = solve(XtWX, XtWy);
   }
@@ -120,11 +119,12 @@ inline vec solve_wls(const mat &X, const vec &y, const vec &w, vec &residuals) {
 
 // Solve LSE (Least Squares with Equality constraints) via weighting method
 // Based on Van Loan (1985) and Stewart (1997)
-// Equality constraints are: X[constrained_sample, :] * beta = y[constrained_sample]
+// Equality constraints are: X[constrained_sample, :] * beta =
+// y[constrained_sample]
 inline vec solve_lse_weighted(const mat &X, const vec &y,
                               const uvec &unconstrained_sample,
-                              const uvec &constrained_sample,
-                              double M_weight, vec &residuals) {
+                              const uvec &constrained_sample, double M_weight,
+                              vec &residuals) {
   const uword n = y.n_elem;
 
   if (X.n_cols == 0) {
@@ -197,7 +197,8 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
 
     // Solve weighted LSE problem
     vec resid;
-    vec beta = solve_lse_weighted(X, u, boundary_sample, interior_sample, M, resid);
+    vec beta =
+        solve_lse_weighted(X, u, boundary_sample, interior_sample, M, resid);
     xbd = u - resid;
 
     // Compute statistics
@@ -217,9 +218,8 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
 
     // Check for stuck convergence (acceleration trigger)
     if (!convergence_is_stuck && iter > 3) {
-      convergence_is_stuck =
-          (progress_ratio - progress_ratio_prev2 < 1.0) &&
-          (num_candidates == num_candidates_prev2);
+      convergence_is_stuck = (progress_ratio - progress_ratio_prev2 < 1.0) &&
+                             (num_candidates == num_candidates_prev2);
     }
 
     // Update tracking variables
@@ -360,7 +360,7 @@ inline void simplex_presolve(mat &X, uvec &basic_vars, uvec &nonbasic_vars,
 
   for (uword j = 0; j < k; ++j) {
     // Find first non-zero in column j
-    uword pivot_row = n;  // Invalid
+    uword pivot_row = n; // Invalid
     for (uword i = 0; i < n; ++i) {
       if (std::abs(X(i, j)) > arma::datum::eps * 100) {
         pivot_row = i;
@@ -496,7 +496,7 @@ detect_separation_simplex(const mat &residuals,
     uword n_simp = X_simplex.n_rows;
     uword k_simp = X_simplex.n_cols;
 
-    if (n_simp > k_simp) {  // Only proceed if system is overdetermined
+    if (n_simp > k_simp) { // Only proceed if system is overdetermined
       // Presolve
       uvec basic_vars, nonbasic_vars, keep_mask;
       simplex_presolve(X_simplex, basic_vars, nonbasic_vars, keep_mask, k_simp,
@@ -541,12 +541,13 @@ detect_separation_simplex(const mat &residuals,
             continue;
           }
 
-          // Find leaving variable (minimum ratio test, but we use max since our RHS is 0)
+          // Find leaving variable (minimum ratio test, but we use max since our
+          // RHS is 0)
           uword pivot_row = index_max(pivot_column);
           double pivot = X_simplex(pivot_row, pivot_col);
 
           if (std::abs(pivot) < 1e-14) {
-            continue;  // Skip degenerate pivot
+            continue; // Skip degenerate pivot
           }
 
           // Pivot operation
@@ -602,9 +603,9 @@ detect_separation_simplex(const mat &residuals,
 // Combined separation detection
 // ============================================================================
 
-inline SeparationResult
-check_separation(const vec &y, const mat &X, const vec &w,
-                 const SeparationParameters &params) {
+inline SeparationResult check_separation(const vec &y, const mat &X,
+                                         const vec &w,
+                                         const SeparationParameters &params) {
   SeparationResult result;
   result.num_separated = 0;
   result.converged = true;
@@ -656,7 +657,8 @@ check_separation(const vec &y, const mat &X, const vec &w,
     if (relu_result.num_separated > 0) {
       // Merge results (union of separated observations)
       if (result.num_separated > 0) {
-        uvec combined = join_vert(result.separated_obs, relu_result.separated_obs);
+        uvec combined =
+            join_vert(result.separated_obs, relu_result.separated_obs);
         result.separated_obs = unique(combined);
         result.num_separated = result.separated_obs.n_elem;
       } else {
@@ -671,6 +673,6 @@ check_separation(const vec &y, const mat &X, const vec &w,
   return result;
 }
 
-}  // namespace capybara
+} // namespace capybara
 
-#endif  // CAPYBARA_SEPARATION_H
+#endif // CAPYBARA_SEPARATION_H

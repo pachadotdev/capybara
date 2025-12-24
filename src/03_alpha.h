@@ -52,7 +52,7 @@ inline field<vec> get_alpha(const vec &pi,
     group_info(k).n_groups = J;
     group_info(k).group_size.set_size(J);
     group_info(k).obs_to_group.set_size(N);
-    group_info(k).obs_to_group.fill(J);  // Initialize with invalid index
+    group_info(k).obs_to_group.fill(J); // Initialize with invalid index
 
     for (uword j = 0; j < J; ++j) {
       const uvec &indexes = group_indices(k)(j);
