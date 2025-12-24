@@ -46,13 +46,11 @@ inline mat crossprod(const mat &X, const vec &w = vec()) {
     return mat();
   }
 
-  // Unweighted case: fall back to BLAS-backed X.t() * X
   if (w.is_empty() || w.n_elem == 1) {
     return arma::symmatu(X.t() * X);
   }
 
-  // Weighted case: apply sqrt(w) once and reuse Armadillo's GEMM
-  vec sqrt_w = sqrt(w);
+  vec sqrt_w = arma::sqrt(w);
   mat X_weighted = X.each_col() % sqrt_w;
   return arma::symmatu(X_weighted.t() * X_weighted);
 }
@@ -203,7 +201,8 @@ check_collinearity(mat &X, const vec &w, bool has_weights, double tolerance) {
 inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
                               const vec &w,
                               const CollinearityResult &collin_result,
-                              bool weighted, bool scale_X) {
+                              bool weighted, bool scale_X,
+                              mat *cached_XtX = nullptr) {
   const uword n = X.n_rows;
   const uword p = X.n_cols;
   const uword p_orig =
@@ -231,11 +230,24 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
   mat XtX(p, p);
   vec Xty(p);
 
+  // Reuse cached XtX if provided, otherwise compute
+  if (cached_XtX && cached_XtX->n_rows == p && cached_XtX->n_cols == p) {
+    XtX = *cached_XtX;
+  } else {
+    if (has_weights) {
+      XtX = crossprod(X, w);
+    } else {
+      XtX = crossprod(X);
+    }
+    // Update cache if pointer provided
+    if (cached_XtX) {
+      *cached_XtX = XtX;
+    }
+  }
+
   if (has_weights) {
-    XtX = crossprod(X, w);
     Xty = X.t() * (w % y);
   } else {
-    XtX = crossprod(X);
     Xty = X.t() * y;
   }
 

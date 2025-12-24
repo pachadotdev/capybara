@@ -15,20 +15,9 @@ fit_control(
   iter_inner_max = 50L,
   iter_alpha_max = 10000L,
   iter_interrupt = 1000L,
-  iter_ssr = 10L,
   step_halving_memory = 0.9,
   max_step_halving = 2L,
   start_inner_tol = 1e-06,
-  accel_start = 6L,
-  project_tol_factor = 0.001,
-  grand_accel_tol = 1e-10,
-  project_group_tol = 1e-12,
-  irons_tuck_tol = 1e-10,
-  grand_accel_interval = 5L,
-  irons_tuck_interval = 3L,
-  ssr_check_interval = 40L,
-  convergence_factor = 1.1,
-  tol_multiplier = 20,
   return_fe = TRUE,
   keep_tx = FALSE,
   init_theta = 0
@@ -72,10 +61,6 @@ The default is \code{10000L}.}
 \item{iter_interrupt}{unsigned integer indicating the maximum number of
 iterations before the algorithm is interrupted. The default is \code{1000L}.}
 
-\item{iter_ssr}{unsigned integer indicating the number of iterations
-to skip before checking if the sum of squared residuals improves. The default
-is \code{10L}.}
-
 \item{step_halving_memory}{numeric memory factor for step-halving algorithm.
 Controls how much of the previous iteration is retained. The default is \code{0.9}.}
 
@@ -84,36 +69,6 @@ The default is \code{2}.}
 
 \item{start_inner_tol}{starting tolerance for inner solver iterations.
 The default is \code{1.0e-04}.}
-
-\item{accel_start}{Integer. Iteration to start conjugate gradient acceleration in centering.
-The default is \code{6L}.}
-
-\item{project_tol_factor}{Factor to multiply center_tol for projection tolerance.
-The default is \code{1e-3}.}
-
-\item{grand_accel_tol}{Tolerance for grand acceleration convergence.
-The default is \code{1e-10}.}
-
-\item{project_group_tol}{Tolerance for individual group projections.
-The default is \code{1e-12}.}
-
-\item{irons_tuck_tol}{Tolerance for Irons-Tuck acceleration.
-The default is \code{1e-10}.}
-
-\item{grand_accel_interval}{Interval for applying grand acceleration.
-The default is \code{5L}.}
-
-\item{irons_tuck_interval}{Interval for applying Irons-Tuck acceleration.
-The default is \code{3L}.}
-
-\item{ssr_check_interval}{Interval for adaptive SSR convergence checks.
-The default is \code{40L}.}
-
-\item{convergence_factor}{Factor for detecting slow convergence.
-The default is \code{1.1}.}
-
-\item{tol_multiplier}{Multiplier for early termination tolerance check.
-The default is \code{20.0}.}
 
 \item{return_fe}{logical indicating if the fixed effects should be returned.
 This can be useful when fitting general equilibrium models where skipping the

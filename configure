@@ -156,7 +156,7 @@ if [ "$CAPYBARA_OPTIMIZATIONS" = "yes" ]; then
 fi
 
 # Compose ARMA_FLAGS
-ARMA_FLAGS="-DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_OPENMP_THREADS=$num_cores"
+ARMA_FLAGS="-DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=$num_cores"
 
 # Add 64-bit word size for better SIMD alignment
 ARMA_FLAGS="$ARMA_FLAGS -DARMA_64BIT_WORD"
@@ -169,6 +169,7 @@ fi
 
 sed -e "s|@CXX_STD@|${CXX_STD}|g" \
     -e "s|@OPTFLAGS@|${OPTFLAGS}|g" \
+    -e "s|@ARMA_FLAGS@|${ARMA_FLAGS}|g" \
     -e "s|@ncores@|${num_cores}|g" \
     src/Makevars.in > src/Makevars
 

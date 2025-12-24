@@ -3,10 +3,45 @@
 #ifndef CAPYBARA_GLM_H
 #define CAPYBARA_GLM_H
 
+// #include <chrono>
+// #include <iostream>
+// #include <sstream>
+// #include <cstdlib>
+
 namespace capybara {
+
+// Timing helper for profiling
+// struct TimingStats {
+//   double total_time_ms = 0.0;
+//   double centering_time_ms = 0.0;
+//   double beta_solve_time_ms = 0.0;
+//   double setup_time_ms = 0.0;
+//   uword n_iterations = 0;
+  
+//   void print() const {
+//     std::ostringstream oss;
+//     oss << "\n=== Timing Breakdown ===\n";
+//     oss << "Total time: " << total_time_ms << " ms\n";
+//     oss << "  Setup: " << setup_time_ms << " ms ("
+//         << (total_time_ms > 0 ? (100.0 * setup_time_ms / total_time_ms) : 0.0)
+//         << "%)\n";
+//     oss << "  Centering: " << centering_time_ms << " ms ("
+//         << (total_time_ms > 0 ? (100.0 * centering_time_ms / total_time_ms) : 0.0)
+//         << "%)\n";
+//     oss << "  Beta solve: " << beta_solve_time_ms << " ms ("
+//         << (total_time_ms > 0 ? (100.0 * beta_solve_time_ms / total_time_ms) : 0.0)
+//         << "%)\n";
+//     oss << "Iterations: " << n_iterations << "\n";
+//     oss << "=====================\n";
+
+//     // Prefer cpp4r::message for reliable R console output
+//     cpp4r::message(oss.str());
+//   }
+// };
 
 struct GlmWorkspace {
   mat XtX;
+  mat XtX_cache;  // Cache for reuse across iterations
   vec XtY;
   mat L;
   vec beta_work;
@@ -39,6 +74,7 @@ struct GlmWorkspace {
     uword safe_p = std::max(p, uword(1));
 
     XtX.set_size(safe_p, safe_p);
+    XtX_cache.set_size(safe_p, safe_p);
     XtY.set_size(safe_p);
     L.set_size(safe_p, safe_p);
     beta_work.set_size(safe_p);
@@ -68,6 +104,8 @@ struct GlmWorkspace {
 
       if (XtX.n_rows < new_p || XtX.n_cols < new_p)
         XtX.set_size(new_p, new_p);
+      if (XtX_cache.n_rows < new_p || XtX_cache.n_cols < new_p)
+        XtX_cache.set_size(new_p, new_p);
       if (XtY.n_elem < new_p)
         XtY.set_size(new_p);
       if (L.n_rows < new_p || L.n_cols < new_p)
@@ -116,6 +154,7 @@ struct GlmWorkspace {
 
   void clear() {
     XtX.reset();
+    XtX_cache.reset();
     XtY.reset();
     L.reset();
     beta_work.reset();
@@ -144,6 +183,9 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
                        const field<field<uvec>> &fe_groups,
                        const CapybaraParameters &params,
                        GlmWorkspace *workspace = nullptr) {
+  // auto t_start = std::chrono::high_resolution_clock::now();
+  // TimingStats timing;
+  
   const uword n = y.n_elem;
   const uword p = X.n_cols;
   const uword k = beta.n_elem;
@@ -193,19 +235,20 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   CollinearityResult collin_result =
       check_collinearity(X, w, /*use_weights =*/true, params.collin_tol);
 
+  // auto t_setup_end = std::chrono::high_resolution_clock::now();
+  // timing.setup_time_ms = std::chrono::duration<double, std::milli>(t_setup_end - t_start).count();
+
   // Adaptive tolerance variables -> more aggressive for large models
   double hdfe_tolerance = params.center_tol;
   double highest_inner_tol =
       std::max(1e-12, std::min(params.center_tol, 0.1 * params.dev_tol));
   double start_inner_tol = params.start_inner_tol;
 
-  // Model size-based initial tolerance
   bool is_large_model =
       (n > 100000) || (p > 1000) || (has_fixed_effects && fe_groups.n_elem > 1);
 
   if (has_fixed_effects) {
     if (is_large_model) {
-      // Much looser initial tolerance for large models
       hdfe_tolerance =
           std::max(1e-3, std::max(start_inner_tol, params.dev_tol * 10));
     } else {
@@ -213,25 +256,21 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     }
   }
 
-  bool use_partial = false; // Partial out variables
+  bool use_partial = false;
 
-  // Step halving with memory variables
   double step_halving_memory = params.step_halving_memory;
   uword num_step_halving = 0;
   uword max_step_halving = params.max_step_halving;
 
-  // Convergence history prediction
   vec eps_history(3, fill::value(datum::inf));
   double predicted_eps = datum::inf;
 
   MNU_increment.zeros();
   nu0.zeros();
 
-  // Adaptive tolerance scheduling
   uword convergence_count = 0;
   double last_dev_ratio = datum::inf;
 
-  // Maximize the log-likelihood
   for (uword iter = 0; iter < params.iter_max; ++iter) {
     rho = 1.0;
     eta0 = eta;
@@ -254,33 +293,48 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
                        (predicted_eps > params.dev_tol);
 
     double current_hdfe_tol;
+    uword current_max_iter;
+    // Lower limits: Irons-Tuck + Grand accel converges faster than CG
     if (is_large_model) {
       if (iter < 5) {
         current_hdfe_tol = std::max(hdfe_tolerance, 1e-2);
+        current_max_iter = std::min((uword)params.iter_center_max, uword(100));
       } else if (iter_solver) {
         current_hdfe_tol = std::min(hdfe_tolerance, 1e-3);
+        current_max_iter = std::min((uword)params.iter_center_max, uword(200));
       } else {
         current_hdfe_tol = std::min(hdfe_tolerance, highest_inner_tol);
+        current_max_iter = std::min((uword)params.iter_center_max, uword(300));
       }
     } else {
+      if (iter < 3) {
+        current_max_iter = std::min((uword)params.iter_center_max, uword(50));
+      } else if (dev_ratio > 0.001) {
+        current_max_iter = std::min((uword)params.iter_center_max, uword(150));
+      } else {
+        current_max_iter = std::min((uword)params.iter_center_max, uword(200));
+      }
       current_hdfe_tol = iter_solver
                              ? hdfe_tolerance
                              : std::min(hdfe_tolerance, highest_inner_tol);
     }
 
-    // Partial out -> only update the increment after first iteration (as in
-    // ppmlhdfe)
     if (use_partial && iter > 1) {
       MNU_increment = nu - nu0;
       MNU += MNU_increment;
 
       if (has_fixed_effects) {
+        // auto t_center_start = std::chrono::high_resolution_clock::now();
         center_variables(MNU, w_working, fe_groups, current_hdfe_tol,
-                         params.iter_center_max, params.iter_interrupt,
+                         current_max_iter, params.iter_interrupt,
                          group_info_ptr, &centering_workspace);
         center_variables(X, w_working, fe_groups, current_hdfe_tol,
-                         params.iter_center_max, params.iter_interrupt,
+                         current_max_iter, params.iter_interrupt,
                          group_info_ptr, &centering_workspace);
+        // auto t_center_end = std::chrono::high_resolution_clock::now();
+        // timing.centering_time_ms += std::chrono::duration<double, std::milli>(t_center_end - t_center_start).count();
+        // X changed, invalidate cache
+        workspace->XtX_cache.reset();
       }
       nu0 = nu;
     } else {
@@ -288,20 +342,29 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       nu0 = nu;
 
       if (has_fixed_effects) {
+        // auto t_center_start = std::chrono::high_resolution_clock::now();
         center_variables(MNU, w_working, fe_groups, current_hdfe_tol,
-                         params.iter_center_max, params.iter_interrupt,
+                         current_max_iter, params.iter_interrupt,
                          group_info_ptr, &centering_workspace);
         center_variables(X, w_working, fe_groups, current_hdfe_tol,
-                         params.iter_center_max, params.iter_interrupt,
+                         current_max_iter, params.iter_interrupt,
                          group_info_ptr, &centering_workspace);
+        // auto t_center_end = std::chrono::high_resolution_clock::now();
+        // timing.centering_time_ms += std::chrono::duration<double, std::milli>(t_center_end - t_center_start).count();
+        // X changed, invalidate cache
+        workspace->XtX_cache.reset();
       }
     }
 
     // Enable partial out after first iteration
     use_partial = true;
 
+    // auto t_beta_start = std::chrono::high_resolution_clock::now();
     InferenceBeta beta_result =
-        get_beta(X, MNU, MNU, w_working, collin_result, false, false);
+        get_beta(X, MNU, MNU, w_working, collin_result, false, false,
+                 &workspace->XtX_cache);
+    // auto t_beta_end = std::chrono::high_resolution_clock::now();
+    // timing.beta_solve_time_ms += std::chrono::duration<double, std::milli>(t_beta_end - t_beta_start).count();
 
     // Handle collinearity
     vec beta_upd_reduced;
@@ -386,6 +449,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 
     if (dev_ratio < params.dev_tol) {
       conv = true;
+      // timing.n_iterations = iter + 1;
       break;
     }
 
@@ -474,6 +538,12 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       result.has_tx = true;
     }
   }
+
+  // auto t_end = std::chrono::high_resolution_clock::now();
+  // timing.total_time_ms = std::chrono::duration<double, std::milli>(t_end - t_start).count();
+  
+  // Print timing breakdown (unconditional)
+  // timing.print();
 
   return result;
 }

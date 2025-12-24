@@ -255,7 +255,7 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
   }
 
   InferenceBeta beta_result = get_beta(X, ws->y_demeaned, ws->y_demeaned, w,
-                                       collin_result, false, false);
+                                       collin_result, false, false, nullptr);
 
   result.coefficients = std::move(beta_result.coefficients);
   result.coef_status = std::move(collin_result.coef_status);
