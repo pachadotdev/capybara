@@ -4,7 +4,7 @@
 #define CAPYBARA_BETA_H
 
 namespace capybara {
-
+  
 struct InferenceBeta {
   vec coefficients;
   vec fitted_values;
@@ -46,13 +46,55 @@ inline mat crossprod(const mat &X, const vec &w = vec()) {
     return mat();
   }
 
+  const uword n = X.n_rows;
+  const uword p = X.n_cols;
+
   if (w.is_empty() || w.n_elem == 1) {
     return arma::symmatu(X.t() * X);
   }
 
-  vec sqrt_w = arma::sqrt(w);
-  mat X_weighted = X.each_col() % sqrt_w;
-  return arma::symmatu(X_weighted.t() * X_weighted);
+  const double *w_ptr = w.memptr();
+  mat XtX(p, p, fill::zeros);
+
+  // Weighted cross-product without allocating a weighted X
+#if defined(_OPENMP)
+#pragma omp parallel for schedule(static)
+#endif
+  for (uword j = 0; j < p; ++j) {
+    const double *Xj = X.colptr(j);
+    for (uword i = 0; i <= j; ++i) {
+      const double *Xi = X.colptr(i);
+      double sum = 0.0;
+      for (uword t = 0; t < n; ++t) {
+        sum += w_ptr[t] * Xi[t] * Xj[t];
+      }
+      XtX(i, j) = sum;
+      XtX(j, i) = sum;
+    }
+  }
+
+  return XtX;
+}
+
+inline vec crossprod_Xy(const mat &X, const vec &w, const vec &y) {
+  const uword n = X.n_rows;
+  const uword p = X.n_cols;
+  vec Xty(p, fill::zeros);
+  const double *w_ptr = w.memptr();
+  const double *y_ptr = y.memptr();
+
+#if defined(_OPENMP)
+#pragma omp parallel for schedule(static)
+#endif
+  for (uword j = 0; j < p; ++j) {
+    const double *Xj = X.colptr(j);
+    double sum = 0.0;
+    for (uword t = 0; t < n; ++t) {
+      sum += Xj[t] * w_ptr[t] * y_ptr[t];
+    }
+    Xty[j] = sum;
+  }
+  return Xty;
 }
 
 inline bool rank_revealing_cholesky(uvec &excluded, const mat &XtX,
@@ -246,7 +288,7 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
   }
 
   if (has_weights) {
-    Xty = X.t() * (w % y);
+    Xty = crossprod_Xy(X, w, y);
   } else {
     Xty = X.t() * y;
   }

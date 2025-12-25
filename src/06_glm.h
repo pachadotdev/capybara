@@ -301,7 +301,6 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       nu0 = nu;
 
       if (has_fixed_effects) {
-        auto t_center_start = std::chrono::high_resolution_clock::now();
         center_variables(MNU, w_working, fe_groups, current_hdfe_tol,
                          current_max_iter, params.iter_interrupt,
                          group_info_ptr, &centering_workspace);

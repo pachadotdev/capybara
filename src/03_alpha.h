@@ -5,6 +5,10 @@
 
 namespace capybara {
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 // Get block size for cache-friendly indexed scatter operations
 inline uword get_block_size(uword n, uword k) {
   constexpr uword L1_CACHE = 32768;
@@ -145,49 +149,56 @@ get_alpha(const vec &pi, const field<field<uvec>> &group_indices,
       sum_sq0 += dot(ws->alpha0.head(J), ws->alpha0.head(J));
 
       ws->group_sums.head(J).zeros();
-      const uword *obs_to_group = info.obs_to_group.memptr();
       const double *residual_ptr = residual.memptr();
 
-      // Accumulate group sums using current residual and old alpha_k
-      for (uword block_start = 0; block_start < N;
-           block_start += obs_block_size) {
-        const uword block_end = std::min(block_start + obs_block_size, N);
-
-        for (uword i = block_start; i < block_end; ++i) {
-          uword group = obs_to_group[i];
-          if (group < J) {
-            group_sums_ptr[group] += residual_ptr[i] + alpha0_ptr[group];
-          }
+      // Accumulate group sums by iterating groups (enables parallelization)
+      // group_sums[j] = sum_{i in g_j} (residual[i] + alpha0[j])
+#if defined(_OPENMP)
+#pragma omp parallel for schedule(static)
+#endif
+      for (uword j = 0; j < J; ++j) {
+        const uvec &indexes = group_indices(k)(j);
+        const uword *idx_ptr = indexes.memptr();
+        const uword n_idx = indexes.n_elem;
+        double s = 0.0;
+        const double a0j = alpha0_ptr[j];
+        for (uword t = 0; t < n_idx; ++t) {
+          s += residual_ptr[idx_ptr[t]] + a0j;
         }
+        group_sums_ptr[j] = s;
       }
 
       double *coef_k_ptr_new = coefficients(k).memptr();
       const uword *group_size = info.group_size.memptr();
 
+      // Update alpha_k per group and accumulate convergence metric
+#if defined(_OPENMP)
+#pragma omp parallel for schedule(static) reduction(+ : sum_sq_diff)
+#endif
       for (uword j = 0; j < J; ++j) {
+        double new_val = 0.0;
         if (group_size[j] > 0) {
-          coef_k_ptr_new[j] =
-              group_sums_ptr[j] / static_cast<double>(group_size[j]);
-        } else {
-          coef_k_ptr_new[j] = 0.0;
+          new_val = group_sums_ptr[j] / static_cast<double>(group_size[j]);
         }
-        double diff = coef_k_ptr_new[j] - alpha0_ptr[j];
+        coef_k_ptr_new[j] = new_val;
+        double diff = new_val - alpha0_ptr[j];
         sum_sq_diff += diff * diff;
       }
 
       double *residual_ptr_mut = residual.memptr();
 
       // Update residual: residual = pi - sum(alpha_k)
-      for (uword block_start = 0; block_start < N;
-           block_start += obs_block_size) {
-        const uword block_end = std::min(block_start + obs_block_size, N);
-
-        for (uword i = block_start; i < block_end; ++i) {
-          uword group = obs_to_group[i];
-          if (group < J) {
-            double delta = coef_k_ptr_new[group] - alpha0_ptr[group];
-            residual_ptr_mut[i] -= delta;
-          }
+      // residual[i] -= (alpha_k_new[group(i)] - alpha_k_old[group(i)])
+#if defined(_OPENMP)
+#pragma omp parallel for schedule(static)
+#endif
+      for (uword j = 0; j < J; ++j) {
+        const uvec &indexes = group_indices(k)(j);
+        const uword *idx_ptr = indexes.memptr();
+        const uword n_idx = indexes.n_elem;
+        const double delta = coef_k_ptr_new[j] - alpha0_ptr[j];
+        for (uword t = 0; t < n_idx; ++t) {
+          residual_ptr_mut[idx_ptr[t]] -= delta;
         }
       }
     }

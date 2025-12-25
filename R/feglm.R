@@ -175,6 +175,17 @@ feglm <- function(
   p <- NA
   model_response_(data, formula)
 
+  # Warm-start (opt-in): reuse previous eta if available and sizes match ----
+  if (isTRUE(getOption("capybara.warm_start", FALSE))) {
+    form_key <- paste(deparse(formula), collapse = "")
+    prev <- cache_get_starts_(form_key)
+    if (is.null(beta_start) && is.null(eta_start) && !is.null(prev)) {
+      if (length(prev$eta) == nrow(X)) {
+        eta_start <- prev$eta
+      }
+    }
+  }
+
   # Extract weights if required ----
   if (is.null(weights)) {
     wt <- rep(1.0, nt)
@@ -226,6 +237,17 @@ feglm <- function(
   )
 
   nobs <- nobs_(nobs_full, nobs_na, y, fit[["fitted_values"]])
+
+  # Cache starts for potential warm-start in repeated calls (opt-in) ----
+  if (isTRUE(getOption("capybara.warm_start", FALSE))) {
+    if (!is.null(fit$coefficients) && !is.null(fit$eta)) {
+      coefs <- fit$coefficients
+      if (length(coefs) == ncol(X) && length(fit$eta) == nrow(X)) {
+        form_key <- paste(deparse(formula), collapse = "")
+        cache_set_starts_(form_key, coefs, fit$eta)
+      }
+    }
+  }
 
   y <- NULL
   X <- NULL
