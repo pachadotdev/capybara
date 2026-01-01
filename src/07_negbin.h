@@ -12,6 +12,23 @@ struct InferenceNegBin : public InferenceGLM {
 
   InferenceNegBin(uword n, uword p)
       : InferenceGLM(n, p), theta(1.0), iter_outer(0), conv_outer(false) {}
+
+  void copy_from(InferenceGLM &glm_fit) {
+    coefficients = std::move(glm_fit.coefficients);
+    eta = std::move(glm_fit.eta);
+    fitted_values = std::move(glm_fit.fitted_values);
+    weights = std::move(glm_fit.weights);
+    hessian = std::move(glm_fit.hessian);
+    deviance = glm_fit.deviance;
+    null_deviance = glm_fit.null_deviance;
+    conv = glm_fit.conv;
+    iter = glm_fit.iter;
+    coef_status = std::move(glm_fit.coef_status);
+    fixed_effects = std::move(glm_fit.fixed_effects);
+    has_fe = glm_fit.has_fe;
+    TX = std::move(glm_fit.TX);
+    has_tx = glm_fit.has_tx;
+  }
 };
 
 inline double estimate_theta(const vec &y, const vec &mu,
@@ -50,32 +67,16 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
   }
   workspace->ensure_size(n, p);
 
-  Family poisson_family = POISSON;
-
   // Initialize beta and eta with Poisson fit
   vec beta(p, fill::zeros);
   vec eta(n, fill::zeros);
 
-  InferenceGLM poisson_fit = feglm_fit(beta, eta, y, X, w, 0.0, poisson_family,
+  InferenceGLM poisson_fit = feglm_fit(beta, eta, y, X, w, 0.0, POISSON,
                                        fe_groups, params, workspace);
 
   if (!poisson_fit.conv) {
-    result.conv = false;
+    result.copy_from(poisson_fit);
     result.conv_outer = false;
-    // Copy coefficients even if convergence failed
-    result.coefficients = poisson_fit.coefficients;
-    result.eta = poisson_fit.eta;
-    result.fitted_values = poisson_fit.fitted_values;
-    result.weights = poisson_fit.weights;
-    result.hessian = poisson_fit.hessian;
-    result.deviance = poisson_fit.deviance;
-    result.null_deviance = poisson_fit.null_deviance;
-    result.iter = poisson_fit.iter;
-    result.coef_status = poisson_fit.coef_status;
-    result.fixed_effects = poisson_fit.fixed_effects;
-    result.has_fe = poisson_fit.has_fe;
-    result.TX = poisson_fit.TX;
-    result.has_tx = poisson_fit.has_tx;
     return result;
   }
 
@@ -98,26 +99,11 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
 
     theta0 = theta;
 
-    Family negbin_family = NEG_BIN;
-    InferenceGLM glm_fit = feglm_fit(beta, eta, y, X, w, theta, negbin_family,
+    InferenceGLM glm_fit = feglm_fit(beta, eta, y, X, w, theta, NEG_BIN,
                                      fe_groups, params, workspace);
 
     if (!glm_fit.conv) {
-      // Copy current results even if convergence failed
-      result.coefficients = std::move(glm_fit.coefficients);
-      result.eta = std::move(glm_fit.eta);
-      result.fitted_values = std::move(glm_fit.fitted_values);
-      result.weights = std::move(glm_fit.weights);
-      result.hessian = std::move(glm_fit.hessian);
-      result.deviance = glm_fit.deviance;
-      result.null_deviance = glm_fit.null_deviance;
-      result.conv = glm_fit.conv;
-      result.iter = glm_fit.iter;
-      result.coef_status = std::move(glm_fit.coef_status);
-      result.fixed_effects = std::move(glm_fit.fixed_effects);
-      result.has_fe = glm_fit.has_fe;
-      result.TX = std::move(glm_fit.TX);
-      result.has_tx = glm_fit.has_tx;
+      result.copy_from(glm_fit);
       break;
     }
 
@@ -137,20 +123,8 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
       converged = true;
       theta = theta_new;
 
-      result.coefficients = std::move(glm_fit.coefficients);
-      result.eta = std::move(glm_fit.eta);
-      result.fitted_values = std::move(glm_fit.fitted_values);
-      result.weights = std::move(glm_fit.weights);
-      result.hessian = std::move(glm_fit.hessian);
+      result.copy_from(glm_fit);
       result.deviance = dev;
-      result.null_deviance = glm_fit.null_deviance;
-      result.conv = glm_fit.conv;
-      result.iter = glm_fit.iter;
-      result.coef_status = std::move(glm_fit.coef_status);
-      result.fixed_effects = std::move(glm_fit.fixed_effects);
-      result.has_fe = glm_fit.has_fe;
-      result.TX = std::move(glm_fit.TX);
-      result.has_tx = glm_fit.has_tx;
       result.theta = theta;
       result.conv_outer = true;
 
@@ -160,23 +134,9 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
     theta = theta_new;
     dev0 = dev;
 
-    beta = glm_fit.coefficients;
-    eta = glm_fit.eta;
-
-    result.coefficients = std::move(glm_fit.coefficients);
-    result.eta = std::move(glm_fit.eta);
-    result.fitted_values = std::move(glm_fit.fitted_values);
-    result.weights = std::move(glm_fit.weights);
-    result.hessian = std::move(glm_fit.hessian);
-    result.deviance = glm_fit.deviance;
-    result.null_deviance = glm_fit.null_deviance;
-    result.conv = glm_fit.conv;
-    result.iter = glm_fit.iter;
-    result.coef_status = std::move(glm_fit.coef_status);
-    result.fixed_effects = std::move(glm_fit.fixed_effects);
-    result.has_fe = glm_fit.has_fe;
-    result.TX = std::move(glm_fit.TX);
-    result.has_tx = glm_fit.has_tx;
+    result.copy_from(glm_fit);
+    beta = result.coefficients;
+    eta = result.eta;
   }
 
   // Set final theta and convergence status

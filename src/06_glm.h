@@ -8,10 +8,6 @@ namespace capybara {
 struct GlmWorkspace {
   mat XtX;
   mat XtX_cache; // Cache for reuse across iterations
-  vec XtY;
-  mat L;
-  vec beta_work;
-  vec z_solve;
 
   // Reusable iteration buffers to avoid reallocations
   vec mu;
@@ -25,10 +21,6 @@ struct GlmWorkspace {
   vec beta0;
   vec nu0;
 
-  vec y;
-  vec alpha0;
-  vec group_sums;
-
   uword cached_n, cached_p;
   bool is_initialized;
 
@@ -41,10 +33,6 @@ struct GlmWorkspace {
 
     XtX.set_size(safe_p, safe_p);
     XtX_cache.set_size(safe_p, safe_p);
-    XtY.set_size(safe_p);
-    L.set_size(safe_p, safe_p);
-    beta_work.set_size(safe_p);
-    z_solve.set_size(safe_p);
 
     mu.set_size(safe_n);
     mu_eta.set_size(safe_n);
@@ -57,10 +45,6 @@ struct GlmWorkspace {
 
     beta0.set_size(safe_p);
     nu0.set_size(safe_n);
-
-    y.set_size(safe_n);
-    alpha0.set_size(safe_n);
-    group_sums.set_size(safe_n);
   }
 
   void ensure_size(uword n, uword p) {
@@ -72,14 +56,6 @@ struct GlmWorkspace {
         XtX.set_size(new_p, new_p);
       if (XtX_cache.n_rows < new_p || XtX_cache.n_cols < new_p)
         XtX_cache.set_size(new_p, new_p);
-      if (XtY.n_elem < new_p)
-        XtY.set_size(new_p);
-      if (L.n_rows < new_p || L.n_cols < new_p)
-        L.set_size(new_p, new_p);
-      if (beta_work.n_elem < new_p)
-        beta_work.set_size(new_p);
-      if (z_solve.n_elem < new_p)
-        z_solve.set_size(new_p);
 
       if (mu.n_elem < new_n)
         mu.set_size(new_n);
@@ -103,13 +79,6 @@ struct GlmWorkspace {
       if (nu0.n_elem < new_n)
         nu0.set_size(new_n);
 
-      if (y.n_elem < new_n)
-        y.set_size(new_n);
-      if (alpha0.n_elem < new_n)
-        alpha0.set_size(new_n);
-      if (group_sums.n_elem < new_n)
-        group_sums.set_size(new_n);
-
       cached_n = new_n;
       cached_p = new_p;
       is_initialized = true;
@@ -121,13 +90,6 @@ struct GlmWorkspace {
   void clear() {
     XtX.reset();
     XtX_cache.reset();
-    XtY.reset();
-    L.reset();
-    beta_work.reset();
-    z_solve.reset();
-    y.reset();
-    alpha0.reset();
-    group_sums.reset();
     mu.reset();
     mu_eta.reset();
     w_working.reset();
@@ -195,8 +157,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   double dev0, dev_ratio, dev_ratio_inner, rho;
   bool dev_crit, val_crit, imp_crit, conv = false;
 
-  CollinearityResult collin_result =
-      check_collinearity(X, w, /*use_weights =*/true, params.collin_tol);
+  check_collinearity(X, w, /*use_weights =*/true, params.collin_tol, result);
 
   // Adaptive tolerance variables -> more aggressive for large models
   double hdfe_tolerance = params.center_tol;
@@ -288,12 +249,17 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
         center_variables(MNU, w_working, fe_groups, current_hdfe_tol,
                          current_max_iter, params.iter_interrupt,
                          group_info_ptr, &centering_workspace);
-        center_variables(X, w_working, fe_groups, current_hdfe_tol,
-                         current_max_iter, params.iter_interrupt,
-                         group_info_ptr, &centering_workspace);
-
-        // invalidate cache
-        workspace->XtX_cache.reset();
+        
+          // Adaptive X re-centering based on convergence
+        uword recenter_interval = (dev_ratio > 0.01) ? 2 : 
+                                  (dev_ratio > 0.001) ? 3 : 5;
+        
+        if (iter % recenter_interval == 0) {
+          center_variables(X, w_working, fe_groups, current_hdfe_tol,
+                           current_max_iter, params.iter_interrupt,
+                           group_info_ptr, &centering_workspace);
+          workspace->XtX_cache.reset();
+        }
       }
       nu0 = nu;
     } else {
@@ -316,21 +282,21 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     // Enable partial out after first iteration
     use_partial = true;
 
-    InferenceBeta beta_result = get_beta(X, MNU, MNU, w_working, collin_result,
-                                         false, false, &workspace->XtX_cache);
+    // Compute beta directly into result struct
+    get_beta(X, MNU, MNU, w_working, result, false, false, &workspace->XtX_cache);
 
     // Handle collinearity
     vec beta_upd_reduced;
-    if (collin_result.has_collinearity &&
-        collin_result.non_collinear_cols.n_elem > 0) {
+    if (result.has_collinearity &&
+        result.non_collinear_cols.n_elem > 0) {
       beta_upd_reduced =
-          beta_result.coefficients.elem(collin_result.non_collinear_cols);
+          result.coefficients.elem(result.non_collinear_cols);
     } else {
-      beta_upd_reduced = beta_result.coefficients;
+      beta_upd_reduced = result.coefficients;
     }
 
     const uword full_p =
-        collin_result.has_collinearity ? collin_result.coef_status.n_elem : p;
+        result.has_collinearity ? result.coef_status.n_elem : p;
     if (beta.n_elem != full_p) {
       beta.resize(full_p);
     }
@@ -346,16 +312,14 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
          ++iter_inner) {
       eta = eta0 + rho * eta_upd;
 
-      vec beta_new = beta0;
-      if (collin_result.has_collinearity &&
-          collin_result.non_collinear_cols.n_elem > 0) {
-        vec beta0_reduced = beta0.elem(collin_result.non_collinear_cols);
-        vec beta_upd_step = beta0_reduced + rho * beta_upd_reduced;
-        beta_new.elem(collin_result.non_collinear_cols) = beta_upd_step;
+      if (result.has_collinearity &&
+          result.non_collinear_cols.n_elem > 0) {
+        beta = beta0;
+        beta.elem(result.non_collinear_cols) = 
+            beta0.elem(result.non_collinear_cols) + rho * beta_upd_reduced;
       } else {
-        beta_new = beta0 + rho * beta_upd_reduced;
+        beta = beta0 + rho * beta_upd_reduced;
       }
-      beta = beta_new;
 
       mu = link_inv(eta, family_type);
       dev = dev_resids(y, mu, theta, w, family_type);
@@ -385,7 +349,6 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     }
 
     dev_ratio = fabs(dev - dev0) / (0.1 + fabs(dev));
-    double delta_deviance = dev0 - dev;
 
     if (is_large_model && dev_ratio < last_dev_ratio * 0.5) {
       convergence_count++;
@@ -405,7 +368,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       break;
     }
 
-    if (delta_deviance < 0 && num_step_halving < max_step_halving) {
+    if (dev > dev0 && num_step_halving < max_step_halving) {
       eta = step_halving_memory * eta0 + (1.0 - step_halving_memory) * eta;
 
       if (num_step_halving > 0 && family_type == POISSON) {
@@ -455,10 +418,10 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       // Following alpaca's getFE approach
       vec x_beta(n, fill::zeros);
       if (X0.n_cols > 0) {
-        if (collin_result.has_collinearity &&
-            collin_result.non_collinear_cols.n_elem > 0) {
-          x_beta = X0.cols(collin_result.non_collinear_cols) *
-                   beta.elem(collin_result.non_collinear_cols);
+        if (result.has_collinearity &&
+            result.non_collinear_cols.n_elem > 0) {
+          x_beta = X0.cols(result.non_collinear_cols) *
+                   beta.elem(result.non_collinear_cols);
         } else {
           x_beta = X0 * beta;
         }
@@ -476,7 +439,6 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     }
 
     result.coefficients = std::move(beta);
-    result.coef_status = std::move(collin_result.coef_status);
     result.eta = std::move(eta);
     result.fitted_values = std::move(mu);
     result.weights = w;

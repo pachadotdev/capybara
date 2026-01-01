@@ -5,18 +5,6 @@
 
 namespace capybara {
 
-#ifdef _OPENMP
-#include <omp.h>
-#endif
-
-// Get block size for cache-friendly indexed scatter operations
-inline uword get_block_size(uword n, uword k) {
-  constexpr uword L1_CACHE = 32768;
-  constexpr uword element_size = sizeof(double) + sizeof(uword);
-  return std::max(static_cast<uword>(1000),
-                  std::min(n, L1_CACHE / (k * element_size)));
-}
-
 struct InferenceAlpha {
   field<vec> coefficients;
   uvec nb_references;
@@ -29,9 +17,7 @@ struct InferenceAlpha {
 };
 
 struct AlphaGroupInfo {
-  uvec group_start;
   uvec group_size;
-  uvec obs_to_group;
   uword n_groups;
 };
 
@@ -46,16 +32,10 @@ precompute_alpha_group_info(const field<field<uvec>> &group_indices, uword N) {
     AlphaGroupInfo &info = group_info(k);
     info.n_groups = J;
     info.group_size.set_size(J);
-    info.obs_to_group.set_size(N);
-    info.obs_to_group.fill(J); // Invalid index sentinel
 
     for (uword j = 0; j < J; ++j) {
       const uvec &indexes = group_indices(k)(j);
       info.group_size(j) = indexes.n_elem;
-
-      for (uword t = 0; t < indexes.n_elem; ++t) {
-        info.obs_to_group(indexes(t)) = j;
-      }
     }
   }
 
@@ -132,7 +112,6 @@ get_alpha(const vec &pi, const field<field<uvec>> &group_indices,
 
   double crit = 1.0;
   uword iter = 0;
-  const uword obs_block_size = get_block_size(N, K);
 
   while (crit > tol && iter < iter_max) {
     double sum_sq0 = 0.0, sum_sq_diff = 0.0;
@@ -145,10 +124,17 @@ get_alpha(const vec &pi, const field<field<uvec>> &group_indices,
       double *group_sums_ptr = ws->group_sums.memptr();
       const double *coef_k_ptr_old = coefficients(k).memptr();
 
-      std::memcpy(alpha0_ptr, coef_k_ptr_old, J * sizeof(double));
-      sum_sq0 += dot(ws->alpha0.head(J), ws->alpha0.head(J));
+      const size_t J_bytes = J * sizeof(double);
+      std::memcpy(alpha0_ptr, coef_k_ptr_old, J_bytes);
+      
+      // Compute sum_sq0 with pointer arithmetic to avoid temporary creation
+      double sq_sum = 0.0;
+      for (uword j = 0; j < J; ++j) {
+        sq_sum += alpha0_ptr[j] * alpha0_ptr[j];
+      }
+      sum_sq0 += sq_sum;
 
-      ws->group_sums.head(J).zeros();
+      std::memset(group_sums_ptr, 0, J_bytes);
       const double *residual_ptr = residual.memptr();
 
       // Accumulate group sums by iterating groups (enables parallelization)

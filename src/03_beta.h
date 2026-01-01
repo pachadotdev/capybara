@@ -4,95 +4,34 @@
 #define CAPYBARA_BETA_H
 
 namespace capybara {
-  
-struct InferenceBeta {
-  vec coefficients;
-  vec fitted_values;
-  vec residuals;
-  vec weights;
-  mat hessian;
-  uvec coef_status;
-  double scale;
-  uvec pivot;
-  double rank;
-  bool success;
-
-  InferenceBeta() : scale(0.0), rank(0.0), success(false) {}
-
-  InferenceBeta(uword n, uword p)
-      : coefficients(p, fill::zeros), fitted_values(n, fill::zeros),
-        residuals(n, fill::zeros), weights(n, fill::ones),
-        hessian(p, p, fill::zeros), coef_status(p, fill::ones), scale(0.0),
-        rank(0.0), success(false) {}
-};
-
-struct CollinearityResult {
-  uvec coef_status;
-  uvec collinear_cols;
-  uvec non_collinear_cols;
-  bool has_collinearity;
-  uword n_valid;
-  mat R;
-
-  CollinearityResult() : has_collinearity(false), n_valid(0) {}
-
-  CollinearityResult(uword p)
-      : coef_status(p, fill::ones), collinear_cols(p), non_collinear_cols(p),
-        has_collinearity(false), n_valid(0) {}
-};
 
 inline mat crossprod(const mat &X, const vec &w = vec()) {
   if (X.is_empty()) {
     return mat();
   }
 
-  const uword n = X.n_rows;
-  const uword p = X.n_cols;
-
   if (w.is_empty() || w.n_elem == 1) {
     return arma::symmatu(X.t() * X);
   }
 
-  const double *w_ptr = w.memptr();
-  mat XtX(p, p, fill::zeros);
-
-  // Weighted cross-product without allocating a weighted X
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static)
-#endif
-  for (uword j = 0; j < p; ++j) {
-    const double *Xj = X.colptr(j);
-    for (uword i = 0; i <= j; ++i) {
-      const double *Xi = X.colptr(i);
-      double sum = 0.0;
-      for (uword t = 0; t < n; ++t) {
-        sum += w_ptr[t] * Xi[t] * Xj[t];
-      }
-      XtX(i, j) = sum;
-      XtX(j, i) = sum;
-    }
-  }
-
-  return XtX;
+  // Use BLAS-backed operations: scale rows by sqrt(w) and compute Xs' * Xs
+  // This creates a temporary scaled matrix but leverages highly optimized BLAS/SYRK
+  vec sqrtw = arma::sqrt(w);
+  mat Xs = X;
+  // scale each column by the row-wise sqrt weights
+  Xs.each_col() %= sqrtw;
+  return arma::symmatu(Xs.t() * Xs);
 }
 
-inline vec crossprod_Xy(const mat &X, const vec &w, const vec &y) {
-  const uword n = X.n_rows;
+inline vec crossprod_Xy(const mat &X, const vec &y, bool has_weights, const vec &w = vec()) {
   const uword p = X.n_cols;
   vec Xty(p, fill::zeros);
-  const double *w_ptr = w.memptr();
-  const double *y_ptr = y.memptr();
-
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static)
-#endif
-  for (uword j = 0; j < p; ++j) {
-    const double *Xj = X.colptr(j);
-    double sum = 0.0;
-    for (uword t = 0; t < n; ++t) {
-      sum += Xj[t] * w_ptr[t] * y_ptr[t];
-    }
-    Xty[j] = sum;
+  
+  if (has_weights && !w.is_empty()) {
+    vec wy = w % y;
+    Xty = X.t() * wy;
+  } else {
+    Xty = X.t() * y;
   }
   return Xty;
 }
@@ -156,17 +95,22 @@ inline bool rank_revealing_cholesky(uvec &excluded, const mat &XtX,
   return n_excluded < p;
 }
 
-inline CollinearityResult
-check_collinearity(mat &X, const vec &w, bool has_weights, double tolerance) {
+inline void
+check_collinearity(mat &X, const vec &w, bool has_weights, double tolerance, InferenceGLM &result) {
 
   const uword p = X.n_cols;
   const uword n = X.n_rows;
 
-  CollinearityResult result(p);
+  result.coef_status.set_size(p);
+  result.coef_status.ones();
+  result.collinear_cols.set_size(p);
+  result.non_collinear_cols.set_size(p);
+  result.has_collinearity = false;
+  result.n_valid = 0;
 
   if (p == 0) {
     result.coef_status = uvec();
-    return result;
+    return;
   }
 
   if (p == 1) {
@@ -199,15 +143,10 @@ check_collinearity(mat &X, const vec &w, bool has_weights, double tolerance) {
       result.non_collinear_cols = uvec();
       X.reset();
     }
-    return result;
+    return;
   }
 
-  mat XtX(p, p, fill::none);
-  if (has_weights) {
-    XtX = crossprod(X, w);
-  } else {
-    XtX = crossprod(X);
-  }
+  mat XtX = has_weights ? crossprod(X, w) : crossprod(X);
 
   uvec excluded(p);
   bool success = rank_revealing_cholesky(excluded, XtX, tolerance);
@@ -218,7 +157,7 @@ check_collinearity(mat &X, const vec &w, bool has_weights, double tolerance) {
     result.n_valid = 0;
     result.non_collinear_cols = uvec();
     X.reset();
-    return result;
+    return;
   }
 
   const uvec indep = find(excluded == 0);
@@ -236,37 +175,29 @@ check_collinearity(mat &X, const vec &w, bool has_weights, double tolerance) {
   } else if (result.has_collinearity && indep.is_empty()) {
     X.reset();
   }
-
-  return result;
 }
 
-inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
-                              const vec &w,
-                              const CollinearityResult &collin_result,
-                              bool weighted, bool scale_X,
-                              mat *cached_XtX = nullptr) {
-  const uword n = X.n_rows;
+inline void get_beta(const mat &X, const vec &y, const vec &y_orig,
+                     const vec &w, InferenceGLM &result,
+                     bool weighted, bool scale_X,
+                     mat *cached_XtX = nullptr) {
   const uword p = X.n_cols;
   const uword p_orig =
-      collin_result.has_collinearity ? collin_result.coef_status.n_elem : p;
+      result.has_collinearity ? result.coef_status.n_elem : p;
   const bool has_weights = !all(w == 1.0);
-
-  InferenceBeta result(n, p_orig);
 
   if (p == 0) {
     result.success = true;
     result.coefficients.zeros();
-    result.coef_status = collin_result.coef_status;
     result.fitted_values.zeros();
-    result.residuals = y_orig;
     result.weights = w;
     result.hessian.zeros();
-    return result;
+    return;
   }
 
   if (y.n_elem == 0) {
     result.success = false;
-    return result;
+    return;
   }
 
   mat XtX(p, p);
@@ -276,22 +207,14 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
   if (cached_XtX && cached_XtX->n_rows == p && cached_XtX->n_cols == p) {
     XtX = *cached_XtX;
   } else {
-    if (has_weights) {
-      XtX = crossprod(X, w);
-    } else {
-      XtX = crossprod(X);
-    }
+    XtX = has_weights ? crossprod(X, w) : crossprod(X);
     // Update cache if pointer provided
     if (cached_XtX) {
       *cached_XtX = XtX;
     }
   }
 
-  if (has_weights) {
-    Xty = crossprod_Xy(X, w, y);
-  } else {
-    Xty = X.t() * y;
-  }
+  Xty = crossprod_Xy(X, y, has_weights, w);
 
   mat L(p, p);
   bool chol_success = chol(L, XtX, "lower");
@@ -305,29 +228,26 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
   }
 
   result.coefficients.fill(datum::nan);
-  if (collin_result.has_collinearity) {
-    result.coefficients.elem(collin_result.non_collinear_cols) = beta_reduced;
+  if (result.has_collinearity) {
+    result.coefficients.elem(result.non_collinear_cols) = beta_reduced;
   } else {
     result.coefficients = beta_reduced;
   }
 
-  result.coef_status = collin_result.coef_status;
-
-  if (collin_result.has_collinearity &&
-      collin_result.non_collinear_cols.n_elem > 0) {
+  if (result.has_collinearity &&
+      result.non_collinear_cols.n_elem > 0) {
     result.fitted_values = X * beta_reduced;
   } else {
     result.fitted_values = X * result.coefficients;
   }
 
-  result.residuals = y_orig - result.fitted_values;
   result.weights = w;
 
   result.hessian.set_size(p_orig, p_orig);
   result.hessian.zeros();
 
-  if (collin_result.has_collinearity) {
-    const uvec &valid_cols = collin_result.non_collinear_cols;
+  if (result.has_collinearity) {
+    const uvec &valid_cols = result.non_collinear_cols;
     for (uword i = 0; i < valid_cols.n_elem; ++i) {
       for (uword j = 0; j < valid_cols.n_elem; ++j) {
         result.hessian(valid_cols(i), valid_cols(j)) = XtX(i, j);
@@ -338,7 +258,6 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
   }
 
   result.success = true;
-  return result;
 }
 
 } // namespace capybara

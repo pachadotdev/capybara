@@ -66,11 +66,11 @@ struct CapybaraParameters {
   }
 };
 
-#include "01_center.h"
-#include "02_beta.h"
-#include "03_alpha.h"
-#include "04_lm.h"
-#include "05_glm_helpers.h"
+#include "01_glm_helpers.h"
+#include "02_center.h"
+#include "03_beta.h"
+#include "04_alpha.h"
+#include "05_lm.h"
 #include "06_glm.h"
 #include "07_negbin.h"
 #include "08_sums.h"

@@ -14,8 +14,15 @@ struct InferenceGLM {
   double deviance;
   double null_deviance;
   bool conv;
+  bool success;      // collinearity
   uword iter;
   uvec coef_status; // 1 = estimable, 0 = collinear
+
+  // Collinearity detection results
+  uvec collinear_cols;
+  uvec non_collinear_cols;
+  bool has_collinearity;
+  uword n_valid;
 
   field<vec> fixed_effects;
   bool has_fe = false;
@@ -30,8 +37,9 @@ struct InferenceGLM {
       : coefficients(p, fill::zeros), eta(n, fill::zeros),
         fitted_values(n, fill::zeros), weights(n, fill::ones),
         hessian(p, p, fill::zeros), deviance(0.0), null_deviance(0.0),
-        conv(false), iter(0), coef_status(p, fill::ones), has_fe(false),
-        has_tx(false) {}
+        conv(false), success(false), iter(0), coef_status(p, fill::ones),
+        collinear_cols(p), non_collinear_cols(p), has_collinearity(false), n_valid(0),
+        has_fe(false), has_tx(false) {}
 };
 
 enum Family {

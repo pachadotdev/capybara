@@ -5,35 +5,12 @@
 
 namespace capybara {
 
-// Get block size for cache-friendly indexed scatter operations
-inline uword get_block_size_lm(uword n, uword k) {
-  constexpr uword L1_CACHE = 32768;
-  constexpr uword element_size = sizeof(double) + sizeof(uword);
-  return std::max(static_cast<uword>(1000),
-                  std::min(n, L1_CACHE / (k * element_size)));
-}
-
-struct InferenceLM {
-  vec coefficients;
-  vec fitted_values;
+// Linear model result extends GLM with residuals
+struct InferenceLM : public InferenceGLM {
   vec residuals;
-  vec weights;
-  mat hessian;
-  uvec coef_status; // 1 = estimable, 0 = collinear
-  bool success;
-
-  field<vec> fixed_effects;
-  bool has_fe = true;
-  uvec iterations;
-
-  mat TX; // Centered design matrix
-  bool has_tx = false;
 
   InferenceLM(uword n, uword p)
-      : coefficients(p, fill::zeros), fitted_values(n, fill::zeros),
-        residuals(n, fill::zeros), weights(n, fill::ones),
-        hessian(p, p, fill::zeros), coef_status(p, fill::ones), success(false),
-        has_fe(false), has_tx(false) {}
+      : InferenceGLM(n, p), residuals(n, fill::zeros) {}
 };
 
 struct FelmWorkspace {
@@ -141,47 +118,36 @@ inline void accumulate_fixed_effects(vec &fitted_values,
                                      const field<vec> &fixed_effects,
                                      const field<field<uvec>> &fe_groups) {
   const uword K = fe_groups.n_elem;
-  const uword N = fitted_values.n_elem;
-
-  const uword obs_block_size = get_block_size_lm(N, K);
+  double *fitted_ptr = fitted_values.memptr();
 
   for (uword k = 0; k < K; ++k) {
     const uword J = fe_groups(k).n_elem;
-    const vec &fe_k = fixed_effects(k);
+    const double *fe_k_ptr = fixed_effects(k).memptr();
 
     for (uword j = 0; j < J; ++j) {
       const uvec &group_idx = fe_groups(k)(j);
-      const double fe_value = fe_k(j);
-
-      const uword group_size = group_idx.n_elem;
+      const double fe_value = fe_k_ptr[j];
       const uword *idx_ptr = group_idx.memptr();
-      double *fitted_ptr = fitted_values.memptr();
+      const uword group_size = group_idx.n_elem;
 
-      for (uword block_start = 0; block_start < group_size;
-           block_start += obs_block_size) {
-        const uword block_end =
-            std::min(block_start + obs_block_size, group_size);
-
-        for (uword t = block_start; t < block_end; ++t) {
-          fitted_ptr[idx_ptr[t]] += fe_value;
-        }
+      for (uword t = 0; t < group_size; ++t) {
+        fitted_ptr[idx_ptr[t]] += fe_value;
       }
     }
   }
 }
 
 inline void fitted_values(FelmWorkspace *ws, InferenceLM &result,
-                          const CollinearityResult &collin_result,
                           const field<field<uvec>> &fe_groups,
                           const CapybaraParameters &params) {
   const uword N = ws->y_original.n_elem;
 
-  if (collin_result.has_collinearity &&
-      !collin_result.non_collinear_cols.is_empty()) {
-    auto X_sub = ws->X_original.cols(collin_result.non_collinear_cols);
-    auto coef_sub = result.coefficients.elem(collin_result.non_collinear_cols);
+  if (result.has_collinearity &&
+      !result.non_collinear_cols.is_empty()) {
+    auto X_sub = ws->X_original.cols(result.non_collinear_cols);
+    auto coef_sub = result.coefficients.elem(result.non_collinear_cols);
     ws->x_beta = X_sub * coef_sub;
-  } else if (!collin_result.has_collinearity && ws->X_original.n_cols > 0) {
+  } else if (!result.has_collinearity && ws->X_original.n_cols > 0) {
     ws->x_beta = ws->X_original * result.coefficients;
   } else {
     ws->x_beta.zeros(N);
@@ -222,9 +188,8 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
   ws->X_original = X;
   ws->y_original = y;
 
-  bool use_weights = !all(w == 1.0);
-  CollinearityResult collin_result =
-      check_collinearity(X, w, use_weights, params.collin_tol);
+  bool use_weights = any(w != 1.0);
+  check_collinearity(X, w, use_weights, params.collin_tol, result);
 
   const bool has_fixed_effects = fe_groups.n_elem > 0;
   result.has_fe = has_fixed_effects;
@@ -254,15 +219,9 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
     result.has_tx = true;
   }
 
-  InferenceBeta beta_result = get_beta(X, ws->y_demeaned, ws->y_demeaned, w,
-                                       collin_result, false, false, nullptr);
+  get_beta(X, ws->y_demeaned, ws->y_demeaned, w, result, false, false, nullptr);
 
-  result.coefficients = std::move(beta_result.coefficients);
-  result.coef_status = std::move(collin_result.coef_status);
-  result.hessian = std::move(beta_result.hessian);
-  result.success = std::move(beta_result.success);
-
-  fitted_values(ws, result, collin_result, fe_groups, params);
+  fitted_values(ws, result, fe_groups, params);
 
   result.residuals = ws->y_original - result.fitted_values;
 
