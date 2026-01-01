@@ -158,17 +158,17 @@ model_frame_ <- function(data, formula, weights) {
     stop("'weights' must be a column name, formula, or numeric vector", call. = FALSE)
   }
 
-  # Extract needed columns
-  data <- data[, .SD, .SDcols = needed_cols]
+  # Extract needed columns (base R)
+  data <- data[, needed_cols, drop = FALSE]
 
   lhs <- names(data)[1L]
   nobs_full <- nrow(data)
   data <- na.omit(data)
 
-  # Convert columns of type "units" to numeric
+  # Convert columns of type "units" to numeric (base R)
   unit_cols <- names(data)[vapply(data, inherits, what = "units", logical(1))]
   if (length(unit_cols) > 0) {
-    data[, (unit_cols) := lapply(.SD, as.numeric), .SDcols = unit_cols]
+    for (uc in unit_cols) data[[uc]] <- as.numeric(data[[uc]])
   }
 
   nobs_na <- nobs_full - nrow(data)
@@ -186,11 +186,11 @@ model_frame_ <- function(data, formula, weights) {
 #' @param k_vars Fixed effects
 #' @noRd
 transform_fe_ <- function(data, formula, k_vars) {
-  data[, (k_vars) := lapply(.SD, check_factor_), .SDcols = k_vars]
+  for (col in k_vars) data[[col]] <- check_factor_(data[[col]])
 
   if (length(formula)[[2L]] > 2L) {
     add_vars <- attr(terms(formula, rhs = 3L), "term.labels")
-    data[, (add_vars) := lapply(.SD, check_factor_), .SDcols = add_vars]
+    for (col in add_vars) data[[col]] <- check_factor_(data[[col]])
   }
 
   return(data)
@@ -235,7 +235,7 @@ check_fe_ <- function(formula, data) {
   fe_vars <- suppressWarnings(attr(terms(formula, rhs = 2L), "term.labels"))
   if (length(fe_vars) < 1L) {
     fe_vars <- "missing_fe"
-    data[, `:=`("missing_fe", 1L)]
+    data$missing_fe <- 1L
   }
   fe_vars
 }

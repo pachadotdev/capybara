@@ -152,8 +152,7 @@ check_data_ <- function(data) {
   if (is.null(data)) stop("'data' must be specified.", call. = FALSE)
   if (!is.data.frame(data)) stop("'data' must be a data.frame.", call. = FALSE)
   if (nrow(data) == 0L) stop("'data' has zero observations.", call. = FALSE)
-
-  setDT(data) # Convert to data.table
+  # Keep as base data.frame; do not convert to data.table to avoid setup cost
 }
 
 #' @title Check control
@@ -249,13 +248,13 @@ check_response_ <- function(data, lhs, family) {
       data[[lhs]] <- y
     }
   } else if (family[["family"]] %in% c("Gamma", "inverse.gaussian")) {
-    # Check if 'y' is strictly positive
-    if (nrow(data[get(lhs) <= 0.0]) > 0L) {
+    # Check if 'y' is strictly positive (base R)
+    if (any(data[[lhs]] <= 0.0, na.rm = TRUE)) {
       stop("Model response has to be positive.", call. = FALSE)
     }
   } else if (family[["family"]] != "gaussian") {
-    # Check if 'y' is positive
-    if (nrow(data[get(lhs) < 0.0]) > 0L) {
+    # Check if 'y' is positive (base R)
+    if (any(data[[lhs]] < 0.0, na.rm = TRUE)) {
       stop("Model response has to be strictly positive.", call. = FALSE)
     }
   }
@@ -275,7 +274,7 @@ drop_by_link_type_ <- function(data, lhs, family, tmp_var, k_vars, control) {
   if (family[["family"]] %in% c("binomial", "poisson") && isTRUE(control[["drop_pc"]])) {
     # Convert response to numeric if it's an integer
     if (is.integer(data[[lhs]])) {
-      data[, (lhs) := as.numeric(get(lhs))]
+      data[[lhs]] <- as.numeric(data[[lhs]])
     }
 
     ncheck <- 0
@@ -285,16 +284,18 @@ drop_by_link_type_ <- function(data, lhs, family, tmp_var, k_vars, control) {
       ncheck <- nrow_data
 
       for (j in k_vars) {
-        data[, (tmp_var) := mean(as.numeric(get(lhs))), by = j]
+        # Compute group means using base R (ave)
+        data[[tmp_var]] <- ave(as.numeric(data[[lhs]]), data[[j]], FUN = function(x) mean(x, na.rm = TRUE))
 
         # Filter rows based on family type
         if (family[["family"]] == "binomial") {
-          data <- data[get(tmp_var) > 0 & get(tmp_var) < 1]
+          data <- data[data[[tmp_var]] > 0 & data[[tmp_var]] < 1, , drop = FALSE]
         } else {
-          data <- data[get(tmp_var) > 0]
+          data <- data[data[[tmp_var]] > 0, , drop = FALSE]
         }
 
-        data[, (tmp_var) := NULL]
+        # Remove temporary column
+        data[[tmp_var]] <- NULL
       }
 
       nrow_data <- nrow(data)
