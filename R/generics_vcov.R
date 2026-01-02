@@ -87,7 +87,7 @@ vcov.feglm <- function(
     # If the hessian is invertible, compute its inverse
     v <- vcov_feglm_hessian_covariance_(h, p)
   } else {
-    g <- get_score_matrix_felm_(object)
+    g <- get_score_matrix_feglm_(object)
     if (type == "outer.product") {
       # Check if the OP is invertible and compute its inverse
       v <- vcov_feglm_outer_covariance_(g, p)
