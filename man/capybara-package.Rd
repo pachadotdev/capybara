@@ -34,6 +34,7 @@ Useful links:
 
 Other contributors:
 \itemize{
+  \item Joao Santos Silva [thesis advisor]
   \item Yoto Yotov [contributor]
 }
 

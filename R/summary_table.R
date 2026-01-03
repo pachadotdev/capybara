@@ -6,6 +6,8 @@
 #' @param stars Whether to include significance stars. The default is \code{TRUE}.
 #' @param latex Whether to output as LaTeX code. The default is \code{FALSE}.
 #' @param model_names Optional vector of custom model names
+#' @param caption Optional caption for the table (LaTeX only)
+#' @param label Optional label for cross-referencing (LaTeX only)
 #' @examples
 #' m1 <- felm(mpg ~ wt | cyl, mtcars)
 #' m2 <- fepoisson(mpg ~ wt | cyl, mtcars)
@@ -17,7 +19,9 @@ summary_table <- function(...,
                           se_digits = 3,
                           stars = TRUE,
                           latex = FALSE,
-                          model_names = NULL) {
+                          model_names = NULL,
+                          caption = NULL,
+                          label = NULL) {
   # Collect models
   models <- list(...)
 
@@ -42,6 +46,7 @@ summary_table <- function(...,
   }
 
   # Extract coefficients and standard errors
+  # vcov is precomputed during fitting (either inverse Hessian or sandwich)
   summaries <- lapply(models, summary)
   coef_list <- lapply(summaries, function(m) m$coefficients[, 1])
   se_list <- lapply(summaries, function(m) m$coefficients[, 2])
@@ -127,7 +132,16 @@ summary_table <- function(...,
     }
   }))
 
-  r2_row <- c(if (latex) "$R^2$" else "R-squared", sapply(models, function(m) {
+  # Check if any model is a GLM (uses pseudo R-squared)
+
+  has_glm <- any(sapply(models, function(m) inherits(m, "feglm")))
+  r2_label <- if (has_glm) {
+    if (latex) "Pseudo $R^2$" else "Pseudo R-squared"
+  } else {
+    if (latex) "$R^2$" else "R-squared"
+  }
+
+  r2_row <- c(r2_label, sapply(models, function(m) {
     if (inherits(m, "felm")) {
       formatC(summary(m)$r.squared, digits = 3, format = "f")
     } else if (inherits(m, "feglm") && !is.null(summary(m)$pseudo.rsq)) {
@@ -152,7 +166,7 @@ summary_table <- function(...,
 
   # Format the output and return it directly (no print call)
   res <- if (latex) {
-    format_latex_table(result_df, result2_df, stars)
+    format_latex_table(result_df, result2_df, stars, label, caption)
   } else {
     format_console_table(result_df, result2_df, stars)
   }
@@ -297,7 +311,8 @@ format_console_table <- function(result_df, result2_df, stars) {
 }
 
 # LaTeX formatter
-format_latex_table <- function(result_df, result2_df, stars, include_environment = FALSE) {
+format_latex_table <- function(result_df, result2_df, stars, label = NULL,
+                               caption = NULL) {
   # Convert to data frame
   full_df <- rbind(as.matrix(result_df), result2_df)
 
@@ -307,14 +322,16 @@ format_latex_table <- function(result_df, result2_df, stars, include_environment
   # Start with empty vector for LaTeX code
   latex <- character(0)
 
-  # Only include table environment if requested
+  # Include table environment if label or caption is provided
+  include_environment <- !is.null(label) || !is.null(caption)
   if (include_environment) {
-    latex <- c(
-      latex,
-      "\\begin{table}[htbp]",
-      "\\centering",
-      "\\caption{Regression Results}"
-    )
+    latex <- c(latex, "\\begin{table}[htbp]", "\\centering")
+    if (!is.null(caption)) {
+      latex <- c(latex, paste0("\\caption{", caption, "}"))
+    }
+    if (!is.null(label)) {
+      latex <- c(latex, paste0("\\label{", label, "}"))
+    }
   }
 
   # Add tabular environment
@@ -334,8 +351,9 @@ format_latex_table <- function(result_df, result2_df, stars, include_environment
   for (i in 1:nrow(result_df)) {
     row <- result_df[i, ]
 
-    # First process variable name
+    # First process variable name (escape underscores for LaTeX)
     var_name <- as.character(row[1])
+    var_name <- gsub("_", "\\_", var_name, fixed = TRUE)
 
     # Create coefficient row
     coef_values <- character(ncol(row))
@@ -375,11 +393,12 @@ format_latex_table <- function(result_df, result2_df, stars, include_environment
   # Midrule before stats
   # latex <- c(latex, "\\midrule")
 
-  # Add stat rows
+  # Add stat rows (escape underscores for LaTeX)
   stat_rows <- apply(result2_df, 1, function(row) {
     if (all(row == "")) {
       return(NULL)
     }
+    row <- gsub("_", "\\_", row, fixed = TRUE)
     row_text <- paste(ifelse(is.na(row), "", row), collapse = " & ")
     paste0(row_text, " \\\\")
   })

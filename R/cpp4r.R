@@ -8,8 +8,8 @@ felm_fit_ <- function(X_r, y_r, w_r, FEs, control) {
 	.Call(`_capybara_felm_fit_`, X_r, y_r, w_r, FEs, control)
 }
 
-feglm_fit_ <- function(beta_r, eta_r, y_r, x_r, wt_r, theta, family, control, k_list) {
-	.Call(`_capybara_feglm_fit_`, beta_r, eta_r, y_r, x_r, wt_r, theta, family, control, k_list)
+feglm_fit_ <- function(beta_r, eta_r, y_r, x_r, wt_r, theta, family, control, k_list, cl_list) {
+	.Call(`_capybara_feglm_fit_`, beta_r, eta_r, y_r, x_r, wt_r, theta, family, control, k_list, cl_list)
 }
 
 feglm_offset_fit_ <- function(eta_r, y_r, offset_r, wt_r, family, control, k_list) {

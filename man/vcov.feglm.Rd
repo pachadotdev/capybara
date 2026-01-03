@@ -4,23 +4,12 @@
 \alias{vcov.feglm}
 \title{Covariance matrix for GLMs}
 \usage{
-\method{vcov}{feglm}(
-  object,
-  type = c("hessian", "outer.product", "sandwich", "clustered"),
-  ...
-)
+\method{vcov}{feglm}(object, ...)
 }
 \arguments{
 \item{object}{an object of class \code{"feglm"}.}
 
-\item{type}{the type of covariance estimate required. \code{"hessian"} refers
-to the inverse of the negative expected hessian after convergence and is the
-default option. \code{"outer.product"} is the outer-product-of-the-gradient
-estimator. \code{"sandwich"} is the sandwich estimator (sometimes also
-referred as robust estimator), and \code{"clustered"} computes a clustered
-covariance matrix given some cluster variables.}
-
-\item{...}{additional arguments.}
+\item{...}{additional arguments (currently ignored).}
 }
 \value{
 A named matrix of covariance estimates.
@@ -30,12 +19,17 @@ A named matrix of covariance estimates.
 \description{
 Covariance matrix for the estimator of the structural parameters
 from objects returned by \code{\link{feglm}}. The covariance is computed
-from the hessian, the scores, or a combination of both after convergence.
+during model fitting - either the inverse Hessian (default) or the
+sandwich estimator if cluster variables are specified in the formula.
 }
 \examples{
-# same as the example in feglm but extracting the covariance matrix
-mod <- fepoisson(mpg ~ wt | cyl | am, mtcars)
-round(vcov(mod, type = "clustered"), 5)
+# Model without clustering - returns inverse Hessian covariance
+mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+round(vcov(mod), 5)
+
+# Model with clustering - returns sandwich covariance
+mod_cl <- fepoisson(mpg ~ wt | cyl | am, mtcars)
+round(vcov(mod_cl), 5)
 
 }
 \references{

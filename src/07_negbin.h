@@ -109,6 +109,7 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
       result.fitted_values = std::move(glm_fit.fitted_values);
       result.weights = std::move(glm_fit.weights);
       result.hessian = std::move(glm_fit.hessian);
+      result.vcov = std::move(glm_fit.vcov);
       result.deviance = glm_fit.deviance;
       result.null_deviance = glm_fit.null_deviance;
       result.conv = glm_fit.conv;
@@ -142,6 +143,7 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
       result.fitted_values = std::move(glm_fit.fitted_values);
       result.weights = std::move(glm_fit.weights);
       result.hessian = std::move(glm_fit.hessian);
+      result.vcov = std::move(glm_fit.vcov);
       result.deviance = dev;
       result.null_deviance = glm_fit.null_deviance;
       result.conv = glm_fit.conv;
@@ -168,6 +170,7 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
     result.fitted_values = std::move(glm_fit.fitted_values);
     result.weights = std::move(glm_fit.weights);
     result.hessian = std::move(glm_fit.hessian);
+    result.vcov = std::move(glm_fit.vcov);
     result.deviance = glm_fit.deviance;
     result.null_deviance = glm_fit.null_deviance;
     result.conv = glm_fit.conv;

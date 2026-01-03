@@ -35,13 +35,10 @@ summary.apes <- function(object, ...) {
 #' @inherit vcov.feglm
 #' @export
 #' @noRd
-summary.feglm <- function(
-    object,
-    type = c("hessian", "outer.product", "sandwich", "clustered"),
-    ...) {
-  # Compute coefficients matrix
+summary.feglm <- function(object, ...) {
+  # Compute coefficients matrix using precomputed vcov
   est <- object[["coefficients"]]
-  se <- sqrt(diag(vcov(object, type)))
+  se <- sqrt(diag(vcov(object)))
   z <- est / se
   p <- 2.0 * pnorm(-abs(z))
   coefficients <- cbind(est, se, z, p)

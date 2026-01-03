@@ -449,7 +449,7 @@ get_score_matrix_feglm_ <- function(object) {
 
   # Center regressor matrix (if required)
   if (control[["keep_tx"]]) {
-    tx <- object[["tx"]]
+    X <- object[["tx"]]
   } else {
     # Extract additional required quantities from result list
     formula <- object[["formula"]]
@@ -466,7 +466,7 @@ get_score_matrix_feglm_ <- function(object) {
     # Center variables
     X <- center_variables_(X, w, k_list, 
                           control[["center_tol"]], 
-                          control[["iter_max"]], 
+                          control[["iter_center_max"]], 
                           control[["iter_interrupt"]])
     colnames(X) <- nms_sp
   }

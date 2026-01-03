@@ -132,7 +132,6 @@ get_alpha(const vec &pi, const field<field<uvec>> &group_indices,
 
   double crit = 1.0;
   uword iter = 0;
-  const uword obs_block_size = get_block_size(N, K);
 
   while (crit > tol && iter < iter_max) {
     double sum_sq0 = 0.0, sum_sq_diff = 0.0;

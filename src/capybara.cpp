@@ -73,8 +73,7 @@ struct CapybaraParameters {
 #include "05_glm_helpers.h"
 #include "06_glm.h"
 #include "07_negbin.h"
-#include "08_sums.h"
-#include "09_separation.h"
+#include "08_separation.h"
 
 using LMResult = capybara::InferenceLM;
 using GLMResult = capybara::InferenceGLM;
@@ -241,7 +240,8 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
                                     const doubles_matrix<> &x_r,
                                     const doubles &wt_r, const double &theta,
                                     const std::string &family,
-                                    const list &control, const list &k_list) {
+                                    const list &control, const list &k_list,
+                                    const list &cl_list) {
   mat X = as_mat(x_r);
   vec beta = as_col(beta_r);
   vec eta = as_col(eta_r);
@@ -255,8 +255,24 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
 
   field<field<uvec>> fe_groups = R_list_to_Armadillo_field(k_list);
 
+  // Convert cluster list to Armadillo field<uvec>
+  field<uvec> cluster_groups;
+  bool has_clusters = cl_list.size() > 0;
+  if (has_clusters) {
+    cluster_groups.set_size(cl_list.size());
+    for (R_xlen_t g = 0; g < cl_list.size(); ++g) {
+      const integers group_obs = as_cpp<integers>(cl_list[g]);
+      uvec indices(group_obs.size());
+      for (size_t i = 0; i < static_cast<size_t>(group_obs.size()); ++i) {
+        indices[i] = static_cast<uword>(group_obs[i] - 1);
+      }
+      cluster_groups(g) = indices;
+    }
+  }
+
   capybara::InferenceGLM result = capybara::feglm_fit(
-      beta, eta, y, X, w, theta, family_type, fe_groups, params);
+      beta, eta, y, X, w, theta, family_type, fe_groups, params,
+      nullptr, has_clusters ? &cluster_groups : nullptr);
 
   field<std::string> fe_names(k_list.size());
   field<field<std::string>> fe_levels(k_list.size());
@@ -290,6 +306,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
        "eta"_nm = as_doubles(result.eta),
        "fitted_values"_nm = as_doubles(result.fitted_values),
        "weights"_nm = as_doubles(result.weights),
+       "vcov"_nm = as_doubles_matrix(result.vcov),
        "hessian"_nm = as_doubles_matrix(result.hessian),
        "deviance"_nm = writable::doubles({result.deviance}),
        "null_deviance"_nm = writable::doubles({result.null_deviance}),
@@ -387,6 +404,7 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
        "eta"_nm = as_doubles(result.eta),
        "fitted_values"_nm = as_doubles(result.fitted_values),
        "weights"_nm = as_doubles(result.weights),
+       "vcov"_nm = as_doubles_matrix(result.vcov),
        "hessian"_nm = as_doubles_matrix(result.hessian),
        "deviance"_nm = writable::doubles({result.deviance}),
        "null_deviance"_nm = writable::doubles({result.null_deviance}),
