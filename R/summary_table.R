@@ -80,13 +80,11 @@ summary_table <- function(...,
         if (stars) {
           p_val <- p_list[[i]][var]
           star <- ""
-          if (p_val < 0.001) {
-            star <- "***"
-          } else if (p_val < 0.01) {
+          if (p_val < 0.01) {
             star <- "**"
           } else if (p_val < 0.05) {
             star <- "*"
-          } else if (p_val < 0.1) star <- "."
+          } else if (p_val < 0.1) star <- "+"
 
           model_col[j] <- sprintf("%s%s\n(%s)", coef_val, star, se_val)
         } else {
@@ -292,7 +290,7 @@ format_console_table <- function(result_df, result2_df, stars) {
 
   # Add legend
   if (stars) {
-    legend <- "\nStandard errors in parenthesis\nSignificance levels: *** p < 0.001; ** p < 0.01; * p < 0.05; . p < 0.1"
+    legend <- "\nStandard errors in parenthesis\nSignificance levels: ** p < 0.01; * p < 0.05; + p < 0.10"
   } else {
     legend <- ""
   }
@@ -373,7 +371,17 @@ format_latex_table <- function(result_df, result2_df, stars, label = NULL,
       } else if (grepl("\n", cell)) {
         # Split into coef and SE
         parts <- strsplit(as.character(cell), "\n")[[1]]
-        coef_values[j] <- parts[1] # Coefficient with stars
+        # Convert stars to LaTeX superscripts
+        # Only replace stars at the end of the string
+        coef_with_stars <- parts[1]
+        if (grepl("\\*\\*$", coef_with_stars)) {
+          coef_with_stars <- sub("\\*\\*$", "$^{**}$", coef_with_stars)
+        } else if (grepl("\\*$", coef_with_stars)) {
+          coef_with_stars <- sub("\\*$", "$^{*}$", coef_with_stars)
+        } else if (grepl("\\+$", coef_with_stars)) {
+          coef_with_stars <- sub("\\+$", "$^{+}$", coef_with_stars)
+        }
+        coef_values[j] <- coef_with_stars
         se_values[j] <- parts[2] # SE with parentheses
       } else {
         coef_values[j] <- as.character(cell)
@@ -422,7 +430,7 @@ format_latex_table <- function(result_df, result2_df, stars, label = NULL,
     latex <- c(latex, paste0(
       "\\multicolumn{", n_cols, "}{l}{\\footnotesize Standard errors in parentheses} \\\\ \n",
       "\\multicolumn{", n_cols, "}{l}{\\footnotesize Significance levels: ",
-      "$^{***}\\: p < 0.001;\\: ^{**}\\: p < 0.01;\\: ^{*}\\: p < 0.05;\\: ^{.}\\: p < 0.1$}"
+      "$**\\: p < 0.01;\\: *\\: p < 0.05;\\: +\\: p < 0.10$}"
     ))
   }
 
