@@ -235,13 +235,11 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   return ret;
 }
 
-[[cpp4r::register]] list feglm_fit_(const doubles &beta_r, const doubles &eta_r,
-                                    const doubles &y_r,
-                                    const doubles_matrix<> &x_r,
-                                    const doubles &wt_r, const double &theta,
-                                    const std::string &family,
-                                    const list &control, const list &k_list,
-                                    const list &cl_list) {
+[[cpp4r::register]] list
+feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
+           const doubles_matrix<> &x_r, const doubles &wt_r,
+           const double &theta, const std::string &family, const list &control,
+           const list &k_list, const list &cl_list) {
   mat X = as_mat(x_r);
   vec beta = as_col(beta_r);
   vec eta = as_col(eta_r);
@@ -271,8 +269,8 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   }
 
   capybara::InferenceGLM result = capybara::feglm_fit(
-      beta, eta, y, X, w, theta, family_type, fe_groups, params,
-      nullptr, has_clusters ? &cluster_groups : nullptr);
+      beta, eta, y, X, w, theta, family_type, fe_groups, params, nullptr,
+      has_clusters ? &cluster_groups : nullptr);
 
   field<std::string> fe_names(k_list.size());
   field<field<std::string>> fe_levels(k_list.size());

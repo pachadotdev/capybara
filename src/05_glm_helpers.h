@@ -10,8 +10,8 @@ struct InferenceGLM {
   vec eta;
   vec fitted_values; // mu values (response scale)
   vec weights;
-  mat hessian;       // Hessian matrix (needed for some internal computations)
-  mat vcov;          // Covariance matrix (inverse Hessian or sandwich)
+  mat hessian; // Hessian matrix (needed for some internal computations)
+  mat vcov;    // Covariance matrix (inverse Hessian or sandwich)
   double deviance;
   double null_deviance;
   bool conv;
@@ -30,10 +30,9 @@ struct InferenceGLM {
   InferenceGLM(uword n, uword p)
       : coefficients(p, fill::zeros), eta(n, fill::zeros),
         fitted_values(n, fill::zeros), weights(n, fill::ones),
-        hessian(p, p, fill::zeros), vcov(p, p, fill::zeros),
-        deviance(0.0), null_deviance(0.0),
-        conv(false), iter(0), coef_status(p, fill::ones), has_fe(false),
-        has_tx(false) {}
+        hessian(p, p, fill::zeros), vcov(p, p, fill::zeros), deviance(0.0),
+        null_deviance(0.0), conv(false), iter(0), coef_status(p, fill::ones),
+        has_fe(false), has_tx(false) {}
 };
 
 enum Family {
@@ -316,8 +315,7 @@ vec variance(const vec &mu, const double &theta, const Family family_type) {
 // cluster_groups: indices for each cluster
 // Returns: sandwich covariance matrix (p x p)
 mat compute_sandwich_vcov(const mat &MX, const vec &y, const vec &mu,
-                          const mat &H,
-                          const field<uvec> &cluster_groups) {
+                          const mat &H, const field<uvec> &cluster_groups) {
   const uword p = MX.n_cols;
   const uword G = cluster_groups.n_elem;
 
@@ -336,7 +334,7 @@ mat compute_sandwich_vcov(const mat &MX, const vec &y, const vec &mu,
   vec resid = y - mu;
 
   // Compute score matrix: each row is MX_i * resid_i
-  mat scores = MX.each_col() % resid;  // element-wise: MX[i,j] * resid[i]
+  mat scores = MX.each_col() % resid; // element-wise: MX[i,j] * resid[i]
 
   // Cluster adjustment factor: G / (G - 1)
   double adj = (G > 1) ? static_cast<double>(G) / (G - 1.0) : 1.0;
