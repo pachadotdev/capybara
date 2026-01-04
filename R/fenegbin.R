@@ -170,7 +170,7 @@ fenegbin <- function(
   }
 
   # Get names and number of levels in each fixed effects category ----
-  nms_fe <- lapply(data[, .SD, .SDcols = fe_vars], levels)
+  nms_fe <- lapply(data[fe_vars], levels)
   if (length(nms_fe) > 0L) {
     fe_levels <- vapply(nms_fe, length, integer(1))
   } else {

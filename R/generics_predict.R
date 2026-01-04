@@ -67,7 +67,17 @@ predict.feglm <- function(object, newdata = NULL, type = c("link", "response"), 
 
   # Convert to vector and assign names
   eta <- as.vector(eta)
-  names(eta) <- seq_along(eta)
+  # Prefer row names from the prediction data (or original object), fall back to sequential
+  if (!is.null(newdata)) {
+    rn <- rownames(data)
+  } else {
+    rn <- rownames(object$data)
+  }
+  if (!is.null(rn)) {
+    names(eta) <- rn
+  } else {
+    names(eta) <- seq_along(eta)
+  }
 
   eta
 }
@@ -122,7 +132,17 @@ predict.felm <- function(object, newdata = NULL, type = c("response", "terms"), 
 
   # Ensure y is a vector and assign names
   y <- as.vector(y)
-  names(y) <- seq_along(y)
+  # Prefer row names from the prediction data (or original object), fall back to sequential
+  if (!is.null(newdata)) {
+    rn <- rownames(data)
+  } else {
+    rn <- rownames(object$data)
+  }
+  if (!is.null(rn)) {
+    names(y) <- rn
+  } else {
+    names(y) <- seq_along(y)
+  }
 
   y
 }

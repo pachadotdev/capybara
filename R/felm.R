@@ -142,7 +142,7 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   check_weights_(w)
 
   # Get names and number of levels in each fixed effects category ----
-  nms_fe <- lapply(data[, .SD, .SDcols = fe_vars], levels)
+  nms_fe <- lapply(data[fe_vars], levels)
   if (length(nms_fe) > 0L) {
     fe_levels <- vapply(nms_fe, length, integer(1))
   } else {
@@ -176,7 +176,13 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   if (control[["keep_tx"]]) {
     colnames(fit[["tx"]]) <- nms_sp
   }
-  names(fit[["fitted_values"]]) <- seq_along(fit[["fitted_values"]])
+  # Preserve row names from the data when possible to match base R prediction naming
+  rn_fitted <- rownames(data)
+  if (!is.null(rn_fitted)) {
+    names(fit[["fitted_values"]]) <- rn_fitted
+  } else {
+    names(fit[["fitted_values"]]) <- seq_along(fit[["fitted_values"]])
+  }
 
   # Add to fit list ----
   fit[["nobs"]] <- nobs

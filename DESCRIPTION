@@ -11,7 +11,6 @@ Authors@R: c(
     person(given = "Yoto", family = "Yotov", role = "ctb")
     )
 Imports:
-    data.table,
     Formula,
     generics,
     ggplot2,

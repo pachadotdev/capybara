@@ -144,7 +144,7 @@ vcov_feglm_cluster_nocluster_ <- function() {
 }
 
 vcov_feglm_cluster_data_ <- function(object, cl_vars, model = "feglm") {
-  d <- try(object[["data"]][, .SD, .SDcols = cl_vars], silent = TRUE)
+  d <- try(object[["data"]][, cl_vars, drop = FALSE], silent = TRUE)
   if (inherits(d, "try-error")) {
     vcov_feglm_cluster_notfound_(model)
   }
@@ -177,11 +177,11 @@ vcov_feglm_clustered_cov_ <- function(g, cl_vars, sp_vars, p) {
     br <- matrix(0.0, p, p)
 
     for (cl in cl_combn) {
-      # Compute sum within each cluster
-      grouped_data <- g[, lapply(.SD, sum), by = cl, .SDcols = sp_vars]
+      # Compute sum within each cluster (base R aggregate)
+      grouped_data <- stats::aggregate(g[sp_vars], by = g[cl], FUN = function(x) sum(x, na.rm = TRUE))
 
       # Compute crossproduct, dropping clustering columns
-      br <- br + crossprod(as.matrix(grouped_data[, .SD, .SDcols = sp_vars]))
+      br <- br + crossprod(as.matrix(grouped_data[sp_vars]))
     }
 
     # Alternating sign adjustment

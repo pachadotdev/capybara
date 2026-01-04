@@ -136,6 +136,8 @@ feglm <- function(
     beta_start = NULL,
     eta_start = NULL,
     control = NULL) {
+  # t0 <- Sys.time()
+
   # Check validity of formula ----
   check_formula_(formula)
 
@@ -212,7 +214,7 @@ feglm <- function(
   start_guesses_(beta_start, eta_start, y, X, beta, nt, wt, p, family)
 
   # Get names and number of levels in each fixed effects category ----
-  nms_fe <- lapply(data[, .SD, .SDcols = fe_vars], levels)
+  nms_fe <- lapply(data[fe_vars], levels)
   if (length(nms_fe) > 0L) {
     fe_levels <- vapply(nms_fe, length, integer(1))
   } else {
@@ -243,9 +245,13 @@ feglm <- function(
     y <- as.numeric(y)
   }
 
+  # t1 <- Sys.time()
+
   fit <- feglm_fit_(
     beta, eta, y, X, wt, 0.0, family[["family"]], control, FEs, cl_list
   )
+
+  # t2 <- Sys.time()
 
   nobs <- nobs_(nobs_full, nobs_na, y, fit[["fitted_values"]])
 
@@ -271,7 +277,13 @@ feglm <- function(
   }
   non_na_nms_sp <- nms_sp[!is.na(fit[["coefficients"]])]
   dimnames(fit[["hessian"]]) <- list(non_na_nms_sp, non_na_nms_sp)
-  names(fit[["fitted_values"]]) <- seq_along(fit[["fitted_values"]])
+  # Preserve row names from the data when possible to match base R prediction naming
+  rn_fitted <- rownames(data)
+  if (!is.null(rn_fitted)) {
+    names(fit[["fitted_values"]]) <- rn_fitted
+  } else {
+    names(fit[["fitted_values"]]) <- seq_along(fit[["fitted_values"]])
+  }
 
   # Add separation info if present ----
   if (isTRUE(fit$has_separation)) {
@@ -292,6 +304,15 @@ feglm <- function(
   fit[["data"]] <- data
   fit[["family"]] <- family
   fit[["control"]] <- control
+
+  # t3 <- Sys.time()
+
+  # print(sprintf(
+  #   "feglm fit completed in %.2f seconds (data prep: %.2f s, model fit: %.2f s).",
+  #   as.numeric(difftime(t3, t0, units = "secs")),
+  #   as.numeric(difftime(t1, t0, units = "secs")),
+  #   as.numeric(difftime(t2, t1, units = "secs"))
+  # ))
 
   # Return result list ----
   structure(fit, class = "feglm")
