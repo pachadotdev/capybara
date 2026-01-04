@@ -82,11 +82,13 @@ category. In this case, you should carefully inspect your model
 specification.
 }
 \examples{
+# Model without clustering - uses inverse Hessian for vcov
 mod <- feglm(mpg ~ wt | cyl, mtcars, family = poisson(link = "log"))
 summary(mod)
 
+# Model with clustering - uses sandwich vcov automatically
 mod <- feglm(mpg ~ wt | cyl | am, mtcars, family = poisson(link = "log"))
-summary(mod, type = "clustered")
+summary(mod)
 
 }
 \references{

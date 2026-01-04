@@ -192,11 +192,11 @@ EOF
 echo "For faster computation"
 echo " "
 if [ "${CAPYBARA_OPTIMIZATIONS:-no}" != "yes" ]; then
-  echo " Enable high-performance optimizations run:"
+  echo " Enable high-performance optimizations:"
   echo " export CAPYBARA_OPTIMIZATIONS=yes"
   echo " "
 fi
-echo " Change thread count run:"
+echo " Change thread count:"
 echo " export CAPYBARA_NCORES=<number>"
 echo " "
 echo " Then reinstall the package"

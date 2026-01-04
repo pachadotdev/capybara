@@ -119,11 +119,13 @@ NULL
 #'  Linear Models with High-Dimensional k-Way Fixed Effects". ArXiv e-prints.
 #'
 #' @examples
+#' # Model without clustering - uses inverse Hessian for vcov
 #' mod <- feglm(mpg ~ wt | cyl, mtcars, family = poisson(link = "log"))
 #' summary(mod)
 #'
+#' # Model with clustering - uses sandwich vcov automatically
 #' mod <- feglm(mpg ~ wt | cyl | am, mtcars, family = poisson(link = "log"))
-#' summary(mod, type = "clustered")
+#' summary(mod)
 #'
 #' @export
 feglm <- function(
@@ -229,6 +231,15 @@ feglm <- function(
   # Set names on the FEs to ensure they're passed to C++
   names(FEs) <- fe_vars
 
+  # Extract cluster variable from formula (third part) ----
+  cl_vars <- suppressWarnings(attr(terms(formula, rhs = 3L), "term.labels"))
+  if (length(cl_vars) >= 1L) {
+    # Get cluster index list (similar to FEs but only one level)
+    cl_list <- get_index_list_(cl_vars[1L], data)[[1L]]
+  } else {
+    cl_list <- list()
+  }
+
   # Fit generalized linear model ----
   if (is.integer(y)) {
     y <- as.numeric(y)
@@ -237,7 +248,7 @@ feglm <- function(
   # t1 <- Sys.time()
 
   fit <- feglm_fit_(
-    beta, eta, y, X, wt, 0.0, family[["family"]], control, FEs
+    beta, eta, y, X, wt, 0.0, family[["family"]], control, FEs, cl_list
   )
 
   # t2 <- Sys.time()

@@ -1,3 +1,11 @@
+# capybara 2.0.0 (WIP)
+
+* I found an error when using `summary(lm/glm, type = "clustered")` that largely underestimated
+  the standard errors. This is now fixed and I merged "clustered" and " sandwich" types into a single
+  "sandwich" type for clarity and consistency as both use a bread-meat-bread approach.
+* The `InferenceGLM` struct now adds the VCOV matrix and the standard errors to reuse computation and   
+  strealine the summary creation.
+
 # capybara 1.8.1
 
 * Link to published article and citation info.

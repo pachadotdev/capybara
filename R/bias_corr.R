@@ -135,7 +135,7 @@ bias_corr <- function(
   } else {
     X <- center_variables_(X, w, k_list, 
                           control[["center_tol"]], 
-                          control[["iter_max"]], 
+                          control[["iter_center_max"]], 
                           control[["iter_interrupt"]])
   }
 
@@ -185,7 +185,7 @@ bias_corr <- function(
   # Update centered regressor matrix
   X <- center_variables_(X, w, k_list, 
                         control[["center_tol"]], 
-                        control[["iter_max"]], 
+                        control[["iter_center_max"]], 
                         control[["iter_interrupt"]])
   colnames(X) <- nms_sp
 

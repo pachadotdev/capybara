@@ -10,7 +10,8 @@ struct InferenceGLM {
   vec eta;
   vec fitted_values; // mu values (response scale)
   vec weights;
-  mat hessian;
+  mat hessian; // Hessian matrix (needed for some internal computations)
+  mat vcov;    // Covariance matrix (inverse Hessian or sandwich)
   double deviance;
   double null_deviance;
   bool conv;
@@ -29,9 +30,9 @@ struct InferenceGLM {
   InferenceGLM(uword n, uword p)
       : coefficients(p, fill::zeros), eta(n, fill::zeros),
         fitted_values(n, fill::zeros), weights(n, fill::ones),
-        hessian(p, p, fill::zeros), deviance(0.0), null_deviance(0.0),
-        conv(false), iter(0), coef_status(p, fill::ones), has_fe(false),
-        has_tx(false) {}
+        hessian(p, p, fill::zeros), vcov(p, p, fill::zeros), deviance(0.0),
+        null_deviance(0.0), conv(false), iter(0), coef_status(p, fill::ones),
+        has_fe(false), has_tx(false) {}
 };
 
 enum Family {
@@ -304,6 +305,146 @@ vec variance(const vec &mu, const double &theta, const Family family_type) {
   default:
     stop("Unknown family");
   }
+}
+
+// Compute clustered sandwich covariance matrix
+// MX: centered design matrix (n x p)
+// y: response vector (n)
+// mu: fitted values (n)
+// H: Hessian matrix (p x p), i.e., MX' W MX
+// cluster_groups: indices for each cluster
+// Returns: sandwich covariance matrix (p x p)
+mat compute_sandwich_vcov(const mat &MX, const vec &y, const vec &mu,
+                          const mat &H, const field<uvec> &cluster_groups) {
+  const uword p = MX.n_cols;
+  const uword G = cluster_groups.n_elem;
+
+  // Compute H^{-1}
+  mat H_inv;
+  bool success = inv_sympd(H_inv, H);
+  if (!success) {
+    // Fall back to regular inverse
+    success = inv(H_inv, H);
+    if (!success) {
+      return mat(p, p, fill::value(datum::inf));
+    }
+  }
+
+  // Compute residuals (scores for Poisson with log-link are X * (y - mu))
+  vec resid = y - mu;
+
+  // Compute score matrix: each row is MX_i * resid_i
+  mat scores = MX.each_col() % resid; // element-wise: MX[i,j] * resid[i]
+
+  // Cluster adjustment factor: G / (G - 1)
+  double adj = (G > 1) ? static_cast<double>(G) / (G - 1.0) : 1.0;
+
+  // Compute meat: B = adj * sum_g (sum_i in g s_i)' * (sum_i in g s_i)
+  mat B(p, p, fill::zeros);
+
+  for (uword g = 0; g < G; ++g) {
+    const uvec &idx = cluster_groups(g);
+    if (idx.n_elem == 0)
+      continue;
+
+    // Sum scores within cluster
+    vec cluster_score = sum(scores.rows(idx), 0).t();
+
+    // Outer product
+    B += cluster_score * cluster_score.t();
+  }
+
+  B *= adj;
+
+  // Sandwich: V = H^{-1} B H^{-1}
+  mat V = H_inv * B * H_inv;
+
+  return V;
+}
+
+mat group_sums(const mat &M, const mat &w, const field<uvec> &group_indices) {
+  const uword J = group_indices.n_elem, P = M.n_cols;
+
+  Row<double> groupSum(P, fill::none);
+  double denom;
+  mat b(P, 1, fill::zeros);
+
+  for (uword j = 0; j < J; ++j) {
+    const uvec &indexes = group_indices(j);
+    groupSum = sum(M.rows(indexes), 0);
+    denom = accu(w.elem(indexes));
+
+    b += groupSum.t() / denom;
+  }
+
+  return b;
+}
+
+mat group_sums_spectral(const mat &M, const mat &v, const mat &w,
+                        const size_t K, const field<uvec> &group_indices) {
+  const uword J = group_indices.n_elem, K1 = K, P = M.n_cols;
+
+  vec num(P, fill::none), v_shifted;
+  mat b(P, 1, fill::zeros);
+  double denom;
+
+  for (uword j = 0; j < J; ++j) {
+    const uvec &indexes = group_indices(j);
+    const uword I = indexes.n_elem;
+
+    if (I <= 1)
+      continue;
+
+    num.fill(0.0);
+    denom = accu(w.elem(indexes));
+
+    v_shifted.zeros(I);
+    for (uword k = 1; k <= K1 && k < I; ++k) {
+      for (uword i = 0; i < I - k; ++i) {
+        v_shifted(i + k) += v(indexes(i));
+      }
+    }
+
+    num = M.rows(indexes).t() * (v_shifted * (I / (I - 1.0)));
+    b += num / denom;
+  }
+
+  return b;
+}
+
+mat group_sums_var(const mat &M, const field<uvec> &group_indices) {
+  const uword J = group_indices.n_elem;
+  const uword P = M.n_cols;
+
+  mat v(P, 1, fill::none), V(P, P, fill::zeros);
+
+  for (uword j = 0; j < J; ++j) {
+    const uvec &indexes = group_indices(j);
+    v = sum(M.rows(indexes), 0).t();
+    V += v * v.t();
+  }
+
+  return V;
+}
+
+mat group_sums_cov(const mat &M, const mat &N,
+                   const field<uvec> &group_indices) {
+  const uword J = group_indices.n_elem;
+  const uword P = M.n_cols;
+
+  mat V(P, P, fill::zeros);
+
+  for (uword j = 0; j < J; ++j) {
+    const uvec &indexes = group_indices(j);
+
+    if (indexes.n_elem < 2) {
+      continue;
+    }
+
+    V += M.rows(indexes).t() * N.rows(indexes);
+  }
+
+  return V;
 }
 
 } // namespace capybara

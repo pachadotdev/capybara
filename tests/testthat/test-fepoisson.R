@@ -32,7 +32,7 @@ test_that("fepoisson is similar to base", {
 
   expect_output(print(mod))
 
-  expect_visible(summary(mod, type = "cluster"))
+  expect_visible(summary(mod))
 
   # fes <- fixed_effects(mod)
   n <- unname(mod[["nobs"]]["nobs_full"])

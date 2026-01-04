@@ -1,7 +1,7 @@
 #' srr_stats
 #' @srrstats {G1.0} Implements covariance matrix extraction methods for `apes`, `feglm`, and `felm` objects.
 #' @srrstats {G2.1a} Validates input objects as instances of `apes`, `feglm`, or `felm`.
-#' @srrstats {G2.2} Provides various covariance estimation types including `hessian`, `outer.product`, `sandwich`, and `clustered`.
+#' @srrstats {G2.2} Provides various covariance estimation types including `hessian`, `outer.product`, and `sandwich`.
 #' @srrstats {G2.3} Handles cases with or without clustering variables, ensuring flexibility for diverse use cases.
 #' @srrstats {G3.0} Handles edge cases such as non-invertible hessians or missing cluster variables gracefully with informative errors.
 #' @srrstats {G4.0} Integrates seamlessly with the modeling pipeline, supporting consistent outputs for downstream analysis.
@@ -36,17 +36,11 @@ vcov.apes <- function(object, ...) {
 #'
 #' @description Covariance matrix for the estimator of the structural parameters
 #'  from objects returned by \code{\link{feglm}}. The covariance is computed
-#' from the hessian, the scores, or a combination of both after convergence.
+#'  during model fitting - either the inverse Hessian (default) or the
+#'  sandwich estimator if cluster variables are specified in the formula.
 #'
 #' @param object an object of class \code{"feglm"}.
-#' @param type the type of covariance estimate required. \code{"hessian"} refers
-#'  to the inverse of the negative expected hessian after convergence and is the
-#'  default option. \code{"outer.product"} is the outer-product-of-the-gradient
-#'  estimator. \code{"sandwich"} is the sandwich estimator (sometimes also
-#'  referred as robust estimator), and \code{"clustered"} computes a clustered
-#'  covariance matrix given some cluster variables.
-#'
-#' @param ... additional arguments.
+#' @param ... additional arguments (currently ignored).
 #'
 #' @return A named matrix of covariance estimates.
 #'
@@ -56,49 +50,37 @@ vcov.apes <- function(object, ...) {
 #' @seealso \code{\link{feglm}}
 #'
 #' @examples
-#' # same as the example in feglm but extracting the covariance matrix
-#' mod <- fepoisson(mpg ~ wt | cyl | am, mtcars)
-#' round(vcov(mod, type = "clustered"), 5)
+#' # Model without clustering - returns inverse Hessian covariance
+#' mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+#' round(vcov(mod), 5)
 #'
+#' # Model with clustering - returns sandwich covariance
+#' mod_cl <- fepoisson(mpg ~ wt | cyl | am, mtcars)
+#' round(vcov(mod_cl), 5)
+#' 
 #' @return A named matrix of covariance estimates.
 #'
 #' @export
-vcov.feglm <- function(
-    object,
-    type = c("hessian", "outer.product", "sandwich", "clustered"),
-    ...) {
-  # Check validity of input argument 'type'
-  type <- match.arg(type)
+vcov.feglm <- function(object, ...) {
+  v <- object[["vcov"]]
+  
+  # Check if vcov exists
 
-  # Extract cluster from formula
-  # it is totally fine not to have a cluster variable
-  cl_vars <- vcov_feglm_vars_(object)
-  k <- length(cl_vars)
-
-  if (isTRUE(k >= 1L) && type != "clustered") {
-    type <- "clustered"
+  if (is.null(v)) {
+    stop("Covariance matrix not found in model object.", call. = FALSE)
   }
-
-  # Compute requested type of covariance matrix
-  h <- object[["hessian"]]
-  p <- ncol(h)
-
-  if (type == "hessian") {
-    # If the hessian is invertible, compute its inverse
-    v <- vcov_feglm_hessian_covariance_(h, p)
-  } else {
-    g <- get_score_matrix_felm_(object)
-    if (type == "outer.product") {
-      # Check if the OP is invertible and compute its inverse
-      v <- vcov_feglm_outer_covariance_(g, p)
-    } else {
-      v <- vcov_feglm_covmat_(
-        object, type, h, g,
-        cl_vars, k, p
-      )
+  
+  # Add names to match coefficients
+  nms <- names(object[["coefficients"]])
+  if (!is.null(nms) && length(nms) > 0) {
+    # Handle NA coefficients (collinear)
+    non_na <- !is.na(object[["coefficients"]])
+    nms <- nms[non_na]
+    if (length(nms) == nrow(v)) {
+      dimnames(v) <- list(nms, nms)
     }
   }
-
+  
   v
 }
 
@@ -117,7 +99,7 @@ vcov_feglm_hessian_covariance_ <- function(h, p) {
 }
 
 vcov_feglm_outer_covariance_ <- function(g, p) {
-  v <- try(solve(g), silent = TRUE)
+  v <- try(solve(crossprod(g)), silent = TRUE)
   if (inherits(v, "try-error")) {
     v <- matrix(Inf, p, p)
   }
@@ -132,22 +114,17 @@ vcov_feglm_covmat_ <- function(
   if (inherits(v, "try-error")) {
     v <- matrix(Inf, p, p)
   } else {
-    # Compute inner part of the sandwich formula
-    if (type == "sandwich") {
-      b <- crossprod(g)
-    } else {
-      if (isFALSE(k >= 1L)) {
-        vcov_feglm_cluster_nocluster_()
-      }
-      d <- vcov_feglm_cluster_data_(object, cl_vars)
-      # Ensure cluster vars are factors (base R)
-      for (cv in cl_vars) d[[cv]] <- check_factor_(d[[cv]])
-      sp_vars <- colnames(g)
-      g <- cbind(d, g)
-      rm(d)
-      b <- vcov_feglm_clustered_cov_(g, cl_vars, sp_vars, p)
+    # Compute clustered covariance (fallback when precomputed not available)
+    if (isFALSE(k >= 1L)) {
+      vcov_feglm_cluster_nocluster_()
     }
-    # Sandwich formula
+    d <- vcov_feglm_cluster_data_(object, cl_vars)
+    d[, (cl_vars) := lapply(.SD, check_factor_), .SDcols = cl_vars]
+    sp_vars <- colnames(g)
+    g <- cbind(d, g)
+    rm(d)
+    b <- vcov_feglm_clustered_cov_(g, cl_vars, sp_vars, p)
+    # Sandwich formula: bread %*% meat %*% bread
     v <- v %*% b %*% v
   }
 
@@ -226,9 +203,8 @@ vcov_feglm_clustered_cov_ <- function(g, cl_vars, sp_vars, p) {
 #' @param type the type of covariance estimate required. \code{"hessian"} refers
 #'  to the inverse of the negative expected hessian after convergence and is the
 #'  default option. \code{"outer.product"} is the outer-product-of-the-gradient
-#'  estimator. \code{"sandwich"} is the sandwich estimator (sometimes also
-#'  referred as robust estimator), and \code{"clustered"} computes a clustered
-#'  covariance matrix given some cluster variables.
+#'  estimator. \code{"sandwich"} computes a clustered covariance matrix 
+#'  (sandwich estimator) given some cluster variables specified in the formula.
 #'
 #' @param ... additional arguments.
 #'
@@ -239,12 +215,12 @@ vcov_feglm_clustered_cov_ <- function(g, cl_vars, sp_vars, p) {
 #' @examples
 #' # same as the example in felm but extracting the covariance matrix
 #' mod <- felm(log(mpg) ~ log(wt) | cyl | am, mtcars)
-#' vcov(mod, type = "clustered")
+#' vcov(mod, type = "sandwich")
 #'
 #' @export
 vcov.felm <- function(
     object,
-    type = c("hessian", "outer.product", "sandwich", "clustered"),
+    type = c("hessian", "outer.product", "sandwich"),
     ...) {
   # Check validity of input argument 'type'
   type <- match.arg(type)
@@ -253,10 +229,6 @@ vcov.felm <- function(
   # it is totally fine not to have a cluster variable
   cl_vars <- vcov_felm_vars_(object)
   k <- length(cl_vars)
-
-  if (isTRUE(k >= 1L) && type != "clustered") {
-    type <- "clustered"
-  }
 
   # Compute requested type of covariance matrix
   h <- object[["hessian"]]
@@ -295,21 +267,17 @@ vcov_felm_covmat_ <- function(
   if (inherits(v, "try-error")) {
     v <- matrix(Inf, p, p)
   } else {
-    # Compute inner part of the sandwich formula
-    if (type == "sandwich") {
-      b <- crossprod(g)
-    } else {
-      if (isFALSE(k >= 1L)) {
-        vcov_feglm_cluster_nocluster_()
-      }
-      d <- vcov_feglm_cluster_data_(object, cl_vars, "felm")
-      for (cv in cl_vars) d[[cv]] <- check_factor_(d[[cv]])
-      sp_vars <- colnames(g)
-      g <- cbind(d, g)
-      rm(d)
-      b <- vcov_feglm_clustered_cov_(g, cl_vars, sp_vars, p)
+    # Compute clustered covariance (sandwich estimator)
+    if (isFALSE(k >= 1L)) {
+      vcov_feglm_cluster_nocluster_()
     }
-    # Sandwich formula
+    d <- vcov_feglm_cluster_data_(object, cl_vars, "felm")
+    d[, (cl_vars) := lapply(.SD, check_factor_), .SDcols = cl_vars]
+    sp_vars <- colnames(g)
+    g <- cbind(d, g)
+    rm(d)
+    b <- vcov_feglm_clustered_cov_(g, cl_vars, sp_vars, p)
+    # Sandwich formula: bread %*% meat %*% bread
     v <- v %*% b %*% v
   }
 

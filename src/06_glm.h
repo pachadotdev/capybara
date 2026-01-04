@@ -148,7 +148,8 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
                        const double &theta, const Family family_type,
                        const field<field<uvec>> &fe_groups,
                        const CapybaraParameters &params,
-                       GlmWorkspace *workspace = nullptr) {
+                       GlmWorkspace *workspace = nullptr,
+                       const field<uvec> *cluster_groups = nullptr) {
   const uword n = y.n_elem;
   const uword p = X.n_cols;
   const uword k = beta.n_elem;
@@ -473,6 +474,26 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
         result.fixed_effects =
             get_alpha(pi, fe_groups, params.alpha_tol, params.iter_alpha_max);
       }
+    }
+
+    // Compute covariance matrix:
+    // - If cluster groups provided: sandwich covariance
+    // - Otherwise: inverse Hessian
+    // X here is the centered design matrix (MX), H is MX'WMX
+    if (cluster_groups != nullptr && cluster_groups->n_elem > 0) {
+      // Sandwich covariance for clustered standard errors
+      result.vcov = compute_sandwich_vcov(X, y, mu, H, *cluster_groups);
+    } else {
+      // Standard inverse Hessian covariance
+      mat H_inv;
+      bool success = inv_sympd(H_inv, H);
+      if (!success) {
+        success = inv(H_inv, H);
+        if (!success) {
+          H_inv = mat(H.n_rows, H.n_cols, fill::value(datum::inf));
+        }
+      }
+      result.vcov = std::move(H_inv);
     }
 
     result.coefficients = std::move(beta);

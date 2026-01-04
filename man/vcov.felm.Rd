@@ -4,11 +4,7 @@
 \alias{vcov.felm}
 \title{Covariance matrix for LMs}
 \usage{
-\method{vcov}{felm}(
-  object,
-  type = c("hessian", "outer.product", "sandwich", "clustered"),
-  ...
-)
+\method{vcov}{felm}(object, type = c("hessian", "outer.product", "sandwich"), ...)
 }
 \arguments{
 \item{object}{an object of class \code{"felm"}.}
@@ -16,9 +12,8 @@
 \item{type}{the type of covariance estimate required. \code{"hessian"} refers
 to the inverse of the negative expected hessian after convergence and is the
 default option. \code{"outer.product"} is the outer-product-of-the-gradient
-estimator. \code{"sandwich"} is the sandwich estimator (sometimes also
-referred as robust estimator), and \code{"clustered"} computes a clustered
-covariance matrix given some cluster variables.}
+estimator. \code{"sandwich"} computes a clustered covariance matrix
+(sandwich estimator) given some cluster variables specified in the formula.}
 
 \item{...}{additional arguments.}
 }
@@ -33,7 +28,7 @@ from the hessian, the scores, or a combination of both after convergence.
 \examples{
 # same as the example in felm but extracting the covariance matrix
 mod <- felm(log(mpg) ~ log(wt) | cyl | am, mtcars)
-vcov(mod, type = "clustered")
+vcov(mod, type = "sandwich")
 
 }
 \seealso{

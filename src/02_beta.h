@@ -4,7 +4,7 @@
 #define CAPYBARA_BETA_H
 
 namespace capybara {
-  
+
 struct InferenceBeta {
   vec coefficients;
   vec fitted_values;

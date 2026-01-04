@@ -10,7 +10,9 @@ summary_table(
   se_digits = 3,
   stars = TRUE,
   latex = FALSE,
-  model_names = NULL
+  model_names = NULL,
+  caption = NULL,
+  label = NULL
 )
 }
 \arguments{
@@ -25,6 +27,10 @@ summary_table(
 \item{latex}{Whether to output as LaTeX code. The default is \code{FALSE}.}
 
 \item{model_names}{Optional vector of custom model names}
+
+\item{caption}{Optional caption for the table (LaTeX only)}
+
+\item{label}{Optional label for cross-referencing (LaTeX only)}
 }
 \value{
 A formatted table
