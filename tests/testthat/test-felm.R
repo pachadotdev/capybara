@@ -97,6 +97,18 @@ test_that("felm works", {
   expect_equal(s1$adj.r.squared, s2$adj.r.squared, tolerance = 1e-2)
 })
 
+test_that("felm is correct without fixed effects", {
+  m1 <- felm(mpg ~ wt, mtcars)
+  m2 <- lm(mpg ~ wt, mtcars)
+
+  s2 <- summary(m2)
+
+  expect_equal(coef(m1), coef(m2), tolerance = 1e-2)
+
+  expect_equal(m1$r.squared, s2$r.squared, tolerance = 1e-2)
+  expect_equal(m1$adj.r.squared, s2$adj.r.squared, tolerance = 1e-2)
+})
+
 test_that("felm time is the minimally affected when adding noise to the data", {
   mtcars2 <- mtcars[, c("mpg", "wt", "cyl")]
   set.seed(200100)

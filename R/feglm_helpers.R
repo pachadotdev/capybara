@@ -132,15 +132,6 @@ check_formula_ <- function(formula) {
 
   formula <- Formula(formula)
 
-  if (!any(grepl("\\|", formula[[3L]]))) {
-    message(
-      paste(
-        "Perhaps you forgot to add the fixed effects like 'mpg ~ wt | cyl'",
-        "You are better off using the 'lm()' function from base R."
-      )
-    )
-  }
-
   assign("formula", formula, envir = parent.frame())
 }
 

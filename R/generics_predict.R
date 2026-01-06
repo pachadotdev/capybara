@@ -40,6 +40,14 @@ predict.feglm <- function(object, newdata = NULL, type = c("link", "response"), 
     p <- NA
     model_response_(data, object$formula)
 
+    # Check if model has an intercept (no fixed effects case)
+    # When there are no FEs, C++ adds an intercept, so coef_table includes "(Intercept)"
+    has_intercept <- "(Intercept)" %in% rownames(object$coef_table)
+    if (has_intercept) {
+      # Add intercept column to X
+      X <- cbind(1, X)
+    }
+
     fes <- object[["fixed_effects"]]
     fes2 <- setNames(lapply(names(fes), function(name) {
       fe <- fes[[name]]
@@ -53,7 +61,15 @@ predict.feglm <- function(object, newdata = NULL, type = c("link", "response"), 
       matched_values
     }), names(fes))
 
-    eta <- X %*% object$coefficients + Reduce("+", fes2)
+    # Replace NA coefficients with 0 for prediction
+    coef0 <- object$coef_table[, 1]
+    coef0[is.na(coef0)] <- 0
+
+    if (length(fes) > 0) {
+      eta <- X %*% coef0 + Reduce("+", fes2)
+    } else {
+      eta <- X %*% coef0
+    }
   } else {
     eta <- object[["eta"]]
   }
@@ -102,6 +118,14 @@ predict.felm <- function(object, newdata = NULL, type = c("response", "terms"), 
     p <- NA
     model_response_(data, object$formula)
 
+    # Check if model has an intercept (no fixed effects case)
+    # When there are no FEs, C++ adds an intercept, so coef_table includes "(Intercept)"
+    has_intercept <- "(Intercept)" %in% rownames(object$coef_table)
+    if (has_intercept) {
+      # Add intercept column to X
+      X <- cbind(1, X)
+    }
+
     fes <- object[["fixed_effects"]]
     fes2 <- setNames(lapply(names(fes), function(name) {
       fe <- fes[[name]]
@@ -116,10 +140,14 @@ predict.felm <- function(object, newdata = NULL, type = c("response", "terms"), 
     }), names(fes))
 
     # Replace NA coefficients with 0 for prediction
-    coef0 <- object$coefficients
+    coef0 <- object$coef_table[, 1]
     coef0[is.na(coef0)] <- 0
 
-    y <- X %*% coef0 + Reduce("+", fes2)
+    if (length(fes) > 0) {
+      y <- X %*% coef0 + Reduce("+", fes2)
+    } else {
+      y <- X %*% coef0
+    }
   } else {
     y <- object[["fitted_values"]]
   }

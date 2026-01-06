@@ -86,7 +86,8 @@ bias_corr <- function(
   panel_structure <- match.arg(panel_structure)
 
   # Extract model information
-  beta_uncorr <- object[["coefficients"]]
+  beta_uncorr <- object[["coef_table"]][, 1]
+  names(beta_uncorr) <- rownames(object[["coef_table"]])
   control <- object[["control"]]
   data <- object[["data"]]
   family <- object[["family"]]
@@ -198,8 +199,8 @@ bias_corr <- function(
   h <- crossprod(X * sqrt(w))
   dimnames(h) <- list(nms_sp, nms_sp)
 
-  # Update result list
-  object[["coefficients"]] <- beta
+  # Update result list - update coef_table with new beta values
+  object[["coef_table"]][, 1] <- beta
   object[["eta"]] <- eta
   if (control[["keep_tx"]]) object[["tx"]] <- X
   object[["hessian"]] <- h

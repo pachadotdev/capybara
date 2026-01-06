@@ -37,12 +37,10 @@ summary_family_ <- function(x) {
 #' @noRd
 summary_estimates_ <- function(x, digits) {
   cat("\nEstimates:\n\n")
-  
-  # Use pre-computed coefficient table from C++
+
+  # Use pre-computed coefficient table from C++ (already has row/col names)
   coefficients <- x[["coef_table"]]
-  rownames(coefficients) <- names(x[["coefficients"]])
-  colnames(coefficients) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
-  
+
   coefmat <- as.data.frame(coefficients)
 
   coefmat <- summary_estimates_signif_(coefmat, digits)
@@ -157,11 +155,11 @@ summary_estimates_print_rows_ <- function(coefmat, coef_width, max_widths) {
 summary_r2_ <- function(x, digits) {
   cat(
     sprintf("\nR-squared%*s:", nchar("Adj. "), " "),
-    format(x[["r.squared"]], digits = digits, nsmall = 2L), "\n"
+    format(x[["r_squared"]], digits = digits, nsmall = 2L), "\n"
   )
   cat(
     "Adj. R-squared:",
-    format(x[["adj.r.squared"]], digits = digits, nsmall = 2L), "\n"
+    format(x[["adj_r_squared"]], digits = digits, nsmall = 2L), "\n"
   )
 }
 
@@ -226,7 +224,7 @@ print.apes <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
     rownames(coefficients) <- names(est)
     colnames(coefficients) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
   }
-  
+
   cat("Estimates:\n")
   printCoefmat(coefficients, P.values = TRUE, has.Pvalue = TRUE, digits = digits)
   invisible(x)
@@ -248,7 +246,7 @@ print.feglm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
   summary_nobs_(x)
 
   summary_fisher_(x, digits)
-  
+
   invisible(x)
 }
 
@@ -264,7 +262,7 @@ print.felm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
   summary_r2_(x, digits)
 
   summary_nobs_(x)
-  
+
   invisible(x)
 }
 

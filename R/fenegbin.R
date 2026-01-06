@@ -171,22 +171,18 @@ fenegbin <- function(
   }
 
   # Get names and number of levels in each fixed effects category ----
-  nms_fe <- lapply(data[fe_vars], levels)
-  if (length(nms_fe) > 0L) {
+  if (length(fe_vars) > 0) {
+    nms_fe <- lapply(data[fe_vars], levels)
     fe_levels <- vapply(nms_fe, length, integer(1))
-  } else {
-    fe_levels <- c("missing_fe" = 1L)
-  }
-
-  # Generate auxiliary list of indexes for different sub panels ----
-  if (!any(fe_levels %in% "missing_fe")) {
+    # Generate auxiliary list of indexes for different sub panels ----
     FEs <- get_index_list_(fe_vars, data)
+    names(FEs) <- fe_vars
   } else {
-    FEs <- list(missing_fe = seq_len(nt))
+    # No fixed effects - create empty list
+    nms_fe <- list()
+    fe_levels <- integer(0)
+    FEs <- list()
   }
-
-  # Set names on the FEs list to ensure they're passed to C++
-  names(FEs) <- fe_vars
 
   # Set init_theta to 0 if NULL (C++ will handle default)
   if (is.null(init_theta)) {
@@ -215,12 +211,14 @@ fenegbin <- function(
     cat("Algorithm did not converge.\n")
   }
 
-  # Add names to beta, hessian, and X_dm (if provided) ----
-  names(fit[["coefficients"]]) <- nms_sp
+  # Add names to coef_table, hessian, vcov, and X_dm (if provided) ----
+  rownames(fit[["coef_table"]]) <- nms_sp
+  colnames(fit[["coef_table"]]) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
   if (control[["keep_tx"]]) {
     colnames(fit[["tx"]]) <- nms_sp
   }
   dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
+  dimnames(fit[["vcov"]]) <- list(nms_sp, nms_sp)
 
   # Add to fit list ----
   fit[["nobs"]] <- nobs

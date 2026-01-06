@@ -139,7 +139,8 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
 
 [[cpp4r::register]] list felm_fit_(const doubles_matrix<> &X_r,
                                    const doubles &y_r, const doubles &w_r,
-                                   const list &FEs, const list &control) {
+                                   const list &FEs, const list &control,
+                                   const list &cl_list) {
   CapybaraParameters params(control);
 
   mat X = as_mat(X_r);
@@ -148,7 +149,24 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
 
   field<field<uvec>> fe_groups = R_list_to_Armadillo_field(FEs);
 
-  capybara::InferenceLM result = capybara::felm_fit(X, y, w, fe_groups, params);
+  // Convert cluster list to Armadillo field<uvec>
+  field<uvec> cluster_groups;
+  bool has_clusters = cl_list.size() > 0;
+  if (has_clusters) {
+    cluster_groups.set_size(cl_list.size());
+    for (R_xlen_t g = 0; g < cl_list.size(); ++g) {
+      const integers group_obs = as_cpp<integers>(cl_list[g]);
+      uvec indices(group_obs.size());
+      for (size_t i = 0; i < static_cast<size_t>(group_obs.size()); ++i) {
+        indices[i] = static_cast<uword>(group_obs[i] - 1);
+      }
+      cluster_groups(g) = indices;
+    }
+  }
+  const field<uvec> *cluster_ptr = has_clusters ? &cluster_groups : nullptr;
+
+  capybara::InferenceLM result =
+      capybara::felm_fit(X, y, w, fe_groups, params, nullptr, cluster_ptr);
 
   field<std::string> fe_names(FEs.size());
   field<field<std::string>> fe_levels(FEs.size());
@@ -172,7 +190,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
     }
   }
 
-  // Replace collinear coefficients (NaN) with R's NA_REAL
+  // Replace collinear coefficients (NaN) with R's NA_REAL in coef_table
   vec coefficients = result.coef_table.col(0);
   uvec collinear_mask = (result.coef_status == 0);
   if (any(collinear_mask)) {
@@ -181,8 +199,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   }
 
   auto ret = writable::list(
-      {"coefficients"_nm = as_doubles(coefficients),
-       "fitted_values"_nm = as_doubles(result.fitted_values),
+      {"fitted_values"_nm = as_doubles(result.fitted_values),
        "residuals"_nm = as_doubles(result.residuals),
        "weights"_nm = as_doubles(result.weights),
        "hessian"_nm = as_doubles_matrix(result.hessian),
@@ -308,8 +325,7 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
   }
 
   auto out = writable::list(
-      {"coefficients"_nm = as_doubles(coefficients),
-       "eta"_nm = as_doubles(result.eta),
+      {"eta"_nm = as_doubles(result.eta),
        "fitted_values"_nm = as_doubles(result.fitted_values),
        "weights"_nm = as_doubles(result.weights),
        "vcov"_nm = as_doubles_matrix(result.vcov),
@@ -414,8 +430,7 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
   }
 
   auto out = writable::list(
-      {"coefficients"_nm = as_doubles(coefficients),
-       "eta"_nm = as_doubles(result.eta),
+      {"eta"_nm = as_doubles(result.eta),
        "fitted_values"_nm = as_doubles(result.fitted_values),
        "weights"_nm = as_doubles(result.weights),
        "vcov"_nm = as_doubles_matrix(result.vcov),

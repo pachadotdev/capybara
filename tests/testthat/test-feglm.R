@@ -51,6 +51,13 @@ test_that("feglm is similar to glm", {
   expect_equal(coef(mod_invgauss_base)[2:3], coef(mod_invgauss), tolerance = 1e-2)
 })
 
+test_that("feglm works without fixed effects", {
+  m1 <- feglm(log(mpg) ~ log(wt), data = mtcars)
+  m2 <- glm(log(mpg) ~ log(wt), data = mtcars)
+
+  expect_equal(coef(m1), coef(m2), tolerance = 1e-6)
+})
+
 test_that("predicted values increase the error outside the inter-quartile range for GLMs", {
   skip_on_cran()
 

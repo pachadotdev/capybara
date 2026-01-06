@@ -13,10 +13,10 @@ extern "C" SEXP _capybara_center_variables_(SEXP V_r, SEXP w_r, SEXP klist, SEXP
   END_CPP4R
 }
 // capybara.cpp
-list felm_fit_(const doubles_matrix<> & X_r, const doubles & y_r, const doubles & w_r, const list & FEs, const list & control);
-extern "C" SEXP _capybara_felm_fit_(SEXP X_r, SEXP y_r, SEXP w_r, SEXP FEs, SEXP control) {
+list felm_fit_(const doubles_matrix<> & X_r, const doubles & y_r, const doubles & w_r, const list & FEs, const list & control, const list & cl_list);
+extern "C" SEXP _capybara_felm_fit_(SEXP X_r, SEXP y_r, SEXP w_r, SEXP FEs, SEXP control, SEXP cl_list) {
   BEGIN_CPP4R
-    return cpp4r::as_sexp(felm_fit_(cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(X_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(y_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(w_r), cpp4r::as_cpp<cpp4r::decay_t<const list &>>(FEs), cpp4r::as_cpp<cpp4r::decay_t<const list &>>(control)));
+    return cpp4r::as_sexp(felm_fit_(cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(X_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(y_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(w_r), cpp4r::as_cpp<cpp4r::decay_t<const list &>>(FEs), cpp4r::as_cpp<cpp4r::decay_t<const list &>>(control), cpp4r::as_cpp<cpp4r::decay_t<const list &>>(cl_list)));
   END_CPP4R
 }
 // capybara.cpp
@@ -82,7 +82,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_capybara_check_separation_",    (DL_FUNC) &_capybara_check_separation_,    10},
     {"_capybara_feglm_fit_",           (DL_FUNC) &_capybara_feglm_fit_,           10},
     {"_capybara_feglm_offset_fit_",    (DL_FUNC) &_capybara_feglm_offset_fit_,     7},
-    {"_capybara_felm_fit_",            (DL_FUNC) &_capybara_felm_fit_,             5},
+    {"_capybara_felm_fit_",            (DL_FUNC) &_capybara_felm_fit_,             6},
     {"_capybara_fenegbin_fit_",        (DL_FUNC) &_capybara_fenegbin_fit_,         9},
     {"_capybara_group_sums_",          (DL_FUNC) &_capybara_group_sums_,           3},
     {"_capybara_group_sums_cov_",      (DL_FUNC) &_capybara_group_sums_cov_,       3},

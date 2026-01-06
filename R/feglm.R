@@ -215,18 +215,16 @@ feglm <- function(
   start_guesses_(beta_start, eta_start, y, X, beta, nt, wt, p, family)
 
   # Get names and number of levels in each fixed effects category ----
-  nms_fe <- lapply(data[fe_vars], levels)
-  if (length(nms_fe) > 0L) {
+  if (length(fe_vars) > 0) {
+    nms_fe <- lapply(data[fe_vars], levels)
     fe_levels <- vapply(nms_fe, length, integer(1))
-  } else {
-    fe_levels <- c("missing_fe" = 1L)
-  }
-
-  # Generate auxiliary list of indexes for different sub panels ----
-  if (!any(fe_levels %in% "missing_fe")) {
+    # Generate auxiliary list of indexes for different sub panels ----
     FEs <- get_index_list_(fe_vars, data)
   } else {
-    FEs <- list(missing_fe = seq_len(nt))
+    # No fixed effects - create empty list
+    nms_fe <- list()
+    fe_levels <- integer(0)
+    FEs <- list()
   }
 
   # Set names on the FEs to ensure they're passed to C++
@@ -258,8 +256,8 @@ feglm <- function(
 
   # Cache starts for potential warm-start in repeated calls (opt-in) ----
   if (isTRUE(getOption("capybara.warm_start", FALSE))) {
-    if (!is.null(fit$coefficients) && !is.null(fit$eta)) {
-      coefs <- fit$coefficients
+    if (!is.null(fit$coef_table) && !is.null(fit$eta)) {
+      coefs <- fit$coef_table[, 1]
       if (length(coefs) == ncol(X) && length(fit$eta) == nrow(X)) {
         form_key <- paste(deparse(formula), collapse = "")
         cache_set_starts_(form_key, coefs, fit$eta)
@@ -271,13 +269,19 @@ feglm <- function(
   X <- NULL
   eta <- NULL
 
-  # Add names to beta, hessian, T(X) (if provided), and fitted values ----
-  names(fit[["coefficients"]]) <- nms_sp
+  # Add names to coef_table, hessian, T(X) (if provided), and fitted values ----
+  # When there are no fixed effects, C++ adds an intercept column
+  if (length(fe_vars) == 0) {
+    nms_sp <- c("(Intercept)", nms_sp)
+  }
+  rownames(fit[["coef_table"]]) <- nms_sp
+  colnames(fit[["coef_table"]]) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
   if (control[["keep_tx"]]) {
     colnames(fit[["tx"]]) <- nms_sp
   }
-  non_na_nms_sp <- nms_sp[!is.na(fit[["coefficients"]])]
+  non_na_nms_sp <- nms_sp[!is.na(fit[["coef_table"]][, 1])]
   dimnames(fit[["hessian"]]) <- list(non_na_nms_sp, non_na_nms_sp)
+  dimnames(fit[["vcov"]]) <- list(non_na_nms_sp, non_na_nms_sp)
   # Preserve row names from the data when possible to match base R prediction naming
   rn_fitted <- rownames(data)
   if (!is.null(rn_fitted)) {

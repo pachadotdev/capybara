@@ -14,7 +14,7 @@ inline uword get_block_size_lm(uword n, uword k) {
 }
 
 struct InferenceLM {
-  mat coef_table;   // Coefficient table: [estimate, std.error, z, p-value]
+  mat coef_table; // Coefficient table: [estimate, std.error, z, p-value]
   vec fitted_values;
   vec residuals;
   vec weights;
@@ -225,15 +225,26 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
   FelmWorkspace *ws = workspace ? workspace : &local_workspace;
   ws->ensure_size(N, P);
 
-  ws->X_original = X;
   ws->y_original = y;
+
+  const bool has_fixed_effects = fe_groups.n_elem > 0;
+  result.has_fe = has_fixed_effects;
+
+  // Add intercept column if no fixed effects
+  if (!has_fixed_effects) {
+    mat X_with_intercept(N, P + 1);
+    X_with_intercept.col(0).ones(); // Intercept column
+    if (P > 0) {
+      X_with_intercept.cols(1, P) = X;
+    }
+    X = X_with_intercept;
+  }
+
+  ws->X_original = X;
 
   bool use_weights = !all(w == 1.0);
   CollinearityResult collin_result =
       check_collinearity(X, w, use_weights, params.collin_tol);
-
-  const bool has_fixed_effects = fe_groups.n_elem > 0;
-  result.has_fe = has_fixed_effects;
 
   if (has_fixed_effects) {
     CenteringWorkspace centering_workspace;
@@ -268,8 +279,9 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
   if (result.coef_table.n_rows != n_coef) {
     result.coef_table.set_size(n_coef, 4);
   }
-  
-  result.coef_table.col(0) = beta_result.coefficients;  // Store coefficients in first column
+
+  result.coef_table.col(0) =
+      beta_result.coefficients; // Store coefficients in first column
   result.coef_status = std::move(collin_result.coef_status);
   result.hessian = std::move(beta_result.hessian);
   result.success = std::move(beta_result.success);
@@ -283,20 +295,22 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
   double tss = sum(w % square(ydemeaned));
   double rss = sum(w % square(result.residuals));
   result.r_squared = 1.0 - (rss / tss);
-  
-  // Adjusted R-squared: account for regressors and fixed effects
-  // For fixed effects, we lose (J_k - 1) degrees of freedom per FE dimension
-  // where J_k is the number of groups in dimension k
-  uword k = P;  // Start with number of regressors
+
+  // Adjusted R-squared: account for parameters
+  // For models without fixed effects: X has P columns (original regressors) +
+  // intercept For models with fixed effects: X has P columns + sum(J_k - 1) FE
+  // parameters where J_k is the number of groups in dimension k Note: n_coef
+  // already includes the intercept when no FEs (added earlier in code)
+  uword k = n_coef; // Number of coefficients estimated
   if (has_fixed_effects) {
     for (uword j = 0; j < fe_groups.n_elem; ++j) {
       // Each FE dimension costs J-1 degrees of freedom (one level is reference)
       k += fe_groups(j).n_elem - 1;
     }
   }
-  result.adj_r_squared = 1.0 - (1.0 - result.r_squared) * 
-                         (static_cast<double>(N - 1)) / 
-                         std::max(1.0, static_cast<double>(N - k));
+  result.adj_r_squared = 1.0 - (1.0 - result.r_squared) *
+                                   (static_cast<double>(N - 1)) /
+                                   std::max(1.0, static_cast<double>(N - k));
 
   // Compute covariance matrix
   // H = X'WX (already computed in beta_result.hessian)
@@ -307,8 +321,8 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
     // Sandwich covariance for clustered standard errors
     // For linear models: V = (X'X)^{-1} X'ΩX (X'X)^{-1}
     // where Ω is the cluster-robust variance matrix
-    vcov_reduced = compute_sandwich_vcov(X, ws->y_original, result.fitted_values,
-                                        H, *cluster_groups);
+    vcov_reduced = compute_sandwich_vcov(
+        X, ws->y_original, result.fitted_values, H, *cluster_groups);
   } else {
     // Standard inverse Hessian covariance: (X'WX)^{-1} * σ²
     mat H_inv;
@@ -324,9 +338,10 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
     double sigma2 = rss / std::max(1.0, static_cast<double>(N - P));
     vcov_reduced = H_inv * sigma2;
   }
-  
+
   // Expand vcov to full size if there's collinearity
-  if (collin_result.has_collinearity && collin_result.non_collinear_cols.n_elem > 0) {
+  if (collin_result.has_collinearity &&
+      collin_result.non_collinear_cols.n_elem > 0) {
     result.vcov.set_size(n_coef, n_coef);
     result.vcov.fill(datum::nan);
     // Fill in the non-collinear part
@@ -345,24 +360,24 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
   vec se = sqrt(diagvec(result.vcov));
   vec coefficients = result.coef_table.col(0);
   vec z_values = coefficients / se;
-  
-  result.coef_table.col(1) = se;         // Std. Error
-  result.coef_table.col(2) = z_values;   // z value
-  
+
+  result.coef_table.col(1) = se;       // Std. Error
+  result.coef_table.col(2) = z_values; // z value
+
   // Compute two-tailed p-values: 2 * Φ(-|z|)
   for (uword i = 0; i < n_coef; ++i) {
     result.coef_table(i, 3) = 2.0 * normcdf(-fabs(z_values(i)));
   }
-  
+
   // Mark collinear coefficients as NaN
   if (collin_result.has_collinearity) {
     uvec collinear_idx = find(result.coef_status == 0);
     for (uword i = 0; i < collinear_idx.n_elem; ++i) {
       uword idx = collinear_idx(i);
-      result.coef_table(idx, 0) = datum::nan;  // Estimate
-      result.coef_table(idx, 1) = datum::nan;  // Std. Error
-      result.coef_table(idx, 2) = datum::nan;  // z value
-      result.coef_table(idx, 3) = datum::nan;  // p-value
+      result.coef_table(idx, 0) = datum::nan; // Estimate
+      result.coef_table(idx, 1) = datum::nan; // Std. Error
+      result.coef_table(idx, 2) = datum::nan; // z value
+      result.coef_table(idx, 3) = datum::nan; // p-value
     }
   }
 

@@ -56,8 +56,9 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
   vec beta_coef(p, fill::zeros);
   vec eta(n, fill::zeros);
 
-  InferenceGLM poisson_fit = feglm_fit(beta_coef, eta, y, X, w, 0.0, poisson_family,
-                                       fe_groups, params, workspace);
+  InferenceGLM poisson_fit =
+      feglm_fit(beta_coef, eta, y, X, w, 0.0, poisson_family, fe_groups, params,
+                workspace);
 
   if (!poisson_fit.conv) {
     result.conv = false;
@@ -99,8 +100,9 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
     theta0 = theta;
 
     Family negbin_family = NEG_BIN;
-    InferenceGLM glm_fit = feglm_fit(beta_coef, eta, y, X, w, theta, negbin_family,
-                                     fe_groups, params, workspace);
+    InferenceGLM glm_fit =
+        feglm_fit(beta_coef, eta, y, X, w, theta, negbin_family, fe_groups,
+                  params, workspace);
 
     if (!glm_fit.conv) {
       // Copy current results even if convergence failed

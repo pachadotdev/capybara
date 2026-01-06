@@ -13,8 +13,6 @@
 }
 \value{
 A named matrix of covariance estimates.
-
-A named matrix of covariance estimates.
 }
 \description{
 Covariance matrix for the estimator of the structural parameters

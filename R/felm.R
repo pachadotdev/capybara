@@ -83,8 +83,13 @@ NULL
 #'  Linear Models with High-Dimensional k-Way Fixed Effects". ArXiv e-prints.
 #'
 #' @examples
-#' # check the feglm examples for the details about clustered standard errors
+#' # Model with fixed effects
 #' mod <- felm(log(mpg) ~ log(wt) | cyl, mtcars)
+#' summary(mod)
+#'
+#' # Model without fixed effects but with clustered standard errors
+#' # Note: Use 0 to indicate no fixed effects when specifying clusters
+#' mod <- felm(log(mpg) ~ log(wt) | 0 | cyl, mtcars)
 #' summary(mod)
 #'
 #' @export
@@ -142,37 +147,49 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   check_weights_(w)
 
   # Get names and number of levels in each fixed effects category ----
-  nms_fe <- lapply(data[fe_vars], levels)
-  if (length(nms_fe) > 0L) {
+  if (length(fe_vars) > 0) {
+    nms_fe <- lapply(data[fe_vars], levels)
     fe_levels <- vapply(nms_fe, length, integer(1))
-  } else {
-    fe_levels <- c("missing_fe" = 1L)
-  }
-
-  # Generate auxiliary list of indexes for different sub panels ----
-  if (!any(fe_levels %in% "missing_fe")) {
+    # Generate auxiliary list of indexes for different sub panels ----
     FEs <- get_index_list_(fe_vars, data)
+    names(FEs) <- fe_vars
   } else {
-    FEs <- list(missing_fe = seq_len(nt))
+    # No fixed effects - create empty list
+    nms_fe <- list()
+    fe_levels <- integer(0)
+    FEs <- list()
   }
 
-  # Set names on the FEs list to ensure they're passed to C++
-  names(FEs) <- fe_vars
+  # Extract cluster variable from formula (third part) ----
+  cl_vars <- suppressWarnings(attr(terms(formula, rhs = 3L), "term.labels"))
+  if (length(cl_vars) >= 1L) {
+    # Get cluster index list (similar to FEs but only one level)
+    cl_list <- get_index_list_(cl_vars[1L], data)[[1L]]
+  } else {
+    cl_list <- list()
+  }
 
   # Fit linear model ----
   if (is.integer(y)) {
     y <- as.numeric(y)
   }
 
-  fit <- felm_fit_(X, y, w, FEs, control)
+  fit <- felm_fit_(X, y, w, FEs, control, cl_list)
 
   nobs <- nobs_(nobs_full, nobs_na, y, fit[["fitted_values"]])
 
   y <- NULL
   X <- NULL
 
-  # Add names to beta, hessian, T(X) (if provided), and fitted values ----
-  names(fit[["coefficients"]]) <- nms_sp
+  # Add names to coef_table, hessian, T(X) (if provided), and fitted values ----
+  # When there are no fixed effects, C++ adds an intercept column
+  if (length(fe_vars) == 0) {
+    nms_sp <- c("(Intercept)", nms_sp)
+  }
+  rownames(fit[["coef_table"]]) <- nms_sp
+  colnames(fit[["coef_table"]]) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
+  dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
+  dimnames(fit[["vcov"]]) <- list(nms_sp, nms_sp)
   if (control[["keep_tx"]]) {
     colnames(fit[["tx"]]) <- nms_sp
   }

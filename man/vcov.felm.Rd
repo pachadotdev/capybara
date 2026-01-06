@@ -4,18 +4,12 @@
 \alias{vcov.felm}
 \title{Covariance matrix for LMs}
 \usage{
-\method{vcov}{felm}(object, type = c("hessian", "outer.product", "sandwich"), ...)
+\method{vcov}{felm}(object, ...)
 }
 \arguments{
 \item{object}{an object of class \code{"felm"}.}
 
-\item{type}{the type of covariance estimate required. \code{"hessian"} refers
-to the inverse of the negative expected hessian after convergence and is the
-default option. \code{"outer.product"} is the outer-product-of-the-gradient
-estimator. \code{"sandwich"} computes a clustered covariance matrix
-(sandwich estimator) given some cluster variables specified in the formula.}
-
-\item{...}{additional arguments.}
+\item{...}{additional arguments (currently ignored).}
 }
 \value{
 A named matrix of covariance estimates.
@@ -23,13 +17,22 @@ A named matrix of covariance estimates.
 \description{
 Covariance matrix for the estimator of the structural parameters
 from objects returned by \code{\link{felm}}. The covariance is computed
-from the hessian, the scores, or a combination of both after convergence.
+during model fitting - either the inverse Hessian (default) or the
+sandwich estimator if cluster variables are specified in the formula.
 }
 \examples{
-# same as the example in felm but extracting the covariance matrix
-mod <- felm(log(mpg) ~ log(wt) | cyl | am, mtcars)
-vcov(mod, type = "sandwich")
+# Model without clustering - returns inverse Hessian covariance
+mod <- felm(log(mpg) ~ log(wt) | cyl, mtcars)
+round(vcov(mod), 5)
 
+# Model with clustering - returns sandwich covariance
+mod_cl <- felm(log(mpg) ~ log(wt) | cyl | am, mtcars)
+round(vcov(mod_cl), 5)
+
+}
+\references{
+Cameron, C., J. Gelbach, and D. Miller (2011). "Robust Inference
+With Multiway Clustering". Journal of Business & Economic Statistics 29(2).
 }
 \seealso{
 \code{\link{felm}}

@@ -188,11 +188,15 @@ model_frame_ <- function(data, formula, weights) {
 #' @param k_vars Fixed effects
 #' @noRd
 transform_fe_ <- function(data, formula, k_vars) {
-  data[k_vars] <- lapply(data[k_vars], check_factor_)
+  if (length(k_vars) > 0) {
+    data[k_vars] <- lapply(data[k_vars], check_factor_)
+  }
 
   if (length(formula)[[2L]] > 2L) {
     add_vars <- attr(terms(formula, rhs = 3L), "term.labels")
-    data[add_vars] <- lapply(data[add_vars], check_factor_)
+    if (length(add_vars) > 0) {
+      data[add_vars] <- lapply(data[add_vars], check_factor_)
+    }
   }
 
   return(data)
@@ -228,16 +232,15 @@ nobs_ <- function(nobs_full, nobs_na, y, yhat) {
 }
 
 #' @title Ensure fixed effects variables
-#' @description Ensures at least one fixed effect variable is present; adds a dummy if not.
+#' @description Extracts fixed effect variable names from formula
 #' @param formula Formula object
-#' @param data Data frame (modified in place if dummy is added)
-#' @return Character vector of fixed effect variable names
+#' @param data Data frame
+#' @return Character vector of fixed effect variable names (empty if none)
 #' @noRd
 check_fe_ <- function(formula, data) {
   fe_vars <- suppressWarnings(attr(terms(formula, rhs = 2L), "term.labels"))
   if (length(fe_vars) < 1L) {
-    fe_vars <- "missing_fe"
-    data$missing_fe <- 1L
+    fe_vars <- character(0)
   }
   fe_vars
 }

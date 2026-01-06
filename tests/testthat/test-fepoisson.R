@@ -69,7 +69,7 @@ test_that("fepoisson is similar to base", {
 
   # mod$coefficients
   # mod_base$coefficients
-  
+
   coef_dist_base <- coef(mod_base)[2]
 
   dist_variation <- abs((coef(mod)[1] - coef_dist_base) / coef(mod)[1])

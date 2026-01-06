@@ -4,7 +4,10 @@
   the standard errors. This is now fixed and I merged "clustered" and " sandwich" types into a single
   "sandwich" type for clarity and consistency as both use a bread-meat-bread approach.
 * The `InferenceGLM` struct now adds the VCOV matrix and the standard errors to reuse computation and   
-  strealine the summary creation.
+  strealine the summary creation. Same for the `InferenceLM` struct.
+* All the inference (std. error, R-squared, etc) was moved to C++ side and `print()` and `summary()` 
+  functions just format the output.
+* Allows formulas without fixed effects, such as `y ~ x1 + x2` and `y ~ x1 + x2 | | cluster`.
 
 # capybara 1.8.1
 

@@ -130,7 +130,8 @@ apes <- function(
   sampling_fe <- match.arg(sampling_fe)
 
   # Extract model information
-  beta <- object[["coefficients"]]
+  beta <- object[["coef_table"]][, 1]
+  names(beta) <- rownames(object[["coef_table"]])
   control <- object[["control"]]
   data <- object[["data"]]
   family <- object[["family"]]

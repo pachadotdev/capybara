@@ -21,13 +21,17 @@ coef.apes <- function(object, ...) {
 #' @export
 #' @noRd
 coef.feglm <- function(object, ...) {
-  object[["coefficients"]]
+  coef_vec <- object[["coef_table"]][, 1]
+  names(coef_vec) <- rownames(object[["coef_table"]])
+  coef_vec
 }
 
 #' @export
 #' @noRd
 coef.felm <- function(object, ...) {
-  object[["coefficients"]]
+  coef_vec <- object[["coef_table"]][, 1]
+  names(coef_vec) <- rownames(object[["coef_table"]])
+  coef_vec
 }
 
 #' @export
@@ -51,19 +55,14 @@ coef.summary.apes <- function(object, ...) {
 #' @export
 #' @noRd
 coef.summary.feglm <- function(object, ...) {
-  # Use pre-computed coefficient table from C++
-  coefficients <- object[["coef_table"]]
-  rownames(coefficients) <- names(object[["coefficients"]])
-  colnames(coefficients) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
-  coefficients
+  # coef_table already has row/column names from the model fitting
+
+  object[["coef_table"]]
 }
 
 #' @export
 #' @noRd
 coef.summary.felm <- function(object, ...) {
-  # Use pre-computed coefficient table from C++
-  coefficients <- object[["coef_table"]]
-  rownames(coefficients) <- names(object[["coefficients"]])
-  colnames(coefficients) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
-  coefficients
+  # coef_table already has row/column names from the model fitting
+  object[["coef_table"]]
 }

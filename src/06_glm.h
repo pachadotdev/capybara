@@ -151,14 +151,40 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
                        GlmWorkspace *workspace = nullptr,
                        const field<uvec> *cluster_groups = nullptr) {
   const uword n = y.n_elem;
-  const uword p = X.n_cols;
-  const uword k = beta.n_elem;
+  const uword p_original = X.n_cols;
   const bool has_fixed_effects = fe_groups.n_elem > 0;
 
-  mat X0;
-  if (has_fixed_effects) {
-    X0 = X; // Keep original design only when fixed effects are present
+  // Add intercept column if no fixed effects
+  if (!has_fixed_effects) {
+    mat X_with_intercept(n, p_original + 1);
+    X_with_intercept.col(0).ones(); // Intercept column
+    if (p_original > 0) {
+      X_with_intercept.cols(1, p_original) = X;
+    }
+    X = X_with_intercept;
+
+    // Expand beta to include intercept (initialized to 0)
+    vec beta_new(p_original + 1);
+    beta_new(0) = 0.0;
+    if (p_original > 0) {
+      beta_new.tail(p_original) = beta;
+    }
+    beta = beta_new;
+
+    // Recompute eta with the new beta (should still be zeros, but dimensions
+    // match)
+    if (p_original > 0) {
+      // eta was already computed in R, but now we need it to match new X
+      // dimensions Since beta is all zeros, eta should remain as initialized in
+      // R No change needed to eta
+    }
   }
+
+  const uword p = X.n_cols;
+  const uword k = beta.n_elem;
+
+  // Always store original X for later use (needed for both FE and non-FE cases)
+  mat X0 = X;
 
   InferenceGLM result(n, p);
 
@@ -172,6 +198,12 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     workspace = &local_workspace;
   }
   workspace->ensure_size(n, p);
+
+  // Check collinearity BEFORE any other processing
+  // This must happen regardless of fixed effects presence
+  bool use_weights = !all(w == 1.0);
+  CollinearityResult collin_result =
+      check_collinearity(X, w, use_weights, params.collin_tol);
 
   CenteringWorkspace centering_workspace;
 
@@ -193,11 +225,8 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 
   double dev = dev_resids(y, mu, theta, w, family_type);
   double null_dev = dev_resids(y, ymean, theta, w, family_type);
-  double dev0, dev_ratio, dev_ratio_inner, rho;
+  double dev0, dev_ratio = datum::inf, dev_ratio_inner, rho;
   bool dev_crit, val_crit, imp_crit, conv = false;
-
-  CollinearityResult collin_result =
-      check_collinearity(X, w, /*use_weights =*/true, params.collin_tol);
 
   // Adaptive tolerance variables -> more aggressive for large models
   double hdfe_tolerance = params.center_tol;
@@ -228,6 +257,9 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 
   MNU_increment.zeros();
   nu0.zeros();
+
+  // Reset XtX cache - it needs to be computed fresh in the IRLS loop
+  workspace->XtX_cache.reset();
 
   uword convergence_count = 0;
   double last_dev_ratio = datum::inf;
@@ -317,8 +349,18 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     // Enable partial out after first iteration
     use_partial = true;
 
-    InferenceBeta beta_result = get_beta(X, MNU, MNU, w_working, collin_result,
-                                         false, false, &workspace->XtX_cache);
+    // For models without fixed effects, use adjusted dependent variable z = eta
+    // + nu This gives the proper IRLS working response
+    vec working_response;
+    if (has_fixed_effects) {
+      working_response = MNU;
+    } else {
+      working_response = eta + nu; // z = eta + (y - mu) / mu_eta
+    }
+
+    InferenceBeta beta_result =
+        get_beta(X, working_response, working_response, w_working,
+                 collin_result, false, false, &workspace->XtX_cache);
 
     // Handle collinearity
     vec beta_upd_reduced;
@@ -336,10 +378,22 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       beta.resize(full_p);
     }
 
-    if (X.n_cols > 0) {
-      eta_upd = X * beta_upd_reduced + nu - MNU;
+    // Compute eta update differently for FE vs non-FE cases
+    if (has_fixed_effects) {
+      // For FE case: incremental update scheme
+      if (X.n_cols > 0) {
+        eta_upd = X * beta_upd_reduced + nu - MNU;
+      } else {
+        eta_upd = nu - MNU;
+      }
     } else {
-      eta_upd = nu - MNU;
+      // For non-FE case: beta_upd_reduced is the new beta, not a delta
+      // eta_upd = X * new_beta - eta0 (so eta0 + eta_upd = X * new_beta)
+      if (X.n_cols > 0) {
+        eta_upd = X * beta_upd_reduced - eta0;
+      } else {
+        eta_upd.zeros(n);
+      }
     }
 
     // Step-halving with checks
@@ -348,13 +402,29 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       eta = eta0 + rho * eta_upd;
 
       vec beta_new = beta0;
-      if (collin_result.has_collinearity &&
-          collin_result.non_collinear_cols.n_elem > 0) {
-        vec beta0_reduced = beta0.elem(collin_result.non_collinear_cols);
-        vec beta_upd_step = beta0_reduced + rho * beta_upd_reduced;
-        beta_new.elem(collin_result.non_collinear_cols) = beta_upd_step;
+      if (has_fixed_effects) {
+        // For FE case: incremental beta update
+        if (collin_result.has_collinearity &&
+            collin_result.non_collinear_cols.n_elem > 0) {
+          vec beta0_reduced = beta0.elem(collin_result.non_collinear_cols);
+          vec beta_upd_step = beta0_reduced + rho * beta_upd_reduced;
+          beta_new.elem(collin_result.non_collinear_cols) = beta_upd_step;
+        } else {
+          beta_new = beta0 + rho * beta_upd_reduced;
+        }
       } else {
-        beta_new = beta0 + rho * beta_upd_reduced;
+        // For non-FE case: beta_upd_reduced is the new beta
+        // Interpolate between old and new: beta = beta0 + rho * (new_beta -
+        // beta0) = (1-rho)*beta0 + rho*new_beta
+        if (collin_result.has_collinearity &&
+            collin_result.non_collinear_cols.n_elem > 0) {
+          vec beta0_reduced = beta0.elem(collin_result.non_collinear_cols);
+          vec beta_upd_step =
+              (1.0 - rho) * beta0_reduced + rho * beta_upd_reduced;
+          beta_new.elem(collin_result.non_collinear_cols) = beta_upd_step;
+        } else {
+          beta_new = (1.0 - rho) * beta0 + rho * beta_upd_reduced;
+        }
       }
       beta = beta_new;
 
@@ -480,10 +550,11 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     // - If cluster groups provided: sandwich covariance
     // - Otherwise: inverse Hessian
     // X here is the centered design matrix (MX), H is MX'WMX
-    mat vcov_reduced;
+    // Note: vcov stays at reduced size (excluding collinear variables), same as
+    // hessian
     if (cluster_groups != nullptr && cluster_groups->n_elem > 0) {
       // Sandwich covariance for clustered standard errors
-      vcov_reduced = compute_sandwich_vcov(X, y, mu, H, *cluster_groups);
+      result.vcov = compute_sandwich_vcov(X, y, mu, H, *cluster_groups);
     } else {
       // Standard inverse Hessian covariance
       mat H_inv;
@@ -494,26 +565,10 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
           H_inv = mat(H.n_rows, H.n_cols, fill::value(datum::inf));
         }
       }
-      vcov_reduced = std::move(H_inv);
-    }
-    
-    // Expand vcov to full size if there's collinearity
-    const uword full_p = beta.n_elem;
-    if (collin_result.has_collinearity && collin_result.non_collinear_cols.n_elem > 0) {
-      result.vcov.set_size(full_p, full_p);
-      result.vcov.fill(datum::nan);
-      // Fill in the non-collinear part
-      uvec idx = collin_result.non_collinear_cols;
-      for (uword i = 0; i < idx.n_elem; ++i) {
-        for (uword j = 0; j < idx.n_elem; ++j) {
-          result.vcov(idx(i), idx(j)) = vcov_reduced(i, j);
-        }
-      }
-    } else {
-      result.vcov = std::move(vcov_reduced);
+      result.vcov = std::move(H_inv);
     }
 
-    result.coef_table.col(0) = beta;  // Store coefficients in first column
+    result.coef_table.col(0) = beta; // Store coefficients in first column
     result.coef_status = std::move(collin_result.coef_status);
     result.eta = std::move(eta);
     result.fitted_values = std::move(mu);
@@ -539,27 +594,40 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       result.coef_table.set_size(n_coef, 4);
       result.coef_table.col(0) = beta;
     }
-    
-    vec se = sqrt(diagvec(result.vcov));
-    vec z_values = beta / se;
-    
-    result.coef_table.col(1) = se;         // Std. Error
-    result.coef_table.col(2) = z_values;   // z value
-    
-    // Compute two-tailed p-values: 2 * Φ(-|z|)
-    for (uword i = 0; i < n_coef; ++i) {
-      result.coef_table(i, 3) = 2.0 * normcdf(-fabs(z_values(i)));
-    }
-    
-    // Mark collinear coefficients as NaN
-    if (collin_result.has_collinearity) {
+
+    // Initialize columns with NaN
+    result.coef_table.col(1).fill(datum::nan); // Std. Error
+    result.coef_table.col(2).fill(datum::nan); // z value
+    result.coef_table.col(3).fill(datum::nan); // p-value
+
+    // Compute SE, z, p only for non-collinear coefficients
+    // vcov and hessian have reduced dimensions (only non-collinear)
+    vec se_reduced = sqrt(diagvec(result.vcov));
+
+    if (collin_result.has_collinearity &&
+        collin_result.non_collinear_cols.n_elem > 0) {
+      // Map reduced vcov diagonal to full coefficient vector
+      uvec idx = collin_result.non_collinear_cols;
+      for (uword i = 0; i < idx.n_elem; ++i) {
+        uword full_idx = idx(i);
+        double se_i = se_reduced(i);
+        double z_i = beta(full_idx) / se_i;
+        result.coef_table(full_idx, 1) = se_i;
+        result.coef_table(full_idx, 2) = z_i;
+        result.coef_table(full_idx, 3) = 2.0 * normcdf(-fabs(z_i));
+      }
+      // Mark collinear coefficients as NaN in estimate column too
       uvec collinear_idx = find(result.coef_status == 0);
       for (uword i = 0; i < collinear_idx.n_elem; ++i) {
-        uword idx = collinear_idx(i);
-        result.coef_table(idx, 0) = datum::nan;  // Estimate
-        result.coef_table(idx, 1) = datum::nan;  // Std. Error
-        result.coef_table(idx, 2) = datum::nan;  // z value
-        result.coef_table(idx, 3) = datum::nan;  // p-value
+        result.coef_table(collinear_idx(i), 0) = datum::nan;
+      }
+    } else {
+      // No collinearity - straightforward computation
+      vec z_values = beta / se_reduced;
+      result.coef_table.col(1) = se_reduced;
+      result.coef_table.col(2) = z_values;
+      for (uword i = 0; i < n_coef; ++i) {
+        result.coef_table(i, 3) = 2.0 * normcdf(-fabs(z_values(i)));
       }
     }
 

@@ -49,42 +49,26 @@ summary_table <- function(...,
   # vcov is precomputed during fitting (either inverse Hessian or sandwich)
   # Use coef_table which is pre-computed in the model object
   coef_list <- lapply(models, function(m) {
-    if (!is.null(m$coef_table)) {
-      as.vector(m$coef_table[, 1])
-    } else {
-      as.vector(m$coefficients)
-    }
-  })
-  
-  se_list <- lapply(models, function(m) {
-    if (!is.null(m$coef_table)) {
-      as.vector(m$coef_table[, 2])
-    } else {
-      as.vector(sqrt(diag(m$vcov)))
-    }
-  })
-  
-  p_list <- lapply(models, function(m) {
-    if (!is.null(m$coef_table)) {
-      as.vector(m$coef_table[, 4])
-    } else {
-      # Calculate p-values from coefficients and standard errors
-      z <- m$coefficients / sqrt(diag(m$vcov))
-      as.vector(2 * pnorm(-abs(z)))
-    }
+    coef_vec <- as.vector(m$coef_table[, 1])
+    names(coef_vec) <- rownames(m$coef_table)
+    coef_vec
   })
 
-  # Set names for the lists
-  for (i in seq_along(coef_list)) {
-    var_names <- names(models[[i]]$coefficients)
-    names(coef_list[[i]]) <- var_names
-    names(se_list[[i]]) <- var_names
-    names(p_list[[i]]) <- var_names
-  }
+  se_list <- lapply(models, function(m) {
+    se_vec <- as.vector(m$coef_table[, 2])
+    names(se_vec) <- rownames(m$coef_table)
+    se_vec
+  })
+
+  p_list <- lapply(models, function(m) {
+    p_vec <- as.vector(m$coef_table[, 4])
+    names(p_vec) <- rownames(m$coef_table)
+    p_vec
+  })
 
   # Get all unique variable names across models
   all_vars <- unique(unlist(lapply(models, function(m) {
-    names(m$coefficients)
+    rownames(m$coef_table)
   })))
 
   # Create a data frame for the results
@@ -165,7 +149,7 @@ summary_table <- function(...,
 
   r2_row <- c(r2_label, sapply(models, function(m) {
     if (inherits(m, "felm")) {
-      formatC(m$r.squared, digits = 3, format = "f")
+      formatC(m$r_squared, digits = 3, format = "f")
     } else if (inherits(m, "feglm") && !is.null(m$pseudo.rsq)) {
       formatC(m$pseudo.rsq, digits = 3, format = "f")
     } else {
@@ -206,13 +190,14 @@ format_console_table <- function(result_df, result2_df, stars) {
   col_widths <- apply(full_df, 2, function(col) {
     # Split coefficient/SE pairs and find max width
     max_width <- Reduce(function(acc, i) {
-      if (!is.na(col[i]) && grepl("\n", col[i])) {
-        parts <- strsplit(col[i], "\n")[[1]]
+      cell <- as.character(col[i])
+      if (!is.na(cell) && grepl("\n", cell)) {
+        parts <- strsplit(cell, "\n")[[1]]
         max(acc, max(nchar(parts)))
       } else {
         acc
       }
-    }, seq_along(col), init = max(nchar(col), na.rm = TRUE))
+    }, seq_along(col), init = max(nchar(as.character(col)), na.rm = TRUE))
     max_width + 2 # Add padding
   })
 
@@ -247,7 +232,7 @@ format_console_table <- function(result_df, result2_df, stars) {
   table_rows <- unlist(lapply(1:nrow(full_df), function(i) {
     # First detect how many lines we need for this row
     lines_needed <- max(1L, vapply(1:ncol(full_df), function(j) {
-      cell <- full_df[i, j]
+      cell <- as.character(full_df[i, j])
       if (!is.na(cell) && grepl("\n", cell)) {
         length(strsplit(cell, "\n")[[1]])
       } else {
@@ -258,7 +243,7 @@ format_console_table <- function(result_df, result2_df, stars) {
     # Create an array to hold all lines for this table row
     vapply(1:lines_needed, function(line) {
       line_cells <- vapply(1:ncol(full_df), function(j) {
-        cell <- full_df[i, j]
+        cell <- as.character(full_df[i, j])
 
         if (is.na(cell)) {
           formatC("", width = col_widths[j], format = "s", flag = " ")
@@ -375,13 +360,13 @@ format_latex_table <- function(result_df, result2_df, stars, label = NULL,
 
     # Fill in coefficient and SE values for each model
     cell_results <- lapply(2:ncol(row), function(j) {
-      cell <- row[j]
+      cell <- as.character(row[j])
 
       if (is.na(cell) || cell == "") {
         list(coef = "", se = "")
       } else if (grepl("\n", cell)) {
         # Split into coef and SE
-        parts <- strsplit(as.character(cell), "\n")[[1]]
+        parts <- strsplit(cell, "\n")[[1]]
         # Convert stars to LaTeX superscripts
         # Only replace stars at the end of the string
         coef_with_stars <- parts[1]
@@ -408,7 +393,7 @@ format_latex_table <- function(result_df, result2_df, stars, label = NULL,
     }
     result
   }))
-  
+
   latex <- c(latex, latex_rows)
 
   # Midrule before stats

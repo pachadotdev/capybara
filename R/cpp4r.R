@@ -4,8 +4,8 @@ center_variables_ <- function(V_r, w_r, klist, tol, max_iter, iter_interrupt) {
   .Call(`_capybara_center_variables_`, V_r, w_r, klist, tol, max_iter, iter_interrupt)
 }
 
-felm_fit_ <- function(X_r, y_r, w_r, FEs, control) {
-  .Call(`_capybara_felm_fit_`, X_r, y_r, w_r, FEs, control)
+felm_fit_ <- function(X_r, y_r, w_r, FEs, control, cl_list) {
+  .Call(`_capybara_felm_fit_`, X_r, y_r, w_r, FEs, control, cl_list)
 }
 
 feglm_fit_ <- function(beta_r, eta_r, y_r, x_r, wt_r, theta, family, control, k_list, cl_list) {
