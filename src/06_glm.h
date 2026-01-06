@@ -480,9 +480,10 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     // - If cluster groups provided: sandwich covariance
     // - Otherwise: inverse Hessian
     // X here is the centered design matrix (MX), H is MX'WMX
+    mat vcov_reduced;
     if (cluster_groups != nullptr && cluster_groups->n_elem > 0) {
       // Sandwich covariance for clustered standard errors
-      result.vcov = compute_sandwich_vcov(X, y, mu, H, *cluster_groups);
+      vcov_reduced = compute_sandwich_vcov(X, y, mu, H, *cluster_groups);
     } else {
       // Standard inverse Hessian covariance
       mat H_inv;
@@ -493,10 +494,26 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
           H_inv = mat(H.n_rows, H.n_cols, fill::value(datum::inf));
         }
       }
-      result.vcov = std::move(H_inv);
+      vcov_reduced = std::move(H_inv);
+    }
+    
+    // Expand vcov to full size if there's collinearity
+    const uword full_p = beta.n_elem;
+    if (collin_result.has_collinearity && collin_result.non_collinear_cols.n_elem > 0) {
+      result.vcov.set_size(full_p, full_p);
+      result.vcov.fill(datum::nan);
+      // Fill in the non-collinear part
+      uvec idx = collin_result.non_collinear_cols;
+      for (uword i = 0; i < idx.n_elem; ++i) {
+        for (uword j = 0; j < idx.n_elem; ++j) {
+          result.vcov(idx(i), idx(j)) = vcov_reduced(i, j);
+        }
+      }
+    } else {
+      result.vcov = std::move(vcov_reduced);
     }
 
-    result.coefficients = std::move(beta);
+    result.coef_table.col(0) = beta;  // Store coefficients in first column
     result.coef_status = std::move(collin_result.coef_status);
     result.eta = std::move(eta);
     result.fitted_values = std::move(mu);
@@ -512,6 +529,38 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     if (family_type == POISSON) {
       double corr = as_scalar(cor(y, result.fitted_values));
       result.pseudo_rsq = corr * corr;
+    }
+
+    // Compute coefficient table: [estimate, std.error, z, p-value]
+    // This computation is done here so R only needs to format the results
+    // Resize coef_table if needed (for collinearity handling)
+    uword n_coef = beta.n_elem;
+    if (result.coef_table.n_rows != n_coef) {
+      result.coef_table.set_size(n_coef, 4);
+      result.coef_table.col(0) = beta;
+    }
+    
+    vec se = sqrt(diagvec(result.vcov));
+    vec z_values = beta / se;
+    
+    result.coef_table.col(1) = se;         // Std. Error
+    result.coef_table.col(2) = z_values;   // z value
+    
+    // Compute two-tailed p-values: 2 * Φ(-|z|)
+    for (uword i = 0; i < n_coef; ++i) {
+      result.coef_table(i, 3) = 2.0 * normcdf(-fabs(z_values(i)));
+    }
+    
+    // Mark collinear coefficients as NaN
+    if (collin_result.has_collinearity) {
+      uvec collinear_idx = find(result.coef_status == 0);
+      for (uword i = 0; i < collinear_idx.n_elem; ++i) {
+        uword idx = collinear_idx(i);
+        result.coef_table(idx, 0) = datum::nan;  // Estimate
+        result.coef_table(idx, 1) = datum::nan;  // Std. Error
+        result.coef_table(idx, 2) = datum::nan;  // z value
+        result.coef_table(idx, 3) = datum::nan;  // p-value
+      }
     }
 
     if (params.keep_tx) {

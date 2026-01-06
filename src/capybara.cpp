@@ -173,18 +173,21 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   }
 
   // Replace collinear coefficients (NaN) with R's NA_REAL
+  vec coefficients = result.coef_table.col(0);
   uvec collinear_mask = (result.coef_status == 0);
   if (any(collinear_mask)) {
-    result.coefficients.elem(find(collinear_mask)).fill(NA_REAL);
+    coefficients.elem(find(collinear_mask)).fill(NA_REAL);
+    result.coef_table.col(0) = coefficients;
   }
 
   auto ret = writable::list(
-      {"coefficients"_nm = as_doubles(result.coefficients),
+      {"coefficients"_nm = as_doubles(coefficients),
        "fitted_values"_nm = as_doubles(result.fitted_values),
        "residuals"_nm = as_doubles(result.residuals),
        "weights"_nm = as_doubles(result.weights),
        "hessian"_nm = as_doubles_matrix(result.hessian),
        "vcov"_nm = as_doubles_matrix(result.vcov),
+       "coef_table"_nm = as_doubles_matrix(result.coef_table),
        "r.squared"_nm = result.r_squared,
        "adj.r.squared"_nm = result.adj_r_squared,
        "coef_status"_nm = as_integers(result.coef_status),
@@ -297,18 +300,21 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
     }
   }
 
+  vec coefficients = result.coef_table.col(0);
   uvec collinear_mask = (result.coef_status == 0);
   if (any(collinear_mask)) {
-    result.coefficients.elem(find(collinear_mask)).fill(NA_REAL);
+    coefficients.elem(find(collinear_mask)).fill(NA_REAL);
+    result.coef_table.col(0) = coefficients;
   }
 
   auto out = writable::list(
-      {"coefficients"_nm = as_doubles(result.coefficients),
+      {"coefficients"_nm = as_doubles(coefficients),
        "eta"_nm = as_doubles(result.eta),
        "fitted_values"_nm = as_doubles(result.fitted_values),
        "weights"_nm = as_doubles(result.weights),
        "vcov"_nm = as_doubles_matrix(result.vcov),
        "hessian"_nm = as_doubles_matrix(result.hessian),
+       "coef_table"_nm = as_doubles_matrix(result.coef_table),
        "deviance"_nm = writable::doubles({result.deviance}),
        "null_deviance"_nm = writable::doubles({result.null_deviance}),
        "conv"_nm = writable::logicals({result.conv}),
@@ -400,18 +406,21 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
   capybara::InferenceNegBin result =
       capybara::fenegbin_fit(X, y, w, fe_groups, params, init_theta);
 
+  vec coefficients = result.coef_table.col(0);
   uvec collinear_mask = (result.coef_status == 0);
   if (any(collinear_mask)) {
-    result.coefficients.elem(find(collinear_mask)).fill(NA_REAL);
+    coefficients.elem(find(collinear_mask)).fill(NA_REAL);
+    result.coef_table.col(0) = coefficients;
   }
 
   auto out = writable::list(
-      {"coefficients"_nm = as_doubles(result.coefficients),
+      {"coefficients"_nm = as_doubles(coefficients),
        "eta"_nm = as_doubles(result.eta),
        "fitted_values"_nm = as_doubles(result.fitted_values),
        "weights"_nm = as_doubles(result.weights),
        "vcov"_nm = as_doubles_matrix(result.vcov),
        "hessian"_nm = as_doubles_matrix(result.hessian),
+       "coef_table"_nm = as_doubles_matrix(result.coef_table),
        "deviance"_nm = writable::doubles({result.deviance}),
        "null_deviance"_nm = writable::doubles({result.null_deviance}),
        "conv"_nm = writable::logicals({result.conv}),
