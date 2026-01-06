@@ -129,13 +129,14 @@ NULL
 #'
 #' @export
 feglm <- function(
-    formula = NULL,
-    data = NULL,
-    family = gaussian(),
-    weights = NULL,
-    beta_start = NULL,
-    eta_start = NULL,
-    control = NULL) {
+  formula = NULL,
+  data = NULL,
+  family = gaussian(),
+  weights = NULL,
+  beta_start = NULL,
+  eta_start = NULL,
+  control = NULL
+) {
   # t0 <- Sys.time()
 
   # Check validity of formula ----

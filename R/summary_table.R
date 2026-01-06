@@ -27,11 +27,11 @@ summary_table <- function(...,
 
   # Check that all models are felm or feglm
   valid_classes <- c("felm", "feglm")
-  for (i in seq_along(models)) {
+  invisible(lapply(seq_along(models), function(i) {
     if (!inherits(models[[i]], valid_classes)) {
       stop("Model ", i, " is not a felm or feglm object")
     }
-  }
+  }))
 
   # Set model names
   if (is.null(model_names)) {
@@ -52,11 +52,11 @@ summary_table <- function(...,
   se_list <- lapply(summaries, function(m) m$coefficients[, 2])
   p_list <- lapply(summaries, function(m) m$coefficients[, 4])
 
-  for (i in seq_along(coef_list)) {
-    names(coef_list[[i]]) <- rownames(summaries[[i]]$coefficients)
-    names(se_list[[i]]) <- rownames(summaries[[i]]$coefficients)
-    names(p_list[[i]]) <- rownames(summaries[[i]]$coefficients)
-  }
+  invisible(lapply(seq_along(coef_list), function(i) {
+    names(coef_list[[i]]) <<- rownames(summaries[[i]]$coefficients)
+    names(se_list[[i]]) <<- rownames(summaries[[i]]$coefficients)
+    names(p_list[[i]]) <<- rownames(summaries[[i]]$coefficients)
+  }))
 
   # Get all unique variable names across models
   all_vars <- unique(unlist(lapply(summaries, function(m) rownames(m$coefficients))))
@@ -68,11 +68,8 @@ summary_table <- function(...,
   )
 
   # Format coefficients for each model
-  for (i in seq_along(models)) {
-    model_col <- rep(NA_character_, nrow(result_df))
-
-    for (j in seq_along(all_vars)) {
-      var <- all_vars[j]
+  invisible(lapply(seq_along(models), function(i) {
+    model_col <- vapply(all_vars, function(var) {
       if (var %in% names(coef_list[[i]])) {
         coef_val <- formatC(coef_list[[i]][var], digits = coef_digits, format = "f")
         se_val <- formatC(se_list[[i]][var], digits = se_digits, format = "f")
@@ -86,15 +83,17 @@ summary_table <- function(...,
             star <- "*"
           } else if (p_val < 0.1) star <- "+"
 
-          model_col[j] <- sprintf("%s%s\n(%s)", coef_val, star, se_val)
+          sprintf("%s%s\n(%s)", coef_val, star, se_val)
         } else {
-          model_col[j] <- sprintf("%s\n(%s)", coef_val, se_val)
+          sprintf("%s\n(%s)", coef_val, se_val)
         }
+      } else {
+        NA_character_
       }
-    }
+    }, character(1))
 
-    result_df[[model_names[i]]] <- model_col
-  }
+    result_df[[model_names[i]]] <<- model_col
+  }))
 
   # Fixed effects
   fe_rows <- list()
@@ -103,12 +102,11 @@ summary_table <- function(...,
   })))
 
   if (length(fe_names) > 0) {
-    for (fe in fe_names) {
-      fe_row <- c(fe, sapply(models, function(m) {
+    fe_rows <- setNames(lapply(fe_names, function(fe) {
+      c(fe, sapply(models, function(m) {
         if (!is.null(m$nms_fe) && fe %in% names(m$nms_fe)) "Yes" else "No"
       }))
-      fe_rows[[fe]] <- fe_row
-    }
+    }), fe_names)
   }
 
   # Add model statistics
@@ -140,10 +138,11 @@ summary_table <- function(...,
   }
 
   r2_row <- c(r2_label, sapply(models, function(m) {
+    s <- summary(m)  # Cache summary to avoid recomputation
     if (inherits(m, "felm")) {
-      formatC(summary(m)$r.squared, digits = 3, format = "f")
-    } else if (inherits(m, "feglm") && !is.null(summary(m)$pseudo.rsq)) {
-      formatC(summary(m)$pseudo.rsq, digits = 3, format = "f")
+      formatC(s$r.squared, digits = 3, format = "f")
+    } else if (inherits(m, "feglm") && !is.null(s$pseudo.rsq)) {
+      formatC(s$pseudo.rsq, digits = 3, format = "f")
     } else {
       ""
     }
@@ -181,14 +180,14 @@ format_console_table <- function(result_df, result2_df, stars) {
   # Calculate column widths for proper alignment
   col_widths <- apply(full_df, 2, function(col) {
     # Split coefficient/SE pairs and find max width
-    max_width <- max(nchar(col), na.rm = TRUE)
-    # Account for newlines by checking each part
-    for (i in seq_along(col)) {
+    max_width <- Reduce(function(acc, i) {
       if (!is.na(col[i]) && grepl("\n", col[i])) {
         parts <- strsplit(col[i], "\n")[[1]]
-        max_width <- max(max_width, max(nchar(parts)))
+        max(acc, max(nchar(parts)))
+      } else {
+        acc
       }
-    }
+    }, seq_along(col), init = max(nchar(col), na.rm = TRUE))
     max_width + 2 # Add padding
   })
 
@@ -220,31 +219,24 @@ format_console_table <- function(result_df, result2_df, stars) {
   separator <- gsub(" ", "-", separator)
 
   # Generate table rows
-  table_rows <- character(0)
-
-  for (i in 1:nrow(full_df)) {
+  table_rows <- unlist(lapply(1:nrow(full_df), function(i) {
     # First detect how many lines we need for this row
-    lines_needed <- 1 # At least 1 line per row
-    for (j in 1:ncol(full_df)) {
+    lines_needed <- max(1L, vapply(1:ncol(full_df), function(j) {
       cell <- full_df[i, j]
       if (!is.na(cell) && grepl("\n", cell)) {
-        parts <- strsplit(cell, "\n")[[1]]
-        lines_needed <- max(lines_needed, length(parts))
+        length(strsplit(cell, "\n")[[1]])
+      } else {
+        1L
       }
-    }
+    }, integer(1)))
 
     # Create an array to hold all lines for this table row
-    row_lines <- character(lines_needed)
-
-    # For each column, fill the appropriate lines
-    for (line in 1:lines_needed) {
-      line_cells <- character(ncol(full_df))
-
-      for (j in 1:ncol(full_df)) {
+    vapply(1:lines_needed, function(line) {
+      line_cells <- vapply(1:ncol(full_df), function(j) {
         cell <- full_df[i, j]
 
         if (is.na(cell)) {
-          cell_text <- formatC("", width = col_widths[j], format = "s", flag = " ")
+          formatC("", width = col_widths[j], format = "s", flag = " ")
         } else if (grepl("\n", cell)) {
           # Split multi-line cells
           parts <- strsplit(cell, "\n")[[1]]
@@ -253,40 +245,35 @@ format_console_table <- function(result_df, result2_df, stars) {
             # This line exists in the cell
             if (j == 1) {
               # Left align first column
-              cell_text <- formatC(parts[line], width = col_widths[j], format = "s", flag = "-")
+              formatC(parts[line], width = col_widths[j], format = "s", flag = "-")
             } else {
               # Right align other columns
-              cell_text <- formatC(parts[line], width = col_widths[j], format = "s", flag = " ")
+              formatC(parts[line], width = col_widths[j], format = "s", flag = " ")
             }
           } else {
             # Fill with empty space
-            cell_text <- formatC("", width = col_widths[j], format = "s", flag = " ")
+            formatC("", width = col_widths[j], format = "s", flag = " ")
           }
         } else {
           # Single line cell - only show on first line
           if (line == 1) {
             if (j == 1) {
               # Left align first column
-              cell_text <- formatC(cell, width = col_widths[j], format = "s", flag = "-")
+              formatC(cell, width = col_widths[j], format = "s", flag = "-")
             } else {
               # Right align other columns
-              cell_text <- formatC(cell, width = col_widths[j], format = "s", flag = " ")
+              formatC(cell, width = col_widths[j], format = "s", flag = " ")
             }
           } else {
-            cell_text <- formatC("", width = col_widths[j], format = "s", flag = " ")
+            formatC("", width = col_widths[j], format = "s", flag = " ")
           }
         }
-
-        line_cells[j] <- cell_text
-      }
+      }, character(1))
 
       # Assemble this line
-      row_lines[line] <- paste0("| ", paste(line_cells, collapse = " | "), " |")
-    }
-
-    # Combine all lines for this row
-    table_rows <- c(table_rows, row_lines)
-  }
+      paste0("| ", paste(line_cells, collapse = " | "), " |")
+    }, character(1))
+  }))
 
   # Add legend
   if (stars) {
@@ -346,7 +333,7 @@ format_latex_table <- function(result_df, result2_df, stars, label = NULL,
   latex <- c(latex, "\\midrule")
 
   # Process coefficients
-  for (i in 1:nrow(result_df)) {
+  latex_rows <- unlist(lapply(1:nrow(result_df), function(i) {
     row <- result_df[i, ]
 
     # First process variable name (escape underscores for LaTeX)
@@ -362,12 +349,11 @@ format_latex_table <- function(result_df, result2_df, stars, label = NULL,
     se_values[1] <- "" # Empty first column
 
     # Fill in coefficient and SE values for each model
-    for (j in 2:ncol(row)) {
+    cell_results <- lapply(2:ncol(row), function(j) {
       cell <- row[j]
 
       if (is.na(cell) || cell == "") {
-        coef_values[j] <- ""
-        se_values[j] <- ""
+        list(coef = "", se = "")
       } else if (grepl("\n", cell)) {
         # Split into coef and SE
         parts <- strsplit(as.character(cell), "\n")[[1]]
@@ -381,22 +367,24 @@ format_latex_table <- function(result_df, result2_df, stars, label = NULL,
         } else if (grepl("\\+$", coef_with_stars)) {
           coef_with_stars <- sub("\\+$", "$^{+}$", coef_with_stars)
         }
-        coef_values[j] <- coef_with_stars
-        se_values[j] <- parts[2] # SE with parentheses
+        list(coef = coef_with_stars, se = parts[2])
       } else {
-        coef_values[j] <- as.character(cell)
-        se_values[j] <- ""
+        list(coef = as.character(cell), se = "")
       }
-    }
+    })
 
-    # Add the coefficient row
-    latex <- c(latex, paste(coef_values, collapse = " & "), "\\\\")
+    coef_values[2:ncol(row)] <- vapply(cell_results, function(x) x$coef, character(1))
+    se_values[2:ncol(row)] <- vapply(cell_results, function(x) x$se, character(1))
 
-    # Add the SE row if it has any content
+    # Return coefficient row and SE row (if it has content)
+    result <- c(paste(coef_values, collapse = " & "), "\\\\")
     if (any(nchar(se_values) > 0)) {
-      latex <- c(latex, paste(se_values, collapse = " & "), "\\\\")
+      result <- c(result, paste(se_values, collapse = " & "), "\\\\")
     }
-  }
+    result
+  }))
+  
+  latex <- c(latex, latex_rows)
 
   # Midrule before stats
   # latex <- c(latex, "\\midrule")

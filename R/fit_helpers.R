@@ -115,7 +115,9 @@ get_index_list_ <- function(k_vars, data) {
 cache_get_starts_ <- function(form_key) {
   if (exists(form_key, envir = .capybara_cache_env, inherits = FALSE)) {
     val <- get(form_key, envir = .capybara_cache_env, inherits = FALSE)
-    if (is.list(val) && !is.null(val$beta) && !is.null(val$eta)) return(val)
+    if (is.list(val) && !is.null(val$beta) && !is.null(val$eta)) {
+      return(val)
+    }
   }
   NULL
 }
@@ -168,7 +170,7 @@ model_frame_ <- function(data, formula, weights) {
   # Convert columns of type "units" to numeric (base R)
   unit_cols <- names(data)[vapply(data, inherits, what = "units", logical(1))]
   if (length(unit_cols) > 0) {
-    for (uc in unit_cols) data[[uc]] <- as.numeric(data[[uc]])
+    data[unit_cols] <- lapply(data[unit_cols], as.numeric)
   }
 
   nobs_na <- nobs_full - nrow(data)
@@ -186,11 +188,11 @@ model_frame_ <- function(data, formula, weights) {
 #' @param k_vars Fixed effects
 #' @noRd
 transform_fe_ <- function(data, formula, k_vars) {
-  for (col in k_vars) data[[col]] <- check_factor_(data[[col]])
+  data[k_vars] <- lapply(data[k_vars], check_factor_)
 
   if (length(formula)[[2L]] > 2L) {
     add_vars <- attr(terms(formula, rhs = 3L), "term.labels")
-    for (col in add_vars) data[[col]] <- check_factor_(data[[col]])
+    data[add_vars] <- lapply(data[add_vars], check_factor_)
   }
 
   return(data)

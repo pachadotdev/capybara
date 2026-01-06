@@ -170,13 +170,13 @@ check_control_ <- function(control) {
     # merge user-provided values with defaults
     merged_control <- default_control
 
-    for (param_name in names(control)) {
+    invisible(lapply(names(control), function(param_name) {
       if (param_name %in% names(default_control)) {
-        merged_control[[param_name]] <- control[[param_name]]
+        merged_control[[param_name]] <<- control[[param_name]]
       } else {
         warning(sprintf("Unknown control parameter: '%s'", param_name), call. = FALSE)
       }
-    }
+    }))
 
     # checks
     # 1. non-negative params
@@ -184,18 +184,18 @@ check_control_ <- function(control) {
       "dev_tol", "center_tol", "iter_max", "iter_center_max",
       "iter_inner_max", "iter_interrupt", "iter_ssr", "limit"
     )
-    for (param_name in non_neg_params) {
+    invisible(lapply(non_neg_params, function(param_name) {
       if (merged_control[[param_name]] <= 0) {
         stop(sprintf("'%s' must be greater than zero.", param_name), call. = FALSE)
       }
-    }
+    }))
     # 2. logical params
     logical_params <- c("trace", "drop_pc", "keep_tx")
-    for (param_name in logical_params) {
+    invisible(lapply(logical_params, function(param_name) {
       if (!is.logical(merged_control[[param_name]])) {
         stop(sprintf("'%s' must be logical.", param_name), call. = FALSE)
       }
-    }
+    }))
 
     assign("control", merged_control, envir = parent.frame())
   }
@@ -283,20 +283,20 @@ drop_by_link_type_ <- function(data, lhs, family, tmp_var, k_vars, control) {
     while (ncheck != nrow_data) {
       ncheck <- nrow_data
 
-      for (j in k_vars) {
+      invisible(lapply(k_vars, function(j) {
         # Compute group means using base R (ave)
-        data[[tmp_var]] <- ave(as.numeric(data[[lhs]]), data[[j]], FUN = function(x) mean(x, na.rm = TRUE))
+        data[[tmp_var]] <<- ave(as.numeric(data[[lhs]]), data[[j]], FUN = function(x) mean(x, na.rm = TRUE))
 
         # Filter rows based on family type
         if (family[["family"]] == "binomial") {
-          data <- data[data[[tmp_var]] > 0 & data[[tmp_var]] < 1, , drop = FALSE]
+          data <<- data[data[[tmp_var]] > 0 & data[[tmp_var]] < 1, , drop = FALSE]
         } else {
-          data <- data[data[[tmp_var]] > 0, , drop = FALSE]
+          data <<- data[data[[tmp_var]] > 0, , drop = FALSE]
         }
 
         # Remove temporary column
-        data[[tmp_var]] <- NULL
-      }
+        data[[tmp_var]] <<- NULL
+      }))
 
       nrow_data <- nrow(data)
     }
@@ -371,7 +371,8 @@ init_theta_ <- function(init_theta, link) {
 #' @param family Family object
 #' @noRd
 start_guesses_ <- function(
-    beta_start, eta_start, y, X, beta, nt, wt, p, family) {
+  beta_start, eta_start, y, X, beta, nt, wt, p, family
+) {
   if (!is.null(beta_start) || !is.null(eta_start)) {
     # If both are specified, ignore eta_start
     if (!is.null(beta_start) && !is.null(eta_start)) {
@@ -465,10 +466,12 @@ get_score_matrix_feglm_ <- function(object) {
     attr(X, "dimnames") <- NULL
 
     # Center variables
-    X <- center_variables_(X, w, k_list, 
-                          control[["center_tol"]], 
-                          control[["iter_center_max"]], 
-                          control[["iter_interrupt"]])
+    X <- center_variables_(
+      X, w, k_list,
+      control[["center_tol"]],
+      control[["iter_center_max"]],
+      control[["iter_interrupt"]]
+    )
     colnames(X) <- nms_sp
   }
 

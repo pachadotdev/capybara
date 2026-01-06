@@ -41,11 +41,8 @@ predict.feglm <- function(object, newdata = NULL, type = c("link", "response"), 
     model_response_(data, object$formula)
 
     fes <- object[["fixed_effects"]]
-    fes2 <- list()
-
-    for (name in names(fes)) {
+    fes2 <- setNames(lapply(names(fes), function(name) {
       fe <- fes[[name]]
-
       fe_values <- fe
       fe_names <- names(fe_values)
 
@@ -53,8 +50,8 @@ predict.feglm <- function(object, newdata = NULL, type = c("link", "response"), 
       data_values <- data[[name]]
       matched_values <- fe_values[match(data_values, fe_names)]
       matched_values[is.na(matched_values)] <- 0 # Set missing levels to 0
-      fes2[[name]] <- matched_values
-    }
+      matched_values
+    }), names(fes))
 
     eta <- X %*% object$coefficients + Reduce("+", fes2)
   } else {
@@ -106,11 +103,8 @@ predict.felm <- function(object, newdata = NULL, type = c("response", "terms"), 
     model_response_(data, object$formula)
 
     fes <- object[["fixed_effects"]]
-    fes2 <- list()
-
-    for (name in names(fes)) {
+    fes2 <- setNames(lapply(names(fes), function(name) {
       fe <- fes[[name]]
-
       fe_values <- fe
       fe_names <- names(fe_values)
 
@@ -118,8 +112,8 @@ predict.felm <- function(object, newdata = NULL, type = c("response", "terms"), 
       data_values <- data[[name]]
       matched_values <- fe_values[match(data_values, fe_names)]
       matched_values[is.na(matched_values)] <- 0 # Set missing levels to 0
-      fes2[[name]] <- matched_values
-    }
+      matched_values
+    }), names(fes))
 
     # Replace NA coefficients with 0 for prediction
     coef0 <- object$coefficients

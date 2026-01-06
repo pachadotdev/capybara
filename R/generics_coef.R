@@ -33,17 +33,37 @@ coef.felm <- function(object, ...) {
 #' @export
 #' @noRd
 coef.summary.apes <- function(object, ...) {
-  object[["coefficients"]]
+  # Use pre-computed coefficient table from C++
+  coefficients <- object[["vcov_table"]]
+  if (is.null(coefficients)) {
+    # Fallback: compute on-the-fly for backward compatibility
+    est <- object[["delta"]]
+    se <- sqrt(diag(object[["vcov"]]))
+    z <- est / se
+    p <- 2.0 * pnorm(-abs(z))
+    coefficients <- cbind(est, se, z, p)
+    rownames(coefficients) <- names(est)
+    colnames(coefficients) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
+  }
+  coefficients
 }
 
 #' @export
 #' @noRd
 coef.summary.feglm <- function(object, ...) {
-  object[["coefficients"]]
+  # Use pre-computed coefficient table from C++
+  coefficients <- object[["coef_table"]]
+  rownames(coefficients) <- names(object[["coefficients"]])
+  colnames(coefficients) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
+  coefficients
 }
 
 #' @export
 #' @noRd
 coef.summary.felm <- function(object, ...) {
-  object[["coefficients"]]
+  # Use pre-computed coefficient table from C++
+  coefficients <- object[["coef_table"]]
+  rownames(coefficients) <- names(object[["coefficients"]])
+  colnames(coefficients) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
+  coefficients
 }

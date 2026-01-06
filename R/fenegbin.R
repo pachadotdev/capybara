@@ -93,14 +93,15 @@ NULL
 #'
 #' @export
 fenegbin <- function(
-    formula = NULL,
-    data = NULL,
-    weights = NULL,
-    beta_start = NULL,
-    eta_start = NULL,
-    init_theta = NULL,
-    link = c("log", "identity", "sqrt"),
-    control = NULL) {
+  formula = NULL,
+  data = NULL,
+  weights = NULL,
+  beta_start = NULL,
+  eta_start = NULL,
+  init_theta = NULL,
+  link = c("log", "identity", "sqrt"),
+  control = NULL
+) {
   # Check validity of formula ----
   check_formula_(formula)
 
@@ -245,8 +246,9 @@ fenegbin_check_convergence_ <- function(dev, dev_old, theta, theta_old, tol) {
 # Generate result list ----
 
 fenegbin_result_list_ <- function(
-    fit, theta, iter, conv, nobs, fe_levels,
-    nms_fe, formula, data, family, control) {
+  fit, theta, iter, conv, nobs, fe_levels,
+  nms_fe, formula, data, family, control
+) {
   reslist <- c(
     fit, list(
       theta      = theta,

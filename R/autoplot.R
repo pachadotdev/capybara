@@ -66,8 +66,8 @@ autoplot.feglm <- function(object, ...) {
     stop("The confidence level must be between 0 and 1")
   }
 
-  # Extract the summary of the feglm object
-  res <- summary(object)$coefficients
+  # Extract the coefficient matrix from the summary
+  res <- coef(summary(object))
   colnames(res) <- c("estimate", "std.error", "statistic", "p.value")
 
   # Calculate the critical value for the specified confidence conf_level
@@ -143,8 +143,8 @@ autoplot.felm <- function(object, ...) {
     stop("The confidence level must be between 0 and 1")
   }
 
-  # Extract the summary of the felm object
-  res <- summary(object)$coefficients
+  # Extract the coefficient matrix from the summary
+  res <- coef(summary(object))
   colnames(res) <- c("estimate", "std.error", "statistic", "p.value")
 
   # Calculate the critical value for the specified confidence conf_level

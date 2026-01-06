@@ -37,7 +37,13 @@ summary_family_ <- function(x) {
 #' @noRd
 summary_estimates_ <- function(x, digits) {
   cat("\nEstimates:\n\n")
-  coefmat <- as.data.frame(x[["coefficients"]])
+  
+  # Use pre-computed coefficient table from C++
+  coefficients <- x[["coef_table"]]
+  rownames(coefficients) <- names(x[["coefficients"]])
+  colnames(coefficients) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
+  
+  coefmat <- as.data.frame(coefficients)
 
   coefmat <- summary_estimates_signif_(coefmat, digits)
   coefmat <- summary_estimates_cols_(coefmat, digits)
@@ -56,16 +62,17 @@ summary_estimates_signif_ <- function(coefmat, digits) {
   coefmat[, max(ncol(coefmat))] <- vapply(
     coefmat[, max(ncol(coefmat))],
     function(x) {
+      formatted <- formatC(x, format = "f", digits = digits)
       if (x <= 0.001) {
-        paste(formatC(x, format = "f", digits = digits), "***")
+        paste(formatted, "***")
       } else if (x <= 0.01) {
-        paste(formatC(x, format = "f", digits = digits), "** ")
+        paste(formatted, "** ")
       } else if (x <= 0.05) {
-        paste(formatC(x, format = "f", digits = digits), "*  ")
+        paste(formatted, "*  ")
       } else if (x <= 0.1) {
-        paste(formatC(x, format = "f", digits = digits), ".  ")
+        paste(formatted, ".  ")
       } else {
-        formatC(x, format = "f", digits = digits)
+        formatted
       }
     }, character(1)
   )
@@ -89,12 +96,9 @@ summary_estimates_signif_ <- function(coefmat, digits) {
 }
 
 summary_estimates_cols_ <- function(coefmat, digits) {
-  for (i in 1:(ncol(coefmat) - 1)) {
-    coefmat[, i] <- formatC(as.double(coefmat[, i]),
-      format = "f",
-      digits = digits
-    )
-  }
+  coefmat[1:(ncol(coefmat) - 1)] <- lapply(coefmat[1:(ncol(coefmat) - 1)], function(col) {
+    formatC(as.double(col), format = "f", digits = digits)
+  })
   coefmat
 }
 
@@ -103,14 +107,12 @@ summary_estimates_max_width_ <- function(coefmat) {
   #   nchar("Pr(>|t|)"))
   max_widths <- c(8L, 10L, 7L, 8L)
 
-  for (i in seq_len(nrow(coefmat))) {
+  Reduce(function(widths, i) {
     row_values <- coefmat[i, ]
-    max_widths <- mapply(function(value, width) {
+    mapply(function(value, width) {
       max(width, nchar(value))
-    }, value = row_values, width = max_widths)
-  }
-
-  max_widths
+    }, value = row_values, width = widths)
+  }, seq_len(nrow(coefmat)), init = max_widths)
 }
 
 summary_estimates_header_ <- function(coef_width, max_widths) {
@@ -140,7 +142,7 @@ summary_estimates_dashes_ <- function(coef_width, max_widths) {
 }
 
 summary_estimates_print_rows_ <- function(coefmat, coef_width, max_widths) {
-  for (i in seq_len(nrow(coefmat))) {
+  invisible(lapply(seq_len(nrow(coefmat)), function(i) {
     cat("| ", sprintf("%-*s", coef_width - 1L, rownames(coefmat)[i]), sep = "")
     row_values <- coefmat[i, ]
     formatted_values <- mapply(function(value, width) {
@@ -148,7 +150,7 @@ summary_estimates_print_rows_ <- function(coefmat, coef_width, max_widths) {
     }, value = row_values, width = max_widths)
 
     cat(formatted_values, "|\n", sep = "")
-  }
+  }))
 }
 
 #' @title Refactors for and 'feglm' summaries
@@ -169,7 +171,7 @@ summary_r2_ <- function(x, digits) {
 #' @description Reduces the cyclomatic complexity of print.summary.feglm
 #' @noRd
 summary_pseudo_rsq_ <- function(x, digits) {
-  if (x[["family"]][["family"]] == "poisson") {
+  if (x[["family"]][["family"]] == "poisson" && !is.null(x[["pseudo.rsq"]])) {
     cat(
       "\nPseudo R-squared:",
       format(x[["pseudo.rsq"]], digits = digits, nsmall = 2L), "\n"
@@ -209,53 +211,34 @@ summary_fisher_ <- function(x, digits) {
   }
 }
 
-#' @title Print method for 'apes' objects
+#' @title Print method for 'apes' objects (detailed output)
 #' @description Similar to the 'print' method for 'glm' objects
 #' @export
 #' @noRd
 print.apes <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
-  print(x[["delta"]], digits = digits)
+  # Use pre-computed coefficient table from C++
+  coefficients <- x[["vcov_table"]]
+  if (is.null(coefficients)) {
+    # Fallback for backward compatibility
+    est <- x[["delta"]]
+    se <- sqrt(diag(x[["vcov"]]))
+    z <- est / se
+    p <- 2.0 * pnorm(-abs(z))
+    coefficients <- cbind(est, se, z, p)
+    rownames(coefficients) <- names(est)
+    colnames(coefficients) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
+  }
+  
+  cat("Estimates:\n")
+  printCoefmat(coefficients, P.values = TRUE, has.Pvalue = TRUE, digits = digits)
+  invisible(x)
 }
 
-#' @title Print method for 'feglm' objects
+#' @title Print method for 'feglm' objects (detailed output)
 #' @description Similar to the 'print' method for 'glm' objects
 #' @export
 #' @noRd
 print.feglm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
-  cat(
-    sub("\\(.*\\)", "", x[["family"]][["family"]]), " - ",
-    x[["family"]][["link"]], " link",
-    ", l= [", paste0(x[["lvls_k"]], collapse = ", "), "]\n\n",
-    sep = ""
-  )
-  print(x[["coefficients"]], digits = digits)
-}
-
-#' @title Print method for 'felm' objects
-#' @description Similar to the 'print' method for 'lm' objects
-#' @export
-#' @noRd
-print.felm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
-  print(x[["coefficients"]], digits = digits)
-}
-
-#' @title Print method for 'apes' summary objects
-#' @description Similar to the 'print' method for 'glm' objects
-#' @export
-#' @noRd
-print.summary.apes <- function(
-    x, digits = max(3L, getOption("digits") - 3L), ...) {
-  cat("Estimates:\n")
-  printCoefmat(x[["coefficients"]], P.values = TRUE, has.Pvalue = TRUE, digits = digits)
-}
-
-#' @title Print method for 'feglm' summary objects
-#' @description Similar to the 'print' method for 'glm' objects
-#' @export
-#' @noRd
-print.summary.feglm <- function(
-    x, digits = max(3L, getOption("digits") - 3L),
-    ...) {
   summary_formula_(x)
 
   summary_family_(x)
@@ -267,14 +250,15 @@ print.summary.feglm <- function(
   summary_nobs_(x)
 
   summary_fisher_(x, digits)
+  
+  invisible(x)
 }
 
-#' @title Print method for 'felm' summary objects
+#' @title Print method for 'felm' objects (detailed output)
 #' @description Similar to the 'print' method for 'lm' objects
 #' @export
 #' @noRd
-print.summary.felm <- function(
-    x, digits = max(3L, getOption("digits") - 3L), ...) {
+print.felm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
   summary_formula_(x)
 
   summary_estimates_(x, digits)
@@ -282,6 +266,39 @@ print.summary.felm <- function(
   summary_r2_(x, digits)
 
   summary_nobs_(x)
+  
+  invisible(x)
+}
+
+#' @title Summary method for 'apes' objects
+#' @description Alias to print method
+#' @export
+#' @noRd
+summary.apes <- function(
+  object, digits = max(3L, getOption("digits") - 3L), ...
+) {
+  print.apes(object, digits = digits, ...)
+}
+
+#' @title Summary method for 'feglm' objects
+#' @description Alias to print method
+#' @export
+#' @noRd
+summary.feglm <- function(
+  object, digits = max(3L, getOption("digits") - 3L),
+  ...
+) {
+  print.feglm(object, digits = digits, ...)
+}
+
+#' @title Summary method for 'felm' objects
+#' @description Alias to print method
+#' @export
+#' @noRd
+summary.felm <- function(
+  object, digits = max(3L, getOption("digits") - 3L), ...
+) {
+  print.felm(object, digits = digits, ...)
 }
 
 #' Print method for regression tables
@@ -305,8 +322,10 @@ print.capybara_separation <- function(x, ...) {
   if (x$num_separated > 0 && length(x$separated_obs) <= 20) {
     cat("Observation indices:", paste(x$separated_obs, collapse = ", "), "\n")
   } else if (x$num_separated > 0) {
-    cat("First 20 observation indices:",
-        paste(head(x$separated_obs, 20), collapse = ", "), "...\n")
+    cat(
+      "First 20 observation indices:",
+      paste(head(x$separated_obs, 20), collapse = ", "), "...\n"
+    )
   }
   invisible(x)
 }

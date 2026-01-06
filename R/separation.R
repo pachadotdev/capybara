@@ -75,16 +75,17 @@
 #'
 #' @export
 check_separation <- function(
-    y,
-    X = NULL,
-    w = NULL,
-    tol = 1e-8,
-    zero_tol = 1e-12,
-    max_iter = 1000L,
-    simplex_max_iter = 10000L,
-    use_relu = TRUE,
-    use_simplex = TRUE,
-    verbose = FALSE) {
+  y,
+  X = NULL,
+  w = NULL,
+  tol = 1e-8,
+  zero_tol = 1e-12,
+  max_iter = 1000L,
+  simplex_max_iter = 10000L,
+  use_relu = TRUE,
+  use_simplex = TRUE,
+  verbose = FALSE
+) {
   # Validate y
   y <- as.numeric(y)
   n <- length(y)

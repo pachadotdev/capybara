@@ -75,9 +75,10 @@ NULL
 #'
 #' @export
 bias_corr <- function(
-    object = NULL,
-    l = 0L,
-    panel_structure = c("classic", "network")) {
+  object = NULL,
+  l = 0L,
+  panel_structure = c("classic", "network")
+) {
   # Check validity of 'object'
   apes_bias_check_object_(object, fun = "bias_corr")
 
@@ -133,10 +134,12 @@ bias_corr <- function(
   if (control[["keep_tx"]]) {
     X <- object[["tx"]]
   } else {
-    X <- center_variables_(X, w, k_list, 
-                          control[["center_tol"]], 
-                          control[["iter_center_max"]], 
-                          control[["iter_interrupt"]])
+    X <- center_variables_(
+      X, w, k_list,
+      control[["center_tol"]],
+      control[["iter_center_max"]],
+      control[["iter_interrupt"]]
+    )
   }
 
   # Compute bias terms for requested bias correction
@@ -183,10 +186,12 @@ bias_corr <- function(
   }
 
   # Update centered regressor matrix
-  X <- center_variables_(X, w, k_list, 
-                        control[["center_tol"]], 
-                        control[["iter_center_max"]], 
-                        control[["iter_interrupt"]])
+  X <- center_variables_(
+    X, w, k_list,
+    control[["center_tol"]],
+    control[["iter_center_max"]],
+    control[["iter_interrupt"]]
+  )
   colnames(X) <- nms_sp
 
   # Update hessian

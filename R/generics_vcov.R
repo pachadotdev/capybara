@@ -57,19 +57,19 @@ vcov.apes <- function(object, ...) {
 #' # Model with clustering - returns sandwich covariance
 #' mod_cl <- fepoisson(mpg ~ wt | cyl | am, mtcars)
 #' round(vcov(mod_cl), 5)
-#' 
+#'
 #' @return A named matrix of covariance estimates.
 #'
 #' @export
 vcov.feglm <- function(object, ...) {
   v <- object[["vcov"]]
-  
+
   # Check if vcov exists
 
   if (is.null(v)) {
     stop("Covariance matrix not found in model object.", call. = FALSE)
   }
-  
+
   # Add names to match coefficients
   nms <- names(object[["coefficients"]])
   if (!is.null(nms) && length(nms) > 0) {
@@ -80,7 +80,7 @@ vcov.feglm <- function(object, ...) {
       dimnames(v) <- list(nms, nms)
     }
   }
-  
+
   v
 }
 
@@ -107,8 +107,9 @@ vcov_feglm_outer_covariance_ <- function(g, p) {
 }
 
 vcov_feglm_covmat_ <- function(
-    object, type, h, g,
-    cl_vars, k, p) {
+  object, type, h, g,
+  cl_vars, k, p
+) {
   # Check if the hessian is invertible and compute its inverse
   v <- try(solve(h), silent = TRUE)
   if (inherits(v, "try-error")) {
@@ -119,7 +120,7 @@ vcov_feglm_covmat_ <- function(
       vcov_feglm_cluster_nocluster_()
     }
     d <- vcov_feglm_cluster_data_(object, cl_vars)
-    d[, (cl_vars) := lapply(.SD, check_factor_), .SDcols = cl_vars]
+    d[cl_vars] <- lapply(d[cl_vars], check_factor_)
     sp_vars <- colnames(g)
     g <- cbind(d, g)
     rm(d)
@@ -168,25 +169,21 @@ vcov_feglm_cluster_notfound_ <- function(model) {
 
 vcov_feglm_clustered_cov_ <- function(g, cl_vars, sp_vars, p) {
   # Multiway clustering by Cameron, Gelbach, and Miller (2011)
-  b <- matrix(0.0, p, p)
-
-  for (i in seq_along(cl_vars)) {
+  b <- Reduce(function(acc, i) {
     # Generate all combinations of clustering variables
     cl_combn <- combn(cl_vars, i, simplify = FALSE)
 
-    br <- matrix(0.0, p, p)
-
-    for (cl in cl_combn) {
+    br <- Reduce(function(acc_inner, cl) {
       # Compute sum within each cluster (base R aggregate)
       grouped_data <- stats::aggregate(g[sp_vars], by = g[cl], FUN = function(x) sum(x, na.rm = TRUE))
 
       # Compute crossproduct, dropping clustering columns
-      br <- br + crossprod(as.matrix(grouped_data[sp_vars]))
-    }
+      acc_inner + crossprod(as.matrix(grouped_data[sp_vars]))
+    }, cl_combn, init = matrix(0.0, p, p))
 
     # Alternating sign adjustment
-    b <- if (i %% 2L) b + br else b - br
-  }
+    if (i %% 2L) acc + br else acc - br
+  }, seq_along(cl_vars), init = matrix(0.0, p, p))
 
   return(b)
 }
@@ -203,7 +200,7 @@ vcov_feglm_clustered_cov_ <- function(g, cl_vars, sp_vars, p) {
 #' @param type the type of covariance estimate required. \code{"hessian"} refers
 #'  to the inverse of the negative expected hessian after convergence and is the
 #'  default option. \code{"outer.product"} is the outer-product-of-the-gradient
-#'  estimator. \code{"sandwich"} computes a clustered covariance matrix 
+#'  estimator. \code{"sandwich"} computes a clustered covariance matrix
 #'  (sandwich estimator) given some cluster variables specified in the formula.
 #'
 #' @param ... additional arguments.
@@ -219,9 +216,10 @@ vcov_feglm_clustered_cov_ <- function(g, cl_vars, sp_vars, p) {
 #'
 #' @export
 vcov.felm <- function(
-    object,
-    type = c("hessian", "outer.product", "sandwich"),
-    ...) {
+  object,
+  type = c("hessian", "outer.product", "sandwich"),
+  ...
+) {
   # Check validity of input argument 'type'
   type <- match.arg(type)
 
@@ -260,8 +258,9 @@ vcov_felm_vars_ <- function(object) {
 }
 
 vcov_felm_covmat_ <- function(
-    object, type, h, g,
-    cl_vars, k, p) {
+  object, type, h, g,
+  cl_vars, k, p
+) {
   # Check if the hessian is invertible and compute its inverse
   v <- try(solve(h), silent = TRUE)
   if (inherits(v, "try-error")) {
@@ -272,7 +271,7 @@ vcov_felm_covmat_ <- function(
       vcov_feglm_cluster_nocluster_()
     }
     d <- vcov_feglm_cluster_data_(object, cl_vars, "felm")
-    d[, (cl_vars) := lapply(.SD, check_factor_), .SDcols = cl_vars]
+    d[cl_vars] <- lapply(d[cl_vars], check_factor_)
     sp_vars <- colnames(g)
     g <- cbind(d, g)
     rm(d)

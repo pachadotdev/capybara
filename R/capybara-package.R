@@ -63,7 +63,7 @@ NULL
 #' @importFrom kendallknight kendall_cor kendall_cor_test
 #' @importFrom MASS negative.binomial theta.ml
 #' @importFrom stats as.formula ave fitted.values gaussian model.frame model.matrix
-#'  model.response na.omit na.pass pnorm poisson predict printCoefmat qnorm terms
+#'  model.response na.omit na.pass pnorm poisson predict printCoefmat qnorm setNames terms
 #'  vcov
 #' @importFrom utils combn head
 #' @useDynLib capybara, .registration = TRUE

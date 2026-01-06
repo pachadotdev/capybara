@@ -18,17 +18,8 @@ NULL
 #' @export
 #' @noRd
 summary.apes <- function(object, ...) {
-  # Compute coefficent matrix
-  est <- object[["delta"]]
-  se <- sqrt(diag(object[["vcov"]]))
-  z <- est / se
-  p <- 2.0 * pnorm(-abs(z))
-  coefficients <- cbind(est, se, z, p)
-  rownames(coefficients) <- names(est)
-  colnames(coefficients) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
-
-  # Return coefficient matrix
-  structure(list(coefficients = coefficients), class = "summary.apes")
+  class(object) <- c("summary.apes", class(object))
+  object
 }
 
 #' @title Summary method for fixed effects GLMs
@@ -36,44 +27,8 @@ summary.apes <- function(object, ...) {
 #' @export
 #' @noRd
 summary.feglm <- function(object, ...) {
-  # Compute coefficients matrix using precomputed vcov
-  est <- object[["coefficients"]]
-  se <- sqrt(diag(vcov(object)))
-  z <- est / se
-  p <- 2.0 * pnorm(-abs(z))
-  coefficients <- cbind(est, se, z, p)
-  rownames(coefficients) <- names(est)
-  colnames(coefficients) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
-
-  # Generate result list
-  res <- list(
-    coefficients = coefficients,
-    deviance = object[["deviance"]],
-    null_deviance = object[["null_deviance"]],
-    iter = object[["iter"]],
-    nobs = object[["nobs"]],
-    fe_levels = object[["fe_levels"]],
-    formula = object[["formula"]],
-    family = object[["family"]]
-  )
-
-  if (object[["family"]][["family"]] == "poisson") {
-    # Compute pseudo R-squared
-    # http://personal.lse.ac.uk/tenreyro/r2.do
-    # pass matrix with y and yhat as columns
-    res[["pseudo.rsq"]] <- (kendall_cor(
-      unlist(object$data[, 1], use.names = FALSE),
-      predict(object, type = "response")
-    ))^2
-  }
-
-  if (inherits(object, "fenegbin")) {
-    res[["theta"]] <- object[["theta"]]
-    res[["iter.outer"]] <- object[["iter.outer"]]
-  }
-
-  # Return list
-  structure(res, class = "summary.feglm")
+  class(object) <- c("summary.feglm", class(object))
+  object
 }
 
 #' @title Summary method for fixed effects LMs
@@ -81,41 +36,10 @@ summary.feglm <- function(object, ...) {
 #' @export
 #' @noRd
 summary.felm <- function(
-    object,
-    type = "hessian",
-    ...) {
-  # Compute coefficients matrix
-  est <- object[["coefficients"]]
-  se <- sqrt(diag(vcov(object, type)))
-  z <- est / se
-  p <- 2.0 * pnorm(-abs(z))
-  coefficients <- cbind(est, se, z, p)
-  rownames(coefficients) <- names(est)
-  colnames(coefficients) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
-
-  # Evaluate the response using the formula and data to handle transformations
-  mf <- model.frame(object[["formula"]], object[["data"]], na.action = na.pass)
-  y <- model.response(mf)
-  w <- object[["weights"]]
-  ydemeaned_sq <- (y - mean(y))^2
-  e_sq <- (y - object[["fitted_values"]])^2
-  tss <- sum(w * ydemeaned_sq)
-  rss <- sum(w * e_sq)
-  n <- unname(object[["nobs"]]["nobs_full"])
-  k <- length(object[["coefficients"]]) +
-    sum(vapply(object[["nms_fe"]], length, integer(1)))
-  rsq <- 1 - (rss / tss)
-
-  # Generate result list
-  res <- list(
-    coefficients = coefficients,
-    nobs = object[["nobs"]],
-    fe_levels = object[["fe_levels"]],
-    formula = object[["formula"]],
-    r.squared = rsq,
-    adj.r.squared = 1 - (1 - rsq) * (n - 1) / (n - k + 1)
-  )
-
-  # Return list
-  structure(res, class = "summary.felm")
+  object,
+  type = "hessian",
+  ...
+) {
+  class(object) <- c("summary.felm", class(object))
+  object
 }

@@ -103,11 +103,12 @@ NULL
 #'
 #' @export
 apes <- function(
-    object = NULL,
-    n_pop = NULL,
-    panel_structure = c("classic", "network"),
-    sampling_fe = c("independence", "unrestricted"),
-    weak_exo = FALSE) {
+  object = NULL,
+  n_pop = NULL,
+  panel_structure = c("classic", "network"),
+  sampling_fe = c("independence", "unrestricted"),
+  weak_exo = FALSE
+) {
   # Check validity of 'object'
   apes_bias_check_object_(object, fun = "apes")
 
@@ -183,10 +184,12 @@ apes <- function(
   if (control[["keep_tx"]]) {
     tx <- object[["tx"]]
   } else {
-    tx <- center_variables_(X, w, k_list, 
-                           control[["center_tol"]], 
-                           control[["iter_center_max"]], 
-                           control[["iter_interrupt"]])
+    tx <- center_variables_(
+      X, w, k_list,
+      control[["center_tol"]],
+      control[["iter_center_max"]],
+      control[["iter_interrupt"]]
+    )
   }
 
   # Compute average partial effects, derivatives, and Jacobian
@@ -198,35 +201,36 @@ apes <- function(
     delta[, !binary] <- mu_eta
     delta1[, !binary] <- partial_mu_eta_(eta, family, 2L)
   }
-  for (i in seq.int(p)) {
+  invisible(lapply(seq.int(p), function(i) {
     if (binary[[i]]) {
       eta0 <- eta - X[, i] * beta[[i]]
       eta1 <- eta0 + beta[[i]]
       f1 <- family[["mu.eta"]](eta1)
-      delta[, i] <- (family[["linkinv"]](eta1) - family[["linkinv"]](eta0))
-      delta1[, i] <- f1 - family[["mu.eta"]](eta0)
-      j[, i] <- -colSums(px * delta1[, i]) / nt_full
-      j[i, i] <- sum(f1) / nt_full + j[i, i]
-      j[-i, i] <- colSums(X[, -i, drop = FALSE] * delta1[, i]) /
+      delta[, i] <<- (family[["linkinv"]](eta1) - family[["linkinv"]](eta0))
+      delta1[, i] <<- f1 - family[["mu.eta"]](eta0)
+      j[, i] <<- -colSums(px * delta1[, i]) / nt_full
+      j[i, i] <<- sum(f1) / nt_full + j[i, i]
+      j[-i, i] <<- colSums(X[, -i, drop = FALSE] * delta1[, i]) /
         nt_full + j[-i, i]
-      rm(eta0, f1)
     } else {
-      delta[, i] <- beta[[i]] * delta[, i]
-      delta1[, i] <- beta[[i]] * delta1[, i]
-      j[, i] <- colSums(tx * delta1[, i]) / nt_full
-      j[i, i] <- sum(mu_eta) / nt_full + j[i, i]
+      delta[, i] <<- beta[[i]] * delta[, i]
+      delta1[, i] <<- beta[[i]] * delta1[, i]
+      j[, i] <<- colSums(tx * delta1[, i]) / nt_full
+      j[i, i] <<- sum(mu_eta) / nt_full + j[i, i]
     }
-  }
+  }))
   delta_aux <- colSums(delta) / nt_full
   delta <- t(t(delta) - delta_aux) / nt_full
   rm(mu, mu_eta, px)
 
   # Compute projection and residual projection of \psi
   psi <- -delta1 / w
-  mpsi <- center_variables_(psi, w, k_list, 
-                           control[["center_tol"]], 
-                           control[["iter_max"]], 
-                           control[["iter_interrupt"]])
+  mpsi <- center_variables_(
+    psi, w, k_list,
+    control[["center_tol"]],
+    control[["iter_max"]],
+    control[["iter_interrupt"]]
+  )
   ppsi <- psi - mpsi
   rm(delta1, psi)
 
@@ -310,8 +314,9 @@ apes_set_adj_ <- function(n_pop, nt_full) {
 NULL
 
 apes_adjust_covariance_ <- function(
-    v, delta, gamma, k_list, adj, sampling_fe,
-    weak_exo, panel_structure) {
+  v, delta, gamma, k_list, adj, sampling_fe,
+  weak_exo, panel_structure
+) {
   if (adj > 0.0) {
     # Simplify covariance if sampling assumptions are imposed
     if (sampling_fe == "independence") {
@@ -349,21 +354,21 @@ apes_adjust_covariance_ <- function(
 NULL
 
 apes_bias_correction_ <- function(
-    eta, family, X, beta, binary, nt, p, ppsi,
-    z, w, k_list, panel_structure, l, k, mpsi, v) {
+  eta, family, X, beta, binary, nt, p, ppsi,
+  z, w, k_list, panel_structure, l, k, mpsi, v
+) {
   # Compute second-order partial derivatives
   delta2 <- matrix(NA_real_, nt, p)
   delta2[, !binary] <- partial_mu_eta_(eta, family, 3L)
-  for (i in seq.int(p)) {
+  invisible(lapply(seq.int(p), function(i) {
     if (binary[[i]]) {
       eta0 <- eta - X[, i] * beta[[i]]
-      delta2[, i] <- partial_mu_eta_(eta0 + beta[[i]], family, 2L) -
+      delta2[, i] <<- partial_mu_eta_(eta0 + beta[[i]], family, 2L) -
         partial_mu_eta_(eta0, family, 2L)
-      rm(eta0)
     } else {
-      delta2[, i] <- beta[[i]] * delta2[, i]
+      delta2[, i] <<- beta[[i]] * delta2[, i]
     }
-  }
+  }))
 
   # Compute bias terms for requested bias correction
   if (panel_structure == "classic") {

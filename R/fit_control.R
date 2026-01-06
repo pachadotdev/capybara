@@ -33,7 +33,7 @@ NULL
 #'  centered variable similar to the \code{'lfe'} package. The default is
 #'  \code{1.0e-08}.
 #' @param collin_tol tolerance level for detecting collinearity. The default is
-#'  \code{1.0e-07}. 
+#'  \code{1.0e-07}.
 #' @param alpha_tol tolerance for fixed effects (alpha) convergence.
 #'  The default is \code{1.0e-06}.
 #' @param step_halving_factor numeric indicating the factor by which the step
@@ -76,25 +76,26 @@ NULL
 #'
 #' @export
 fit_control <- function(
-    dev_tol = 1.0e-08,
-    center_tol = 1.0e-08,
-    collin_tol = 1.0e-10,
-    step_halving_factor = 0.5,
-    alpha_tol = 1.0e-08,
-    iter_max = 25L,
-    iter_center_max = 10000L,
-    iter_inner_max = 50L,
-    iter_alpha_max = 10000L,
-    iter_interrupt = 1000L,
-    step_halving_memory = 0.9,
-    max_step_halving = 2L,
-    start_inner_tol = 1.0e-06,
-    return_fe = TRUE,
-    keep_tx = FALSE,
-    init_theta = 0.0) {
+  dev_tol = 1.0e-08,
+  center_tol = 1.0e-08,
+  collin_tol = 1.0e-10,
+  step_halving_factor = 0.5,
+  alpha_tol = 1.0e-08,
+  iter_max = 25L,
+  iter_center_max = 10000L,
+  iter_inner_max = 50L,
+  iter_alpha_max = 10000L,
+  iter_interrupt = 1000L,
+  step_halving_memory = 0.9,
+  max_step_halving = 2L,
+  start_inner_tol = 1.0e-06,
+  return_fe = TRUE,
+  keep_tx = FALSE,
+  init_theta = 0.0
+) {
   # Check validity of tolerance parameters
   if (dev_tol <= 0.0 || center_tol <= 0.0 || collin_tol <= 0.0 ||
-      step_halving_factor <= 0.0 || alpha_tol <= 0.0) {
+    step_halving_factor <= 0.0 || alpha_tol <= 0.0) {
     stop(
       "All tolerance parameters should be greater than zero.",
       call. = FALSE
@@ -107,7 +108,7 @@ fit_control <- function(
   iter_inner_max <- as.integer(iter_inner_max)
   iter_interrupt <- as.integer(iter_interrupt)
   if (iter_max < 1L || iter_center_max < 1L ||
-      iter_inner_max < 1L || iter_interrupt < 1L) {
+    iter_inner_max < 1L || iter_interrupt < 1L) {
     stop(
       "All iteration parameters should be greater than or equal to one.",
       call. = FALSE
@@ -140,7 +141,7 @@ fit_control <- function(
       call. = FALSE
     )
   }
-  
+
   if (start_inner_tol <= 0) {
     stop(
       "start_inner_tol should be greater than zero.",
