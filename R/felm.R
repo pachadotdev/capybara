@@ -131,10 +131,10 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
     w <- rep(1.0, nt)
   } else if (!all(is.na(weights_vec))) {
     # Weights provided as vector
-    w <- weights_vec
-    if (length(w) != nrow(data)) {
+    if (length(weights_vec) != nrow(data)) {
       stop("Length of weights vector must equal number of observations.", call. = FALSE)
     }
+    w <- weights_vec
   } else if (!all(is.na(weights_col))) {
     # Weights provided as formula - use the extracted column name
     w <- data[[weights_col]]
@@ -186,8 +186,7 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   if (length(fe_vars) == 0) {
     nms_sp <- c("(Intercept)", nms_sp)
   }
-  rownames(fit[["coef_table"]]) <- nms_sp
-  colnames(fit[["coef_table"]]) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
+  dimnames(fit[["coef_table"]]) <- list(nms_sp, c("Estimate", "Std. Error", "z value", "Pr(>|z|)"))
   dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
   dimnames(fit[["vcov"]]) <- list(nms_sp, nms_sp)
   if (control[["keep_tx"]]) {

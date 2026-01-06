@@ -401,32 +401,27 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
          ++iter_inner) {
       eta = eta0 + rho * eta_upd;
 
-      vec beta_new = beta0;
-      if (has_fixed_effects) {
-        // For FE case: incremental beta update
-        if (collin_result.has_collinearity &&
-            collin_result.non_collinear_cols.n_elem > 0) {
-          vec beta0_reduced = beta0.elem(collin_result.non_collinear_cols);
-          vec beta_upd_step = beta0_reduced + rho * beta_upd_reduced;
-          beta_new.elem(collin_result.non_collinear_cols) = beta_upd_step;
+      // Update beta with step-halving
+      if (collin_result.has_collinearity &&
+          collin_result.non_collinear_cols.n_elem > 0) {
+        vec beta0_reduced = beta0.elem(collin_result.non_collinear_cols);
+        vec beta_step;
+        if (has_fixed_effects) {
+          // FE case: incremental update
+          beta_step = beta0_reduced + rho * beta_upd_reduced;
         } else {
-          beta_new = beta0 + rho * beta_upd_reduced;
+          // Non-FE case: interpolation
+          beta_step = (1.0 - rho) * beta0_reduced + rho * beta_upd_reduced;
         }
+        beta = beta0;
+        beta.elem(collin_result.non_collinear_cols) = beta_step;
       } else {
-        // For non-FE case: beta_upd_reduced is the new beta
-        // Interpolate between old and new: beta = beta0 + rho * (new_beta -
-        // beta0) = (1-rho)*beta0 + rho*new_beta
-        if (collin_result.has_collinearity &&
-            collin_result.non_collinear_cols.n_elem > 0) {
-          vec beta0_reduced = beta0.elem(collin_result.non_collinear_cols);
-          vec beta_upd_step =
-              (1.0 - rho) * beta0_reduced + rho * beta_upd_reduced;
-          beta_new.elem(collin_result.non_collinear_cols) = beta_upd_step;
+        if (has_fixed_effects) {
+          beta = beta0 + rho * beta_upd_reduced;
         } else {
-          beta_new = (1.0 - rho) * beta0 + rho * beta_upd_reduced;
+          beta = (1.0 - rho) * beta0 + rho * beta_upd_reduced;
         }
       }
-      beta = beta_new;
 
       mu = link_inv(eta, family_type);
       dev = dev_resids(y, mu, theta, w, family_type);
@@ -626,9 +621,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       vec z_values = beta / se_reduced;
       result.coef_table.col(1) = se_reduced;
       result.coef_table.col(2) = z_values;
-      for (uword i = 0; i < n_coef; ++i) {
-        result.coef_table(i, 3) = 2.0 * normcdf(-fabs(z_values(i)));
-      }
+      result.coef_table.col(3) = 2.0 * normcdf(-abs(z_values));
     }
 
     if (params.keep_tx) {
@@ -690,13 +683,13 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
 
     for (uword iter_inner = 0; iter_inner < params.iter_inner_max;
          ++iter_inner) {
-      eta = eta0 + (rho * eta_upd);
+      eta = eta0 + rho * eta_upd;
       mu = link_inv(eta, family_type);
       dev = dev_resids(y, mu, 0.0, w, family_type);
       dev_ratio_inner = (dev - dev0) / (0.1 + fabs(dev0));
 
       dev_crit = std::isfinite(dev);
-      val_crit = (valid_eta(eta, family_type) && valid_mu(mu, family_type));
+      val_crit = valid_eta(eta, family_type) && valid_mu(mu, family_type);
       imp_crit = (dev_ratio_inner <= -params.dev_tol);
 
       if (dev_crit && val_crit && imp_crit) {
