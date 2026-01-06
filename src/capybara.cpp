@@ -69,8 +69,8 @@ struct CapybaraParameters {
 #include "01_center.h"
 #include "02_beta.h"
 #include "03_alpha.h"
-#include "04_lm.h"
-#include "05_glm_helpers.h"
+#include "04_fit_helpers.h"
+#include "05_lm.h"
 #include "06_glm.h"
 #include "07_negbin.h"
 #include "08_separation.h"
@@ -184,6 +184,9 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
        "residuals"_nm = as_doubles(result.residuals),
        "weights"_nm = as_doubles(result.weights),
        "hessian"_nm = as_doubles_matrix(result.hessian),
+       "vcov"_nm = as_doubles_matrix(result.vcov),
+       "r.squared"_nm = result.r_squared,
+       "adj.r.squared"_nm = result.adj_r_squared,
        "coef_status"_nm = as_integers(result.coef_status),
        "success"_nm = result.success, "has_fe"_nm = result.has_fe});
 
@@ -310,6 +313,11 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
        "null_deviance"_nm = writable::doubles({result.null_deviance}),
        "conv"_nm = writable::logicals({result.conv}),
        "iter"_nm = writable::integers({static_cast<int>(result.iter + 1)})});
+
+  // Add pseudo R-squared for Poisson models
+  if (family_type == capybara::POISSON && result.pseudo_rsq > 0.0) {
+    out.push_back({"pseudo.rsq"_nm = result.pseudo_rsq});
+  }
 
   if (result.has_fe && result.fixed_effects.n_elem > 0) {
     writable::list fe_list(result.fixed_effects.n_elem);

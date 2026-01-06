@@ -19,6 +19,7 @@ struct InferenceGLM {
   uvec coef_status; // 1 = estimable, 0 = collinear
 
   field<vec> fixed_effects;
+  double pseudo_rsq; // Pseudo R-squared (for Poisson only)
   bool has_fe = false;
   uvec iterations;
 
@@ -32,7 +33,7 @@ struct InferenceGLM {
         fitted_values(n, fill::zeros), weights(n, fill::ones),
         hessian(p, p, fill::zeros), vcov(p, p, fill::zeros), deviance(0.0),
         null_deviance(0.0), conv(false), iter(0), coef_status(p, fill::ones),
-        has_fe(false), has_tx(false) {}
+        pseudo_rsq(0.0), has_fe(false), has_tx(false) {}
 };
 
 enum Family {

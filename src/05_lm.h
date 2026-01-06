@@ -28,6 +28,8 @@ struct InferenceLM {
   uvec iterations;
 
   mat TX; // Centered design matrix
+  double r_squared;
+  double adj_r_squared;
   bool has_tx = false;
 
   InferenceLM(uword n, uword p)
@@ -35,7 +37,7 @@ struct InferenceLM {
         residuals(n, fill::zeros), weights(n, fill::ones),
         hessian(p, p, fill::zeros), vcov(p, p, fill::zeros),
         coef_status(p, fill::ones), success(false), has_fe(false),
-        has_tx(false) {}
+        r_squared(0.0), adj_r_squared(0.0), has_tx(false) {}
 };
 
 struct FelmWorkspace {
@@ -269,6 +271,26 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
 
   result.residuals = ws->y_original - result.fitted_values;
 
+  // Compute R-squared and adjusted R-squared
+  vec ydemeaned = ws->y_original - mean(ws->y_original);
+  double tss = sum(w % square(ydemeaned));
+  double rss = sum(w % square(result.residuals));
+  result.r_squared = 1.0 - (rss / tss);
+  
+  // Adjusted R-squared: account for regressors and fixed effects
+  // For fixed effects, we lose (J_k - 1) degrees of freedom per FE dimension
+  // where J_k is the number of groups in dimension k
+  uword k = P;  // Start with number of regressors
+  if (has_fixed_effects) {
+    for (uword j = 0; j < fe_groups.n_elem; ++j) {
+      // Each FE dimension costs J-1 degrees of freedom (one level is reference)
+      k += fe_groups(j).n_elem - 1;
+    }
+  }
+  result.adj_r_squared = 1.0 - (1.0 - result.r_squared) * 
+                         (static_cast<double>(N - 1)) / 
+                         std::max(1.0, static_cast<double>(N - k));
+
   // Compute covariance matrix
   // H = X'WX (already computed in beta_result.hessian)
   mat H = result.hessian;
@@ -291,7 +313,6 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
     }
 
     // Scale by residual variance σ² = RSS / (n - p)
-    double rss = sum(square(result.residuals));
     double sigma2 = rss / std::max(1.0, static_cast<double>(N - P));
     result.vcov = H_inv * sigma2;
   }

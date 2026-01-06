@@ -506,6 +506,14 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     result.null_deviance = null_dev;
     result.conv = true;
 
+    // Compute pseudo R-squared for Poisson models
+    // http://personal.lse.ac.uk/tenreyro/r2.do
+    // Pseudo-R^2 = (cor(y, yhat))^2
+    if (family_type == POISSON) {
+      double corr = as_scalar(cor(y, result.fitted_values));
+      result.pseudo_rsq = corr * corr;
+    }
+
     if (params.keep_tx) {
       result.TX = X;
       result.has_tx = true;
