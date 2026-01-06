@@ -55,7 +55,7 @@ summary_estimates_ <- function(x, digits) {
   summary_estimates_dashes_(coef_width, max_widths)
   summary_estimates_print_rows_(coefmat, coef_width, max_widths)
 
-  cat("\nSignificance codes: *** 99.9%; ** 99%; * 95%; . 90%\n")
+  cat("\nSignificance codes: ** p < 0.01; * p < 0.05; + p < 0.10\n")
 }
 
 summary_estimates_signif_ <- function(coefmat, digits) {
@@ -63,14 +63,12 @@ summary_estimates_signif_ <- function(coefmat, digits) {
     coefmat[, max(ncol(coefmat))],
     function(x) {
       formatted <- formatC(x, format = "f", digits = digits)
-      if (x <= 0.001) {
-        paste(formatted, "***")
-      } else if (x <= 0.01) {
+      if (x < 0.01) {
         paste(formatted, "** ")
-      } else if (x <= 0.05) {
+      } else if (x < 0.05) {
         paste(formatted, "*  ")
-      } else if (x <= 0.1) {
-        paste(formatted, ".  ")
+      } else if (x < 0.1) {
+        paste(formatted, "+  ")
       } else {
         formatted
       }
@@ -82,7 +80,7 @@ summary_estimates_signif_ <- function(coefmat, digits) {
     coefmat[, max(ncol(coefmat))]
   )
   coefmat[, max(ncol(coefmat))] <- gsub(
-    "\\.\\s+$", ".",
+    "\\+\\s+$", "+",
     coefmat[, max(ncol(coefmat))]
   )
 

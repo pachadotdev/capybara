@@ -47,19 +47,45 @@ summary_table <- function(...,
 
   # Extract coefficients and standard errors
   # vcov is precomputed during fitting (either inverse Hessian or sandwich)
-  summaries <- lapply(models, summary)
-  coef_list <- lapply(summaries, function(m) m$coefficients[, 1])
-  se_list <- lapply(summaries, function(m) m$coefficients[, 2])
-  p_list <- lapply(summaries, function(m) m$coefficients[, 4])
+  # Use coef_table which is pre-computed in the model object
+  coef_list <- lapply(models, function(m) {
+    if (!is.null(m$coef_table)) {
+      as.vector(m$coef_table[, 1])
+    } else {
+      as.vector(m$coefficients)
+    }
+  })
+  
+  se_list <- lapply(models, function(m) {
+    if (!is.null(m$coef_table)) {
+      as.vector(m$coef_table[, 2])
+    } else {
+      as.vector(sqrt(diag(m$vcov)))
+    }
+  })
+  
+  p_list <- lapply(models, function(m) {
+    if (!is.null(m$coef_table)) {
+      as.vector(m$coef_table[, 4])
+    } else {
+      # Calculate p-values from coefficients and standard errors
+      z <- m$coefficients / sqrt(diag(m$vcov))
+      as.vector(2 * pnorm(-abs(z)))
+    }
+  })
 
-  invisible(lapply(seq_along(coef_list), function(i) {
-    names(coef_list[[i]]) <<- rownames(summaries[[i]]$coefficients)
-    names(se_list[[i]]) <<- rownames(summaries[[i]]$coefficients)
-    names(p_list[[i]]) <<- rownames(summaries[[i]]$coefficients)
-  }))
+  # Set names for the lists
+  for (i in seq_along(coef_list)) {
+    var_names <- names(models[[i]]$coefficients)
+    names(coef_list[[i]]) <- var_names
+    names(se_list[[i]]) <- var_names
+    names(p_list[[i]]) <- var_names
+  }
 
   # Get all unique variable names across models
-  all_vars <- unique(unlist(lapply(summaries, function(m) rownames(m$coefficients))))
+  all_vars <- unique(unlist(lapply(models, function(m) {
+    names(m$coefficients)
+  })))
 
   # Create a data frame for the results
   result_df <- data.frame(
@@ -138,11 +164,10 @@ summary_table <- function(...,
   }
 
   r2_row <- c(r2_label, sapply(models, function(m) {
-    s <- summary(m)  # Cache summary to avoid recomputation
     if (inherits(m, "felm")) {
-      formatC(s$r.squared, digits = 3, format = "f")
-    } else if (inherits(m, "feglm") && !is.null(s$pseudo.rsq)) {
-      formatC(s$pseudo.rsq, digits = 3, format = "f")
+      formatC(m$r.squared, digits = 3, format = "f")
+    } else if (inherits(m, "feglm") && !is.null(m$pseudo.rsq)) {
+      formatC(m$pseudo.rsq, digits = 3, format = "f")
     } else {
       ""
     }
