@@ -11,6 +11,7 @@ feglm(
   weights = NULL,
   beta_start = NULL,
   eta_start = NULL,
+  offset = NULL,
   control = NULL
 )
 }
@@ -40,6 +41,10 @@ parameters in the linear predictor. Default is
 
 \item{eta_start}{an optional vector of starting values for the linear
 predictor.}
+
+\item{offset}{an optional formula or numeric vector specifying an a priori
+known component to be included in the linear predictor. If a formula,
+it should be of the form \code{~ log(variable)}.}
 
 \item{control}{a named list of parameters for controlling the fitting
 process. See \code{\link{fit_control}} for details.}

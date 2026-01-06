@@ -20,10 +20,10 @@ extern "C" SEXP _capybara_felm_fit_(SEXP X_r, SEXP y_r, SEXP w_r, SEXP FEs, SEXP
   END_CPP4R
 }
 // capybara.cpp
-list feglm_fit_(const doubles & beta_r, const doubles & eta_r, const doubles & y_r, const doubles_matrix<> & x_r, const doubles & wt_r, const double & theta, const std::string & family, const list & control, const list & k_list, const list & cl_list);
-extern "C" SEXP _capybara_feglm_fit_(SEXP beta_r, SEXP eta_r, SEXP y_r, SEXP x_r, SEXP wt_r, SEXP theta, SEXP family, SEXP control, SEXP k_list, SEXP cl_list) {
+list feglm_fit_(const doubles & beta_r, const doubles & eta_r, const doubles & y_r, const doubles_matrix<> & x_r, const doubles & wt_r, const doubles & offset_r, const double & theta, const std::string & family, const list & control, const list & k_list, const list & cl_list);
+extern "C" SEXP _capybara_feglm_fit_(SEXP beta_r, SEXP eta_r, SEXP y_r, SEXP x_r, SEXP wt_r, SEXP offset_r, SEXP theta, SEXP family, SEXP control, SEXP k_list, SEXP cl_list) {
   BEGIN_CPP4R
-    return cpp4r::as_sexp(feglm_fit_(cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(beta_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(eta_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(y_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(x_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(wt_r), cpp4r::as_cpp<cpp4r::decay_t<const double &>>(theta), cpp4r::as_cpp<cpp4r::decay_t<const std::string &>>(family), cpp4r::as_cpp<cpp4r::decay_t<const list &>>(control), cpp4r::as_cpp<cpp4r::decay_t<const list &>>(k_list), cpp4r::as_cpp<cpp4r::decay_t<const list &>>(cl_list)));
+    return cpp4r::as_sexp(feglm_fit_(cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(beta_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(eta_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(y_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(x_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(wt_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(offset_r), cpp4r::as_cpp<cpp4r::decay_t<const double &>>(theta), cpp4r::as_cpp<cpp4r::decay_t<const std::string &>>(family), cpp4r::as_cpp<cpp4r::decay_t<const list &>>(control), cpp4r::as_cpp<cpp4r::decay_t<const list &>>(k_list), cpp4r::as_cpp<cpp4r::decay_t<const list &>>(cl_list)));
   END_CPP4R
 }
 // capybara.cpp
@@ -80,7 +80,7 @@ extern "C" {
 static const R_CallMethodDef CallEntries[] = {
     {"_capybara_center_variables_",    (DL_FUNC) &_capybara_center_variables_,     6},
     {"_capybara_check_separation_",    (DL_FUNC) &_capybara_check_separation_,    10},
-    {"_capybara_feglm_fit_",           (DL_FUNC) &_capybara_feglm_fit_,           10},
+    {"_capybara_feglm_fit_",           (DL_FUNC) &_capybara_feglm_fit_,           11},
     {"_capybara_feglm_offset_fit_",    (DL_FUNC) &_capybara_feglm_offset_fit_,     7},
     {"_capybara_felm_fit_",            (DL_FUNC) &_capybara_felm_fit_,             6},
     {"_capybara_fenegbin_fit_",        (DL_FUNC) &_capybara_fenegbin_fit_,         9},

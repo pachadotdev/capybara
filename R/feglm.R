@@ -80,6 +80,9 @@ NULL
 #'  \eqn{\boldsymbol{\beta} = \mathbf{0}}{\beta = 0}.
 #' @param eta_start an optional vector of starting values for the linear
 #'  predictor.
+#' @param offset an optional formula or numeric vector specifying an a priori
+#'  known component to be included in the linear predictor. If a formula,
+#'  it should be of the form \code{~ log(variable)}.
 #' @param control a named list of parameters for controlling the fitting
 #'  process. See \code{\link{fit_control}} for details.
 #'
@@ -135,6 +138,7 @@ feglm <- function(
   weights = NULL,
   beta_start = NULL,
   eta_start = NULL,
+  offset = NULL,
   control = NULL
 ) {
   # t0 <- Sys.time()
@@ -150,6 +154,34 @@ feglm <- function(
 
   # Check validity of control + Extract control list ----
   check_control_(control)
+
+  # Extract offset before data filtering ----
+  # Store original data row count for subsetting offset later
+  original_nrow <- nrow(data)
+  original_rownames <- rownames(data)
+  offset_vec_original <- NULL
+  
+  if (!is.null(offset)) {
+    if (inherits(offset, "formula")) {
+      # Offset provided as formula (e.g., ~ log(variable))
+      offset_terms <- terms(offset, data = data)
+      offset_vars <- attr(offset_terms, "term.labels")
+      if (length(offset_vars) != 1L) {
+        stop("Offset formula must specify exactly one term.", call. = FALSE)
+      }
+      # Evaluate the offset expression in the context of the data
+      offset_vec_original <- eval(parse(text = offset_vars), envir = data)
+    } else if (is.numeric(offset)) {
+      # Offset provided as numeric vector
+      offset_vec_original <- offset
+      if (length(offset_vec_original) != original_nrow) {
+        stop("Length of offset must equal number of observations.", call. = FALSE)
+      }
+    } else {
+      stop("Offset must be NULL, a formula, or a numeric vector.", call. = FALSE)
+    }
+    names(offset_vec_original) <- original_rownames
+  }
 
   # Generate model.frame
   lhs <- NA # just to avoid global variable warning
@@ -211,6 +243,19 @@ feglm <- function(
   # Check validity of weights ----
   check_weights_(wt)
 
+  # Extract offset if required ----
+  # Subset the pre-computed offset vector to match the filtered data
+  if (is.null(offset)) {
+    offset_vec <- rep(0.0, nt)
+  } else {
+    # Use row names to subset the offset vector to match filtered data
+    current_rownames <- rownames(data)
+    offset_vec <- offset_vec_original[current_rownames]
+    if (length(offset_vec) != nt) {
+      stop("Length of offset does not match number of observations after filtering.", call. = FALSE)
+    }
+  }
+
   # Compute and check starting guesses ----
   start_guesses_(beta_start, eta_start, y, X, beta, nt, wt, p, family)
 
@@ -247,7 +292,7 @@ feglm <- function(
   # t1 <- Sys.time()
 
   fit <- feglm_fit_(
-    beta, eta, y, X, wt, 0.0, family[["family"]], control, FEs, cl_list
+    beta, eta, y, X, wt, offset_vec, 0.0, family[["family"]], control, FEs, cl_list
   )
 
   # t2 <- Sys.time()
@@ -309,6 +354,7 @@ feglm <- function(
   fit[["data"]] <- data
   fit[["family"]] <- family
   fit[["control"]] <- control
+  fit[["offset"]] <- offset_vec
 
   # t3 <- Sys.time()
 

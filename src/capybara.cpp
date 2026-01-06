@@ -261,6 +261,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
 [[cpp4r::register]] list
 feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
            const doubles_matrix<> &x_r, const doubles &wt_r,
+           const doubles &offset_r,
            const double &theta, const std::string &family, const list &control,
            const list &k_list, const list &cl_list) {
   mat X = as_mat(x_r);
@@ -268,6 +269,7 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
   vec eta = as_col(eta_r);
   vec y = as_col(y_r);
   vec w = as_col(wt_r);
+  vec offset = as_col(offset_r);
 
   std::string fam = capybara::tidy_family(family);
   capybara::Family family_type = capybara::get_family_type(fam);
@@ -290,6 +292,9 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
       cluster_groups(g) = indices;
     }
   }
+
+  // Add offset to eta (the linear predictor is eta = X*beta + offset)
+  eta += offset;
 
   capybara::InferenceGLM result = capybara::feglm_fit(
       beta, eta, y, X, w, theta, family_type, fe_groups, params, nullptr,

@@ -70,10 +70,12 @@ fepoisson <- function(
   weights = NULL,
   beta_start = NULL,
   eta_start = NULL,
+  offset = NULL,
   control = NULL
 ) {
   feglm(
     formula = formula, data = data, weights = weights, family = poisson(),
-    beta_start = beta_start, eta_start = eta_start, control = control
+    beta_start = beta_start, eta_start = eta_start, offset = offset,
+    control = control
   )
 }
