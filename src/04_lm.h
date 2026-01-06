@@ -19,6 +19,7 @@ struct InferenceLM {
   vec residuals;
   vec weights;
   mat hessian;
+  mat vcov;         // Covariance matrix (inverse Hessian or sandwich)
   uvec coef_status; // 1 = estimable, 0 = collinear
   bool success;
 
@@ -32,8 +33,9 @@ struct InferenceLM {
   InferenceLM(uword n, uword p)
       : coefficients(p, fill::zeros), fitted_values(n, fill::zeros),
         residuals(n, fill::zeros), weights(n, fill::ones),
-        hessian(p, p, fill::zeros), coef_status(p, fill::ones), success(false),
-        has_fe(false), has_tx(false) {}
+        hessian(p, p, fill::zeros), vcov(p, p, fill::zeros),
+        coef_status(p, fill::ones), success(false), has_fe(false),
+        has_tx(false) {}
 };
 
 struct FelmWorkspace {
@@ -208,7 +210,8 @@ inline void fitted_values(FelmWorkspace *ws, InferenceLM &result,
 InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
                      const field<field<uvec>> &fe_groups,
                      const CapybaraParameters &params,
-                     FelmWorkspace *workspace = nullptr) {
+                     FelmWorkspace *workspace = nullptr,
+                     const field<uvec> *cluster_groups = nullptr) {
   const uword N = y.n_elem;
   const uword P = X.n_cols;
 
@@ -265,6 +268,33 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
   fitted_values(ws, result, collin_result, fe_groups, params);
 
   result.residuals = ws->y_original - result.fitted_values;
+
+  // Compute covariance matrix
+  // H = X'WX (already computed in beta_result.hessian)
+  mat H = result.hessian;
+
+  if (cluster_groups != nullptr && cluster_groups->n_elem > 0) {
+    // Sandwich covariance for clustered standard errors
+    // For linear models: V = (X'X)^{-1} X'ΩX (X'X)^{-1}
+    // where Ω is the cluster-robust variance matrix
+    result.vcov = compute_sandwich_vcov(X, ws->y_original, result.fitted_values,
+                                        H, *cluster_groups);
+  } else {
+    // Standard inverse Hessian covariance: (X'WX)^{-1} * σ²
+    mat H_inv;
+    bool success = inv_sympd(H_inv, H);
+    if (!success) {
+      success = inv(H_inv, H);
+      if (!success) {
+        H_inv = mat(H.n_rows, H.n_cols, fill::value(datum::inf));
+      }
+    }
+
+    // Scale by residual variance σ² = RSS / (n - p)
+    double rss = sum(square(result.residuals));
+    double sigma2 = rss / std::max(1.0, static_cast<double>(N - P));
+    result.vcov = H_inv * sigma2;
+  }
 
   return result;
 }
