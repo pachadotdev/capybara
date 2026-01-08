@@ -24,76 +24,63 @@ fit_control(
 )
 }
 \arguments{
-\item{dev_tol}{tolerance level for the first stopping condition of the
-maximization routine. The stopping condition is based on the relative change
-of the deviance in iteration \eqn{r} and can be expressed as follows:
-\eqn{|dev_{r} - dev_{r - 1}| / (0.1 + |dev_{r}|) < tol}{|dev - devold| /
- (0.1 + |dev|) < tol}. The default is \code{1.0e-08}.}
+\item{dev_tol}{tolerance level for the first stopping condition of the maximization routine. The stopping condition
+is based on the relative change of the deviance in iteration \eqn{r} and can be expressed as follows: \eqn{|dev_{r}
+ - dev_{r - 1}| / (0.1 + |dev_{r}|) < tol}{|dev - devold| / (0.1 + |dev|) < tol}. The default is \code{1.0e-08}.}
 
-\item{center_tol}{tolerance level for the stopping condition of the centering
-algorithm. The stopping condition is based on the relative change of the
-centered variable similar to the \code{'lfe'} package. The default is
+\item{center_tol}{tolerance level for the stopping condition of the centering algorithm. The stopping condition is
+based on the relative change of the centered variable similar to the \code{'lfe'} package. The default is
 \code{1.0e-08}.}
 
-\item{collin_tol}{tolerance level for detecting collinearity. The default is
-\code{1.0e-07}.}
+\item{collin_tol}{tolerance level for detecting collinearity. The default is \code{1.0e-07}.}
 
-\item{step_halving_factor}{numeric indicating the factor by which the step
-size is halved to iterate towards convergence. This is used to control the
-step size during optimization. The default is \code{0.5}.}
+\item{step_halving_factor}{numeric indicating the factor by which the step size is halved to iterate towards
+convergence. This is used to control the step size during optimization. The default is \code{0.5}.}
 
-\item{alpha_tol}{tolerance for fixed effects (alpha) convergence.
-The default is \code{1.0e-06}.}
+\item{alpha_tol}{tolerance for fixed effects (alpha) convergence. The default is \code{1.0e-06}.}
 
-\item{iter_max}{integer indicating the maximum number of iterations
-in the maximization routine. The default is \code{25L}.}
+\item{iter_max}{integer indicating the maximum number of iterations in the maximization routine. The default is
+\code{25L}.}
 
-\item{iter_center_max}{integer indicating the maximum number of
-iterations in the centering algorithm. The default is \code{10000L}.}
+\item{iter_center_max}{integer indicating the maximum number of iterations in the centering algorithm. The default is
+\code{10000L}.}
 
-\item{iter_inner_max}{integer indicating the maximum number of
-iterations in the inner loop of the centering algorithm. The default is
-\code{50L}.}
+\item{iter_inner_max}{integer indicating the maximum number of iterations in the inner loop of the centering
+algorithm. The default is \code{50L}.}
 
-\item{iter_alpha_max}{maximum iterations for fixed effects computation.
-The default is \code{10000L}.}
+\item{iter_alpha_max}{maximum iterations for fixed effects computation. The default is \code{10000L}.}
 
-\item{iter_interrupt}{integer indicating the maximum number of
-iterations before the algorithm is interrupted. The default is \code{1000L}.}
+\item{iter_interrupt}{integer indicating the maximum number of iterations before the algorithm is interrupted. The
+default is \code{1000L}.}
 
-\item{step_halving_memory}{numeric memory factor for step-halving algorithm.
-Controls how much of the previous iteration is retained. The default is \code{0.9}.}
+\item{step_halving_memory}{numeric memory factor for step-halving algorithm. Controls how much of the previous
+iteration is retained. The default is \code{0.9}.}
 
-\item{max_step_halving}{maximum number of post-convergence step-halving attempts.
-The default is \code{2}.}
+\item{max_step_halving}{maximum number of post-convergence step-halving attempts. The default is \code{2}.}
 
-\item{start_inner_tol}{starting tolerance for inner solver iterations.
-The default is \code{1.0e-04}.}
+\item{start_inner_tol}{starting tolerance for inner solver iterations. The default is \code{1.0e-04}.}
 
-\item{return_fe}{logical indicating if the fixed effects should be returned.
-This can be useful when fitting general equilibrium models where skipping the
-fixed effects for intermediate steps speeds up computation. The default is
+\item{return_fe}{logical indicating if the fixed effects should be returned. This can be useful when fitting general
+equilibrium models where skipping the fixed effects for intermediate steps speeds up computation. The default is
 \code{TRUE} and only applies to the \code{feglm} class.}
 
-\item{keep_tx}{logical indicating if the centered regressor matrix should be
-stored. The centered regressor matrix is required for some covariance
-estimators, bias corrections, and average partial effects. This option saves
+\item{keep_tx}{logical indicating if the centered regressor matrix should be stored. The centered regressor matrix is
+required for some covariance estimators, bias corrections, and average partial effects. This option saves
 some computation time at the cost of memory. The default is \code{TRUE}.}
 
-\item{init_theta}{Initial value for the negative binomial dispersion parameter (theta).
-The default is \code{0.0}.}
+\item{init_theta}{Initial value for the negative binomial dispersion parameter (theta). The default is \code{0.0}.}
 }
 \value{
 A named list of control parameters.
 }
 \description{
-Set and change parameters used for fitting \code{\link{feglm}}.
-Termination conditions are similar to \code{\link[stats]{glm}}.
+Set and change parameters used for fitting \link{feglm}, \link{felm}, and \link{fenegbin}. Termination
+conditions are similar to \link[stats]{glm}.
 }
 \examples{
 fit_control(0.05, 0.05, 10L, 10L, TRUE, TRUE, TRUE)
 
 }
 \seealso{
-\code{\link{feglm}}
+\link{feglm}, \link{felm}, and \link{fenegbin}
 }

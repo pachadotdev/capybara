@@ -1,32 +1,53 @@
 #' srr_stats
-#' @srrstats {G1.0} Provides modular helper functions for internal checks and computations in generalized linear models with fixed effects.
+#' @srrstats {G1.0} Provides modular helper functions for internal checks and computations in generalized linear models
+#'  with fixed effects.
 #' @srrstats {G2.0} Validates the integrity of inputs such as factors, formulas, data, and control parameters.
-#' @srrstats {G2.1a} Ensures inputs have expected types and structures, such as formulas being of class `formula` and data being a `data.frame`.
-#' @srrstats {G2.3a} Implements strict argument validation for ranges and constraints (e.g., numeric weights must be non-negative).
-#' @srrstats {G2.3b} Converts inputs (e.g., character vectors) to appropriate formats when required, ensuring consistency.
-#' @srrstats {G2.4a} Validates input arguments to ensure they meet expected formats and values, providing meaningful error messages for invalid inputs to guide users.
-#' @srrstats {G2.4b} Implements checks to detect incompatible parameter combinations, preventing runtime errors and ensuring consistent function behavior.
-#' @srrstats {G2.4c} Ensures numeric inputs (e.g., convergence thresholds, tolerances) are within acceptable ranges to avoid unexpected results.
-#' @srrstats {G2.4d} Verifies the structure and completeness of input data, including the absence of missing values and correct dimensionality for matrices.
-#' @srrstats {G2.4e} Issues warnings when deprecated or redundant arguments are used, encouraging users to adopt updated practices while maintaining backward compatibility.
-#' @srrstats {G2.7} The input accepts data frames, tibbles and data table objects, from which it creates the design matrix.
-#' @srrstats {G2.8} The pre-processing for all main functions (e.g., `feglm`, `felm`, `fepois`, `fenegbin`) is the same. The helper functions discard unusable observations dependening on the link function, and then create the design matrix.
+#' @srrstats {G2.1a} Ensures inputs have expected types and structures, such as formulas being of class `formula` and
+#'  data being a `data.frame`.
+#' @srrstats {G2.3a} Implements strict argument validation for ranges and constraints (e.g., numeric weights must be
+#'  non-negative).
+#' @srrstats {G2.3b} Converts inputs (e.g., character vectors) to appropriate formats when required, ensuring
+#'  consistency.
+#' @srrstats {G2.4a} Validates input arguments to ensure they meet expected formats and values, providing meaningful
+#'  error messages for invalid inputs to guide users.
+#' @srrstats {G2.4b} Implements checks to detect incompatible parameter combinations, preventing runtime errors and
+#'  ensuring consistent function behavior.
+#' @srrstats {G2.4c} Ensures numeric inputs (e.g., convergence thresholds, tolerances) are within acceptable ranges to
+#'  avoid unexpected results.
+#' @srrstats {G2.4d} Verifies the structure and completeness of input data, including the absence of missing values and
+#'  correct dimensionality for matrices.
+#' @srrstats {G2.4e} Issues warnings when deprecated or redundant arguments are used, encouraging users to adopt updated
+#'  practices while maintaining backward compatibility.
+#' @srrstats {G2.7} The input accepts data frames, tibbles and data table objects, from which it creates the design
+#'  matrix.
+#' @srrstats {G2.8} The pre-processing for all main functions (e.g., `feglm`, `felm`, `fepois`, `fenegbin`) is the same.
+#'  The helper functions discard unusable observations dependening on the link function, and then create the design
+#'  matrix.
 #' @srrstats {G2.10} For data frames, tibbles and data tables the column-extraction operations are consistent.
-#' @srrstats {G2.11} `data.frame`-like tabular objects which have can have atypical columns (i.e., `vector`) do not error without reason.
+#' @srrstats {G2.11} `data.frame`-like tabular objects which have can have atypical columns (i.e., `vector`) do not
+#'  error without reason.
 #' @srrstats {G2.13} Checks for and handles missing data in input datasets.
 #' @srrstats {G2.14a} Issues informative errors for invalid inputs, such as incorrect link functions or missing data.
 #' @srrstats {G2.14b} Provides clear error messages when the data structure is incompatible with the model requirements.
-#' @srrstats {G2.15} The functions check for unusable observations (i.e., one column has an NA), and these are discarded before creating the design matrix.
-#' @srrstats {G2.16} `NaN`, `Inf` and `-Inf` cannot be used for the design matrix, and all observations with these values are removed.
+#' @srrstats {G2.15} The functions check for unusable observations (i.e., one column has an NA), and these are discarded
+#'  before creating the design matrix.
+#' @srrstats {G2.16} `NaN`, `Inf` and `-Inf` cannot be used for the design matrix, and all observations with these
+#'  values are removed.
 #' @srrstats {G5.2a} Ensures that all error and warning messages are unique and descriptive.
-#' @srrstats {G5.4a} Includes tests for edge cases, such as binary and continuous response variables, and validates all input arguments.
-#' @srrstats {RE4.4} The model is specified using a formula object, or a character-type object convertible to a formula, which is then used to create the design matrix.
+#' @srrstats {G5.4a} Includes tests for edge cases, such as binary and continuous response variables, and validates all
+#'  input arguments.
+#' @srrstats {RE4.4} The model is specified using a formula object, or a character-type object convertible to a formula
+#'   which is then used to create the design matrix.
 #' @srrstats {RE4.5} Fitted models have an nobs element that can be called with `nobs()`.
-#' @srrstats {RE4.8} The response variable is checked and some observations are dropped if the response is not compatible with the link (i.e., negative values and log-link).
-#' @srrstats {RE4.12} The `check_data_()` function drops observations that are not useable with link function or that do not contribute to the log-likelihood.
+#' @srrstats {RE4.8} The response variable is checked and some observations are dropped if the response is not
+#'  compatible with the link (i.e., negative values and log-link).
+#' @srrstats {RE4.12} The `check_data_()` function drops observations that are not useable with link function or that do
+#'  not contribute to the log-likelihood.
 #' @srrstats {RE4.13} Observations with a dependent variable that is incompatible with the link function are removed.
-#' @srrstats {RE5.0} Supports internal optimizations, including centering variables and reducing computational redundancy.
-#' @srrstats {RE5.1} Implements computational safeguards for iterative processes, such as weight validation and convergence checks.
+#' @srrstats {RE5.0} Supports internal optimizations, including centering variables and reducing computational
+#'  redundancy.
+#' @srrstats {RE5.1} Implements computational safeguards for iterative processes, such as weight validation and
+#'  convergence checks.
 #' @srrstats {RE5.2} Provides utilities for scalable and efficient computation of GLM derivatives and score matrices.
 #' @noRd
 NULL
@@ -135,8 +156,12 @@ check_formula_ <- function(formula) {
 #' @param data Data frame
 #' @noRd
 check_data_ <- function(data) {
-  if (is.null(data)) stop("'data' must be specified.", call. = FALSE)
-  if (!is.data.frame(data)) stop("'data' must be a data.frame.", call. = FALSE)
+  if (is.null(data)) {
+    stop("'data' must be specified.", call. = FALSE)
+  }
+  if (!is.data.frame(data)) {
+    stop("'data' must be a data.frame.", call. = FALSE)
+  }
   if (nrow(data) == 0L) stop("'data' has zero observations.", call. = FALSE)
   # Keep as base data.frame; do not convert to data.table to avoid setup cost
 }
@@ -160,26 +185,49 @@ check_control_ <- function(control) {
       if (param_name %in% names(default_control)) {
         merged_control[[param_name]] <<- control[[param_name]]
       } else {
-        warning(sprintf("Unknown control parameter: '%s'", param_name), call. = FALSE)
+        warning(
+          sprintf("Unknown control parameter: '%s'", param_name),
+          call. = FALSE
+        )
       }
     }))
 
     # checks
     # 1. non-negative params
     non_neg_params <- c(
-      "dev_tol", "center_tol", "collin_tol", "step_halving_factor", "alpha_tol",
-      "iter_max", "iter_center_max", "iter_inner_max", "iter_interrupt",
-      "iter_alpha_max", "step_halving_memory", "start_inner_tol"
+      "dev_tol",
+      "center_tol",
+      "collin_tol",
+      "step_halving_factor",
+      "alpha_tol",
+      "iter_max",
+      "iter_center_max",
+      "iter_inner_max",
+      "iter_interrupt",
+      "iter_alpha_max",
+      "step_halving_memory",
+      "start_inner_tol"
     )
     invisible(lapply(non_neg_params, function(param_name) {
-      if (param_name %in% names(merged_control) && merged_control[[param_name]] <= 0) {
-        stop(sprintf("'%s' must be greater than zero.", param_name), call. = FALSE)
+      if (
+        param_name %in%
+          names(merged_control) &&
+          merged_control[[param_name]] <= 0
+      ) {
+        stop(
+          sprintf("'%s' must be greater than zero.", param_name),
+          call. = FALSE
+        )
       }
     }))
     # 2. logical params
     logical_params <- c("return_fe", "keep_tx")
     invisible(lapply(logical_params, function(param_name) {
-      if (param_name %in% names(merged_control) && !is.logical(merged_control[[param_name]])) {
+      if (
+        param_name %in%
+          names(merged_control) &&
+          !is.logical(merged_control[[param_name]])
+      ) {
         stop(sprintf("'%s' must be logical.", param_name), call. = FALSE)
       }
     }))
@@ -197,7 +245,13 @@ check_family_ <- function(family) {
     stop("use 'fenegbin' instead.", call. = FALSE)
   }
 
-  allowed_families <- c("gaussian", "binomial", "poisson", "Gamma", "inverse.gaussian")
+  allowed_families <- c(
+    "gaussian",
+    "binomial",
+    "poisson",
+    "Gamma",
+    "inverse.gaussian"
+  )
   family[["family"]] <- match.arg(family[["family"]], allowed_families)
 
   if (family[["family"]] == "binomial" && family[["link"]] != "logit") {
@@ -227,7 +281,9 @@ check_response_ <- function(data, lhs, family) {
       y <- check_factor_(y)
 
       # Check if the number of levels equals two
-      if (nlevels(y) != 2) stop("Model response has to be binary.")
+      if (nlevels(y) != 2) {
+        stop("Model response has to be binary.")
+      }
 
       # Ensure 'y' is 0-1 encoded
       y <- as.numeric(y) - 1
@@ -258,7 +314,11 @@ check_response_ <- function(data, lhs, family) {
 #' @param control Control list
 #' @noRd
 drop_by_link_type_ <- function(data, lhs, family, tmp_var, k_vars, control) {
-  if (family[["family"]] %in% c("binomial", "poisson") && isTRUE(control[["drop_pc"]])) {
+  if (
+    family[["family"]] %in%
+      c("binomial", "poisson") &&
+      isTRUE(control[["drop_pc"]])
+  ) {
     # Convert response to numeric if it's an integer
     if (is.integer(data[[lhs]])) {
       data[[lhs]] <- as.numeric(data[[lhs]])
@@ -272,11 +332,18 @@ drop_by_link_type_ <- function(data, lhs, family, tmp_var, k_vars, control) {
 
       invisible(lapply(k_vars, function(j) {
         # Compute group means using base R (ave)
-        data[[tmp_var]] <<- ave(as.numeric(data[[lhs]]), data[[j]], FUN = function(x) mean(x, na.rm = TRUE))
+        data[[tmp_var]] <<- ave(
+          as.numeric(data[[lhs]]),
+          data[[j]],
+          FUN = function(x) mean(x, na.rm = TRUE)
+        )
 
         # Filter rows based on family type
         if (family[["family"]] == "binomial") {
-          data <<- data[data[[tmp_var]] > 0 & data[[tmp_var]] < 1, , drop = FALSE]
+          data <<- data[
+            data[[tmp_var]] > 0 & data[[tmp_var]] < 1, ,
+            drop = FALSE
+          ]
         } else {
           data <<- data[data[[tmp_var]] > 0, , drop = FALSE]
         }
@@ -358,7 +425,15 @@ init_theta_ <- function(init_theta, link) {
 #' @param family Family object
 #' @noRd
 start_guesses_ <- function(
-  beta_start, eta_start, y, X, beta, nt, wt, p, family
+  beta_start,
+  eta_start,
+  y,
+  X,
+  beta,
+  nt,
+  wt,
+  p,
+  family
 ) {
   if (!is.null(beta_start) || !is.null(eta_start)) {
     # If both are specified, ignore eta_start
@@ -437,13 +512,18 @@ get_score_matrix_feglm_ <- function(object) {
     k_list <- get_index_list_(names(object[["lvls_k"]]), object[["data"]])
 
     # Extract regressor matrix
-    X <- model.matrix(object[["formula"]], object[["data"]], rhs = 1L)[, -1L, drop = FALSE]
+    X <- model.matrix(object[["formula"]], object[["data"]], rhs = 1L)[,
+      -1L,
+      drop = FALSE
+    ]
     nms_sp <- attr(X, "dimnames")[[2L]]
     attr(X, "dimnames") <- NULL
 
     # Center variables
     X <- center_variables_(
-      X, w, k_list,
+      X,
+      w,
+      k_list,
       object[["control"]][["center_tol"]],
       object[["control"]][["iter_center_max"]],
       object[["control"]][["iter_interrupt"]]

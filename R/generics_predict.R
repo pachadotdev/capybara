@@ -1,7 +1,8 @@
 #' srr_stats
 #' @srrstats {G1.0} Implements `predict` methods for `feglm` and `felm` objects, similar to base R methods.
 #' @srrstats {G2.1a} Ensures input objects are of the expected class (`feglm` or `felm`).
-#' @srrstats {G2.3a} Provides options for output type (`link`, `response`, or `terms`) via a standardized `type` argument.
+#' @srrstats {G2.3a} Provides options for output type (`link`, `response`, or `terms`) via a standardized `type`
+#'  argument.
 #' @srrstats {G2.3b} Handles missing or invalid new data gracefully with appropriate checks and error messages.
 #' @srrstats {G3.1a} Computes predicted values for both new and existing data sets.
 #' @srrstats {G3.1b} Supports fixed-effects predictions by accounting for levels in the data.
@@ -9,7 +10,8 @@
 #' @srrstats {G5.2a} Tests include validation of predictions against known values and edge cases.
 #' @srrstats {G5.4a} Outputs predictions in a format compatible with standard R workflows.
 #' @srrstats {RE4.9} The predicted values for the model data or new data are returned as a vector with `predict()`.
-#' @srrstats {RE4.16} The fixed effects are passed to the `predict()` function to add the group-specific effects to the predictions.
+#' @srrstats {RE4.16} The fixed effects are passed to the `predict()` function to add the group-specific effects to the
+#'  predictions.
 #' @srrstats {RE5.0} Ensures computational efficiency in handling both `feglm` and `felm` prediction workflows.
 #' @srrstats {RE5.2} Integrates seamlessly with user-provided data for generating predictions.
 #' @srrstats {RE5.3} Provides predictable and consistent output types for downstream analysis.
@@ -20,7 +22,12 @@ NULL
 #' @description Similar to the 'predict' method for 'glm' objects but returns response predictions as default.
 #' @export
 #' @noRd
-predict.feglm <- function(object, newdata = NULL, type = c("response", "link"), ...) {
+predict.feglm <- function(
+  object,
+  newdata = NULL,
+  type = c("response", "link"),
+  ...
+) {
   type <- match.arg(type)
 
   if (!is.null(newdata)) {
@@ -30,17 +37,17 @@ predict.feglm <- function(object, newdata = NULL, type = c("response", "link"), 
     # Extract predictor variables and fixed effects
     formula <- object$formula
     k_vars <- attr(terms(formula, rhs = 2L), "term.labels")
-    
+
     # Get all variables needed (predictors + fixed effects)
     pred_vars <- attr(terms(formula, rhs = 1L), "term.labels")
     all_vars <- c(pred_vars, k_vars)
-    
+
     # Extract and prepare data (no na.omit - we want predictions for all rows)
     data <- newdata[, all_vars, drop = FALSE]
-    
+
     # Transform fixed effects to factors
     data <- transform_fe_(data, formula, k_vars)
-    
+
     # Create design matrix from predictors only
     if (length(pred_vars) > 0) {
       pred_formula <- reformulate(pred_vars, response = NULL)
@@ -62,12 +69,15 @@ predict.feglm <- function(object, newdata = NULL, type = c("response", "link"), 
 
     fes <- object[["fixed_effects"]]
     fes_names <- names(fes)
-    fes2 <- setNames(lapply(fes_names, function(name) {
-      # Match values and handle missing levels
-      matched_values <- fes[[name]][match(data[[name]], names(fes[[name]]))]
-      matched_values[is.na(matched_values)] <- 0 # Set missing levels to 0
-      matched_values
-    }), fes_names)
+    fes2 <- setNames(
+      lapply(fes_names, function(name) {
+        # Match values and handle missing levels
+        matched_values <- fes[[name]][match(data[[name]], names(fes[[name]]))]
+        matched_values[is.na(matched_values)] <- 0 # Set missing levels to 0
+        matched_values
+      }),
+      fes_names
+    )
 
     # Replace NA coefficients with 0 for prediction
     coef0 <- coef_table[, 1]
@@ -78,7 +88,7 @@ predict.feglm <- function(object, newdata = NULL, type = c("response", "link"), 
     } else {
       eta <- X %*% coef0
     }
-    
+
     # Add offset if present in the model
     # Re-evaluate the offset on newdata using the original offset specification
     if (!is.null(object[["offset_spec"]])) {
@@ -92,7 +102,10 @@ predict.feglm <- function(object, newdata = NULL, type = c("response", "link"), 
         if (length(offset_spec) == nrow(data)) {
           offset_newdata <- offset_spec[rownames(data)]
         } else {
-          stop("Cannot apply numeric offset to newdata: length mismatch.", call. = FALSE)
+          stop(
+            "Cannot apply numeric offset to newdata: length mismatch.",
+            call. = FALSE
+          )
         }
       } else {
         offset_newdata <- rep(0.0, nrow(data))
@@ -112,7 +125,7 @@ predict.feglm <- function(object, newdata = NULL, type = c("response", "link"), 
   eta <- as.vector(eta)
   # Prefer row names from the prediction data (or original object), fall back to sequential
   if (!is.null(newdata)) {
-    rn <- rownames(newdata)  # Use original newdata rownames, not filtered data
+    rn <- rownames(newdata) # Use original newdata rownames, not filtered data
   } else {
     rn <- rownames(object$data)
   }
@@ -129,7 +142,12 @@ predict.feglm <- function(object, newdata = NULL, type = c("response", "link"), 
 #' @description Similar to the 'predict' method for 'lm' objects
 #' @export
 #' @noRd
-predict.felm <- function(object, newdata = NULL, type = c("response", "terms"), ...) {
+predict.felm <- function(
+  object,
+  newdata = NULL,
+  type = c("response", "terms"),
+  ...
+) {
   type <- match.arg(type)
 
   if (!is.null(newdata)) {
@@ -139,17 +157,17 @@ predict.felm <- function(object, newdata = NULL, type = c("response", "terms"), 
     # Extract predictor variables and fixed effects
     formula <- object$formula
     fe_names <- attr(terms(formula, rhs = 2L), "term.labels")
-    
+
     # Get all variables needed (predictors + fixed effects)
     pred_vars <- attr(terms(formula, rhs = 1L), "term.labels")
     all_vars <- c(pred_vars, fe_names)
-    
+
     # Extract and prepare data (no na.omit - we want predictions for all rows)
     data <- newdata[, all_vars, drop = FALSE]
-    
+
     # Transform fixed effects to factors
     data <- transform_fe_(data, formula, fe_names)
-    
+
     # Create design matrix from predictors only
     if (length(pred_vars) > 0) {
       pred_formula <- reformulate(pred_vars, response = NULL)
@@ -169,12 +187,15 @@ predict.felm <- function(object, newdata = NULL, type = c("response", "terms"), 
 
     fes <- object[["fixed_effects"]]
     fes_names <- names(fes)
-    fes2 <- setNames(lapply(fes_names, function(name) {
-      # Match values and handle missing levels
-      matched_values <- fes[[name]][match(data[[name]], names(fes[[name]]))]
-      matched_values[is.na(matched_values)] <- 0 # Set missing levels to 0
-      matched_values
-    }), fes_names)
+    fes2 <- setNames(
+      lapply(fes_names, function(name) {
+        # Match values and handle missing levels
+        matched_values <- fes[[name]][match(data[[name]], names(fes[[name]]))]
+        matched_values[is.na(matched_values)] <- 0 # Set missing levels to 0
+        matched_values
+      }),
+      fes_names
+    )
 
     # Replace NA coefficients with 0 for prediction
     coef0 <- coef_table[, 1]
@@ -185,7 +206,7 @@ predict.felm <- function(object, newdata = NULL, type = c("response", "terms"), 
     } else {
       y <- X %*% coef0
     }
-    
+
     # Add offset if present (felm typically doesn't use offsets, but handle for consistency)
     if (!is.null(object[["offset_spec"]])) {
       offset_spec <- object[["offset_spec"]]
@@ -203,7 +224,7 @@ predict.felm <- function(object, newdata = NULL, type = c("response", "terms"), 
   y <- as.vector(y)
   # Prefer row names from the prediction data (or original object), fall back to sequential
   if (!is.null(newdata)) {
-    rn <- rownames(newdata)  # Use original newdata rownames, not filtered data
+    rn <- rownames(newdata) # Use original newdata rownames, not filtered data
   } else {
     rn <- rownames(object$data)
   }

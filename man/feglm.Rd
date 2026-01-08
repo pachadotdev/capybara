@@ -16,42 +16,31 @@ feglm(
 )
 }
 \arguments{
-\item{formula}{an object of class \code{"formula"}: a symbolic description of
-the model to be fitted. \code{formula} must be of type \code{y ~ X | k},
-where the second part of the formula refers to factors to be concentrated
-out. It is also possible to pass clustering variables to \code{\link{feglm}}
-as \code{y ~ X | k | c}.}
+\item{formula}{an object of class \code{"formula"}: a symbolic description of the model to be fitted. \code{formula}
+must be of type \code{response ~ slopes | fixed_effects | cluster}.}
 
-\item{data}{an object of class \code{"data.frame"} containing the variables
-in the model. The expected input is a dataset with the variables specified
-in \code{formula} and a number of rows at least equal to the number of
-variables in the model.}
+\item{data}{an object of class \code{"data.frame"} containing the variables in the model. The expected input is a
+dataset with the variables specified in \code{formula} and a number of rows at least equal to the number of variables
+in the model.}
 
-\item{family}{the link function to be used in the model. Similar to
-\code{\link[stats]{glm.fit}} this has to be the result of a call to a family
-function. Default is \code{gaussian()}. See \code{\link[stats]{family}} for
-details of family functions.}
+\item{family}{the link function to be used in the model. Similar to \link[stats]{glm.fit} this has to be the result
+of a call to a family function. Default is \code{gaussian()}. See \link[stats]{family} for details of family
+functions.}
 
-\item{weights}{an optional string with the name of the 'prior weights'
-variable in \code{data}.}
+\item{weights}{an optional string with the name of the prior weights variable in \code{data}.}
 
-\item{beta_start}{an optional vector of starting values for the structural
-parameters in the linear predictor. Default is
-\eqn{\boldsymbol{\beta} = \mathbf{0}}{\beta = 0}.}
+\item{beta_start}{an optional vector of starting values for the structural parameters in the linear predictor.
+Default is \eqn{\boldsymbol{\beta} = \mathbf{0}}{\beta = 0}.}
 
-\item{eta_start}{an optional vector of starting values for the linear
-predictor.}
+\item{eta_start}{an optional vector of starting values for the linear predictor.}
 
-\item{offset}{an optional formula or numeric vector specifying an a priori
-known component to be included in the linear predictor. If a formula,
-it should be of the form \code{~ log(variable)}.}
+\item{offset}{an optional formula or numeric vector specifying an a priori known component to be included in the
+linear predictor. If a formula, it should be of the form \code{~ log(variable)}.}
 
-\item{control}{a named list of parameters for controlling the fitting
-process. See \code{\link{fit_control}} for details.}
+\item{control}{a named list of parameters for controlling the fitting process. See \link{fit_control} for details.}
 }
 \value{
-A named list of class \code{"feglm"}. The list contains the following
-fifteen elements:
+A named list of class \code{"feglm"}. The list contains the following fifteen elements:
 \item{coefficients}{a named vector of the estimated coefficients}
 \item{eta}{a vector of the linear predictor}
 \item{weights}{a vector of the weights used in the estimation}
@@ -60,10 +49,9 @@ fifteen elements:
 \item{null_deviance}{the null deviance of the model}
 \item{conv}{a logical indicating whether the model converged}
 \item{iter}{the number of iterations needed to converge}
-\item{nobs}{a named vector with the number of observations used in the
-estimation indicating the dropped and perfectly predicted observations}
-\item{fe_levels}{a named vector with the number of levels in each fixed
-effects}
+\item{nobs}{a named vector with the number of observations used in the estimation indicating the dropped and
+perfectly predicted observations}
+\item{fe_levels}{a named vector with the number of levels in each fixed effects}
 \item{nms_fe}{a list with the names of the fixed effects variables}
 \item{formula}{the formula used in the model}
 \item{data}{the data used in the model after dropping non-contributing
@@ -72,19 +60,12 @@ observations}
 \item{control}{the control list used in the model}
 }
 \description{
-\code{\link{feglm}} can be used to fit generalized linear models
-with many high-dimensional fixed effects. The estimation procedure is based
-on unconditional maximum likelihood and can be interpreted as a
-\dQuote{weighted demeaning} approach.
-
-\strong{Remark:} The term fixed effect is used in econometrician's sense of
-having intercepts for each level in each category.
+\link{feglm} can be used to fit generalized linear models with many high-dimensional fixed effects. The
+term fixed effect means having one intercept for each level in each category.
 }
 \details{
-If \code{\link{feglm}} does not converge this is often a sign of
-linear dependence between one or more regressors and a fixed effects
-category. In this case, you should carefully inspect your model
-specification.
+If \link{feglm} does not converge this is often a sign of linear dependence between one or more
+regressors and a fixed effects category. In this case, you should carefully inspect your model specification.
 }
 \examples{
 # Model without clustering - uses inverse Hessian for vcov
@@ -97,15 +78,15 @@ summary(mod)
 
 }
 \references{
-Gaure, S. (2013). "OLS with Multiple High Dimensional Category
-Variables". Computational Statistics and Data Analysis, 66.
+Gaure, S. (2013). "OLS with Multiple High Dimensional Category Variables". Computational Statistics and
+Data Analysis, 66.
 
-Marschner, I. (2011). "glm2: Fitting generalized linear models
-with convergence problems". The R Journal, 3(2).
+Marschner, I. (2011). "glm2: Fitting generalized linear models with convergence problems". The R Journal,
+3(2).
 
-Stammann, A., F. Heiss, and D. McFadden (2016). "Estimating Fixed
-Effects Logit Models with Large Panel Data". Working paper.
+Stammann, A., F. Heiss, and D. McFadden (2016). "Estimating Fixed Effects Logit Models with Large Panel
+Data". Working paper.
 
-Stammann, A. (2018). "Fast and Feasible Estimation of Generalized
-Linear Models with High-Dimensional k-Way Fixed Effects". ArXiv e-prints.
+Stammann, A. (2018). "Fast and Feasible Estimation of Generalized Linear Models with High-Dimensional
+k-Way Fixed Effects". ArXiv e-prints.
 }

@@ -5,7 +5,8 @@
 #' @srrstats {G2.14a} Issues clear error messages for invalid inputs, such as non-`feglm` objects or mismatched offsets.
 #' @srrstats {G5.2a} Guarantees that all errors and warnings are unique and descriptive.
 #' @srrstats {RE5.0} Optimizes iterative computation with safeguards for large-scale datasets and weight adjustments.
-#' @srrstats {RE5.2} Efficiently handles updates to the linear predictor in models with fixed effects, ensuring scalability.
+#' @srrstats {RE5.2} Efficiently handles updates to the linear predictor in models with fixed effects, ensuring
+#'  scalability.
 #' @noRd
 NULL
 
@@ -34,11 +35,28 @@ feglm_offset_ <- function(object, offset) {
   # Compute starting guess for eta
   nt <- object[["nobs"]][["nobs"]]
   if (object[["family"]][["family"]] == "binomial") {
-    eta <- rep(object[["family"]][["linkfun"]](sum(object[["weights"]] * (y + 0.5) / 2.0) / sum(object[["weights"]])), nt)
-  } else if (object[["family"]][["family"]] %in% c("Gamma", "inverse.gaussian")) {
-    eta <- rep(object[["family"]][["linkfun"]](sum(object[["weights"]] * y) / sum(object[["weights"]])), nt)
+    eta <- rep(
+      object[["family"]][["linkfun"]](
+        sum(object[["weights"]] * (y + 0.5) / 2.0) / sum(object[["weights"]])
+      ),
+      nt
+    )
+  } else if (
+    object[["family"]][["family"]] %in% c("Gamma", "inverse.gaussian")
+  ) {
+    eta <- rep(
+      object[["family"]][["linkfun"]](
+        sum(object[["weights"]] * y) / sum(object[["weights"]])
+      ),
+      nt
+    )
   } else {
-    eta <- rep(object[["family"]][["linkfun"]](sum(object[["weights"]] * (y + 0.1)) / sum(object[["weights"]])), nt)
+    eta <- rep(
+      object[["family"]][["linkfun"]](
+        sum(object[["weights"]] * (y + 0.1)) / sum(object[["weights"]])
+      ),
+      nt
+    )
   }
 
   # Return eta
@@ -46,6 +64,12 @@ feglm_offset_ <- function(object, offset) {
     y <- as.numeric(y)
   }
   feglm_offset_fit_(
-    eta, y, offset, object[["weights"]], object[["family"]][["family"]], object[["control"]], k_list
+    eta,
+    y,
+    offset,
+    object[["weights"]],
+    object[["family"]][["family"]],
+    object[["control"]],
+    k_list
   )
 }

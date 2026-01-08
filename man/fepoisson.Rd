@@ -15,39 +15,30 @@ fepoisson(
 )
 }
 \arguments{
-\item{formula}{an object of class \code{"formula"}: a symbolic description of
-the model to be fitted. \code{formula} must be of type \code{y ~ X | k},
-where the second part of the formula refers to factors to be concentrated
-out. It is also possible to pass clustering variables to \code{\link{feglm}}
-as \code{y ~ X | k | c}.}
+\item{formula}{an object of class \code{"formula"}: a symbolic description of the model to be fitted. \code{formula}
+must be of type \code{response ~ slopes | fixed_effects | cluster}.}
 
-\item{data}{an object of class \code{"data.frame"} containing the variables
-in the model. The expected input is a dataset with the variables specified
-in \code{formula} and a number of rows at least equal to the number of
-variables in the model.}
+\item{data}{an object of class \code{"data.frame"} containing the variables in the model. The expected input is a
+dataset with the variables specified in \code{formula} and a number of rows at least equal to the number of variables
+in the model.}
 
-\item{weights}{an optional string with the name of the 'prior weights'
-variable in \code{data}.}
+\item{weights}{an optional string with the name of the prior weights variable in \code{data}.}
 
-\item{beta_start}{an optional vector of starting values for the structural
-parameters in the linear predictor. Default is
-\eqn{\boldsymbol{\beta} = \mathbf{0}}{\beta = 0}.}
+\item{beta_start}{an optional vector of starting values for the structural parameters in the linear predictor.
+Default is \eqn{\boldsymbol{\beta} = \mathbf{0}}{\beta = 0}.}
 
-\item{eta_start}{an optional vector of starting values for the linear
-predictor.}
+\item{eta_start}{an optional vector of starting values for the linear predictor.}
 
-\item{offset}{an optional formula or numeric vector specifying an a priori
-known component to be included in the linear predictor. If a formula,
-it should be of the form \code{~ log(variable)}.}
+\item{offset}{an optional formula or numeric vector specifying an a priori known component to be included in the
+linear predictor. If a formula, it should be of the form \code{~ log(variable)}.}
 
-\item{control}{a named list of parameters for controlling the fitting
-process. See \code{\link{fit_control}} for details.}
+\item{control}{a named list of parameters for controlling the fitting process. See \link{fit_control} for details.}
 }
 \value{
 A named list of class \code{"feglm"}.
 }
 \description{
-A wrapper for \code{\link{feglm}} with
+A wrapper for \link{feglm} with
 \code{family = poisson()}.
 }
 \examples{

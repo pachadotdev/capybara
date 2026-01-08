@@ -20,8 +20,8 @@ check_separation(
 \arguments{
 \item{y}{Numeric vector of response values (non-negative integers for count data).}
 
-\item{X}{Numeric matrix of regressors (design matrix). Can be \code{NULL} or
-empty if only checking fixed effects separation.}
+\item{X}{Numeric matrix of regressors (design matrix). Can be \code{NULL} or empty if only checking fixed effects
+separation.}
 
 \item{w}{Numeric vector of weights. Default is a vector of ones.}
 
@@ -50,31 +50,26 @@ A list with components:
 }
 }
 \description{
-Detect statistical separation (perfect predictors) in Poisson
-regression models. Separation occurs when a linear combination of regressors
-can perfectly predict zero outcomes, causing maximum likelihood estimates to
-diverge. This function implements the ReLU and simplex methods from Correia,
-Guimarães, and Zylkin (2019).
+Detect statistical separation (perfect predictors) in Poisson regression models. Separation occurs when
+a linear combination of regressors can perfectly predict zero outcomes, causing maximum likelihood estimates to
+diverge. This function implements the ReLU and simplex methods from Correia, Guimarães, and Zylkin (2019).
 }
 \details{
-Statistical separation occurs in Poisson and other count data models when
-there exists a linear combination of regressors that is non-negative for all
-observations with \eqn{y = 0} and positive for at least one such observation.
-This causes the MLE to not exist (coefficients diverge to \eqn{\pm\infty}).
+Statistical separation occurs in Poisson and other count data models when there exists a linear combination
+of regressors that is non-negative for all observations with \eqn{y = 0} and positive for at least one such
+observation. This causes the MLE to not exist (coefficients diverge to \eqn{\pm\infty}).
 
 The function implements two complementary detection methods:
 
-\strong{ReLU Method:} An iterative algorithm that solves a sequence of
-constrained least squares problems using the Rectified Linear Unit (ReLU)
-activation function. This method is more thorough and provides a certificate
-of separation.
+\strong{ReLU Method:} An iterative algorithm that solves a sequence of constrained least squares problems using the
+Rectified Linear Unit (ReLU) activation function. This method is more thorough and provides a certificate of
+separation.
 
-\strong{Simplex Method:} A linear programming approach that checks for
-separating hyperplanes. This method is faster for initial screening.
+\strong{Simplex Method:} A linear programming approach that checks for separating hyperplanes. This method is faster
+for initial screening.
 
-Both methods are based on the theoretical framework of Correia, Guimarães,
-and Zylkin (2019), who show that separation detection is equivalent to
-solving a specific linear programming problem.
+Both methods are based on the theoretical framework of Correia, Guimarães, and Zylkin (2019), who show that
+separation detection is equivalent to solving a specific linear programming problem.
 }
 \examples{
 \dontrun{
@@ -93,13 +88,12 @@ print(result$num_separated)
 
 }
 \references{
-Correia, S., Guimarães, P., and Zylkin, T. (2019). "Verifying the Existence
-of Maximum Likelihood Estimates for Generalized Linear Models."
-\url{https://arxiv.org/abs/1903.01633}
+Correia, S., Guimarães, P., and Zylkin, T. (2019). "Verifying the Existence of Maximum Likelihood Estimates for
+Generalized Linear Models." \url{https://arxiv.org/abs/1903.01633}
 
-Correia, S., Guimarães, P., and Zylkin, T. (2020). "Fast Poisson Estimation
-with High-Dimensional Fixed Effects." \emph{The Stata Journal}, 20(1), 95-115.
+Correia, S., Guimarães, P., and Zylkin, T. (2020). "Fast Poisson Estimation with High-Dimensional Fixed Effects."
+\emph{The Stata Journal}, 20(1), 95-115.
 }
 \seealso{
-\code{\link{fepoisson}}, \code{\link{feglm}}
+\link{fepoisson}, \link{feglm}
 }

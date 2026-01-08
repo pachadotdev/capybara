@@ -14,7 +14,7 @@ Imports:
     Formula,
     generics,
     ggplot2,
-    kendallknight,
+    rlang,
     MASS,
     stats
 Suggests: 

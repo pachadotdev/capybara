@@ -1,5 +1,6 @@
 #' srr_stats
-#' @srrstats {G1.0} The implementation is aligned with established methods, including those described in Stammann (2018), Fernández-Val and Weidner (2016), and others.
+#' @srrstats {G1.0} The implementation is aligned with established methods, including those described in Stammann
+#'  (2018), Fernández-Val and Weidner (2016), and others.
 #' @srrstats {G2.1a} Ensures input objects are of the expected class (`feglm`).
 #' @srrstats {G2.3a} Validates string arguments like `panel_structure` using `match.arg()` for predefined values.
 #' @srrstats {G2.14a} Provides errors for missing or invalid inputs, such as non-`feglm` objects.
@@ -12,55 +13,45 @@
 NULL
 
 #' NA_standards
-#' @srrstatsNA {G2.14} Missing observations are dropped, otherwise providing imputation methods would bias the estimation (i.e., replacing all missing values with the median).
+#' @srrstatsNA {G2.14} Missing observations are dropped, otherwise providing imputation methods would bias the
+#'  estimation (i.e., replacing all missing values with the median).
 #' @noRd
 NULL
 
-#' @title Asymptotic bias correction after fitting binary choice models with a
-#'  1,2,3-way error component
+#' @title Asymptotic bias correction after fitting binary choice models with a 1,2,3-way error component
 #'
-#' @description Post-estimation routine to substantially reduce the incidental
-#'  parameter bias problem. Applies the analytical bias correction derived by
-#'  Fernández-Val and Weidner (2016) and Hinz, Stammann, and Wanner (2020) to
-#'  obtain bias-corrected estimates of the structural parameters and is
-#'  currently restricted to \code{\link[stats]{binomial}} with 1,2,3-way fixed
-#'  effects.
+#' @description Post-estimation routine to substantially reduce the incidental parameter bias problem. Applies the
+#'  analytical bias correction derived by Fernández-Val and Weidner (2016) and Hinz, Stammann, and Wanner (2020) to
+#'  obtain bias-corrected estimates of the structural parameters and is currently restricted to \link[stats]{binomial}
+#'  with 1,2,3-way fixed effects.
 #'
 #' @param object an object of class \code{"feglm"}.
-#' @param l unsigned integer indicating a bandwidth for the estimation of
-#'  spectral densities proposed by Hahn and Kuersteiner (2011). The default is
-#'  zero, which should be used if all regressors are assumed to be strictly
-#'  exogenous with respect to the idiosyncratic error term. In the presence of
-#'  weakly exogenous regressors, e.g. lagged outcome variables, we suggest to
-#'  choose a bandwidth between one and four. Note that the order of factors to
-#'  be partialed out is important for bandwidths larger than zero.
-#' @param panel_structure a string equal to \code{"classic"} or \code{"network"}
-#'  which determines the structure of the panel used. \code{"classic"} denotes
-#'  panel structures where for example the same cross-sectional units are
-#'  observed several times (this includes pseudo panels). \code{"network"}
-#'  denotes panel structures where for example bilateral trade flows are
-#'  observed for several time periods. Default is \code{"classic"}.
+#' @param l integer indicating a bandwidth for the estimation of spectral densities proposed by Hahn and Kuersteiner
+#'  (2011). The default is zero, which should be used if all regressors are assumed to be strictly exogenous with
+#'  respect to the idiosyncratic error term. In the presence of weakly exogenous regressors, e.g. lagged outcome
+#'  variables, we suggest to choose a bandwidth between one and four. Note that the order of factors to be partialed out
+#'  is important for bandwidths larger than zero.
+#' @param panel_structure a string equal to \code{"classic"} or \code{"network"} which determines the structure of the
+#'  panel used. \code{"classic"} denotes panel structures where for example the same cross-sectional units are observed
+#'  several times (this includes pseudo panels). \code{"network"} denotes panel structures where for example bilateral
+#'  trade flows are observed for several time periods. Default is \code{"classic"}.
 #'
 #' @return A named list of classes \code{"bias_corr"} and \code{"feglm"}.
 #'
-#' @references Czarnowske, D. and A. Stammann (2020). "Fixed Effects Binary
-#'  Choice Models: Estimation and Inference with Long Panels". ArXiv e-prints.
-#' @references Fernández-Val, I. and M. Weidner (2016). "Individual and time
-#'  effects in nonlinear panel models with large N, T". Journal of Econometrics,
-#'  192(1), 291-312.
-#' @references Fernández-Val, I. and M. Weidner (2018). "Fixed effects
-#'  estimation of large-t panel data models". Annual Review of Economics, 10,
-#'  109-138.
-#' @references Hahn, J. and G. Kuersteiner (2011). "Bias reduction for dynamic
-#'  nonlinear panel models with fixed effects". Econometric Theory, 27(6),
-#'  1152-1191.
-#' @references Hinz, J., A. Stammann, and J. Wanner (2020). "State Dependence
-#'  and Unobserved Heterogeneity in the Extensive Margin of Trade". ArXiv
-#'  e-prints.
-#' @references Neyman, J. and E. L. Scott (1948). "Consistent estimates based on
-#'  partially consistent observations". Econometrica, 16(1), 1-32.
+#' @references Czarnowske, D. and A. Stammann (2020). "Fixed Effects Binary Choice Models: Estimation and Inference with
+#'  Long Panels". ArXiv e-prints.
+#' @references Fernández-Val, I. and M. Weidner (2016). "Individual and time effects in nonlinear panel models with
+#'  large N, T". Journal of Econometrics, 192(1), 291-312.
+#' @references Fernández-Val, I. and M. Weidner (2018). "Fixed effects estimation of large-t panel data models". Annual
+#'  Review of Economics, 10, 109-138.
+#' @references Hahn, J. and G. Kuersteiner (2011). "Bias reduction for dynamic nonlinear panel models with fixed
+#'  effects". Econometric Theory, 27(6), 1152-1191.
+#' @references Hinz, J., A. Stammann, and J. Wanner (2020). "State Dependence and Unobserved Heterogeneity in the
+#'  Extensive Margin of Trade". ArXiv e-prints.
+#' @references Neyman, J. and E. L. Scott (1948). "Consistent estimates based on partially consistent observations".
+#'  Econometrica, 16(1), 1-32.
 #'
-#' @seealso \code{\link{feglm}}
+#' @seealso \link{feglm}
 #'
 #' @examples
 #' mtcars2 <- mtcars

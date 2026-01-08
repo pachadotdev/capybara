@@ -1,11 +1,11 @@
-utils::globalVariables(c("term", "estimate", "conf_low", "conf_high"))
-
 #' @importFrom ggplot2 autoplot
+#' @importFrom rlang .data
 #' @export
 ggplot2::autoplot
 
 #' srr_stats
-#' @srrstats {G1.0} Adheres to R standards for extending methods like `autoplot` for custom classes (`feglm` and `felm`).
+#' @srrstats {G1.0} Adheres to R standards for extending methods like `autoplot` for custom classes (`feglm` and
+#' `felm`).
 #' @srrstats {G2.1a} Ensures input objects are of the expected classes (`feglm` or `felm`), stopping otherwise.
 #' @srrstats {G2.3a} Provides validation for optional arguments like `conf_level`, ensuring their correctness.
 #' @srrstats {G2.3b} Handles potential case sensitivity issues for user-specified arguments.
@@ -13,13 +13,16 @@ ggplot2::autoplot
 #' @srrstats {G2.14b} Provides default values for optional arguments when missing.
 #' @srrstats {G3.1a} Supports customizable confidence intervals via user-provided `conf_level`.
 #' @srrstats {G5.2a} Produces unique and informative error messages when preconditions are not met.
-#' @srrstats {G5.4a} Includes validation against common edge cases, like missing required input or invalid argument values.
+#' @srrstats {G5.4a} Includes validation against common edge cases, like missing required input or invalid argument
+#'  values.
 #' @noRd
 NULL
 
 #' NA_standards
-#' @srrstatsNA {RE6.2} Considering that the data tends to be very large, it made more sense to add a method to plot the coefficients instead of millions of predicted data points.
-#' @srrstatsNA {RE6.3} We plot the estimated coefficients without the fixed effects. Plotting millions of points would only add visual clutter and not provide any additional information.
+#' @srrstatsNA {RE6.2} Considering that the data tends to be very large, it made more sense to add a method to plot the
+#'  coefficients instead of millions of predicted data points.
+#' @srrstatsNA {RE6.3} We plot the estimated coefficients without the fixed effects. Plotting millions of points would
+#'  only add visual clutter and not provide any additional information.
 #' @noRd
 NULL
 
@@ -31,12 +34,10 @@ NULL
 #' @rdname autoplot
 #'
 #' @param object A fitted model object.
-#' @param ... Additional arguments passed to the method. In this case,
-#'  the additional argument is `conf_level`, which is the confidence level for
-#'  the confidence interval.
+#' @param ... Additional arguments passed to the method. In this case, the additional argument is `conf_level`, which is
+#'  the confidence level for the confidence interval.
 #'
-#' @return A ggplot object with the estimated coefficients and their confidence
-#'  intervals.
+#' @return A ggplot object with the estimated coefficients and their confidence intervals.
 #'
 #' @examples
 #' mod <- fepoisson(mpg ~ wt + drat | cyl, mtcars)
@@ -72,7 +73,7 @@ autoplot.feglm <- function(object, ...) {
 
   # Calculate the critical value and compute confidence intervals
   z_crit <- qnorm(1 - (1 - conf_level) / 2)
-  
+
   # Compute the confidence intervals
   conf_data <- data.frame(
     term = rownames(res),
@@ -81,11 +82,11 @@ autoplot.feglm <- function(object, ...) {
     conf_high = res[, "estimate"] + z_crit * res[, "std.error"]
   )
 
-  ggplot(conf_data, aes(x = term, y = estimate)) +
+  ggplot(conf_data, aes(x = .data$term, y = .data$estimate)) +
     geom_errorbar(
       aes(
-        ymin = conf_low,
-        ymax = conf_high
+        ymin = .data$conf_low,
+        ymax = .data$conf_high
       ),
       width = 0.1,
       color = "#165976"
@@ -109,8 +110,7 @@ autoplot.feglm <- function(object, ...) {
 #'
 #' @rdname autoplot
 #'
-#' @return A ggplot object with the estimated coefficients and their confidence
-#' intervals.
+#' @return A ggplot object with the estimated coefficients and their confidence intervals.
 #'
 #' @examples
 #' mod <- felm(mpg ~ wt + drat | cyl, mtcars)
@@ -146,7 +146,7 @@ autoplot.felm <- function(object, ...) {
 
   # Calculate the critical value and compute confidence intervals
   z_crit <- qnorm(1 - (1 - conf_level) / 2)
-  
+
   # Compute the confidence intervals
   conf_data <- data.frame(
     term = rownames(res),
@@ -155,11 +155,11 @@ autoplot.felm <- function(object, ...) {
     conf_high = res[, "estimate"] + z_crit * res[, "std.error"]
   )
 
-  ggplot(conf_data, aes(x = term, y = estimate)) +
+  ggplot(conf_data, aes(x = .data$term, y = .data$estimate)) +
     geom_errorbar(
       aes(
-        ymin = conf_low,
-        ymax = conf_high
+        ymin = .data$conf_low,
+        ymax = .data$conf_high
       ),
       width = 0.1,
       color = "#165976"

@@ -15,10 +15,9 @@
 A named matrix of covariance estimates.
 }
 \description{
-Covariance matrix for the estimator of the structural parameters
-from objects returned by \code{\link{feglm}}. The covariance is computed
-during model fitting - either the inverse Hessian (default) or the
-sandwich estimator if cluster variables are specified in the formula.
+Covariance matrix for the estimator of the structural parameters from objects returned by \link{feglm}.
+The covariance is computed during model fitting - either the inverse Hessian (default) or the sandwich estimator if
+cluster variables are specified in the formula.
 }
 \examples{
 # Model without clustering - returns inverse Hessian covariance
@@ -31,9 +30,9 @@ round(vcov(mod_cl), 5)
 
 }
 \references{
-Cameron, C., J. Gelbach, and D. Miller (2011). "Robust Inference
-With Multiway Clustering". Journal of Business & Economic Statistics 29(2).
+Cameron, C., J. Gelbach, and D. Miller (2011). "Robust Inference With Multiway Clustering". Journal of
+Business & Economic Statistics 29(2).
 }
 \seealso{
-\code{\link{feglm}}
+\link{feglm}
 }

@@ -1,69 +1,52 @@
 #' srr_stats
-#' #' @srrstats {G1.0} Implements controls for efficient and numerically stable
-#'  fitting of generalized linear models with fixed effects.
-#' @srrstats {G2.0} Validates the integrity of inputs such as
-#'  factors, formulas, data, and control parameters.
-#' @srrstats {G2.0a} Gives informative errors (e.g. "tolerance must be
-#'  unidimensional").
-#' @srrstats {G2.1a} Ensures inputs have expected types and structures, such as
-#'  formulas being of class `formula` and data being a `data.frame`.
-#'  Ensures the proper data types for arguments (e.g., integer for `iter_max`).
-#' @srrstats {G2.3a} Implements strict argument validation for ranges and
-#'  constraints (e.g., numeric weights must be non-negative).
-#' @srrstats {G2.3b} Converts inputs (e.g., character vectors) to appropriate
-#'  formats when required, ensuring consistency.
-#' @srrstats {G2.4a} Validates input arguments to ensure they meet expected
-#'  formats and values, providing meaningful error messages for invalid inputs
-#'  to guide users.
-#' @srrstats {G2.4b} Implements checks to detect incompatible parameter
-#'  combinations, preventing runtime errors and ensuring consistent function
-#'  behavior.
-#' @srrstats {G2.4c} Ensures numeric inputs (e.g., convergence thresholds,
-#'  tolerances) are within acceptable ranges to avoid unexpected results.
-#' @srrstats {G2.4d} Verifies the structure and completeness of input data,
-#'  including the absence of missing values and correct dimensionality for
-#'  matrices.
-#' @srrstats {G2.4e} Issues warnings when deprecated or redundant arguments are
-#'  used, encouraging users to adopt updated practices while maintaining
-#'  backward compatibility.
-#' @srrstats {G2.7} The input accepts data frames, tibbles and data table
-#'  objects, from which it creates the design matrix.
-#' @srrstats {G2.8} The pre-processing for all main functions (e.g., `feglm`,
-#'  `felm`, `fepois`, `fenegbin`) is the same. The helper functions discard
-#'  unusable observations dependening on the link function, and then create the
-#'  design matrix.
-#' @srrstats {G2.10} For data frames, tibbles and data tables the
-#'  column-extraction operations are consistent.
-#' @srrstats {G2.11} `data.frame`-like tabular objects which have can have
-#'  atypical columns (i.e., `vector`) do not error without reason.
-#' @srrstats {G2.13} Checks for and handles missing data in input datasets.
-#' @srrstats {G2.14a} Issues informative errors for invalid inputs, such as
-#'  incorrect link functions or missing data.
-#' @srrstats {G2.14b} Provides clear error messages when the data structure is
-#'  incompatible with the model requirements.
-#' @srrstats {G2.15} The functions check for unusable observations (i.e.,
-#'  one column has an NA), and these are discarded before creating the design
+#' @srrstats {G1.0} Implements controls for efficient and numerically stable fitting of generalized linear models with
+#'  fixed effects.
+#' @srrstats {G2.0} Validates the integrity of inputs such as factors, formulas, data, and control parameters.
+#' @srrstats {G2.0a} Gives informative errors (e.g. "tolerance must be unidimensional").
+#' @srrstats {G2.1a} Ensures inputs have expected types and structures, such as formulas being of class `formula` and
+#'  data being a `data.frame`. Ensures the proper data types for arguments (e.g., integer for `iter_max`).
+#' @srrstats {G2.3a} Implements strict argument validation for ranges and constraints (e.g., numeric weights must be
+#'  non-negative).
+#' @srrstats {G2.3b} Converts inputs (e.g., character vectors) to appropriate formats when required, ensuring
+#'  consistency.
+#' @srrstats {G2.4a} Validates input arguments to ensure they meet expected formats and values, providing meaningful
+#'  error messages for invalid inputs to guide users.
+#' @srrstats {G2.4b} Implements checks to detect incompatible parameter combinations, preventing runtime errors and
+#'  ensuring consistent function behavior.
+#' @srrstats {G2.4c} Ensures numeric inputs (e.g., convergence thresholds, tolerances) are within acceptable ranges to
+#'  avoid unexpected results.
+#' @srrstats {G2.4d} Verifies the structure and completeness of input data, including the absence of missing values and
+#'  correct dimensionality for matrices.
+#' @srrstats {G2.4e} Issues warnings when deprecated or redundant arguments are used, encouraging users to adopt updated
+#'  practices while maintaining backward compatibility.
+#' @srrstats {G2.7} The input accepts data frames, tibbles and data table objects, from which it creates the design
 #'  matrix.
-#' @srrstats {G2.16} `NaN`, `Inf` and `-Inf` cannot be used for the design
-#'  matrix, and all observations with these values are removed.
-#' @srrstats {G5.2a} Ensures that all error and warning messages are unique and
-#'  descriptive. All parameter validations provide clear error messages
-#' @srrstats {G5.4a} Includes tests for edge cases, such as binary and
-#'  continuous response variables, and validates all input arguments.
-#' @srrstats {RE3.0} If the deviance difference between 2 iterations is not less
-#'  than tolerance after the max number of iterations, it
-#'  prints a convergence warning.
-#' @srrstats {RE4.4} The model is specified using a formula object, or a
-#'  character-type object convertible to a formula, which is then used to create
-#'  the design matrix.
-#' @srrstats {RE4.5} Fitted models have an nobs element that can be called with
-#'  `nobs()`.
-#' @srrstats {RE4.12} The `check_data_()` function drops observations that are
-#'  not useable with link function or that do not contribute to the
-#'  log-likelihood.
-#' @srrstats {RE5.0} Supports control over algorithmic complexity, such as
-#'  dropping perfectly separated observations (`drop_pc`) and optional matrix
-#'  storage (`keep_dmx`).
+#' @srrstats {G2.8} The pre-processing for all main functions (e.g., `feglm`, `felm`, `fepois`, `fenegbin`) is the same.
+#'  The helper functions discard unusable observations dependening on the link function, and then create the design
+#'  matrix.
+#' @srrstats {G2.10} For data frames, tibbles and data tables the column-extraction operations are consistent.
+#' @srrstats {G2.11} `data.frame`-like tabular objects which have can have atypical columns (i.e., `vector`) do not
+#'  error without reason.
+#' @srrstats {G2.13} Checks for and handles missing data in input datasets.
+#' @srrstats {G2.14a} Issues informative errors for invalid inputs, such as incorrect link functions or missing data.
+#' @srrstats {G2.14b} Provides clear error messages when the data structure is incompatible with the model requirements.
+#' @srrstats {G2.15} The functions check for unusable observations (i.e., one column has an NA), and these are discarded
+#'  before creating the design matrix.
+#' @srrstats {G2.16} `NaN`, `Inf` and `-Inf` cannot be used for the design matrix, and all observations with these
+#'  values are removed.
+#' @srrstats {G5.2a} Ensures that all error and warning messages are unique and descriptive. All parameter validations
+#'  provide clear error messages
+#' @srrstats {G5.4a} Includes tests for edge cases, such as binary and continuous response variables, and validates all
+#'  input arguments.
+#' @srrstats {RE3.0} If the deviance difference between 2 iterations is not less than tolerance after the max number of
+#'  iterations, it prints a convergence warning.
+#' @srrstats {RE4.4} The model is specified using a formula object, or a character-type object convertible to a formula,
+#'  which is then used to create the design matrix.
+#' @srrstats {RE4.5} Fitted models have an nobs element that can be called with `nobs()`.
+#' @srrstats {RE4.12} The `check_data_()` function drops observations that are not useable with link function or that do
+#'  not contribute to the log-likelihood.
+#' @srrstats {RE5.0} Supports control over algorithmic complexity, such as dropping perfectly separated observations
+#'  (`drop_pc`) and optional matrix storage (`keep_dmx`).
 #' @noRd
 NULL
 
@@ -78,8 +61,8 @@ NULL
 NULL
 
 #' @title Get index list
-#' @description Generates an auxiliary list of indexes to project out the fixed
-#'  effects (on C++ side the outputs are 0-indexed)
+#' @description Generates an auxiliary list of indexes to project out the fixed effects (on C++ side the outputs are
+#'  0-indexed)
 #' @param k_vars Fixed effects
 #' @param data Data frame
 #' @noRd
@@ -88,21 +71,42 @@ get_index_list_ <- function(k_vars, data) {
   if (isTRUE(getOption("capybara.cache_fe", FALSE))) {
     # Build a lightweight signature based on FE levels and row count
     n <- nrow(data)
-    lvl_sig <- paste(vapply(k_vars, function(v) {
-      lv <- levels(data[[v]])
-      if (is.null(lv)) lv <- unique(as.character(data[[v]]))
-      paste(lv, collapse = ",")
-    }, character(1)), collapse = "|")
-    key <- paste0("FEs:", paste(k_vars, collapse = "|"), ";n=", n, ";levels=", lvl_sig)
+    lvl_sig <- paste(
+      vapply(
+        k_vars,
+        function(v) {
+          lv <- levels(data[[v]])
+          if (is.null(lv)) {
+            lv <- unique(as.character(data[[v]]))
+          }
+          paste(lv, collapse = ",")
+        },
+        character(1)
+      ),
+      collapse = "|"
+    )
+    key <- paste0(
+      "FEs:",
+      paste(k_vars, collapse = "|"),
+      ";n=",
+      n,
+      ";levels=",
+      lvl_sig
+    )
     if (exists(key, envir = .capybara_cache_env, inherits = FALSE)) {
       return(get(key, envir = .capybara_cache_env, inherits = FALSE))
     }
   }
 
   n <- nrow(data)
-  out <- lapply(k_vars, function(X, n, data) {
-    split(seq.int(1L, n), data[[X]])
-  }, n = n, data = data)
+  out <- lapply(
+    k_vars,
+    function(X, n, data) {
+      split(seq.int(1L, n), data[[X]])
+    },
+    n = n,
+    data = data
+  )
 
   if (isTRUE(getOption("capybara.cache_fe", FALSE))) {
     assign(key, out, envir = .capybara_cache_env)
@@ -157,7 +161,10 @@ model_frame_ <- function(data, formula, weights) {
     needed_cols <- formula_vars
     assign("weights_vec", weights, envir = parent.frame())
   } else {
-    stop("'weights' must be a column name, formula, or numeric vector", call. = FALSE)
+    stop(
+      "'weights' must be a column name, formula, or numeric vector",
+      call. = FALSE
+    )
   }
 
   # Extract needed columns (base R)
@@ -225,9 +232,9 @@ nobs_ <- function(nobs_full, nobs_na, y, yhat) {
 
   c(
     nobs_full = nobs_full, # Original dataset size
-    nobs_na   = total_missing, # Total missing (NA + dropped)
-    nobs_pc   = nobs_pc, # Perfect classification count
-    nobs      = nobs_used # Observations used in model
+    nobs_na = total_missing, # Total missing (NA + dropped)
+    nobs_pc = nobs_pc, # Perfect classification count
+    nobs = nobs_used # Observations used in model
   )
 }
 

@@ -1,15 +1,12 @@
 #' @title Check for Statistical Separation in Poisson Models
 #'
-#' @description Detect statistical separation (perfect predictors) in Poisson
-#'  regression models. Separation occurs when a linear combination of regressors
-#'  can perfectly predict zero outcomes, causing maximum likelihood estimates to
-
-#'  diverge. This function implements the ReLU and simplex methods from Correia,
-#'  Guimarães, and Zylkin (2019).
+#' @description Detect statistical separation (perfect predictors) in Poisson regression models. Separation occurs when
+#'  a linear combination of regressors can perfectly predict zero outcomes, causing maximum likelihood estimates to
+#'  diverge. This function implements the ReLU and simplex methods from Correia, Guimarães, and Zylkin (2019).
 #'
 #' @param y Numeric vector of response values (non-negative integers for count data).
-#' @param X Numeric matrix of regressors (design matrix). Can be \code{NULL} or
-#'  empty if only checking fixed effects separation.
+#' @param X Numeric matrix of regressors (design matrix). Can be \code{NULL} or empty if only checking fixed effects
+#'  separation.
 #' @param w Numeric vector of weights. Default is a vector of ones.
 #' @param tol Tolerance for convergence. Default is \code{1e-8}.
 #' @param zero_tol Tolerance for treating values as zero. Default is \code{1e-12}.
@@ -28,33 +25,28 @@
 #'   \item{certificate}{Numeric vector giving the separation certificate (z vector), if computed by the ReLU method.}
 #' }
 #'
-#' @details
-#' Statistical separation occurs in Poisson and other count data models when
-#' there exists a linear combination of regressors that is non-negative for all
-#' observations with \eqn{y = 0} and positive for at least one such observation.
-#' This causes the MLE to not exist (coefficients diverge to \eqn{\pm\infty}).
+#' @details Statistical separation occurs in Poisson and other count data models when there exists a linear combination
+#'  of regressors that is non-negative for all observations with \eqn{y = 0} and positive for at least one such
+#'  observation. This causes the MLE to not exist (coefficients diverge to \eqn{\pm\infty}).
 #'
 #' The function implements two complementary detection methods:
 #'
-#' \strong{ReLU Method:} An iterative algorithm that solves a sequence of
-#' constrained least squares problems using the Rectified Linear Unit (ReLU)
-#' activation function. This method is more thorough and provides a certificate
-#' of separation.
+#' \strong{ReLU Method:} An iterative algorithm that solves a sequence of constrained least squares problems using the
+#'  Rectified Linear Unit (ReLU) activation function. This method is more thorough and provides a certificate of
+#'  separation.
 #'
-#' \strong{Simplex Method:} A linear programming approach that checks for
-#' separating hyperplanes. This method is faster for initial screening.
+#' \strong{Simplex Method:} A linear programming approach that checks for separating hyperplanes. This method is faster
+#'  for initial screening.
 #'
-#' Both methods are based on the theoretical framework of Correia, Guimarães,
-#' and Zylkin (2019), who show that separation detection is equivalent to
-#' solving a specific linear programming problem.
+#' Both methods are based on the theoretical framework of Correia, Guimarães, and Zylkin (2019), who show that
+#'  separation detection is equivalent to solving a specific linear programming problem.
 #'
 #' @references
-#' Correia, S., Guimarães, P., and Zylkin, T. (2019). "Verifying the Existence
-#' of Maximum Likelihood Estimates for Generalized Linear Models."
-#' \url{https://arxiv.org/abs/1903.01633}
+#' Correia, S., Guimarães, P., and Zylkin, T. (2019). "Verifying the Existence of Maximum Likelihood Estimates for
+#'  Generalized Linear Models." \url{https://arxiv.org/abs/1903.01633}
 #'
-#' Correia, S., Guimarães, P., and Zylkin, T. (2020). "Fast Poisson Estimation
-#' with High-Dimensional Fixed Effects." \emph{The Stata Journal}, 20(1), 95-115.
+#' Correia, S., Guimarães, P., and Zylkin, T. (2020). "Fast Poisson Estimation with High-Dimensional Fixed Effects."
+#'  \emph{The Stata Journal}, 20(1), 95-115.
 #'
 #' @examples
 #' \dontrun{
@@ -71,7 +63,7 @@
 #' print(result$num_separated)
 #' }
 #'
-#' @seealso \code{\link{fepoisson}}, \code{\link{feglm}}
+#' @seealso \link{fepoisson}, \link{feglm}
 #'
 #' @export
 check_separation <- function(

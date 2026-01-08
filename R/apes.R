@@ -1,5 +1,6 @@
 #' srr_stats
-#' @srrstats {G1.0} Closely follows methodologies described in Stammann (2018) and other referenced works for binary choice models.
+#' @srrstats {G1.0} Closely follows methodologies described in Stammann (2018) and other referenced works for binary
+#'  choice models.
 #' @srrstats {G2.1a} Ensures the input object is of the expected class (`bias_corr` or `feglm`).
 #' @srrstats {G2.3a} Uses `match.arg()` to validate `panel_structure` and `sampling_fe` inputs against expected values.
 #' @srrstats {G2.3b} Uses `tolower()` to handle potential case sensitivity issues.
@@ -9,78 +10,62 @@
 #' @srrstats {G3.1a} Allows arbitrarily specified covariance methods for flexibility in inference.
 #' @srrstats {G5.2a} Produces unique and meaningful error, warning, and message outputs for diagnostics.
 #' @srrstats {RE5.0} Considers relationships between input data size and computational efficiency.
-#' @srrstats {G5.4a} Includes tests against trivial cases or alternative implementations to ensure algorithm correctness.
+#' @srrstats {G5.4a} Includes tests against trivial cases or alternative implementations to ensure algorithm
+#'  correctness.
 #' @noRd
 NULL
 
 #' NA_standards
-#' @srrstatsNA {G2.14} Missing observations are dropped, otherwise providing imputation methods would bias the estimation (i.e., replacing all missing values with the median).
+#' @srrstatsNA {G2.14} Missing observations are dropped, otherwise providing imputation methods would bias the
+#'  estimation (i.e., replacing all missing values with the median).
 #' @noRd
 NULL
 
-#' @title Compute average partial effects after fitting binary choice models
-#'  with a 1,2,3-way error component
+#' @title Compute average partial effects after fitting binary choice models with a 1,2,3-way error component
 #'
-#' @description \code{\link{apes}} is a post-estimation routine that can be used
-#'  to estimate average partial effects with respect to all covariates in the
-#'  model and the corresponding covariance matrix. The estimation of the
-#'  covariance is based on a linear approximation (delta method) plus an
-#'  optional finite population correction. Note that the command automatically
-#'  determines which of the regressors are binary or non-binary.
+#' @description \link{apes} is a post-estimation routine that can be used to estimate average partial effects with
+#'  respect to all covariates in the model and the corresponding covariance matrix. The estimation of the covariance is
+#'  based on a linear approximation (delta method) plus an optional finite population correction. Note that the command
+#'  automatically determines which of the regressors are binary or non-binary.
 #'
-#'  \strong{Remark:} The routine currently does not allow to compute average
-#'  partial effects based on functional forms like interactions and polynomials.
+#'  \strong{Remark:} The routine currently does not allow to compute average partial effects based on functional forms
+#'  like interactions and polynomials.
 #'
-#' @param object an object of class \code{"bias_corr"} or \code{"feglm"};
-#'  currently restricted to \code{\link[stats]{binomial}}.
-#' @param n_pop unsigned integer indicating a finite population correction for
-#'  the estimation of the covariance matrix of the average partial effects
-#'  proposed by Cruz-Gonzalez, Fernández-Val, and Weidner (2017). The correction
-#'  factor is computed as follows:
-#'  \eqn{(n^{\ast} - n) / (n^{\ast} - 1)}{(n_pop - n) / (n_pop - 1)},
-#'  where \eqn{n^{\ast}}{n_pop} and \eqn{n}{n} are the sizes of the entire
-#'  population and the full sample size. Default is \code{NULL}, which refers to
-#'  a factor of zero and a covariance obtained by the delta method.
-#' @param panel_structure a string equal to \code{"classic"} or \code{"network"}
-#'  which determines the structure of the panel used. \code{"classic"} denotes
-#'  panel structures where for example the same cross-sectional units are
-#'  observed several times (this includes pseudo panels). \code{"network"}
-#'  denotes panel structures where for example bilateral trade flows are
-#'  observed for several time periods. Default is \code{"classic"}.
-#' @param sampling_fe a string equal to \code{"independence"} or
-#'  \code{"unrestricted"} which imposes sampling assumptions about the
-#'  unobserved effects. \code{"independence"} imposes that all unobserved
-#'  effects are independent sequences. \code{"unrestricted"} does not impose any
-#'  sampling assumptions. Note that this option only affects the optional finite
-#'  population correction. Default is \code{"independence"}.
-#' @param weak_exo logical indicating if some of the regressors are assumed to
-#'  be weakly exogenous (e.g. predetermined). If object is of class
-#'  \code{"bias_corr"}, the option will be automatically set to \code{TRUE} if
-#'  the chosen bandwidth parameter is larger than zero. Note that this option
-#'  only affects the estimation of the covariance matrix. Default is
-#'  \code{FALSE}, which assumes that all regressors are strictly exogenous.
+#' @param object an object of class \code{"bias_corr"} or \code{"feglm"}; currently restricted to
+#'  \link[stats]{binomial}.
+#' @param n_pop unsigned integer indicating a finite population correction for the estimation of the covariance matrix
+#'  of the average partial effects proposed by Cruz-Gonzalez, Fernández-Val, and Weidner (2017). The correction factor
+#'  is computed as follows: \eqn{(n^{\ast} - n) / (n^{\ast} - 1)}{(n_pop - n) / (n_pop - 1)}, where
+#'  \eqn{n^{\ast}}{n_pop} and \eqn{n}{n} are the sizes of the entire population and the full sample size. Default is
+#'  \code{NULL}, which refers to a factor of zero and a covariance obtained by the delta method.
+#' @param panel_structure a string equal to \code{"classic"} or \code{"network"} which determines the structure of the
+#'  panel used. \code{"classic"} denotes panel structures where for example the same cross-sectional units are observed
+#'  several times (this includes pseudo panels). \code{"network"} denotes panel structures where for example bilateral
+#'  trade flows are observed for several time periods. Default is \code{"classic"}.
+#' @param sampling_fe a string equal to \code{"independence"} or \code{"unrestricted"} which imposes sampling
+#'  assumptions about the unobserved effects. \code{"independence"} imposes that all unobserved effects are independent
+#'  sequences. \code{"unrestricted"} does not impose any sampling assumptions. Note that this option only affects the
+#'  optional finite population correction. Default is \code{"independence"}.
+#' @param weak_exo logical indicating if some of the regressors are assumed to be weakly exogenous (e.g. predetermined).
+#'  If object is of class \code{"bias_corr"}, the option will be automatically set to \code{TRUE} if the chosen
+#'  bandwidth parameter is larger than zero. Note that this option only affects the estimation of the covariance matrix.
+#'  Default is \code{FALSE}, which assumes that all regressors are strictly exogenous.
 #'
-#' @return The function \code{\link{apes}} returns a named list of class
-#'  \code{"apes"}.
+#' @return The function \link{apes} returns a named list of class \code{"apes"}.
 #'
-#' @references Cruz-Gonzalez, M., I. Fernández-Val, and M. Weidner (2017). "Bias
-#'  corrections for probit and logit models with two-way fixed effects". The
-#'  Stata Journal, 17(3), 517-545.
-#' @references Czarnowske, D. and A. Stammann (2020). "Fixed Effects Binary
-#'  Choice Models: Estimation and Inference with Long Panels". ArXiv e-prints.
-#' @references Fernández-Val, I. and M. Weidner (2016). "Individual and time
-#'  effects in nonlinear panel models with large N, T". Journal of Econometrics,
-#'  192(1), 291-312.
-#' @references Fernández-Val, I. and M. Weidner (2018). "Fixed effects
-#'  estimation of large-t panel data models". Annual Review of Economics, 10,
-#'  109-138.
-#' @references Hinz, J., A. Stammann, and J. Wanner (2020). "State Dependence
-#'  and Unobserved Heterogeneity in the Extensive Margin of Trade". ArXiv
-#'  e-prints.
-#' @references Neyman, J. and E. L. Scott (1948). "Consistent estimates based on
-#'  partially consistent observations". Econometrica, 16(1), 1-32.
+#' @references Cruz-Gonzalez, M., I. Fernández-Val, and M. Weidner (2017). "Bias corrections for probit and logit models
+#'  with two-way fixed effects". The Stata Journal, 17(3), 517-545.
+#' @references Czarnowske, D. and A. Stammann (2020). "Fixed Effects Binary Choice Models: Estimation and Inference with
+#'  Long Panels". ArXiv e-prints. @references Fernández-Val, I. and M. Weidner (2016). "Individual and time effects in
+#'  nonlinear panel models with large N, T". Journal of Econometrics, 192(1), 291-312.
+#' @references Fernández-Val, I. and M. Weidner (2018). "Fixed effects estimation of large-t panel data models". Annual
+#'  Review of Economics, 10, 109-138.
+#' @references Hinz, J., A. Stammann, and J. Wanner (2020). "State Dependence and Unobserved Heterogeneity in the
+#'  Extensive Margin of Trade". ArXiv e-prints.
+#' @references Neyman, J. and E. L. Scott (1948). "Consistent estimates based on partially consistent observations".
+#'  Econometrica, 16(1), 1-32.
 #'
-#' @seealso \code{\link{bias_corr}}, \code{\link{feglm}}
+#' @seealso \link{bias_corr} and \link{feglm}
 #'
 #' @examples
 #' mtcars2 <- mtcars
@@ -181,7 +166,9 @@ apes <- function(
     tx <- object[["tx"]]
   } else {
     tx <- center_variables_(
-      X, w, k_list,
+      X,
+      w,
+      k_list,
       object[["control"]][["center_tol"]],
       object[["control"]][["iter_center_max"]],
       object[["control"]][["iter_interrupt"]]
@@ -206,7 +193,8 @@ apes <- function(
       j[, i] <<- -colSums((X - tx) * delta1[, i]) / nt_full
       j[i, i] <<- sum(f1) / nt_full + j[i, i]
       j[-i, i] <<- colSums(X[, -i, drop = FALSE] * delta1[, i]) /
-        nt_full + j[-i, i]
+        nt_full +
+        j[-i, i]
     } else {
       delta[, i] <<- beta[[i]] * delta[, i]
       delta1[, i] <<- beta[[i]] * delta1[, i]
@@ -220,7 +208,9 @@ apes <- function(
 
   # Compute projection and residual projection of \psi
   mpsi <- center_variables_(
-    -delta1 / w, w, k_list,
+    -delta1 / w,
+    w,
+    k_list,
     object[["control"]][["center_tol"]],
     object[["control"]][["iter_max"]],
     object[["control"]][["iter_interrupt"]]
@@ -231,8 +221,22 @@ apes <- function(
   # Compute analytical bias correction of average partial effects
   if (bias_corr) {
     b <- apes_bias_correction_(
-      eta, family, X, beta, binary, nt, p, ppsi, z,
-      w, k_list, panel_structure, l, k, mpsi, v
+      eta,
+      family,
+      X,
+      beta,
+      binary,
+      nt,
+      p,
+      ppsi,
+      z,
+      w,
+      k_list,
+      panel_structure,
+      l,
+      k,
+      mpsi,
+      v
     )
     delta_aux <- delta_aux - b
   }
@@ -243,8 +247,14 @@ apes <- function(
   v <- crossprod(gamma)
 
   v <- apes_adjust_covariance_(
-    v, delta, gamma, k_list, adj, sampling_fe,
-    weak_exo, panel_structure
+    v,
+    delta,
+    gamma,
+    k_list,
+    adj,
+    sampling_fe,
+    weak_exo,
+    panel_structure
   )
 
   # Add names
@@ -253,11 +263,11 @@ apes <- function(
 
   # Generate result list
   reslist <- list(
-    delta           = delta_aux,
-    vcov            = v,
+    delta = delta_aux,
+    vcov = v,
     panel_structure = panel_structure,
-    sampling_fe     = sampling_fe,
-    weak_exo        = weak_exo
+    sampling_fe = sampling_fe,
+    weak_exo = weak_exo
   )
 
   # Update result list
@@ -308,8 +318,14 @@ apes_set_adj_ <- function(n_pop, nt_full) {
 NULL
 
 apes_adjust_covariance_ <- function(
-  v, delta, gamma, k_list, adj, sampling_fe,
-  weak_exo, panel_structure
+  v,
+  delta,
+  gamma,
+  k_list,
+  adj,
+  sampling_fe,
+  weak_exo,
+  panel_structure
 ) {
   if (adj > 0.0) {
     # Simplify covariance if sampling assumptions are imposed
@@ -341,15 +357,30 @@ apes_adjust_covariance_ <- function(
 
 #' srr_stats
 #' @srrstats {G2.1a} Validates analytical bias correction computations against model assumptions.
-#' @srrstats {G3.1a} Handles bias correction across panel structures (`classic` or `network`) and varying numbers of fixed effects.
+#' @srrstats {G3.1a} Handles bias correction across panel structures (`classic` or `network`) and varying numbers of
+#'  fixed effects.
 #' @srrstats {RE5.0} Scales bias correction computations to handle large panels efficiently.
 #' @srrstats {G5.2a} Issues clear errors for unsupported bias correction settings or invalid assumptions.
 #' @noRd
 NULL
 
 apes_bias_correction_ <- function(
-  eta, family, X, beta, binary, nt, p, ppsi,
-  z, w, k_list, panel_structure, l, k, mpsi, v
+  eta,
+  family,
+  X,
+  beta,
+  binary,
+  nt,
+  p,
+  ppsi,
+  z,
+  w,
+  k_list,
+  panel_structure,
+  l,
+  k,
+  mpsi,
+  v
 ) {
   # Compute second-order partial derivatives
   delta2 <- matrix(NA_real_, nt, p)

@@ -1,13 +1,16 @@
 #' srr_stats
 #' @srrstats {G1.0} Implements `print` methods for various model objects (`apes`, `feglm`, `felm`) and their summaries.
-#' @srrstats {G2.1a} Ensures that input objects are of the expected class (`apes`, `feglm`, `felm`, or summaries of these classes).
-#' @srrstats {G3.2} Provides detailed output, including coefficients, significance levels, and iteration counts, tailored to the model type.
+#' @srrstats {G2.1a} Ensures that input objects are of the expected class (`apes`, `feglm`, `felm`, or summaries of
+#'  these classes).
+#' @srrstats {G3.2} Provides detailed output, including coefficients, significance levels, and iteration counts,
+#'  tailored to the model type.
 #' @srrstats {G3.3} Includes well-structured significance indicators (`***`, `**`, `*`, `.`) for coefficient p-values.
 #' @srrstats {G5.2a} Outputs are formatted for clarity, with aligned columns and headers.
 #' @srrstats {G5.4a} Validates consistency of printed summaries across model types, ensuring uniform presentation.
 #' @srrstats {RE4.17} Specific default `print()` method for summaries and coefficients.
 #' @srrstats {RE5.0} Reduces cyclomatic complexity by modularizing summary and print methods.
-#' @srrstats {RE5.2} Facilitates easy interpretation of model summaries, including pseudo R-squared, deviance, and fixed-effects estimates.
+#' @srrstats {RE5.2} Facilitates easy interpretation of model summaries, including pseudo R-squared, deviance, and
+#'  fixed-effects estimates.
 #' @srrstats {RE5.3} Designed for extensibility to accommodate additional model types or summary elements.
 #' @noRd
 NULL
@@ -26,9 +29,9 @@ summary_formula_ <- function(x) {
 summary_family_ <- function(x) {
   fam <- x[["family"]]
   cat(
-    "\nFamily: ", gsub("^([a-z])", "\\U\\1", fam[["family"]],
-      perl = TRUE
-    ), "\n",
+    "\nFamily: ",
+    gsub("^([a-z])", "\\U\\1", fam[["family"]], perl = TRUE),
+    "\n",
     sep = ""
   )
 }
@@ -65,7 +68,7 @@ summary_estimates_ <- function(x, digits) {
 summary_estimates_signif_ <- function(coefmat, digits) {
   last_col <- max(ncol(coefmat))
   pval_col <- coefmat[, last_col]
-  
+
   pval_col <- vapply(
     pval_col,
     function(x) {
@@ -79,7 +82,8 @@ summary_estimates_signif_ <- function(coefmat, digits) {
       } else {
         formatted
       }
-    }, character(1)
+    },
+    character(1)
   )
 
   pval_col <- gsub("\\*\\s+$", "*", pval_col)
@@ -104,12 +108,20 @@ summary_estimates_max_width_ <- function(coefmat) {
   #   nchar("Pr(>|t|)"))
   max_widths <- c(8L, 10L, 7L, 8L)
 
-  Reduce(function(widths, i) {
-    row_values <- coefmat[i, ]
-    mapply(function(value, width) {
-      max(width, nchar(value))
-    }, value = row_values, width = widths)
-  }, seq_len(nrow(coefmat)), init = max_widths)
+  Reduce(
+    function(widths, i) {
+      row_values <- coefmat[i, ]
+      mapply(
+        function(value, width) {
+          max(width, nchar(value))
+        },
+        value = row_values,
+        width = widths
+      )
+    },
+    seq_len(nrow(coefmat)),
+    init = max_widths
+  )
 }
 
 summary_estimates_header_ <- function(coef_width, max_widths) {
@@ -121,19 +133,28 @@ summary_estimates_header_ <- function(coef_width, max_widths) {
     width = max_widths + 1L
   )
 
-  cat("|", paste(rep(" ", coef_width), collapse = ""),
-    paste(header, collapse = ""), "|\n",
+  cat(
+    "|",
+    paste(rep(" ", coef_width), collapse = ""),
+    paste(header, collapse = ""),
+    "|\n",
     sep = ""
   )
 }
 
 summary_estimates_dashes_ <- function(coef_width, max_widths) {
-  dashes <- mapply(function(width) {
-    sprintf("|%s", paste(rep("-", width), collapse = ""))
-  }, width = max_widths + 2L)
+  dashes <- mapply(
+    function(width) {
+      sprintf("|%s", paste(rep("-", width), collapse = ""))
+    },
+    width = max_widths + 2L
+  )
 
-  cat("|", paste(rep("-", coef_width), collapse = ""),
-    paste(dashes, collapse = ""), "|\n",
+  cat(
+    "|",
+    paste(rep("-", coef_width), collapse = ""),
+    paste(dashes, collapse = ""),
+    "|\n",
     sep = ""
   )
 }
@@ -142,9 +163,13 @@ summary_estimates_print_rows_ <- function(coefmat, coef_width, max_widths) {
   invisible(lapply(seq_len(nrow(coefmat)), function(i) {
     cat("| ", sprintf("%-*s", coef_width - 1L, rownames(coefmat)[i]), sep = "")
     row_values <- coefmat[i, ]
-    formatted_values <- mapply(function(value, width) {
-      sprintf("| %*s ", width, value)
-    }, value = row_values, width = max_widths)
+    formatted_values <- mapply(
+      function(value, width) {
+        sprintf("| %*s ", width, value)
+      },
+      value = row_values,
+      width = max_widths
+    )
 
     cat(formatted_values, "|\n", sep = "")
   }))
@@ -156,11 +181,13 @@ summary_estimates_print_rows_ <- function(coefmat, coef_width, max_widths) {
 summary_r2_ <- function(x, digits) {
   cat(
     sprintf("\nR-squared%*s:", nchar("Adj. "), " "),
-    format(x[["r_squared"]], digits = digits, nsmall = 2L), "\n"
+    format(x[["r_squared"]], digits = digits, nsmall = 2L),
+    "\n"
   )
   cat(
     "Adj. R-squared:",
-    format(x[["adj_r_squared"]], digits = digits, nsmall = 2L), "\n"
+    format(x[["adj_r_squared"]], digits = digits, nsmall = 2L),
+    "\n"
   )
 }
 
@@ -172,7 +199,8 @@ summary_pseudo_rsq_ <- function(x, digits) {
   if (fam[["family"]] == "poisson" && !is.null(x[["pseudo.rsq"]])) {
     cat(
       "\nPseudo R-squared:",
-      format(x[["pseudo.rsq"]], digits = digits, nsmall = 2L), "\n"
+      format(x[["pseudo.rsq"]], digits = digits, nsmall = 2L),
+      "\n"
     )
   }
 }
@@ -186,7 +214,8 @@ summary_nobs_ <- function(x) {
     "\nNumber of observations:",
     paste0("Full ", nobs_vec[["nobs"]], ";"),
     paste0("Missing ", nobs_vec[["nobs_na"]], ";"),
-    paste0("Perfect classification ", nobs_vec[["nobs_pc"]]), "\n"
+    paste0("Perfect classification ", nobs_vec[["nobs_pc"]]),
+    "\n"
   )
 }
 
@@ -233,7 +262,12 @@ print.apes <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
   # Skip printing if there are no slope coefficients
   if (!is.null(coefficients) && nrow(coefficients) > 0) {
     cat("Estimates:\n")
-    printCoefmat(coefficients, P.values = TRUE, has.Pvalue = TRUE, digits = digits)
+    printCoefmat(
+      coefficients,
+      P.values = TRUE,
+      has.Pvalue = TRUE,
+      digits = digits
+    )
   } else {
     cat("No slope coefficients\n")
   }
@@ -281,7 +315,9 @@ print.felm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
 #' @export
 #' @noRd
 summary.apes <- function(
-  object, digits = max(3L, getOption("digits") - 3L), ...
+  object,
+  digits = max(3L, getOption("digits") - 3L),
+  ...
 ) {
   print.apes(object, digits = digits, ...)
 }
@@ -291,7 +327,8 @@ summary.apes <- function(
 #' @export
 #' @noRd
 summary.feglm <- function(
-  object, digits = max(3L, getOption("digits") - 3L),
+  object,
+  digits = max(3L, getOption("digits") - 3L),
   ...
 ) {
   print.feglm(object, digits = digits, ...)
@@ -302,7 +339,9 @@ summary.feglm <- function(
 #' @export
 #' @noRd
 summary.felm <- function(
-  object, digits = max(3L, getOption("digits") - 3L), ...
+  object,
+  digits = max(3L, getOption("digits") - 3L),
+  ...
 ) {
   print.felm(object, digits = digits, ...)
 }
@@ -330,7 +369,8 @@ print.capybara_separation <- function(x, ...) {
   } else if (x$num_separated > 0) {
     cat(
       "First 20 observation indices:",
-      paste(head(x$separated_obs, 20), collapse = ", "), "...\n"
+      paste(head(x$separated_obs, 20), collapse = ", "),
+      "...\n"
     )
   }
   invisible(x)

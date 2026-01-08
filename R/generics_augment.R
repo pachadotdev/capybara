@@ -21,22 +21,17 @@ NULL
 #' @title Broom Integration
 #'
 #' @description The provided `broom` methods do the following:
-#'  1. `augment`: Takes the input data and adds additional columns with the
-#'      fitted values and residuals.
-#'  2. `glance`: Extracts the deviance, null deviance, and the number of
-#'      observations.`
+#'  1. `augment`: Takes the input data and adds additional columns with the fitted values and residuals.
+#'  2. `glance`: Extracts the deviance, null deviance, and the number of observations.`
 #'  3. `tidy`: Extracts the estimated coefficients and their standard errors.
 #'
 #' @param x A fitted model object.
-#' @param newdata Optional argument to use data different from the data used to
-#'  fit the model.
-#' @param conf_int Logical indicating whether to include the confidence
-#'  interval.
+#' @param newdata Optional argument to use data different from the data used to fit the model.
+#' @param conf_int Logical indicating whether to include the confidence interval.
 #' @param conf_level The confidence level for the confidence interval.
 #' @param ... Additional arguments passed to the method.
 #'
-#' @return A tibble with the respective information for the `augment`, `glance`,
-#'  and `tidy` methods.
+#' @return A tibble with the respective information for the `augment`, `glance`, and `tidy` methods.
 #'
 #' @rdname broom
 #'
