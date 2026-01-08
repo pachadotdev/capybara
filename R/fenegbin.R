@@ -61,6 +61,9 @@ NULL
 #'  \code{\link[MASS]{glm.nb}}).
 #' @param link the link function. Must be one of \code{"log"}, \code{"sqrt"}, or
 #'  \code{"identity"}.
+#' @param offset an optional formula or numeric vector specifying an a priori
+#'  known component to be included in the linear predictor. If a formula,
+#'  it should be of the form \code{~ log(variable)}.
 #'
 #' @examples
 #' # check the feglm examples for the details about clustered standard errors
@@ -100,6 +103,7 @@ fenegbin <- function(
   eta_start = NULL,
   init_theta = NULL,
   link = c("log", "identity", "sqrt"),
+  offset = NULL,
   control = NULL
 ) {
   # Check validity of formula ----
@@ -156,6 +160,30 @@ fenegbin <- function(
   # Check validity of weights ----
   check_weights_(w)
 
+  # Extract offset if required ----
+  if (is.null(offset)) {
+    offset_vec <- rep(0.0, nt)
+  } else if (inherits(offset, "formula")) {
+    # Offset provided as formula (e.g., ~ log(variable))
+    offset_vars <- attr(terms(offset, data = data), "term.labels")
+    if (length(offset_vars) != 1L) {
+      stop("Offset formula must specify exactly one term.", call. = FALSE)
+    }
+    # Evaluate the offset expression in the context of the data
+    offset_vec <- eval(parse(text = offset_vars), envir = data)
+    if (length(offset_vec) != nt) {
+      stop("Length of offset does not match number of observations.", call. = FALSE)
+    }
+  } else if (is.numeric(offset)) {
+    # Offset provided as numeric vector
+    offset_vec <- offset
+    if (length(offset_vec) != nt) {
+      stop("Length of offset must equal number of observations.", call. = FALSE)
+    }
+  } else {
+    stop("Offset must be NULL, a formula, or a numeric vector.", call. = FALSE)
+  }
+
   # Get starting guesses if provided
   beta <- if (!is.null(beta_start)) {
     as.numeric(beta_start)
@@ -172,14 +200,12 @@ fenegbin <- function(
 
   # Get names and number of levels in each fixed effects category ----
   if (length(fe_vars) > 0) {
-    nms_fe <- lapply(data[fe_vars], levels)
-    fe_levels <- vapply(nms_fe, length, integer(1))
+    fe_levels <- vapply(lapply(data[fe_vars], levels), length, integer(1))
     # Generate auxiliary list of indexes for different sub panels ----
     FEs <- get_index_list_(fe_vars, data)
     names(FEs) <- fe_vars
   } else {
     # No fixed effects - create empty list
-    nms_fe <- list()
     fe_levels <- integer(0)
     FEs <- list()
   }
@@ -200,11 +226,11 @@ fenegbin <- function(
   }
 
   fit <- structure(fenegbin_fit_(
-    X, y, w, FEs, link, beta, eta_vec, init_theta, control
+    X, y, w, FEs, link, beta, eta_vec, init_theta, offset_vec, control
   ), class = c("feglm", "fenegbin"))
 
   # Compute nobs using y and fitted values
-  nobs <- nobs_(nobs_full, nobs_na, y, predict(fit))
+  nobs <- nobs_(nobs_full, nobs_na, y, predict(fit, type = "link"))
 
   # Information if convergence failed ----
   if (!fit[["conv_outer"]]) {
@@ -212,8 +238,7 @@ fenegbin <- function(
   }
 
   # Add names to coef_table, hessian, vcov, and X_dm (if provided) ----
-  rownames(fit[["coef_table"]]) <- nms_sp
-  colnames(fit[["coef_table"]]) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
+  dimnames(fit[["coef_table"]]) <- list(nms_sp, c("Estimate", "Std. Error", "z value", "Pr(>|z|)"))
   if (control[["keep_tx"]]) {
     colnames(fit[["tx"]]) <- nms_sp
   }
@@ -223,11 +248,12 @@ fenegbin <- function(
   # Add to fit list ----
   fit[["nobs"]] <- nobs
   fit[["fe_levels"]] <- fe_levels
-  fit[["nms_fe"]] <- nms_fe
+  fit[["nms_fe"]] <- if (length(fe_vars) > 0) lapply(data[fe_vars], levels) else list()
   fit[["formula"]] <- formula
   fit[["data"]] <- data
   fit[["family"]] <- negative.binomial(theta = fit[["theta"]], link = link)
   fit[["control"]] <- control
+  fit[["offset"]] <- offset_vec
 
   # Return result ----
   fit

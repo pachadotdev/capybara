@@ -50,14 +50,11 @@ check_factor_ <- function(X) {
 #' @param family Family object
 #' @noRd
 second_order_derivative_ <- function(eta, mu_eta, family) {
-  link <- family[["link"]]
-  linkinv_eta <- family[["linkinv"]](eta)
-
-  if (link == "logit") {
-    return(mu_eta * (1.0 - 2.0 * linkinv_eta))
-  } else if (link == "probit") {
+  if (family[["link"]] == "logit") {
+    return(mu_eta * (1.0 - 2.0 * family[["linkinv"]](eta)))
+  } else if (family[["link"]] == "probit") {
     return(-eta * mu_eta)
-  } else if (link == "cloglog") {
+  } else if (family[["link"]] == "cloglog") {
     return(mu_eta * (1.0 - exp(eta)))
   } else {
     return(-2.0 * eta / (1.0 + eta^2) * mu_eta)
@@ -71,14 +68,12 @@ second_order_derivative_ <- function(eta, mu_eta, family) {
 #' @param family Family object
 #' @noRd
 third_order_derivative_ <- function(eta, mu_eta, family) {
-  link <- family[["link"]]
-  linkinv_eta <- family[["linkinv"]](eta)
-
-  if (link == "logit") {
+  if (family[["link"]] == "logit") {
+    linkinv_eta <- family[["linkinv"]](eta)
     return(mu_eta * ((1.0 - 2.0 * linkinv_eta)^2 - 2.0 * mu_eta))
-  } else if (link == "probit") {
+  } else if (family[["link"]] == "probit") {
     return((eta^2 - 1.0) * mu_eta)
-  } else if (link == "cloglog") {
+  } else if (family[["link"]] == "cloglog") {
     return(mu_eta * (1.0 - exp(eta)) * (2.0 - exp(eta)) - mu_eta)
   } else {
     return((6.0 * eta^2 - 2.0) / (1.0 + eta^2)^2 * mu_eta)
@@ -172,18 +167,19 @@ check_control_ <- function(control) {
     # checks
     # 1. non-negative params
     non_neg_params <- c(
-      "dev_tol", "center_tol", "iter_max", "iter_center_max",
-      "iter_inner_max", "iter_interrupt", "iter_ssr", "limit"
+      "dev_tol", "center_tol", "collin_tol", "step_halving_factor", "alpha_tol",
+      "iter_max", "iter_center_max", "iter_inner_max", "iter_interrupt",
+      "iter_alpha_max", "step_halving_memory", "start_inner_tol"
     )
     invisible(lapply(non_neg_params, function(param_name) {
-      if (merged_control[[param_name]] <= 0) {
+      if (param_name %in% names(merged_control) && merged_control[[param_name]] <= 0) {
         stop(sprintf("'%s' must be greater than zero.", param_name), call. = FALSE)
       }
     }))
     # 2. logical params
-    logical_params <- c("trace", "drop_pc", "keep_tx")
+    logical_params <- c("return_fe", "keep_tx")
     invisible(lapply(logical_params, function(param_name) {
-      if (!is.logical(merged_control[[param_name]])) {
+      if (param_name %in% names(merged_control) && !is.logical(merged_control[[param_name]])) {
         stop(sprintf("'%s' must be logical.", param_name), call. = FALSE)
       }
     }))
@@ -426,42 +422,31 @@ start_guesses_ <- function(
 #' @param object Result list
 #' @noRd
 get_score_matrix_feglm_ <- function(object) {
-  # Extract required quantities from result list
-  control <- object[["control"]]
-  data <- object[["data"]]
-  eta <- object[["eta"]]
-  wt <- object[["weights"]]
-  family <- object[["family"]]
-
   # Update weights and dependent variable
-  y <- data[[1L]]
-  mu <- family[["linkinv"]](eta)
-  mu_eta <- family[["mu.eta"]](eta)
-  w <- (wt * mu_eta^2) / family[["variance"]](mu)
+  y <- object[["data"]][[1L]]
+  mu <- object[["family"]][["linkinv"]](object[["eta"]])
+  mu_eta <- object[["family"]][["mu.eta"]](object[["eta"]])
+  w <- (object[["weights"]] * mu_eta^2) / object[["family"]][["variance"]](mu)
   nu <- (y - mu) / mu_eta
 
   # Center regressor matrix (if required)
-  if (control[["keep_tx"]]) {
+  if (object[["control"]][["keep_tx"]]) {
     X <- object[["tx"]]
   } else {
-    # Extract additional required quantities from result list
-    formula <- object[["formula"]]
-    k_vars <- names(object[["lvls_k"]])
-
     # Generate auxiliary list of indexes to project out the fixed effects
-    k_list <- get_index_list_(k_vars, data)
+    k_list <- get_index_list_(names(object[["lvls_k"]]), object[["data"]])
 
     # Extract regressor matrix
-    X <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
+    X <- model.matrix(object[["formula"]], object[["data"]], rhs = 1L)[, -1L, drop = FALSE]
     nms_sp <- attr(X, "dimnames")[[2L]]
     attr(X, "dimnames") <- NULL
 
     # Center variables
     X <- center_variables_(
       X, w, k_list,
-      control[["center_tol"]],
-      control[["iter_center_max"]],
-      control[["iter_interrupt"]]
+      object[["control"]][["center_tol"]],
+      object[["control"]][["iter_center_max"]],
+      object[["control"]][["iter_interrupt"]]
     )
     colnames(X) <- nms_sp
   }
@@ -480,6 +465,5 @@ get_score_matrix_feglm_ <- function(object) {
 #' @param nt Number of observations
 #' @noRd
 gamma_ <- function(tx, h, j, ppsi, v, nt) {
-  inv_nt <- 1.0 / nt
-  (tx %*% solve(h * inv_nt, j) - ppsi) * v * inv_nt
+  (tx %*% solve(h / nt, j) - ppsi) * v / nt
 }

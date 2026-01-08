@@ -21,17 +21,15 @@ coef.apes <- function(object, ...) {
 #' @export
 #' @noRd
 coef.feglm <- function(object, ...) {
-  coef_vec <- object[["coef_table"]][, 1]
-  names(coef_vec) <- rownames(object[["coef_table"]])
-  coef_vec
+  ct <- object[["coef_table"]]
+  setNames(ct[, 1], rownames(ct))
 }
 
 #' @export
 #' @noRd
 coef.felm <- function(object, ...) {
-  coef_vec <- object[["coef_table"]][, 1]
-  names(coef_vec) <- rownames(object[["coef_table"]])
-  coef_vec
+  ct <- object[["coef_table"]]
+  setNames(ct[, 1], rownames(ct))
 }
 
 #' @export
@@ -41,13 +39,15 @@ coef.summary.apes <- function(object, ...) {
   coefficients <- object[["vcov_table"]]
   if (is.null(coefficients)) {
     # Fallback: compute on-the-fly for backward compatibility
-    est <- object[["delta"]]
+    delta <- object[["delta"]]
     se <- sqrt(diag(object[["vcov"]]))
-    z <- est / se
-    p <- 2.0 * pnorm(-abs(z))
-    coefficients <- cbind(est, se, z, p)
-    rownames(coefficients) <- names(est)
-    colnames(coefficients) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
+    coefficients <- cbind(
+      Estimate = delta,
+      `Std. Error` = se,
+      `z value` = delta / se,
+      `Pr(>|z|)` = 2.0 * pnorm(-abs(delta / se))
+    )
+    rownames(coefficients) <- names(delta)
   }
   coefficients
 }

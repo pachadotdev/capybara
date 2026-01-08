@@ -99,10 +99,10 @@ get_index_list_ <- function(k_vars, data) {
     }
   }
 
-  indexes <- seq.int(1L, nrow(data))
-  out <- lapply(k_vars, function(X, indexes, data) {
-    split(indexes, data[[X]])
-  }, indexes = indexes, data = data)
+  n <- nrow(data)
+  out <- lapply(k_vars, function(X, n, data) {
+    split(seq.int(1L, n), data[[X]])
+  }, n = n, data = data)
 
   if (isTRUE(getOption("capybara.cache_fe", FALSE))) {
     assign(key, out, envir = .capybara_cache_env)

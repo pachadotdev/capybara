@@ -205,8 +205,8 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
        "hessian"_nm = as_doubles_matrix(result.hessian),
        "vcov"_nm = as_doubles_matrix(result.vcov),
        "coef_table"_nm = as_doubles_matrix(result.coef_table),
-       "r.squared"_nm = result.r_squared,
-       "adj.r.squared"_nm = result.adj_r_squared,
+       "r_squared"_nm = result.r_squared,
+       "adj_r_squared"_nm = result.adj_r_squared,
        "coef_status"_nm = as_integers(result.coef_status),
        "success"_nm = result.success, "has_fe"_nm = result.has_fe});
 
@@ -293,12 +293,15 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
     }
   }
 
-  // Add offset to eta (the linear predictor is eta = X*beta + offset)
+  // Add offset to eta (the linear predictor is eta = X*beta + alpha + offset)
   eta += offset;
+
+  // Pass offset pointer so fixed effects can be computed correctly
+  const vec *offset_ptr = (any(offset != 0.0)) ? &offset : nullptr;
 
   capybara::InferenceGLM result = capybara::feglm_fit(
       beta, eta, y, X, w, theta, family_type, fe_groups, params, nullptr,
-      has_clusters ? &cluster_groups : nullptr);
+      has_clusters ? &cluster_groups : nullptr, offset_ptr);
 
   field<std::string> fe_names(k_list.size());
   field<field<std::string>> fe_levels(k_list.size());
@@ -415,17 +418,19 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
 fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
               const doubles &w_r, const list &FEs, const std::string &link,
               const doubles &beta_r, const doubles &eta_r,
-              const double &init_theta, const list &control) {
+              const double &init_theta, const doubles &offset_r,
+              const list &control) {
   mat X = as_mat(X_r);
   vec y = as_col(y_r);
   vec w = as_col(w_r);
+  vec offset_vec = as_col(offset_r);
 
   CapybaraParameters params(control);
 
   field<field<uvec>> fe_groups = R_list_to_Armadillo_field(FEs);
 
   capybara::InferenceNegBin result =
-      capybara::fenegbin_fit(X, y, w, fe_groups, params, init_theta);
+      capybara::fenegbin_fit(X, y, w, fe_groups, params, offset_vec, init_theta);
 
   vec coefficients = result.coef_table.col(0);
   uvec collinear_mask = (result.coef_status == 0);

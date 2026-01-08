@@ -1,3 +1,6 @@
+# These are dummy functions to follow the summary method
+# The C++ structs already return all the necessary components to print the equivalent of glm() + summary()
+
 #' srr_stats
 #' @srrstats {G1.0} Implements `summary` methods for various model objects (`apes`, `feglm`, `felm`) to provide detailed post-estimation statistics.
 #' @srrstats {G2.1a} Ensures that input objects are of the expected class (`apes`, `feglm`, `felm`).

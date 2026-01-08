@@ -17,52 +17,60 @@
 NULL
 
 #' @title Predict method for 'feglm' objects
-#' @description Similar to the 'predict' method for 'glm' objects
+#' @description Similar to the 'predict' method for 'glm' objects but returns response predictions as default.
 #' @export
 #' @noRd
-predict.feglm <- function(object, newdata = NULL, type = c("link", "response"), ...) {
+predict.feglm <- function(object, newdata = NULL, type = c("response", "link"), ...) {
   type <- match.arg(type)
 
   if (!is.null(newdata)) {
     check_data_(newdata)
 
-    data <- NA # just to avoid global variable warning
-    lhs <- NA
-    nobs_na <- NA
-    nobs_full <- NA
-    model_frame_(newdata, object$formula, NULL)
-    check_response_(data, lhs, object$family)
-    k_vars <- attr(terms(object$formula, rhs = 2L), "term.labels")
-    data <- transform_fe_(data, object$formula, k_vars)
-
-    X <- NA
-    nms_sp <- NA
-    p <- NA
-    model_response_(data, object$formula)
+    # For prediction, we only need the RHS variables, not the response
+    # Extract predictor variables and fixed effects
+    formula <- object$formula
+    k_vars <- attr(terms(formula, rhs = 2L), "term.labels")
+    
+    # Get all variables needed (predictors + fixed effects)
+    pred_vars <- attr(terms(formula, rhs = 1L), "term.labels")
+    all_vars <- c(pred_vars, k_vars)
+    
+    # Extract and prepare data (no na.omit - we want predictions for all rows)
+    data <- newdata[, all_vars, drop = FALSE]
+    
+    # Transform fixed effects to factors
+    data <- transform_fe_(data, formula, k_vars)
+    
+    # Create design matrix from predictors only
+    if (length(pred_vars) > 0) {
+      pred_formula <- reformulate(pred_vars, response = NULL)
+      X <- model.matrix(pred_formula, data = data)[, -1, drop = FALSE]
+      nms_sp <- colnames(X)
+    } else {
+      X <- matrix(0, nrow = nrow(data), ncol = 0)
+      nms_sp <- character(0)
+    }
 
     # Check if model has an intercept (no fixed effects case)
     # When there are no FEs, C++ adds an intercept, so coef_table includes "(Intercept)"
-    has_intercept <- "(Intercept)" %in% rownames(object$coef_table)
+    coef_table <- object$coef_table
+    has_intercept <- "(Intercept)" %in% rownames(coef_table)
     if (has_intercept) {
       # Add intercept column to X
       X <- cbind(1, X)
     }
 
     fes <- object[["fixed_effects"]]
-    fes2 <- setNames(lapply(names(fes), function(name) {
-      fe <- fes[[name]]
-      fe_values <- fe
-      fe_names <- names(fe_values)
-
+    fes_names <- names(fes)
+    fes2 <- setNames(lapply(fes_names, function(name) {
       # Match values and handle missing levels
-      data_values <- data[[name]]
-      matched_values <- fe_values[match(data_values, fe_names)]
+      matched_values <- fes[[name]][match(data[[name]], names(fes[[name]]))]
       matched_values[is.na(matched_values)] <- 0 # Set missing levels to 0
       matched_values
-    }), names(fes))
+    }), fes_names)
 
     # Replace NA coefficients with 0 for prediction
-    coef0 <- object$coef_table[, 1]
+    coef0 <- coef_table[, 1]
     coef0[is.na(coef0)] <- 0
 
     if (length(fes) > 0) {
@@ -70,19 +78,41 @@ predict.feglm <- function(object, newdata = NULL, type = c("link", "response"), 
     } else {
       eta <- X %*% coef0
     }
+    
+    # Add offset if present in the model
+    # Re-evaluate the offset on newdata using the original offset specification
+    if (!is.null(object[["offset_spec"]])) {
+      offset_spec <- object[["offset_spec"]]
+      if (inherits(offset_spec, "formula")) {
+        # Evaluate offset formula on newdata
+        offset_vars <- attr(terms(offset_spec, data = newdata), "term.labels")
+        offset_newdata <- eval(parse(text = offset_vars), envir = newdata)
+      } else if (is.numeric(offset_spec)) {
+        # If offset was originally a vector, we need it to match newdata length
+        if (length(offset_spec) == nrow(data)) {
+          offset_newdata <- offset_spec[rownames(data)]
+        } else {
+          stop("Cannot apply numeric offset to newdata: length mismatch.", call. = FALSE)
+        }
+      } else {
+        offset_newdata <- rep(0.0, nrow(data))
+      }
+      eta <- eta + offset_newdata
+    }
   } else {
     eta <- object[["eta"]]
   }
 
   if (type == "response") {
-    eta <- object[["family"]][["linkinv"]](eta)
+    fam <- object[["family"]]
+    eta <- fam[["linkinv"]](eta)
   }
 
   # Convert to vector and assign names
   eta <- as.vector(eta)
   # Prefer row names from the prediction data (or original object), fall back to sequential
   if (!is.null(newdata)) {
-    rn <- rownames(data)
+    rn <- rownames(newdata)  # Use original newdata rownames, not filtered data
   } else {
     rn <- rownames(object$data)
   }
@@ -105,48 +135,65 @@ predict.felm <- function(object, newdata = NULL, type = c("response", "terms"), 
   if (!is.null(newdata)) {
     check_data_(newdata)
 
-    data <- NA # just to avoid global variable warning
-    lhs <- NA
-    nobs_na <- NA
-    nobs_full <- NA
-    model_frame_(newdata, object$formula, NULL)
-    fe_names <- attr(terms(object$formula, rhs = 2L), "term.labels")
-    data <- transform_fe_(data, object$formula, fe_names)
-
-    X <- NA
-    nms_sp <- NA
-    p <- NA
-    model_response_(data, object$formula)
+    # For prediction, we only need the RHS variables, not the response
+    # Extract predictor variables and fixed effects
+    formula <- object$formula
+    fe_names <- attr(terms(formula, rhs = 2L), "term.labels")
+    
+    # Get all variables needed (predictors + fixed effects)
+    pred_vars <- attr(terms(formula, rhs = 1L), "term.labels")
+    all_vars <- c(pred_vars, fe_names)
+    
+    # Extract and prepare data (no na.omit - we want predictions for all rows)
+    data <- newdata[, all_vars, drop = FALSE]
+    
+    # Transform fixed effects to factors
+    data <- transform_fe_(data, formula, fe_names)
+    
+    # Create design matrix from predictors only
+    if (length(pred_vars) > 0) {
+      pred_formula <- reformulate(pred_vars, response = NULL)
+      X <- model.matrix(pred_formula, data = data)[, -1, drop = FALSE]
+    } else {
+      X <- matrix(0, nrow = nrow(data), ncol = 0)
+    }
 
     # Check if model has an intercept (no fixed effects case)
     # When there are no FEs, C++ adds an intercept, so coef_table includes "(Intercept)"
-    has_intercept <- "(Intercept)" %in% rownames(object$coef_table)
+    coef_table <- object$coef_table
+    has_intercept <- "(Intercept)" %in% rownames(coef_table)
     if (has_intercept) {
       # Add intercept column to X
       X <- cbind(1, X)
     }
 
     fes <- object[["fixed_effects"]]
-    fes2 <- setNames(lapply(names(fes), function(name) {
-      fe <- fes[[name]]
-      fe_values <- fe
-      fe_names <- names(fe_values)
-
+    fes_names <- names(fes)
+    fes2 <- setNames(lapply(fes_names, function(name) {
       # Match values and handle missing levels
-      data_values <- data[[name]]
-      matched_values <- fe_values[match(data_values, fe_names)]
+      matched_values <- fes[[name]][match(data[[name]], names(fes[[name]]))]
       matched_values[is.na(matched_values)] <- 0 # Set missing levels to 0
       matched_values
-    }), names(fes))
+    }), fes_names)
 
     # Replace NA coefficients with 0 for prediction
-    coef0 <- object$coef_table[, 1]
+    coef0 <- coef_table[, 1]
     coef0[is.na(coef0)] <- 0
 
     if (length(fes) > 0) {
       y <- X %*% coef0 + Reduce("+", fes2)
     } else {
       y <- X %*% coef0
+    }
+    
+    # Add offset if present (felm typically doesn't use offsets, but handle for consistency)
+    if (!is.null(object[["offset_spec"]])) {
+      offset_spec <- object[["offset_spec"]]
+      if (inherits(offset_spec, "formula")) {
+        offset_vars <- attr(terms(offset_spec, data = newdata), "term.labels")
+        offset_newdata <- eval(parse(text = offset_vars), envir = newdata)
+        y <- y + offset_newdata
+      }
     }
   } else {
     y <- object[["fitted_values"]]
@@ -156,7 +203,7 @@ predict.felm <- function(object, newdata = NULL, type = c("response", "terms"), 
   y <- as.vector(y)
   # Prefer row names from the prediction data (or original object), fall back to sequential
   if (!is.null(newdata)) {
-    rn <- rownames(data)
+    rn <- rownames(newdata)  # Use original newdata rownames, not filtered data
   } else {
     rn <- rownames(object$data)
   }

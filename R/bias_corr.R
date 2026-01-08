@@ -88,18 +88,11 @@ bias_corr <- function(
   # Extract model information
   beta_uncorr <- object[["coef_table"]][, 1]
   names(beta_uncorr) <- rownames(object[["coef_table"]])
-  control <- object[["control"]]
-  data <- object[["data"]]
-  family <- object[["family"]]
-  formula <- object[["formula"]]
-  fe_levels <- object[["fe_levels"]]
-  nms_sp <- names(beta_uncorr)
   nt <- object[["nobs"]][["nobs"]]
-  k_vars <- names(fe_levels)
-  k <- length(fe_levels)
+  k <- length(object[["fe_levels"]])
 
   # Check if binary choice model
-  apes_bias_check_binary_model_(family, fun = "bias_corr")
+  apes_bias_check_binary_model_(object[["family"]], fun = "bias_corr")
 
   # Check if the number of FEs is > 3
   bias_corr_check_fixed_effects_(k)
@@ -108,23 +101,21 @@ bias_corr <- function(
   apes_bias_check_panel_(panel_structure, k)
 
   # Extract model response, regressor matrix, and weights
-  y <- data[[1L]]
-  X <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
+  y <- object[["data"]][[1L]]
+  X <- model.matrix(object[["formula"]], object[["data"]], rhs = 1L)[, -1L, drop = FALSE]
   attr(X, "dimnames") <- NULL
-  wt <- object[["weights"]]
 
   # Generate auxiliary list of indexes for different sub panels
-  k_list <- get_index_list_(k_vars, data)
+  k_list <- get_index_list_(names(object[["fe_levels"]]), object[["data"]])
 
   # Compute derivatives and weights
-  eta <- object[["eta"]]
-  mu <- family[["linkinv"]](eta)
-  mu_eta <- family[["mu.eta"]](eta)
-  v <- wt * (y - mu)
-  w <- wt * mu_eta
-  z <- wt * partial_mu_eta_(eta, family, 2L)
-  if (family[["link"]] != "logit") {
-    h <- mu_eta / family[["variance"]](mu)
+  mu <- object[["family"]][["linkinv"]](object[["eta"]])
+  mu_eta <- object[["family"]][["mu.eta"]](object[["eta"]])
+  v <- object[["weights"]] * (y - mu)
+  w <- object[["weights"]] * mu_eta
+  z <- object[["weights"]] * partial_mu_eta_(object[["eta"]], object[["family"]], 2L)
+  if (object[["family"]][["link"]] != "logit") {
+    h <- mu_eta / object[["family"]][["variance"]](mu)
     v <- h * v
     w <- h * w
     z <- h * z
@@ -132,14 +123,14 @@ bias_corr <- function(
   }
 
   # Center regressor matrix (if required)
-  if (control[["keep_tx"]]) {
+  if (object[["control"]][["keep_tx"]]) {
     X <- object[["tx"]]
   } else {
     X <- center_variables_(
       X, w, k_list,
-      control[["center_tol"]],
-      control[["iter_center_max"]],
-      control[["iter_interrupt"]]
+      object[["control"]][["center_tol"]],
+      object[["control"]][["iter_center_max"]],
+      object[["control"]][["iter_interrupt"]]
     )
   }
 
@@ -171,16 +162,16 @@ bias_corr <- function(
 
   # Compute bias-corrected structural parameters
   beta <- beta_uncorr - solve(object[["hessian"]] / nt, b)
-  names(beta) <- nms_sp
+  names(beta) <- names(beta_uncorr)
 
   # Update \eta and first- and second-order derivatives
   eta <- feglm_offset_(object, X %*% beta)
-  mu <- family[["linkinv"]](eta)
-  mu_eta <- family[["mu.eta"]](eta)
-  v <- wt * (y - mu)
-  w <- wt * mu_eta
-  if (family[["link"]] != "logit") {
-    h <- mu_eta / family[["variance"]](mu)
+  mu <- object[["family"]][["linkinv"]](eta)
+  mu_eta <- object[["family"]][["mu.eta"]](eta)
+  v <- object[["weights"]] * (y - mu)
+  w <- object[["weights"]] * mu_eta
+  if (object[["family"]][["link"]] != "logit") {
+    h <- mu_eta / object[["family"]][["variance"]](mu)
     v <- h * v
     w <- h * w
     rm(h)
@@ -189,20 +180,20 @@ bias_corr <- function(
   # Update centered regressor matrix
   X <- center_variables_(
     X, w, k_list,
-    control[["center_tol"]],
-    control[["iter_center_max"]],
-    control[["iter_interrupt"]]
+    object[["control"]][["center_tol"]],
+    object[["control"]][["iter_center_max"]],
+    object[["control"]][["iter_interrupt"]]
   )
-  colnames(X) <- nms_sp
+  colnames(X) <- names(beta_uncorr)
 
   # Update hessian
   h <- crossprod(X * sqrt(w))
-  dimnames(h) <- list(nms_sp, nms_sp)
+  dimnames(h) <- list(names(beta_uncorr), names(beta_uncorr))
 
   # Update result list - update coef_table with new beta values
   object[["coef_table"]][, 1] <- beta
   object[["eta"]] <- eta
-  if (control[["keep_tx"]]) object[["tx"]] <- X
+  if (object[["control"]][["keep_tx"]]) object[["tx"]] <- X
   object[["hessian"]] <- h
   object[["coefficients_uncorr"]] <- beta_uncorr
   object[["bias_term"]] <- b

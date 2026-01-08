@@ -7,7 +7,11 @@
   strealine the summary creation. Same for the `InferenceLM` struct.
 * All the inference (std. error, R-squared, etc) was moved to C++ side and `print()` and `summary()` 
   functions just format the output.
-* Allows formulas without fixed effects, such as `y ~ x1 + x2` and `y ~ x1 + x2 | | cluster`.
+* Allows formulas without fixed effects, such as `y ~ x1 + x2` and `y ~ x1 + x2 | 0 | cluster` and 
+  formulas without slopes such as `y ~ 0 | fe1 + fe2`.
+* Allows offsets in GLMs.
+* The default is now `predict(glm_object, type = "response")`, unlike base R behavior.
+* Most of the R and C++ code was refactored to use memory efficiently.
 
 # capybara 1.8.1
 

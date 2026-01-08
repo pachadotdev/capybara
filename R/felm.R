@@ -148,23 +148,21 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
 
   # Get names and number of levels in each fixed effects category ----
   if (length(fe_vars) > 0) {
-    nms_fe <- lapply(data[fe_vars], levels)
-    fe_levels <- vapply(nms_fe, length, integer(1))
+    fe_levels <- vapply(lapply(data[fe_vars], levels), length, integer(1))
     # Generate auxiliary list of indexes for different sub panels ----
     FEs <- get_index_list_(fe_vars, data)
     names(FEs) <- fe_vars
   } else {
     # No fixed effects - create empty list
-    nms_fe <- list()
     fe_levels <- integer(0)
     FEs <- list()
   }
 
   # Extract cluster variable from formula (third part) ----
-  cl_vars <- suppressWarnings(attr(terms(formula, rhs = 3L), "term.labels"))
-  if (length(cl_vars) >= 1L) {
+  cl_vars_temp <- suppressWarnings(attr(terms(formula, rhs = 3L), "term.labels"))
+  if (length(cl_vars_temp) >= 1L) {
     # Get cluster index list (similar to FEs but only one level)
-    cl_list <- get_index_list_(cl_vars[1L], data)[[1L]]
+    cl_list <- get_index_list_(cl_vars_temp[1L], data)[[1L]]
   } else {
     cl_list <- list()
   }
@@ -193,9 +191,8 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
     colnames(fit[["tx"]]) <- nms_sp
   }
   # Preserve row names from the data when possible to match base R prediction naming
-  rn_fitted <- rownames(data)
-  if (!is.null(rn_fitted)) {
-    names(fit[["fitted_values"]]) <- rn_fitted
+  if (!is.null(rownames(data))) {
+    names(fit[["fitted_values"]]) <- rownames(data)
   } else {
     names(fit[["fitted_values"]]) <- seq_along(fit[["fitted_values"]])
   }
@@ -203,7 +200,7 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   # Add to fit list ----
   fit[["nobs"]] <- nobs
   fit[["fe_levels"]] <- fe_levels
-  fit[["nms_fe"]] <- nms_fe
+  fit[["nms_fe"]] <- if (length(fe_vars) > 0) lapply(data[fe_vars], levels) else list()
   fit[["formula"]] <- formula
   fit[["data"]] <- data
   fit[["control"]] <- control

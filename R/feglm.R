@@ -156,16 +156,12 @@ feglm <- function(
   check_control_(control)
 
   # Extract offset before data filtering ----
-  # Store original data row count for subsetting offset later
-  original_nrow <- nrow(data)
-  original_rownames <- rownames(data)
   offset_vec_original <- NULL
   
   if (!is.null(offset)) {
     if (inherits(offset, "formula")) {
       # Offset provided as formula (e.g., ~ log(variable))
-      offset_terms <- terms(offset, data = data)
-      offset_vars <- attr(offset_terms, "term.labels")
+      offset_vars <- attr(terms(offset, data = data), "term.labels")
       if (length(offset_vars) != 1L) {
         stop("Offset formula must specify exactly one term.", call. = FALSE)
       }
@@ -174,13 +170,13 @@ feglm <- function(
     } else if (is.numeric(offset)) {
       # Offset provided as numeric vector
       offset_vec_original <- offset
-      if (length(offset_vec_original) != original_nrow) {
+      if (length(offset_vec_original) != nrow(data)) {
         stop("Length of offset must equal number of observations.", call. = FALSE)
       }
     } else {
       stop("Offset must be NULL, a formula, or a numeric vector.", call. = FALSE)
     }
-    names(offset_vec_original) <- original_rownames
+    names(offset_vec_original) <- rownames(data)
   }
 
   # Generate model.frame
@@ -249,8 +245,7 @@ feglm <- function(
     offset_vec <- rep(0.0, nt)
   } else {
     # Use row names to subset the offset vector to match filtered data
-    current_rownames <- rownames(data)
-    offset_vec <- offset_vec_original[current_rownames]
+    offset_vec <- offset_vec_original[rownames(data)]
     if (length(offset_vec) != nt) {
       stop("Length of offset does not match number of observations after filtering.", call. = FALSE)
     }
@@ -261,13 +256,11 @@ feglm <- function(
 
   # Get names and number of levels in each fixed effects category ----
   if (length(fe_vars) > 0) {
-    nms_fe <- lapply(data[fe_vars], levels)
-    fe_levels <- vapply(nms_fe, length, integer(1))
+    fe_levels <- vapply(lapply(data[fe_vars], levels), length, integer(1))
     # Generate auxiliary list of indexes for different sub panels ----
     FEs <- get_index_list_(fe_vars, data)
   } else {
     # No fixed effects - create empty list
-    nms_fe <- list()
     fe_levels <- integer(0)
     FEs <- list()
   }
@@ -276,10 +269,10 @@ feglm <- function(
   names(FEs) <- fe_vars
 
   # Extract cluster variable from formula (third part) ----
-  cl_vars <- suppressWarnings(attr(terms(formula, rhs = 3L), "term.labels"))
-  if (length(cl_vars) >= 1L) {
+  cl_vars_temp <- suppressWarnings(attr(terms(formula, rhs = 3L), "term.labels"))
+  if (length(cl_vars_temp) >= 1L) {
     # Get cluster index list (similar to FEs but only one level)
-    cl_list <- get_index_list_(cl_vars[1L], data)[[1L]]
+    cl_list <- get_index_list_(cl_vars_temp[1L], data)[[1L]]
   } else {
     cl_list <- list()
   }
@@ -302,10 +295,8 @@ feglm <- function(
   # Cache starts for potential warm-start in repeated calls (opt-in) ----
   if (isTRUE(getOption("capybara.warm_start", FALSE))) {
     if (!is.null(fit$coef_table) && !is.null(fit$eta)) {
-      coefs <- fit$coef_table[, 1]
-      if (length(coefs) == ncol(X) && length(fit$eta) == nrow(X)) {
-        form_key <- paste(deparse(formula), collapse = "")
-        cache_set_starts_(form_key, coefs, fit$eta)
+      if (ncol(fit$coef_table) >= 1L && length(fit$eta) == nrow(X)) {
+        cache_set_starts_(paste(deparse(formula), collapse = ""), fit$coef_table[, 1], fit$eta)
       }
     }
   }
@@ -327,9 +318,8 @@ feglm <- function(
   dimnames(fit[["hessian"]]) <- list(non_na_nms_sp, non_na_nms_sp)
   dimnames(fit[["vcov"]]) <- list(non_na_nms_sp, non_na_nms_sp)
   # Preserve row names from the data when possible to match base R prediction naming
-  rn_fitted <- rownames(data)
-  if (!is.null(rn_fitted)) {
-    names(fit[["fitted_values"]]) <- rn_fitted
+  if (!is.null(rownames(data))) {
+    names(fit[["fitted_values"]]) <- rownames(data)
   } else {
     names(fit[["fitted_values"]]) <- seq_along(fit[["fitted_values"]])
   }
@@ -348,12 +338,13 @@ feglm <- function(
   # Add to fit list ----
   fit[["nobs"]] <- nobs
   fit[["fe_levels"]] <- fe_levels
-  fit[["nms_fe"]] <- nms_fe
+  fit[["nms_fe"]] <- if (length(fe_vars) > 0) lapply(data[fe_vars], levels) else list()
   fit[["formula"]] <- formula
   fit[["data"]] <- data
   fit[["family"]] <- family
   fit[["control"]] <- control
   fit[["offset"]] <- offset_vec
+  fit[["offset_spec"]] <- offset
 
   # t3 <- Sys.time()
 

@@ -13,6 +13,7 @@ fenegbin(
   eta_start = NULL,
   init_theta = NULL,
   link = c("log", "identity", "sqrt"),
+  offset = NULL,
   control = NULL
 )
 }
@@ -43,6 +44,10 @@ predictor.}
 
 \item{link}{the link function. Must be one of \code{"log"}, \code{"sqrt"}, or
 \code{"identity"}.}
+
+\item{offset}{an optional formula or numeric vector specifying an a priori
+known component to be included in the linear predictor. If a formula,
+it should be of the form \code{~ log(variable)}.}
 
 \item{control}{a named list of parameters for controlling the fitting
 process. See \code{\link{fit_control}} for details.}

@@ -17,22 +17,17 @@ NULL
 confint.feglm <- function(object, parm, level = 0.95, ...) {
   # Extract the summary of the feglm object
   res <- summary(object)$coefficients
-  colnames(res) <- c("estimate", "std.error", "statistic", "p.value")
 
   # Calculate the critical value for the specified confidence level
-  alpha <- 1 - level
-  z <- qnorm(1 - alpha / 2)
+  z <- qnorm(1 - (1 - level) / 2)
 
-  # Compute the confidence intervals
+  # Compute the confidence intervals with proper column names
   conf_int <- data.frame(
-    conf.low = res[, "estimate"] - z * res[, "std.error"],
-    conf.high = res[, "estimate"] + z * res[, "std.error"]
+    res[, 1] - z * res[, 2],
+    res[, 1] + z * res[, 2]
   )
 
-  colnames(conf_int) <- paste(
-    100 * (c(0, 1) + c(1, -1) * (1 - level) / 2),
-    "%"
-  )
+  colnames(conf_int) <- paste(100 * (c(0, 1) + c(1, -1) * (1 - level) / 2), "%")
 
   # Return the confidence intervals
   conf_int

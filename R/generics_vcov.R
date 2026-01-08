@@ -67,7 +67,8 @@ vcov.feglm <- function(object, ...) {
   }
 
   # Add names to match coefficients
-  nms <- rownames(object[["coef_table"]])
+  coef_table <- object[["coef_table"]]
+  nms <- rownames(coef_table)
   if (!is.null(nms) && length(nms) > 0) {
     dimnames(v) <- list(nms, nms)
   }
@@ -112,7 +113,8 @@ vcov.felm <- function(object, ...) {
   }
 
   # Add names to match coefficients
-  nms <- rownames(object[["coef_table"]])
+  coef_table <- object[["coef_table"]]
+  nms <- rownames(coef_table)
   if (!is.null(nms) && length(nms) > 0) {
     dimnames(v) <- list(nms, nms)
   }

@@ -39,14 +39,14 @@ NULL
 #' @param step_halving_factor numeric indicating the factor by which the step
 #'  size is halved to iterate towards convergence. This is used to control the
 #'  step size during optimization. The default is \code{0.5}.
-#' @param iter_max unsigned integer indicating the maximum number of iterations
+#' @param iter_max integer indicating the maximum number of iterations
 #'  in the maximization routine. The default is \code{25L}.
-#' @param iter_center_max unsigned integer indicating the maximum number of
+#' @param iter_center_max integer indicating the maximum number of
 #'  iterations in the centering algorithm. The default is \code{10000L}.
-#' @param iter_inner_max unsigned integer indicating the maximum number of
+#' @param iter_inner_max integer indicating the maximum number of
 #'  iterations in the inner loop of the centering algorithm. The default is
 #'  \code{50L}.
-#' @param iter_interrupt unsigned integer indicating the maximum number of
+#' @param iter_interrupt integer indicating the maximum number of
 #' iterations before the algorithm is interrupted. The default is \code{1000L}.
 #' @param iter_alpha_max maximum iterations for fixed effects computation.
 #'  The default is \code{10000L}.

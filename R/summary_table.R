@@ -49,21 +49,18 @@ summary_table <- function(...,
   # vcov is precomputed during fitting (either inverse Hessian or sandwich)
   # Use coef_table which is pre-computed in the model object
   coef_list <- lapply(models, function(m) {
-    coef_vec <- as.vector(m$coef_table[, 1])
-    names(coef_vec) <- rownames(m$coef_table)
-    coef_vec
+    ct <- m$coef_table
+    setNames(as.vector(ct[, 1]), rownames(ct))
   })
 
   se_list <- lapply(models, function(m) {
-    se_vec <- as.vector(m$coef_table[, 2])
-    names(se_vec) <- rownames(m$coef_table)
-    se_vec
+    ct <- m$coef_table
+    setNames(as.vector(ct[, 2]), rownames(ct))
   })
 
   p_list <- lapply(models, function(m) {
-    p_vec <- as.vector(m$coef_table[, 4])
-    names(p_vec) <- rownames(m$coef_table)
-    p_vec
+    ct <- m$coef_table
+    setNames(as.vector(ct[, 4]), rownames(ct))
   })
 
   # Get all unique variable names across models
@@ -79,13 +76,17 @@ summary_table <- function(...,
 
   # Format coefficients for each model
   invisible(lapply(seq_along(models), function(i) {
+    coefs <- coef_list[[i]]
+    ses <- se_list[[i]]
+    pvals <- p_list[[i]]
+    
     model_col <- vapply(all_vars, function(var) {
-      if (var %in% names(coef_list[[i]])) {
-        coef_val <- formatC(coef_list[[i]][var], digits = coef_digits, format = "f")
-        se_val <- formatC(se_list[[i]][var], digits = se_digits, format = "f")
+      if (var %in% names(coefs)) {
+        coef_val <- formatC(coefs[var], digits = coef_digits, format = "f")
+        se_val <- formatC(ses[var], digits = se_digits, format = "f")
 
         if (stars) {
-          p_val <- p_list[[i]][var]
+          p_val <- pvals[var]
           star <- ""
           if (p_val < 0.01) {
             star <- "**"
@@ -123,17 +124,18 @@ summary_table <- function(...,
   stats_rows <- list()
 
   obs_row <- c("N", sapply(models, function(m) {
+    nobs_vec <- m$nobs
     if (inherits(m, "felm")) {
-      format(as.numeric(m$nobs["nobs_full"]), big.mark = ",")
+      format(as.numeric(nobs_vec["nobs_full"]), big.mark = ",")
     } else {
-      if (is.vector(m$nobs) && length(m$nobs) > 1) {
-        if ("nobs" %in% names(m$nobs)) {
-          format(as.numeric(m$nobs["nobs"]), big.mark = ",")
+      if (is.vector(nobs_vec) && length(nobs_vec) > 1) {
+        if ("nobs" %in% names(nobs_vec)) {
+          format(as.numeric(nobs_vec["nobs"]), big.mark = ",")
         } else {
-          format(as.numeric(m$nobs[1]), big.mark = ",")
+          format(as.numeric(nobs_vec[1]), big.mark = ",")
         }
       } else {
-        format(as.numeric(m$nobs), big.mark = ",")
+        format(as.numeric(nobs_vec), big.mark = ",")
       }
     }
   }))
@@ -167,8 +169,10 @@ summary_table <- function(...,
     obs_row,
     r2_row
   )
-
-  colnames(result2_df) <- colnames(result_df)
+  
+  # Set column names from result_df
+  col_names <- colnames(result_df)
+  colnames(result2_df) <- col_names
 
   # Format the output and return it directly (no print call)
   res <- if (latex) {

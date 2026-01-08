@@ -45,20 +45,20 @@ step size during optimization. The default is \code{0.5}.}
 \item{alpha_tol}{tolerance for fixed effects (alpha) convergence.
 The default is \code{1.0e-06}.}
 
-\item{iter_max}{unsigned integer indicating the maximum number of iterations
+\item{iter_max}{integer indicating the maximum number of iterations
 in the maximization routine. The default is \code{25L}.}
 
-\item{iter_center_max}{unsigned integer indicating the maximum number of
+\item{iter_center_max}{integer indicating the maximum number of
 iterations in the centering algorithm. The default is \code{10000L}.}
 
-\item{iter_inner_max}{unsigned integer indicating the maximum number of
+\item{iter_inner_max}{integer indicating the maximum number of
 iterations in the inner loop of the centering algorithm. The default is
 \code{50L}.}
 
 \item{iter_alpha_max}{maximum iterations for fixed effects computation.
 The default is \code{10000L}.}
 
-\item{iter_interrupt}{unsigned integer indicating the maximum number of
+\item{iter_interrupt}{integer indicating the maximum number of
 iterations before the algorithm is interrupted. The default is \code{1000L}.}
 
 \item{step_halving_memory}{numeric memory factor for step-halving algorithm.

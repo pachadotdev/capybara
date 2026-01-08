@@ -8,40 +8,31 @@ NULL
 #' @param object Result list
 #' @noRd
 get_score_matrix_felm_ <- function(object) {
-  # Extract required quantities from result list
-  control <- object[["control"]]
-  data <- object[["data"]]
-  w <- object[["weights"]]
-
   # Update weights and dependent variable
-  y <- data[[1L]]
+  y <- object[["data"]][[1L]]
 
   # Center regressor matrix (if required)
-  if (control[["keep_tx"]]) {
+  if (object[["control"]][["keep_tx"]]) {
     tx <- object[["tx"]]
   } else {
-    # Extract additional required quantities from result list
-    formula <- object[["formula"]]
-    k_vars <- names(object[["lvls_k"]])
-
     # Generate auxiliary list of indexes to project out the fixed effects
-    k_list <- get_index_list_(k_vars, data)
+    k_list <- get_index_list_(names(object[["lvls_k"]]), object[["data"]])
 
     # Extract regressor matrix
-    X <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
+    X <- model.matrix(object[["formula"]], object[["data"]], rhs = 1L)[, -1L, drop = FALSE]
     nms_sp <- attr(X, "dimnames")[[2L]]
     attr(X, "dimnames") <- NULL
 
     # Center variables
     tx <- center_variables_(
-      X, w, k_list,
-      control[["center_tol"]],
-      control[["iter_center_max"]],
-      control[["iter_interrupt"]]
+      X, object[["weights"]], k_list,
+      object[["control"]][["center_tol"]],
+      object[["control"]][["iter_center_max"]],
+      object[["control"]][["iter_interrupt"]]
     )
     colnames(tx) <- nms_sp
   }
 
   # Return score matrix
-  tx * (y * w)
+  tx * (y * object[["weights"]])
 }

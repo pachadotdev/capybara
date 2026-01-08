@@ -24,8 +24,9 @@ summary_formula_ <- function(x) {
 #' @description Reduces the cyclomatic complexity of print.summary.feglm
 #' @noRd
 summary_family_ <- function(x) {
+  fam <- x[["family"]]
   cat(
-    "\nFamily: ", gsub("^([a-z])", "\\U\\1", x[["family"]][["family"]],
+    "\nFamily: ", gsub("^([a-z])", "\\U\\1", fam[["family"]],
       perl = TRUE
     ), "\n",
     sep = ""
@@ -36,10 +37,15 @@ summary_family_ <- function(x) {
 #' @description Reduces the cyclomatic complexity of print.summary.feglm
 #' @noRd
 summary_estimates_ <- function(x, digits) {
-  cat("\nEstimates:\n\n")
-
   # Use pre-computed coefficient table from C++ (already has row/col names)
   coefficients <- x[["coef_table"]]
+
+  # Skip printing if there are no slope coefficients (fixed effects only models)
+  if (is.null(coefficients) || nrow(coefficients) == 0) {
+    return(invisible(NULL))
+  }
+
+  cat("\nEstimates:\n\n")
 
   coefmat <- as.data.frame(coefficients)
 
@@ -57,8 +63,11 @@ summary_estimates_ <- function(x, digits) {
 }
 
 summary_estimates_signif_ <- function(coefmat, digits) {
-  coefmat[, max(ncol(coefmat))] <- vapply(
-    coefmat[, max(ncol(coefmat))],
+  last_col <- max(ncol(coefmat))
+  pval_col <- coefmat[, last_col]
+  
+  pval_col <- vapply(
+    pval_col,
     function(x) {
       formatted <- formatC(x, format = "f", digits = digits)
       if (x < 0.01) {
@@ -73,26 +82,18 @@ summary_estimates_signif_ <- function(coefmat, digits) {
     }, character(1)
   )
 
-  coefmat[, max(ncol(coefmat))] <- gsub(
-    "\\*\\s+$", "*",
-    coefmat[, max(ncol(coefmat))]
-  )
-  coefmat[, max(ncol(coefmat))] <- gsub(
-    "\\+\\s+$", "+",
-    coefmat[, max(ncol(coefmat))]
-  )
+  pval_col <- gsub("\\*\\s+$", "*", pval_col)
+  pval_col <- gsub("\\+\\s+$", "+", pval_col)
 
-  signif_width <- max(nchar(coefmat[, max(ncol(coefmat))]))
-  coefmat[, max(ncol(coefmat))] <- sprintf(
-    "%-*s", signif_width,
-    coefmat[, max(ncol(coefmat))]
-  )
+  signif_width <- max(nchar(pval_col))
+  coefmat[, last_col] <- sprintf("%-*s", signif_width, pval_col)
 
   coefmat
 }
 
 summary_estimates_cols_ <- function(coefmat, digits) {
-  coefmat[1:(ncol(coefmat) - 1)] <- lapply(coefmat[1:(ncol(coefmat) - 1)], function(col) {
+  n_cols <- ncol(coefmat) - 1
+  coefmat[1:n_cols] <- lapply(coefmat[1:n_cols], function(col) {
     formatC(as.double(col), format = "f", digits = digits)
   })
   coefmat
@@ -167,7 +168,8 @@ summary_r2_ <- function(x, digits) {
 #' @description Reduces the cyclomatic complexity of print.summary.feglm
 #' @noRd
 summary_pseudo_rsq_ <- function(x, digits) {
-  if (x[["family"]][["family"]] == "poisson" && !is.null(x[["pseudo.rsq"]])) {
+  fam <- x[["family"]]
+  if (fam[["family"]] == "poisson" && !is.null(x[["pseudo.rsq"]])) {
     cat(
       "\nPseudo R-squared:",
       format(x[["pseudo.rsq"]], digits = digits, nsmall = 2L), "\n"
@@ -179,11 +181,12 @@ summary_pseudo_rsq_ <- function(x, digits) {
 #' @description Reduces the cyclomatic complexity of print.summary.feglm
 #' @noRd
 summary_nobs_ <- function(x) {
+  nobs_vec <- x[["nobs"]]
   cat(
     "\nNumber of observations:",
-    paste0("Full ", x[["nobs"]][["nobs"]], ";"),
-    paste0("Missing ", x[["nobs"]][["nobs_na"]], ";"),
-    paste0("Perfect classification ", x[["nobs"]][["nobs_pc"]]), "\n"
+    paste0("Full ", nobs_vec[["nobs"]], ";"),
+    paste0("Missing ", nobs_vec[["nobs_na"]], ";"),
+    paste0("Perfect classification ", nobs_vec[["nobs_pc"]]), "\n"
   )
 }
 
@@ -216,17 +219,24 @@ print.apes <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
   coefficients <- x[["vcov_table"]]
   if (is.null(coefficients)) {
     # Fallback for backward compatibility
-    est <- x[["delta"]]
+    delta <- x[["delta"]]
     se <- sqrt(diag(x[["vcov"]]))
-    z <- est / se
-    p <- 2.0 * pnorm(-abs(z))
-    coefficients <- cbind(est, se, z, p)
-    rownames(coefficients) <- names(est)
-    colnames(coefficients) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
+    coefficients <- cbind(
+      Estimate = delta,
+      `Std. Error` = se,
+      `z value` = delta / se,
+      `Pr(>|z|)` = 2.0 * pnorm(-abs(delta / se))
+    )
+    rownames(coefficients) <- names(delta)
   }
 
-  cat("Estimates:\n")
-  printCoefmat(coefficients, P.values = TRUE, has.Pvalue = TRUE, digits = digits)
+  # Skip printing if there are no slope coefficients
+  if (!is.null(coefficients) && nrow(coefficients) > 0) {
+    cat("Estimates:\n")
+    printCoefmat(coefficients, P.values = TRUE, has.Pvalue = TRUE, digits = digits)
+  } else {
+    cat("No slope coefficients\n")
+  }
   invisible(x)
 }
 

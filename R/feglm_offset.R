@@ -25,28 +25,20 @@ feglm_offset_ <- function(object, offset) {
     stop("'feglm_offset_' called on a non-'feglm' object.")
   }
 
-  # Extract required quantities from result list
-  control <- object[["control"]]
-  data <- object[["data"]]
-  wt <- object[["weights"]]
-  family <- object[["family"]]
-  fe_levels <- object[["fe_levels"]]
-  nt <- object[["nobs"]][["nobs"]]
-  k_vars <- names(fe_levels)
+  # Generate auxiliary list of indexes to project out the fixed effects
+  k_list <- get_index_list_(names(object[["fe_levels"]]), object[["data"]])
 
   # Extract dependent variable
-  y <- data[[1L]]
-
-  # Generate auxiliary list of indexes to project out the fixed effects
-  k_list <- get_index_list_(k_vars, data)
+  y <- object[["data"]][[1L]]
 
   # Compute starting guess for eta
-  if (family[["family"]] == "binomial") {
-    eta <- rep(family[["linkfun"]](sum(wt * (y + 0.5) / 2.0) / sum(wt)), nt)
-  } else if (family[["family"]] %in% c("Gamma", "inverse.gaussian")) {
-    eta <- rep(family[["linkfun"]](sum(wt * y) / sum(wt)), nt)
+  nt <- object[["nobs"]][["nobs"]]
+  if (object[["family"]][["family"]] == "binomial") {
+    eta <- rep(object[["family"]][["linkfun"]](sum(object[["weights"]] * (y + 0.5) / 2.0) / sum(object[["weights"]])), nt)
+  } else if (object[["family"]][["family"]] %in% c("Gamma", "inverse.gaussian")) {
+    eta <- rep(object[["family"]][["linkfun"]](sum(object[["weights"]] * y) / sum(object[["weights"]])), nt)
   } else {
-    eta <- rep(family[["linkfun"]](sum(wt * (y + 0.1)) / sum(wt)), nt)
+    eta <- rep(object[["family"]][["linkfun"]](sum(object[["weights"]] * (y + 0.1)) / sum(object[["weights"]])), nt)
   }
 
   # Return eta
@@ -54,6 +46,6 @@ feglm_offset_ <- function(object, offset) {
     y <- as.numeric(y)
   }
   feglm_offset_fit_(
-    eta, y, offset, wt, family[["family"]], control, k_list
+    eta, y, offset, object[["weights"]], object[["family"]][["family"]], object[["control"]], k_list
   )
 }

@@ -70,19 +70,18 @@ autoplot.feglm <- function(object, ...) {
   res <- coef(summary(object))
   colnames(res) <- c("estimate", "std.error", "statistic", "p.value")
 
-  # Calculate the critical value for the specified confidence conf_level
-  alpha <- 1 - conf_level
-  z <- qnorm(1 - alpha / 2)
-
+  # Calculate the critical value and compute confidence intervals
+  z_crit <- qnorm(1 - (1 - conf_level) / 2)
+  
   # Compute the confidence intervals
   conf_data <- data.frame(
     term = rownames(res),
     estimate = res[, "estimate"],
-    conf_low = res[, "estimate"] - z * res[, "std.error"],
-    conf_high = res[, "estimate"] + z * res[, "std.error"]
+    conf_low = res[, "estimate"] - z_crit * res[, "std.error"],
+    conf_high = res[, "estimate"] + z_crit * res[, "std.error"]
   )
 
-  p <- ggplot(conf_data, aes(x = term, y = estimate)) +
+  ggplot(conf_data, aes(x = term, y = estimate)) +
     geom_errorbar(
       aes(
         ymin = conf_low,
@@ -102,8 +101,6 @@ autoplot.feglm <- function(object, ...) {
     ) +
     theme_minimal() +
     coord_flip()
-
-  p
 }
 
 #' @title Autoplot method for felm objects
@@ -147,19 +144,18 @@ autoplot.felm <- function(object, ...) {
   res <- coef(summary(object))
   colnames(res) <- c("estimate", "std.error", "statistic", "p.value")
 
-  # Calculate the critical value for the specified confidence conf_level
-  alpha <- 1 - conf_level
-  z <- qnorm(1 - alpha / 2)
-
+  # Calculate the critical value and compute confidence intervals
+  z_crit <- qnorm(1 - (1 - conf_level) / 2)
+  
   # Compute the confidence intervals
   conf_data <- data.frame(
     term = rownames(res),
     estimate = res[, "estimate"],
-    conf_low = res[, "estimate"] - z * res[, "std.error"],
-    conf_high = res[, "estimate"] + z * res[, "std.error"]
+    conf_low = res[, "estimate"] - z_crit * res[, "std.error"],
+    conf_high = res[, "estimate"] + z_crit * res[, "std.error"]
   )
 
-  p <- ggplot(conf_data, aes(x = term, y = estimate)) +
+  ggplot(conf_data, aes(x = term, y = estimate)) +
     geom_errorbar(
       aes(
         ymin = conf_low,
@@ -179,6 +175,4 @@ autoplot.felm <- function(object, ...) {
     ) +
     theme_minimal() +
     coord_flip()
-
-  p
 }

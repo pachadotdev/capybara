@@ -35,6 +35,7 @@ inline double estimate_theta(const vec &y, const vec &mu,
 InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
                              const field<field<uvec>> &fe_groups,
                              const CapybaraParameters &params,
+                             const vec &offset = vec(),
                              double init_theta = 0.0,
                              GlmWorkspace *workspace = nullptr) {
   const uword n = y.n_elem;
@@ -55,6 +56,12 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
   // Initialize beta_coef and eta with Poisson fit
   vec beta_coef(p, fill::zeros);
   vec eta(n, fill::zeros);
+
+  // Use offset if provided, otherwise zero offset
+  vec offset_vec = offset.n_elem == n ? offset : vec(n, fill::zeros);
+  
+  // Add offset to eta before fitting (eta = X*beta + offset)
+  eta += offset_vec;
 
   InferenceGLM poisson_fit =
       feglm_fit(beta_coef, eta, y, X, w, 0.0, poisson_family, fe_groups, params,

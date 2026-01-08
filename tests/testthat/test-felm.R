@@ -63,8 +63,8 @@ test_that("felm works", {
   s1 <- summary(m1)
   s2 <- summary(m2)
 
-  expect_equal(s1$r.squared, s2$r.squared, tolerance = 1e-2)
-  expect_equal(s1$adj.r.squared, s2$adj.r.squared, tolerance = 1e-2)
+  expect_equal(s1$r_squared, s2$r.squared, tolerance = 1e-2)
+  expect_equal(s1$adj_r_squared, s2$adj.r.squared, tolerance = 1e-2)
 
   mtcars2 <- mtcars
   mtcars2$wt[2] <- NA
@@ -77,8 +77,8 @@ test_that("felm works", {
   s1 <- summary(m1)
   s2 <- summary(m2)
 
-  expect_equal(s1$r.squared, s2$r.squared, tolerance = 1e-2)
-  expect_equal(s1$adj.r.squared, s2$adj.r.squared, tolerance = 1e-2)
+  expect_equal(s1$r_squared, s2$r.squared, tolerance = 1e-2)
+  expect_equal(s1$adj_r_squared, s2$adj.r.squared, tolerance = 1e-2)
 
   m1 <- felm(mpg ~ wt + qsec | cyl + am | carb, mtcars)
 
@@ -93,8 +93,8 @@ test_that("felm works", {
 
   s1 <- summary(m1)
   s2 <- summary(m2)
-  expect_equal(s1$r.squared, s2$r.squared, tolerance = 1e-2)
-  expect_equal(s1$adj.r.squared, s2$adj.r.squared, tolerance = 1e-2)
+  expect_equal(s1$r_squared, s2$r.squared, tolerance = 1e-2)
+  expect_equal(s1$adj_r_squared, s2$adj.r.squared, tolerance = 1e-2)
 })
 
 test_that("felm is correct without fixed effects", {
@@ -105,8 +105,8 @@ test_that("felm is correct without fixed effects", {
 
   expect_equal(coef(m1), coef(m2), tolerance = 1e-2)
 
-  expect_equal(m1$r.squared, s2$r.squared, tolerance = 1e-2)
-  expect_equal(m1$adj.r.squared, s2$adj.r.squared, tolerance = 1e-2)
+  expect_equal(m1$r_squared, s2$r.squared, tolerance = 1e-2)
+  expect_equal(m1$adj_r_squared, s2$adj.r.squared, tolerance = 1e-2)
 })
 
 test_that("felm time is the minimally affected when adding noise to the data", {

@@ -149,10 +149,12 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
                        const field<field<uvec>> &fe_groups,
                        const CapybaraParameters &params,
                        GlmWorkspace *workspace = nullptr,
-                       const field<uvec> *cluster_groups = nullptr) {
+                       const field<uvec> *cluster_groups = nullptr,
+                       const vec *offset = nullptr) {
   const uword n = y.n_elem;
   const uword p_original = X.n_cols;
   const bool has_fixed_effects = fe_groups.n_elem > 0;
+  const bool has_offset = (offset != nullptr && offset->n_elem == n && any(*offset != 0.0));
 
   // Add intercept column if no fixed effects
   if (!has_fixed_effects) {
@@ -217,6 +219,12 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   vec &eta0 = workspace->eta0;
   vec &beta0 = workspace->beta0;
   vec &nu0 = workspace->nu0;
+
+  // Store offset separately if present (but don't modify eta)
+  vec offset_vec(n, fill::zeros);
+  if (has_offset) {
+    offset_vec = *offset;
+  }
 
   mu = link_inv(eta, family_type);
   vec ymean = mean(y) * vec(n, fill::ones);
@@ -447,6 +455,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       eta = eta0;
       beta = beta0;
       dev = dev0;
+      // eta already includes offset from R (added in capybara.cpp), so don't add it again
       mu = link_inv(eta, family_type);
     }
 
@@ -532,7 +541,13 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
         x_beta.zeros(n);
       }
 
+      // Compute pi = eta - X*beta - offset
+      // eta includes offset from R (added in capybara.cpp)
+      // so we need to subtract offset to get just the fixed effects
       vec pi = eta - x_beta;
+      if (has_offset) {
+        pi -= offset_vec;
+      }
 
       result.has_fe = true;
       if (params.return_fe) {

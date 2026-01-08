@@ -19,19 +19,22 @@ NULL
 #' @export
 tidy.feglm <- function(x, conf_int = FALSE, conf_level = 0.95, ...) {
   # Extract coefficient table from model object (already has row names)
-  res <- x[["coef_table"]]
-  colnames(res) <- c("estimate", "std.error", "statistic", "p.value")
+  coef_table <- x[["coef_table"]]
 
   if (conf_int) {
     # Calculate confidence intervals using the specified level
     z_crit <- qnorm(1 - (1 - conf_level) / 2)
-    conf_low <- res[, "estimate"] - z_crit * res[, "std.error"]
-    conf_high <- res[, "estimate"] + z_crit * res[, "std.error"]
-    res <- cbind(res, conf_low, conf_high)
-    colnames(res) <- c(
-      "estimate", "std.error", "statistic", "p.value",
-      "conf.low", "conf.high"
+    res <- cbind(
+      estimate = coef_table[, 1],
+      std.error = coef_table[, 2],
+      statistic = coef_table[, 3],
+      p.value = coef_table[, 4],
+      conf.low = coef_table[, 1] - z_crit * coef_table[, 2],
+      conf.high = coef_table[, 1] + z_crit * coef_table[, 2]
     )
+  } else {
+    res <- coef_table
+    colnames(res) <- c("estimate", "std.error", "statistic", "p.value")
   }
 
   res <- as.data.frame(res)

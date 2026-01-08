@@ -132,15 +132,11 @@ apes <- function(
   # Extract model information
   beta <- object[["coef_table"]][, 1]
   names(beta) <- rownames(object[["coef_table"]])
-  control <- object[["control"]]
   data <- object[["data"]]
   family <- object[["family"]]
-  formula <- object[["formula"]]
-  fe_levels <- object[["fe_levels"]]
   nt <- nrow(data)
   nt_full <- object[["nobs"]][["nobs_full"]]
-  k <- length(fe_levels)
-  k_vars <- names(fe_levels)
+  k <- length(object[["fe_levels"]])
   p <- length(beta)
 
   # Check if binary choice model
@@ -155,24 +151,23 @@ apes <- function(
 
   # Extract model response, regressor matrix, and weights
   y <- data[[1L]]
-  X <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
+  X <- model.matrix(object[["formula"]], data, rhs = 1L)[, -1L, drop = FALSE]
   nms_sp <- attr(X, "dimnames")[[2L]]
   attr(X, "dimnames") <- NULL
-  wt <- object[["weights"]]
 
   # Determine which of the regressors are binary
   binary <- apply(X, 2L, function(X) all(X %in% c(0.0, 1.0)))
 
   # Generate auxiliary list of indexes for different sub panels
-  k_list <- get_index_list_(k_vars, data)
+  k_list <- get_index_list_(names(object[["fe_levels"]]), data)
 
   # Compute derivatives and weights
   eta <- object[["eta"]]
   mu <- family[["linkinv"]](eta)
   mu_eta <- family[["mu.eta"]](eta)
-  v <- wt * (y - mu)
-  w <- wt * mu_eta
-  z <- wt * partial_mu_eta_(eta, family, 2L)
+  v <- object[["weights"]] * (y - mu)
+  w <- object[["weights"]] * mu_eta
+  z <- object[["weights"]] * partial_mu_eta_(eta, family, 2L)
   if (family[["link"]] != "logit") {
     h <- mu_eta / family[["variance"]](mu)
     v <- h * v
@@ -182,25 +177,24 @@ apes <- function(
   }
 
   # Center regressor matrix (if required)
-  if (control[["keep_tx"]]) {
+  if (object[["control"]][["keep_tx"]]) {
     tx <- object[["tx"]]
   } else {
     tx <- center_variables_(
       X, w, k_list,
-      control[["center_tol"]],
-      control[["iter_center_max"]],
-      control[["iter_interrupt"]]
+      object[["control"]][["center_tol"]],
+      object[["control"]][["iter_center_max"]],
+      object[["control"]][["iter_interrupt"]]
     )
   }
 
   # Compute average partial effects, derivatives, and Jacobian
-  px <- X - tx
   delta <- matrix(NA_real_, nt, p)
   delta1 <- matrix(NA_real_, nt, p)
   j <- matrix(NA_real_, p, p)
   if (any(!binary)) {
     delta[, !binary] <- mu_eta
-    delta1[, !binary] <- partial_mu_eta_(eta, family, 2L)
+    delta1[, !binary] <- partial_mu_eta_(eta, object[["family"]], 2L)
   }
   invisible(lapply(seq.int(p), function(i) {
     if (binary[[i]]) {
@@ -209,7 +203,7 @@ apes <- function(
       f1 <- family[["mu.eta"]](eta1)
       delta[, i] <<- (family[["linkinv"]](eta1) - family[["linkinv"]](eta0))
       delta1[, i] <<- f1 - family[["mu.eta"]](eta0)
-      j[, i] <<- -colSums(px * delta1[, i]) / nt_full
+      j[, i] <<- -colSums((X - tx) * delta1[, i]) / nt_full
       j[i, i] <<- sum(f1) / nt_full + j[i, i]
       j[-i, i] <<- colSums(X[, -i, drop = FALSE] * delta1[, i]) /
         nt_full + j[-i, i]
@@ -222,18 +216,17 @@ apes <- function(
   }))
   delta_aux <- colSums(delta) / nt_full
   delta <- t(t(delta) - delta_aux) / nt_full
-  rm(mu, mu_eta, px)
+  rm(mu, mu_eta)
 
   # Compute projection and residual projection of \psi
-  psi <- -delta1 / w
   mpsi <- center_variables_(
-    psi, w, k_list,
-    control[["center_tol"]],
-    control[["iter_max"]],
-    control[["iter_interrupt"]]
+    -delta1 / w, w, k_list,
+    object[["control"]][["center_tol"]],
+    object[["control"]][["iter_max"]],
+    object[["control"]][["iter_interrupt"]]
   )
-  ppsi <- psi - mpsi
-  rm(delta1, psi)
+  ppsi <- (-delta1 / w) - mpsi
+  rm(delta1)
 
   # Compute analytical bias correction of average partial effects
   if (bias_corr) {

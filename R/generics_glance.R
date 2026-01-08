@@ -19,13 +19,14 @@ NULL
 #' @rdname broom
 #' @export
 glance.feglm <- function(x, ...) {
+  nobs_vec <- x[["nobs"]]
   res <- data.frame(
     deviance = x[["deviance"]],
     null_deviance = x[["null_deviance"]],
-    nobs_full = x[["nobs"]]["nobs_full"],
-    nobs_na = x[["nobs"]]["nobs_na"],
-    nobs_pc = x[["nobs"]]["nobs_pc"],
-    nobs = x[["nobs"]]["nobs"]
+    nobs_full = nobs_vec["nobs_full"],
+    nobs_na = nobs_vec["nobs_na"],
+    nobs_pc = nobs_vec["nobs_pc"],
+    nobs = nobs_vec["nobs"]
   )
 
   class(res) <- c("tbl_df", "tbl", "data.frame")
@@ -35,13 +36,14 @@ glance.feglm <- function(x, ...) {
 #' @rdname broom
 #' @export
 glance.felm <- function(x, ...) {
+  nobs_vec <- x[["nobs"]]
   res <- data.frame(
     r_squared = x[["r_squared"]],
     adj_r_squared = x[["adj_r_squared"]],
-    nobs_full = x[["nobs"]]["nobs_full"],
-    nobs_na = x[["nobs"]]["nobs_na"],
-    nobs_pc = x[["nobs"]]["nobs_pc"],
-    nobs = x[["nobs"]]["nobs"]
+    nobs_full = nobs_vec["nobs_full"],
+    nobs_na = nobs_vec["nobs_na"],
+    nobs_pc = nobs_vec["nobs_pc"],
+    nobs = nobs_vec["nobs"]
   )
 
   class(res) <- c("tbl_df", "tbl", "data.frame")
