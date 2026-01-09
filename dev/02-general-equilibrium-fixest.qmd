@@ -84,17 +84,13 @@ fit_baseline_app1 <- fepois(
   trade ~ log_dist + cntg + intl | exporter + importer,
   data = ch2_application1
 )
+
+saveRDS(fit_baseline_app1, "dev/ch2_app1_baseline_fit_fixest.rds")
 ```
 
 With the estimated model, we can proceed as in box #1 from page 105 in @yotov2016advanced to construct the variables for exporter and importer fixed effects. This step is very different compared to Stata.
 
 ```{r ch2_app1_baseline_3}
-# fe_exporter_bln <- fit_baseline_app1$fixed_effects$exporter |>
-#   tibble::enframe(name = "exporter", value = "fe_exporter_bln")
-
-# fe_importer_bln <- fit_baseline_app1$fixed_effects$importer |>
-#   tibble::enframe(name = "importer", value = "fe_importer_bln")
-
 fe_exporter_bln <- fixef(fit_baseline_app1)$exporter |>
   tibble::enframe(name = "exporter", value = "fe_exporter_bln")
 
@@ -111,10 +107,6 @@ Still following box #1, we need to compute the variables of bilateral trade cost
 ```{r ch2_app1_baseline_4}
 ch2_application1 <- ch2_application1 |>
   mutate(
-    # tij_bln = exp(fit_baseline_app1$coef_table["log_dist", 1] * log_dist +
-    #   fit_baseline_app1$coef_table["cntg", 1] * cntg +
-    #   fit_baseline_app1$coef_table["intl", 1] * intl),
-
     tij_bln = exp(fit_baseline_app1$coefficients["log_dist"] * log_dist +
       fit_baseline_app1$coefficients["cntg"] * cntg +
       fit_baseline_app1$coefficients["intl"] * intl),
@@ -144,8 +136,6 @@ Box #2 from page 105 in @yotov2016advanced proposes two alternatives to define t
 ```{r ch2_app1_counterfactual_1}
 ch2_application1 <- ch2_application1 |>
   mutate(
-    # tij_cfl = exp(fit_baseline_app1$coef_table["log_dist", 1] * log_dist +
-    #   fit_baseline_app1$coef_table["cntg", 1] * cntg)
     tij_cfl = exp(fit_baseline_app1$coefficients["log_dist"] * log_dist +
       fit_baseline_app1$coefficients["cntg"] * cntg)
   )
@@ -157,9 +147,6 @@ The second alternative is to define a new counterfactual border variable. We onl
 ch2_application1 <- ch2_application1 |>
   mutate(
     intl_cfl = 0,
-    # tij_bln = exp(fit_baseline_app1$coef_table["log_dist", 1] * log_dist +
-    #   fit_baseline_app1$coef_table["cntg", 1] * cntg +
-    #   fit_baseline_app1$coef_table["intl", 1] * intl_cfl)
     tij_bln = exp(fit_baseline_app1$coefficients["log_dist"] * log_dist +
       fit_baseline_app1$coefficients["cntg"] * cntg +
       fit_baseline_app1$coefficients["intl"] * intl_cfl)
@@ -189,12 +176,6 @@ fit_counterfactual_app1 <- fepois(
 As in the previous chapter, we need to extract the fixed effects.
 
 ```{r ch2_app1_counterfactual_4}
-# fe_exporter_cfl <- fit_counterfactual_app1$fixed_effects$exporter |>
-#   tibble::enframe(name = "exporter", value = "fe_exporter_cfl")
-
-# fe_importer_cfl <- fit_counterfactual_app1$fixed_effects$importer |>
-#   tibble::enframe(name = "importer", value = "fe_importer_cfl")
-
 fe_exporter_cfl <- fixef(fit_counterfactual_app1)$exporter |>
   tibble::enframe(name = "exporter", value = "fe_exporter_cfl")
 
@@ -301,12 +282,6 @@ while (sd_dif > 1e-5 | max_dif > 1e-5) {
     offset = ~ log(tij_cfl)
   )
 
-  # fe_exporter_cfl_1 <- fit_counterfactual_app1_2$fixed_effects$exporter |>
-  #   tibble::enframe(name = "exporter", value = "fe_exporter_cfl_1")
-
-  # fe_importer_cfl_1 <- fit_counterfactual_app1_2$fixed_effects$importer |>
-  #   tibble::enframe(name = "importer", value = "fe_importer_cfl_1")
-
   fe_exporter_cfl_1 <- fixef(fit_counterfactual_app1_2)$exporter |>
     tibble::enframe(name = "exporter", value = "fe_exporter_cfl_1")
 
@@ -315,7 +290,7 @@ while (sd_dif > 1e-5 | max_dif > 1e-5) {
 
   ch2_application1$fe_exporter_cfl_1 <- NULL
   ch2_application1$fe_importer_cfl_1 <- NULL
-    
+
   ch2_application1 <- ch2_application1 |>
     left_join(fe_exporter_cfl_1, by = "exporter") |>
     left_join(fe_importer_cfl_1, by = "importer")
@@ -559,6 +534,6 @@ data_figure_7 <- ch2_application1 |>
   )
 
 ch2_application1 |>
-    select(exporter, log_y, change_imr_full, change_price_full, rgdp) |>
-    readr::write_csv("dev/ch2_application1_results_fixest.csv")
+  select(exporter, log_y, change_imr_full, change_price_full, rgdp) |>
+  readr::write_csv("dev/ch2_application1_results_fixest.csv")
 ```

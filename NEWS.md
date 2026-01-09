@@ -12,6 +12,7 @@
 * Allows offsets in GLMs.
 * The default is now `predict(glm_object, type = "response")`, unlike base R behavior.
 * Most of the R and C++ code was refactored to use memory efficiently.
+* Follows fixest-based normalization for fixed effects to match Stata results.
 
 # capybara 1.8.1
 

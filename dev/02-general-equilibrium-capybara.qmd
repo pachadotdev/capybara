@@ -84,20 +84,17 @@ fit_baseline_app1 <- fepoisson(
   trade ~ log_dist + cntg + intl | exporter + importer,
   data = ch2_application1
 )
+
+saveRDS(fit_baseline_app1, "dev/ch2_app1_baseline_fit_capybara.rds")
 ```
 
 With the estimated model, we can proceed as in box #1 from page 105 in @yotov2016advanced to construct the variables for exporter and importer fixed effects. This step is very different compared to Stata.
 
 ```{r ch2_app1_baseline_3}
-# Extract and normalize fixed effects to match fixest/Stata convention
-# Normalization: set first level of first FE to zero
-fe_raw <- fit_baseline_app1$fixed_effects
-first_fe_val <- fe_raw$exporter[1]
-
-fe_exporter_bln <- (fe_raw$exporter - first_fe_val) |>
+fe_exporter_bln <- fit_baseline_app1$fixed_effects$exporter |>
   tibble::enframe(name = "exporter", value = "fe_exporter_bln")
 
-fe_importer_bln <- (fe_raw$importer + first_fe_val) |>
+fe_importer_bln <- fit_baseline_app1$fixed_effects$importer |>
   tibble::enframe(name = "importer", value = "fe_importer_bln")
 
 ch2_application1 <- ch2_application1 |>
@@ -113,10 +110,6 @@ ch2_application1 <- ch2_application1 |>
     tij_bln = exp(fit_baseline_app1$coef_table["log_dist", 1] * log_dist +
       fit_baseline_app1$coef_table["cntg", 1] * cntg +
       fit_baseline_app1$coef_table["intl", 1] * intl),
-
-    # tij_bln = exp(fit_baseline_app1$coefficients["log_dist"] * log_dist +
-    #   fit_baseline_app1$coefficients["cntg"] * cntg +
-    #   fit_baseline_app1$coefficients["intl"] * intl),
 
     # outward multilateral resistance (omr)
     omr_bln = y * (e_r / exp(fe_exporter_bln)),
@@ -145,8 +138,6 @@ ch2_application1 <- ch2_application1 |>
   mutate(
     tij_cfl = exp(fit_baseline_app1$coef_table["log_dist", 1] * log_dist +
       fit_baseline_app1$coef_table["cntg", 1] * cntg)
-    # tij_cfl = exp(fit_baseline_app1$coefficients["log_dist"] * log_dist +
-    #   fit_baseline_app1$coefficients["cntg"] * cntg)
   )
 ```
 
@@ -159,9 +150,6 @@ ch2_application1 <- ch2_application1 |>
     tij_bln = exp(fit_baseline_app1$coef_table["log_dist", 1] * log_dist +
       fit_baseline_app1$coef_table["cntg", 1] * cntg +
       fit_baseline_app1$coef_table["intl", 1] * intl_cfl)
-    # tij_bln = exp(fit_baseline_app1$coefficients["log_dist"] * log_dist +
-    #   fit_baseline_app1$coefficients["cntg"] * cntg +
-    #   fit_baseline_app1$coefficients["intl"] * intl_cfl)
   )
 ```
 
@@ -188,14 +176,10 @@ fit_counterfactual_app1 <- fepoisson(
 As in the previous chapter, we need to extract the fixed effects.
 
 ```{r ch2_app1_counterfactual_4}
-# Extract and normalize fixed effects to match fixest/Stata convention
-fe_raw_cfl <- fit_counterfactual_app1$fixed_effects
-first_fe_val_cfl <- fe_raw_cfl$exporter[1]
-
-fe_exporter_cfl <- (fe_raw_cfl$exporter - first_fe_val_cfl) |>
+fe_exporter_cfl <- fit_counterfactual_app1$fixed_effects$exporter |>
   tibble::enframe(name = "exporter", value = "fe_exporter_cfl")
 
-fe_importer_cfl <- (fe_raw_cfl$importer + first_fe_val_cfl) |>
+fe_importer_cfl <- fit_counterfactual_app1$fixed_effects$importer |>
   tibble::enframe(name = "importer", value = "fe_importer_cfl")
 
 ch2_application1 <- ch2_application1 |>
@@ -304,15 +288,9 @@ while (sd_dif > 1e-5 | max_dif > 1e-5) {
   fe_importer_cfl_1 <- fit_counterfactual_app1_2$fixed_effects$importer |>
     tibble::enframe(name = "importer", value = "fe_importer_cfl_1")
 
-  # fe_exporter_cfl_1 <- fixef(fit_counterfactual_app1_2)$exporter |>
-  #   tibble::enframe(name = "exporter", value = "fe_exporter_cfl_1")
-
-  # fe_importer_cfl_1 <- fixef(fit_counterfactual_app1_2)$importer |>
-  #   tibble::enframe(name = "importer", value = "fe_importer_cfl_1")
-
   ch2_application1$fe_exporter_cfl_1 <- NULL
   ch2_application1$fe_importer_cfl_1 <- NULL
-    
+
   ch2_application1 <- ch2_application1 |>
     left_join(fe_exporter_cfl_1, by = "exporter") |>
     left_join(fe_importer_cfl_1, by = "importer")
@@ -556,8 +534,6 @@ data_figure_7 <- ch2_application1 |>
   )
 
 ch2_application1 |>
-    select(exporter, log_y, change_imr_full, change_price_full, rgdp) |>
-    readr::write_csv("dev/ch2_application1_results_capybara.csv")
+  select(exporter, log_y, change_imr_full, change_price_full, rgdp) |>
+  readr::write_csv("dev/ch2_application1_results_capybara.csv")
 ```
-
-## References

@@ -349,8 +349,7 @@ drop_by_link_type_ <- function(data, lhs, family, tmp_var, k_vars, control) {
         # Filter rows based on family type
         if (family[["family"]] == "binomial") {
           data <<- data[
-            data[[tmp_var]] > 0 & data[[tmp_var]] < 1,
-            ,
+            data[[tmp_var]] > 0 & data[[tmp_var]] < 1, ,
             drop = FALSE
           ]
         } else {

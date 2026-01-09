@@ -44,10 +44,10 @@ predict.feglm <- function(
 
     # Extract and prepare data
     data <- newdata[, all_vars, drop = FALSE]
-    
+
     # Keep track of original row indices for NA handling
     original_rows <- seq_len(nrow(data))
-    
+
     # Remove rows with NA in any required variable
     complete_cases <- complete.cases(data)
     if (!all(complete_cases)) {
@@ -126,7 +126,7 @@ predict.feglm <- function(
       }
       eta <- eta + offset_newdata
     }
-    
+
     # Handle NA values - create result vector with NAs where appropriate
     result_eta <- rep(NA_real_, nrow(newdata))
     result_eta[original_rows] <- as.vector(eta)
@@ -191,10 +191,10 @@ predict.felm <- function(
 
     # Extract and prepare data
     data <- newdata[, all_vars, drop = FALSE]
-    
+
     # Keep track of original row indices for NA handling
     original_rows <- seq_len(nrow(data))
-    
+
     # Remove rows with NA in any required variable
     complete_cases <- complete.cases(data)
     if (!all(complete_cases)) {
@@ -260,7 +260,7 @@ predict.felm <- function(
         y <- y + offset_newdata
       }
     }
-    
+
     # Handle NA values - create result vector with NAs where appropriate
     result <- rep(NA_real_, nrow(newdata))
     result[original_rows] <- as.vector(y)
