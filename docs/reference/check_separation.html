@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>check_separation • capybara</title><link rel="stylesheet" href="../menu.css"><link rel="stylesheet" href="../content.css"><!-- MathJax Configuration --><script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        processEscapes: true,
+        processEnvironments: true,
+        packages: {'[+]': ['ams', 'newcommand', 'configmacros']}
+      },
+      options: {
+        ignoreHtmlClass: 'tex2jax_ignore',
+        processHtmlClass: 'tex2jax_process'
+      }
+    };
+  </script><script id="MathJax-script" async src="../js/tex-svg.js"></script></head><body>
+<div class="main-container">
+<div id="menu">
+  <div>
+    <img src="../man/figures/logo.svg" align="center" height="139" alt="capybara logo"></div>
+
+  <div class="search-container">
+    <input type="text" id="search-box" placeholder="Search..."></div>
+
+  <div class="search-container">
+    <button id="theme-toggle" title="Toggle dark mode" aria-label="Toggle dark mode">Toggle theme</button>
+    <button id="font-decrease" title="Decrease font size" aria-label="Decrease font size">A-</button>
+    <button id="font-increase" title="Increase font size" aria-label="Increase font size">A+</button>
+  </div>
+
+  <div class="submenu">
+    <label style="border-bottom: 0;"><a style="padding-left: 0;" href="../index.html">Home 🏠</a></label>
+  </div>
+
+  <div class="submenu">
+    <label>Functions</label>
+    <a href="../reference/apes.html">apes</a>
+    <a href="../reference/bias_corr.html">bias_corr</a>
+    <a href="../reference/feglm.html">feglm</a>
+    <a href="../reference/felm.html">felm</a>
+    <a href="../reference/fenegbin.html">fenegbin</a>
+    <a href="../reference/fepoisson.html">fepoisson</a>
+    <a href="../reference/fit_control.html">fit_control</a>
+    <a href="../reference/check_separation.html">check_separation</a>
+    <a href="../reference/summary_table.html">summary_table</a>
+  </div>
+
+  <div class="submenu">
+    <label>Vignettes</label>
+    <a href="../vignettes/intro.html">Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors</a>
+  </div>
+
+  <div class="submenu">
+    <label>News</label>
+    <a href="../news/index.html">Changelog</a>
+  </div>
+</div>
+<div id="content">
+<div class="content-wrapper">
+        <div class="content-main">
+
+<table style="width: 100%;"><tr><td>check_separation {capybara}</td><td style="text-align: right;">R Documentation</td></tr></table><h2>Check for Statistical Separation in Poisson Models</h2>
+
+<h3>Description</h3>
+
+<p>Detect statistical separation (perfect predictors) in Poisson regression models. Separation occurs when
+a linear combination of regressors can perfectly predict zero outcomes, causing maximum likelihood estimates to
+diverge. This function implements the ReLU and simplex methods from Correia, Guimarães, and Zylkin (2019).
+</p>
+
+
+<h3>Usage</h3>
+
+<pre><code class="language-R">check_separation(
+  y,
+  X = NULL,
+  w = NULL,
+  tol = 1e-08,
+  zero_tol = 1e-12,
+  max_iter = 1000L,
+  simplex_max_iter = 10000L,
+  use_relu = TRUE,
+  use_simplex = TRUE,
+  verbose = FALSE
+)
+</code></pre>
+
+
+<h3>Arguments</h3>
+
+<table role="presentation"><tr><td><code id="y">y</code></td>
+<td>
+Numeric vector of response values (non-negative integers for count data).
+</td></tr><tr><td><code id="X">X</code></td>
+<td>
+Numeric matrix of regressors (design matrix). Can be <code>NULL</code> or empty if only checking fixed effects
+separation.
+</td></tr><tr><td><code id="w">w</code></td>
+<td>
+Numeric vector of weights. Default is a vector of ones.
+</td></tr><tr><td><code id="tol">tol</code></td>
+<td>
+Tolerance for convergence. Default is <code>1e-8</code>.
+</td></tr><tr><td><code id="zero_tol">zero_tol</code></td>
+<td>
+Tolerance for treating values as zero. Default is <code>1e-12</code>.
+</td></tr><tr><td><code id="max_iter">max_iter</code></td>
+<td>
+Maximum iterations for ReLU method. Default is <code>1000L</code>.
+</td></tr><tr><td><code id="simplex_max_iter">simplex_max_iter</code></td>
+<td>
+Maximum iterations for simplex method. Default is <code>10000L</code>.
+</td></tr><tr><td><code id="use_relu">use_relu</code></td>
+<td>
+Logical, whether to use the ReLU method. Default is <code>TRUE</code>.
+</td></tr><tr><td><code id="use_simplex">use_simplex</code></td>
+<td>
+Logical, whether to use the simplex method. Default is <code>TRUE</code>.
+</td></tr><tr><td><code id="verbose">verbose</code></td>
+<td>
+Logical, whether to print progress information. Default is <code>FALSE</code>.
+</td></tr></table><h3>Details</h3>
+
+<p>Statistical separation occurs in Poisson and other count data models when there exists a linear combination
+of regressors that is non-negative for all observations with <code class="reqn">y = 0</code> and positive for at least one such
+observation. This causes the MLE to not exist (coefficients diverge to <code class="reqn">\pm\infty</code>).
+</p>
+<p>The function implements two complementary detection methods:
+</p>
+<p><strong>ReLU Method:</strong> An iterative algorithm that solves a sequence of constrained least squares problems using the
+Rectified Linear Unit (ReLU) activation function. This method is more thorough and provides a certificate of
+separation.
+</p>
+<p><strong>Simplex Method:</strong> A linear programming approach that checks for separating hyperplanes. This method is faster
+for initial screening.
+</p>
+<p>Both methods are based on the theoretical framework of Correia, Guimarães, and Zylkin (2019), who show that
+separation detection is equivalent to solving a specific linear programming problem.
+</p>
+
+
+<h3>Value</h3>
+
+<p>A list with components:
+</p>
+
+<dl><dt>separated_obs</dt><dd><p>Integer vector of row indices (1-based) of separated observations.</p>
+</dd>
+<dt>num_separated</dt><dd><p>Number of separated observations found.</p>
+</dd>
+<dt>converged</dt><dd><p>Logical indicating if the algorithm converged.</p>
+</dd>
+<dt>iterations</dt><dd><p>Number of iterations used (for ReLU method).</p>
+</dd>
+<dt>certificate</dt><dd><p>Numeric vector giving the separation certificate (z vector), if computed by the ReLU method.</p>
+</dd>
+</dl><h3>References</h3>
+
+<p>Correia, S., Guimarães, P., and Zylkin, T. (2019). "Verifying the Existence of Maximum Likelihood Estimates for
+Generalized Linear Models." <a href="https://arxiv.org/abs/1903.01633">https://arxiv.org/abs/1903.01633</a>
+</p>
+<p>Correia, S., Guimarães, P., and Zylkin, T. (2020). "Fast Poisson Estimation with High-Dimensional Fixed Effects."
+<em>The Stata Journal</em>, 20(1), 95-115.
+</p>
+
+
+<h3>See Also</h3>
+
+<p>fepoisson, feglm
+</p>
+
+
+<h3>Examples</h3>
+
+<pre><code class="language-R">## Not run:
+# Example with separation
+set.seed(123)
+n &lt;- 100
+x &lt;- rnorm(n)
+# Create separation: y = 0 whenever x &gt; 1
+y &lt;- rpois(n, exp(1 - x))
+y[x &gt; 1] &lt;- 0
+
+# Check for separation
+result &lt;- check_separation(y, matrix(x, ncol = 1))
+print(result$num_separated)
+
+## End(Not run)
+
+</code></pre>
+
+
+</div>
+        </div>
+        <footer><p id="last-updated">Loading...</p>
+</footer><script src="../js/footer.js"></script><script src="../js/theme.js"></script><script src="../js/search.js"></script><script src="../js/fontsize.js"></script></div>
+</div>
+
+</body></html>
+

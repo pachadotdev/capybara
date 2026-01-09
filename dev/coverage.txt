@@ -1,0 +1,43 @@
+
+capybara coverage - 73.87%
+
+    Files
+    Source
+
+File	Lines	Relevant	Covered	Missed	Hits / Line	Coverage
+src/08_separation.h	678	317	0	317	0	0.00%
+R/separation.R	160	48	0	48	0	0.00%
+R/felm_helpers.R	38	14	0	14	0	0.00%
+R/feglm_helpers.R	549	206	120	86	37	58.25%
+R/cpp4r.R	41	10	6	4	23	60.00%
+R/fenegbin.R	348	105	65	40	7	61.90%
+R/feglm_offset.R	75	29	19	10	4	65.52%
+src/cpp4r.cpp	99	35	23	12	20	65.71%
+R/fit_helpers.R	258	89	59	30	90	66.29%
+R/fit_control.R	173	55	37	18	132	67.27%
+src/07_negbin.h	202	120	85	35	10	70.83%
+R/bias_corr.R	208	77	55	22	4	71.43%
+R/feglm.R	407	131	96	35	54	73.28%
+src/04_fit_helpers.h	453	242	180	62	1143	74.38%
+R/apes.R	426	177	137	40	5	77.40%
+src/capybara.cpp	594	296	230	66	618	77.70%
+R/generics_predict.R	287	121	96	25	9	79.34%
+R/generics_vcov.R	125	17	14	3	5	82.35%
+src/02_beta.h	346	171	143	28	3979	83.63%
+R/generics_print.R	377	160	134	26	18	83.75%
+R/generics_augment.R	63	8	7	1	4	87.50%
+R/felm.R	249	67	60	7	63	89.55%
+src/01_center.h	438	172	157	15	86217	91.28%
+src/06_glm.h	743	392	363	29	452	92.60%
+R/summary_table.R	546	276	258	18	17	93.48%
+R/autoplot.R	178	66	64	2	5	96.97%
+src/03_alpha.h	239	76	74	2	5370	97.37%
+src/05_lm.h	382	185	182	3	116	98.38%
+R/apes_bias_helpers.R	80	29	29	0	4	100.00%
+R/generics_glance.R	51	20	20	0	2	100.00%
+R/generics_coef.R	69	18	18	0	7	100.00%
+R/generics_tidy.R	53	16	16	0	5	100.00%
+R/generics_confint.R	61	12	12	0	13	100.00%
+R/fepoisson.R	113	9	9	0	58	100.00%
+R/generics_summary.R	53	6	6	0	11	100.00%
+R/generics_fitted.R	26	3	3	0	2	100.00%

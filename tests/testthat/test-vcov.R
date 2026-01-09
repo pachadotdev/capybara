@@ -116,5 +116,75 @@ test_that("clustered vs non-clustered vcov give different results", {
   v_sandwich <- vcov(m_clustered)
 
   # Different methods should give different results
-  expect_false(isTRUE(all.equal(v_hessian, v_sandwich, check.attributes = FALSE)))
+  expect_false(isTRUE(all.equal(
+    v_hessian,
+    v_sandwich,
+    check.attributes = FALSE
+  )))
+})
+
+test_that("vcov works for felm models", {
+  skip_on_cran()
+
+  m <- felm(mpg ~ wt + disp | cyl, mtcars)
+  v <- vcov(m)
+
+  expect_true(is.matrix(v))
+  expect_equal(nrow(v), 2L)
+  expect_equal(ncol(v), 2L)
+  expect_true(all(is.finite(v)))
+})
+
+test_that("vcov works for felm with clustering", {
+  skip_on_cran()
+
+  m <- felm(mpg ~ wt + disp | cyl | carb, mtcars)
+  v <- vcov(m)
+
+  expect_true(is.matrix(v))
+  expect_equal(nrow(v), 2L)
+  expect_equal(ncol(v), 2L)
+  expect_true(all(is.finite(v)))
+})
+
+test_that("vcov has correct row and column names", {
+  skip_on_cran()
+
+  m <- fepoisson(mpg ~ wt + disp | cyl, mtcars)
+  v <- vcov(m)
+
+  expect_equal(rownames(v), c("wt", "disp"))
+  expect_equal(colnames(v), c("wt", "disp"))
+})
+
+test_that("vcov works with single predictor", {
+  skip_on_cran()
+
+  m <- fepoisson(mpg ~ wt | cyl, mtcars)
+  v <- vcov(m)
+
+  expect_true(is.matrix(v))
+  expect_equal(nrow(v), 1L)
+  expect_equal(ncol(v), 1L)
+})
+
+test_that("vcov works for binomial feglm", {
+  skip_on_cran()
+
+  m <- feglm(am ~ wt + disp | cyl, mtcars, family = binomial())
+  v <- vcov(m)
+
+  expect_true(is.matrix(v))
+  expect_equal(nrow(v), 2L)
+  expect_equal(ncol(v), 2L)
+})
+
+test_that("vcov works for fenegbin", {
+  skip_on_cran()
+
+  m <- fenegbin(mpg ~ wt | cyl, mtcars)
+  v <- vcov(m)
+
+  expect_true(is.matrix(v))
+  expect_true(all(is.finite(v)))
 })

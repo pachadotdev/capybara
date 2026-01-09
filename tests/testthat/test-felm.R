@@ -87,7 +87,10 @@ test_that("felm works", {
   # 3-FE ----
 
   m1 <- felm(mpg ~ wt + qsec | cyl + am + gear, mtcars)
-  m2 <- lm(mpg ~ wt + qsec + as.factor(cyl) + as.factor(am) + as.factor(gear), mtcars)
+  m2 <- lm(
+    mpg ~ wt + qsec + as.factor(cyl) + as.factor(am) + as.factor(gear),
+    mtcars
+  )
 
   expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-2)
 
@@ -112,8 +115,9 @@ test_that("felm is correct without fixed effects", {
 test_that("felm time is the minimally affected when adding noise to the data", {
   mtcars2 <- mtcars[, c("mpg", "wt", "cyl")]
   set.seed(200100)
-  mtcars2$mpg <- mtcars2$mpg + rbinom(nrow(mtcars2), 1, 0.5) *
-    .Machine$double.eps
+  mtcars2$mpg <- mtcars2$mpg +
+    rbinom(nrow(mtcars2), 1, 0.5) *
+      .Machine$double.eps
   m1 <- felm(mpg ~ wt | cyl, mtcars)
   m2 <- felm(mpg ~ wt | cyl, mtcars2)
   expect_equal(coef(m1), coef(m2))
@@ -152,6 +156,9 @@ test_that("proportional regressors return NA coefficients", {
 
   expect_equal(coef(fit2), coef(fit1)[2:3], tolerance = 1e-2)
   expect_equal(predict(fit2), predict(fit1), tolerance = 1e-2)
+
+  # fit3 <- fixest::feols(y ~ x1 + x2 | f, data = d)
+  # expect_equal(predict(fit3), unname(predict(fit1)), tolerance = 1e-2)
 })
 
 test_that("felm correctly predicts values outside the inter-quartile range", {
@@ -161,8 +168,14 @@ test_that("felm correctly predicts values outside the inter-quartile range", {
   }
 
   # Create data subsets once
-  d1 <- mtcars[mtcars$mpg >= quantile(mtcars$mpg, 0.25) & mtcars$mpg <= quantile(mtcars$mpg, 0.75), ]
-  d2 <- mtcars[mtcars$mpg < quantile(mtcars$mpg, 0.25) | mtcars$mpg > quantile(mtcars$mpg, 0.75), ]
+  d1 <- mtcars[
+    mtcars$mpg >= quantile(mtcars$mpg, 0.25) &
+      mtcars$mpg <= quantile(mtcars$mpg, 0.75),
+  ]
+  d2 <- mtcars[
+    mtcars$mpg < quantile(mtcars$mpg, 0.25) |
+      mtcars$mpg > quantile(mtcars$mpg, 0.75),
+  ]
 
   m1_lm <- felm(mpg ~ wt + disp | cyl, mtcars)
   m2_lm <- lm(mpg ~ wt + disp + as.factor(cyl), mtcars)

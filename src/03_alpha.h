@@ -213,6 +213,24 @@ get_alpha(const vec &pi, const field<field<uvec>> &group_indices,
     ++iter;
   }
 
+  // Normalize fixed effects for identifiability to match fixest/Stata convention
+  // Set the LAST level of the LAST FE to zero, adjust first FE accordingly
+  // This ensures exp(FE) values are on the same scale as fixest for gravity models
+  if (K > 0) {
+    uword last_k = K - 1;
+    uword last_level = coefficients(last_k).n_elem - 1;
+    
+    if (coefficients(last_k).n_elem > 0) {
+      double last_fe_last_val = coefficients(last_k)(last_level);
+      
+      // Shift last FE so its last level is zero
+      coefficients(last_k) -= last_fe_last_val;
+      
+      // Shift first FE in opposite direction to maintain sum constraint
+      coefficients(0) += last_fe_last_val;
+    }
+  }
+
   return coefficients;
 }
 

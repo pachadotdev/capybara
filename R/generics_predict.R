@@ -42,8 +42,18 @@ predict.feglm <- function(
     pred_vars <- attr(terms(formula, rhs = 1L), "term.labels")
     all_vars <- c(pred_vars, k_vars)
 
-    # Extract and prepare data (no na.omit - we want predictions for all rows)
+    # Extract and prepare data
     data <- newdata[, all_vars, drop = FALSE]
+    
+    # Keep track of original row indices for NA handling
+    original_rows <- seq_len(nrow(data))
+    
+    # Remove rows with NA in any required variable
+    complete_cases <- complete.cases(data)
+    if (!all(complete_cases)) {
+      data <- data[complete_cases, , drop = FALSE]
+      original_rows <- original_rows[complete_cases]
+    }
 
     # Transform fixed effects to factors
     data <- transform_fe_(data, formula, k_vars)
@@ -69,6 +79,10 @@ predict.feglm <- function(
 
     fes <- object[["fixed_effects"]]
     fes_names <- names(fes)
+
+    # Fixed effects are normalized (first level = 0) in get_alpha()
+    # C++ fitted values use these normalized FEs via accumulate_fixed_effects()
+    # So predictions should also use normalized FEs directly
     fes2 <- setNames(
       lapply(fes_names, function(name) {
         # Match values and handle missing levels
@@ -112,6 +126,11 @@ predict.feglm <- function(
       }
       eta <- eta + offset_newdata
     }
+    
+    # Handle NA values - create result vector with NAs where appropriate
+    result_eta <- rep(NA_real_, nrow(newdata))
+    result_eta[original_rows] <- as.vector(eta)
+    eta <- result_eta
   } else {
     eta <- object[["eta"]]
   }
@@ -156,14 +175,32 @@ predict.felm <- function(
     # For prediction, we only need the RHS variables, not the response
     # Extract predictor variables and fixed effects
     formula <- object$formula
-    fe_names <- attr(terms(formula, rhs = 2L), "term.labels")
+
+    # Check if model has fixed effects (rhs = 2)
+    has_fe <- length(formula)[2] >= 2
+
+    if (has_fe) {
+      fe_names <- attr(terms(formula, rhs = 2L), "term.labels")
+    } else {
+      fe_names <- character(0)
+    }
 
     # Get all variables needed (predictors + fixed effects)
     pred_vars <- attr(terms(formula, rhs = 1L), "term.labels")
     all_vars <- c(pred_vars, fe_names)
 
-    # Extract and prepare data (no na.omit - we want predictions for all rows)
+    # Extract and prepare data
     data <- newdata[, all_vars, drop = FALSE]
+    
+    # Keep track of original row indices for NA handling
+    original_rows <- seq_len(nrow(data))
+    
+    # Remove rows with NA in any required variable
+    complete_cases <- complete.cases(data)
+    if (!all(complete_cases)) {
+      data <- data[complete_cases, , drop = FALSE]
+      original_rows <- original_rows[complete_cases]
+    }
 
     # Transform fixed effects to factors
     data <- transform_fe_(data, formula, fe_names)
@@ -187,6 +224,13 @@ predict.felm <- function(
 
     fes <- object[["fixed_effects"]]
     fes_names <- names(fes)
+
+    # Denormalize fixed effects for prediction
+    # The FEs were normalized so fe1[1] = 0
+    # To match lm() predictions, we don't need to denormalize
+    # because lm() also uses one level as reference (sets it to 0)
+    # The normalization is already compatible with lm()'s reference level approach
+
     fes2 <- setNames(
       lapply(fes_names, function(name) {
         # Match values and handle missing levels
@@ -216,6 +260,11 @@ predict.felm <- function(
         y <- y + offset_newdata
       }
     }
+    
+    # Handle NA values - create result vector with NAs where appropriate
+    result <- rep(NA_real_, nrow(newdata))
+    result[original_rows] <- as.vector(y)
+    y <- result
   } else {
     y <- object[["fitted_values"]]
   }

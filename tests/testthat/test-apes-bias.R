@@ -41,3 +41,89 @@ test_that("apes/bias works", {
   expect_equal(trunc(coef(bias1), 2), trunc(bias2, 2))
   expect_equal(length(coef(summary(bias1))), 4)
 })
+
+test_that("apes with mtcars binary response works", {
+  mtcars2 <- mtcars
+  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
+
+  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial())
+
+  apes_result <- apes(mod)
+
+  expect_s3_class(apes_result, "apes")
+  expect_true(length(coef(apes_result)) == 1)
+})
+
+test_that("apes summary works", {
+  mtcars2 <- mtcars
+  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
+
+  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial())
+  apes_result <- apes(mod)
+
+  summ <- summary(apes_result)
+
+  expect_s3_class(summ, "summary.apes")
+  expect_output(print(summ))
+})
+
+test_that("apes coef method works", {
+  mtcars2 <- mtcars
+  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
+
+  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial())
+  apes_result <- apes(mod)
+
+  coefs <- coef(apes_result)
+
+  expect_true(is.numeric(coefs))
+  expect_equal(length(coefs), 1)
+})
+
+test_that("bias_corr works with mtcars", {
+  mtcars2 <- mtcars
+  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
+
+  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial())
+
+  bc <- bias_corr(mod)
+
+  expect_s3_class(bc, "bias_corr")
+  expect_true(length(coef(bc)) == 1)
+})
+
+test_that("bias_corr summary works", {
+  mtcars2 <- mtcars
+  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
+
+  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial())
+  bc <- bias_corr(mod)
+
+  summ <- summary(bc)
+
+  expect_output(print(summ))
+})
+
+test_that("apes errors on non-binary model", {
+  mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+
+  expect_error(apes(mod))
+})
+
+test_that("bias_corr errors on non-binary model", {
+  mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+
+  expect_error(bias_corr(mod))
+})
+
+test_that("apes works with bias_corr object", {
+  mtcars2 <- mtcars
+  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
+
+  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial())
+  bc <- bias_corr(mod)
+
+  apes_bc <- apes(bc)
+
+  expect_s3_class(apes_bc, "apes")
+})

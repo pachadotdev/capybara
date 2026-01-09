@@ -261,9 +261,9 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
 [[cpp4r::register]] list
 feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
            const doubles_matrix<> &x_r, const doubles &wt_r,
-           const doubles &offset_r,
-           const double &theta, const std::string &family, const list &control,
-           const list &k_list, const list &cl_list) {
+           const doubles &offset_r, const double &theta,
+           const std::string &family, const list &control, const list &k_list,
+           const list &cl_list) {
   mat X = as_mat(x_r);
   vec beta = as_col(beta_r);
   vec eta = as_col(eta_r);
@@ -429,8 +429,8 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
 
   field<field<uvec>> fe_groups = R_list_to_Armadillo_field(FEs);
 
-  capybara::InferenceNegBin result =
-      capybara::fenegbin_fit(X, y, w, fe_groups, params, offset_vec, init_theta);
+  capybara::InferenceNegBin result = capybara::fenegbin_fit(
+      X, y, w, fe_groups, params, offset_vec, init_theta);
 
   vec coefficients = result.coef_table.col(0);
   uvec collinear_mask = (result.coef_status == 0);

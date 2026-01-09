@@ -201,8 +201,13 @@ transform_fe_ <- function(data, formula, k_vars) {
 
   if (length(formula)[[2L]] > 2L) {
     add_vars <- attr(terms(formula, rhs = 3L), "term.labels")
+    # Only transform cluster variables if they exist in data
+    # (they're not needed for prediction, only for fitting)
     if (length(add_vars) > 0) {
-      data[add_vars] <- lapply(data[add_vars], check_factor_)
+      existing_vars <- add_vars[add_vars %in% colnames(data)]
+      if (length(existing_vars) > 0) {
+        data[existing_vars] <- lapply(data[existing_vars], check_factor_)
+      }
     }
   }
 

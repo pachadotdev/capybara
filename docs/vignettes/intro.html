@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors • capybara</title><link rel="stylesheet" href="../menu.css"><link rel="stylesheet" href="../content.css"><!-- MathJax Configuration --><script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        processEscapes: true,
+        processEnvironments: true,
+        packages: {'[+]': ['ams', 'newcommand', 'configmacros']}
+      },
+      options: {
+        ignoreHtmlClass: 'tex2jax_ignore',
+        processHtmlClass: 'tex2jax_process'
+      }
+    };
+  </script><script id="MathJax-script" async src="../js/tex-svg.js"></script></head><body>
+<div class="main-container">
+<div id="menu">
+  <div>
+    <img src="../man/figures/logo.svg" align="center" height="139" alt="capybara logo"></div>
+
+  <div class="search-container">
+    <input type="text" id="search-box" placeholder="Search..."></div>
+
+  <div class="search-container">
+    <button id="theme-toggle" title="Toggle dark mode" aria-label="Toggle dark mode">Toggle theme</button>
+    <button id="font-decrease" title="Decrease font size" aria-label="Decrease font size">A-</button>
+    <button id="font-increase" title="Increase font size" aria-label="Increase font size">A+</button>
+  </div>
+
+  <div class="submenu">
+    <label style="border-bottom: 0;"><a style="padding-left: 0;" href="../index.html">Home 🏠</a></label>
+  </div>
+
+  <div class="submenu">
+    <label>Functions</label>
+    <a href="../reference/apes.html">apes</a>
+    <a href="../reference/bias_corr.html">bias_corr</a>
+    <a href="../reference/feglm.html">feglm</a>
+    <a href="../reference/felm.html">felm</a>
+    <a href="../reference/fenegbin.html">fenegbin</a>
+    <a href="../reference/fepoisson.html">fepoisson</a>
+    <a href="../reference/fit_control.html">fit_control</a>
+    <a href="../reference/check_separation.html">check_separation</a>
+    <a href="../reference/summary_table.html">summary_table</a>
+  </div>
+
+  <div class="submenu">
+    <label>Vignettes</label>
+    <a href="../vignettes/intro.html">Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors</a>
+  </div>
+
+  <div class="submenu">
+    <label>News</label>
+    <a href="../news/index.html">Changelog</a>
+  </div>
+</div>
+<div id="content">
+<div class="content-wrapper">
+        <div class="content-main">
+          <h1>Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors</h1>
+
+
+
+<p>We will estimate a Poisson Pseudo-Maximum Likelihood (PPML) model
+using the data available in this package with the idea of replicating
+the PPML results from Table 3 in <span class="citation">Yotov et al.
+(2016)</span>.</p>
+<p>This requires to include exporter-time and importer-time fixed
+effects, and to cluster the standard errors by exporter-importer
+pairs.</p>
+<p>The PPML especification corresponds to: <span class="math display">\[\begin{align}
+X_{ij,t} =&amp; \:\exp\left[\beta_1 \log(DIST)_{i,j} + \beta_2
+CNTG_{i,j} +\right.\\
+\text{ }&amp; \:\left.\beta_3 LANG_{i,j} + \beta_4 CLNY_{i,j} +
+\pi_{i,t} + \chi_{i,t}\right] \times \varepsilon_{ij,t}.
+\end{align}\]</span></p>
+<p>We use <code>dplyr</code> to obtain the log of the distance. This
+model excludes domestic flows, therefore we need to subset the data also
+with <code>dplyr</code>.</p>
+<p>Required packages:</p>
+<pre class="r"><code>library(capybara)</code></pre>
+<p>We can use the <code>fepoisson()</code> function to obtain the
+estimated coefficients and we add the fixed effects as
+<code>| exp_year + imp_year</code> in the formula.</p>
+<p>Model estimation:</p>
+<pre class="r"><code>fit &lt;- fepoisson(
+  trade ~ log_dist + cntg + lang + clny + rta | exp_year + imp_year,
+  data = trade_panel
+)
+
+summary(fit)</code></pre>
+<pre class="r"><code>Formula: trade ~ log_dist + cntg + lang + clny + rta | exp_year + imp_year
+
+Family: Poisson
+
+Estimates:
+
+|          | Estimate | Std. Error | z value    | Pr(&gt;|z|)   |
+|----------|----------|------------|------------|------------|
+| log_dist |  -0.8216 |     0.0004 | -2194.0448 | 0.0000 *** |
+| cntg     |   0.4155 |     0.0009 |   476.0613 | 0.0000 *** |
+| lang     |   0.2499 |     0.0008 |   296.8884 | 0.0000 *** |
+| clny     |  -0.2054 |     0.0010 |  -206.3476 | 0.0000 *** |
+| rta      |   0.1907 |     0.0010 |   191.0964 | 0.0000 *** |
+
+Significance codes: *** 99.9%; ** 99%; * 95%; . 90%
+
+Pseudo R-squared: 0.587
+
+Number of observations: Full 28152; Missing 0; Perfect classification 0
+
+Number of Fisher Scoring iterations: 11</code></pre>
+<p>The coefficients are almost identical to those in Table 3 from <span class="citation">Yotov et al. (2016)</span> that were obtained with
+Stata. The difference is attributed to the different fitting algorithms
+used by the software. Capybara uses the demeaning algorithm proposed by
+<span class="citation">Stammann (2018)</span>.</p>
+<pre class="r"><code>fit &lt;- fepoisson(
+  trade ~ log_dist + cntg + lang + clny + rta | exp_year + imp_year | pair,
+  data = trade_panel
+)
+
+summary(fit, type = "clustered")</code></pre>
+<pre class="r"><code>Formula: trade ~ log_dist + cntg + lang + clny + rta | exp_year + imp_year |
+    pair
+
+Family: Poisson
+
+Estimates:
+
+|          | Estimate | Std. Error | z value | Pr(&gt;|z|)   |
+|----------|----------|------------|---------|------------|
+| log_dist |  -0.8216 |     0.1567 | -5.2437 | 0.0000 *** |
+| cntg     |   0.4155 |     0.4568 |  0.9097 | 0.3630     |
+| lang     |   0.2499 |     0.3997 |  0.6252 | 0.5319     |
+| clny     |  -0.2054 |     0.3287 | -0.6250 | 0.5320     |
+| rta      |   0.1907 |     0.7657 |  0.2491 | 0.8033     |
+
+Significance codes: *** 99.9%; ** 99%; * 95%; . 90%
+
+Pseudo R-squared: 0.587
+
+Number of observations: Full 28152; Missing 0; Perfect classification 0
+
+Number of Fisher Scoring iterations: 11</code></pre>
+<p>The result is similar and the numerical difference comes fom the
+variance-covariance matrix estimation method. Capybara clustering
+algorithm is based on <span class="citation">Cameron, Gelbach, and
+Miller (2011)</span>.</p>
+<div id="references" class="section level1 unnumbered">
+<h1 class="unnumbered">References</h1>
+<div id="refs" class="references csl-bib-body hanging-indent" entry-spacing="0">
+<div id="ref-cameron2011robust" class="csl-entry">
+Cameron, A Colin, Jonah B Gelbach, and Douglas L Miller. 2011.
+<span>“Robust Inference with Multiway Clustering.”</span> <em>Journal of
+Business &amp; Economic Statistics</em> 29 (2): 238–49.
+</div>
+<div id="ref-stammann2018fast" class="csl-entry">
+Stammann, Amrei. 2018. <span>“Fast and <span>Feasible</span>
+<span>Estimation</span> of <span>Generalized</span> <span>Linear</span>
+<span>Models</span> with <span>High</span>-<span>Dimensional</span>
+k-Way <span>Fixed</span> <span>Effects</span>.”</span> arXiv. <a href="https://doi.org/10.48550/arXiv.1707.01815">https://doi.org/10.48550/arXiv.1707.01815</a>.
+</div>
+<div id="ref-yotov2016advanced" class="csl-entry">
+Yotov, Yoto V, Roberta Piermartini, Mario Larch, et al. 2016. <em>An
+Advanced Guide to Trade Policy Analysis​: The Structural Gravity
+Model</em>. WTO iLibrary.
+</div>
+</div>
+</div>
+        </div>
+        <footer><p id="last-updated">Loading...</p>
+</footer><script src="../js/footer.js"></script><script src="../js/theme.js"></script><script src="../js/search.js"></script><script src="../js/fontsize.js"></script></div>
+</div>
+</div>
+</body></html>
+

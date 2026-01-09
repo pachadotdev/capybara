@@ -47,8 +47,8 @@ NULL
 #' @importFrom Formula Formula
 #' @importFrom ggplot2 ggplot aes geom_point geom_errorbar labs theme_minimal coord_flip autoplot
 #' @importFrom MASS negative.binomial theta.ml
-#' @importFrom stats as.formula ave coef fitted.values gaussian model.frame model.matrix model.response na.omit na.pass
-#'  pnorm poisson predict printCoefmat qnorm reformulate setNames terms vcov
+#' @importFrom stats as.formula ave coef complete.cases fitted.values gaussian model.frame model.matrix model.response
+#'  na.omit na.pass pnorm poisson predict printCoefmat qnorm reformulate setNames terms vcov
 #' @importFrom utils combn head
 #' @useDynLib capybara, .registration = TRUE
 "_PACKAGE"

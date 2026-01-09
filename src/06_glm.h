@@ -154,7 +154,8 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   const uword n = y.n_elem;
   const uword p_original = X.n_cols;
   const bool has_fixed_effects = fe_groups.n_elem > 0;
-  const bool has_offset = (offset != nullptr && offset->n_elem == n && any(*offset != 0.0));
+  const bool has_offset =
+      (offset != nullptr && offset->n_elem == n && any(*offset != 0.0));
 
   // Add intercept column if no fixed effects
   if (!has_fixed_effects) {
@@ -455,7 +456,8 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       eta = eta0;
       beta = beta0;
       dev = dev0;
-      // eta already includes offset from R (added in capybara.cpp), so don't add it again
+      // eta already includes offset from R (added in capybara.cpp), so don't
+      // add it again
       mu = link_inv(eta, family_type);
     }
 

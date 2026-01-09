@@ -25,11 +25,19 @@ test_that("feglm is similar to glm", {
 
   # Binomial ----
   mod_binom <- feglm(am ~ wt + mpg | cyl, mtcars, family = binomial())
-  mod_binom_base <- glm(am ~ wt + mpg + as.factor(cyl), mtcars, family = binomial())
+  mod_binom_base <- glm(
+    am ~ wt + mpg + as.factor(cyl),
+    mtcars,
+    family = binomial()
+  )
   # coef(mod_binom)
   # coef(mod_binom_base)[2:3]
 
-  expect_equal(unname(coef(mod_binom) - coef(mod_binom_base)[2:3]), c(0, 0), tolerance = 1e-2)
+  expect_equal(
+    unname(coef(mod_binom) - coef(mod_binom_base)[2:3]),
+    c(0, 0),
+    tolerance = 1e-2
+  )
 
   mod_binom <- feglm(am ~ wt + mpg | cyl, mtcars, family = binomial())
   # mod_binom_fixest <- fixest::feglm(am ~ wt + mpg | cyl, mtcars, family = binomial())
@@ -42,13 +50,29 @@ test_that("feglm is similar to glm", {
 
   # Gamma ----
   mod_gamma <- feglm(mpg ~ wt + am | cyl, mtcars, family = Gamma())
-  mod_gamma_base <- glm(mpg ~ wt + am + as.factor(cyl), mtcars, family = Gamma())
+  mod_gamma_base <- glm(
+    mpg ~ wt + am + as.factor(cyl),
+    mtcars,
+    family = Gamma()
+  )
   expect_equal(coef(mod_gamma_base)[2:3], coef(mod_gamma), tolerance = 1e-2)
 
   # Inverse Gaussian ----
-  mod_invgauss <- feglm(mpg ~ wt + am | cyl, mtcars, family = inverse.gaussian())
-  mod_invgauss_base <- glm(mpg ~ wt + am + as.factor(cyl), mtcars, family = inverse.gaussian())
-  expect_equal(coef(mod_invgauss_base)[2:3], coef(mod_invgauss), tolerance = 1e-2)
+  mod_invgauss <- feglm(
+    mpg ~ wt + am | cyl,
+    mtcars,
+    family = inverse.gaussian()
+  )
+  mod_invgauss_base <- glm(
+    mpg ~ wt + am + as.factor(cyl),
+    mtcars,
+    family = inverse.gaussian()
+  )
+  expect_equal(
+    coef(mod_invgauss_base)[2:3],
+    coef(mod_invgauss),
+    tolerance = 1e-2
+  )
 })
 
 test_that("feglm works without fixed effects", {
@@ -67,12 +91,22 @@ test_that("predicted values increase the error outside the inter-quartile range 
   }
 
   # Create data subsets once
-  d1 <- mtcars[mtcars$mpg >= quantile(mtcars$mpg, 0.25) & mtcars$mpg <= quantile(mtcars$mpg, 0.75), ]
-  d2 <- mtcars[mtcars$mpg < quantile(mtcars$mpg, 0.25) | mtcars$mpg > quantile(mtcars$mpg, 0.75), ]
+  d1 <- mtcars[
+    mtcars$mpg >= quantile(mtcars$mpg, 0.25) &
+      mtcars$mpg <= quantile(mtcars$mpg, 0.75),
+  ]
+  d2 <- mtcars[
+    mtcars$mpg < quantile(mtcars$mpg, 0.25) |
+      mtcars$mpg > quantile(mtcars$mpg, 0.75),
+  ]
 
   # Poisson ----
   m1_pois <- fepoisson(mpg ~ wt + disp | cyl, mtcars)
-  m2_pois <- glm(mpg ~ wt + disp + as.factor(cyl), mtcars, family = quasipoisson())
+  m2_pois <- glm(
+    mpg ~ wt + disp + as.factor(cyl),
+    mtcars,
+    family = quasipoisson()
+  )
   # m3_pois <- fixest::fepois(mpg ~ wt + disp | cyl, mtcars)
 
   pred1_pois <- predict(m1_pois, newdata = d1, type = "response")
@@ -126,8 +160,14 @@ test_that("predicted values increase the error outside the inter-quartile range 
   }
 
   # Create data subsets once
-  d1 <- mtcars[mtcars$mpg >= quantile(mtcars$mpg, 0.25) & mtcars$mpg <= quantile(mtcars$mpg, 0.75), ]
-  d2 <- mtcars[mtcars$mpg < quantile(mtcars$mpg, 0.25) | mtcars$mpg > quantile(mtcars$mpg, 0.75), ]
+  d1 <- mtcars[
+    mtcars$mpg >= quantile(mtcars$mpg, 0.25) &
+      mtcars$mpg <= quantile(mtcars$mpg, 0.75),
+  ]
+  d2 <- mtcars[
+    mtcars$mpg < quantile(mtcars$mpg, 0.25) |
+      mtcars$mpg > quantile(mtcars$mpg, 0.75),
+  ]
 
   # Binomial GLM ----
 

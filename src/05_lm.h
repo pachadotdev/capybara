@@ -316,8 +316,9 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
   mat vcov_reduced;
   if (cluster_groups != nullptr && cluster_groups->n_elem > 0) {
     // Sandwich covariance for clustered standard errors
-    vcov_reduced = compute_sandwich_vcov(
-        X, ws->y_original, result.fitted_values, result.hessian, *cluster_groups);
+    vcov_reduced =
+        compute_sandwich_vcov(X, ws->y_original, result.fitted_values,
+                              result.hessian, *cluster_groups);
   } else {
     // Standard inverse Hessian covariance: (X'WX)^{-1} * σ²
     mat H_inv;
@@ -325,7 +326,8 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
     if (!success) {
       success = inv(H_inv, result.hessian);
       if (!success) {
-        H_inv = mat(result.hessian.n_rows, result.hessian.n_cols, fill::value(datum::inf));
+        H_inv = mat(result.hessian.n_rows, result.hessian.n_cols,
+                    fill::value(datum::inf));
       }
     }
 
@@ -356,8 +358,8 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
   vec coefficients = result.coef_table.col(0);
   vec z_values = coefficients / se;
 
-  result.coef_table.col(1) = se;                       // Std. Error
-  result.coef_table.col(2) = z_values;                 // z value
+  result.coef_table.col(1) = se;                            // Std. Error
+  result.coef_table.col(2) = z_values;                      // z value
   result.coef_table.col(3) = 2.0 * normcdf(-abs(z_values)); // p-value
 
   // Mark collinear coefficients as NaN

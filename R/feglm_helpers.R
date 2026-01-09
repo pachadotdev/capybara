@@ -148,6 +148,14 @@ check_formula_ <- function(formula) {
 
   formula <- Formula(formula)
 
+  # Check that formula has a left-hand side (response variable)
+  if (length(formula)[1] == 0) {
+    stop(
+      "'formula' must have a response variable (left-hand side).",
+      call. = FALSE
+    )
+  }
+
   assign("formula", formula, envir = parent.frame())
 }
 
@@ -341,7 +349,8 @@ drop_by_link_type_ <- function(data, lhs, family, tmp_var, k_vars, control) {
         # Filter rows based on family type
         if (family[["family"]] == "binomial") {
           data <<- data[
-            data[[tmp_var]] > 0 & data[[tmp_var]] < 1, ,
+            data[[tmp_var]] > 0 & data[[tmp_var]] < 1,
+            ,
             drop = FALSE
           ]
         } else {

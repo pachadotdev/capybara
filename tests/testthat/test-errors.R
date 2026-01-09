@@ -14,11 +14,12 @@ test_that("error conditions in APEs", {
   trade_short <- trade_panel[trade_panel$exp_year == "CAN1994", ]
   trade_short <- trade_short[trade_short$trade > 100, ]
   trade_short$trade_200 <- ifelse(trade_short$trade >= 200, 1, 0)
-  trade_short$trade_200_100 <- as.factor(ifelse(trade_short$trade >=
-    200, 1, ifelse(trade_short$trade >= 200, 0.5, 0)))
-  trade_short$trade_1_minus1 <- ifelse(trade_short$trade >= 200, 1,
-    -1
-  )
+  trade_short$trade_200_100 <- as.factor(ifelse(
+    trade_short$trade >= 200,
+    1,
+    ifelse(trade_short$trade >= 200, 0.5, 0)
+  ))
+  trade_short$trade_1_minus1 <- ifelse(trade_short$trade >= 200, 1, -1)
 
   # no model
 
@@ -39,7 +40,8 @@ test_that("error conditions in APEs", {
         family = binomial()
       ),
       panel_structure = "classic"
-    ), "two-way"
+    ),
+    "two-way"
   )
 
   # not using three-way fixed effects
@@ -52,7 +54,8 @@ test_that("error conditions in APEs", {
         family = binomial()
       ),
       panel_structure = "network"
-    ), "three-way"
+    ),
+    "three-way"
   )
 
   # wrong population size
@@ -66,18 +69,20 @@ test_that("error conditions in APEs", {
       ),
       # n_pop = 4692
       n_pop = NA
-    ), "missing value"
+    ),
+    "missing value"
   )
 })
 
 test_that("error conditions in GLMs", {
   trade_short <- trade_panel[trade_panel$year == 2002, ]
   trade_short$trade_200 <- ifelse(trade_short$trade >= 100, 1, 0)
-  trade_short$trade_200_100 <- as.factor(ifelse(trade_short$trade >=
-    200, 1, ifelse(trade_short$trade >= 100, 0.5, 0)))
-  trade_short$trade_1_minus1 <- ifelse(trade_short$trade >= 100, 1,
-    -1
-  )
+  trade_short$trade_200_100 <- as.factor(ifelse(
+    trade_short$trade >= 200,
+    1,
+    ifelse(trade_short$trade >= 100, 0.5, 0)
+  ))
+  trade_short$trade_1_minus1 <- ifelse(trade_short$trade >= 100, 1, -1)
 
   # 0 rows in the data
 
@@ -126,11 +131,12 @@ test_that("error conditions in GLMs", {
 test_that("error conditions in helpers", {
   trade_short <- trade_panel[trade_panel$year == 2002, ]
   trade_short$trade_200 <- ifelse(trade_short$trade >= 100, 1, 0)
-  trade_short$trade_200_100 <- as.factor(ifelse(trade_short$trade >=
-    200, 1, ifelse(trade_short$trade >= 100, 0.5, 0)))
-  trade_short$trade_1_minus1 <- ifelse(trade_short$trade >= 100, 1,
-    -1
-  )
+  trade_short$trade_200_100 <- as.factor(ifelse(
+    trade_short$trade >= 200,
+    1,
+    ifelse(trade_short$trade >= 100, 0.5, 0)
+  ))
+  trade_short$trade_1_minus1 <- ifelse(trade_short$trade >= 100, 1, -1)
 
   # no formula
 
@@ -148,11 +154,17 @@ test_that("error conditions in helpers", {
 
   # null data
 
-  expect_error(fepoisson(trade ~ log_dist | rta, data = NULL), "'data' must be specified")
+  expect_error(
+    fepoisson(trade ~ log_dist | rta, data = NULL),
+    "'data' must be specified"
+  )
 
   # empty data
 
-  expect_error(fepoisson(trade ~ log_dist | rta, data = list()), "'data' must be a data.frame")
+  expect_error(
+    fepoisson(trade ~ log_dist | rta, data = list()),
+    "'data' must be a data.frame"
+  )
 
   # incorrect control
 
@@ -287,4 +299,104 @@ test_that("error conditions in helpers", {
     ),
     "Weights must be numeric"
   )
+})
+
+# ---- Additional error tests ----
+
+test_that("model errors on missing data", {
+  expect_error(
+    fepoisson(mpg ~ wt | cyl),
+    "data"
+  )
+})
+
+test_that("model errors on invalid formula", {
+  expect_error(
+    fepoisson(~ wt | cyl, mtcars),
+    "formula"
+  )
+})
+
+test_that("model errors on non-existent variables", {
+  expect_error(
+    fepoisson(mpg ~ nonexistent | cyl, mtcars),
+    "undefined columns"
+  )
+})
+
+test_that("model errors on empty fixed effects", {
+  skip_on_cran()
+
+  # This should work - no FE is valid
+  mod <- fepoisson(mpg ~ wt, mtcars)
+  expect_s3_class(mod, "feglm")
+})
+
+test_that("predict errors on missing newdata variables", {
+  mod <- fepoisson(mpg ~ wt + hp | cyl, mtcars)
+
+  newdata <- data.frame(wt = c(2.5, 3.0)) # Missing hp and cyl
+
+  expect_error(
+    predict(mod, newdata = newdata),
+    "undefined columns selected"
+  )
+})
+
+test_that("vcov works correctly", {
+  mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+  v <- vcov(mod)
+
+  expect_true(is.matrix(v))
+  expect_equal(dim(v), c(1, 1))
+})
+
+test_that("summary works for all model types", {
+  mod_felm <- felm(mpg ~ wt | cyl, mtcars)
+  mod_feglm <- fepoisson(mpg ~ wt | cyl, mtcars)
+  mod_fenegbin <- fenegbin(mpg ~ wt | cyl, mtcars)
+
+  expect_s3_class(summary(mod_felm), "summary.felm")
+  expect_s3_class(summary(mod_feglm), "summary.feglm")
+  expect_s3_class(summary(mod_fenegbin), "summary.feglm")
+})
+
+test_that("coef extraction works", {
+  mod <- fepoisson(mpg ~ wt + hp | cyl, mtcars)
+  cf <- coef(mod)
+
+  expect_equal(length(cf), 2)
+  expect_named(cf, c("wt", "hp"))
+})
+
+test_that("model handles zero counts in Poisson", {
+  skip_on_cran()
+
+  mtcars2 <- mtcars
+  mtcars2$mpg[1:3] <- 0
+
+  mod <- fepoisson(mpg ~ wt | cyl, mtcars2)
+
+  expect_s3_class(mod, "feglm")
+})
+
+test_that("model handles extreme values", {
+  skip_on_cran()
+
+  mtcars2 <- mtcars
+  mtcars2$wt_large <- mtcars2$wt * 1000
+
+  mod <- felm(mpg ~ wt_large | cyl, mtcars2)
+
+  expect_s3_class(mod, "felm")
+})
+
+test_that("print methods work", {
+  mod_felm <- felm(mpg ~ wt | cyl, mtcars)
+  mod_feglm <- fepoisson(mpg ~ wt | cyl, mtcars)
+
+  expect_output(print(mod_felm))
+  expect_output(print(mod_feglm))
+  expect_output(print(summary(mod_felm)))
+  expect_output(print(summary(mod_feglm)))
 })
