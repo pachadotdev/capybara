@@ -5,18 +5,6 @@
 
 namespace capybara {
 
-#ifdef _OPENMP
-#include <omp.h>
-#endif
-
-// Get block size for cache-friendly indexed scatter operations
-inline uword get_block_size(uword n, uword k) {
-  constexpr uword L1_CACHE = 32768;
-  constexpr uword element_size = sizeof(double) + sizeof(uword);
-  return std::max(static_cast<uword>(1000),
-                  std::min(n, L1_CACHE / (k * element_size)));
-}
-
 struct InferenceAlpha {
   field<vec> coefficients;
   uvec nb_references;
@@ -64,9 +52,8 @@ precompute_alpha_group_info(const field<field<uvec>> &group_indices, uword N) {
 
 // Workspace to reuse allocations across iterations and calls
 struct AlphaWorkspace {
-  vec residual;   // pi - sum(alpha_k)
-  vec alpha0;     // Previous coefficients for one FE
-  vec group_sums; // Accumulator for one FE
+  vec residual; // pi - sum(alpha_k)
+  vec alpha0;   // Previous coefficients for one FE
   uword cached_N;
   uword cached_max_groups;
   bool is_initialized;
@@ -77,7 +64,6 @@ struct AlphaWorkspace {
     if (!is_initialized || N > cached_N || max_groups > cached_max_groups) {
       residual.set_size(N);
       alpha0.set_size(max_groups);
-      group_sums.set_size(max_groups);
       cached_N = N;
       cached_max_groups = max_groups;
       is_initialized = true;
@@ -87,7 +73,6 @@ struct AlphaWorkspace {
   void clear() {
     residual.reset();
     alpha0.reset();
-    group_sums.reset();
     cached_N = 0;
     cached_max_groups = 0;
     is_initialized = false;
@@ -128,10 +113,15 @@ get_alpha(const vec &pi, const field<field<uvec>> &group_indices,
   ws->ensure_size(N, max_groups);
 
   vec &residual = ws->residual;
-  residual = pi; // initial residual = pi - sum(alpha_k) with alpha_k = 0
+  std::memcpy(residual.memptr(), pi.memptr(), N * sizeof(double)); // initial residual = pi
 
   double crit = 1.0;
   uword iter = 0;
+  
+  // Get workspace pointers once outside main loop
+  vec &alpha0 = ws->alpha0;
+  double *alpha0_ptr = alpha0.memptr();
+  double *residual_ptr = residual.memptr();
 
   while (crit > tol && iter < iter_max) {
     double sum_sq0 = 0.0, sum_sq_diff = 0.0;
@@ -139,65 +129,43 @@ get_alpha(const vec &pi, const field<field<uvec>> &group_indices,
     for (uword k = 0; k < K; ++k) {
       const AlphaGroupInfo &info = (*group_info_ptr)(k);
       const uword J = info.n_groups;
+      const field<uvec> &fe_groups = group_indices(k);
 
-      double *alpha0_ptr = ws->alpha0.memptr();
-      double *group_sums_ptr = ws->group_sums.memptr();
-      const double *coef_k_ptr_old = coefficients(k).memptr();
+      vec &coef_k = coefficients(k);
+      double *coef_k_ptr = coef_k.memptr();
+      const uword *group_size_ptr = info.group_size.memptr();
 
-      std::memcpy(alpha0_ptr, coef_k_ptr_old, J * sizeof(double));
-      sum_sq0 += dot(ws->alpha0.head(J), ws->alpha0.head(J));
-
-      ws->group_sums.head(J).zeros();
-      const double *residual_ptr = residual.memptr();
-
-      // Accumulate group sums by iterating groups (enables parallelization)
-      // group_sums[j] = sum_{i in g_j} (residual[i] + alpha0[j])
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static)
-#endif
+      // Save old coefficients and compute sum of squares in one pass
       for (uword j = 0; j < J; ++j) {
-        const uvec &indexes = group_indices(k)(j);
+        const double val = coef_k_ptr[j];
+        alpha0_ptr[j] = val;
+        sum_sq0 += val * val;
+      }
+
+      // Accumulate group sums and update in single pass over groups
+      for (uword j = 0; j < J; ++j) {
+        const uvec &indexes = fe_groups(j);
         const uword *idx_ptr = indexes.memptr();
         const uword n_idx = indexes.n_elem;
-        double s = 0.0;
+        
+        // Compute group sum
         const double a0j = alpha0_ptr[j];
+        double s = a0j * static_cast<double>(n_idx);
         for (uword t = 0; t < n_idx; ++t) {
-          s += residual_ptr[idx_ptr[t]] + a0j;
+          s += residual_ptr[idx_ptr[t]];
         }
-        group_sums_ptr[j] = s;
-      }
-
-      double *coef_k_ptr_new = coefficients(k).memptr();
-      const uword *group_size = info.group_size.memptr();
-
-      // Update alpha_k per group and accumulate convergence metric
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static) reduction(+ : sum_sq_diff)
-#endif
-      for (uword j = 0; j < J; ++j) {
-        double new_val = 0.0;
-        if (group_size[j] > 0) {
-          new_val = group_sums_ptr[j] / static_cast<double>(group_size[j]);
-        }
-        coef_k_ptr_new[j] = new_val;
-        double diff = new_val - alpha0_ptr[j];
+        
+        // Compute new coefficient
+        const double new_val = (group_size_ptr[j] > 0)
+                                   ? s / static_cast<double>(group_size_ptr[j])
+                                   : 0.0;
+        const double diff = new_val - a0j;
         sum_sq_diff += diff * diff;
-      }
+        coef_k_ptr[j] = new_val;
 
-      double *residual_ptr_mut = residual.memptr();
-
-      // Update residual: residual = pi - sum(alpha_k)
-      // residual[i] -= (alpha_k_new[group(i)] - alpha_k_old[group(i)])
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static)
-#endif
-      for (uword j = 0; j < J; ++j) {
-        const uvec &indexes = group_indices(k)(j);
-        const uword *idx_ptr = indexes.memptr();
-        const uword n_idx = indexes.n_elem;
-        const double delta = coef_k_ptr_new[j] - alpha0_ptr[j];
+        // Update residual
         for (uword t = 0; t < n_idx; ++t) {
-          residual_ptr_mut[idx_ptr[t]] -= delta;
+          residual_ptr[idx_ptr[t]] -= diff;
         }
       }
     }
@@ -221,16 +189,26 @@ get_alpha(const vec &pi, const field<field<uvec>> &group_indices,
   // models
   if (K > 0) {
     uword last_k = K - 1;
+    vec &last_coef = coefficients(last_k);
 
-    if (coefficients(last_k).n_elem > 0) {
+    if (last_coef.n_elem > 0) {
       // Get the value of the FIRST level of the last FE (fixest convention)
-      double first_fe_last_val = coefficients(last_k)(0);
+      const double first_fe_last_val = last_coef(0);
 
-      // Shift last FE so its first level is zero
-      coefficients(last_k) -= first_fe_last_val;
+      // Shift last FE so its first level is zero (in-place loop)
+      double *last_ptr = last_coef.memptr();
+      const uword n_last = last_coef.n_elem;
+      for (uword i = 0; i < n_last; ++i) {
+        last_ptr[i] -= first_fe_last_val;
+      }
 
       // Shift first FE in opposite direction to maintain sum constraint
-      coefficients(0) += first_fe_last_val;
+      vec &first_coef = coefficients(0);
+      double *first_ptr = first_coef.memptr();
+      const uword n_first = first_coef.n_elem;
+      for (uword i = 0; i < n_first; ++i) {
+        first_ptr[i] += first_fe_last_val;
+      }
     }
   }
 

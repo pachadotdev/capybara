@@ -3,8 +3,6 @@
 #ifndef CAPYBARA_BETA_H
 #define CAPYBARA_BETA_H
 
-#include <cstring>  // for std::memcpy
-
 namespace capybara {
 
 struct InferenceBeta {

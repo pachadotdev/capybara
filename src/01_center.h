@@ -3,29 +3,7 @@
 #ifndef CAPYBARA_CENTER_H
 #define CAPYBARA_CENTER_H
 
-#include <cstring>  // for std::memcpy
-
 namespace capybara {
-// Configure OpenMP threads from configure-time macro
-#ifdef _OPENMP
-#include <omp.h>
-#endif
-
-#ifdef _OPENMP
-#ifndef CAPYBARA_DEFAULT_OMP_THREADS
-#define CAPYBARA_DEFAULT_OMP_THREADS -1
-#endif
-inline void set_omp_threads_from_config() {
-  static bool done = false;
-  if (!done) {
-#if defined(_OPENMP) && (CAPYBARA_DEFAULT_OMP_THREADS > 0)
-    omp_set_num_threads(CAPYBARA_DEFAULT_OMP_THREADS);
-#endif
-    done = true;
-  }
-}
-#endif
-
 // Store group information
 struct GroupInfo {
   const uvec *coords;

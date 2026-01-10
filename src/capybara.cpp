@@ -6,6 +6,7 @@
 #endif
 
 #include <armadillo4r.hpp>
+#include <cstring>  // for std::memcpy
 
 using arma::field;
 using arma::mat;
@@ -18,6 +19,28 @@ using cpp4r::doubles_matrix;
 using cpp4r::integers;
 using cpp4r::list;
 using cpp4r::strings;
+
+// Configure OpenMP threads from configure-time macro
+namespace capybara {
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
+#ifdef _OPENMP
+#ifndef CAPYBARA_DEFAULT_OMP_THREADS
+#define CAPYBARA_DEFAULT_OMP_THREADS -1
+#endif
+inline void set_omp_threads_from_config() {
+  static bool done = false;
+  if (!done) {
+#if defined(_OPENMP) && (CAPYBARA_DEFAULT_OMP_THREADS > 0)
+    omp_set_num_threads(CAPYBARA_DEFAULT_OMP_THREADS);
+#endif
+    done = true;
+  }
+}
+#endif
+}
 
 // Passing parameters from R to C++ functions
 // see R/fit_control.R
