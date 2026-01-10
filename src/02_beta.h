@@ -3,6 +3,8 @@
 #ifndef CAPYBARA_BETA_H
 #define CAPYBARA_BETA_H
 
+#include <cstring>  // for std::memcpy
+
 namespace capybara {
 
 struct InferenceBeta {
@@ -225,7 +227,13 @@ check_collinearity(mat &X, const vec &w, bool has_weights, double tolerance) {
 
   result.coef_status.zeros();
   if (!indep.is_empty()) {
-    result.coef_status.elem(indep).ones();
+    // Use direct pointer access instead of elem().ones()
+    uword *status_ptr = result.coef_status.memptr();
+    const uword *indep_ptr = indep.memptr();
+    const uword n_indep = indep.n_elem;
+    for (uword i = 0; i < n_indep; ++i) {
+      status_ptr[indep_ptr[i]] = 1;
+    }
   }
   result.has_collinearity = (indep.n_elem < p);
   result.n_valid = indep.n_elem;
@@ -249,7 +257,9 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
   const uword p = X.n_cols;
   const uword p_orig =
       collin_result.has_collinearity ? collin_result.coef_status.n_elem : p;
-  const bool has_weights = !all(w == 1.0);
+  
+  // Avoid temporary from all(w == 1.0) - check first/last elements as heuristic
+  const bool has_weights = (w.n_elem > 0) && (w[0] != 1.0 || w[w.n_elem-1] != 1.0 || !all(w == 1.0));
 
   InferenceBeta result(n, p_orig);
 
@@ -306,13 +316,22 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
 
   result.coefficients.fill(datum::nan);
   if (collin_result.has_collinearity) {
-    result.coefficients.elem(collin_result.non_collinear_cols) = beta_reduced;
+    const uvec &valid_idx = collin_result.non_collinear_cols;
+    const uword n_valid = valid_idx.n_elem;
+    double *coef_ptr = result.coefficients.memptr();
+    const double *beta_ptr = beta_reduced.memptr();
+    const uword *idx_ptr = valid_idx.memptr();
+    for (uword i = 0; i < n_valid; ++i) {
+      coef_ptr[idx_ptr[i]] = beta_ptr[i];
+    }
   } else {
-    result.coefficients = beta_reduced;
+    std::memcpy(result.coefficients.memptr(), beta_reduced.memptr(), p * sizeof(double));
   }
 
-  result.coef_status = collin_result.coef_status;
+  std::memcpy(result.coef_status.memptr(), collin_result.coef_status.memptr(), 
+              collin_result.coef_status.n_elem * sizeof(uword));
 
+  // Compute fitted values: X * beta
   if (collin_result.has_collinearity &&
       collin_result.non_collinear_cols.n_elem > 0) {
     result.fitted_values = X * beta_reduced;
@@ -320,8 +339,14 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
     result.fitted_values = X * result.coefficients;
   }
 
-  result.residuals = y_orig - result.fitted_values;
-  result.weights = w;
+  // Compute residuals in-place: y_orig - fitted
+  const double *y_ptr = y_orig.memptr();
+  const double *fit_ptr = result.fitted_values.memptr();
+  double *res_ptr = result.residuals.memptr();
+  for (uword i = 0; i < n; ++i) {
+    res_ptr[i] = y_ptr[i] - fit_ptr[i];
+  }
+  std::memcpy(result.weights.memptr(), w.memptr(), n * sizeof(double));
 
   result.hessian.set_size(p_orig, p_orig);
   result.hessian.zeros();
