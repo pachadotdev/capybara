@@ -3,6 +3,8 @@
 #ifndef CAPYBARA_CENTER_H
 #define CAPYBARA_CENTER_H
 
+#include <cstring>  // for std::memcpy
+
 namespace capybara {
 // Configure OpenMP threads from configure-time macro
 #ifdef _OPENMP
@@ -34,13 +36,15 @@ struct GroupInfo {
 
 // Workspace for centering to avoid repeated allocations
 struct CenteringWorkspace {
-  vec x;   // Current solution
-  vec x0;  // Previous iteration
-  vec Gx;  // After one projection
-  vec GGx; // After two projections
-  vec Y;   // Grand accel history 1
-  vec GY;  // Grand accel history 2
-  vec GGY; // Grand accel history 3
+  vec x;        // Current solution
+  vec x0;       // Previous iteration
+  vec Gx;       // After one projection
+  vec GGx;      // After two projections
+  vec Y;        // Grand accel history 1
+  vec GY;       // Grand accel history 2
+  vec GGY;      // Grand accel history 3
+  vec delta_G;  // Workspace for acceleration
+  vec delta2;   // Workspace for acceleration
   uword cached_n;
   bool is_initialized;
 
@@ -55,6 +59,8 @@ struct CenteringWorkspace {
       Y.set_size(n);
       GY.set_size(n);
       GGY.set_size(n);
+      delta_G.set_size(n);
+      delta2.set_size(n);
       cached_n = n;
       is_initialized = true;
     }
@@ -68,6 +74,8 @@ struct CenteringWorkspace {
     Y.reset();
     GY.reset();
     GGY.reset();
+    delta_G.reset();
+    delta2.reset();
     cached_n = 0;
     is_initialized = false;
   }
@@ -111,9 +119,16 @@ precompute_group_info(const field<field<uvec>> &group_indices, const vec &w) {
 }
 
 // Weighted sum of squared values: sum(w * x^2)
-// Uses Armadillo's vectorized operations (SIMD-optimized)
+// Direct loop to avoid temporary from square()
 inline double weighted_quadsum(const vec &x, const vec &w) {
-  return dot(w, square(x));
+  const uword n = x.n_elem;
+  const double *x_ptr = x.memptr();
+  const double *w_ptr = w.memptr();
+  double sum = 0.0;
+  for (uword i = 0; i < n; ++i) {
+    sum += w_ptr[i] * x_ptr[i] * x_ptr[i];
+  }
+  return sum;
 }
 
 // Safe division avoiding division by zero
@@ -123,48 +138,42 @@ inline double safe_divide(double num, double denom) {
 
 // Project onto one FE group: subtract weighted mean
 // Returns the mean that was subtracted (the "projection component")
-inline double project_one_group(double *v, const double *w,
+inline double project_one_group(vec &v, const vec &w,
                                 const GroupInfo &info) {
   if (info.is_singleton)
     return 0.0;
 
-  double weighted_sum = 0.0;
-  const uword *coord_ptr = info.coords->memptr();
+  const uvec &coords = *info.coords;
   const uword n = info.n_elem;
-
-// Vectorized accumulation of w * v using SIMD-friendly canonical loop
-#if defined(_OPENMP)
-#pragma omp simd reduction(+ : weighted_sum)
-#endif
+  const uword *idx = coords.memptr();
+  double *v_ptr = v.memptr();
+  const double *w_ptr = w.memptr();
+  
+  // Compute weighted sum with direct pointer access (no temporaries)
+  double weighted_sum = 0.0;
   for (uword i = 0; i < n; ++i) {
-    weighted_sum += w[coord_ptr[i]] * v[coord_ptr[i]];
+    const uword j = idx[i];
+    weighted_sum += w_ptr[j] * v_ptr[j];
   }
-
+  
   double mean = weighted_sum * info.inv_weight;
 
-// Subtract mean from all elements in group (SIMD-friendly canonical loop)
-#if defined(_OPENMP)
-#pragma omp simd
-#endif
+  // Subtract mean from all elements in group
   for (uword i = 0; i < n; ++i) {
-    v[coord_ptr[i]] -= mean;
+    v_ptr[idx[i]] -= mean;
   }
 
   return mean;
 }
 
 // Symmetric Kaczmarz projection: applies P(y) in-place
-inline void apply_projection(double *y, const double *w,
-                             const field<field<GroupInfo>> &all_group_info,
-                             uword N) {
+inline void apply_projection(vec &y, const vec &w,
+                             const field<field<GroupInfo>> &all_group_info) {
   const uword K = all_group_info.n_elem;
 
   // Forward pass: FE1, FE2, ..., FEK
   for (uword k = 0; k < K; ++k) {
     const field<GroupInfo> &fe_info = all_group_info(k);
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static)
-#endif
     for (uword l = 0; l < fe_info.n_elem; ++l) {
       project_one_group(y, w, fe_info(l));
     }
@@ -173,9 +182,6 @@ inline void apply_projection(double *y, const double *w,
   // Backward pass: FE(K-1), ..., FE1 (symmetric Kaczmarz)
   for (uword k = K; k-- > 1;) {
     const field<GroupInfo> &fe_info = all_group_info(k - 1);
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static)
-#endif
     for (uword l = 0; l < fe_info.n_elem; ++l) {
       project_one_group(y, w, fe_info(l));
     }
@@ -183,21 +189,14 @@ inline void apply_projection(double *y, const double *w,
 }
 
 // Single FE projection (simpler case)
-inline void apply_projection_single_fe(double *y, const double *w,
-                                       const field<GroupInfo> &fe_info,
-                                       uword N) {
-// Forward pass
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static)
-#endif
+inline void apply_projection_single_fe(vec &y, const vec &w,
+                                       const field<GroupInfo> &fe_info) {
+  // Forward pass
   for (uword l = 0; l < fe_info.n_elem; ++l) {
     project_one_group(y, w, fe_info(l));
   }
 
-// Backward pass (symmetric Kaczmarz)
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static)
-#endif
+  // Backward pass (symmetric Kaczmarz)
   for (uword l = 0; l < fe_info.n_elem; ++l) {
     project_one_group(y, w, fe_info(l));
   }
@@ -205,18 +204,27 @@ inline void apply_projection_single_fe(double *y, const double *w,
 
 // Irons-Tuck acceleration: extrapolate using two successive projections
 // Returns true if converged
-inline bool irons_tuck_acceleration(double *x, const double *Gx,
-                                    const double *GGx, uword N, double tol) {
-  double vprod = 0.0, ssq = 0.0;
-
-  // Compute delta_G = GGx - Gx and delta2 = delta_G - (Gx - x)
-  for (uword i = 0; i < N; ++i) {
-    double delta_G = GGx[i] - Gx[i];
-    double delta2 = delta_G - (Gx[i] - x[i]);
-    vprod += delta_G * delta2;
-    ssq += delta2 * delta2;
+// Uses workspace vectors to avoid allocations
+inline bool irons_tuck_acceleration(vec &x, const vec &Gx, const vec &GGx,
+                                    vec &delta_G_ws, vec &delta2_ws,
+                                    double tol) {
+  const uword n = x.n_elem;
+  double *dG = delta_G_ws.memptr();
+  double *d2 = delta2_ws.memptr();
+  const double *x_ptr = x.memptr();
+  const double *Gx_ptr = Gx.memptr();
+  const double *GGx_ptr = GGx.memptr();
+  
+  // Compute delta_G = GGx - Gx and delta2 = delta_G - (Gx - x) in one pass
+  double ssq = 0.0;
+  double vprod = 0.0;
+  for (uword i = 0; i < n; ++i) {
+    dG[i] = GGx_ptr[i] - Gx_ptr[i];
+    d2[i] = dG[i] - (Gx_ptr[i] - x_ptr[i]);
+    ssq += d2[i] * d2[i];
+    vprod += dG[i] * d2[i];
   }
-
+  
   if (ssq < tol * tol) {
     return true; // Converged
   }
@@ -224,13 +232,13 @@ inline bool irons_tuck_acceleration(double *x, const double *Gx,
   double coef = safe_divide(vprod, ssq);
 
   // Apply acceleration if coefficient is in valid range
+  double *x_out = x.memptr();
   if (coef > 0.0 && coef < 2.0) {
-    for (uword i = 0; i < N; ++i) {
-      x[i] = GGx[i] - coef * (GGx[i] - Gx[i]);
+    for (uword i = 0; i < n; ++i) {
+      x_out[i] = GGx_ptr[i] - coef * dG[i];
     }
   } else {
-    // Fall back to GGx
-    std::memcpy(x, GGx, N * sizeof(double));
+    std::memcpy(x_out, GGx_ptr, n * sizeof(double));
   }
 
   return false;
@@ -238,23 +246,33 @@ inline bool irons_tuck_acceleration(double *x, const double *Gx,
 
 // Grand acceleration (fixest-style): uses 3-iteration history
 // Returns true if converged
-inline bool grand_acceleration(double *x, double *Y, double *GY, double *GGY,
-                               uword N, int &grand_acc_state, double tol) {
+// Uses workspace vectors to avoid allocations
+inline bool grand_acceleration(vec &x, vec &Y, vec &GY, vec &GGY,
+                               vec &delta_G_ws, vec &delta2_ws,
+                               int &grand_acc_state, double tol) {
+  const uword n = x.n_elem;
+  
   if (grand_acc_state == 0) {
-    std::memcpy(Y, x, N * sizeof(double));
+    std::memcpy(Y.memptr(), x.memptr(), n * sizeof(double));
   } else if (grand_acc_state == 1) {
-    std::memcpy(GY, x, N * sizeof(double));
+    std::memcpy(GY.memptr(), x.memptr(), n * sizeof(double));
   } else {
-    std::memcpy(GGY, x, N * sizeof(double));
+    std::memcpy(GGY.memptr(), x.memptr(), n * sizeof(double));
 
-    // Apply Irons-Tuck-style extrapolation with 3-iteration history
-    double vprod = 0.0, ssq = 0.0;
-
-    for (uword i = 0; i < N; ++i) {
-      double delta_G = GGY[i] - GY[i];
-      double delta2 = delta_G - (GY[i] - Y[i]);
-      vprod += delta_G * delta2;
-      ssq += delta2 * delta2;
+    double *dG = delta_G_ws.memptr();
+    double *d2 = delta2_ws.memptr();
+    const double *Y_ptr = Y.memptr();
+    const double *GY_ptr = GY.memptr();
+    const double *GGY_ptr = GGY.memptr();
+    
+    // Compute delta_G = GGY - GY and delta2 = delta_G - (GY - Y) in one pass
+    double ssq = 0.0;
+    double vprod = 0.0;
+    for (uword i = 0; i < n; ++i) {
+      dG[i] = GGY_ptr[i] - GY_ptr[i];
+      d2[i] = dG[i] - (GY_ptr[i] - Y_ptr[i]);
+      ssq += d2[i] * d2[i];
+      vprod += dG[i] * d2[i];
     }
 
     if (ssq < tol * tol) {
@@ -264,12 +282,13 @@ inline bool grand_acceleration(double *x, double *Y, double *GY, double *GGY,
 
     double coef = safe_divide(vprod, ssq);
 
+    double *x_out = x.memptr();
     if (coef > 0.0 && coef < 2.0) {
-      for (uword i = 0; i < N; ++i) {
-        x[i] = GGY[i] - coef * (GGY[i] - GY[i]);
+      for (uword i = 0; i < n; ++i) {
+        x_out[i] = GGY_ptr[i] - coef * dG[i];
       }
     } else {
-      std::memcpy(x, GGY, N * sizeof(double));
+      std::memcpy(x_out, GGY_ptr, n * sizeof(double));
     }
 
     grand_acc_state = -1; // Reset for next cycle
@@ -281,7 +300,7 @@ inline bool grand_acceleration(double *x, double *Y, double *GY, double *GGY,
 
 // Center one column using Irons-Tuck + Grand acceleration
 inline void
-center_one_column_accel(vec &y, const vec &w, const double *w_ptr,
+center_one_column_accel(vec &y, const vec &w,
                         const field<field<GroupInfo>> &all_group_info,
                         double tol, uword max_iter, uword iter_interrupt,
                         CenteringWorkspace &ws) {
@@ -289,27 +308,18 @@ center_one_column_accel(vec &y, const vec &w, const double *w_ptr,
   const uword K = all_group_info.n_elem;
   const uword N = y.n_elem;
 
-  double *x_ptr = ws.x.memptr();
-  double *x0_ptr = ws.x0.memptr();
-  double *Gx_ptr = ws.Gx.memptr();
-  double *GGx_ptr = ws.GGx.memptr();
-  double *Y_ptr = ws.Y.memptr();
-  double *GY_ptr = ws.GY.memptr();
-  double *GGY_ptr = ws.GGY.memptr();
+  // Use workspace vectors directly - avoid Armadillo copy
+  std::memcpy(ws.x.memptr(), y.memptr(), N * sizeof(double));
 
-  // Copy input to workspace
-  std::memcpy(x_ptr, y.memptr(), N * sizeof(double));
-
-  // Acceleration parameters (more aggressive than fixest for faster
-  // convergence)
-  const uword irons_tuck_interval = 2;  // Every 2 iterations (was 3)
-  const uword grand_accel_interval = 3; // Every 3 iterations (was 5)
-  const uword accel_start = 1;          // Start immediately (was 2)
+  // Acceleration parameters
+  const uword irons_tuck_interval = 2;
+  const uword grand_accel_interval = 3;
+  const uword accel_start = 1;
 
   int grand_acc_state = 0;
   uword iint = iter_interrupt;
   double ssr_old = std::numeric_limits<double>::infinity();
-  uword stall_count = 0; // Track iterations without progress
+  uword stall_count = 0;
 
   for (uword iter = 0; iter < max_iter; ++iter) {
     if (iter == iint) {
@@ -318,50 +328,50 @@ center_one_column_accel(vec &y, const vec &w, const double *w_ptr,
     }
 
     // Save previous iteration
-    std::memcpy(x0_ptr, x_ptr, N * sizeof(double));
+    std::memcpy(ws.x0.memptr(), ws.x.memptr(), N * sizeof(double));
 
     // Apply projection
     if (K == 1) {
-      apply_projection_single_fe(x_ptr, w_ptr, all_group_info[0], N);
+      apply_projection_single_fe(ws.x, w, all_group_info[0]);
     } else {
-      apply_projection(x_ptr, w_ptr, all_group_info, N);
+      apply_projection(ws.x, w, all_group_info);
     }
 
     // Grand acceleration (every 3 iterations after iteration 1)
     if (iter >= accel_start && iter % grand_accel_interval == 0) {
-      if (grand_acceleration(x_ptr, Y_ptr, GY_ptr, GGY_ptr, N, grand_acc_state,
-                             tol)) {
+      if (grand_acceleration(ws.x, ws.Y, ws.GY, ws.GGY, ws.delta_G, ws.delta2,
+                             grand_acc_state, tol)) {
         break; // Converged
       }
       // Re-project after acceleration
       if (K == 1) {
-        apply_projection_single_fe(x_ptr, w_ptr, all_group_info[0], N);
+        apply_projection_single_fe(ws.x, w, all_group_info[0]);
       } else {
-        apply_projection(x_ptr, w_ptr, all_group_info, N);
+        apply_projection(ws.x, w, all_group_info);
       }
     }
 
-    // Irons-Tuck acceleration (every 2 iterations after iteration 1, not
-    // overlapping with grand)
+    // Irons-Tuck acceleration (every 2 iterations, not overlapping with grand)
     if (iter >= accel_start && iter % irons_tuck_interval == 0 &&
         iter % grand_accel_interval != 0) {
       // Gx = P(x)
-      std::memcpy(Gx_ptr, x_ptr, N * sizeof(double));
+      std::memcpy(ws.Gx.memptr(), ws.x.memptr(), N * sizeof(double));
       if (K == 1) {
-        apply_projection_single_fe(Gx_ptr, w_ptr, all_group_info[0], N);
+        apply_projection_single_fe(ws.Gx, w, all_group_info[0]);
       } else {
-        apply_projection(Gx_ptr, w_ptr, all_group_info, N);
+        apply_projection(ws.Gx, w, all_group_info);
       }
 
       // GGx = P(Gx)
-      std::memcpy(GGx_ptr, Gx_ptr, N * sizeof(double));
+      std::memcpy(ws.GGx.memptr(), ws.Gx.memptr(), N * sizeof(double));
       if (K == 1) {
-        apply_projection_single_fe(GGx_ptr, w_ptr, all_group_info[0], N);
+        apply_projection_single_fe(ws.GGx, w, all_group_info[0]);
       } else {
-        apply_projection(GGx_ptr, w_ptr, all_group_info, N);
+        apply_projection(ws.GGx, w, all_group_info);
       }
 
-      if (irons_tuck_acceleration(x_ptr, Gx_ptr, GGx_ptr, N, tol)) {
+      if (irons_tuck_acceleration(ws.x, ws.Gx, ws.GGx, ws.delta_G, ws.delta2,
+                                  tol)) {
         break; // Converged
       }
     }
@@ -377,20 +387,19 @@ center_one_column_accel(vec &y, const vec &w, const double *w_ptr,
       if (rel_change < tol)
         break;
 
-      // Early exit if progress stalls
       if (rel_change < tol * 10.0) {
         stall_count++;
         if (stall_count > 3)
-          break; // Stop if stuck for 3 iterations
+          break;
       } else {
-        stall_count = 0; // Reset if making progress
+        stall_count = 0;
       }
     }
     ssr_old = ssr;
   }
 
-  // Copy result back
-  y = ws.x;
+  // Copy result back - avoid Armadillo copy
+  std::memcpy(y.memptr(), ws.x.memptr(), N * sizeof(double));
 }
 
 void center_variables(
@@ -398,7 +407,6 @@ void center_variables(
     const double &tol, const uword &max_iter, const uword &iter_interrupt,
     const field<field<GroupInfo>> *precomputed_group_info = nullptr,
     CenteringWorkspace *workspace = nullptr) {
-// Ensure OpenMP uses the configure-detected thread count
 #ifdef _OPENMP
   set_omp_threads_from_config();
 #endif
@@ -410,7 +418,6 @@ void center_variables(
     return;
 
   const uword N = V.n_rows, P = V.n_cols;
-  const double *w_ptr = w.memptr();
 
   // Reuse precomputed group metadata when available
   const field<field<GroupInfo>> *group_info_ptr = precomputed_group_info;
@@ -421,16 +428,34 @@ void center_variables(
   }
   const field<field<GroupInfo>> &all_group_info = *group_info_ptr;
 
+  // Parallelize at column level - each column is independent
+  // Each thread gets its own workspace to avoid contention
+#if defined(_OPENMP)
+#pragma omp parallel
+  {
+    CenteringWorkspace thread_ws;
+    thread_ws.ensure_size(N);
+
+#pragma omp for schedule(static)
+    for (uword col = 0; col < P; ++col) {
+      vec y_col = V.col(col);
+      center_one_column_accel(y_col, w, all_group_info, tol, max_iter,
+                              iter_interrupt, thread_ws);
+      V.col(col) = y_col;
+    }
+  }
+#else
   CenteringWorkspace local_workspace;
   CenteringWorkspace *ws = workspace ? workspace : &local_workspace;
   ws->ensure_size(N);
 
   for (uword col = 0; col < P; ++col) {
     vec y_col = V.col(col);
-    center_one_column_accel(y_col, w, w_ptr, all_group_info, tol, max_iter,
+    center_one_column_accel(y_col, w, all_group_info, tol, max_iter,
                             iter_interrupt, *ws);
     V.col(col) = y_col;
   }
+#endif
 }
 
 } // namespace capybara
