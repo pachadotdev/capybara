@@ -45,6 +45,7 @@ summary_estimates_ <- function(x, digits) {
 
   # Skip printing if there are no slope coefficients (fixed effects only models)
   if (is.null(coefficients) || nrow(coefficients) == 0) {
+    cat("\nNo slope coefficients\n")
     return(invisible(NULL))
   }
 
@@ -294,6 +295,18 @@ print.feglm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
   invisible(x)
 }
 
+#' @title Print method for 'summary.feglm' objects
+#' @description Print method for feglm summary objects
+#' @export
+#' @noRd
+print.summary.feglm <- function(
+  x,
+  digits = max(3L, getOption("digits") - 3L),
+  ...
+) {
+  print.feglm(x, digits = digits, ...)
+}
+
 #' @title Print method for 'felm' objects (detailed output)
 #' @description Similar to the 'print' method for 'lm' objects
 #' @export
@@ -310,40 +323,16 @@ print.felm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
   invisible(x)
 }
 
-#' @title Summary method for 'apes' objects
-#' @description Alias to print method
+#' @title Print method for 'summary.felm' objects
+#' @description Print method for felm summary objects
 #' @export
 #' @noRd
-summary.apes <- function(
-  object,
+print.summary.felm <- function(
+  x,
   digits = max(3L, getOption("digits") - 3L),
   ...
 ) {
-  print.apes(object, digits = digits, ...)
-}
-
-#' @title Summary method for 'feglm' objects
-#' @description Alias to print method
-#' @export
-#' @noRd
-summary.feglm <- function(
-  object,
-  digits = max(3L, getOption("digits") - 3L),
-  ...
-) {
-  print.feglm(object, digits = digits, ...)
-}
-
-#' @title Summary method for 'felm' objects
-#' @description Alias to print method
-#' @export
-#' @noRd
-summary.felm <- function(
-  object,
-  digits = max(3L, getOption("digits") - 3L),
-  ...
-) {
-  print.felm(object, digits = digits, ...)
+  print.felm(x, digits = digits, ...)
 }
 
 #' Print method for regression tables

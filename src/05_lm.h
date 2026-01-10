@@ -145,30 +145,21 @@ inline void accumulate_fixed_effects(vec &fitted_values,
                                      const field<vec> &fixed_effects,
                                      const field<field<uvec>> &fe_groups) {
   const uword K = fe_groups.n_elem;
-  const uword N = fitted_values.n_elem;
-
-  const uword obs_block_size = get_block_size_lm(N, K);
+  double *fitted_ptr = fitted_values.memptr();
 
   for (uword k = 0; k < K; ++k) {
     const uword J = fe_groups(k).n_elem;
     const vec &fe_k = fixed_effects(k);
+    const double *fe_ptr = fe_k.memptr();
 
     for (uword j = 0; j < J; ++j) {
       const uvec &group_idx = fe_groups(k)(j);
-      const double fe_value = fe_k(j);
-
+      const double fe_value = fe_ptr[j];
       const uword group_size = group_idx.n_elem;
       const uword *idx_ptr = group_idx.memptr();
-      double *fitted_ptr = fitted_values.memptr();
 
-      for (uword block_start = 0; block_start < group_size;
-           block_start += obs_block_size) {
-        const uword block_end =
-            std::min(block_start + obs_block_size, group_size);
-
-        for (uword t = block_start; t < block_end; ++t) {
-          fitted_ptr[idx_ptr[t]] += fe_value;
-        }
+      for (uword t = 0; t < group_size; ++t) {
+        fitted_ptr[idx_ptr[t]] += fe_value;
       }
     }
   }
@@ -291,9 +282,18 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
   result.residuals = ws->y_original - result.fitted_values;
 
   // Compute R-squared and adjusted R-squared
-  vec ydemeaned = ws->y_original - mean(ws->y_original);
-  double tss = sum(w % square(ydemeaned));
-  double rss = sum(w % square(result.residuals));
+  const double y_mean = mean(ws->y_original);
+  const uword n_obs = ws->y_original.n_elem;
+  const double *y_ptr = ws->y_original.memptr();
+  const double *resid_ptr = result.residuals.memptr();
+  const double *w_ptr = w.memptr();
+  
+  double tss = 0.0, rss = 0.0;
+  for (uword i = 0; i < n_obs; ++i) {
+    double y_centered = y_ptr[i] - y_mean;
+    tss += w_ptr[i] * y_centered * y_centered;
+    rss += w_ptr[i] * resid_ptr[i] * resid_ptr[i];
+  }
   result.r_squared = 1.0 - (rss / tss);
 
   // Adjusted R-squared: account for parameters
