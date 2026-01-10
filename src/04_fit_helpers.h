@@ -128,26 +128,41 @@ double dev_resids_gaussian(const vec &y, const vec &mu, const vec &wt) {
 }
 
 double dev_resids_poisson(const vec &y, const vec &mu, const vec &wt) {
-  vec r = mu % wt;
-
-  uvec p = find(y > 0);
-  r(p) = wt(p) % (y(p) % log(y(p) / mu(p)) - (y(p) - mu(p)));
-
-  return 2 * accu(r);
+  const uword n = y.n_elem;
+  const double *y_ptr = y.memptr();
+  const double *mu_ptr = mu.memptr();
+  const double *wt_ptr = wt.memptr();
+  
+  double sum = 0.0;
+  for (uword i = 0; i < n; ++i) {
+    if (y_ptr[i] > 0) {
+      sum += wt_ptr[i] * (y_ptr[i] * std::log(y_ptr[i] / mu_ptr[i]) - (y_ptr[i] - mu_ptr[i]));
+    } else {
+      sum += mu_ptr[i] * wt_ptr[i];
+    }
+  }
+  return 2.0 * sum;
 }
 
 // Adapted from binomial_dev_resids()
 // in base R it can be found in src/library/stats/src/family.c
 double dev_resids_logit(const vec &y, const vec &mu, const vec &wt) {
-  vec r(y.n_elem, fill::zeros);
-  vec s(y.n_elem, fill::zeros);
-
-  uvec p = find(y == 1);
-  uvec q = find(y == 0);
-  r(p) = y(p) % log(y(p) / mu(p));
-  s(q) = (1 - y(q)) % log((1 - y(q)) / (1 - mu(q)));
-
-  return 2 * dot(wt, r + s);
+  const uword n = y.n_elem;
+  const double *y_ptr = y.memptr();
+  const double *mu_ptr = mu.memptr();
+  const double *wt_ptr = wt.memptr();
+  
+  double sum = 0.0;
+  for (uword i = 0; i < n; ++i) {
+    double contrib = 0.0;
+    if (y_ptr[i] == 1.0) {
+      contrib = y_ptr[i] * std::log(y_ptr[i] / mu_ptr[i]);
+    } else if (y_ptr[i] == 0.0) {
+      contrib = (1.0 - y_ptr[i]) * std::log((1.0 - y_ptr[i]) / (1.0 - mu_ptr[i]));
+    }
+    sum += wt_ptr[i] * contrib;
+  }
+  return 2.0 * sum;
 }
 
 double dev_resids_gamma(const vec &y, const vec &mu, const vec &wt) {
@@ -261,7 +276,10 @@ bool valid_mu(const vec &mu, const Family family_type) {
 }
 
 vec inverse_link_derivative(const vec &eta, const Family family_type) {
-  vec result(eta.n_elem);
+  const uword n = eta.n_elem;
+  vec result(n);
+  double *r = result.memptr();
+  const double *e = eta.memptr();
 
   switch (family_type) {
   case GAUSSIAN:
@@ -269,18 +287,26 @@ vec inverse_link_derivative(const vec &eta, const Family family_type) {
     break;
   case POISSON:
   case NEG_BIN:
-    result = arma::exp(eta);
+    for (uword i = 0; i < n; ++i) {
+      r[i] = std::exp(e[i]);
+    }
     break;
-  case BINOMIAL: {
-    vec exp_eta = arma::exp(eta);
-    result = exp_eta / arma::square(1 + exp_eta);
+  case BINOMIAL:
+    for (uword i = 0; i < n; ++i) {
+      double exp_eta = std::exp(e[i]);
+      double denom = 1.0 + exp_eta;
+      r[i] = exp_eta / (denom * denom);
+    }
     break;
-  }
   case GAMMA:
-    result = -1 / arma::square(eta);
+    for (uword i = 0; i < n; ++i) {
+      r[i] = -1.0 / (e[i] * e[i]);
+    }
     break;
   case INV_GAUSSIAN:
-    result = -1 / (2 * arma::pow(eta, 1.5));
+    for (uword i = 0; i < n; ++i) {
+      r[i] = -1.0 / (2.0 * std::pow(e[i], 1.5));
+    }
     break;
   default:
     stop("Unknown family");
@@ -366,16 +392,32 @@ mat compute_sandwich_vcov(const mat &MX, const vec &y, const vec &mu,
 mat group_sums(const mat &M, const mat &w, const field<uvec> &group_indices) {
   const uword J = group_indices.n_elem, P = M.n_cols;
 
-  Row<double> groupSum(P, fill::none);
-  double denom;
   mat b(P, 1, fill::zeros);
+  double *b_ptr = b.memptr();
 
   for (uword j = 0; j < J; ++j) {
     const uvec &indexes = group_indices(j);
-    groupSum = sum(M.rows(indexes), 0);
-    denom = accu(w.elem(indexes));
-
-    b += groupSum.t() / denom;
+    const uword n_idx = indexes.n_elem;
+    const uword *idx_ptr = indexes.memptr();
+    
+    // Compute denominator directly
+    double denom = 0.0;
+    for (uword t = 0; t < n_idx; ++t) {
+      denom += w(idx_ptr[t]);
+    }
+    
+    if (denom == 0.0) continue;
+    double inv_denom = 1.0 / denom;
+    
+    // Accumulate group sums for each column
+    for (uword p = 0; p < P; ++p) {
+      const double *col_ptr = M.colptr(p);
+      double col_sum = 0.0;
+      for (uword t = 0; t < n_idx; ++t) {
+        col_sum += col_ptr[idx_ptr[t]];
+      }
+      b_ptr[p] += col_sum * inv_denom;
+    }
   }
 
   return b;
