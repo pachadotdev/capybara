@@ -58,7 +58,7 @@ NULL
 #' @noRd
 NULL
 
-#' Trade Panel 1986-2006
+#' Trade panel 1986-2006
 #'
 #' Aggregated exports at origin-destination-year level for 1986-2006.
 #'
@@ -77,3 +77,18 @@ NULL
 #'
 #' @source Advanced Guide to Trade Policy Analysis (ISBN: 978-92-870-4367-2)
 "trade_panel"
+
+#' 'ppmlhdfe' separation example datasets
+#'
+#' Nonexistence of estimates of Poisson models across different statistical packages.
+#'
+#' @format ## `ppmlhdfe`
+#' A list of data frames with three elements:
+#' \describe{
+#'   \item{example1}{Data frame used to show lack of convergence}
+#'   \item{example2}{Data frame used to show lack of convergence with step-halving}
+#'   \item{fe1}{Data frame with fixed effects used with the 'alpaca' package}
+#' }
+#'
+#' @source 'ppmlhdfe' GitHub repository (https://github.com/sergiocorreia/ppmlhdfe/blob/master/guides/nonexistence_benchmarks.md#r-packages)
+"ppmlhdfe"

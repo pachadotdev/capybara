@@ -150,7 +150,8 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
                        const CapybaraParameters &params,
                        GlmWorkspace *workspace = nullptr,
                        const field<uvec> *cluster_groups = nullptr,
-                       const vec *offset = nullptr) {
+                       const vec *offset = nullptr,
+                       bool skip_separation_check = false) {
   const uword n = y.n_elem;
   const uword p_original = X.n_cols;
   const bool has_fixed_effects = fe_groups.n_elem > 0;
@@ -202,13 +203,62 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   }
   workspace->ensure_size(n, p);
 
-  // Check collinearity BEFORE any other processing
-  // This must happen regardless of fixed effects presence
+  // Store offset separately if present (for use in separation detection)
+  vec offset_vec(n, fill::zeros);
+  if (has_offset) {
+    offset_vec = *offset;
+  }
+
+  // STEP 1: For FE models with Poisson, detect separation early
+  CenteringWorkspace centering_workspace;
+  
+  if (family_type == Family::POISSON && !skip_separation_check && has_fixed_effects) {
+    // Use separation detection on original data
+    SeparationParameters sep_params;
+    sep_params.tol = params.sep_tol;
+    sep_params.max_iter = params.sep_max_iter;
+    sep_params.use_relu = true;
+    sep_params.use_simplex = true;
+    
+    // Use check_separation which handles both simplex and ReLU
+    SeparationResult sep_result = check_separation(y, X, w, sep_params);
+    
+    if (sep_result.num_separated > 0) {
+      // Instead of filtering, set weights to zero for separated observations
+      // This keeps dimensions consistent while excluding them from estimation
+      vec w_work = w;
+      for (uword i = 0; i < sep_result.separated_obs.n_elem; ++i) {
+        w_work(sep_result.separated_obs(i)) = 0.0;
+      }
+      
+      // Call feglm_fit with zero weights for separated obs
+      InferenceGLM result_with_sep = feglm_fit(
+        beta, eta, y, X, w_work, theta, family_type,
+        fe_groups, params, workspace, cluster_groups, offset,
+        true  // skip_separation_check = true
+      );
+      
+      // Set NA for separated observations in result vectors
+      for (uword i = 0; i < sep_result.separated_obs.n_elem; ++i) {
+        uword idx = sep_result.separated_obs(i);
+        result_with_sep.eta(idx) = datum::nan;
+        result_with_sep.fitted_values(idx) = datum::nan;
+      }
+      
+      // Store separation info
+      result_with_sep.has_separation = true;
+      result_with_sep.separated_obs = sep_result.separated_obs;
+      result_with_sep.num_separated = sep_result.num_separated;
+      result_with_sep.separation_certificate = sep_result.certificate;
+      
+      return result_with_sep;
+    }
+  }
+
+  // STEP 2: Check collinearity
   bool use_weights = !all(w == 1.0);
   CollinearityResult collin_result =
       check_collinearity(X, w, use_weights, params.collin_tol);
-
-  CenteringWorkspace centering_workspace;
 
   vec MNU = vec(n, fill::zeros);
   vec &mu = workspace->mu;
@@ -221,18 +271,15 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   vec &beta0 = workspace->beta0;
   vec &nu0 = workspace->nu0;
 
-  // Store offset separately if present (but don't modify eta)
-  vec offset_vec(n, fill::zeros);
-  if (has_offset) {
-    offset_vec = *offset;
-  }
-
   mu = link_inv(eta, family_type);
-  vec ymean = mean(y) * vec(n, fill::ones);
+  const double y_mean_scalar = mean(y);
   vec beta_upd(k, fill::none);
   mat H(p, p, fill::none);
 
   double dev = dev_resids(y, mu, theta, w, family_type);
+  // For null deviance, create ymean vector only once
+  vec ymean(n);
+  ymean.fill(y_mean_scalar);
   double null_dev = dev_resids(y, ymean, theta, w, family_type);
   double dev0, dev_ratio = datum::inf, dev_ratio_inner, rho;
   bool dev_crit, val_crit, imp_crit, conv = false;
@@ -280,8 +327,22 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     dev0 = dev;
 
     mu_eta = inverse_link_derivative(eta, family_type);
-    w_working = (w % square(mu_eta)) / variance(mu, theta, family_type);
-    nu = (y - mu) / mu_eta;
+    // Compute w_working and nu with fewer temporaries
+    {
+      vec var_mu = variance(mu, theta, family_type);
+      const double *w_ptr = w.memptr();
+      const double *mu_eta_ptr = mu_eta.memptr();
+      const double *var_ptr = var_mu.memptr();
+      const double *y_ptr = y.memptr();
+      const double *mu_ptr = mu.memptr();
+      double *ww_ptr = w_working.memptr();
+      double *nu_ptr = nu.memptr();
+      for (uword i = 0; i < n; ++i) {
+        double me = mu_eta_ptr[i];
+        ww_ptr[i] = (w_ptr[i] * me * me) / var_ptr[i];
+        nu_ptr[i] = (y_ptr[i] - mu_ptr[i]) / me;
+      }
+    }
 
     const field<field<GroupInfo>> *group_info_ptr = nullptr;
     field<field<GroupInfo>> group_info;
@@ -483,10 +544,20 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     }
 
     if (delta_deviance < 0 && num_step_halving < max_step_halving) {
-      eta = step_halving_memory * eta0 + (1.0 - step_halving_memory) * eta;
+      // In-place blend: eta = memory * eta0 + (1-memory) * eta
+      const double mem = step_halving_memory;
+      const double one_minus_mem = 1.0 - mem;
+      double *eta_ptr = eta.memptr();
+      const double *eta0_ptr = eta0.memptr();
+      for (uword i = 0; i < n; ++i) {
+        eta_ptr[i] = mem * eta0_ptr[i] + one_minus_mem * eta_ptr[i];
+      }
 
       if (num_step_halving > 0 && family_type == POISSON) {
-        eta = arma::max(eta, vec(n, fill::value(-10.0)));
+        // Clamp eta >= -10 without temporary allocation
+        for (uword i = 0; i < n; ++i) {
+          if (eta_ptr[i] < -10.0) eta_ptr[i] = -10.0;
+        }
       }
 
       mu = link_inv(eta, family_type);
@@ -596,6 +667,29 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     if (family_type == POISSON) {
       double corr = as_scalar(cor(y, result.fitted_values));
       result.pseudo_rsq = corr * corr;
+
+      // Check for separation in Poisson models (only if not already done)
+      // Use X0 (original design matrix before centering) for separation detection
+      if (!skip_separation_check) {
+        SeparationParameters sep_params;
+        sep_params.tol = params.dev_tol;
+        sep_params.zero_tol = std::min(params.dev_tol * 0.01, 1e-12);
+        sep_params.max_iter = 1000;
+        sep_params.simplex_max_iter = 10000;
+        sep_params.use_relu = true;
+        sep_params.use_simplex = true;
+        sep_params.verbose = false;
+
+        SeparationResult sep_result = check_separation(y, X0, w, sep_params);
+        
+        if (sep_result.num_separated > 0) {
+          result.has_separation = true;
+          result.separated_obs = sep_result.separated_obs;
+          if (sep_result.certificate.n_elem > 0) {
+            result.separation_certificate = sep_result.certificate;
+          }
+        }
+      }
     }
 
     // Compute coefficient table: [estimate, std.error, z, p-value]
@@ -680,8 +774,24 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
     dev0 = dev;
 
     mu_eta = inverse_link_derivative(eta, family_type);
-    w_working = (w % square(mu_eta)) / variance(mu, 0.0, family_type);
-    yadj = (y - mu) / mu_eta + eta - offset;
+    // Compute w_working and yadj with fewer temporaries
+    {
+      vec var_mu = variance(mu, 0.0, family_type);
+      const double *w_ptr = w.memptr();
+      const double *mu_eta_ptr = mu_eta.memptr();
+      const double *var_ptr = var_mu.memptr();
+      const double *y_ptr = y.memptr();
+      const double *mu_ptr = mu.memptr();
+      const double *eta_ptr = eta.memptr();
+      const double *off_ptr = offset.memptr();
+      double *ww_ptr = w_working.memptr();
+      double *yadj_ptr = yadj.memptr();
+      for (uword i = 0; i < n; ++i) {
+        double me = mu_eta_ptr[i];
+        ww_ptr[i] = (w_ptr[i] * me * me) / var_ptr[i];
+        yadj_ptr[i] = (y_ptr[i] - mu_ptr[i]) / me + eta_ptr[i] - off_ptr[i];
+      }
+    }
 
     const field<field<GroupInfo>> *group_info_ptr = nullptr;
     field<field<GroupInfo>> group_info;

@@ -28,12 +28,19 @@ struct InferenceGLM {
 
   vec means;
 
+  // Separation detection fields
+  bool has_separation = false;
+  uword num_separated = 0;  // Count of separated observations
+  uvec separated_obs;  // 0-based indices of separated observations
+  vec separation_certificate;  // z vector proving separation
+
   InferenceGLM(uword n, uword p)
       : coef_table(p, 4, fill::zeros), eta(n, fill::zeros),
         fitted_values(n, fill::zeros), weights(n, fill::ones),
         hessian(p, p, fill::zeros), vcov(p, p, fill::zeros), deviance(0.0),
         null_deviance(0.0), conv(false), iter(0), coef_status(p, fill::ones),
-        pseudo_rsq(0.0), has_fe(false), has_tx(false) {}
+        pseudo_rsq(0.0), has_fe(false), has_tx(false), has_separation(false), 
+        num_separated(0) {}
 };
 
 enum Family {

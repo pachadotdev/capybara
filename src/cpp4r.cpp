@@ -68,18 +68,10 @@ extern "C" SEXP _capybara_group_sums_cov_(SEXP M_r, SEXP N_r, SEXP jlist) {
     return cpp4r::as_sexp(group_sums_cov_(cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(M_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(N_r), cpp4r::as_cpp<cpp4r::decay_t<const list &>>(jlist)));
   END_CPP4R
 }
-// capybara.cpp
-list check_separation_(const doubles & y_r, const doubles_matrix<> & X_r, const doubles & w_r, const double & tol, const double & zero_tol, const size_t & max_iter, const size_t & simplex_max_iter, const bool & use_relu, const bool & use_simplex, const bool & verbose);
-extern "C" SEXP _capybara_check_separation_(SEXP y_r, SEXP X_r, SEXP w_r, SEXP tol, SEXP zero_tol, SEXP max_iter, SEXP simplex_max_iter, SEXP use_relu, SEXP use_simplex, SEXP verbose) {
-  BEGIN_CPP4R
-    return cpp4r::as_sexp(check_separation_(cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(y_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(X_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(w_r), cpp4r::as_cpp<cpp4r::decay_t<const double &>>(tol), cpp4r::as_cpp<cpp4r::decay_t<const double &>>(zero_tol), cpp4r::as_cpp<cpp4r::decay_t<const size_t &>>(max_iter), cpp4r::as_cpp<cpp4r::decay_t<const size_t &>>(simplex_max_iter), cpp4r::as_cpp<cpp4r::decay_t<const bool &>>(use_relu), cpp4r::as_cpp<cpp4r::decay_t<const bool &>>(use_simplex), cpp4r::as_cpp<cpp4r::decay_t<const bool &>>(verbose)));
-  END_CPP4R
-}
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
     {"_capybara_center_variables_",    (DL_FUNC) &_capybara_center_variables_,     6},
-    {"_capybara_check_separation_",    (DL_FUNC) &_capybara_check_separation_,    10},
     {"_capybara_feglm_fit_",           (DL_FUNC) &_capybara_feglm_fit_,           11},
     {"_capybara_feglm_offset_fit_",    (DL_FUNC) &_capybara_feglm_offset_fit_,     7},
     {"_capybara_felm_fit_",            (DL_FUNC) &_capybara_felm_fit_,             6},

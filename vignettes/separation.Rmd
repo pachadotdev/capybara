@@ -1,0 +1,74 @@
+---
+title: "Nonexistence of estimates of Poisson models"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{separation}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+This vignette is adapted from https://github.com/sergiocorreia/ppmlhdfe/blob/master/guides/nonexistence_benchmarks.md#r-packages.
+
+```{r setup}
+library(capybara)
+```
+
+The table below shows a dataset with 12 observations and four regressors. Observations 5 is separated
+because $y=0$ and $z \neq x_2 - x_1$ is positive in those observations, and zero otherwise.
+
+```{r example1-data}
+ppmlhdfe$example1
+which(ppmlhdfe$example1$x2 - ppmlhdfe$example1$x1 != 0 & ppmlhdfe$example1$y == 0)
+```
+
+Base R shall not give a warning when estimating a Poisson model on this data.
+
+```{r example1-glm}
+glm(
+  y ~ x1 + x2 + x3 + x4,
+  data = ppmlhdfe$example1,
+  family = poisson()
+)
+```
+
+The table below shows a different dataset with 12 observations and four regressors. Observations 2, 3, 6, 7 and 8 are
+separated because $y=0$ and $z > x_2 - x_1$ is positive in those observations, and zero otherwise.
+
+```{r example2-data}
+ppmlhdfe$example2
+which(ppmlhdfe$example2$x2 - ppmlhdfe$example2$x1 > 0 & ppmlhdfe$example2$y == 0)
+```
+
+Base R shall give a warning when estimating a Poisson model on this data.
+
+```{r example2-glm, warning=TRUE}
+glm(
+  y ~ x1 + x2 + x3 + x4,
+  data = ppmlhdfe$example2,
+  family = poisson()
+)
+```
+
+Capybara will detect separation when estimating Poisson models.
+
+```{r fe1-capybara}
+ppmlhdfe$fe1
+
+fepoisson(
+  y ~ x1 + x2 | i + j,
+  data = ppmlhdfe$fe1
+)
+
+# alpaca::feglm(
+#   y ~ x1 + x2 | i + j,
+#   data = ppmlhdfe$fe1,
+#   family = poisson()
+# )
+```

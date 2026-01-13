@@ -17,8 +17,20 @@ struct InferenceNegBin : public InferenceGLM {
 inline double estimate_theta(const vec &y, const vec &mu,
                              double theta_min = 0.1, double theta_max = 1.0e6,
                              double overdispersion_threshold = 0.01) {
-  const double y_mean = mean(y);
-  const double y_var = var(y);
+  // Compute mean and variance in single pass (Welford's algorithm)
+  const uword n = y.n_elem;
+  const double *y_ptr = y.memptr();
+  
+  double y_mean = 0.0;
+  double M2 = 0.0;
+  for (uword i = 0; i < n; ++i) {
+    double delta = y_ptr[i] - y_mean;
+    y_mean += delta / (i + 1);
+    double delta2 = y_ptr[i] - y_mean;
+    M2 += delta * delta2;
+  }
+  double y_var = (n > 1) ? M2 / (n - 1) : 0.0;
+  
   const double overdispersion = y_var - y_mean;
 
   // Low overdispersion -> return very large theta (Poisson-like)

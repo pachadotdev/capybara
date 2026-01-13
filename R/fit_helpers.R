@@ -226,18 +226,25 @@ nobs_ <- function(nobs_full, nobs_na, y, yhat) {
   # Use tolerance for floating-point comparisons
   tol <- sqrt(.Machine$double.eps)
 
-  # Count observations with perfect prediction
-  nobs_pc <- sum(abs(y - yhat) < tol, na.rm = TRUE)
+  # Count non-NA fitted values (excludes separated/dropped observations)
+  nobs_used <- sum(!is.na(yhat))
 
-  # Number of observations used in the model (length of predictions)
-  nobs_used <- length(yhat)
+  # Count observations with perfect prediction (among non-NA)
+  if (nobs_used > 0) {
+    nobs_pc <- sum(
+      abs(y[!is.na(yhat)] - yhat[!is.na(yhat)]) < tol,
+      na.rm = TRUE
+    )
+  } else {
+    nobs_pc <- 0
+  }
 
-  # Total missing observations (original NA values + dropped during fitting)
+  # Total missing/dropped observations (original NA + separated + singletons)
   total_missing <- nobs_full - nobs_used
 
   c(
     nobs_full = nobs_full, # Original dataset size
-    nobs_na = total_missing, # Total missing (NA + dropped)
+    nobs_na = total_missing, # Total missing (NA + separated + dropped)
     nobs_pc = nobs_pc, # Perfect classification count
     nobs = nobs_used # Observations used in model
   )

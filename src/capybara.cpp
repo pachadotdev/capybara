@@ -50,11 +50,13 @@ struct CapybaraParameters {
   double collin_tol;
   double step_halving_factor;
   double alpha_tol;
+  double sep_tol;  // Separation detection tolerance
   size_t iter_max;
   size_t iter_center_max;
   size_t iter_inner_max;
   size_t iter_alpha_max;
   size_t iter_interrupt;
+  size_t sep_max_iter;  // Max iterations for separation detection
   bool return_fe;
   bool keep_tx;
 
@@ -65,9 +67,10 @@ struct CapybaraParameters {
 
   CapybaraParameters()
       : dev_tol(1.0e-08), center_tol(1.0e-08), collin_tol(1.0e-10),
-        step_halving_factor(0.5), alpha_tol(1.0e-08), iter_max(25),
-        iter_center_max(10000), iter_inner_max(50), iter_alpha_max(10000),
-        iter_interrupt(1000), return_fe(true), keep_tx(false),
+        step_halving_factor(0.5), alpha_tol(1.0e-08), sep_tol(1.0e-08),
+        iter_max(25), iter_center_max(10000), iter_inner_max(50), 
+        iter_alpha_max(10000), iter_interrupt(1000), sep_max_iter(1000),
+        return_fe(true), keep_tx(false),
         step_halving_memory(0.9), max_step_halving(2), start_inner_tol(1e-06) {}
 
   explicit CapybaraParameters(const cpp4r::list &control) {
@@ -76,11 +79,13 @@ struct CapybaraParameters {
     collin_tol = as_cpp<double>(control["collin_tol"]);
     step_halving_factor = as_cpp<double>(control["step_halving_factor"]);
     alpha_tol = as_cpp<double>(control["alpha_tol"]);
+    sep_tol = control.contains("sep_tol") ? as_cpp<double>(control["sep_tol"]) : 1.0e-08;
     iter_max = as_cpp<size_t>(control["iter_max"]);
     iter_center_max = as_cpp<size_t>(control["iter_center_max"]);
     iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]);
     iter_alpha_max = as_cpp<size_t>(control["iter_alpha_max"]);
     iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]);
+    sep_max_iter = control.contains("sep_max_iter") ? as_cpp<size_t>(control["sep_max_iter"]) : 1000;
     return_fe = as_cpp<bool>(control["return_fe"]);
     keep_tx = as_cpp<bool>(control["keep_tx"]);
     step_halving_memory = as_cpp<double>(control["step_halving_memory"]);
@@ -92,11 +97,11 @@ struct CapybaraParameters {
 #include "01_center.h"
 #include "02_beta.h"
 #include "03_alpha.h"
-#include "04_fit_helpers.h"
-#include "05_lm.h"
-#include "06_glm.h"
-#include "07_negbin.h"
-#include "08_separation.h"
+#include "04_separation.h"
+#include "05_fit_helpers.h"
+#include "06_lm.h"
+#include "07_glm.h"
+#include "08_negbin.h"
 
 using LMResult = capybara::InferenceLM;
 using GLMResult = capybara::InferenceGLM;
@@ -372,6 +377,22 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
     out.push_back({"pseudo.rsq"_nm = result.pseudo_rsq});
   }
 
+  // Add separation detection results for Poisson models
+  if (family_type == capybara::POISSON && result.has_separation) {
+    out.push_back({"has_separation"_nm = writable::logicals({true})});
+    
+    // Convert 0-based indices to 1-based for R
+    vec separated_obs_r(result.separated_obs.n_elem);
+    for (size_t i = 0; i < result.separated_obs.n_elem; ++i) {
+      separated_obs_r(i) = static_cast<double>(result.separated_obs(i) + 1);
+    }
+    out.push_back({"separated_obs"_nm = as_doubles(separated_obs_r)});
+    
+    if (result.separation_certificate.n_elem > 0) {
+      out.push_back({"separation_certificate"_nm = as_doubles(result.separation_certificate)});
+    }
+  }
+
   if (result.has_fe && result.fixed_effects.n_elem > 0) {
     writable::list fe_list(result.fixed_effects.n_elem);
 
@@ -569,49 +590,4 @@ group_sums_cov_(const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
   mat result = capybara::group_sums_cov(M, N, group_indices);
 
   return as_doubles_matrix(result);
-}
-
-// Separation detection for Poisson models
-// Based on Correia, Guimarães, Zylkin (2019)
-[[cpp4r::register]] list
-check_separation_(const doubles &y_r, const doubles_matrix<> &X_r,
-                  const doubles &w_r, const double &tol, const double &zero_tol,
-                  const size_t &max_iter, const size_t &simplex_max_iter,
-                  const bool &use_relu, const bool &use_simplex,
-                  const bool &verbose) {
-  vec y = as_col(y_r);
-  mat X = as_mat(X_r);
-  vec w = as_col(w_r);
-
-  capybara::SeparationParameters params;
-  params.tol = tol;
-  params.zero_tol = zero_tol;
-  params.max_iter = max_iter;
-  params.simplex_max_iter = simplex_max_iter;
-  params.use_relu = use_relu;
-  params.use_simplex = use_simplex;
-  params.verbose = verbose;
-
-  capybara::SeparationResult result =
-      capybara::check_separation(y, X, w, params);
-
-  // Convert 0-based indices to 1-based for R
-  vec separated_obs_r(result.separated_obs.n_elem);
-  for (size_t i = 0; i < result.separated_obs.n_elem; ++i) {
-    separated_obs_r(i) = static_cast<double>(result.separated_obs(i) + 1);
-  }
-
-  auto out = writable::list(
-      {"separated_obs"_nm = as_doubles(separated_obs_r),
-       "num_separated"_nm =
-           writable::integers({static_cast<int>(result.num_separated)}),
-       "converged"_nm = writable::logicals({result.converged}),
-       "iterations"_nm =
-           writable::integers({static_cast<int>(result.iterations)})});
-
-  if (result.certificate.n_elem > 0) {
-    out.push_back({"certificate"_nm = as_doubles(result.certificate)});
-  }
-
-  return out;
 }

@@ -3,7 +3,7 @@
 \docType{data}
 \name{trade_panel}
 \alias{trade_panel}
-\title{Trade Panel 1986-2006}
+\title{Trade panel 1986-2006}
 \format{
 \subsection{\code{trade_panel}}{
 

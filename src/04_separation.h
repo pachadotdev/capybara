@@ -141,7 +141,197 @@ inline vec solve_lse_weighted(const mat &X, const vec &y,
   return solve_wls(X, y, weights, residuals);
 }
 
-// Main ReLU separation detection algorithm
+// ReLU separation detection with fixed effects support
+// This version centers the working variable at each iteration
+inline SeparationResult
+detect_separation_relu_fe(const vec &y, const mat &X, const vec &w,
+                          const field<field<uvec>> &fe_groups,
+                          const SeparationParameters &params,
+                          CenteringWorkspace *centering_workspace,
+                          const CapybaraParameters &cap_params) {
+  SeparationResult result;
+  result.converged = false;
+  result.num_separated = 0;
+
+  const uword n = y.n_elem;
+  const bool has_fe = fe_groups.n_elem > 0;
+
+  // Identify boundary (y=0) and interior (y>0) observations
+  uvec boundary_sample = find(y == 0);
+  uvec interior_sample = find(y > 0);
+
+  uword num_boundary = boundary_sample.n_elem;
+
+  if (num_boundary == 0) {
+    result.converged = true;
+    return result;
+  }
+
+  // Initialize working variable u = (y == 0)
+  vec u = conv_to<vec>::from(y == 0);
+
+  // Method of weighting parameter
+  double M = 1.0 / std::sqrt(arma::datum::eps);
+  double reg_tol = params.tol * params.tol;
+  if (reg_tol < 1e-13) reg_tol = 1e-13;
+
+  // Convergence tracking
+  vec xbd(n, arma::fill::zeros);
+  double uu_old = dot(u, u);
+
+  // Main iteration loop
+  for (uword iter = 0; iter < params.max_iter; ++iter) {
+    // Check for user interrupt periodically
+    if (iter % 100 == 0) {
+      check_user_interrupt();
+    }
+
+    // Create high weights for interior sample (y > 0) to enforce constraints
+    vec weights(n, arma::fill::ones);
+    for (uword i = 0; i < interior_sample.n_elem; ++i) {
+      weights(interior_sample(i)) = M;
+    }
+
+    // For FE models: center u with respect to fixed effects
+    vec u_centered = u;
+    mat X_centered = X;
+    
+    if (has_fe) {
+      field<field<GroupInfo>> group_info = precompute_group_info(fe_groups, weights);
+      center_variables(u_centered, weights, fe_groups, cap_params.center_tol,
+                      cap_params.iter_center_max, cap_params.iter_interrupt,
+                      &group_info, centering_workspace);
+      center_variables(X_centered, weights, fe_groups, cap_params.center_tol,
+                      cap_params.iter_center_max, cap_params.iter_interrupt,
+                      &group_info, centering_workspace);
+    }
+
+    // Solve weighted least squares on centered data
+    vec resid;
+    vec beta = solve_wls(X_centered, u_centered, weights, resid);
+    
+    // Compute xbd on original (uncentered) u scale
+    xbd = u - resid;
+
+    // Compute statistics
+    double ee = dot(resid, resid);
+    double epsilon = ee + params.tol;
+    double delta = epsilon + params.tol;
+
+    // Update xbd -> 0 for interior sample (y > 0)
+    update_vec(xbd, interior_sample, 0.0);
+
+    // Update xbd -> 0 for boundary observations within tolerance of zero
+    uvec within_tol;
+    {
+      std::vector<uword> indices;
+      for (uword i = 0; i < boundary_sample.n_elem; ++i) {
+        double val = xbd(boundary_sample(i));
+        if (in_range(val, -0.1 * delta, delta)) {
+          indices.push_back(boundary_sample(i));
+        }
+      }
+      if (!indices.empty()) {
+        within_tol = uvec(indices);
+        update_vec(xbd, within_tol, 0.0);
+      }
+    }
+
+    // Check convergence: separation found if all boundary xbd >= 0
+    bool all_nonnegative = true;
+    for (uword i = 0; i < boundary_sample.n_elem; ++i) {
+      if (xbd(boundary_sample(i)) < 0) {
+        all_nonnegative = false;
+        break;
+      }
+    }
+
+    if (all_nonnegative) {
+      // Count separated observations
+      std::vector<uword> sep_indices;
+      for (uword i = 0; i < boundary_sample.n_elem; ++i) {
+        if (xbd(boundary_sample(i)) > 0) {
+          sep_indices.push_back(boundary_sample(i));
+        }
+      }
+      result.separated_obs = uvec(sep_indices);
+      result.num_separated = sep_indices.size();
+      result.certificate = xbd;
+      result.converged = true;
+      result.iterations = iter + 1;
+      return result;
+    }
+
+    // Check for no negative residuals
+    edit_to_zero_tol(resid, params.zero_tol);
+    vec boundary_resid(boundary_sample.n_elem);
+    for (uword i = 0; i < boundary_sample.n_elem; ++i) {
+      boundary_resid(i) = resid(boundary_sample(i));
+    }
+
+    if (min(boundary_resid) >= 0) {
+      // Update xbd for observations with positive residuals
+      std::vector<uword> pos_resid_indices;
+      for (uword i = 0; i < boundary_sample.n_elem; ++i) {
+        if (boundary_resid(i) > delta) {
+          pos_resid_indices.push_back(boundary_sample(i));
+        }
+      }
+      if (!pos_resid_indices.empty()) {
+        uvec pos_idx(pos_resid_indices);
+        update_vec(xbd, pos_idx, 0.0);
+      }
+
+      // Count final separated observations
+      std::vector<uword> sep_indices;
+      for (uword i = 0; i < boundary_sample.n_elem; ++i) {
+        if (xbd(boundary_sample(i)) > 0) {
+          sep_indices.push_back(boundary_sample(i));
+        }
+      }
+      result.separated_obs = uvec(sep_indices);
+      result.num_separated = sep_indices.size();
+      result.certificate = xbd;
+      result.converged = true;
+      result.iterations = iter + 1;
+      return result;
+    }
+
+    // Apply ReLU: u = max(xbd, 0) for boundary observations
+    for (uword i = 0; i < boundary_sample.n_elem; ++i) {
+      uword idx = boundary_sample(i);
+      u(idx) = std::max(xbd(idx), 0.0);
+    }
+
+    // Check for overall convergence
+    double uu = dot(u, u);
+    if (std::abs(uu - uu_old) / (1.0 + uu_old) < params.tol * 0.01) {
+      result.iterations = iter + 1;
+      break;
+    }
+    uu_old = uu;
+  }
+
+  // If we exit the loop without explicit convergence, collect what we found
+  if (!result.converged) {
+    result.iterations = params.max_iter;
+    std::vector<uword> sep_indices;
+    for (uword i = 0; i < boundary_sample.n_elem; ++i) {
+      if (xbd(boundary_sample(i)) > params.tol) {
+        sep_indices.push_back(boundary_sample(i));
+      }
+    }
+    if (!sep_indices.empty()) {
+      result.separated_obs = uvec(sep_indices);
+      result.num_separated = sep_indices.size();
+      result.certificate = xbd;
+    }
+  }
+
+  return result;
+}
+
+// Main ReLU separation detection algorithm (without FE)
 inline SeparationResult
 detect_separation_relu(const vec &y, const mat &X, const vec &w,
                        const SeparationParameters &params) {

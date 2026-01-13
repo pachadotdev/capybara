@@ -369,10 +369,10 @@ feglm <- function(
 
   # Add separation info if present ----
   if (isTRUE(fit$has_separation)) {
-    warning(
-      "Separation detected in Poisson model. ",
-      "Some observations are perfectly predicted and may need to be removed. ",
-      "Consider refitting the model after excluding separated observations."
+    num_sep <- if (!is.null(fit$separated_obs)) length(fit$separated_obs) else 0
+    message(
+      "Separation detected: ", num_sep, " observation(s) ",
+      "with perfect prediction were excluded from estimation."
     )
     fit[["separated_obs"]] <- fit$separated_obs
     fit[["separation_certificate"]] <- fit$separation_certificate
