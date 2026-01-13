@@ -20,6 +20,7 @@ fit_control(
   start_inner_tol = 1e-06,
   return_fe = TRUE,
   keep_tx = FALSE,
+  check_separation = TRUE,
   init_theta = 0
 )
 }
@@ -67,6 +68,11 @@ equilibrium models where skipping the fixed effects for intermediate steps speed
 \item{keep_tx}{logical indicating if the centered regressor matrix should be stored. The centered regressor matrix is
 required for some covariance estimators, bias corrections, and average partial effects. This option saves
 some computation time at the cost of memory. The default is \code{TRUE}.}
+
+\item{check_separation}{logical indicating whether to perform separation detection for Poisson models. When \code{TRUE}
+(default), observations with perfect prediction are automatically detected and excluded from estimation. Set to
+\code{FALSE} to skip this check and speed up computation when separation is known not to be an issue. The default
+is \code{TRUE}.}
 
 \item{init_theta}{Initial value for the negative binomial dispersion parameter (theta). The default is \code{0.0}.}
 }

@@ -59,6 +59,10 @@ NULL
 #' @param keep_tx logical indicating if the centered regressor matrix should be stored. The centered regressor matrix is
 #'  required for some covariance estimators, bias corrections, and average partial effects. This option saves
 #'  some computation time at the cost of memory. The default is \code{TRUE}.
+#' @param check_separation logical indicating whether to perform separation detection for Poisson models. When \code{TRUE}
+#'  (default), observations with perfect prediction are automatically detected and excluded from estimation. Set to
+#'  \code{FALSE} to skip this check and speed up computation when separation is known not to be an issue. The default
+#'  is \code{TRUE}.
 #' @param init_theta Initial value for the negative binomial dispersion parameter (theta). The default is \code{0.0}.
 #'
 #' @return A named list of control parameters.
@@ -85,6 +89,7 @@ fit_control <- function(
   start_inner_tol = 1.0e-06,
   return_fe = TRUE,
   keep_tx = FALSE,
+  check_separation = TRUE,
   init_theta = 0.0
 ) {
   # Check validity of tolerance parameters
@@ -121,7 +126,8 @@ fit_control <- function(
   # Check validity of logical parameters
   return_fe <- as.logical(return_fe)
   keep_tx <- as.logical(keep_tx)
-  if (is.na(return_fe) || is.na(keep_tx)) {
+  check_separation <- as.logical(check_separation)
+  if (is.na(return_fe) || is.na(keep_tx) || is.na(check_separation)) {
     stop(
       "All logical parameters should be TRUE or FALSE.",
       call. = FALSE
@@ -168,6 +174,7 @@ fit_control <- function(
     start_inner_tol = start_inner_tol,
     return_fe = return_fe,
     keep_tx = keep_tx,
+    check_separation = check_separation,
     init_theta = init_theta
   )
 }

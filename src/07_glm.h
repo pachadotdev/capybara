@@ -212,7 +212,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   // STEP 1: For FE models with Poisson, detect separation early
   CenteringWorkspace centering_workspace;
   
-  if (family_type == Family::POISSON && !skip_separation_check && has_fixed_effects) {
+  if (family_type == Family::POISSON && !skip_separation_check && has_fixed_effects && params.check_separation) {
     // Use separation detection on original data
     SeparationParameters sep_params;
     sep_params.tol = params.sep_tol;

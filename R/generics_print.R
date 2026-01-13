@@ -73,6 +73,9 @@ summary_estimates_signif_ <- function(coefmat, digits) {
   pval_col <- vapply(
     pval_col,
     function(x) {
+      if (is.na(x)) {
+        return("NA")
+      }
       formatted <- formatC(x, format = "f", digits = digits)
       if (x < 0.01) {
         paste(formatted, "** ")
@@ -99,7 +102,13 @@ summary_estimates_signif_ <- function(coefmat, digits) {
 summary_estimates_cols_ <- function(coefmat, digits) {
   n_cols <- ncol(coefmat) - 1
   coefmat[1:n_cols] <- lapply(coefmat[1:n_cols], function(col) {
-    formatC(as.double(col), format = "f", digits = digits)
+    vapply(col, function(x) {
+      if (is.na(x)) {
+        "NA"
+      } else {
+        formatC(as.double(x), format = "f", digits = digits)
+      }
+    }, character(1))
   })
   coefmat
 }

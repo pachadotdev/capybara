@@ -65,10 +65,54 @@ fepoisson(
   y ~ x1 + x2 | i + j,
   data = ppmlhdfe$fe1
 )
+```
 
-# alpaca::feglm(
-#   y ~ x1 + x2 | i + j,
-#   data = ppmlhdfe$fe1,
-#   family = poisson()
-# )
+'ppmlhdfe' will also detect separation when estimating Poisson models with fixed effects.
+
+```stata
+. ppmlhdfe y x1 x2, a(i j)
+(simplex method dropped 4 separated observations)
+(dropped 1 singleton observations)
+note: 1 variable omitted because of collinearity: x2
+ $$ Stopping (no negative residuals); separation found in 0 observations (1 iterations and 732 subiterations)
+Iteration 1:   deviance = 1.4149e+01  eps = .         iters = 4    tol = 1.0e-04                                                                            
+...
+Iteration 6:   deviance = 1.3364e+01  eps = 1.85e-16  iters = 3    tol = 1.0e-07                                                                            
+-------------------------------------------------------------------------------
+(legend: p: exact partial-out   s: exact solver   h: step-halving   o: epsilon 
+> below tolerance)
+Converged in 6 iterations and 21 HDFE sub-iterations (tol = 1.0e-08)
+
+HDFE PPML regression                              No. of obs      =         13
+Absorbing 2 HDFE groups                           Residual df     =          7
+                                                  Wald chi2(1)    =       0.53
+Deviance             =  13.36443052               Prob > chi2     =     0.4686
+Log pseudolikelihood =  -11.2959209               Pseudo R2       =     0.0607
+------------------------------------------------------------------------------
+             |               Robust
+           y |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+          x1 |  -.4845469   .6685201    -0.72   0.469    -1.794822    .8257284
+          x2 |          0  (omitted)
+       _cons |  -.5708466   .4604099    -1.24   0.215    -1.473233    .3315402
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+           i |         3           0           3     |
+           j |         3           1           2     |
+-----------------------------------------------------+
+```
+
+In order to obtain the same results (robust standard errors), we need to create a pair variable.
+
+```{r fe1-capybara-2}
+ppmlhdfe$fe1$pair <- paste0(ppmlhdfe$fe1$i, ppmlhdfe$fe1$j)
+
+fepoisson(
+  y ~ x1 + x2 | i + j | pair,
+  data = ppmlhdfe$fe1
+)
 ```
