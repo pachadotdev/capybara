@@ -113,11 +113,12 @@ get_alpha(const vec &pi, const field<field<uvec>> &group_indices,
   ws->ensure_size(N, max_groups);
 
   vec &residual = ws->residual;
-  std::memcpy(residual.memptr(), pi.memptr(), N * sizeof(double)); // initial residual = pi
+  std::memcpy(residual.memptr(), pi.memptr(),
+              N * sizeof(double)); // initial residual = pi
 
   double crit = 1.0;
   uword iter = 0;
-  
+
   // Get workspace pointers once outside main loop
   vec &alpha0 = ws->alpha0;
   double *alpha0_ptr = alpha0.memptr();
@@ -147,14 +148,14 @@ get_alpha(const vec &pi, const field<field<uvec>> &group_indices,
         const uvec &indexes = fe_groups(j);
         const uword *idx_ptr = indexes.memptr();
         const uword n_idx = indexes.n_elem;
-        
+
         // Compute group sum
         const double a0j = alpha0_ptr[j];
         double s = a0j * static_cast<double>(n_idx);
         for (uword t = 0; t < n_idx; ++t) {
           s += residual_ptr[idx_ptr[t]];
         }
-        
+
         // Compute new coefficient
         const double new_val = (group_size_ptr[j] > 0)
                                    ? s / static_cast<double>(group_size_ptr[j])

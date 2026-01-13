@@ -14,15 +14,15 @@ struct GroupInfo {
 
 // Workspace for centering to avoid repeated allocations
 struct CenteringWorkspace {
-  vec x;        // Current solution
-  vec x0;       // Previous iteration
-  vec Gx;       // After one projection
-  vec GGx;      // After two projections
-  vec Y;        // Grand accel history 1
-  vec GY;       // Grand accel history 2
-  vec GGY;      // Grand accel history 3
-  vec delta_G;  // Workspace for acceleration
-  vec delta2;   // Workspace for acceleration
+  vec x;       // Current solution
+  vec x0;      // Previous iteration
+  vec Gx;      // After one projection
+  vec GGx;     // After two projections
+  vec Y;       // Grand accel history 1
+  vec GY;      // Grand accel history 2
+  vec GGY;     // Grand accel history 3
+  vec delta_G; // Workspace for acceleration
+  vec delta2;  // Workspace for acceleration
   uword cached_n;
   bool is_initialized;
 
@@ -76,7 +76,7 @@ precompute_group_info(const field<field<uvec>> &group_indices, const vec &w) {
       GroupInfo info;
       info.coords = &coords;
       info.n_elem = coords.n_elem;
-      
+
       // Count observations with non-zero weight and compute sum
       double sum_w = 0.0;
       uword n_nonzero = 0;
@@ -88,10 +88,10 @@ precompute_group_info(const field<field<uvec>> &group_indices, const vec &w) {
           n_nonzero++;
         }
       }
-      
+
       // A group is a singleton if it has <= 1 observation with non-zero weight
       info.is_singleton = (n_nonzero <= 1);
-      
+
       if (!info.is_singleton && sum_w > 0.0) {
         info.inv_weight = 1.0 / sum_w;
       } else {
@@ -125,8 +125,7 @@ inline double safe_divide(double num, double denom) {
 
 // Project onto one FE group: subtract weighted mean
 // Returns the mean that was subtracted (the "projection component")
-inline double project_one_group(vec &v, const vec &w,
-                                const GroupInfo &info) {
+inline double project_one_group(vec &v, const vec &w, const GroupInfo &info) {
   if (info.is_singleton)
     return 0.0;
 
@@ -135,14 +134,14 @@ inline double project_one_group(vec &v, const vec &w,
   const uword *idx = coords.memptr();
   double *v_ptr = v.memptr();
   const double *w_ptr = w.memptr();
-  
+
   // Compute weighted sum with direct pointer access (no temporaries)
   double weighted_sum = 0.0;
   for (uword i = 0; i < n; ++i) {
     const uword j = idx[i];
     weighted_sum += w_ptr[j] * v_ptr[j];
   }
-  
+
   double mean = weighted_sum * info.inv_weight;
 
   // Subtract mean from all elements in group
@@ -201,7 +200,7 @@ inline bool irons_tuck_acceleration(vec &x, const vec &Gx, const vec &GGx,
   const double *x_ptr = x.memptr();
   const double *Gx_ptr = Gx.memptr();
   const double *GGx_ptr = GGx.memptr();
-  
+
   // Compute delta_G = GGx - Gx and delta2 = delta_G - (Gx - x) in one pass
   double ssq = 0.0;
   double vprod = 0.0;
@@ -211,7 +210,7 @@ inline bool irons_tuck_acceleration(vec &x, const vec &Gx, const vec &GGx,
     ssq += d2[i] * d2[i];
     vprod += dG[i] * d2[i];
   }
-  
+
   if (ssq < tol * tol) {
     return true; // Converged
   }
@@ -238,7 +237,7 @@ inline bool grand_acceleration(vec &x, vec &Y, vec &GY, vec &GGY,
                                vec &delta_G_ws, vec &delta2_ws,
                                int &grand_acc_state, double tol) {
   const uword n = x.n_elem;
-  
+
   if (grand_acc_state == 0) {
     std::memcpy(Y.memptr(), x.memptr(), n * sizeof(double));
   } else if (grand_acc_state == 1) {
@@ -251,7 +250,7 @@ inline bool grand_acceleration(vec &x, vec &Y, vec &GY, vec &GGY,
     const double *Y_ptr = Y.memptr();
     const double *GY_ptr = GY.memptr();
     const double *GGY_ptr = GGY.memptr();
-    
+
     // Compute delta_G = GGY - GY and delta2 = delta_G - (GY - Y) in one pass
     double ssq = 0.0;
     double vprod = 0.0;
@@ -286,11 +285,9 @@ inline bool grand_acceleration(vec &x, vec &Y, vec &GY, vec &GGY,
 }
 
 // Center one column using Irons-Tuck + Grand acceleration
-inline void
-center_one_column_accel(vec &y, const vec &w,
-                        const field<field<GroupInfo>> &all_group_info,
-                        double tol, uword max_iter, uword iter_interrupt,
-                        CenteringWorkspace &ws) {
+inline void center_one_column_accel(
+    vec &y, const vec &w, const field<field<GroupInfo>> &all_group_info,
+    double tol, uword max_iter, uword iter_interrupt, CenteringWorkspace &ws) {
 
   const uword K = all_group_info.n_elem;
   const uword N = y.n_elem;

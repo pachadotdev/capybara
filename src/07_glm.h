@@ -211,18 +211,19 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 
   // STEP 1: For FE models with Poisson, detect separation early
   CenteringWorkspace centering_workspace;
-  
-  if (family_type == Family::POISSON && !skip_separation_check && has_fixed_effects && params.check_separation) {
+
+  if (family_type == Family::POISSON && !skip_separation_check &&
+      has_fixed_effects && params.check_separation) {
     // Use separation detection on original data
     SeparationParameters sep_params;
     sep_params.tol = params.sep_tol;
     sep_params.max_iter = params.sep_max_iter;
     sep_params.use_relu = true;
     sep_params.use_simplex = true;
-    
+
     // Use check_separation which handles both simplex and ReLU
     SeparationResult sep_result = check_separation(y, X, w, sep_params);
-    
+
     if (sep_result.num_separated > 0) {
       // Instead of filtering, set weights to zero for separated observations
       // This keeps dimensions consistent while excluding them from estimation
@@ -230,27 +231,27 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       for (uword i = 0; i < sep_result.separated_obs.n_elem; ++i) {
         w_work(sep_result.separated_obs(i)) = 0.0;
       }
-      
+
       // Call feglm_fit with zero weights for separated obs
-      InferenceGLM result_with_sep = feglm_fit(
-        beta, eta, y, X, w_work, theta, family_type,
-        fe_groups, params, workspace, cluster_groups, offset,
-        true  // skip_separation_check = true
-      );
-      
+      InferenceGLM result_with_sep =
+          feglm_fit(beta, eta, y, X, w_work, theta, family_type, fe_groups,
+                    params, workspace, cluster_groups, offset,
+                    true // skip_separation_check = true
+          );
+
       // Set NA for separated observations in result vectors
       for (uword i = 0; i < sep_result.separated_obs.n_elem; ++i) {
         uword idx = sep_result.separated_obs(i);
         result_with_sep.eta(idx) = datum::nan;
         result_with_sep.fitted_values(idx) = datum::nan;
       }
-      
+
       // Store separation info
       result_with_sep.has_separation = true;
       result_with_sep.separated_obs = sep_result.separated_obs;
       result_with_sep.num_separated = sep_result.num_separated;
       result_with_sep.separation_certificate = sep_result.certificate;
-      
+
       return result_with_sep;
     }
   }
@@ -556,7 +557,8 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       if (num_step_halving > 0 && family_type == POISSON) {
         // Clamp eta >= -10 without temporary allocation
         for (uword i = 0; i < n; ++i) {
-          if (eta_ptr[i] < -10.0) eta_ptr[i] = -10.0;
+          if (eta_ptr[i] < -10.0)
+            eta_ptr[i] = -10.0;
         }
       }
 
@@ -669,7 +671,8 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       result.pseudo_rsq = corr * corr;
 
       // Check for separation in Poisson models (only if not already done)
-      // Use X0 (original design matrix before centering) for separation detection
+      // Use X0 (original design matrix before centering) for separation
+      // detection
       if (!skip_separation_check) {
         SeparationParameters sep_params;
         sep_params.tol = params.dev_tol;
@@ -681,7 +684,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
         sep_params.verbose = false;
 
         SeparationResult sep_result = check_separation(y, X0, w, sep_params);
-        
+
         if (sep_result.num_separated > 0) {
           result.has_separation = true;
           result.separated_obs = sep_result.separated_obs;

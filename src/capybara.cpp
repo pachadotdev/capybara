@@ -6,7 +6,7 @@
 #endif
 
 #include <armadillo4r.hpp>
-#include <cstring>  // for std::memcpy
+#include <cstring> // for std::memcpy
 
 using arma::field;
 using arma::mat;
@@ -40,7 +40,7 @@ inline void set_omp_threads_from_config() {
   }
 }
 #endif
-}
+} // namespace capybara
 
 // Passing parameters from R to C++ functions
 // see R/fit_control.R
@@ -50,16 +50,16 @@ struct CapybaraParameters {
   double collin_tol;
   double step_halving_factor;
   double alpha_tol;
-  double sep_tol;  // Separation detection tolerance
+  double sep_tol; // Separation detection tolerance
   size_t iter_max;
   size_t iter_center_max;
   size_t iter_inner_max;
   size_t iter_alpha_max;
   size_t iter_interrupt;
-  size_t sep_max_iter;  // Max iterations for separation detection
+  size_t sep_max_iter; // Max iterations for separation detection
   bool return_fe;
   bool keep_tx;
-  bool check_separation;  // Whether to perform separation detection
+  bool check_separation; // Whether to perform separation detection
 
   // Step-halving parameters
   double step_halving_memory;
@@ -69,7 +69,7 @@ struct CapybaraParameters {
   CapybaraParameters()
       : dev_tol(1.0e-08), center_tol(1.0e-08), collin_tol(1.0e-10),
         step_halving_factor(0.5), alpha_tol(1.0e-08), sep_tol(1.0e-08),
-        iter_max(25), iter_center_max(10000), iter_inner_max(50), 
+        iter_max(25), iter_center_max(10000), iter_inner_max(50),
         iter_alpha_max(10000), iter_interrupt(1000), sep_max_iter(1000),
         return_fe(true), keep_tx(false), check_separation(true),
         step_halving_memory(0.9), max_step_halving(2), start_inner_tol(1e-06) {}
@@ -80,16 +80,21 @@ struct CapybaraParameters {
     collin_tol = as_cpp<double>(control["collin_tol"]);
     step_halving_factor = as_cpp<double>(control["step_halving_factor"]);
     alpha_tol = as_cpp<double>(control["alpha_tol"]);
-    sep_tol = control.contains("sep_tol") ? as_cpp<double>(control["sep_tol"]) : 1.0e-08;
+    sep_tol = control.contains("sep_tol") ? as_cpp<double>(control["sep_tol"])
+                                          : 1.0e-08;
     iter_max = as_cpp<size_t>(control["iter_max"]);
     iter_center_max = as_cpp<size_t>(control["iter_center_max"]);
     iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]);
     iter_alpha_max = as_cpp<size_t>(control["iter_alpha_max"]);
     iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]);
-    sep_max_iter = control.contains("sep_max_iter") ? as_cpp<size_t>(control["sep_max_iter"]) : 1000;
+    sep_max_iter = control.contains("sep_max_iter")
+                       ? as_cpp<size_t>(control["sep_max_iter"])
+                       : 1000;
     return_fe = as_cpp<bool>(control["return_fe"]);
     keep_tx = as_cpp<bool>(control["keep_tx"]);
-    check_separation = control.contains("check_separation") ? as_cpp<bool>(control["check_separation"]) : true;
+    check_separation = control.contains("check_separation")
+                           ? as_cpp<bool>(control["check_separation"])
+                           : true;
     step_halving_memory = as_cpp<double>(control["step_halving_memory"]);
     max_step_halving = as_cpp<size_t>(control["max_step_halving"]);
     start_inner_tol = as_cpp<double>(control["start_inner_tol"]);
@@ -220,16 +225,17 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
     }
   }
 
-  // Replace collinear coefficients (NaN) with R's NA_REAL in all columns of coef_table
+  // Replace collinear coefficients (NaN) with R's NA_REAL in all columns of
+  // coef_table
   uvec collinear_mask = (result.coef_status == 0);
   if (any(collinear_mask)) {
     uvec collinear_idx = find(collinear_mask);
     for (uword i = 0; i < collinear_idx.n_elem; ++i) {
       uword idx = collinear_idx(i);
-      result.coef_table(idx, 0) = NA_REAL;  // Estimate
-      result.coef_table(idx, 1) = NA_REAL;  // Std. Error
-      result.coef_table(idx, 2) = NA_REAL;  // z value
-      result.coef_table(idx, 3) = NA_REAL;  // Pr(>|z|)
+      result.coef_table(idx, 0) = NA_REAL; // Estimate
+      result.coef_table(idx, 1) = NA_REAL; // Std. Error
+      result.coef_table(idx, 2) = NA_REAL; // z value
+      result.coef_table(idx, 3) = NA_REAL; // Pr(>|z|)
     }
   }
 
@@ -360,16 +366,17 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
     }
   }
 
-  // Replace collinear coefficients (NaN) with R's NA_REAL in all columns of coef_table
+  // Replace collinear coefficients (NaN) with R's NA_REAL in all columns of
+  // coef_table
   uvec collinear_mask = (result.coef_status == 0);
   if (any(collinear_mask)) {
     uvec collinear_idx = find(collinear_mask);
     for (uword i = 0; i < collinear_idx.n_elem; ++i) {
       uword idx = collinear_idx(i);
-      result.coef_table(idx, 0) = NA_REAL;  // Estimate
-      result.coef_table(idx, 1) = NA_REAL;  // Std. Error
-      result.coef_table(idx, 2) = NA_REAL;  // z value
-      result.coef_table(idx, 3) = NA_REAL;  // Pr(>|z|)
+      result.coef_table(idx, 0) = NA_REAL; // Estimate
+      result.coef_table(idx, 1) = NA_REAL; // Std. Error
+      result.coef_table(idx, 2) = NA_REAL; // z value
+      result.coef_table(idx, 3) = NA_REAL; // Pr(>|z|)
     }
   }
 
@@ -393,16 +400,17 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
   // Add separation detection results for Poisson models
   if (family_type == capybara::POISSON && result.has_separation) {
     out.push_back({"has_separation"_nm = writable::logicals({true})});
-    
+
     // Convert 0-based indices to 1-based for R
     vec separated_obs_r(result.separated_obs.n_elem);
     for (size_t i = 0; i < result.separated_obs.n_elem; ++i) {
       separated_obs_r(i) = static_cast<double>(result.separated_obs(i) + 1);
     }
     out.push_back({"separated_obs"_nm = as_doubles(separated_obs_r)});
-    
+
     if (result.separation_certificate.n_elem > 0) {
-      out.push_back({"separation_certificate"_nm = as_doubles(result.separation_certificate)});
+      out.push_back({"separation_certificate"_nm =
+                         as_doubles(result.separation_certificate)});
     }
   }
 
@@ -489,16 +497,17 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
   capybara::InferenceNegBin result = capybara::fenegbin_fit(
       X, y, w, fe_groups, params, offset_vec, init_theta);
 
-  // Replace collinear coefficients (NaN) with R's NA_REAL in all columns of coef_table
+  // Replace collinear coefficients (NaN) with R's NA_REAL in all columns of
+  // coef_table
   uvec collinear_mask = (result.coef_status == 0);
   if (any(collinear_mask)) {
     uvec collinear_idx = find(collinear_mask);
     for (uword i = 0; i < collinear_idx.n_elem; ++i) {
       uword idx = collinear_idx(i);
-      result.coef_table(idx, 0) = NA_REAL;  // Estimate
-      result.coef_table(idx, 1) = NA_REAL;  // Std. Error
-      result.coef_table(idx, 2) = NA_REAL;  // z value
-      result.coef_table(idx, 3) = NA_REAL;  // Pr(>|z|)
+      result.coef_table(idx, 0) = NA_REAL; // Estimate
+      result.coef_table(idx, 1) = NA_REAL; // Std. Error
+      result.coef_table(idx, 2) = NA_REAL; // z value
+      result.coef_table(idx, 3) = NA_REAL; // Pr(>|z|)
     }
   }
 

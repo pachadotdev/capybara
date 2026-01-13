@@ -255,9 +255,11 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
   const uword p = X.n_cols;
   const uword p_orig =
       collin_result.has_collinearity ? collin_result.coef_status.n_elem : p;
-  
+
   // Avoid temporary from all(w == 1.0) - check first/last elements as heuristic
-  const bool has_weights = (w.n_elem > 0) && (w[0] != 1.0 || w[w.n_elem-1] != 1.0 || !all(w == 1.0));
+  const bool has_weights =
+      (w.n_elem > 0) &&
+      (w[0] != 1.0 || w[w.n_elem - 1] != 1.0 || !all(w == 1.0));
 
   InferenceBeta result(n, p_orig);
 
@@ -323,10 +325,11 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
       coef_ptr[idx_ptr[i]] = beta_ptr[i];
     }
   } else {
-    std::memcpy(result.coefficients.memptr(), beta_reduced.memptr(), p * sizeof(double));
+    std::memcpy(result.coefficients.memptr(), beta_reduced.memptr(),
+                p * sizeof(double));
   }
 
-  std::memcpy(result.coef_status.memptr(), collin_result.coef_status.memptr(), 
+  std::memcpy(result.coef_status.memptr(), collin_result.coef_status.memptr(),
               collin_result.coef_status.n_elem * sizeof(uword));
 
   // Compute fitted values: X * beta

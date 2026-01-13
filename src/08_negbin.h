@@ -20,7 +20,7 @@ inline double estimate_theta(const vec &y, const vec &mu,
   // Compute mean and variance in single pass (Welford's algorithm)
   const uword n = y.n_elem;
   const double *y_ptr = y.memptr();
-  
+
   double y_mean = 0.0;
   double M2 = 0.0;
   for (uword i = 0; i < n; ++i) {
@@ -30,7 +30,7 @@ inline double estimate_theta(const vec &y, const vec &mu,
     M2 += delta * delta2;
   }
   double y_var = (n > 1) ? M2 / (n - 1) : 0.0;
-  
+
   const double overdispersion = y_var - y_mean;
 
   // Low overdispersion -> return very large theta (Poisson-like)

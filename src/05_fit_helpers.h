@@ -30,16 +30,16 @@ struct InferenceGLM {
 
   // Separation detection fields
   bool has_separation = false;
-  uword num_separated = 0;  // Count of separated observations
-  uvec separated_obs;  // 0-based indices of separated observations
-  vec separation_certificate;  // z vector proving separation
+  uword num_separated = 0;    // Count of separated observations
+  uvec separated_obs;         // 0-based indices of separated observations
+  vec separation_certificate; // z vector proving separation
 
   InferenceGLM(uword n, uword p)
       : coef_table(p, 4, fill::zeros), eta(n, fill::zeros),
         fitted_values(n, fill::zeros), weights(n, fill::ones),
         hessian(p, p, fill::zeros), vcov(p, p, fill::zeros), deviance(0.0),
         null_deviance(0.0), conv(false), iter(0), coef_status(p, fill::ones),
-        pseudo_rsq(0.0), has_fe(false), has_tx(false), has_separation(false), 
+        pseudo_rsq(0.0), has_fe(false), has_tx(false), has_separation(false),
         num_separated(0) {}
 };
 
@@ -139,11 +139,12 @@ double dev_resids_poisson(const vec &y, const vec &mu, const vec &wt) {
   const double *y_ptr = y.memptr();
   const double *mu_ptr = mu.memptr();
   const double *wt_ptr = wt.memptr();
-  
+
   double sum = 0.0;
   for (uword i = 0; i < n; ++i) {
     if (y_ptr[i] > 0) {
-      sum += wt_ptr[i] * (y_ptr[i] * std::log(y_ptr[i] / mu_ptr[i]) - (y_ptr[i] - mu_ptr[i]));
+      sum += wt_ptr[i] * (y_ptr[i] * std::log(y_ptr[i] / mu_ptr[i]) -
+                          (y_ptr[i] - mu_ptr[i]));
     } else {
       sum += mu_ptr[i] * wt_ptr[i];
     }
@@ -158,14 +159,15 @@ double dev_resids_logit(const vec &y, const vec &mu, const vec &wt) {
   const double *y_ptr = y.memptr();
   const double *mu_ptr = mu.memptr();
   const double *wt_ptr = wt.memptr();
-  
+
   double sum = 0.0;
   for (uword i = 0; i < n; ++i) {
     double contrib = 0.0;
     if (y_ptr[i] == 1.0) {
       contrib = y_ptr[i] * std::log(y_ptr[i] / mu_ptr[i]);
     } else if (y_ptr[i] == 0.0) {
-      contrib = (1.0 - y_ptr[i]) * std::log((1.0 - y_ptr[i]) / (1.0 - mu_ptr[i]));
+      contrib =
+          (1.0 - y_ptr[i]) * std::log((1.0 - y_ptr[i]) / (1.0 - mu_ptr[i]));
     }
     sum += wt_ptr[i] * contrib;
   }
@@ -406,16 +408,17 @@ mat group_sums(const mat &M, const mat &w, const field<uvec> &group_indices) {
     const uvec &indexes = group_indices(j);
     const uword n_idx = indexes.n_elem;
     const uword *idx_ptr = indexes.memptr();
-    
+
     // Compute denominator directly
     double denom = 0.0;
     for (uword t = 0; t < n_idx; ++t) {
       denom += w(idx_ptr[t]);
     }
-    
-    if (denom == 0.0) continue;
+
+    if (denom == 0.0)
+      continue;
     double inv_denom = 1.0 / denom;
-    
+
     // Accumulate group sums for each column
     for (uword p = 0; p < P; ++p) {
       const double *col_ptr = M.colptr(p);

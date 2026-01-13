@@ -287,7 +287,7 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
   const double *y_ptr = ws->y_original.memptr();
   const double *resid_ptr = result.residuals.memptr();
   const double *w_ptr = w.memptr();
-  
+
   double tss = 0.0, rss = 0.0;
   for (uword i = 0; i < n_obs; ++i) {
     double y_centered = y_ptr[i] - y_mean;

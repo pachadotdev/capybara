@@ -173,7 +173,8 @@ detect_separation_relu_fe(const vec &y, const mat &X, const vec &w,
   // Method of weighting parameter
   double M = 1.0 / std::sqrt(arma::datum::eps);
   double reg_tol = params.tol * params.tol;
-  if (reg_tol < 1e-13) reg_tol = 1e-13;
+  if (reg_tol < 1e-13)
+    reg_tol = 1e-13;
 
   // Convergence tracking
   vec xbd(n, arma::fill::zeros);
@@ -195,21 +196,22 @@ detect_separation_relu_fe(const vec &y, const mat &X, const vec &w,
     // For FE models: center u with respect to fixed effects
     vec u_centered = u;
     mat X_centered = X;
-    
+
     if (has_fe) {
-      field<field<GroupInfo>> group_info = precompute_group_info(fe_groups, weights);
+      field<field<GroupInfo>> group_info =
+          precompute_group_info(fe_groups, weights);
       center_variables(u_centered, weights, fe_groups, cap_params.center_tol,
-                      cap_params.iter_center_max, cap_params.iter_interrupt,
-                      &group_info, centering_workspace);
+                       cap_params.iter_center_max, cap_params.iter_interrupt,
+                       &group_info, centering_workspace);
       center_variables(X_centered, weights, fe_groups, cap_params.center_tol,
-                      cap_params.iter_center_max, cap_params.iter_interrupt,
-                      &group_info, centering_workspace);
+                       cap_params.iter_center_max, cap_params.iter_interrupt,
+                       &group_info, centering_workspace);
     }
 
     // Solve weighted least squares on centered data
     vec resid;
     vec beta = solve_wls(X_centered, u_centered, weights, resid);
-    
+
     // Compute xbd on original (uncentered) u scale
     xbd = u - resid;
 
