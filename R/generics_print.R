@@ -102,13 +102,17 @@ summary_estimates_signif_ <- function(coefmat, digits) {
 summary_estimates_cols_ <- function(coefmat, digits) {
   n_cols <- ncol(coefmat) - 1
   coefmat[1:n_cols] <- lapply(coefmat[1:n_cols], function(col) {
-    vapply(col, function(x) {
-      if (is.na(x)) {
-        "NA"
-      } else {
-        formatC(as.double(x), format = "f", digits = digits)
-      }
-    }, character(1))
+    vapply(
+      col,
+      function(x) {
+        if (is.na(x)) {
+          "NA"
+        } else {
+          formatC(as.double(x), format = "f", digits = digits)
+        }
+      },
+      character(1)
+    )
   })
   coefmat
 }
@@ -220,13 +224,35 @@ summary_pseudo_rsq_ <- function(x, digits) {
 #' @noRd
 summary_nobs_ <- function(x) {
   nobs_vec <- x[["nobs"]]
-  cat(
-    "\nNumber of observations:",
-    paste0("Full ", nobs_vec[["nobs"]], ";"),
-    paste0("Missing ", nobs_vec[["nobs_na"]], ";"),
-    paste0("Perfect classification ", nobs_vec[["nobs_pc"]]),
-    "\n"
-  )
+
+  # Check if we have separation info (Poisson models)
+  has_separated <- !is.null(nobs_vec[["nobs_separated"]]) &&
+    nobs_vec[["nobs_separated"]] > 0
+
+  if (has_separated) {
+    # Show "Separated" instead of "Missing" for Poisson models with separation
+    cat(
+      "\nNumber of observations:",
+      paste0("Full ", nobs_vec[["nobs"]], ";"),
+      paste0("Separated ", nobs_vec[["nobs_separated"]], ";"),
+      paste0("Perfect classification ", nobs_vec[["nobs_pc"]]),
+      "\n"
+    )
+  } else {
+    # Standard output for models without separation
+    missing_count <- if (!is.null(nobs_vec[["nobs_na"]])) {
+      nobs_vec[["nobs_na"]]
+    } else {
+      0
+    }
+    cat(
+      "\nNumber of observations:",
+      paste0("Full ", nobs_vec[["nobs"]], ";"),
+      paste0("Missing ", missing_count, ";"),
+      paste0("Perfect classification ", nobs_vec[["nobs_pc"]]),
+      "\n"
+    )
+  }
 }
 
 #' @title Refactors for and 'feglm' summaries

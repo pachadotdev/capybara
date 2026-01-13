@@ -221,8 +221,9 @@ transform_fe_ <- function(data, formula, k_vars) {
 #' @param nobs_na Number of observations with missing values (NA values)
 #' @param y Dependent variable
 #' @param yhat Predicted values
+#' @param num_separated Number of separated observations (default 0)
 #' @noRd
-nobs_ <- function(nobs_full, nobs_na, y, yhat) {
+nobs_ <- function(nobs_full, nobs_na, y, yhat, num_separated = 0) {
   # Use tolerance for floating-point comparisons
   tol <- sqrt(.Machine$double.eps)
 
@@ -239,12 +240,14 @@ nobs_ <- function(nobs_full, nobs_na, y, yhat) {
     nobs_pc <- 0
   }
 
-  # Total missing/dropped observations (original NA + separated + singletons)
-  total_missing <- nobs_full - nobs_used
+  # Separated observations are tracked separately from missing
+  # Total dropped = original NA + singletons (separated tracked separately)
+  total_dropped <- nobs_full - nobs_used - num_separated
 
   c(
     nobs_full = nobs_full, # Original dataset size
-    nobs_na = total_missing, # Total missing (NA + separated + dropped)
+    nobs_na = total_dropped, # Missing/dropped (NA + singletons, excluding separated)
+    nobs_separated = num_separated, # Separated observations
     nobs_pc = nobs_pc, # Perfect classification count
     nobs = nobs_used # Observations used in model
   )

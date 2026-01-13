@@ -106,7 +106,8 @@ Absorbed degrees of freedom:
 -----------------------------------------------------+
 ```
 
-In order to obtain the same results (robust standard errors), we need to create a pair variable.
+A difference with respect to Stata's 'ppmlhdfe' is that Capybara requires an explicit cluster term in the formula
+to compute robust standard errors.
 
 ```{r fe1-capybara-2}
 ppmlhdfe$fe1$pair <- paste0(ppmlhdfe$fe1$i, ppmlhdfe$fe1$j)
@@ -115,4 +116,52 @@ fepoisson(
   y ~ x1 + x2 | i + j | pair,
   data = ppmlhdfe$fe1
 )
+```
+
+Other R packages may not detect separation in Poisson models with fixed effects. By disabling the separation check in
+Capybara, we can match 'alpaca' and 'fixest' results
+
+```{r fe-capybara-3}
+fepoisson(
+  y ~ x1 + x2 | i + j,
+  data = ppmlhdfe$fe1,
+  control = list(check_separation = FALSE)
+)
+```
+
+```{r-fe-alpaca, eval = FALSE}
+alpaca::feglm(
+  y ~ x1 + x2 | i + j,
+  data = ppmlhdfe$fe1,
+  family = poisson()
+)
+```
+
+```r
+poisson - log link, l= [4, 4]
+
+      x1       x2 
+ -0.4845 -17.3711 
+```
+
+```{r-fe-fixest, eval = FALSE}
+fixest::feglm(
+  y ~ x1 + x2 | i + j,
+  data = ppmlhdfe$fe1,
+  family = poisson()
+)
+```
+
+```r
+GLM estimation, family = poisson, Dep. Var.: y
+Observations: 18
+Fixed-effects: i: 4,  j: 4
+Standard-errors: IID 
+     Estimate Std. Error   z value Pr(>|z|) 
+x1  -0.484547    1.70957 -0.283432  0.77685 
+x2 -18.514805 6880.80328 -0.002691  0.99785 
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+Log-Likelihood: -12.3   Adj. Pseudo R2: -0.353285
+           BIC:  50.6     Squared Cor.:  0.261426
 ```

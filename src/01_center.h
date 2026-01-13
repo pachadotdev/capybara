@@ -76,15 +76,24 @@ precompute_group_info(const field<field<uvec>> &group_indices, const vec &w) {
       GroupInfo info;
       info.coords = &coords;
       info.n_elem = coords.n_elem;
-      info.is_singleton = (coords.n_elem <= 1);
-
-      if (!info.is_singleton) {
-        double sum_w = 0.0;
-        const uword *coord_ptr = coords.memptr();
-        for (uword i = 0; i < coords.n_elem; ++i) {
-          sum_w += w_ptr[coord_ptr[i]];
+      
+      // Count observations with non-zero weight and compute sum
+      double sum_w = 0.0;
+      uword n_nonzero = 0;
+      const uword *coord_ptr = coords.memptr();
+      for (uword i = 0; i < coords.n_elem; ++i) {
+        double w_i = w_ptr[coord_ptr[i]];
+        if (w_i > 0.0) {
+          sum_w += w_i;
+          n_nonzero++;
         }
-        info.inv_weight = (sum_w > 0.0) ? 1.0 / sum_w : 0.0;
+      }
+      
+      // A group is a singleton if it has <= 1 observation with non-zero weight
+      info.is_singleton = (n_nonzero <= 1);
+      
+      if (!info.is_singleton && sum_w > 0.0) {
+        info.inv_weight = 1.0 / sum_w;
       } else {
         info.inv_weight = 0.0;
       }

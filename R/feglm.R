@@ -326,7 +326,14 @@ feglm <- function(
 
   # t2 <- Sys.time()
 
-  nobs <- nobs_(nobs_full, nobs_na, y, fit[["fitted_values"]])
+  # Count separated observations if present
+  num_separated <- if (isTRUE(fit$has_separation) && !is.null(fit$separated_obs)) {
+    length(fit$separated_obs)
+  } else {
+    0
+  }
+
+  nobs <- nobs_(nobs_full, nobs_na, y, fit[["fitted_values"]], num_separated)
 
   # Cache starts for potential warm-start in repeated calls (opt-in) ----
   if (isTRUE(getOption("capybara.warm_start", FALSE))) {

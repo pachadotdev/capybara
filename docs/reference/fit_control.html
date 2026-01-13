@@ -41,13 +41,13 @@
     <a href="../reference/fenegbin.html">fenegbin</a>
     <a href="../reference/fepoisson.html">fepoisson</a>
     <a href="../reference/fit_control.html">fit_control</a>
-    <a href="../reference/check_separation.html">check_separation</a>
     <a href="../reference/summary_table.html">summary_table</a>
   </div>
 
   <div class="submenu">
     <label>Vignettes</label>
     <a href="../vignettes/intro.html">Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors</a>
+    <a href="../vignettes/separation.html">separation</a>
   </div>
 
   <div class="submenu">
@@ -86,6 +86,7 @@ conditions are similar to glm.
   start_inner_tol = 1e-06,
   return_fe = TRUE,
   keep_tx = FALSE,
+  check_separation = TRUE,
   init_theta = 0
 )
 </code></pre>
@@ -152,6 +153,12 @@ equilibrium models where skipping the fixed effects for intermediate steps speed
 logical indicating if the centered regressor matrix should be stored. The centered regressor matrix is
 required for some covariance estimators, bias corrections, and average partial effects. This option saves
 some computation time at the cost of memory. The default is <code>TRUE</code>.
+</td></tr><tr><td><code id="check_separation">check_separation</code></td>
+<td>
+logical indicating whether to perform separation detection for Poisson models. When <code>TRUE</code>
+(default), observations with perfect prediction are automatically detected and excluded from estimation. Set to
+<code>FALSE</code> to skip this check and speed up computation when separation is known not to be an issue. The default
+is <code>TRUE</code>.
 </td></tr><tr><td><code id="init_theta">init_theta</code></td>
 <td>
 Initial value for the negative binomial dispersion parameter (theta). The default is <code>0.0</code>.

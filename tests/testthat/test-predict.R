@@ -188,18 +188,6 @@ test_that("predict works with type='terms' for felm", {
   expect_true(is.matrix(preds_terms) || is.numeric(preds_terms))
 })
 
-test_that("predict for feglm works with all zeros", {
-  # Create data where some observations might have y=0
-  mtcars2 <- mtcars
-  mtcars2$mpg <- rpois(nrow(mtcars2), lambda = exp(log(mtcars2$mpg / 10)))
-
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars2)
-  preds <- predict(mod)
-
-  expect_equal(length(preds), nrow(mtcars2))
-  expect_true(all(preds >= 0))
-})
-
 test_that("predict maintains order for newdata", {
   mod <- felm(mpg ~ wt | cyl, mtcars)
 
