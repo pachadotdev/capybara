@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>separation • capybara</title><link rel="stylesheet" href="../menu.css"><link rel="stylesheet" href="../content.css"><!-- MathJax Configuration --><script>
+<html lang="en"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Nonexistence of estimates of Poisson models • capybara</title><link rel="stylesheet" href="../menu.css"><link rel="stylesheet" href="../content.css"><!-- MathJax Configuration --><script>
     window.MathJax = {
       tex: {
         inlineMath: [['\\(', '\\)'], ['$', '$']],
@@ -47,7 +47,7 @@
   <div class="submenu">
     <label>Vignettes</label>
     <a href="../vignettes/intro.html">Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors</a>
-    <a href="../vignettes/separation.html">separation</a>
+    <a href="../vignettes/separation.html">Nonexistence of estimates of Poisson models</a>
   </div>
 
   <div class="submenu">
@@ -58,11 +58,13 @@
 <div id="content">
 <div class="content-wrapper">
         <div class="content-main">
-          <h1>separation</h1>
+          <h1>Nonexistence of estimates of Poisson models</h1>
 
 
 
 <p>This vignette is adapted from <a href="https://github.com/sergiocorreia/ppmlhdfe/blob/master/guides/nonexistence_benchmarks.md#r-packages" class="uri">https://github.com/sergiocorreia/ppmlhdfe/blob/master/guides/nonexistence_benchmarks.md#r-packages</a>.</p>
+<div id="example-1" class="section level2">
+<h2>Example 1</h2>
 <pre class="r"><code>library(capybara)</code></pre>
 <p>The table below shows a dataset with 12 observations and four
 regressors. Observations 5 is separated because <span class="math inline">\(y=0\)</span> and <span class="math inline">\(z
@@ -103,6 +105,39 @@ this data.</p>
 #&gt; Degrees of Freedom: 11 Total (i.e. Null);  7 Residual
 #&gt; Null Deviance:       31.91
 #&gt; Residual Deviance: 15.96     AIC: 46.99</code></pre>
+<p>Capybara will detect separation on this dataset.</p>
+<pre class="r"><code>fepoisson(
+  y ~ x1 + x2 + x3 + x4,
+  data = ppmlhdfe$example1
+)
+#&gt; Error:
+#&gt; warning:
+#&gt; Separation detected: 5 observation(s) with perfect prediction were excluded from estimation.
+#&gt; Formula: y ~ x1 + x2 + x3 + x4
+#&gt; &lt;environment: 0x55b930000c28&gt;
+#&gt;
+#&gt; Family: Poisson
+#&gt;
+#&gt; Estimates:
+#&gt;
+#&gt; |             | Estimate | Std. Error | z value | Pr(&gt;|z|) |
+#&gt; |-------------|----------|------------|---------|----------|
+#&gt; | (Intercept) |   0.6469 |     0.3049 |  2.1220 | 0.0338 * |
+#&gt; | x1          |  -0.8928 |     1.1650 | -0.7664 | 0.4435   |
+#&gt; | x2          |   0.2366 |     1.1882 |  0.1991 | 0.8422   |
+#&gt; | x3          |  -0.2626 |     0.1726 | -1.5217 | 0.1281   |
+#&gt; | x4          |  -0.0041 |     0.0389 | -0.1048 | 0.9166   |
+#&gt;
+#&gt; Significance codes: ** p &lt; 0.01; * p &lt; 0.05; + p &lt; 0.10
+#&gt;
+#&gt; Pseudo R-squared: 0.436
+#&gt;
+#&gt; Number of observations: Full 12; Separated 5; Perfect classification 0
+#&gt;
+#&gt; Number of Fisher Scoring iterations: 2</code></pre>
+</div>
+<div id="example-2" class="section level2">
+<h2>Example 2</h2>
 <p>The table below shows a different dataset with 12 observations and
 four regressors. Observations 2, 3, 6, 7 and 8 are separated because
 <span class="math inline">\(y=0\)</span> and <span class="math inline">\(z &gt; x_2 - x_1\)</span> is positive in those
@@ -125,8 +160,8 @@ observations, and zero otherwise.</p>
 #&gt; 12     2     1     0     0    -7
 which(ppmlhdfe$example2$x2 - ppmlhdfe$example2$x1 &gt; 0 &amp; ppmlhdfe$example2$y == 0)
 #&gt; [1] 2 3 6 7 8</code></pre>
-<p>Base R shall give a warning when estimating a Poisson model on this
-data.</p>
+<p>Base R shall give a convergence warning when estimating a Poisson
+model on this data.</p>
 <pre class="r"><code>glm(
   y ~ x1 + x2 + x3 + x4,
   data = ppmlhdfe$example2,
@@ -144,36 +179,92 @@ data.</p>
 #&gt; Degrees of Freedom: 11 Total (i.e. Null);  7 Residual
 #&gt; Null Deviance:       46.72
 #&gt; Residual Deviance: 9.672e-06     AIC: 19.93</code></pre>
-<p>Capybara will detect separation when estimating Poisson models.</p>
+<p>Capybara will detect separation on this dataset.</p>
+<pre class="r"><code>fepoisson(
+  y ~ x1 + x2 + x3 + x4,
+  data = ppmlhdfe$example2
+)
+#&gt; Separation detected: 6 observation(s) with perfect prediction were excluded from estimation.
+#&gt; Formula: y ~ x1 + x2 + x3 + x4
+#&gt; &lt;environment: 0x55b930000c28&gt;
+#&gt;
+#&gt; Family: Poisson
+#&gt;
+#&gt; Estimates:
+#&gt;
+#&gt; |             | Estimate | Std. Error | z value | Pr(&gt;|z|) |
+#&gt; |-------------|----------|------------|---------|----------|
+#&gt; | (Intercept) |   0.7373 |     0.2973 |  2.4798 | 0.0131 * |
+#&gt; | x1          |  -0.0426 |     0.1028 | -0.4144 | 0.6786   |
+#&gt; | x2          |  -0.1098 |     0.0566 | -1.9398 | 0.0524 + |
+#&gt; | x3          |   0.0636 |     0.0612 |  1.0399 | 0.2984   |
+#&gt; | x4          |   0.0245 |     0.0169 |  1.4459 | 0.1482   |
+#&gt;
+#&gt; Significance codes: ** p &lt; 0.01; * p &lt; 0.05; + p &lt; 0.10
+#&gt;
+#&gt; Pseudo R-squared: 0.3861
+#&gt;
+#&gt; Number of observations: Full 12; Separated 6; Perfect classification 0
+#&gt;
+#&gt; Number of Fisher Scoring iterations: 2</code></pre>
+</div>
+<div id="example-3-fixed-effects" class="section level2">
+<h2>Example 3 (fixed effects)</h2>
+<p>Base R shall not give a warning when estimating a Poisson model with
+fixed effects on the dataset below. The separation in this case is less
+clear, which motivates why capybara uses linear programming to detect
+separation in Poisson models.</p>
 <pre class="r"><code>ppmlhdfe$fe1
-#&gt;         y    x1    x2     i     j   pair
-#&gt;     &lt;num&gt; &lt;num&gt; &lt;num&gt; &lt;num&gt; &lt;num&gt; &lt;char&gt;
-#&gt;  1:     2     0     0     2     1     21
-#&gt;  2:     0     0     0     4     2     42
-#&gt;  3:     0     0     0     1     1     11
-#&gt;  4:     1     1     0     4     3     43
-#&gt;  5:     0     0     1     2     2     22
-#&gt;  6:     0     0     0     2     2     22
-#&gt;  7:     1     0     0     5     4     54
-#&gt;  8:     0     1     2     2     3     23
-#&gt;  9:     1     0     0     1     1     11
-#&gt; 10:     0     0     0     2     2     22
-#&gt; 11:     0     2     0     1     3     13
-#&gt; 12:     0     0     0     1     3     13
-#&gt; 13:     0     1     0     2     2     22
-#&gt; 14:     0     0     1     5     2     52
-#&gt; 15:     0     0     1     2     4     24
-#&gt; 16:     0     0     0     1     2     12
-#&gt; 17:     0     0     0     1     1     11
-#&gt; 18:     2     0     0     1     2     12
-
-fepoisson(
+#&gt; # A tibble: 18 × 6
+#&gt;        y    x1    x2     i     j pair
+#&gt;    &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;chr&gt;
+#&gt;  1     2     0     0     2     1 21
+#&gt;  2     0     0     0     4     2 42
+#&gt;  3     0     0     0     1     1 11
+#&gt;  4     1     1     0     4     3 43
+#&gt;  5     0     0     1     2     2 22
+#&gt;  6     0     0     0     2     2 22
+#&gt;  7     1     0     0     5     4 54
+#&gt;  8     0     1     2     2     3 23
+#&gt;  9     1     0     0     1     1 11
+#&gt; 10     0     0     0     2     2 22
+#&gt; 11     0     2     0     1     3 13
+#&gt; 12     0     0     0     1     3 13
+#&gt; 13     0     1     0     2     2 22
+#&gt; 14     0     0     1     5     2 52
+#&gt; 15     0     0     1     2     4 24
+#&gt; 16     0     0     0     1     2 12
+#&gt; 17     0     0     0     1     1 11
+#&gt; 18     2     0     0     1     2 12</code></pre>
+<p>Base R shall not give a warning when estimating a Poisson model with
+fixed effects on this data.</p>
+<pre class="r"><code>glm(
+  y ~ x1 + x2 + factor(i) + factor(j),
+  data = ppmlhdfe$fe1,
+  family = poisson()
+)
+#&gt; Warning: glm.fit: fitted rates numerically 0 occurred
+#&gt;
+#&gt; Call:  glm(formula = y ~ x1 + x2 + factor(i) + factor(j), family = poisson(),
+#&gt;     data = ppmlhdfe$fe1)
+#&gt;
+#&gt; Coefficients:
+#&gt; (Intercept)           x1           x2   factor(i)2   factor(i)4   factor(i)5
+#&gt;     -0.4114      -0.4845     -18.5226       0.4233       0.7375       0.9101
+#&gt;  factor(j)2   factor(j)3   factor(j)4
+#&gt;     -0.9854      -0.5696      -0.4986
+#&gt;
+#&gt; Degrees of Freedom: 17 Total (i.e. Null);  9 Residual
+#&gt; Null Deviance:       18.77
+#&gt; Residual Deviance: 13.36     AIC: 42.59</code></pre>
+<p>Capybara will detect separation when estimating Poisson models.</p>
+<pre class="r"><code>fepoisson(
   y ~ x1 + x2 | i + j,
   data = ppmlhdfe$fe1
 )
 #&gt; Separation detected: 4 observation(s) with perfect prediction were excluded from estimation.
 #&gt; Formula: y ~ x1 + x2 | i + j
-#&gt; &lt;environment: 0x55a27a008970&gt;
+#&gt; &lt;environment: 0x55b930000c28&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -227,9 +318,9 @@ Absorbed degrees of freedom:
            i |         3           0           3     |
            j |         3           1           2     |
 -----------------------------------------------------+</code></pre>
-<p>A difference with respect to Stata’s ‘ppmlhdfe’ is that Capybara
+<p>A difference with respect to Stata’s ‘ppmlhdfe’ is that capybara
 requires an explicit cluster term in the formula to compute robust
-standard errors.</p>
+standard errors using a sandwich operation.</p>
 <pre class="r"><code>ppmlhdfe$fe1$pair &lt;- paste0(ppmlhdfe$fe1$i, ppmlhdfe$fe1$j)
 
 fepoisson(
@@ -238,7 +329,7 @@ fepoisson(
 )
 #&gt; Separation detected: 4 observation(s) with perfect prediction were excluded from estimation.
 #&gt; Formula: y ~ x1 + x2 | i + j | pair
-#&gt; &lt;environment: 0x55a27a008970&gt;
+#&gt; &lt;environment: 0x55b930000c28&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -258,7 +349,8 @@ fepoisson(
 #&gt; Number of Fisher Scoring iterations: 7</code></pre>
 <p>Other R packages may not detect separation in Poisson models with
 fixed effects. By disabling the separation check in Capybara, we can
-match ‘alpaca’ and ‘fixest’ results</p>
+match ‘alpaca’ and ‘fixest’ results.</p>
+<p>Capybara without checking separation (incorrect <span class="math inline">\(\beta_2\)</span>):</p>
 <pre class="r"><code>fepoisson(
   y ~ x1 + x2 | i + j,
   data = ppmlhdfe$fe1,
@@ -266,7 +358,7 @@ match ‘alpaca’ and ‘fixest’ results</p>
 )
 #&gt; Separation detected: 4 observation(s) with perfect prediction were excluded from estimation.
 #&gt; Formula: y ~ x1 + x2 | i + j
-#&gt; &lt;environment: 0x55a27a008970&gt;
+#&gt; &lt;environment: 0x55b930000c28&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -284,12 +376,22 @@ match ‘alpaca’ and ‘fixest’ results</p>
 #&gt; Number of observations: Full 18; Separated 4; Perfect classification 4
 #&gt;
 #&gt; Number of Fisher Scoring iterations: 19</code></pre>
-<p><code>{r-fe-alpaca, eval = FALSE} alpaca::feglm(   y ~ x1 + x2 | i + j,   data = ppmlhdfe$fe1,   family = poisson() )</code></p>
+<p>Alpaca:</p>
+<pre class="r"><code>alpaca::feglm(
+  y ~ x1 + x2 | i + j,
+  data = ppmlhdfe$fe1,
+  family = poisson()
+)</code></pre>
 <pre class="r"><code>poisson - log link, l= [4, 4]
 
       x1       x2
  -0.4845 -17.3711 </code></pre>
-<p><code>{r-fe-fixest, eval = FALSE} fixest::feglm(   y ~ x1 + x2 | i + j,   data = ppmlhdfe$fe1,   family = poisson() )</code></p>
+<p>Fixest:</p>
+<pre class="r"><code>fixest::feglm(
+  y ~ x1 + x2 | i + j,
+  data = ppmlhdfe$fe1,
+  family = poisson()
+)</code></pre>
 <pre class="r"><code>GLM estimation, family = poisson, Dep. Var.: y
 Observations: 18
 Fixed-effects: i: 4,  j: 4
@@ -301,6 +403,7 @@ x2 -18.514805 6880.80328 -0.002691  0.99785
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 Log-Likelihood: -12.3   Adj. Pseudo R2: -0.353285
            BIC:  50.6     Squared Cor.:  0.261426</code></pre>
+</div>
         </div>
         <footer><p id="last-updated">Loading...</p>
 </footer><script src="../js/footer.js"></script><script src="../js/theme.js"></script><script src="../js/search.js"></script><script src="../js/fontsize.js"></script></div>

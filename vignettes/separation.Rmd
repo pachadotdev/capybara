@@ -2,7 +2,7 @@
 title: "Nonexistence of estimates of Poisson models"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{separation}
+  %\VignetteIndexEntry{Nonexistence of estimates of Poisson models}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -15,6 +15,8 @@ knitr::opts_chunk$set(
 ```
 
 This vignette is adapted from https://github.com/sergiocorreia/ppmlhdfe/blob/master/guides/nonexistence_benchmarks.md#r-packages.
+
+## Example 1
 
 ```{r setup}
 library(capybara)
@@ -38,6 +40,17 @@ glm(
 )
 ```
 
+Capybara will detect separation on this dataset.
+
+```{r example1-fepoisson}
+fepoisson(
+  y ~ x1 + x2 + x3 + x4,
+  data = ppmlhdfe$example1
+)
+```
+
+## Example 2
+
 The table below shows a different dataset with 12 observations and four regressors. Observations 2, 3, 6, 7 and 8 are
 separated because $y=0$ and $z > x_2 - x_1$ is positive in those observations, and zero otherwise.
 
@@ -46,7 +59,7 @@ ppmlhdfe$example2
 which(ppmlhdfe$example2$x2 - ppmlhdfe$example2$x1 > 0 & ppmlhdfe$example2$y == 0)
 ```
 
-Base R shall give a warning when estimating a Poisson model on this data.
+Base R shall give a convergence warning when estimating a Poisson model on this data.
 
 ```{r example2-glm, warning=TRUE}
 glm(
@@ -56,11 +69,37 @@ glm(
 )
 ```
 
+Capybara will detect separation on this dataset.
+
+```{r example2-fepoisson}
+fepoisson(
+  y ~ x1 + x2 + x3 + x4,
+  data = ppmlhdfe$example2
+)
+```
+
+## Example 3 (fixed effects)
+
+Base R shall not give a warning when estimating a Poisson model with fixed effects on the dataset below. The separation
+in this case is less clear, which motivates why capybara uses linear programming to detect separation in Poisson models.
+
+```{r fe1-data}
+ppmlhdfe$fe1
+```
+
+Base R shall not give a warning when estimating a Poisson model with fixed effects on this data.
+
+```{r fe1-glm}
+glm(
+  y ~ x1 + x2 + factor(i) + factor(j),
+  data = ppmlhdfe$fe1,
+  family = poisson()
+)
+```
+
 Capybara will detect separation when estimating Poisson models.
 
 ```{r fe1-capybara}
-ppmlhdfe$fe1
-
 fepoisson(
   y ~ x1 + x2 | i + j,
   data = ppmlhdfe$fe1
@@ -106,8 +145,8 @@ Absorbed degrees of freedom:
 -----------------------------------------------------+
 ```
 
-A difference with respect to Stata's 'ppmlhdfe' is that Capybara requires an explicit cluster term in the formula
-to compute robust standard errors.
+A difference with respect to Stata's 'ppmlhdfe' is that capybara requires an explicit cluster term in the formula
+to compute robust standard errors using a sandwich operation.
 
 ```{r fe1-capybara-2}
 ppmlhdfe$fe1$pair <- paste0(ppmlhdfe$fe1$i, ppmlhdfe$fe1$j)
@@ -119,7 +158,9 @@ fepoisson(
 ```
 
 Other R packages may not detect separation in Poisson models with fixed effects. By disabling the separation check in
-Capybara, we can match 'alpaca' and 'fixest' results
+Capybara, we can match 'alpaca' and 'fixest' results.
+
+Capybara without checking separation (incorrect $\beta_2$):
 
 ```{r fe-capybara-3}
 fepoisson(
@@ -129,7 +170,9 @@ fepoisson(
 )
 ```
 
-```{r-fe-alpaca, eval = FALSE}
+Alpaca:
+
+```{r fe-alpaca, eval = FALSE}
 alpaca::feglm(
   y ~ x1 + x2 | i + j,
   data = ppmlhdfe$fe1,
@@ -144,7 +187,9 @@ poisson - log link, l= [4, 4]
  -0.4845 -17.3711 
 ```
 
-```{r-fe-fixest, eval = FALSE}
+Fixest:
+
+```{r fe-fixest, eval = FALSE}
 fixest::feglm(
   y ~ x1 + x2 | i + j,
   data = ppmlhdfe$fe1,
