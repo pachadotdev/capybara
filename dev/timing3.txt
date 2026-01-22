@@ -1,30 +1,21 @@
-> fout <- "capybara-benchmarks/benchmark-gravity-capybara2.rds"
+Cumulative beta computation 0.00490148 seconds
+
+Cumulative centering with partial out 0.0362724 seconds
+
+Cumulative beta computation 0.00451485 seconds
+
+
+Fixed effects recovery time: 0.0165496 seconds.
+
+NOTE: 10/1 fixed-effects (11 observations) removed because of only 0 outcomes or singletons.
+NOTE: The fixed-effects are not regular, they cannot be straightforwardly interpreted.
 > 
-> bench_capybara()
-/////////////////////////////////
-// Entering feglm_fit function //
-/////////////////////////////////
-
-Separation detection time: 4.68e-07 seconds.
-
-Collinearity check time: 0.00171142 seconds.
-
-Cumulative centering without partial out 0.0560176 seconds
-
-Cumulative centering with partial out 6.02945 seconds
-
-Cumulative beta computation 0.00619675 seconds
-
-Fixed effects recovery time: 0.014436 seconds.
-
-log(dist)    contig       fta 
-  -0.6944    0.4720    0.2573 
-
+> # saveRDS(bench_results, fout, compress = "xz")
+> # }
+> 
 > bench_results
-# A tibble: 3 × 13
-  expression     min  median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time
-  <bch:expr> <bch:t> <bch:t>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm>
-1 capybara_…   14.4s   16.1s    0.0626        NA   0.0125     5     1      1.33m
-2 capybara_…   14.9s   15.3s    0.0648        NA   0.0259     5     2      1.29m
-3 fixest     262.3ms 267.2ms    3.26          NA   3.91       5     6      1.53s
-# ℹ 4 more variables: result <list>, memory <list>, time <list>, gc <list>
+# A tibble: 2 × 13
+  expression      min median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time
+  <bch:expr>    <bch> <bch:>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm>
+1 capybara_no_… 605ms  655ms      1.51        NA    0.376     4     1      2.66s
+2 fixest        295ms  300ms      3.33        NA    5.00      2     3   599.94ms
