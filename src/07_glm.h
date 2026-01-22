@@ -212,7 +212,12 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     offset_vec.zeros(n);
   }
 
-  // STEP 1: For FE models with Poisson, detect separation early
+  // For FE models with Poisson, detect separation early
+
+  #ifdef CAPYBARA_DEBUG
+    auto tsep0 = std::chrono::high_resolution_clock::now();
+  #endif
+    
   CenteringWorkspace centering_workspace;
 
   if (family_type == Family::POISSON && !skip_separation_check &&
@@ -259,10 +264,33 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     }
   }
 
-  // STEP 2: Check collinearity
+  #ifdef CAPYBARA_DEBUG
+    auto tsep1 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> sep_duration = tsep1 - tsep0;
+    std::ostringstream sep_msg;
+    sep_msg << "Separation detection time: " << sep_duration.count()
+            << " seconds.\n";
+    cpp4r::message(sep_msg.str());
+  #endif
+
+  // Check collinearity
+
+  #ifdef CAPYBARA_DEBUG
+    auto tcoll0 = std::chrono::high_resolution_clock::now();
+  #endif
+
   bool use_weights = !all(w == 1.0);
   CollinearityResult collin_result =
       check_collinearity(X, w, use_weights, params.collin_tol);
+
+  #ifdef CAPYBARA_DEBUG
+    auto tcoll1 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> collin_duration = tcoll1 - tcoll0;
+    std::ostringstream collin_msg;
+    collin_msg << "Collinearity check time: " << collin_duration.count()
+               << " seconds.\n";
+    cpp4r::message(collin_msg.str());
+  #endif
 
   vec MNU(n, fill::zeros);
   vec &mu = workspace->mu;
@@ -439,29 +467,28 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 
       if (has_fixed_effects) {
         #ifdef CAPYBARA_DEBUG
-          auto t0 = std::chrono::high_resolution_clock::now();
+          auto tcenter0 = std::chrono::high_resolution_clock::now();
         #endif
 
         center_variables(MNU, w_working, fe_groups, current_hdfe_tol,
                          current_max_iter, params.iter_interrupt,
                          group_info_ptr, &centering_workspace);
         
-        #ifdef CAPYBARA_DEBUG
-          auto t1 = std::chrono::high_resolution_clock::now();
-          std::chrono::duration<double> t1t0 = t1 - t0;
-          
-          std::ostringstream timing;
-          timing << "\n    Centering MNU (partial) - iteration "
-            << iter
-            << " - completed in "
-            << t1t0.count()
-            << " seconds\n";
-          cpp4r::message(timing.str());
-        #endif
-
         center_variables(X, w_working, fe_groups, current_hdfe_tol,
                          current_max_iter, params.iter_interrupt,
                          group_info_ptr, &centering_workspace);
+
+        #ifdef CAPYBARA_DEBUG
+          auto tcenter1 = std::chrono::high_resolution_clock::now();
+          std::chrono::duration<double> tcenter_duration = tcenter1 - tcenter0;
+          std::ostringstream msg_tcenter;
+          msg_tcenter << "\n    Centering with partial out - iteration "
+            << iter
+            << " - completed in "
+            << tcenter_duration.count()
+            << " seconds\n";
+          cpp4r::message(msg_tcenter.str());  
+        #endif
 
         // invalidate cache
         workspace->XtX_cache.reset();
@@ -472,6 +499,10 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       nu0 = nu;
 
       if (has_fixed_effects) {
+        #ifdef CAPYBARA_DEBUG
+          auto tcenter20 = std::chrono::high_resolution_clock::now();
+        #endif
+
         center_variables(MNU, w_working, fe_groups, current_hdfe_tol,
                          current_max_iter, params.iter_interrupt,
                          group_info_ptr, &centering_workspace);
@@ -479,6 +510,18 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
         center_variables(X, w_working, fe_groups, current_hdfe_tol,
                          current_max_iter, params.iter_interrupt,
                          group_info_ptr, &centering_workspace);
+
+        #ifdef CAPYBARA_DEBUG
+          auto tcenter21 = std::chrono::high_resolution_clock::now();
+          std::chrono::duration<double> tcenter2_duration = tcenter21 - tcenter20;
+          std::ostringstream msg_tcenter2;
+          msg_tcenter2 << "\n    Centering without partial out - iteration "
+            << iter
+            << " - completed in "
+            << tcenter2_duration.count()
+            << " seconds\n";
+          cpp4r::message(msg_tcenter2.str());
+        #endif
 
         // invalidate cache
         workspace->XtX_cache.reset();
@@ -496,12 +539,33 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     } else {
       working_response = eta + nu; // z = eta + (y - mu) / mu_eta
     }
+    
+    #ifdef CAPYBARA_DEBUG
+      auto tbeta0 = std::chrono::high_resolution_clock::now();
+    #endif
 
     InferenceBeta beta_result =
         get_beta(X, working_response, working_response, w_working,
                  collin_result, false, false, &workspace->XtX_cache);
 
+    #ifdef CAPYBARA_DEBUG
+      auto tbeta1 = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> tbeta_duration = tbeta1 - tbeta0;
+      std::ostringstream msg_tbeta;
+      msg_tbeta << "\n    Beta computation - iteration "
+        << iter
+        << " - completed in "
+        << tbeta_duration.count()
+        << " seconds\n";
+      cpp4r::message(msg_tbeta.str());
+    #endif
+
     // Handle collinearity
+
+    #ifdef CAPYBARA_DEBUG
+      auto tcollin0 = std::chrono::high_resolution_clock::now();
+    #endif
+
     vec beta_upd_reduced;
     if (collin_result.has_collinearity &&
         collin_result.non_collinear_cols.n_elem > 0) {
@@ -516,6 +580,18 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     if (beta.n_elem != full_p) {
       beta.resize(full_p);
     }
+
+    #ifdef CAPYBARA_DEBUG
+      auto tcollin1 = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> tcollin_duration = tcollin1 - tcollin0;
+      std::ostringstream msg_tcollin;
+      msg_tcollin << "\n    Collinearity handling - iteration "
+        << iter
+        << " - completed in "
+        << tcollin_duration.count()
+        << " seconds\n";
+      cpp4r::message(msg_tcollin.str());
+    #endif
 
     // Compute eta update differently for FE vs non-FE cases
     if (has_fixed_effects) {
@@ -536,6 +612,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     }
 
     // Step-halving with checks
+    
     for (uword iter_inner = 0; iter_inner < params.iter_inner_max;
          ++iter_inner) {
       eta = eta0 + rho * eta_upd;
@@ -722,6 +799,10 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   if (conv) {
     H = crossprod(X, w_working);
 
+    #ifdef CAPYBARA_DEBUG
+      auto tfe0 = std::chrono::high_resolution_clock::now();
+    #endif
+
     if (has_fixed_effects) {
       // Following alpaca's getFE approach
       vec x_beta(n, fill::zeros);
@@ -751,6 +832,16 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
             get_alpha(pi, fe_groups, params.alpha_tol, params.iter_alpha_max);
       }
     }
+
+    #ifdef CAPYBARA_DEBUG
+      auto tfe1 = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> tfe_duration = tfe1 - tfe0;
+      std::ostringstream msg_tfe;
+      msg_tfe << "\nFixed effects recovery time: "
+        << tfe_duration.count()
+        << " seconds.\n";
+      cpp4r::message(msg_tfe.str());
+    #endif
 
     // Compute covariance matrix:
     // - If cluster groups provided: sandwich covariance
