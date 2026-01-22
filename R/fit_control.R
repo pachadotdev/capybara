@@ -38,6 +38,7 @@ NULL
 #'  \code{1.0e-08}.
 #' @param collin_tol tolerance level for detecting collinearity. The default is \code{1.0e-07}.
 #' @param alpha_tol tolerance for fixed effects (alpha) convergence. The default is \code{1.0e-06}.
+#' @param sep_tol tolerance for separation detection. The default is \code{1.0e-08}.
 #' @param step_halving_factor numeric indicating the factor by which the step size is halved to iterate towards
 #'  convergence. This is used to control the step size during optimization. The default is \code{0.5}.
 #' @param iter_max integer indicating the maximum number of iterations in the maximization routine. The default is
@@ -49,6 +50,7 @@ NULL
 #' @param iter_interrupt integer indicating the maximum number of iterations before the algorithm is interrupted. The
 #'  default is \code{1000L}.
 #' @param iter_alpha_max maximum iterations for fixed effects computation. The default is \code{10000L}.
+#' @param sep_max_iter maximum iterations for separation detection. The default is \code{1000L}.
 #' @param step_halving_memory numeric memory factor for step-halving algorithm. Controls how much of the previous
 #'  iteration is retained. The default is \code{0.9}.
 #' @param max_step_halving maximum number of post-convergence step-halving attempts. The default is \code{2}.
@@ -87,9 +89,11 @@ fit_control <- function(
   step_halving_memory = 0.9,
   max_step_halving = 2L,
   start_inner_tol = 1.0e-06,
+  sep_tol = 1.0e-08,
   return_fe = TRUE,
   keep_tx = FALSE,
   check_separation = TRUE,
+  sep_max_iter = 1000L,
   init_theta = 0.0
 ) {
   # Check validity of tolerance parameters
@@ -98,7 +102,8 @@ fit_control <- function(
       center_tol <= 0.0 ||
       collin_tol <= 0.0 ||
       step_halving_factor <= 0.0 ||
-      alpha_tol <= 0.0
+      alpha_tol <= 0.0 ||
+      sep_tol <= 0.0
   ) {
     stop(
       "All tolerance parameters should be greater than zero.",
@@ -111,11 +116,14 @@ fit_control <- function(
   iter_center_max <- as.integer(iter_center_max)
   iter_inner_max <- as.integer(iter_inner_max)
   iter_interrupt <- as.integer(iter_interrupt)
+  sep_max_iter <- as.integer(sep_max_iter)
+
   if (
     iter_max < 1L ||
       iter_center_max < 1L ||
       iter_inner_max < 1L ||
-      iter_interrupt < 1L
+      iter_interrupt < 1L ||
+      sep_max_iter < 1L
   ) {
     stop(
       "All iteration parameters should be greater than or equal to one.",
@@ -172,9 +180,11 @@ fit_control <- function(
     step_halving_memory = step_halving_memory,
     max_step_halving = max_step_halving,
     start_inner_tol = start_inner_tol,
+    sep_tol = sep_tol,
     return_fe = return_fe,
     keep_tx = keep_tx,
     check_separation = check_separation,
+    sep_max_iter = sep_max_iter,
     init_theta = init_theta
   )
 }

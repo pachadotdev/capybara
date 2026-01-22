@@ -1,5 +1,4 @@
 // Generalized linear model with fixed effects eta = alpha + X * beta
-
 #ifndef CAPYBARA_GLM_H
 #define CAPYBARA_GLM_H
 
@@ -64,9 +63,16 @@ struct GlmWorkspace {
   }
 
   void ensure_size(uword n, uword p) {
-    if (!is_initialized || n > cached_n || p > cached_p) {
+    if (!is_initialized || n > cached_n || p > cached_p || mu.n_elem < n ||
+        XtX.n_rows < p) {
       uword new_n = std::max(n, cached_n);
       uword new_p = std::max(p, cached_p);
+
+      // Update cached dimensions
+      if (n > cached_n)
+        new_n = n;
+      if (p > cached_p)
+        new_p = p;
 
       if (XtX.n_rows < new_p || XtX.n_cols < new_p)
         XtX.set_size(new_p, new_p);
@@ -161,34 +167,21 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   // Add intercept column if no fixed effects
   if (!has_fixed_effects) {
     mat X_with_intercept(n, p_original + 1);
-    X_with_intercept.col(0).ones(); // Intercept column
+    X_with_intercept.col(0).ones();
     if (p_original > 0) {
       X_with_intercept.cols(1, p_original) = X;
     }
     X = X_with_intercept;
 
-    // Expand beta to include intercept (initialized to 0)
-    vec beta_new(p_original + 1);
-    beta_new(0) = 0.0;
-    if (p_original > 0) {
-      beta_new.tail(p_original) = beta;
-    }
-    beta = beta_new;
-
-    // Recompute eta with the new beta (should still be zeros, but dimensions
-    // match)
-    if (p_original > 0) {
-      // eta was already computed in R, but now we need it to match new X
-      // dimensions Since beta is all zeros, eta should remain as initialized in
-      // R No change needed to eta
-    }
+    // Expand beta to include intercept
+    beta = join_cols(vec{0.0}, beta);
   }
 
   const uword p = X.n_cols;
   const uword k = beta.n_elem;
 
   // Always store original X for later use (needed for both FE and non-FE cases)
-  mat X0 = X;
+  const mat X0 = X;
 
   InferenceGLM result(n, p);
 
@@ -204,9 +197,11 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   workspace->ensure_size(n, p);
 
   // Store offset separately if present (for use in separation detection)
-  vec offset_vec(n, fill::zeros);
+  vec offset_vec;
   if (has_offset) {
     offset_vec = *offset;
+  } else {
+    offset_vec.zeros(n);
   }
 
   // STEP 1: For FE models with Poisson, detect separation early
@@ -250,7 +245,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       result_with_sep.has_separation = true;
       result_with_sep.separated_obs = sep_result.separated_obs;
       result_with_sep.num_separated = sep_result.num_separated;
-      result_with_sep.separation_certificate = sep_result.certificate;
+      result_with_sep.separation_support = sep_result.support;
 
       return result_with_sep;
     }
@@ -261,9 +256,8 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   CollinearityResult collin_result =
       check_collinearity(X, w, use_weights, params.collin_tol);
 
-  vec MNU = vec(n, fill::zeros);
+  vec MNU(n, fill::zeros);
   vec &mu = workspace->mu;
-  vec &mu_eta = workspace->mu_eta;
   vec &w_working = workspace->w_working;
   vec &nu = workspace->nu;
   vec &MNU_increment = workspace->MNU_increment;
@@ -272,7 +266,28 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   vec &beta0 = workspace->beta0;
   vec &nu0 = workspace->nu0;
 
-  mu = link_inv(eta, family_type);
+  // Initial mu computation
+  switch (family_type) {
+  case GAUSSIAN:
+    mu = eta;
+    break;
+  case POISSON:
+  case NEG_BIN:
+    mu = exp(eta);
+    break;
+  case BINOMIAL:
+    mu = 1.0 / (1.0 + exp(-eta));
+    break;
+  case GAMMA:
+    mu = 1.0 / eta;
+    break;
+  case INV_GAUSSIAN:
+    mu = 1.0 / sqrt(eta);
+    break;
+  default:
+    mu = link_inv(eta, family_type);
+  }
+
   const double y_mean_scalar = mean(y);
   vec beta_upd(k, fill::none);
   mat H(p, p, fill::none);
@@ -285,7 +300,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   double dev0, dev_ratio = datum::inf, dev_ratio_inner, rho;
   bool dev_crit, val_crit, imp_crit, conv = false;
 
-  // Adaptive tolerance variables -> more aggressive for large models
+  // Adaptive tolerance variables
   double hdfe_tolerance = params.center_tol;
   double highest_inner_tol =
       std::max(1e-12, std::min(params.center_tol, 0.1 * params.dev_tol));
@@ -304,7 +319,6 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   }
 
   bool use_partial = false;
-
   double step_halving_memory = params.step_halving_memory;
   uword num_step_halving = 0;
   uword max_step_halving = params.max_step_halving;
@@ -314,10 +328,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 
   MNU_increment.zeros();
   nu0.zeros();
-
-  // Reset XtX cache - it needs to be computed fresh in the IRLS loop
   workspace->XtX_cache.reset();
-
   uword convergence_count = 0;
   double last_dev_ratio = datum::inf;
 
@@ -327,21 +338,51 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     beta0 = beta;
     dev0 = dev;
 
-    mu_eta = inverse_link_derivative(eta, family_type);
-    // Compute w_working and nu with fewer temporaries
-    {
-      vec var_mu = variance(mu, theta, family_type);
-      const double *w_ptr = w.memptr();
-      const double *mu_eta_ptr = mu_eta.memptr();
-      const double *var_ptr = var_mu.memptr();
-      const double *y_ptr = y.memptr();
-      const double *mu_ptr = mu.memptr();
-      double *ww_ptr = w_working.memptr();
-      double *nu_ptr = nu.memptr();
-      for (uword i = 0; i < n; ++i) {
-        double me = mu_eta_ptr[i];
-        ww_ptr[i] = (w_ptr[i] * me * me) / var_ptr[i];
-        nu_ptr[i] = (y_ptr[i] - mu_ptr[i]) / me;
+    // Compute w_working and nu efficienty
+    switch (family_type) {
+    case GAUSSIAN: // mu=eta, mu'=1, V=1
+      w_working = w;
+      nu = y - mu;
+      break;
+    case POISSON: // mu=exp(eta), mu'=mu, V=mu
+      w_working = w % mu;
+      nu = (y - mu) / mu;
+      break;
+    case BINOMIAL: { // mu=ilogit(eta), mu'=mu(1-mu), V=mu(1-mu)
+      vec var = mu % (1.0 - mu);
+      w_working = w % var;
+      nu = (y - mu) / var;
+      break;
+    }
+    case GAMMA: { // mu=1/eta, mu'=-mu^2, V=mu^2
+      // W = w * (-mu^2)^2 / mu^2 = w * mu^4 / mu^2 = w * mu^2
+      // nu = (y-mu) / (-mu^2)
+      vec m2 = square(mu);
+      w_working = w % m2;
+      nu = -(y - mu) / m2;
+      break;
+    }
+    case INV_GAUSSIAN: { // mu=1/sqrt(eta), mu'=-mu^3/2, V=mu^3
+      // W = w * (-mu^3/2)^2 / mu^3 = w * (mu^6/4) / mu^3 = w * mu^3 / 4
+      // nu = (y-mu) / (-mu^3/2)
+      vec m3 = pow(mu, 3);
+      w_working = w % m3 * 0.25;
+      nu = -2.0 * (y - mu) / m3;
+      break;
+    }
+    case NEG_BIN: // mu=exp(eta), mu'=mu, V=mu+mu^2/theta
+      // W = w * mu^2 / (mu + mu^2/theta) = w * mu / (1 + mu/theta)
+      // nu = (y-mu)/mu
+      w_working = (w % mu) / (1.0 + mu / theta);
+      nu = (y - mu) / mu;
+      break;
+    default:
+      // Fallback to vector ops if unknown family (shouldn't happen)
+      {
+        vec mu_eta = inverse_link_derivative(eta, family_type);
+        vec var_mu = variance(mu, theta, family_type);
+        w_working = (w % square(mu_eta)) / var_mu;
+        nu = (y - mu) / mu_eta;
       }
     }
 
@@ -421,7 +462,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     use_partial = true;
 
     // For models without fixed effects, use adjusted dependent variable z = eta
-    // + nu This gives the proper IRLS working response
+    // + nu for the proper IRLS working response
     vec working_response;
     if (has_fixed_effects) {
       working_response = MNU;
@@ -494,7 +535,30 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
         }
       }
 
-      mu = link_inv(eta, family_type);
+      // Mu update
+      switch (family_type) {
+      case GAUSSIAN:
+        mu = eta;
+        break;
+      case POISSON:
+        mu = exp(eta);
+        break;
+      case BINOMIAL:
+        mu = 1.0 / (1.0 + exp(-eta));
+        break;
+      case GAMMA:
+        mu = 1.0 / eta;
+        break;
+      case INV_GAUSSIAN:
+        mu = 1.0 / sqrt(eta);
+        break;
+      case NEG_BIN:
+        mu = exp(eta);
+        break;
+      default:
+        mu = link_inv(eta, family_type); // Only allocate if unknown family
+      }
+
       dev = dev_resids(y, mu, theta, w, family_type);
       dev_ratio_inner = (dev - dev0) / (0.1 + fabs(dev));
 
@@ -518,9 +582,27 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       eta = eta0;
       beta = beta0;
       dev = dev0;
-      // eta already includes offset from R (added in capybara.cpp), so don't
-      // add it again
-      mu = link_inv(eta, family_type);
+      // Mu update to be consistent with eta0
+      switch (family_type) {
+      case GAUSSIAN:
+        mu = eta0;
+        break;
+      case POISSON:
+      case NEG_BIN:
+        mu = exp(eta0);
+        break;
+      case BINOMIAL:
+        mu = 1.0 / (1.0 + exp(-eta0));
+        break;
+      case GAMMA:
+        mu = 1.0 / eta0;
+        break;
+      case INV_GAUSSIAN:
+        mu = 1.0 / sqrt(eta0);
+        break;
+      default:
+        mu = link_inv(eta0, family_type);
+      }
     }
 
     dev_ratio = fabs(dev - dev0) / (0.1 + fabs(dev));
@@ -545,24 +627,36 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     }
 
     if (delta_deviance < 0 && num_step_halving < max_step_halving) {
-      // In-place blend: eta = memory * eta0 + (1-memory) * eta
-      const double mem = step_halving_memory;
-      const double one_minus_mem = 1.0 - mem;
-      double *eta_ptr = eta.memptr();
-      const double *eta0_ptr = eta0.memptr();
-      for (uword i = 0; i < n; ++i) {
-        eta_ptr[i] = mem * eta0_ptr[i] + one_minus_mem * eta_ptr[i];
-      }
+      eta = step_halving_memory * eta0 + (1.0 - step_halving_memory) * eta;
 
       if (num_step_halving > 0 && family_type == POISSON) {
-        // Clamp eta >= -10 without temporary allocation
-        for (uword i = 0; i < n; ++i) {
-          if (eta_ptr[i] < -10.0)
-            eta_ptr[i] = -10.0;
-        }
+        eta.clamp(-10.0, datum::inf);
       }
 
-      mu = link_inv(eta, family_type);
+      // Update mu in-place after blending
+      switch (family_type) {
+      case GAUSSIAN:
+        mu = eta;
+        break;
+      case POISSON:
+        mu = exp(eta);
+        break;
+      case BINOMIAL:
+        mu = 1.0 / (1.0 + exp(-eta));
+        break;
+      case GAMMA:
+        mu = 1.0 / eta;
+        break;
+      case INV_GAUSSIAN:
+        mu = 1.0 / sqrt(eta);
+        break;
+      case NEG_BIN:
+        mu = exp(eta);
+        break;
+      default:
+        mu = link_inv(eta, family_type);
+      }
+
       dev = dev_resids(y, mu, theta, w, family_type);
       num_step_halving++;
 
@@ -634,8 +728,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     // Compute covariance matrix:
     // - If cluster groups provided: sandwich covariance
     // - Otherwise: inverse Hessian
-    // X here is the centered design matrix (MX), H is MX'WMX
-    // Note: vcov stays at reduced size (excluding collinear variables), same as
+    // vcov stays at reduced size (excluding collinear variables), same as
     // hessian
     if (cluster_groups != nullptr && cluster_groups->n_elem > 0) {
       // Sandwich covariance for clustered standard errors
@@ -655,8 +748,10 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 
     result.coef_table.col(0) = beta; // Store coefficients in first column
     result.coef_status = std::move(collin_result.coef_status);
-    result.eta = std::move(eta);
-    result.fitted_values = std::move(mu);
+    // Don't move eta/mu to avoid emptying the workspace buffers or input/output
+    // refs
+    result.eta = eta;
+    result.fitted_values = mu;
     result.weights = w;
     result.hessian = std::move(H);
     result.deviance = dev;
@@ -669,34 +764,9 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     if (family_type == POISSON) {
       double corr = as_scalar(cor(y, result.fitted_values));
       result.pseudo_rsq = corr * corr;
-
-      // Check for separation in Poisson models (only if not already done)
-      // Use X0 (original design matrix before centering) for separation
-      // detection
-      if (!skip_separation_check) {
-        SeparationParameters sep_params;
-        sep_params.tol = params.dev_tol;
-        sep_params.zero_tol = std::min(params.dev_tol * 0.01, 1e-12);
-        sep_params.max_iter = 1000;
-        sep_params.simplex_max_iter = 10000;
-        sep_params.use_relu = true;
-        sep_params.use_simplex = true;
-        sep_params.verbose = false;
-
-        SeparationResult sep_result = check_separation(y, X0, w, sep_params);
-
-        if (sep_result.num_separated > 0) {
-          result.has_separation = true;
-          result.separated_obs = sep_result.separated_obs;
-          if (sep_result.certificate.n_elem > 0) {
-            result.separation_certificate = sep_result.certificate;
-          }
-        }
-      }
     }
 
-    // Compute coefficient table: [estimate, std.error, z, p-value]
-    // This computation is done here so R only needs to format the results
+    // Coefficients table: [estimate, std.error, z, p-value]
     // Resize coef_table if needed (for collinearity handling)
     uword n_coef = beta.n_elem;
     if (result.coef_table.n_rows != n_coef) {
@@ -731,7 +801,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
         result.coef_table(collinear_idx(i), 0) = datum::nan;
       }
     } else {
-      // No collinearity - straightforward computation
+      // No collinearity
       vec z_values = beta / se_reduced;
       result.coef_table.col(1) = se_reduced;
       result.coef_table.col(2) = z_values;
@@ -755,8 +825,31 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
   const uword n = y.n_elem;
 
   vec Myadj = vec(n, fill::zeros);
-  vec mu = link_inv(eta, family_type);
-  vec mu_eta(n, fill::none), yadj(n, fill::none);
+  vec mu(n);
+
+  // Initial mu
+  switch (family_type) {
+  case GAUSSIAN:
+    mu = eta;
+    break;
+  case POISSON:
+  case NEG_BIN:
+    mu = exp(eta);
+    break;
+  case BINOMIAL:
+    mu = 1.0 / (1.0 + exp(-eta));
+    break;
+  case GAMMA:
+    mu = 1.0 / eta;
+    break;
+  case INV_GAUSSIAN:
+    mu = 1.0 / sqrt(eta);
+    break;
+  default:
+    mu = link_inv(eta, family_type);
+  }
+
+  vec yadj(n, fill::none);
   vec w_working(n, fill::none), eta_upd(n, fill::none), eta0(n, fill::none);
 
   CenteringWorkspace centering_workspace;
@@ -776,24 +869,46 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
     eta0 = eta;
     dev0 = dev;
 
-    mu_eta = inverse_link_derivative(eta, family_type);
-    // Compute w_working and yadj with fewer temporaries
-    {
+    // Compute w_working and yadj
+    // W = w * (d_mu/d_eta)^2 / V
+    // y_adj = (y - mu) / (d_mu/d_eta) + eta - offset
+    switch (family_type) {
+    case GAUSSIAN: // mu'=1, V=1
+      w_working = w;
+      yadj = (y - mu) + eta - offset;
+      break;
+    case POISSON: // mu'=mu, V=mu
+      w_working = w % mu;
+      yadj = (y - mu) / mu + eta - offset;
+      break;
+    case BINOMIAL: { // mu'=mu(1-mu), V=mu(1-mu)
+      vec var = mu % (1.0 - mu);
+      w_working = w % var;
+      yadj = (y - mu) / var + eta - offset;
+      break;
+    }
+    case GAMMA: { // mu'=-mu^2, V=mu^2
+      vec m2 = square(mu);
+      w_working = w % m2;
+      yadj = -(y - mu) / m2 + eta - offset;
+      break;
+    }
+    case INV_GAUSSIAN: { // mu'=-mu^3/2, V=mu^3
+      vec m3 = pow(mu, 3);
+      w_working = w % m3 * 0.25;
+      yadj = -2.0 * (y - mu) / m3 + eta - offset;
+      break;
+    }
+    case NEG_BIN: // For offset fit without theta, treat as Poisson-like
+      w_working = w % mu;
+      yadj = (y - mu) / mu + eta - offset;
+      break;
+    default: {
+      vec mu_eta = inverse_link_derivative(eta, family_type);
       vec var_mu = variance(mu, 0.0, family_type);
-      const double *w_ptr = w.memptr();
-      const double *mu_eta_ptr = mu_eta.memptr();
-      const double *var_ptr = var_mu.memptr();
-      const double *y_ptr = y.memptr();
-      const double *mu_ptr = mu.memptr();
-      const double *eta_ptr = eta.memptr();
-      const double *off_ptr = offset.memptr();
-      double *ww_ptr = w_working.memptr();
-      double *yadj_ptr = yadj.memptr();
-      for (uword i = 0; i < n; ++i) {
-        double me = mu_eta_ptr[i];
-        ww_ptr[i] = (w_ptr[i] * me * me) / var_ptr[i];
-        yadj_ptr[i] = (y_ptr[i] - mu_ptr[i]) / me + eta_ptr[i] - off_ptr[i];
-      }
+      w_working = (w % square(mu_eta)) / var_mu;
+      yadj = (y - mu) / mu_eta + eta - offset;
+    }
     }
 
     const field<field<GroupInfo>> *group_info_ptr = nullptr;
@@ -814,7 +929,29 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
     for (uword iter_inner = 0; iter_inner < params.iter_inner_max;
          ++iter_inner) {
       eta = eta0 + rho * eta_upd;
-      mu = link_inv(eta, family_type);
+
+      // Inline mu update
+      switch (family_type) {
+      case GAUSSIAN:
+        mu = eta;
+        break;
+      case POISSON:
+      case NEG_BIN:
+        mu = exp(eta);
+        break;
+      case BINOMIAL:
+        mu = 1.0 / (1.0 + exp(-eta));
+        break;
+      case GAMMA:
+        mu = 1.0 / eta;
+        break;
+      case INV_GAUSSIAN:
+        mu = 1.0 / sqrt(eta);
+        break;
+      default:
+        mu = link_inv(eta, family_type);
+      }
+
       dev = dev_resids(y, mu, 0.0, w, family_type);
       dev_ratio_inner = (dev - dev0) / (0.1 + fabs(dev0));
 
@@ -831,7 +968,27 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
 
     if (!dev_crit || !val_crit) {
       eta = eta0;
-      mu = link_inv(eta, family_type);
+      // Restore mu to match eta0
+      switch (family_type) {
+      case GAUSSIAN:
+        mu = eta;
+        break;
+      case POISSON:
+      case NEG_BIN:
+        mu = exp(eta);
+        break;
+      case BINOMIAL:
+        mu = 1.0 / (1.0 + exp(-eta));
+        break;
+      case GAMMA:
+        mu = 1.0 / eta;
+        break;
+      case INV_GAUSSIAN:
+        mu = 1.0 / sqrt(eta);
+        break;
+      default:
+        mu = link_inv(eta, family_type);
+      }
       break;
     }
 

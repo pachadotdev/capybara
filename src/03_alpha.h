@@ -1,5 +1,4 @@
-// Computing alpha a in a model with fixed effects Y = alpha + X beta given beta
-
+// Computing alpha in a model with fixed effects Y = alpha + X beta given beta
 #ifndef CAPYBARA_ALPHA_H
 #define CAPYBARA_ALPHA_H
 
@@ -16,14 +15,14 @@ struct InferenceAlpha {
   InferenceAlpha() : is_regular(true), success(false) {}
 };
 
+// Group info using observation-to-group mapping for sparse ops
 struct AlphaGroupInfo {
-  uvec group_start;
-  uvec group_size;
   uvec obs_to_group;
+  vec group_sizes;
   uword n_groups;
 };
 
-// Precompute group sizes and observation-to-group maps (cached between calls)
+// Precompute group info
 inline field<AlphaGroupInfo>
 precompute_alpha_group_info(const field<field<uvec>> &group_indices, uword N) {
   const uword K = group_indices.n_elem;
@@ -33,27 +32,23 @@ precompute_alpha_group_info(const field<field<uvec>> &group_indices, uword N) {
     const uword J = group_indices(k).n_elem;
     AlphaGroupInfo &info = group_info(k);
     info.n_groups = J;
-    info.group_size.set_size(J);
     info.obs_to_group.set_size(N);
-    info.obs_to_group.fill(J); // Invalid index sentinel
+    info.group_sizes.set_size(J);
 
     for (uword j = 0; j < J; ++j) {
       const uvec &indexes = group_indices(k)(j);
-      info.group_size(j) = indexes.n_elem;
-
-      for (uword t = 0; t < indexes.n_elem; ++t) {
-        info.obs_to_group(indexes(t)) = j;
-      }
+      info.group_sizes(j) = static_cast<double>(indexes.n_elem);
+      info.obs_to_group.elem(indexes).fill(j);
     }
   }
 
   return group_info;
 }
 
-// Workspace to reuse allocations across iterations and calls
 struct AlphaWorkspace {
-  vec residual; // pi - sum(alpha_k)
-  vec alpha0;   // Previous coefficients for one FE
+  vec residual;       // pi - sum(alpha_k)
+  vec group_sums;     // for accumulating group sums
+  vec alpha_expanded; // Alpha values expanded to observation level
   uword cached_N;
   uword cached_max_groups;
   bool is_initialized;
@@ -63,7 +58,8 @@ struct AlphaWorkspace {
   void ensure_size(uword N, uword max_groups) {
     if (!is_initialized || N > cached_N || max_groups > cached_max_groups) {
       residual.set_size(N);
-      alpha0.set_size(max_groups);
+      group_sums.set_size(max_groups);
+      alpha_expanded.set_size(N);
       cached_N = N;
       cached_max_groups = max_groups;
       is_initialized = true;
@@ -72,12 +68,35 @@ struct AlphaWorkspace {
 
   void clear() {
     residual.reset();
-    alpha0.reset();
+    group_sums.reset();
+    alpha_expanded.reset();
     cached_N = 0;
     cached_max_groups = 0;
     is_initialized = false;
   }
 };
+
+// Accumulate values into groups
+// group_sums[j] = sum of values[i] where obs_to_group[i] == j
+inline void scatter_add(vec &group_sums, const vec &values,
+                        const uvec &obs_to_group, uword n_groups) {
+  group_sums.head(n_groups).zeros();
+  const uword N = values.n_elem;
+  const double *val_ptr = values.memptr();
+  const uword *grp_ptr = obs_to_group.memptr();
+  double *sum_ptr = group_sums.memptr();
+
+  for (uword i = 0; i < N; ++i) {
+    sum_ptr[grp_ptr[i]] += val_ptr[i];
+  }
+}
+
+// Expand group values to observation level
+// result[i] = group_values[obs_to_group[i]]
+inline void gather(vec &result, const vec &group_values,
+                   const uvec &obs_to_group) {
+  result = group_values.elem(obs_to_group);
+}
 
 inline field<vec>
 get_alpha(const vec &pi, const field<field<uvec>> &group_indices,
@@ -92,6 +111,7 @@ get_alpha(const vec &pi, const field<field<uvec>> &group_indices,
     return coefficients;
   }
 
+  // Group info
   field<AlphaGroupInfo> local_group_info;
   const field<AlphaGroupInfo> *group_info_ptr = precomputed_group_info;
 
@@ -100,29 +120,22 @@ get_alpha(const vec &pi, const field<field<uvec>> &group_indices,
     group_info_ptr = &local_group_info;
   }
 
+  // Initialize coefficients and find max groups
   uword max_groups = 0;
   for (uword k = 0; k < K; ++k) {
-    max_groups = std::max(max_groups, (*group_info_ptr)(k).n_groups);
     const uword J = (*group_info_ptr)(k).n_groups;
-    coefficients(k).set_size(J);
-    coefficients(k).zeros();
+    max_groups = std::max(max_groups, J);
+    coefficients(k).zeros(J);
   }
 
   AlphaWorkspace local_workspace;
   AlphaWorkspace *ws = workspace ? workspace : &local_workspace;
   ws->ensure_size(N, max_groups);
 
-  vec &residual = ws->residual;
-  std::memcpy(residual.memptr(), pi.memptr(),
-              N * sizeof(double)); // initial residual = pi
+  ws->residual = pi;
 
   double crit = 1.0;
   uword iter = 0;
-
-  // Get workspace pointers once outside main loop
-  vec &alpha0 = ws->alpha0;
-  double *alpha0_ptr = alpha0.memptr();
-  double *residual_ptr = residual.memptr();
 
   while (crit > tol && iter < iter_max) {
     double sum_sq0 = 0.0, sum_sq_diff = 0.0;
@@ -130,47 +143,35 @@ get_alpha(const vec &pi, const field<field<uvec>> &group_indices,
     for (uword k = 0; k < K; ++k) {
       const AlphaGroupInfo &info = (*group_info_ptr)(k);
       const uword J = info.n_groups;
-      const field<uvec> &fe_groups = group_indices(k);
-
       vec &coef_k = coefficients(k);
-      double *coef_k_ptr = coef_k.memptr();
-      const uword *group_size_ptr = info.group_size.memptr();
 
-      // Save old coefficients and compute sum of squares in one pass
-      for (uword j = 0; j < J; ++j) {
-        const double val = coef_k_ptr[j];
-        alpha0_ptr[j] = val;
-        sum_sq0 += val * val;
-      }
+      sum_sq0 += dot(coef_k, coef_k);
 
-      // Accumulate group sums and update in single pass over groups
-      for (uword j = 0; j < J; ++j) {
-        const uvec &indexes = fe_groups(j);
-        const uword *idx_ptr = indexes.memptr();
-        const uword n_idx = indexes.n_elem;
+      // Step 1: Expand current alpha to observation level
+      gather(ws->alpha_expanded, coef_k, info.obs_to_group);
 
-        // Compute group sum
-        const double a0j = alpha0_ptr[j];
-        double s = a0j * static_cast<double>(n_idx);
-        for (uword t = 0; t < n_idx; ++t) {
-          s += residual_ptr[idx_ptr[t]];
-        }
+      // Step 2: Compute (residual + alpha_expanded)
+      vec temp = ws->residual + ws->alpha_expanded;
 
-        // Compute new coefficient
-        const double new_val = (group_size_ptr[j] > 0)
-                                   ? s / static_cast<double>(group_size_ptr[j])
-                                   : 0.0;
-        const double diff = new_val - a0j;
-        sum_sq_diff += diff * diff;
-        coef_k_ptr[j] = new_val;
+      // Step 3: Scatter-add to get group sums
+      scatter_add(ws->group_sums, temp, info.obs_to_group, J);
 
-        // Update residual
-        for (uword t = 0; t < n_idx; ++t) {
-          residual_ptr[idx_ptr[t]] -= diff;
-        }
-      }
+      // Step 4: Compute new coefficients by dividing by group sizes
+      vec new_coef = ws->group_sums.head(J) / info.group_sizes;
+
+      // Step 5: Compute difference and update criterion
+      vec diff = new_coef - coef_k;
+      sum_sq_diff += dot(diff, diff);
+
+      // Step 6: Update residual by subtracting the change in alpha
+      gather(ws->alpha_expanded, diff, info.obs_to_group);
+      ws->residual -= ws->alpha_expanded;
+
+      // Step 7: Update coefficients
+      coef_k = new_coef;
     }
 
+    // Convergence criterion
     if (sum_sq0 > 0.0) {
       crit = std::sqrt(sum_sq_diff / sum_sq0);
     } else if (sum_sq_diff > 0.0) {
@@ -182,34 +183,15 @@ get_alpha(const vec &pi, const field<field<uvec>> &group_indices,
     ++iter;
   }
 
-  // Normalize fixed effects for identifiability to match fixest/Stata
-  // convention
-  // Set the first level of the last FE to zero, adjust first FE
-  // accordingly
-  // This ensures exp(FE) values are on the same scale as fixest for gravity
-  // models
+  // Normalize fixed effects for identifiability (fixest/Stata convention)
   if (K > 0) {
-    uword last_k = K - 1;
-    vec &last_coef = coefficients(last_k);
+    vec &last_coef = coefficients(K - 1);
 
     if (last_coef.n_elem > 0) {
-      // Get the value of the FIRST level of the last FE (fixest convention)
+      // Shift so first level of last FE is zero
       const double first_fe_last_val = last_coef(0);
-
-      // Shift last FE so its first level is zero (in-place loop)
-      double *last_ptr = last_coef.memptr();
-      const uword n_last = last_coef.n_elem;
-      for (uword i = 0; i < n_last; ++i) {
-        last_ptr[i] -= first_fe_last_val;
-      }
-
-      // Shift first FE in opposite direction to maintain sum constraint
-      vec &first_coef = coefficients(0);
-      double *first_ptr = first_coef.memptr();
-      const uword n_first = first_coef.n_elem;
-      for (uword i = 0; i < n_first; ++i) {
-        first_ptr[i] += first_fe_last_val;
-      }
+      last_coef -= first_fe_last_val;
+      coefficients(0) += first_fe_last_val;
     }
   }
 

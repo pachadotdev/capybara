@@ -208,10 +208,12 @@ check_control_ <- function(control) {
       "collin_tol",
       "step_halving_factor",
       "alpha_tol",
+      "sep_tol",
       "iter_max",
       "iter_center_max",
       "iter_inner_max",
       "iter_interrupt",
+      "sep_max_iter",
       "iter_alpha_max",
       "step_halving_memory",
       "start_inner_tol"
@@ -229,7 +231,7 @@ check_control_ <- function(control) {
       }
     }))
     # 2. logical params
-    logical_params <- c("return_fe", "keep_tx")
+    logical_params <- c("return_fe", "keep_tx", "check_separation")
     invisible(lapply(logical_params, function(param_name) {
       if (
         param_name %in%
@@ -325,7 +327,7 @@ drop_by_link_type_ <- function(data, lhs, family, tmp_var, k_vars, control) {
   if (
     family[["family"]] %in%
       c("binomial", "poisson") &&
-      isTRUE(control[["drop_pc"]])
+      isTRUE(control[["check_separation"]])
   ) {
     # Convert response to numeric if it's an integer
     if (is.integer(data[[lhs]])) {

@@ -327,7 +327,9 @@ feglm <- function(
   # t2 <- Sys.time()
 
   # Count separated observations if present
-  num_separated <- if (isTRUE(fit$has_separation) && !is.null(fit$separated_obs)) {
+  num_separated <- if (
+    isTRUE(fit$has_separation) && !is.null(fit$separated_obs)
+  ) {
     length(fit$separated_obs)
   } else {
     0
@@ -378,11 +380,13 @@ feglm <- function(
   if (isTRUE(fit$has_separation)) {
     num_sep <- if (!is.null(fit$separated_obs)) length(fit$separated_obs) else 0
     message(
-      "Separation detected: ", num_sep, " observation(s) ",
+      "Separation detected: ",
+      num_sep,
+      " observation(s) ",
       "with perfect prediction were excluded from estimation."
     )
     fit[["separated_obs"]] <- fit$separated_obs
-    fit[["separation_certificate"]] <- fit$separation_certificate
+    fit[["separation_support"]] <- fit$separation_support
   }
 
   # Add to fit list ----
