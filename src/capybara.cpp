@@ -409,8 +409,8 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
     out.push_back({"separated_obs"_nm = as_doubles(separated_obs_r)});
 
     if (result.separation_support.n_elem > 0) {
-      out.push_back({"separation_support"_nm =
-                         as_doubles(result.separation_support)});
+      out.push_back(
+          {"separation_support"_nm = as_doubles(result.separation_support)});
     }
   }
 
