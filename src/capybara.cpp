@@ -6,7 +6,10 @@
 #endif
 
 #include <armadillo4r.hpp>
-#include <cstring> // for std::memcpy
+
+#ifdef CAPYBARA_DEBUG
+#include <chrono>
+#endif
 
 using arma::field;
 using arma::mat;

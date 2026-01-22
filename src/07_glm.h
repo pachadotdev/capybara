@@ -158,6 +158,14 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
                        const field<uvec> *cluster_groups = nullptr,
                        const vec *offset = nullptr,
                        bool skip_separation_check = false) {
+  #ifdef CAPYBARA_DEBUG
+    std::ostringstream feglm_msg;
+    feglm_msg << "/////////////////////////////////\n"
+                "// Entering feglm_fit function //\n"
+                "/////////////////////////////////\n";
+    cpp4r::message(feglm_msg.str());
+  #endif
+  
   const uword n = y.n_elem;
   const uword p_original = X.n_cols;
   const bool has_fixed_effects = fe_groups.n_elem > 0;
@@ -430,9 +438,27 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       MNU += MNU_increment;
 
       if (has_fixed_effects) {
+        #ifdef CAPYBARA_DEBUG
+          auto t0 = std::chrono::high_resolution_clock::now();
+        #endif
+
         center_variables(MNU, w_working, fe_groups, current_hdfe_tol,
                          current_max_iter, params.iter_interrupt,
                          group_info_ptr, &centering_workspace);
+        
+        #ifdef CAPYBARA_DEBUG
+          auto t1 = std::chrono::high_resolution_clock::now();
+          std::chrono::duration<double> t1t0 = t1 - t0;
+          
+          std::ostringstream timing;
+          timing << "\n    Centering MNU (partial) - iteration "
+            << iter
+            << " - completed in "
+            << t1t0.count()
+            << " seconds\n";
+          cpp4r::message(timing.str());
+        #endif
+
         center_variables(X, w_working, fe_groups, current_hdfe_tol,
                          current_max_iter, params.iter_interrupt,
                          group_info_ptr, &centering_workspace);
@@ -449,6 +475,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
         center_variables(MNU, w_working, fe_groups, current_hdfe_tol,
                          current_max_iter, params.iter_interrupt,
                          group_info_ptr, &centering_workspace);
+
         center_variables(X, w_working, fe_groups, current_hdfe_tol,
                          current_max_iter, params.iter_interrupt,
                          group_info_ptr, &centering_workspace);

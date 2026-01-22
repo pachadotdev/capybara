@@ -315,7 +315,6 @@ void center_variables(
     const double &tol, const uword &max_iter, const uword &iter_interrupt,
     const field<field<GroupInfo>> *precomputed_group_info = nullptr,
     CenteringWorkspace *workspace = nullptr) {
-
   if (V.is_empty() || w.is_empty() || V.n_rows != w.n_elem)
     return;
 
