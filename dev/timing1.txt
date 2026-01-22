@@ -1,0 +1,113 @@
+> bench_capybara()
+/////////////////////////////////
+// Entering feglm_fit function //
+/////////////////////////////////
+
+Separation detection time: 2.2e-07 seconds.
+
+Collinearity check time: 0.0015852 seconds.
+
+
+    Centering without partial out - iteration 0 - completed in 0.0354382 seconds
+
+
+    Beta computation - iteration 0 - completed in 0.00664035 seconds
+
+
+    Collinearity handling - iteration 0 - completed in 5.27e-07 seconds
+
+
+    Centering without partial out - iteration 1 - completed in 0.0476939 seconds
+
+
+    Beta computation - iteration 1 - completed in 0.00423933 seconds
+
+
+    Collinearity handling - iteration 1 - completed in 3.41e-07 seconds
+
+
+    Centering with partial out - iteration 2 - completed in 0.0497863 seconds
+
+
+    Beta computation - iteration 2 - completed in 0.00414722 seconds
+
+
+    Collinearity handling - iteration 2 - completed in 3.32e-07 seconds
+
+
+    Centering with partial out - iteration 3 - completed in 0.0344352 seconds
+
+
+    Beta computation - iteration 3 - completed in 0.00423943 seconds
+
+
+    Collinearity handling - iteration 3 - completed in 3.8e-07 seconds
+
+
+    Centering with partial out - iteration 4 - completed in 0.0344079 seconds
+
+
+    Beta computation - iteration 4 - completed in 0.00470719 seconds
+
+
+    Collinearity handling - iteration 4 - completed in 3.95e-07 seconds
+
+
+    Centering with partial out - iteration 5 - completed in 0.0342244 seconds
+
+
+    Beta computation - iteration 5 - completed in 0.00445938 seconds
+
+
+    Collinearity handling - iteration 5 - completed in 4.17e-07 seconds
+
+
+    Centering with partial out - iteration 6 - completed in 0.0344634 seconds
+
+
+    Beta computation - iteration 6 - completed in 0.00415378 seconds
+
+
+    Collinearity handling - iteration 6 - completed in 6.76e-07 seconds
+
+
+    Centering with partial out - iteration 7 - completed in 0.140294 seconds
+
+
+    Beta computation - iteration 7 - completed in 0.004244 seconds
+
+
+    Collinearity handling - iteration 7 - completed in 4.04e-07 seconds
+
+
+    Centering with partial out - iteration 8 - completed in 4.01336 seconds
+
+
+    Beta computation - iteration 8 - completed in 0.00371715 seconds
+
+
+    Collinearity handling - iteration 8 - completed in 4e-07 seconds
+
+
+    Centering with partial out - iteration 9 - completed in 4.81963 seconds
+
+
+    Beta computation - iteration 9 - completed in 0.00552374 seconds
+
+
+    Collinearity handling - iteration 9 - completed in 3.84e-07 seconds
+
+
+    Centering with partial out - iteration 10 - completed in 4.85384 seconds
+
+
+    Beta computation - iteration 10 - completed in 0.00376215 seconds
+
+
+    Collinearity handling - iteration 10 - completed in 3.71e-07 seconds
+
+
+Fixed effects recovery time: 0.0100048 seconds.
+
+log(dist)    contig       fta 
+  -0.6944    0.4720    0.2573

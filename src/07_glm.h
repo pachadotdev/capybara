@@ -273,7 +273,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     cpp4r::message(sep_msg.str());
   #endif
 
-  // Check collinearity
+  // Check collinearity once before iterations
 
   #ifdef CAPYBARA_DEBUG
     auto tcoll0 = std::chrono::high_resolution_clock::now();
@@ -291,6 +291,10 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
                << " seconds.\n";
     cpp4r::message(collin_msg.str());
   #endif
+
+  // After collinearity check, X may have been filtered
+  // Update p to reflect the actual working dimension
+  const uword p_working = X.n_cols;
 
   vec MNU(n, fill::zeros);
   vec &mu = workspace->mu;
@@ -326,7 +330,6 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 
   const double y_mean_scalar = mean(y);
   vec beta_upd(k, fill::none);
-  mat H(p, p, fill::none);
 
   double dev = dev_resids(y, mu, theta, w, family_type);
   // For null deviance, create ymean vector only once
@@ -343,7 +346,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   double start_inner_tol = params.start_inner_tol;
 
   bool is_large_model =
-      (n > 100000) || (p > 1000) || (has_fixed_effects && fe_groups.n_elem > 1);
+      (n > 100000) || (p_working > 1000) || (has_fixed_effects && fe_groups.n_elem > 1);
 
   if (has_fixed_effects) {
     if (is_large_model) {
@@ -479,13 +482,13 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
                          group_info_ptr, &centering_workspace);
 
         #ifdef CAPYBARA_DEBUG
+          double tcenter_total = 0.0;
           auto tcenter1 = std::chrono::high_resolution_clock::now();
           std::chrono::duration<double> tcenter_duration = tcenter1 - tcenter0;
+          tcenter_total += tcenter_duration.count();
           std::ostringstream msg_tcenter;
-          msg_tcenter << "\n    Centering with partial out - iteration "
-            << iter
-            << " - completed in "
-            << tcenter_duration.count()
+          msg_tcenter << "Cumulative centering with partial out "
+            << tcenter_total
             << " seconds\n";
           cpp4r::message(msg_tcenter.str());  
         #endif
@@ -512,13 +515,13 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
                          group_info_ptr, &centering_workspace);
 
         #ifdef CAPYBARA_DEBUG
+          double tcenter2_total = 0.0;
           auto tcenter21 = std::chrono::high_resolution_clock::now();
           std::chrono::duration<double> tcenter2_duration = tcenter21 - tcenter20;
+          tcenter2_total += tcenter2_duration.count();
           std::ostringstream msg_tcenter2;
-          msg_tcenter2 << "\n    Centering without partial out - iteration "
-            << iter
-            << " - completed in "
-            << tcenter2_duration.count()
+          msg_tcenter2 << "Cumulative centering without partial out "
+            << tcenter2_total
             << " seconds\n";
           cpp4r::message(msg_tcenter2.str());
         #endif
@@ -544,56 +547,44 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       auto tbeta0 = std::chrono::high_resolution_clock::now();
     #endif
 
+    // X is already filtered for collinearity, so beta_result.coefficients
+    // corresponds to non-collinear columns only
     InferenceBeta beta_result =
         get_beta(X, working_response, working_response, w_working,
                  collin_result, false, false, &workspace->XtX_cache);
 
     #ifdef CAPYBARA_DEBUG
+      double tbeta_total = 0.0;
       auto tbeta1 = std::chrono::high_resolution_clock::now();
       std::chrono::duration<double> tbeta_duration = tbeta1 - tbeta0;
+      tbeta_total += tbeta_duration.count();
       std::ostringstream msg_tbeta;
-      msg_tbeta << "\n    Beta computation - iteration "
-        << iter
-        << " - completed in "
-        << tbeta_duration.count()
+      msg_tbeta << "Cumulative beta computation "
+        << tbeta_total
         << " seconds\n";
       cpp4r::message(msg_tbeta.str());
     #endif
 
-    // Handle collinearity
-
-    #ifdef CAPYBARA_DEBUG
-      auto tcollin0 = std::chrono::high_resolution_clock::now();
-    #endif
-
+    // beta_result.coefficients has size p_orig (full size with NaN for collinear)
+    vec beta_upd_full = beta_result.coefficients;
+    
+    // For matrix multiplication with filtered X, extract only non-collinear elements
     vec beta_upd_reduced;
-    if (collin_result.has_collinearity &&
-        collin_result.non_collinear_cols.n_elem > 0) {
-      beta_upd_reduced =
-          beta_result.coefficients.elem(collin_result.non_collinear_cols);
+    if (collin_result.has_collinearity && collin_result.non_collinear_cols.n_elem > 0) {
+      beta_upd_reduced = beta_upd_full.elem(collin_result.non_collinear_cols);
     } else {
-      beta_upd_reduced = beta_result.coefficients;
+      beta_upd_reduced = beta_upd_full;
     }
-
+    
     const uword full_p =
         collin_result.has_collinearity ? collin_result.coef_status.n_elem : p;
     if (beta.n_elem != full_p) {
       beta.resize(full_p);
+      beta.fill(datum::nan); // Initialize with NaN
     }
 
-    #ifdef CAPYBARA_DEBUG
-      auto tcollin1 = std::chrono::high_resolution_clock::now();
-      std::chrono::duration<double> tcollin_duration = tcollin1 - tcollin0;
-      std::ostringstream msg_tcollin;
-      msg_tcollin << "\n    Collinearity handling - iteration "
-        << iter
-        << " - completed in "
-        << tcollin_duration.count()
-        << " seconds\n";
-      cpp4r::message(msg_tcollin.str());
-    #endif
-
     // Compute eta update differently for FE vs non-FE cases
+    // X is already filtered for collinearity, beta_upd_reduced matches X.n_cols
     if (has_fixed_effects) {
       // For FE case: incremental update scheme
       if (X.n_cols > 0) {
@@ -612,7 +603,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     }
 
     // Step-halving with checks
-    
+
     for (uword iter_inner = 0; iter_inner < params.iter_inner_max;
          ++iter_inner) {
       eta = eta0 + rho * eta_upd;
@@ -725,7 +716,14 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 
     predicted_eps = predict_convergence(eps_history, dev_ratio);
 
+    // Early convergence check
     if (dev_ratio < params.dev_tol) {
+      conv = true;
+      break;
+    }
+    
+    // Additional early stopping: if convergence is very good for 2+ iterations
+    if (convergence_count >= 2 && dev_ratio < params.dev_tol * 10) {
       conv = true;
       break;
     }
@@ -773,21 +771,21 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     // Adaptive HDFE tolerance update with model size awareness
     if (has_fixed_effects) {
       if (is_large_model) {
-        if (convergence_count >= 3 || dev_ratio < hdfe_tolerance * 0.1) {
-          hdfe_tolerance = std::max(highest_inner_tol, hdfe_tolerance * 0.01);
-        } else if (dev_ratio < hdfe_tolerance) {
+        if (convergence_count >= 2 || dev_ratio < hdfe_tolerance * 0.1) {
+          hdfe_tolerance = std::max(highest_inner_tol, hdfe_tolerance * 0.05);
+        } else if (dev_ratio < hdfe_tolerance * 0.5) {
           double alt_tol = std::pow(
               10.0,
               -std::ceil(std::log10(1.0 / std::max(0.1 * dev_ratio, 1e-16))));
-          hdfe_tolerance = std::max(std::min(0.1 * hdfe_tolerance, alt_tol),
+          hdfe_tolerance = std::max(std::min(0.2 * hdfe_tolerance, alt_tol),
                                     highest_inner_tol);
         }
       } else {
-        if (dev_ratio < hdfe_tolerance) {
+        if (dev_ratio < hdfe_tolerance * 0.5) {
           double alt_tol = std::pow(
               10.0,
               -std::ceil(std::log10(1.0 / std::max(0.1 * dev_ratio, 1e-16))));
-          hdfe_tolerance = std::max(std::min(0.1 * hdfe_tolerance, alt_tol),
+          hdfe_tolerance = std::max(std::min(0.2 * hdfe_tolerance, alt_tol),
                                     highest_inner_tol);
         }
       }
@@ -797,7 +795,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   }
 
   if (conv) {
-    H = crossprod(X, w_working);
+    mat H = crossprod(X, w_working);
 
     #ifdef CAPYBARA_DEBUG
       auto tfe0 = std::chrono::high_resolution_clock::now();

@@ -174,7 +174,8 @@ inline bool irons_tuck_accel(cube &Alpha_hist, mat &Alpha, double tol) {
   double vprod = accu(Delta_G % Delta2);
   double coef = safe_divide(vprod, ssq);
 
-  if (coef > 0.0 && coef < 2.0) {
+  // More aggressive extrapolation bounds
+  if (coef > 0.0 && coef < 5.0) {
     Alpha = GGX - coef * Delta_G;
   } else {
     Alpha = GGX;
@@ -210,7 +211,8 @@ inline bool grand_accel(mat &Alpha, cube &hist, int &state, double tol) {
   double vprod = accu(Delta_G % Delta2);
   double coef = safe_divide(vprod, ssq);
 
-  if (coef > 0.0 && coef < 2.0) {
+  // More aggressive extrapolation bounds
+  if (coef > 0.0 && coef < 5.0) {
     Alpha = GGY - coef * Delta_G;
   } else {
     Alpha = GGY;
@@ -248,7 +250,7 @@ inline void center_accel(mat &V, const vec &w,
     // Apply projection (updates V and Alpha)
     apply_projection(V, ws.Alpha, w, all_group_info, group_offsets);
 
-    // Grand acceleration
+    // Grand acceleration - apply more frequently
     if (iter >= accel_start && iter % grand_accel_interval == 0) {
       mat Alpha_before = ws.Alpha;
 
@@ -298,9 +300,10 @@ inline void center_accel(mat &V, const vec &w,
       if (rel_change < tol)
         break;
 
+      // More lenient stall detection to avoid premature termination
       if (rel_change < tol * 10.0) {
         ++stall_count;
-        if (stall_count > 3)
+        if (stall_count > 5)
           break;
       } else {
         stall_count = 0;

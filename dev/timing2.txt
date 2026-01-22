@@ -1,0 +1,79 @@
+/////////////////////////////////
+// Entering feglm_fit function //
+/////////////////////////////////
+
+Separation detection time: 1.71e-07 seconds.
+
+Collinearity check time: 0.00140819 seconds.
+
+
+    Centering without partial out - iteration 0 - completed in 0.0312534 seconds
+
+
+    Beta computation - iteration 0 - completed in 0.00620692 seconds
+
+
+    Centering without partial out - iteration 1 - completed in 0.0453089 seconds
+
+
+    Beta computation - iteration 1 - completed in 0.00392977 seconds
+
+
+    Centering with partial out - iteration 2 - completed in 0.0527158 seconds
+
+
+    Beta computation - iteration 2 - completed in 0.0041571 seconds
+
+
+    Centering with partial out - iteration 3 - completed in 0.0344565 seconds
+
+
+    Beta computation - iteration 3 - completed in 0.00412695 seconds
+
+
+    Centering with partial out - iteration 4 - completed in 0.033542 seconds
+
+
+    Beta computation - iteration 4 - completed in 0.00417235 seconds
+
+
+    Centering with partial out - iteration 5 - completed in 0.0763264 seconds
+
+
+    Beta computation - iteration 5 - completed in 0.00439578 seconds
+
+
+    Centering with partial out - iteration 6 - completed in 0.0898106 seconds
+
+
+    Beta computation - iteration 6 - completed in 0.0042403 seconds
+
+
+    Centering with partial out - iteration 7 - completed in 0.17148 seconds
+
+
+    Beta computation - iteration 7 - completed in 0.00407476 seconds
+
+
+    Centering with partial out - iteration 8 - completed in 3.75627 seconds
+
+
+    Beta computation - iteration 8 - completed in 0.00385815 seconds
+
+
+    Centering with partial out - iteration 9 - completed in 5.07241 seconds
+
+
+    Beta computation - iteration 9 - completed in 0.00399626 seconds
+
+
+    Centering with partial out - iteration 10 - completed in 5.14445 seconds
+
+
+    Beta computation - iteration 10 - completed in 0.00375113 seconds
+
+
+Fixed effects recovery time: 0.0131114 seconds.
+
+log(dist)    contig       fta 
+  -0.6944    0.4720    0.2573
