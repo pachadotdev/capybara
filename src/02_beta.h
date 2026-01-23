@@ -1,5 +1,4 @@
-// Computing beta a in a model with fixed effects Y = alpha + X beta
-
+// Computing beta in a model with fixed effects Y = alpha + X beta
 #ifndef CAPYBARA_BETA_H
 #define CAPYBARA_BETA_H
 
@@ -41,206 +40,86 @@ struct CollinearityResult {
         has_collinearity(false), n_valid(0) {}
 };
 
-inline mat crossprod(const mat &X, const vec &w = vec()) {
+inline mat crossprod(const mat &X) {
+  if (X.is_empty()) {
+    return mat();
+  }
+  return symmatu(X.t() * X);
+}
+
+inline mat crossprod(const mat &X, const vec &w) {
   if (X.is_empty()) {
     return mat();
   }
 
-  const uword n = X.n_rows;
-  const uword p = X.n_cols;
-
-  if (w.is_empty() || w.n_elem == 1) {
-    return arma::symmatu(X.t() * X);
+  if (w.is_empty() || !any(w != 1.0)) {
+    return symmatu(X.t() * X);
   }
 
-  const double *w_ptr = w.memptr();
-  mat XtX(p, p, fill::zeros);
-
-  // Weighted cross-product without allocating a weighted X
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static)
-#endif
-  for (uword j = 0; j < p; ++j) {
-    const double *Xj = X.colptr(j);
-    for (uword i = 0; i <= j; ++i) {
-      const double *Xi = X.colptr(i);
-      double sum = 0.0;
-      for (uword t = 0; t < n; ++t) {
-        sum += w_ptr[t] * Xi[t] * Xj[t];
-      }
-      XtX(i, j) = sum;
-      XtX(j, i) = sum;
-    }
-  }
-
-  return XtX;
+  const mat Xw = X.each_col() % sqrt(w);
+  return symmatu(Xw.t() * Xw);
 }
 
 inline vec crossprod_Xy(const mat &X, const vec &w, const vec &y) {
-  const uword n = X.n_rows;
-  const uword p = X.n_cols;
-  vec Xty(p, fill::zeros);
-  const double *w_ptr = w.memptr();
-  const double *y_ptr = y.memptr();
-
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static)
-#endif
-  for (uword j = 0; j < p; ++j) {
-    const double *Xj = X.colptr(j);
-    double sum = 0.0;
-    for (uword t = 0; t < n; ++t) {
-      sum += Xj[t] * w_ptr[t] * y_ptr[t];
-    }
-    Xty[j] = sum;
-  }
-  return Xty;
-}
-
-inline bool rank_revealing_cholesky(uvec &excluded, const mat &XtX,
-                                    double tol) {
-  const uword p = XtX.n_cols;
-  excluded.zeros(p);
-
-  if (p == 0)
-    return true;
-
-  mat R(p, p, fill::zeros);
-
-  double *R_ptr = R.memptr();
-  uword *excluded_ptr = excluded.memptr();
-  const double *XtX_ptr = XtX.memptr();
-
-  uword n_excluded = 0;
-
-  for (uword j = 0; j < p; ++j) {
-
-    double R_jj = XtX_ptr[j + j * p];
-
-    if (j > 0) {
-      const double *R_j_ptr = R_ptr + j * p;
-      for (uword k = 0; k < j; ++k) {
-        if (excluded_ptr[k] == 0) {
-          double R_jk = R_j_ptr[k];
-          R_jj -= R_jk * R_jk;
-        }
-      }
-    }
-
-    if (R_jj < tol) {
-      excluded_ptr[j] = 1;
-      n_excluded++;
-      continue;
-    }
-
-    R_jj = std::sqrt(R_jj);
-    R_ptr[j + j * p] = R_jj;
-    const double inv_R_jj = 1.0 / R_jj;
-
-    for (uword col = j + 1; col < p; ++col) {
-      double R_j_col = XtX_ptr[j + col * p];
-
-      const double *R_col_ptr = R_ptr + col * p;
-      const double *R_j_ptr = R_ptr + j * p;
-
-      for (uword k = 0; k < j; ++k) {
-        if (excluded_ptr[k] == 0) {
-          R_j_col -= R_j_ptr[k] * R_col_ptr[k];
-        }
-      }
-
-      R_ptr[j + col * p] = R_j_col * inv_R_jj;
-    }
-  }
-
-  return n_excluded < p;
+  return X.t() * (w % y);
 }
 
 inline CollinearityResult
 check_collinearity(mat &X, const vec &w, bool has_weights, double tolerance) {
 
   const uword p = X.n_cols;
-  const uword n = X.n_rows;
 
   CollinearityResult result(p);
 
   if (p == 0) {
-    result.coef_status = uvec();
+    result.coef_status.reset();
     return result;
   }
 
+  // For single column, check if variance is near zero
   if (p == 1) {
-    const double *col_ptr = X.colptr(0);
-    const double *w_ptr = has_weights ? w.memptr() : nullptr;
+    double variance;
 
-    double mean_val = 0.0, sum_sq = 0.0, sum_w = 0.0;
-
-    for (uword i = 0; i < n; ++i) {
-      double val = col_ptr[i];
-      double weight = has_weights ? w_ptr[i] : 1.0;
-
-      if (has_weights) {
-        val *= std::sqrt(weight);
-        sum_w += weight;
-      } else {
-        sum_w += 1.0;
-      }
-      mean_val += val;
-      sum_sq += val * val;
+    if (has_weights) {
+      const double sum_w = accu(w);
+      const vec &x = X.col(0);
+      const double mean_val = dot(x, w) / sum_w;
+      variance = dot(w, square(x)) / sum_w - mean_val * mean_val;
+    } else {
+      variance = var(X.col(0), 1);
     }
-
-    mean_val /= sum_w;
-    double variance = (sum_sq / sum_w) - (mean_val * mean_val);
 
     if (variance < tolerance * tolerance) {
       result.coef_status.zeros();
       result.has_collinearity = true;
       result.n_valid = 0;
-      result.non_collinear_cols = uvec();
+      result.non_collinear_cols.reset();
       X.reset();
     }
     return result;
   }
 
-  mat XtX(p, p, fill::none);
-  if (has_weights) {
-    XtX = crossprod(X, w);
-  } else {
-    XtX = crossprod(X);
-  }
+  const mat XtX = has_weights ? crossprod(X, w) : crossprod(X);
 
-  uvec excluded(p);
-  bool success = rank_revealing_cholesky(excluded, XtX, tolerance);
+  mat Q, R;
+  qr_econ(Q, R, XtX);
 
-  if (!success) {
-    result.coef_status.zeros();
-    result.has_collinearity = true;
-    result.n_valid = 0;
-    result.non_collinear_cols = uvec();
-    X.reset();
-    return result;
-  }
-
+  // Vectorized collinearity detection using abs() on diagonal
+  const vec diag_R = abs(diagvec(R));
+  const uvec excluded = conv_to<uvec>::from(diag_R < tolerance);
   const uvec indep = find(excluded == 0);
 
   result.coef_status.zeros();
-  if (!indep.is_empty()) {
-    // Use direct pointer access instead of elem().ones()
-    uword *status_ptr = result.coef_status.memptr();
-    const uword *indep_ptr = indep.memptr();
-    const uword n_indep = indep.n_elem;
-    for (uword i = 0; i < n_indep; ++i) {
-      status_ptr[indep_ptr[i]] = 1;
-    }
+  if (indep.n_elem > 0) {
+    result.coef_status.elem(indep).ones();
   }
+
   result.has_collinearity = (indep.n_elem < p);
   result.n_valid = indep.n_elem;
   result.non_collinear_cols = indep;
 
-  if (result.has_collinearity && !indep.is_empty()) {
-    X = X.cols(indep);
-  } else if (result.has_collinearity && indep.is_empty()) {
-    X.reset();
+  if (result.has_collinearity) {
+    X = indep.n_elem > 0 ? X.cols(indep) : mat();
   }
 
   return result;
@@ -256,10 +135,7 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
   const uword p_orig =
       collin_result.has_collinearity ? collin_result.coef_status.n_elem : p;
 
-  // Avoid temporary from all(w == 1.0) - check first/last elements as heuristic
-  const bool has_weights =
-      (w.n_elem > 0) &&
-      (w[0] != 1.0 || w[w.n_elem - 1] != 1.0 || !all(w == 1.0));
+  const bool has_weights = w.n_elem > 0 && any(w != 1.0);
 
   InferenceBeta result(n, p_orig);
 
@@ -279,86 +155,51 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
     return result;
   }
 
-  mat XtX(p, p);
-  vec Xty(p);
+  // Solve normal equations
+  mat XtX;
 
-  // Reuse cached XtX if provided, otherwise compute
   if (cached_XtX && cached_XtX->n_rows == p && cached_XtX->n_cols == p) {
     XtX = *cached_XtX;
   } else {
-    if (has_weights) {
-      XtX = crossprod(X, w);
-    } else {
-      XtX = crossprod(X);
-    }
-    // Update cache if pointer provided
+    XtX = has_weights ? crossprod(X, w) : crossprod(X);
     if (cached_XtX) {
       *cached_XtX = XtX;
     }
   }
 
-  if (has_weights) {
-    Xty = crossprod_Xy(X, w, y);
-  } else {
-    Xty = X.t() * y;
+  XtX.diag() += 1e-10; // Regularization for numerical stability
+
+  const vec Xty = has_weights ? crossprod_Xy(X, w, y) : X.t() * y;
+
+  vec beta_reduced;
+  const bool solve_success = solve(beta_reduced, XtX, Xty, solve_opts::fast);
+
+  if (!solve_success) {
+    cpp4r::stop("Failed to solve normal equations for beta estimation.");
   }
 
-  mat L(p, p);
-  bool chol_success = chol(L, XtX, "lower");
-
-  vec beta_reduced(p);
-  if (chol_success) {
-    vec z = solve(trimatl(L), Xty);
-    beta_reduced = solve(trimatu(L.t()), z);
-  } else {
-    beta_reduced = solve(XtX, Xty);
-  }
-
+  // Assign coefficients
+  // NaN for collinear columns => replaced with NA in the R wrappers
   result.coefficients.fill(datum::nan);
+
   if (collin_result.has_collinearity) {
-    const uvec &valid_idx = collin_result.non_collinear_cols;
-    const uword n_valid = valid_idx.n_elem;
-    double *coef_ptr = result.coefficients.memptr();
-    const double *beta_ptr = beta_reduced.memptr();
-    const uword *idx_ptr = valid_idx.memptr();
-    for (uword i = 0; i < n_valid; ++i) {
-      coef_ptr[idx_ptr[i]] = beta_ptr[i];
-    }
+    result.coefficients.elem(collin_result.non_collinear_cols) = beta_reduced;
   } else {
-    std::memcpy(result.coefficients.memptr(), beta_reduced.memptr(),
-                p * sizeof(double));
+    result.coefficients = beta_reduced;
   }
 
-  std::memcpy(result.coef_status.memptr(), collin_result.coef_status.memptr(),
-              collin_result.coef_status.n_elem * sizeof(uword));
+  result.coef_status = collin_result.coef_status;
 
-  // Compute fitted values: X * beta
-  if (collin_result.has_collinearity &&
-      collin_result.non_collinear_cols.n_elem > 0) {
-    result.fitted_values = X * beta_reduced;
-  } else {
-    result.fitted_values = X * result.coefficients;
-  }
+  result.fitted_values = X * beta_reduced;
+  result.residuals = y_orig - result.fitted_values;
+  result.weights = w;
 
-  // Compute residuals in-place: y_orig - fitted
-  const double *y_ptr = y_orig.memptr();
-  const double *fit_ptr = result.fitted_values.memptr();
-  double *res_ptr = result.residuals.memptr();
-  for (uword i = 0; i < n; ++i) {
-    res_ptr[i] = y_ptr[i] - fit_ptr[i];
-  }
-  std::memcpy(result.weights.memptr(), w.memptr(), n * sizeof(double));
-
-  result.hessian.set_size(p_orig, p_orig);
-  result.hessian.zeros();
+  // Build full Hessian
+  result.hessian.zeros(p_orig, p_orig);
 
   if (collin_result.has_collinearity) {
     const uvec &valid_cols = collin_result.non_collinear_cols;
-    for (uword i = 0; i < valid_cols.n_elem; ++i) {
-      for (uword j = 0; j < valid_cols.n_elem; ++j) {
-        result.hessian(valid_cols(i), valid_cols(j)) = XtX(i, j);
-      }
-    }
+    result.hessian.submat(valid_cols, valid_cols) = XtX;
   } else {
     result.hessian = XtX;
   }

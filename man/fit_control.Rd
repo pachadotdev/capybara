@@ -18,9 +18,11 @@ fit_control(
   step_halving_memory = 0.9,
   max_step_halving = 2L,
   start_inner_tol = 1e-06,
+  sep_tol = 1e-08,
   return_fe = TRUE,
   keep_tx = FALSE,
   check_separation = TRUE,
+  sep_max_iter = 1000L,
   init_theta = 0
 )
 }
@@ -61,6 +63,8 @@ iteration is retained. The default is \code{0.9}.}
 
 \item{start_inner_tol}{starting tolerance for inner solver iterations. The default is \code{1.0e-04}.}
 
+\item{sep_tol}{tolerance for separation detection. The default is \code{1.0e-08}.}
+
 \item{return_fe}{logical indicating if the fixed effects should be returned. This can be useful when fitting general
 equilibrium models where skipping the fixed effects for intermediate steps speeds up computation. The default is
 \code{TRUE} and only applies to the \code{feglm} class.}
@@ -73,6 +77,8 @@ some computation time at the cost of memory. The default is \code{TRUE}.}
 (default), observations with perfect prediction are automatically detected and excluded from estimation. Set to
 \code{FALSE} to skip this check and speed up computation when separation is known not to be an issue. The default
 is \code{TRUE}.}
+
+\item{sep_max_iter}{maximum iterations for separation detection. The default is \code{1000L}.}
 
 \item{init_theta}{Initial value for the negative binomial dispersion parameter (theta). The default is \code{0.0}.}
 }

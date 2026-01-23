@@ -1,5 +1,4 @@
 // Generalized linear model with fixed effects eta = alpha + X * beta
-
 #ifndef CAPYBARA_GLM_HELPERS_H
 #define CAPYBARA_GLM_HELPERS_H
 
@@ -10,8 +9,8 @@ struct InferenceGLM {
   vec eta;
   vec fitted_values; // mu values (response scale)
   vec weights;
-  mat hessian; // Hessian matrix (needed for some internal computations)
-  mat vcov;    // Covariance matrix (inverse Hessian or sandwich)
+  mat hessian;
+  mat vcov; // inverse Hessian or sandwich)
   double deviance;
   double null_deviance;
   bool conv;
@@ -19,7 +18,7 @@ struct InferenceGLM {
   uvec coef_status; // 1 = estimable, 0 = collinear
 
   field<vec> fixed_effects;
-  double pseudo_rsq; // Pseudo R-squared (for Poisson only)
+  double pseudo_rsq; // pseudo R-squared for Poisson
   bool has_fe = false;
   uvec iterations;
 
@@ -30,9 +29,9 @@ struct InferenceGLM {
 
   // Separation detection fields
   bool has_separation = false;
-  uword num_separated = 0;    // Count of separated observations
-  uvec separated_obs;         // 0-based indices of separated observations
-  vec separation_certificate; // z vector proving separation
+  uword num_separated = 0;
+  uvec separated_obs;
+  vec separation_support;
 
   InferenceGLM(uword n, uword p)
       : coef_table(p, 4, fill::zeros), eta(n, fill::zeros),
@@ -58,30 +57,32 @@ inline double predict_convergence(const vec &eps_history, double current_eps) {
     return current_eps;
   }
 
-  uvec finite_indices = find_finite(eps_history);
+  const uvec finite_indices = find_finite(eps_history);
   if (finite_indices.n_elem < 3) {
     return current_eps;
   }
 
-  // Linear extrapolation based on last 3 values
-  vec log_eps = log(eps_history.elem(finite_indices.tail(3)));
-  vec x_vals = linspace(1, 3, 3);
+  // linear extrapolation based on last 3 values
+  const vec log_eps = log(eps_history.elem(finite_indices.tail(3)));
+  const vec x_vals = {1.0, 2.0, 3.0};
 
-  // Simple regression log(eps) = a + b*x
-  double x_mean = mean(x_vals);
-  double y_mean = mean(log_eps);
-  double slope = dot(x_vals - x_mean, log_eps - y_mean) /
-                 dot(x_vals - x_mean, x_vals - x_mean);
-  double intercept = y_mean - slope * x_mean;
+  // simple regression log(eps) = a + b*x
+  // x_mean = 2.0, so x_centered = {-1, 0, 1}
+  const vec x_centered = x_vals - 2.0;
+  const double y_mean = accu(log_eps) / 3.0;
+  const vec y_centered = log_eps - y_mean;
 
-  // Predict next value
-  double hat_log_eps = intercept + slope * 4.0;
-  return std::max(exp(hat_log_eps), datum::eps);
+  // slope
+  const double slope = dot(x_centered, y_centered) / 2.0;
+  const double intercept = y_mean - slope * 2.0;
+
+  // predict next value (x=4)
+  return std::max(std::exp(intercept + slope * 4.0), datum::eps);
 }
 
 template <typename T>
 inline T clamp(const T &value, const T &lower, const T &upper) {
-  return (value < lower) ? lower : ((value > upper) ? upper : value);
+  return std::clamp(value, lower, upper);
 }
 
 std::string tidy_family(const std::string &family) {
@@ -92,7 +93,7 @@ std::string tidy_family(const std::string &family) {
 
   fam.erase(std::remove_if(fam.begin(), fam.end(), ::isdigit), fam.end());
 
-  uword pos = fam.find("(");
+  const uword pos = fam.find("(");
   if (pos != std::string::npos) {
     fam.erase(pos, fam.size());
   }
@@ -114,120 +115,93 @@ Family get_family_type(const std::string &fam) {
       {"inverse_gaussian", INV_GAUSSIAN},
       {"negative_binomial", NEG_BIN}};
 
-  auto it = family_map.find(fam);
+  const auto it = family_map.find(fam);
   return (it != family_map.end()) ? it->second : UNKNOWN;
 }
 
-vec link_inv_gaussian(const vec &eta) { return eta; }
+///////////////////////////////////////////////////////////////////////////
+// Link inverse functions
+///////////////////////////////////////////////////////////////////////////
 
-vec link_inv_poisson(const vec &eta) { return exp(eta); }
+inline vec link_inv_gaussian(const vec &eta) { return eta; }
 
-vec link_inv_logit(const vec &eta) { return 1.0 / (1.0 + exp(-eta)); }
+inline vec link_inv_poisson(const vec &eta) { return exp(eta); }
 
-vec link_inv_gamma(const vec &eta) { return 1 / eta; }
+inline vec link_inv_logit(const vec &eta) { return 1.0 / (1.0 + exp(-eta)); }
 
-vec link_inv_invgaussian(const vec &eta) { return 1 / sqrt(eta); }
+inline vec link_inv_gamma(const vec &eta) { return 1.0 / eta; }
 
-vec link_inv_negbin(const vec &eta) { return exp(eta); }
+inline vec link_inv_invgaussian(const vec &eta) { return 1.0 / sqrt(eta); }
 
-double dev_resids_gaussian(const vec &y, const vec &mu, const vec &wt) {
-  return dot(wt, square(y - mu));
+inline vec link_inv_negbin(const vec &eta) { return exp(eta); }
+
+///////////////////////////////////////////////////////////////////////////
+// Deviance residuals
+///////////////////////////////////////////////////////////////////////////
+
+inline double dev_resids_gaussian(const vec &y, const vec &mu, const vec &wt) {
+  return accu(wt % square(y - mu));
 }
 
-double dev_resids_poisson(const vec &y, const vec &mu, const vec &wt) {
-  const uword n = y.n_elem;
-  const double *y_ptr = y.memptr();
-  const double *mu_ptr = mu.memptr();
-  const double *wt_ptr = wt.memptr();
-
-  double sum = 0.0;
-  for (uword i = 0; i < n; ++i) {
-    if (y_ptr[i] > 0) {
-      sum += wt_ptr[i] * (y_ptr[i] * std::log(y_ptr[i] / mu_ptr[i]) -
-                          (y_ptr[i] - mu_ptr[i]));
-    } else {
-      sum += mu_ptr[i] * wt_ptr[i];
-    }
-  }
-  return 2.0 * sum;
+inline double dev_resids_poisson(const vec &y, const vec &mu, const vec &wt) {
+  // Use clamp to avoid log(0): max(y, 1) ensures log argument >= 1 when y=0
+  return 2.0 *
+         accu(wt % (y % log(arma::max(y, ones(size(y))) / mu) - (y - mu)));
 }
 
-// Adapted from binomial_dev_resids()
-// in base R it can be found in src/library/stats/src/family.c
-double dev_resids_logit(const vec &y, const vec &mu, const vec &wt) {
-  const uword n = y.n_elem;
-  const double *y_ptr = y.memptr();
-  const double *mu_ptr = mu.memptr();
-  const double *wt_ptr = wt.memptr();
+inline double dev_resids_logit(const vec &y, const vec &mu, const vec &wt) {
+  // Avoid log(0) using max()
+  // For y=0: y*log(max(y,1)/mu) = 0*log(1/mu) = 0
+  // For y=1: (1-y)*log(max(1-y,1)/(1-mu)) = 0*log(1/(1-mu)) = 0
+  const vec y_safe = arma::max(y, ones(size(y)));
+  const vec one_minus_y = 1.0 - y;
+  const vec y_inv_safe = arma::max(one_minus_y, ones(size(y)));
 
-  double sum = 0.0;
-  for (uword i = 0; i < n; ++i) {
-    double contrib = 0.0;
-    if (y_ptr[i] == 1.0) {
-      contrib = y_ptr[i] * std::log(y_ptr[i] / mu_ptr[i]);
-    } else if (y_ptr[i] == 0.0) {
-      contrib =
-          (1.0 - y_ptr[i]) * std::log((1.0 - y_ptr[i]) / (1.0 - mu_ptr[i]));
-    }
-    sum += wt_ptr[i] * contrib;
-  }
-  return 2.0 * sum;
+  return 2.0 * accu(wt % (y % log(y_safe / mu) +
+                          one_minus_y % log(y_inv_safe / (1.0 - mu))));
 }
 
-double dev_resids_gamma(const vec &y, const vec &mu, const vec &wt) {
-  vec r = y / mu;
-
-  uvec p = find(y == 0);
-  r.elem(p).fill(1.0);
-  r = wt % (log(r) - (y - mu) / mu);
-
-  return -2 * accu(r);
+inline double dev_resids_gamma(const vec &y, const vec &mu, const vec &wt) {
+  // Use max(y/mu, 1) when y=0 to avoid log(0)
+  const vec r_val = arma::max(y / mu, ones(size(y)));
+  return -2.0 * accu(wt % (log(r_val) - (y - mu) / mu));
 }
 
-double dev_resids_invgaussian(const vec &y, const vec &mu, const vec &wt) {
-  return dot(wt, square(y - mu) / (y % square(mu)));
+inline double dev_resids_invgaussian(const vec &y, const vec &mu,
+                                     const vec &wt) {
+  return accu(wt % square(y - mu) / (y % square(mu)));
 }
 
-double dev_resids_negbin(const vec &y, const vec &mu, const double &theta,
-                         const vec &wt) {
-  vec r = y;
+inline double dev_resids_negbin(const vec &y, const vec &mu,
+                                const double &theta, const vec &wt) {
+  // Use max(y, 1) to avoid log(0) when y < 1
+  const vec y_safe = arma::max(y, ones(size(y)));
+  const vec y_plus_theta = y + theta;
 
-  uvec p = find(y < 1);
-  r.elem(p).fill(1.0);
-  r = wt % (y % log(r / mu) - (y + theta) % log((y + theta) / (mu + theta)));
-
-  return 2 * accu(r);
+  return 2.0 * accu(wt % (y % log(y_safe / mu) -
+                          y_plus_theta % log(y_plus_theta / (mu + theta))));
 }
 
-vec variance_gaussian(const vec &mu) { return ones<vec>(mu.n_elem); }
+inline vec variance_gaussian(const vec &mu) { return ones(size(mu)); }
 
 vec link_inv(const vec &eta, const Family family_type) {
-  vec result(eta.n_elem);
-
   switch (family_type) {
   case GAUSSIAN:
-    result = link_inv_gaussian(eta);
-    break;
+    return link_inv_gaussian(eta);
   case POISSON:
-    result = link_inv_poisson(eta);
-    break;
+    return link_inv_poisson(eta);
   case BINOMIAL:
-    result = link_inv_logit(eta);
-    break;
+    return link_inv_logit(eta);
   case GAMMA:
-    result = link_inv_gamma(eta);
-    break;
+    return link_inv_gamma(eta);
   case INV_GAUSSIAN:
-    result = link_inv_invgaussian(eta);
-    break;
+    return link_inv_invgaussian(eta);
   case NEG_BIN:
-    result = link_inv_negbin(eta);
-    break;
+    return link_inv_negbin(eta);
   default:
     stop("Unknown family");
   }
-
-  return result;
+  return eta; // Unreachable, but avoids compiler warning
 }
 
 double dev_resids(const vec &y, const vec &mu, const double &theta,
@@ -251,6 +225,9 @@ double dev_resids(const vec &y, const vec &mu, const double &theta,
 }
 
 bool valid_eta(const vec &eta, const Family family_type) {
+  if (!eta.is_finite())
+    return false;
+
   switch (family_type) {
   case GAUSSIAN:
   case POISSON:
@@ -258,80 +235,72 @@ bool valid_eta(const vec &eta, const Family family_type) {
   case NEG_BIN:
     return true;
   case GAMMA:
-    return eta.is_finite() && all(eta != 0.0);
+    return all(eta != 0.0);
   case INV_GAUSSIAN:
-    return eta.is_finite() && all(eta > 0.0);
+    return eta.min() > 0.0;
   default:
     stop("Unknown family");
   }
+  return false; // Unreachable
 }
 
 bool valid_mu(const vec &mu, const Family family_type) {
+  if (!mu.is_finite())
+    return false;
+
   switch (family_type) {
   case GAUSSIAN:
+  case INV_GAUSSIAN:
     return true;
   case POISSON:
   case NEG_BIN:
-    return mu.is_finite() && all(mu > 0);
-  case BINOMIAL:
-    return mu.is_finite() && all(mu > 0 && mu < 1);
   case GAMMA:
-    return mu.is_finite() && all(mu > 0.0);
-  case INV_GAUSSIAN:
-    return true;
+    return mu.min() > 0.0;
+  case BINOMIAL:
+    return mu.min() > 0.0 && mu.max() < 1.0;
   default:
     stop("Unknown family");
   }
+  return false; // Unreachable
 }
 
-vec inverse_link_derivative(const vec &eta, const Family family_type) {
-  const uword n = eta.n_elem;
-  vec result(n);
-  double *r = result.memptr();
-  const double *e = eta.memptr();
+///////////////////////////////////////////////////////////////////////////
+// Inverse link derivatives
+///////////////////////////////////////////////////////////////////////////
 
+vec inverse_link_derivative(const vec &eta, const Family family_type) {
   switch (family_type) {
   case GAUSSIAN:
-    result.ones();
-    break;
+    return ones(size(eta));
   case POISSON:
   case NEG_BIN:
-    for (uword i = 0; i < n; ++i) {
-      r[i] = std::exp(e[i]);
-    }
-    break;
-  case BINOMIAL:
-    for (uword i = 0; i < n; ++i) {
-      double exp_eta = std::exp(e[i]);
-      double denom = 1.0 + exp_eta;
-      r[i] = exp_eta / (denom * denom);
-    }
-    break;
+    return exp(eta);
+  case BINOMIAL: {
+    // d/d(eta) [1/(1+exp(-eta))] = exp(eta)/(1+exp(eta))^2
+    const vec exp_eta = exp(eta);
+    const vec denom = 1.0 + exp_eta;
+    return exp_eta / square(denom);
+  }
   case GAMMA:
-    for (uword i = 0; i < n; ++i) {
-      r[i] = -1.0 / (e[i] * e[i]);
-    }
-    break;
+    // d/d(eta) [1/eta] = -1/eta^2
+    return -1.0 / square(eta);
   case INV_GAUSSIAN:
-    for (uword i = 0; i < n; ++i) {
-      r[i] = -1.0 / (2.0 * std::pow(e[i], 1.5));
-    }
-    break;
+    // d/d(eta) [1/sqrt(eta)] = -0.5 * eta^(-1.5)
+    return -0.5 / pow(eta, 1.5);
   default:
     stop("Unknown family");
   }
-
-  return result;
+  return vec(); // Unreachable
 }
 
 vec variance(const vec &mu, const double &theta, const Family family_type) {
   switch (family_type) {
   case GAUSSIAN:
-    return ones<vec>(mu.n_elem);
+    return ones(size(mu));
   case POISSON:
     return mu;
   case BINOMIAL:
-    return mu % (1 - mu);
+    return mu % (1.0 - mu);
   case GAMMA:
     return square(mu);
   case INV_GAUSSIAN:
@@ -341,41 +310,42 @@ vec variance(const vec &mu, const double &theta, const Family family_type) {
   default:
     stop("Unknown family");
   }
+  return vec(); // Unreachable
 }
 
-// Compute clustered sandwich covariance matrix
+///////////////////////////////////////////////////////////////////////////
+// Clustered covariance matrix (Sandwich estimator)
+///////////////////////////////////////////////////////////////////////////
+
 // MX: centered design matrix (n x p)
 // y: response vector (n)
 // mu: fitted values (n)
 // H: Hessian matrix (p x p), i.e., MX' W MX
 // cluster_groups: indices for each cluster
 // Returns: sandwich covariance matrix (p x p)
+
 mat compute_sandwich_vcov(const mat &MX, const vec &y, const vec &mu,
                           const mat &H, const field<uvec> &cluster_groups) {
   const uword p = MX.n_cols;
   const uword G = cluster_groups.n_elem;
 
-  // Compute H^{-1}
+  // Bread: H^{-1}
+
   mat H_inv;
   bool success = inv_sympd(H_inv, H);
   if (!success) {
-    // Fall back to regular inverse
     success = inv(H_inv, H);
     if (!success) {
       return mat(p, p, fill::value(datum::inf));
     }
   }
 
-  // Compute residuals (scores for Poisson with log-link are X * (y - mu))
-  vec resid = y - mu;
+  const vec resid = y - mu;
 
-  // Compute score matrix: each row is MX_i * resid_i
-  mat scores = MX.each_col() % resid; // element-wise: MX[i,j] * resid[i]
+  const double adj = (G > 1) ? static_cast<double>(G) / (G - 1.0) : 1.0;
 
-  // Cluster adjustment factor: G / (G - 1)
-  double adj = (G > 1) ? static_cast<double>(G) / (G - 1.0) : 1.0;
+  // Meat: B = adj * sum_g (sum_i in g s_i)' * (sum_i in g s_i)
 
-  // Compute meat: B = adj * sum_g (sum_i in g s_i)' * (sum_i in g s_i)
   mat B(p, p, fill::zeros);
 
   for (uword g = 0; g < G; ++g) {
@@ -383,51 +353,33 @@ mat compute_sandwich_vcov(const mat &MX, const vec &y, const vec &mu,
     if (idx.n_elem == 0)
       continue;
 
-    // Sum scores within cluster
-    vec cluster_score = sum(scores.rows(idx), 0).t();
+    const vec cluster_score = MX.rows(idx).t() * resid.elem(idx);
 
-    // Outer product
     B += cluster_score * cluster_score.t();
   }
 
   B *= adj;
 
-  // Sandwich: V = H^{-1} B H^{-1}
-  mat V = H_inv * B * H_inv;
-
-  return V;
+  // Sandwich: V = H^{-1} B H^{-1} or bread * meat * bread
+  return H_inv * B * H_inv;
 }
 
 mat group_sums(const mat &M, const mat &w, const field<uvec> &group_indices) {
-  const uword J = group_indices.n_elem, P = M.n_cols;
+  const uword J = group_indices.n_elem;
+  const uword P = M.n_cols;
 
-  mat b(P, 1, fill::zeros);
-  double *b_ptr = b.memptr();
+  vec b(P, fill::zeros);
 
   for (uword j = 0; j < J; ++j) {
-    const uvec &indexes = group_indices(j);
-    const uword n_idx = indexes.n_elem;
-    const uword *idx_ptr = indexes.memptr();
+    const uvec &idx = group_indices(j);
+    if (idx.n_elem == 0)
+      continue;
 
-    // Compute denominator directly
-    double denom = 0.0;
-    for (uword t = 0; t < n_idx; ++t) {
-      denom += w(idx_ptr[t]);
-    }
-
+    const double denom = accu(w.elem(idx));
     if (denom == 0.0)
       continue;
-    double inv_denom = 1.0 / denom;
 
-    // Accumulate group sums for each column
-    for (uword p = 0; p < P; ++p) {
-      const double *col_ptr = M.colptr(p);
-      double col_sum = 0.0;
-      for (uword t = 0; t < n_idx; ++t) {
-        col_sum += col_ptr[idx_ptr[t]];
-      }
-      b_ptr[p] += col_sum * inv_denom;
-    }
+    b += sum(M.rows(idx), 0).t() / denom;
   }
 
   return b;
@@ -435,30 +387,33 @@ mat group_sums(const mat &M, const mat &w, const field<uvec> &group_indices) {
 
 mat group_sums_spectral(const mat &M, const mat &v, const mat &w,
                         const size_t K, const field<uvec> &group_indices) {
-  const uword J = group_indices.n_elem, K1 = K, P = M.n_cols;
+  const uword J = group_indices.n_elem;
+  const uword K1 = K;
+  const uword P = M.n_cols;
 
-  vec num(P, fill::none), v_shifted;
-  mat b(P, 1, fill::zeros);
-  double denom;
+  vec b(P, fill::zeros);
 
   for (uword j = 0; j < J; ++j) {
-    const uvec &indexes = group_indices(j);
-    const uword I = indexes.n_elem;
+    const uvec &idx = group_indices(j);
+    const uword I = idx.n_elem;
 
     if (I <= 1)
       continue;
 
-    num.fill(0.0);
-    denom = accu(w.elem(indexes));
+    const double denom = accu(w.elem(idx));
+    if (denom == 0.0)
+      continue;
 
-    v_shifted.zeros(I);
-    for (uword k = 1; k <= K1 && k < I; ++k) {
-      for (uword i = 0; i < I - k; ++i) {
-        v_shifted(i + k) += v(indexes(i));
-      }
+    const vec v_group = v.elem(idx);
+
+    vec v_shifted(I, fill::zeros);
+    const uword max_k = std::min(K1, I - 1);
+    for (uword k = 1; k <= max_k; ++k) {
+      v_shifted.tail(I - k) += v_group.head(I - k);
     }
 
-    num = M.rows(indexes).t() * (v_shifted * (I / (I - 1.0)));
+    const vec num =
+        M.rows(idx).t() * (v_shifted * (static_cast<double>(I) / (I - 1.0)));
     b += num / denom;
   }
 
@@ -469,11 +424,14 @@ mat group_sums_var(const mat &M, const field<uvec> &group_indices) {
   const uword J = group_indices.n_elem;
   const uword P = M.n_cols;
 
-  mat v(P, 1, fill::none), V(P, P, fill::zeros);
+  mat V(P, P, fill::zeros);
 
   for (uword j = 0; j < J; ++j) {
-    const uvec &indexes = group_indices(j);
-    v = sum(M.rows(indexes), 0).t();
+    const uvec &idx = group_indices(j);
+    if (idx.n_elem == 0)
+      continue;
+
+    const vec v = sum(M.rows(idx), 0).t();
     V += v * v.t();
   }
 
@@ -488,13 +446,12 @@ mat group_sums_cov(const mat &M, const mat &N,
   mat V(P, P, fill::zeros);
 
   for (uword j = 0; j < J; ++j) {
-    const uvec &indexes = group_indices(j);
+    const uvec &idx = group_indices(j);
 
-    if (indexes.n_elem < 2) {
+    if (idx.n_elem < 2)
       continue;
-    }
 
-    V += M.rows(indexes).t() * N.rows(indexes);
+    V += M.rows(idx).t() * N.rows(idx);
   }
 
   return V;

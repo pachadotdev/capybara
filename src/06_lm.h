@@ -1,17 +1,8 @@
 // Linear model with fixed effects Y = alpha + X beta
-
 #ifndef CAPYBARA_LM_H
 #define CAPYBARA_LM_H
 
 namespace capybara {
-
-// Get block size for cache-friendly indexed scatter operations
-inline uword get_block_size_lm(uword n, uword k) {
-  constexpr uword L1_CACHE = 32768;
-  constexpr uword element_size = sizeof(double) + sizeof(uword);
-  return std::max(static_cast<uword>(1000),
-                  std::min(n, L1_CACHE / (k * element_size)));
-}
 
 struct InferenceLM {
   mat coef_table; // Coefficient table: [estimate, std.error, z, p-value]
@@ -27,7 +18,7 @@ struct InferenceLM {
   bool has_fe = true;
   uvec iterations;
 
-  mat TX; // Centered design matrix
+  mat TX; // Centered design matrix T(X)
   double r_squared;
   double adj_r_squared;
   bool has_tx = false;
@@ -46,15 +37,7 @@ struct FelmWorkspace {
   vec pi;
   mat X_original;
   vec y_original;
-
-  mat XtX;
-  vec XtY;
-  mat L;
-  vec beta_work;
-
-  vec y;
-  vec alpha0;
-  vec group_sums;
+  vec scratch;
 
   uword cached_N, cached_P;
   bool is_initialized;
@@ -63,56 +46,36 @@ struct FelmWorkspace {
 
   FelmWorkspace(uword N, uword P)
       : cached_N(N), cached_P(P), is_initialized(true) {
-    uword safe_N = std::max(N, uword(1));
-    uword safe_P = std::max(P, uword(1));
+    const uword safe_N = std::max(N, uword(1));
+    const uword safe_P = std::max(P, uword(1));
 
     y_demeaned.set_size(safe_N);
     x_beta.set_size(safe_N);
     pi.set_size(safe_N);
     X_original.set_size(safe_N, safe_P);
     y_original.set_size(safe_N);
-
-    XtX.set_size(safe_P, safe_P);
-    XtY.set_size(safe_P);
-    L.set_size(safe_P, safe_P);
-    beta_work.set_size(safe_P);
-
-    y.set_size(safe_N);
-    alpha0.set_size(safe_N);
-    group_sums.set_size(safe_N);
+    scratch.set_size(safe_N);
   }
 
   void ensure_size(uword N, uword P) {
     if (!is_initialized || N > cached_N || P > cached_P) {
-      uword new_N = std::max(N, cached_N);
-      uword new_P = std::max(P, cached_P);
+      const uword new_N = std::max(N, cached_N);
+      const uword new_P = std::max(P, cached_P);
 
+      // Resize only if necessary
       if (y_demeaned.n_elem < new_N)
         y_demeaned.set_size(new_N);
       if (x_beta.n_elem < new_N)
         x_beta.set_size(new_N);
       if (pi.n_elem < new_N)
         pi.set_size(new_N);
-      if (X_original.n_rows < new_N || X_original.n_cols < new_P)
+      if (scratch.n_elem < new_N)
+        scratch.set_size(new_N);
+      if (X_original.n_rows < new_N || X_original.n_cols < new_P) {
         X_original.set_size(new_N, new_P);
+      }
       if (y_original.n_elem < new_N)
         y_original.set_size(new_N);
-
-      if (XtX.n_rows < new_P || XtX.n_cols < new_P)
-        XtX.set_size(new_P, new_P);
-      if (XtY.n_elem < new_P)
-        XtY.set_size(new_P);
-      if (L.n_rows < new_P || L.n_cols < new_P)
-        L.set_size(new_P, new_P);
-      if (beta_work.n_elem < new_P)
-        beta_work.set_size(new_P);
-
-      if (y.n_elem < new_N)
-        y.set_size(new_N);
-      if (alpha0.n_elem < new_N)
-        alpha0.set_size(new_N);
-      if (group_sums.n_elem < new_N)
-        group_sums.set_size(new_N);
 
       cached_N = new_N;
       cached_P = new_P;
@@ -128,57 +91,81 @@ struct FelmWorkspace {
     pi.reset();
     X_original.reset();
     y_original.reset();
-    XtX.reset();
-    XtY.reset();
-    L.reset();
-    beta_work.reset();
-    y.reset();
-    alpha0.reset();
-    group_sums.reset();
+    scratch.reset();
     cached_N = 0;
     cached_P = 0;
     is_initialized = false;
   }
 };
 
+// Precompute observation-to-group mapping
+struct FEAccumInfo {
+  uvec obs_to_group;
+  uword n_groups;
+};
+
+inline field<FEAccumInfo>
+precompute_fe_accum_info(const field<field<uvec>> &fe_groups, uword N) {
+  const uword K = fe_groups.n_elem;
+  field<FEAccumInfo> info(K);
+
+  for (uword k = 0; k < K; ++k) {
+    const uword J = fe_groups(k).n_elem;
+    info(k).n_groups = J;
+    info(k).obs_to_group.set_size(N);
+
+    for (uword j = 0; j < J; ++j) {
+      info(k).obs_to_group.elem(fe_groups(k)(j)).fill(j);
+    }
+  }
+  return info;
+}
+
+// Fixed effects accumulation
+inline void
+accumulate_fixed_effects_vectorized(vec &fitted_values,
+                                    const field<vec> &fixed_effects,
+                                    const field<FEAccumInfo> &fe_info) {
+  const uword K = fe_info.n_elem;
+
+  for (uword k = 0; k < K; ++k) {
+    fitted_values += fixed_effects(k).elem(fe_info(k).obs_to_group);
+  }
+}
+
+// Fallback for when precomputed info isn't available
 inline void accumulate_fixed_effects(vec &fitted_values,
                                      const field<vec> &fixed_effects,
                                      const field<field<uvec>> &fe_groups) {
   const uword K = fe_groups.n_elem;
-  double *fitted_ptr = fitted_values.memptr();
+  const uword N = fitted_values.n_elem;
 
   for (uword k = 0; k < K; ++k) {
     const uword J = fe_groups(k).n_elem;
     const vec &fe_k = fixed_effects(k);
-    const double *fe_ptr = fe_k.memptr();
 
+    uvec obs_to_group(N);
     for (uword j = 0; j < J; ++j) {
-      const uvec &group_idx = fe_groups(k)(j);
-      const double fe_value = fe_ptr[j];
-      const uword group_size = group_idx.n_elem;
-      const uword *idx_ptr = group_idx.memptr();
-
-      for (uword t = 0; t < group_size; ++t) {
-        fitted_ptr[idx_ptr[t]] += fe_value;
-      }
+      obs_to_group.elem(fe_groups(k)(j)).fill(j);
     }
+
+    fitted_values += fe_k.elem(obs_to_group);
   }
 }
 
-inline void fitted_values(FelmWorkspace *ws, InferenceLM &result,
-                          const CollinearityResult &collin_result,
-                          const field<field<uvec>> &fe_groups,
-                          const CapybaraParameters &params) {
+inline void compute_fitted_values(FelmWorkspace *ws, InferenceLM &result,
+                                  const CollinearityResult &collin_result,
+                                  const field<field<uvec>> &fe_groups,
+                                  const CapybaraParameters &params) {
   const uword N = ws->y_original.n_elem;
+  const vec &coef = result.coef_table.col(0);
 
   if (collin_result.has_collinearity &&
       !collin_result.non_collinear_cols.is_empty()) {
-    auto X_sub = ws->X_original.cols(collin_result.non_collinear_cols);
-    vec coef_full = result.coef_table.col(0);
-    vec coef_sub = coef_full.elem(collin_result.non_collinear_cols);
-    ws->x_beta = X_sub * coef_sub;
+    const uvec &cols = collin_result.non_collinear_cols;
+    ws->x_beta = ws->X_original.cols(cols) * coef.elem(cols);
   } else if (!collin_result.has_collinearity && ws->X_original.n_cols > 0) {
-    ws->x_beta = ws->X_original * result.coef_table.col(0);
+    ws->x_beta = ws->X_original * coef;
   } else {
     ws->x_beta.zeros(N);
   }
@@ -186,6 +173,7 @@ inline void fitted_values(FelmWorkspace *ws, InferenceLM &result,
   const bool has_fixed_effects = fe_groups.n_elem > 0;
 
   if (has_fixed_effects) {
+    // Vectorized residual pi = y - X*beta
     ws->pi = ws->y_original - ws->x_beta;
 
     result.fixed_effects =
@@ -198,6 +186,45 @@ inline void fitted_values(FelmWorkspace *ws, InferenceLM &result,
                              fe_groups);
   } else {
     result.fitted_values = ws->x_beta;
+  }
+}
+
+inline void compute_r_squared(InferenceLM &result, const vec &y,
+                              const vec &residuals, const vec &w, uword n_coef,
+                              const field<field<uvec>> &fe_groups) {
+  const uword N = y.n_elem;
+  const double y_mean = dot(w, y) / accu(w);
+
+  const vec y_centered = y - y_mean;
+
+  const double tss = dot(w % y_centered, y_centered);
+  const double rss = dot(w % residuals, residuals);
+
+  result.r_squared = (tss > 1e-12) ? (1.0 - rss / tss) : 0.0;
+
+  uword k = n_coef;
+  const uword K = fe_groups.n_elem;
+  for (uword j = 0; j < K; ++j) {
+    k += fe_groups(j).n_elem - 1;
+  }
+
+  const double denom = std::max(1.0, static_cast<double>(N - k));
+  result.adj_r_squared =
+      1.0 - (1.0 - result.r_squared) * (static_cast<double>(N - 1)) / denom;
+}
+
+// Expand reduced vcov matrix to full size accounting for collinearity
+inline void expand_vcov(mat &vcov_full, const mat &vcov_reduced,
+                        const uvec &non_collinear_cols, uword n_coef) {
+  vcov_full.set_size(n_coef, n_coef);
+  vcov_full.fill(datum::nan);
+
+  const uword n_idx = non_collinear_cols.n_elem;
+  for (uword j = 0; j < n_idx; ++j) {
+    const uword col_j = non_collinear_cols(j);
+    for (uword i = 0; i < n_idx; ++i) {
+      vcov_full(non_collinear_cols(i), col_j) = vcov_reduced(i, j);
+    }
   }
 }
 
@@ -215,7 +242,6 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
   FelmWorkspace local_workspace;
   FelmWorkspace *ws = workspace ? workspace : &local_workspace;
   ws->ensure_size(N, P);
-
   ws->y_original = y;
 
   const bool has_fixed_effects = fe_groups.n_elem > 0;
@@ -223,17 +249,13 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
 
   // Add intercept column if no fixed effects
   if (!has_fixed_effects) {
-    mat X_with_intercept(N, P + 1);
-    X_with_intercept.col(0).ones(); // Intercept column
-    if (P > 0) {
-      X_with_intercept.cols(1, P) = X;
-    }
-    X = X_with_intercept;
+    X = join_horiz(ones<vec>(N), X);
   }
 
   ws->X_original = X;
 
-  bool use_weights = !all(w == 1.0);
+  const bool use_weights = any(w != 1.0);
+
   CollinearityResult collin_result =
       check_collinearity(X, w, use_weights, params.collin_tol);
 
@@ -265,112 +287,65 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
   InferenceBeta beta_result = get_beta(X, ws->y_demeaned, ws->y_demeaned, w,
                                        collin_result, false, false, nullptr);
 
-  // Resize coef_table if needed (for collinearity handling)
-  uword n_coef = beta_result.coefficients.n_elem;
+  const uword n_coef = beta_result.coefficients.n_elem;
   if (result.coef_table.n_rows != n_coef) {
     result.coef_table.set_size(n_coef, 4);
   }
 
-  result.coef_table.col(0) =
-      beta_result.coefficients; // Store coefficients in first column
+  result.coef_table.col(0) = beta_result.coefficients;
   result.coef_status = std::move(collin_result.coef_status);
   result.hessian = std::move(beta_result.hessian);
-  result.success = std::move(beta_result.success);
+  result.success = beta_result.success;
 
-  fitted_values(ws, result, collin_result, fe_groups, params);
+  compute_fitted_values(ws, result, collin_result, fe_groups, params);
 
   result.residuals = ws->y_original - result.fitted_values;
 
-  // Compute R-squared and adjusted R-squared
-  const double y_mean = mean(ws->y_original);
-  const uword n_obs = ws->y_original.n_elem;
-  const double *y_ptr = ws->y_original.memptr();
-  const double *resid_ptr = result.residuals.memptr();
-  const double *w_ptr = w.memptr();
+  compute_r_squared(result, ws->y_original, result.residuals, w, n_coef,
+                    fe_groups);
 
-  double tss = 0.0, rss = 0.0;
-  for (uword i = 0; i < n_obs; ++i) {
-    double y_centered = y_ptr[i] - y_mean;
-    tss += w_ptr[i] * y_centered * y_centered;
-    rss += w_ptr[i] * resid_ptr[i] * resid_ptr[i];
-  }
-  result.r_squared = 1.0 - (rss / tss);
-
-  // Adjusted R-squared: account for parameters
-  // For models without fixed effects: X has P columns (original regressors) +
-  // intercept For models with fixed effects: X has P columns + sum(J_k - 1) FE
-  // parameters where J_k is the number of groups in dimension k Note: n_coef
-  // already includes the intercept when no FEs (added earlier in code)
-  uword k = n_coef; // Number of coefficients estimated
-  if (has_fixed_effects) {
-    for (uword j = 0; j < fe_groups.n_elem; ++j) {
-      // Each FE dimension costs J-1 degrees of freedom (one level is reference)
-      k += fe_groups(j).n_elem - 1;
-    }
-  }
-  result.adj_r_squared = 1.0 - (1.0 - result.r_squared) *
-                                   (static_cast<double>(N - 1)) /
-                                   std::max(1.0, static_cast<double>(N - k));
-
-  // Compute covariance matrix
   mat vcov_reduced;
+  const double rss = dot(w % result.residuals, result.residuals);
+
   if (cluster_groups != nullptr && cluster_groups->n_elem > 0) {
-    // Sandwich covariance for clustered standard errors
     vcov_reduced =
         compute_sandwich_vcov(X, ws->y_original, result.fitted_values,
                               result.hessian, *cluster_groups);
   } else {
-    // Standard inverse Hessian covariance: (X'WX)^{-1} * σ²
     mat H_inv;
-    bool success = inv_sympd(H_inv, result.hessian);
+    bool success = inv(H_inv, result.hessian);
     if (!success) {
-      success = inv(H_inv, result.hessian);
-      if (!success) {
-        H_inv = mat(result.hessian.n_rows, result.hessian.n_cols,
-                    fill::value(datum::inf));
-      }
+      H_inv.set_size(result.hessian.n_rows, result.hessian.n_cols);
+      H_inv.fill(datum::inf);
     }
 
-    // Scale by residual variance σ² = RSS / (n - p)
-    double sigma2 = rss / std::max(1.0, static_cast<double>(N - P));
-    vcov_reduced = H_inv * sigma2;
+    const double sigma2 = rss / std::max(1.0, static_cast<double>(N - P));
+    vcov_reduced = sigma2 * H_inv;
   }
 
-  // Expand vcov to full size if there's collinearity
+  // Expand vcov if there's collinearity
   if (collin_result.has_collinearity &&
       collin_result.non_collinear_cols.n_elem > 0) {
-    result.vcov.set_size(n_coef, n_coef);
-    result.vcov.fill(datum::nan);
-    // Fill in the non-collinear part
-    uvec idx = collin_result.non_collinear_cols;
-    for (uword i = 0; i < idx.n_elem; ++i) {
-      for (uword j = 0; j < idx.n_elem; ++j) {
-        result.vcov(idx(i), idx(j)) = vcov_reduced(i, j);
-      }
-    }
+    expand_vcov(result.vcov, vcov_reduced, collin_result.non_collinear_cols,
+                n_coef);
   } else {
     result.vcov = std::move(vcov_reduced);
   }
 
-  // Compute coefficient table: [estimate, std.error, z, p-value]
-  // This computation is done here so R only needs to format the results
-  vec se = sqrt(diagvec(result.vcov));
-  vec coefficients = result.coef_table.col(0);
-  vec z_values = coefficients / se;
+  // Coefficients table
+  const vec se = sqrt(diagvec(result.vcov));
+  const vec &coefficients = result.coef_table.col(0);
+  const vec z_values = coefficients / se;
 
-  result.coef_table.col(1) = se;                            // Std. Error
-  result.coef_table.col(2) = z_values;                      // z value
-  result.coef_table.col(3) = 2.0 * normcdf(-abs(z_values)); // p-value
+  result.coef_table.col(1) = se;
+  result.coef_table.col(2) = z_values;
+  result.coef_table.col(3) = 2.0 * normcdf(-abs(z_values));
 
   // Mark collinear coefficients as NaN
   if (collin_result.has_collinearity) {
-    uvec collinear_idx = find(result.coef_status == 0);
+    const uvec collinear_idx = find(result.coef_status == 0);
     for (uword i = 0; i < collinear_idx.n_elem; ++i) {
-      uword idx = collinear_idx(i);
-      result.coef_table(idx, 0) = datum::nan; // Estimate
-      result.coef_table(idx, 1) = datum::nan; // Std. Error
-      result.coef_table(idx, 2) = datum::nan; // z value
-      result.coef_table(idx, 3) = datum::nan; // p-value
+      result.coef_table.row(collinear_idx(i)).fill(datum::nan);
     }
   }
 

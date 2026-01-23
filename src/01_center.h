@@ -1,10 +1,46 @@
-// Symmetric Kaczmarz centering with CG acceleration (reghdfe-style)
-
+// Centering using observation-to-group mapping
 #ifndef CAPYBARA_CENTER_H
 #define CAPYBARA_CENTER_H
 
 namespace capybara {
-// Store group information
+
+// Observation-to-group mapping
+struct ObsToGroupMapping {
+  field<uvec>
+      obs_to_group; // obs_to_group[k](i) = group index for obs i in FE k
+  field<vec> group_inv_weights; // Precomputed 1/sum(weights) per group
+  uword n_obs;
+  uword K;
+
+  void build(const field<field<uvec>> &group_indices, const vec &w) {
+    K = group_indices.n_elem;
+    n_obs = w.n_elem;
+
+    obs_to_group.set_size(K);
+    group_inv_weights.set_size(K);
+
+    for (uword k = 0; k < K; ++k) {
+      const field<uvec> &fe_groups = group_indices(k);
+      const uword n_groups = fe_groups.n_elem;
+
+      obs_to_group(k).set_size(n_obs);
+      group_inv_weights(k).set_size(n_groups);
+
+      // Build observation -> group mapping
+      for (uword g = 0; g < n_groups; ++g) {
+        const uvec &group_obs = fe_groups(g);
+        for (uword j = 0; j < group_obs.n_elem; ++j) {
+          obs_to_group(k)(group_obs(j)) = g;
+        }
+
+        // Precompute inverse weights
+        double sum_w = accu(w.elem(group_obs));
+        group_inv_weights(k)(g) = (sum_w > 0.0) ? (1.0 / sum_w) : 0.0;
+      }
+    }
+  }
+};
+
 struct GroupInfo {
   const uvec *coords;
   double inv_weight;
@@ -12,298 +48,279 @@ struct GroupInfo {
   bool is_singleton;
 };
 
-// Workspace for centering to avoid repeated allocations
 struct CenteringWorkspace {
-  vec x;       // Current solution
-  vec x0;      // Previous iteration
-  vec Gx;      // After one projection
-  vec GGx;     // After two projections
-  vec Y;       // Grand accel history 1
-  vec GY;      // Grand accel history 2
-  vec GGY;     // Grand accel history 3
-  vec delta_G; // Workspace for acceleration
-  vec delta2;  // Workspace for acceleration
-  uword cached_n;
-  bool is_initialized;
+  mat Alpha;      // Current coefficients (total_groups x P)
+  mat Alpha_prev; // Previous iteration
 
-  CenteringWorkspace() : cached_n(0), is_initialized(false) {}
+  // Acceleration history
+  mat IT_X, IT_GX, IT_GGX;
 
-  void ensure_size(uword n) {
-    if (!is_initialized || n > cached_n) {
-      x.set_size(n);
-      x0.set_size(n);
-      Gx.set_size(n);
-      GGx.set_size(n);
-      Y.set_size(n);
-      GY.set_size(n);
-      GGY.set_size(n);
-      delta_G.set_size(n);
-      delta2.set_size(n);
-      cached_n = n;
-      is_initialized = true;
+  void ensure_size(uword m, uword p) {
+    if (Alpha.n_rows != m || Alpha.n_cols != p) {
+      Alpha.set_size(m, p);
+      Alpha_prev.set_size(m, p);
+      IT_X.set_size(m, p);
+      IT_GX.set_size(m, p);
+      IT_GGX.set_size(m, p);
     }
   }
 
   void clear() {
-    x.reset();
-    x0.reset();
-    Gx.reset();
-    GGx.reset();
-    Y.reset();
-    GY.reset();
-    GGY.reset();
-    delta_G.reset();
-    delta2.reset();
-    cached_n = 0;
-    is_initialized = false;
+    Alpha.zeros();
+    Alpha_prev.zeros();
   }
 };
 
-// Precompute group information for all variables
+// Precompute group information
 inline field<field<GroupInfo>>
 precompute_group_info(const field<field<uvec>> &group_indices, const vec &w) {
   const uword K = group_indices.n_elem;
-  const double *w_ptr = w.memptr();
-
   field<field<GroupInfo>> group_info(K);
 
   for (uword k = 0; k < K; ++k) {
     const field<uvec> &fe_groups = group_indices(k);
-    group_info(k).set_size(fe_groups.n_elem);
+    const uword n_groups = fe_groups.n_elem;
+    group_info(k).set_size(n_groups);
 
-    for (uword l = 0; l < fe_groups.n_elem; ++l) {
+    for (uword l = 0; l < n_groups; ++l) {
       const uvec &coords = fe_groups(l);
-      GroupInfo info;
+      GroupInfo &info = group_info(k)(l);
       info.coords = &coords;
       info.n_elem = coords.n_elem;
 
-      // Count observations with non-zero weight and compute sum
-      double sum_w = 0.0;
-      uword n_nonzero = 0;
-      const uword *coord_ptr = coords.memptr();
-      for (uword i = 0; i < coords.n_elem; ++i) {
-        double w_i = w_ptr[coord_ptr[i]];
-        if (w_i > 0.0) {
-          sum_w += w_i;
-          n_nonzero++;
-        }
-      }
-
-      // A group is a singleton if it has <= 1 observation with non-zero weight
+      vec w_group = w.elem(coords);
+      uword n_nonzero = accu(w_group > 0.0);
       info.is_singleton = (n_nonzero <= 1);
 
-      if (!info.is_singleton && sum_w > 0.0) {
-        info.inv_weight = 1.0 / sum_w;
-      } else {
-        info.inv_weight = 0.0;
-      }
-
-      group_info(k)(l) = info;
+      double sum_w = accu(w_group);
+      info.inv_weight =
+          (info.is_singleton || sum_w <= 0.0) ? 0.0 : (1.0 / sum_w);
     }
   }
 
   return group_info;
 }
 
-// Weighted sum of squared values: sum(w * x^2)
-// Direct loop to avoid temporary from square()
-inline double weighted_quadsum(const vec &x, const vec &w) {
-  const uword n = x.n_elem;
-  const double *x_ptr = x.memptr();
-  const double *w_ptr = w.memptr();
-  double sum = 0.0;
-  for (uword i = 0; i < n; ++i) {
-    sum += w_ptr[i] * x_ptr[i] * x_ptr[i];
+// Update one fixed effect given all others - O(n)
+inline void project_one_fe(uword fe_idx, mat &alpha_all, const mat &V_residual,
+                           const vec &w, const ObsToGroupMapping &mapping,
+                           const field<uword> &group_offsets) {
+  const uword n_obs = mapping.n_obs;
+  const uword K = mapping.K;
+  const uword P = V_residual.n_cols;
+
+  const uvec &obs_to_g = mapping.obs_to_group(fe_idx);
+  const vec &inv_weights = mapping.group_inv_weights(fe_idx);
+  const uword offset = group_offsets(fe_idx);
+  const uword n_groups = inv_weights.n_elem;
+
+  // Initialize this FE's coefficients to zero
+  alpha_all.rows(offset, offset + n_groups - 1).zeros();
+
+  // Compute residuals by subtracting other FE contributions
+  mat residual = V_residual;
+  for (uword k = 0; k < K; ++k) {
+    if (k != fe_idx) {
+      const uvec &other_obs_to_g = mapping.obs_to_group(k);
+      const uword other_offset = group_offsets(k);
+
+      // Subtract contribution from FE k
+      for (uword i = 0; i < n_obs; ++i) {
+        residual.row(i) -= alpha_all.row(other_offset + other_obs_to_g(i));
+      }
+    }
   }
-  return sum;
+
+  // Accumulate weighted residuals into groups
+  const uword *p_obs_to_g = obs_to_g.memptr();
+  const double *p_w = w.memptr();
+
+  for (uword p = 0; p < P; ++p) {
+    const double *resid_col = residual.colptr(p);
+    double *alpha_col = alpha_all.colptr(p) + offset;
+
+    for (uword i = 0; i < n_obs; ++i) {
+      const double wi = p_w[i];
+      if (wi > 0.0) {
+        alpha_col[p_obs_to_g[i]] += resid_col[i] * wi;
+      }
+    }
+  }
+
+  // Vectorized normalization by inverse weights
+  alpha_all.rows(offset, offset + n_groups - 1).each_col() %= inv_weights;
 }
 
-// Safe division avoiding division by zero
-inline double safe_divide(double num, double denom) {
-  return (std::abs(denom) > 1e-14) ? (num / denom) : 0.0;
+// K-FE centering
+inline void center_fixest_kfe(mat &V, const vec &w,
+                              const field<field<uvec>> &group_indices,
+                              double tol, uword max_iter) {
+  const uword n_obs = V.n_rows;
+  const uword K = group_indices.n_elem;
+  const uword P = V.n_cols;
+
+  // Build observation-to-group mapping (once)
+  ObsToGroupMapping mapping;
+  mapping.build(group_indices, w);
+
+  // Group offsets
+  field<uword> group_offsets(K);
+  uword total_groups = 0;
+  for (uword k = 0; k < K; ++k) {
+    group_offsets(k) = total_groups;
+    total_groups += group_indices(k).n_elem;
+  }
+
+  // All FE coefficients stacked: [alpha_0; alpha_1; ...; alpha_{K-1}]
+  mat alpha_all(total_groups, P, fill::zeros);
+
+  // Cycle through FEs, updating each given the others
+  for (uword iter = 0; iter < max_iter; ++iter) {
+    mat alpha_old = alpha_all;
+
+    // Update each FE
+    for (int k = K - 1; k >= 0; --k) {
+      project_one_fe(k, alpha_all, V, w, mapping, group_offsets);
+    }
+
+    double diff = norm(alpha_all - alpha_old, "fro");
+    if (diff < tol) {
+      break;
+    }
+  }
+
+  // Apply final centering
+  for (uword i = 0; i < n_obs; ++i) {
+    for (uword k = 0; k < K; ++k) {
+      const uword g = mapping.obs_to_group(k)(i);
+      const uword offset = group_offsets(k);
+      V.row(i) -= alpha_all.row(offset + g);
+    }
+  }
 }
 
-// Project onto one FE group: subtract weighted mean
-// Returns the mean that was subtracted (the "projection component")
-inline double project_one_group(vec &v, const vec &w, const GroupInfo &info) {
+// Coefficient update
+inline void update_group_inplace(mat &r, rowvec &alpha_row,
+                                 const GroupInfo &info, const vec &w) {
   if (info.is_singleton)
-    return 0.0;
+    return;
 
   const uvec &coords = *info.coords;
-  const uword n = info.n_elem;
-  const uword *idx = coords.memptr();
-  double *v_ptr = v.memptr();
-  const double *w_ptr = w.memptr();
 
-  // Compute weighted sum with direct pointer access (no temporaries)
-  double weighted_sum = 0.0;
-  for (uword i = 0; i < n; ++i) {
-    const uword j = idx[i];
-    weighted_sum += w_ptr[j] * v_ptr[j];
+  if (info.inv_weight > 0.0) {
+    // Vectorized: alpha_row = sum(r[coords] .* w[coords]) * inv_weight
+    mat r_group = r.rows(coords);
+    vec w_group = w.elem(coords);
+
+    alpha_row = sum(r_group.each_col() % w_group, 0) * info.inv_weight;
+
+    r.rows(coords) -= repmat(alpha_row, coords.n_elem, 1);
+  } else {
+    alpha_row.zeros();
   }
-
-  double mean = weighted_sum * info.inv_weight;
-
-  // Subtract mean from all elements in group
-  for (uword i = 0; i < n; ++i) {
-    v_ptr[idx[i]] -= mean;
-  }
-
-  return mean;
 }
 
-// Symmetric Kaczmarz projection: applies P(y) in-place
-inline void apply_projection(vec &y, const vec &w,
-                             const field<field<GroupInfo>> &all_group_info) {
+// Single projection step
+inline void apply_projection(mat &r, mat &Alpha, const vec &w,
+                             const field<field<GroupInfo>> &all_group_info,
+                             const uvec &group_offsets, rowvec &work_row) {
   const uword K = all_group_info.n_elem;
 
-  // Forward pass: FE1, FE2, ..., FEK
+  // Forward pass
   for (uword k = 0; k < K; ++k) {
     const field<GroupInfo> &fe_info = all_group_info(k);
-    for (uword l = 0; l < fe_info.n_elem; ++l) {
-      project_one_group(y, w, fe_info(l));
+    const uword offset = group_offsets(k);
+    const uword n_groups = fe_info.n_elem;
+
+    for (uword l = 0; l < n_groups; ++l) {
+      update_group_inplace(r, work_row, fe_info(l), w);
+      Alpha.row(offset + l) += work_row;
     }
   }
 
-  // Backward pass: FE(K-1), ..., FE1 (symmetric Kaczmarz)
-  for (uword k = K; k-- > 1;) {
+  // Backward pass
+  for (uword k = K - 1; k > 0; --k) {
     const field<GroupInfo> &fe_info = all_group_info(k - 1);
-    for (uword l = 0; l < fe_info.n_elem; ++l) {
-      project_one_group(y, w, fe_info(l));
+    const uword offset = group_offsets(k - 1);
+    const uword n_groups = fe_info.n_elem;
+
+    for (uword l = 0; l < n_groups; ++l) {
+      update_group_inplace(r, work_row, fe_info(l), w);
+      Alpha.row(offset + l) += work_row;
     }
   }
 }
 
-// Single FE projection (simpler case)
-inline void apply_projection_single_fe(vec &y, const vec &w,
-                                       const field<GroupInfo> &fe_info) {
-  // Forward pass
-  for (uword l = 0; l < fe_info.n_elem; ++l) {
-    project_one_group(y, w, fe_info(l));
-  }
+// Update residuals from coefficient difference
+inline void apply_coef_diff(mat &r, const mat &diff_Alpha,
+                            const field<field<GroupInfo>> &all_group_info,
+                            const uvec &group_offsets) {
+  const uword K = all_group_info.n_elem;
 
-  // Backward pass (symmetric Kaczmarz)
-  for (uword l = 0; l < fe_info.n_elem; ++l) {
-    project_one_group(y, w, fe_info(l));
+  for (uword k = 0; k < K; ++k) {
+    const field<GroupInfo> &fe_info = all_group_info(k);
+    const uword offset = group_offsets(k);
+    const uword n_groups = fe_info.n_elem;
+
+    for (uword l = 0; l < n_groups; ++l) {
+      const GroupInfo &info = fe_info(l);
+      if (info.is_singleton)
+        continue;
+
+      const uvec &coords = *info.coords;
+      const rowvec &d_row = diff_Alpha.row(offset + l);
+
+      r.rows(coords) -= repmat(d_row, coords.n_elem, 1);
+    }
   }
 }
 
-// Irons-Tuck acceleration: extrapolate using two successive projections
-// Returns true if converged
-// Uses workspace vectors to avoid allocations
-inline bool irons_tuck_acceleration(vec &x, const vec &Gx, const vec &GGx,
-                                    vec &delta_G_ws, vec &delta2_ws,
-                                    double tol) {
-  const uword n = x.n_elem;
-  double *dG = delta_G_ws.memptr();
-  double *d2 = delta2_ws.memptr();
-  const double *x_ptr = x.memptr();
-  const double *Gx_ptr = Gx.memptr();
-  const double *GGx_ptr = GGx.memptr();
+// Irons-Tuck acceleration
+inline bool irons_tuck_accel(const mat &X, const mat &GX, const mat &GGX,
+                             mat &Alpha_out, double tol) {
+  mat Delta_G = GGX - GX;
+  mat Delta2 = Delta_G - (GX - X);
 
-  // Compute delta_G = GGx - Gx and delta2 = delta_G - (Gx - x) in one pass
-  double ssq = 0.0;
-  double vprod = 0.0;
-  for (uword i = 0; i < n; ++i) {
-    dG[i] = GGx_ptr[i] - Gx_ptr[i];
-    d2[i] = dG[i] - (Gx_ptr[i] - x_ptr[i]);
-    ssq += d2[i] * d2[i];
-    vprod += dG[i] * d2[i];
-  }
+  double ssq = accu(square(Delta2));
 
   if (ssq < tol * tol) {
-    return true; // Converged
+    Alpha_out = GGX;
+    return true;
   }
 
-  double coef = safe_divide(vprod, ssq);
+  double vprod = accu(Delta_G % Delta2);
+  double coef = (std::abs(ssq) > 1e-14) ? (vprod / ssq) : 0.0;
 
-  // Apply acceleration if coefficient is in valid range
-  double *x_out = x.memptr();
   if (coef > 0.0 && coef < 2.0) {
-    for (uword i = 0; i < n; ++i) {
-      x_out[i] = GGx_ptr[i] - coef * dG[i];
-    }
+    Alpha_out = GGX - coef * Delta_G;
   } else {
-    std::memcpy(x_out, GGx_ptr, n * sizeof(double));
+    Alpha_out = GGX;
   }
 
   return false;
 }
 
-// Grand acceleration (fixest-style): uses 3-iteration history
-// Returns true if converged
-// Uses workspace vectors to avoid allocations
-inline bool grand_acceleration(vec &x, vec &Y, vec &GY, vec &GGY,
-                               vec &delta_G_ws, vec &delta2_ws,
-                               int &grand_acc_state, double tol) {
-  const uword n = x.n_elem;
+// Main centering
+inline void center_accel(mat &V, const vec &w,
+                         const field<field<GroupInfo>> &all_group_info,
+                         const uvec &group_offsets, double tol, uword max_iter,
+                         uword iter_interrupt, CenteringWorkspace &ws) {
+  ws.Alpha.zeros();
 
-  if (grand_acc_state == 0) {
-    std::memcpy(Y.memptr(), x.memptr(), n * sizeof(double));
-  } else if (grand_acc_state == 1) {
-    std::memcpy(GY.memptr(), x.memptr(), n * sizeof(double));
-  } else {
-    std::memcpy(GGY.memptr(), x.memptr(), n * sizeof(double));
+  const uword P = V.n_cols;
+  rowvec work_row(P);
 
-    double *dG = delta_G_ws.memptr();
-    double *d2 = delta2_ws.memptr();
-    const double *Y_ptr = Y.memptr();
-    const double *GY_ptr = GY.memptr();
-    const double *GGY_ptr = GGY.memptr();
+  const uword accel_start = 3;
+  const uword accel_interval = 3;
+  const uword grand_accel_interval = 5;
 
-    // Compute delta_G = GGY - GY and delta2 = delta_G - (GY - Y) in one pass
-    double ssq = 0.0;
-    double vprod = 0.0;
-    for (uword i = 0; i < n; ++i) {
-      dG[i] = GGY_ptr[i] - GY_ptr[i];
-      d2[i] = dG[i] - (GY_ptr[i] - Y_ptr[i]);
-      ssq += d2[i] * d2[i];
-      vprod += dG[i] * d2[i];
-    }
-
-    if (ssq < tol * tol) {
-      grand_acc_state = -1; // Reset and signal convergence
-      return true;
-    }
-
-    double coef = safe_divide(vprod, ssq);
-
-    double *x_out = x.memptr();
-    if (coef > 0.0 && coef < 2.0) {
-      for (uword i = 0; i < n; ++i) {
-        x_out[i] = GGY_ptr[i] - coef * dG[i];
-      }
-    } else {
-      std::memcpy(x_out, GGY_ptr, n * sizeof(double));
-    }
-
-    grand_acc_state = -1; // Reset for next cycle
-  }
-
-  ++grand_acc_state;
-  return false;
-}
-
-// Center one column using Irons-Tuck + Grand acceleration
-inline void center_one_column_accel(
-    vec &y, const vec &w, const field<field<GroupInfo>> &all_group_info,
-    double tol, uword max_iter, uword iter_interrupt, CenteringWorkspace &ws) {
-
-  const uword K = all_group_info.n_elem;
-  const uword N = y.n_elem;
-
-  // Use workspace vectors directly - avoid Armadillo copy
-  std::memcpy(ws.x.memptr(), y.memptr(), N * sizeof(double));
-
-  // Acceleration parameters
-  const uword irons_tuck_interval = 2;
-  const uword grand_accel_interval = 3;
-  const uword accel_start = 1;
-
-  int grand_acc_state = 0;
-  uword iint = iter_interrupt;
-  double ssr_old = std::numeric_limits<double>::infinity();
+  double ssr_old = datum::inf;
   uword stall_count = 0;
+  uword iint = iter_interrupt;
+  uword grand_acc_count = 0;
+
+  // Grand acceleration storage
+  mat Y, GY;
 
   for (uword iter = 0; iter < max_iter; ++iter) {
     if (iter == iint) {
@@ -311,79 +328,232 @@ inline void center_one_column_accel(
       iint += iter_interrupt;
     }
 
-    // Save previous iteration
-    std::memcpy(ws.x0.memptr(), ws.x.memptr(), N * sizeof(double));
+    // Single projection step (G(X) operation)
+    apply_projection(V, ws.Alpha, w, all_group_info, group_offsets, work_row);
 
-    // Apply projection
-    if (K == 1) {
-      apply_projection_single_fe(ws.x, w, all_group_info[0]);
-    } else {
-      apply_projection(ws.x, w, all_group_info);
-    }
+    // Compute SSR for convergence check
+    double ssr = accu(square(V));
 
-    // Grand acceleration (every 3 iterations after iteration 1)
-    if (iter >= accel_start && iter % grand_accel_interval == 0) {
-      if (grand_acceleration(ws.x, ws.Y, ws.GY, ws.GGY, ws.delta_G, ws.delta2,
-                             grand_acc_state, tol)) {
-        break; // Converged
-      }
-      // Re-project after acceleration
-      if (K == 1) {
-        apply_projection_single_fe(ws.x, w, all_group_info[0]);
-      } else {
-        apply_projection(ws.x, w, all_group_info);
-      }
-    }
-
-    // Irons-Tuck acceleration (every 2 iterations, not overlapping with grand)
-    if (iter >= accel_start && iter % irons_tuck_interval == 0 &&
-        iter % grand_accel_interval != 0) {
-      // Gx = P(x)
-      std::memcpy(ws.Gx.memptr(), ws.x.memptr(), N * sizeof(double));
-      if (K == 1) {
-        apply_projection_single_fe(ws.Gx, w, all_group_info[0]);
-      } else {
-        apply_projection(ws.Gx, w, all_group_info);
-      }
-
-      // GGx = P(Gx)
-      std::memcpy(ws.GGx.memptr(), ws.Gx.memptr(), N * sizeof(double));
-      if (K == 1) {
-        apply_projection_single_fe(ws.GGx, w, all_group_info[0]);
-      } else {
-        apply_projection(ws.GGx, w, all_group_info);
-      }
-
-      if (irons_tuck_acceleration(ws.x, ws.Gx, ws.GGx, ws.delta_G, ws.delta2,
-                                  tol)) {
-        break; // Converged
-      }
-    }
-
-    // Check convergence based on weighted SSR
-    double ssr = weighted_quadsum(ws.x, w);
-
-    if (ssr < tol * tol)
+    if (ssr < tol * tol) {
       break;
+    }
 
-    if (ssr_old < std::numeric_limits<double>::infinity()) {
+    // Relative change convergence
+    if (ssr_old < datum::inf) {
       double rel_change = std::abs(ssr - ssr_old) / (1.0 + ssr_old);
-      if (rel_change < tol)
+      if (rel_change < tol) {
         break;
+      }
 
-      if (rel_change < tol * 10.0) {
-        stall_count++;
-        if (stall_count > 3)
-          break;
+      // Track stalling
+      if (rel_change < tol * 5.0) {
+        ++stall_count;
       } else {
         stall_count = 0;
       }
     }
     ssr_old = ssr;
+
+    // Standard Irons-Tuck acceleration (every accel_interval iterations or when
+    // stalling)
+    if (iter >= accel_start &&
+        (iter % accel_interval == 0 || stall_count > 3)) {
+      ws.IT_X = ws.Alpha;
+
+      // G(X)
+      apply_projection(V, ws.Alpha, w, all_group_info, group_offsets, work_row);
+      ws.IT_GX = ws.Alpha;
+
+      // G^2(X)
+      apply_projection(V, ws.Alpha, w, all_group_info, group_offsets, work_row);
+      ws.IT_GGX = ws.Alpha;
+
+      if (irons_tuck_accel(ws.IT_X, ws.IT_GX, ws.IT_GGX, ws.Alpha, tol)) {
+        break;
+      }
+
+      // Apply coefficient difference to residuals
+      mat diff = ws.Alpha - ws.IT_GGX;
+      apply_coef_diff(V, diff, all_group_info, group_offsets);
+
+      stall_count = 0;
+    }
+
+    // Grand acceleration
+    // This is a second-level acceleration on top of regular IT
+    if (iter > 0 && iter % grand_accel_interval == 0) {
+      ++grand_acc_count;
+
+      if (grand_acc_count == 1) {
+        Y = ws.Alpha;
+      } else if (grand_acc_count == 2) {
+        GY = ws.Alpha;
+      } else {
+        mat GGY = ws.Alpha;
+        mat Y_accel;
+
+        if (irons_tuck_accel(Y, GY, GGY, Y_accel, tol)) {
+          ws.Alpha = Y_accel;
+          mat diff = ws.Alpha - GGY;
+          apply_coef_diff(V, diff, all_group_info, group_offsets);
+          break;
+        }
+
+        ws.Alpha = Y_accel;
+        mat diff = ws.Alpha - GGY;
+        apply_coef_diff(V, diff, all_group_info, group_offsets);
+
+        grand_acc_count = 0;
+        stall_count = 0;
+      }
+    }
+
+    if (stall_count > 15)
+      break;
+  }
+}
+
+// Optimized 2-FE centering
+inline void center_accel_2fe(mat &V, const vec &w,
+                             const field<uvec> &fe1_groups,
+                             const field<uvec> &fe2_groups, double tol,
+                             uword max_iter) {
+  const uword n_obs = V.n_rows;
+  const uword n1 = fe1_groups.n_elem;
+  const uword n2 = fe2_groups.n_elem;
+  const uword P = V.n_cols;
+
+  // Build observation-to-group mapping
+  uvec obs_to_g1(n_obs);
+  uvec obs_to_g2(n_obs);
+
+  for (uword g = 0; g < n1; ++g) {
+    const uvec &idx = fe1_groups(g);
+    const uword n_idx = idx.n_elem;
+    for (uword i = 0; i < n_idx; ++i) {
+      obs_to_g1(idx(i)) = g;
+    }
+  }
+  for (uword g = 0; g < n2; ++g) {
+    const uvec &idx = fe2_groups(g);
+    const uword n_idx = idx.n_elem;
+    for (uword i = 0; i < n_idx; ++i) {
+      obs_to_g2(idx(i)) = g;
+    }
   }
 
-  // Copy result back - avoid Armadillo copy
-  std::memcpy(y.memptr(), ws.x.memptr(), N * sizeof(double));
+  mat alpha1(n1, P, fill::zeros);
+  mat alpha2(n2, P, fill::zeros);
+
+  vec sum_w1(n1, fill::zeros);
+  vec sum_w2(n2, fill::zeros);
+
+  for (uword g = 0; g < n1; ++g) {
+    sum_w1(g) = accu(w.elem(fe1_groups(g)));
+  }
+  for (uword g = 0; g < n2; ++g) {
+    sum_w2(g) = accu(w.elem(fe2_groups(g)));
+  }
+
+  vec inv_w1 = 1.0 / sum_w1;
+  vec inv_w2 = 1.0 / sum_w2;
+  inv_w1.replace(datum::inf, 0.0);
+  inv_w2.replace(datum::inf, 0.0);
+
+  const uword *p_g1 = obs_to_g1.memptr();
+  const uword *p_g2 = obs_to_g2.memptr();
+  const double *p_w = w.memptr();
+
+  // Irons-Tuck acceleration variables
+  mat alpha1_prev(n1, P);
+  mat alpha1_prev2(n1, P);
+  bool use_accel = false;
+  const uword accel_start = 3;
+
+  // Alternating projection
+  for (uword iter = 0; iter < max_iter; ++iter) {
+    mat alpha1_old = alpha1;
+
+    // Update alpha1 given alpha2
+    alpha1.zeros();
+
+    for (uword p = 0; p < P; ++p) {
+      const double *V_col = V.colptr(p);
+      const double *alpha2_col = alpha2.colptr(p);
+      double *alpha1_col = alpha1.colptr(p);
+
+      for (uword obs = 0; obs < n_obs; ++obs) {
+        const uword g1 = p_g1[obs];
+        const uword g2 = p_g2[obs];
+        const double wi = p_w[obs];
+
+        if (wi > 0.0) {
+          alpha1_col[g1] += (V_col[obs] - alpha2_col[g2]) * wi;
+        }
+      }
+    }
+
+    alpha1.each_col() %= inv_w1;
+
+    // Update alpha2 given new alpha1
+    alpha2.zeros();
+
+    for (uword p = 0; p < P; ++p) {
+      const double *V_col = V.colptr(p);
+      const double *alpha1_col = alpha1.colptr(p);
+      double *alpha2_col = alpha2.colptr(p);
+
+      for (uword obs = 0; obs < n_obs; ++obs) {
+        const uword g1 = p_g1[obs];
+        const uword g2 = p_g2[obs];
+        const double wi = p_w[obs];
+
+        if (wi > 0.0) {
+          alpha2_col[g2] += (V_col[obs] - alpha1_col[g1]) * wi;
+        }
+      }
+    }
+
+    alpha2.each_col() %= inv_w2;
+
+    // Irons-Tuck acceleration
+    if (iter >= accel_start) {
+      if (use_accel) {
+        mat Delta_G = alpha1 - alpha1_prev;
+        mat Delta2 = Delta_G - (alpha1_prev - alpha1_prev2);
+
+        double ssq = accu(square(Delta2));
+        if (ssq > 1e-14) {
+          double vprod = accu(Delta_G % Delta2);
+          double coef = vprod / ssq;
+
+          if (coef > 0.0 && coef < 2.0) {
+            alpha1 = alpha1 - coef * Delta_G;
+          }
+        }
+      }
+
+      alpha1_prev2 = alpha1_prev;
+      alpha1_prev = alpha1_old;
+      use_accel = true;
+    }
+
+    double diff = norm(alpha1 - alpha1_old, "fro");
+    if (diff < tol) {
+      break;
+    }
+  }
+
+  // Final centering: V[obs] -= alpha1[g1] + alpha2[g2]
+  for (uword p = 0; p < P; ++p) {
+    double *V_col = V.colptr(p);
+    const double *alpha1_col = alpha1.colptr(p);
+    const double *alpha2_col = alpha2.colptr(p);
+
+    for (uword obs = 0; obs < n_obs; ++obs) {
+      V_col[obs] -= alpha1_col[p_g1[obs]] + alpha2_col[p_g2[obs]];
+    }
+  }
 }
 
 void center_variables(
@@ -391,9 +561,7 @@ void center_variables(
     const double &tol, const uword &max_iter, const uword &iter_interrupt,
     const field<field<GroupInfo>> *precomputed_group_info = nullptr,
     CenteringWorkspace *workspace = nullptr) {
-#ifdef _OPENMP
-  set_omp_threads_from_config();
-#endif
+
   if (V.is_empty() || w.is_empty() || V.n_rows != w.n_elem)
     return;
 
@@ -401,9 +569,18 @@ void center_variables(
   if (K == 0)
     return;
 
-  const uword N = V.n_rows, P = V.n_cols;
+  if (K == 2) {
+    center_accel_2fe(V, w, group_indices(0), group_indices(1), tol, max_iter);
+    return;
+  }
 
-  // Reuse precomputed group metadata when available
+  if (K >= 3) {
+    center_fixest_kfe(V, w, group_indices, tol, max_iter);
+    return;
+  }
+
+  // K == 1
+
   const field<field<GroupInfo>> *group_info_ptr = precomputed_group_info;
   field<field<GroupInfo>> local_group_info;
   if (!group_info_ptr) {
@@ -412,34 +589,21 @@ void center_variables(
   }
   const field<field<GroupInfo>> &all_group_info = *group_info_ptr;
 
-  // Parallelize at column level - each column is independent
-  // Each thread gets its own workspace to avoid contention
-#if defined(_OPENMP)
-#pragma omp parallel
-  {
-    CenteringWorkspace thread_ws;
-    thread_ws.ensure_size(N);
-
-#pragma omp for schedule(static)
-    for (uword col = 0; col < P; ++col) {
-      vec y_col = V.col(col);
-      center_one_column_accel(y_col, w, all_group_info, tol, max_iter,
-                              iter_interrupt, thread_ws);
-      V.col(col) = y_col;
-    }
+  uvec group_sizes(K);
+  for (uword k = 0; k < K; ++k) {
+    group_sizes(k) = all_group_info(k).n_elem;
   }
-#else
+  uvec group_offsets = cumsum(group_sizes) - group_sizes;
+  uword total_groups = accu(group_sizes);
+
   CenteringWorkspace local_workspace;
   CenteringWorkspace *ws = workspace ? workspace : &local_workspace;
-  ws->ensure_size(N);
 
-  for (uword col = 0; col < P; ++col) {
-    vec y_col = V.col(col);
-    center_one_column_accel(y_col, w, all_group_info, tol, max_iter,
-                            iter_interrupt, *ws);
-    V.col(col) = y_col;
-  }
-#endif
+  ws->ensure_size(total_groups, V.n_cols);
+  ws->clear();
+
+  center_accel(V, w, all_group_info, group_offsets, tol, max_iter,
+               iter_interrupt, *ws);
 }
 
 } // namespace capybara
