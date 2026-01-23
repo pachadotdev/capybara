@@ -112,46 +112,41 @@ inline void project_one_fe(uword fe_idx, mat &alpha_all, const mat &V_residual,
   const uword offset = group_offsets(fe_idx);
   const uword n_groups = inv_weights.n_elem;
   
-  // Get pointers for speed
-  const uword *p_obs_to_g = obs_to_g.memptr();
-  const double *p_w = w.memptr();
-  const double *p_inv_w = inv_weights.memptr();
-  
   // Initialize this FE's coefficients to zero
-  for (uword g = 0; g < n_groups; ++g) {
-    alpha_all.row(offset + g).zeros();
+  alpha_all.rows(offset, offset + n_groups - 1).zeros();
+  
+  // Compute residuals by subtracting other FE contributions
+  mat residual = V_residual;
+  for (uword k = 0; k < K; ++k) {
+    if (k != fe_idx) {
+      const uvec &other_obs_to_g = mapping.obs_to_group(k);
+      const uword other_offset = group_offsets(k);
+      
+      // Subtract contribution from FE k
+      for (uword i = 0; i < n_obs; ++i) {
+        residual.row(i) -= alpha_all.row(other_offset + other_obs_to_g(i));
+      }
+    }
   }
   
-  // For each observation, accumulate weighted residual into its group
+  // Accumulate weighted residuals into groups
+  const uword *p_obs_to_g = obs_to_g.memptr();
+  const double *p_w = w.memptr();
+  
   for (uword p = 0; p < P; ++p) {
-    const double *V_col = V_residual.colptr(p);
+    const double *resid_col = residual.colptr(p);
     double *alpha_col = alpha_all.colptr(p) + offset;
     
     for (uword i = 0; i < n_obs; ++i) {
-      const uword g = p_obs_to_g[i];
       const double wi = p_w[i];
-      
       if (wi > 0.0) {
-        // Residual = V - sum of other FE coefficients
-        double resid = V_col[i];
-        
-        for (uword k = 0; k < K; ++k) {
-          if (k != fe_idx) {
-            const uword g_other = mapping.obs_to_group(k)(i);
-            const uword offset_other = group_offsets(k);
-            resid -= alpha_all(offset_other + g_other, p);
-          }
-        }
-        
-        alpha_col[g] += resid * wi;
+        alpha_col[p_obs_to_g[i]] += resid_col[i] * wi;
       }
     }
-    
-    // Normalize by sum of weights
-    for (uword g = 0; g < n_groups; ++g) {
-      alpha_col[g] *= p_inv_w[g];
-    }
   }
+  
+  // Vectorized normalization by inverse weights
+  alpha_all.rows(offset, offset + n_groups - 1).each_col() %= inv_weights;
 }
 
 // K-FE centering
@@ -193,17 +188,11 @@ inline void center_fixest_kfe(mat &V, const vec &w,
   }
   
   // Apply final centering
-  for (uword p = 0; p < P; ++p) {
-    double *V_col = V.colptr(p);
-    
-    for (uword i = 0; i < n_obs; ++i) {
-      double fe_sum = 0.0;
-      for (uword k = 0; k < K; ++k) {
-        const uword g = mapping.obs_to_group(k)(i);
-        const uword offset = group_offsets(k);
-        fe_sum += alpha_all(offset + g, p);
-      }
-      V_col[i] -= fe_sum;
+  for (uword i = 0; i < n_obs; ++i) {
+    for (uword k = 0; k < K; ++k) {
+      const uword g = mapping.obs_to_group(k)(i);
+      const uword offset = group_offsets(k);
+      V.row(i) -= alpha_all.row(offset + g);
     }
   }
 }
@@ -216,31 +205,17 @@ inline void update_group_inplace(mat &r, rowvec &alpha_row,
     return;
 
   const uvec &coords = *info.coords;
-  const uword n = coords.n_elem;
-  const uword p = r.n_cols;
-  
-  alpha_row.zeros();
   
   if (info.inv_weight > 0.0) {
-    const double *w_ptr = w.memptr();
-    double *alpha_ptr = alpha_row.memptr();
+    // Vectorized: alpha_row = sum(r[coords] .* w[coords]) * inv_weight
+    mat r_group = r.rows(coords);
+    vec w_group = w.elem(coords);
     
-    for (uword j = 0; j < p; ++j) {
-      const double *r_col = r.colptr(j);
-      double sum = 0.0;
-      
-      for (uword i = 0; i < n; ++i) {
-        const uword idx = coords(i);
-        sum += r_col[idx] * w_ptr[idx];
-      }
-      
-      alpha_ptr[j] = sum * info.inv_weight;
-    }
+    alpha_row = sum(r_group.each_col() % w_group, 0) * info.inv_weight;
     
-    for (uword i = 0; i < n; ++i) {
-      const uword idx = coords(i);
-      r.row(idx) -= alpha_row;
-    }
+    r.rows(coords) -= repmat(alpha_row, coords.n_elem, 1);
+  } else {
+    alpha_row.zeros();
   }
 }
 
@@ -485,8 +460,6 @@ inline void center_accel_2fe(mat &V, const vec &w,
   const uword *p_g1 = obs_to_g1.memptr();
   const uword *p_g2 = obs_to_g2.memptr();
   const double *p_w = w.memptr();
-  const double *p_inv_w1 = inv_w1.memptr();
-  const double *p_inv_w2 = inv_w2.memptr();
   
   // Irons-Tuck acceleration variables
   mat alpha1_prev(n1, P);
@@ -517,15 +490,7 @@ inline void center_accel_2fe(mat &V, const vec &w,
       }
     }
     
-    for (uword g = 0; g < n1; ++g) {
-      const double inv_w = p_inv_w1[g];
-      if (inv_w > 0.0) {
-        double *alpha1_row = alpha1.colptr(0) + g;
-        for (uword p = 0; p < P; ++p) {
-          alpha1_row[p * n1] *= inv_w;
-        }
-      }
-    }
+    alpha1.each_col() %= inv_w1;
     
     // Update alpha2 given new alpha1
     alpha2.zeros();
@@ -546,15 +511,7 @@ inline void center_accel_2fe(mat &V, const vec &w,
       }
     }
     
-    for (uword g = 0; g < n2; ++g) {
-      const double inv_w = p_inv_w2[g];
-      if (inv_w > 0.0) {
-        double *alpha2_row = alpha2.colptr(0) + g;
-        for (uword p = 0; p < P; ++p) {
-          alpha2_row[p * n2] *= inv_w;
-        }
-      }
-    }
+    alpha2.each_col() %= inv_w2;
     
     // Irons-Tuck acceleration
     if (iter >= accel_start) {

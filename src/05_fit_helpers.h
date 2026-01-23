@@ -407,7 +407,8 @@ mat group_sums_spectral(const mat &M, const mat &v, const mat &w,
     const vec v_group = v.elem(idx);
 
     vec v_shifted(I, fill::zeros);
-    for (uword k = 1; k <= K1 && k < I; ++k) {
+    const uword max_k = std::min(K1, I - 1);
+    for (uword k = 1; k <= max_k; ++k) {
       v_shifted.tail(I - k) += v_group.head(I - k);
     }
 
