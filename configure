@@ -107,7 +107,7 @@ CXXFLAGS="$CXXFLAGS $STD_FLAG"
 OPTFLAGS=""
 if [ "$CAPYBARA_OPTIMIZATIONS" = "yes" ]; then
   # Core optimization flags
-  for flag in -O3 -DNDEBUG -ffast-math; do
+  for flag in -O3 -ffast-math; do
     if test_flag "$flag"; then
       OPTFLAGS="$OPTFLAGS $flag"
     fi
@@ -161,6 +161,19 @@ ARMA_FLAGS="-DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP 
 # Add 64-bit word size for better SIMD alignment
 ARMA_FLAGS="$ARMA_FLAGS -DARMA_64BIT_WORD"
 
+# Debug flags: if CAPYBARA_DEBUG=yes, define C preprocessor macro for debug-only code
+DEBUG_FLAGS=""
+if [ "${CAPYBARA_DEBUG:-}" = "yes" ]; then
+  DEBUG_FLAGS="-DCAPYBARA_DEBUG"
+else
+  if [ -n "${R_HOME:-}" ]; then
+    debug_from_R=$(${R_HOME}/bin/Rscript -e 'cat(Sys.getenv("CAPYBARA_DEBUG"))' 2>/dev/null || true)
+    if [ "${debug_from_R}" = "yes" ]; then
+      DEBUG_FLAGS="-DCAPYBARA_DEBUG"
+    fi
+  fi
+fi
+
 # Compose Makevars
 if [ ! -f "src/Makevars.in" ]; then
   echo "ERROR: src/Makevars.in template not found"
@@ -171,7 +184,8 @@ sed -e "s|@CXX_STD@|${CXX_STD}|g" \
     -e "s|@OPTFLAGS@|${OPTFLAGS}|g" \
     -e "s|@ARMA_FLAGS@|${ARMA_FLAGS}|g" \
     -e "s|@ncores@|${num_cores}|g" \
-    src/Makevars.in > src/Makevars
+    -e "s|@DEBUG_FLAGS@|${DEBUG_FLAGS}|g" \
+  src/Makevars.in > src/Makevars
 
 # Print summary
 cat <<EOF
@@ -187,6 +201,7 @@ Capybara configuration summary
   LAPACK:                 $LAPACK_LIBS
   High-Performance Mode:  ${CAPYBARA_OPTIMIZATIONS:-no}
   Optimization Flags:     $OPTFLAGS
+  Debug Flags:            $DEBUG_FLAGS
 
 EOF
 echo "For faster computation"
