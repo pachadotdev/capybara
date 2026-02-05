@@ -176,8 +176,17 @@ inline void compute_fitted_values(FelmWorkspace *ws, InferenceLM &result,
     // Vectorized residual pi = y - X*beta
     ws->pi = ws->y_original - ws->x_beta;
 
+    const vec *coef_weights = nullptr;
+    // Only pass weights if they are not all 1.
+    // However, result.weights should already be set to input weights w.
+    // If w was all 1s, result.weights is all 1s.
+    // But efficiently, we might want to check.
+    // For feglm, weights are definitely not all 1s.
+    coef_weights = &result.weights;
+
     result.fixed_effects =
-        get_alpha(ws->pi, fe_groups, params.alpha_tol, params.iter_alpha_max);
+        get_alpha(ws->pi, fe_groups, params.alpha_tol, params.iter_alpha_max,
+                  nullptr, nullptr, coef_weights);
     result.has_fe = true;
 
     result.fitted_values = ws->x_beta;
@@ -232,7 +241,8 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
                      const field<field<uvec>> &fe_groups,
                      const CapybaraParameters &params,
                      FelmWorkspace *workspace = nullptr,
-                     const field<uvec> *cluster_groups = nullptr) {
+                     const field<uvec> *cluster_groups = nullptr,
+                     bool run_from_glm = false) {
   const uword N = y.n_elem;
   const uword P = X.n_cols;
 
@@ -248,7 +258,7 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
   result.has_fe = has_fixed_effects;
 
   // Add intercept column if no fixed effects
-  if (!has_fixed_effects) {
+  if (!has_fixed_effects && !run_from_glm) {
     X = join_horiz(ones<vec>(N), X);
   }
 
@@ -261,8 +271,8 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
 
   if (has_fixed_effects) {
     CenteringWorkspace centering_workspace;
-    field<field<GroupInfo>> group_info = precompute_group_info(fe_groups, w);
-    const field<field<GroupInfo>> *group_info_ptr = &group_info;
+    ObsToGroupMapping group_info = precompute_group_info(fe_groups, w);
+    const ObsToGroupMapping *group_info_ptr = &group_info;
 
     ws->y_demeaned = y;
 
@@ -298,6 +308,11 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
   result.success = beta_result.success;
 
   compute_fitted_values(ws, result, collin_result, fe_groups, params);
+
+  if (run_from_glm) {
+    // Only return coefficients
+    return result;
+  }
 
   result.residuals = ws->y_original - result.fitted_values;
 

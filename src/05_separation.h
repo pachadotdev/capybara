@@ -131,7 +131,7 @@ detect_separation_relu_fe(const vec &y, const mat &X, const vec &w,
     mat X_centered = X;
 
     if (has_fe) {
-      const field<field<GroupInfo>> group_info =
+      const ObsToGroupMapping group_info =
           precompute_group_info(fe_groups, weights);
       center_variables(u_centered, weights, fe_groups, cap_params.center_tol,
                        cap_params.iter_center_max, cap_params.iter_interrupt,
