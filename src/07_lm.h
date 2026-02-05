@@ -145,7 +145,7 @@ inline void compute_fitted_values(FelmWorkspace *ws, InferenceLM &result,
 
     result.fixed_effects =
         get_alpha(ws->pi, fe_groups, params.alpha_tol, params.iter_alpha_max,
-                  nullptr, nullptr, coef_weights);
+                  nullptr, coef_weights);
     result.has_fe = true;
 
     result.fitted_values = ws->x_beta;
