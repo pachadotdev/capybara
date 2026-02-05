@@ -186,13 +186,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   // Separation detection for Poisson FE models
   if (family_type == Family::POISSON && !skip_separation_check &&
       has_fixed_effects && params.check_separation) {
-    SeparationParameters sep_params;
-    sep_params.tol = params.sep_tol;
-    sep_params.max_iter = params.sep_max_iter;
-    sep_params.use_relu = true;
-    sep_params.use_simplex = true;
-
-    SeparationResult sep_result = check_separation(y, X, w, sep_params);
+    SeparationResult sep_result = check_separation(y, X, w, params);
 
     if (sep_result.num_separated > 0) {
       // Zero weights for separated obs (keeps dimensions consistent)
@@ -605,8 +599,6 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
   // Initial mu
   compute_mu(mu, eta);
 
-  CenteringWorkspace centering_workspace;
-
   double dev = dev_resids(y, mu, 0.0, w, family_type);
 
   // Adaptive tolerance for large models
@@ -624,19 +616,16 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
     // Compute working weights and adjusted response
     compute_ww_yadj(w_working, yadj, w, mu, y, eta, offset);
 
-    // Precompute group info if needed
-    const ObsToGroupMapping *group_info_ptr = nullptr;
-    ObsToGroupMapping group_info;
+    // Build FE map with current working weights
+    FlatFEMap fe_map;
     if (fe_groups.n_elem > 0) {
-      group_info = precompute_group_info(fe_groups, w_working);
-      group_info_ptr = &group_info;
+      fe_map = build_fe_map(fe_groups, w_working);
     }
 
     Myadj += yadj;
 
     center_variables(Myadj, w_working, fe_groups, adaptive_tol,
-                     params.iter_center_max, params.iter_interrupt,
-                     group_info_ptr, &centering_workspace);
+                     params.iter_center_max, 1000, &fe_map);
 
     const vec eta_upd = yadj - Myadj + offset - eta;
 

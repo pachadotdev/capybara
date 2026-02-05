@@ -226,20 +226,15 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
   const bool use_weights = any(w != 1.0);
 
   if (has_fixed_effects) {
-    CenteringWorkspace centering_workspace;
-    ObsToGroupMapping group_info = precompute_group_info(fe_groups, w);
-    const ObsToGroupMapping *group_info_ptr = &group_info;
+    FlatFEMap fe_map = build_fe_map(fe_groups, w);
 
     ws->y_demeaned = y;
-
-    center_variables(ws->y_demeaned, w, fe_groups, params.center_tol,
-                     params.iter_center_max, params.iter_interrupt,
-                     group_info_ptr, &centering_workspace);
+    center_variables(ws->y_demeaned, w, fe_map, params.center_tol,
+                     params.iter_center_max);
 
     if (X.n_cols > 0) {
-      center_variables(X, w, fe_groups, params.center_tol,
-                       params.iter_center_max, params.iter_interrupt,
-                       group_info_ptr, &centering_workspace);
+      center_variables(X, w, fe_map, params.center_tol,
+                       params.iter_center_max);
     }
   } else {
     ws->y_demeaned = y;

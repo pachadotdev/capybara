@@ -19,20 +19,6 @@ struct SeparationResult {
   SeparationResult() : num_separated(0), converged(false), iterations(0) {}
 };
 
-// Parameters for separation detection
-struct SeparationParameters {
-  double tol;      // Convergence tolerance
-  double zero_tol; // Tolerance for treating values as zero
-  uword max_iter;
-  uword simplex_max_iter;
-  bool use_relu;
-  bool use_simplex;
-
-  SeparationParameters()
-      : tol(1e-8), zero_tol(1e-12), max_iter(1000), simplex_max_iter(10000),
-        use_relu(true), use_simplex(true) {}
-};
-
 // ============================================================================
 // ReLU Separation Detection
 // Algorithm: Iterative least squares with ReLU activation
@@ -106,9 +92,7 @@ inline vec solve_lse_weighted(const mat &X, const vec &y,
 inline SeparationResult
 detect_separation_relu_fe(const vec &y, const mat &X, const vec &w,
                           const field<field<uvec>> &fe_groups,
-                          const SeparationParameters &params,
-                          CenteringWorkspace *centering_workspace,
-                          const CapybaraParameters &cap_params) {
+                          const CapybaraParameters &params) {
   SeparationResult result;
   result.converged = false;
   result.num_separated = 0;
@@ -132,36 +116,40 @@ detect_separation_relu_fe(const vec &y, const mat &X, const vec &w,
   vec weights(n);
   double uu_old = arma::dot(u, u);
 
-  for (uword iter = 0; iter < params.max_iter; ++iter) {
+  // Pre-build FE map once (weights are constant M for interior, 1 for boundary)
+  weights.ones();
+  if (interior_sample.n_elem > 0) {
+    weights.elem(interior_sample).fill(M);
+  }
+  
+  FlatFEMap fe_map;
+  if (has_fe) {
+    fe_map = build_fe_map(fe_groups, weights);
+  }
+
+  // Reusable buffers
+  vec u_centered(n), resid(n);
+  mat X_centered;
+
+  for (uword iter = 0; iter < params.sep_max_iter; ++iter) {
     if (iter % 100 == 0)
       check_user_interrupt();
 
-    // Weight construction: M for interior, 1 for boundary
-    weights.ones();
-    if (interior_sample.n_elem > 0) {
-      weights.elem(interior_sample).fill(M);
-    }
-
-    vec u_centered = u;
-    mat X_centered = X;
+    u_centered = u;
+    X_centered = X;
 
     if (has_fe) {
-      const ObsToGroupMapping group_info =
-          precompute_group_info(fe_groups, weights);
-      center_variables(u_centered, weights, fe_groups, cap_params.center_tol,
-                       cap_params.iter_center_max, cap_params.iter_interrupt,
-                       &group_info, centering_workspace);
-      center_variables(X_centered, weights, fe_groups, cap_params.center_tol,
-                       cap_params.iter_center_max, cap_params.iter_interrupt,
-                       &group_info, centering_workspace);
+      center_variables(u_centered, weights, fe_map, params.center_tol,
+                       params.iter_center_max);
+      center_variables(X_centered, weights, fe_map, params.center_tol,
+                       params.iter_center_max);
     }
 
-    vec resid;
     solve_wls(X_centered, u_centered, weights, resid);
     xbd = u - resid;
 
-    const double epsilon = arma::dot(resid, resid) + params.tol;
-    const double delta = epsilon + params.tol;
+    const double epsilon = arma::dot(resid, resid) + params.sep_tol;
+    const double delta = epsilon + params.sep_tol;
 
     if (interior_sample.n_elem > 0) {
       xbd.elem(interior_sample).zeros();
@@ -187,7 +175,7 @@ detect_separation_relu_fe(const vec &y, const mat &X, const vec &w,
       return result;
     }
 
-    resid.clean(params.zero_tol);
+    resid.clean(params.sep_zero_tol);
     const vec boundary_resid = resid.elem(boundary_sample);
 
     if (boundary_resid.min() >= 0) {
@@ -210,7 +198,7 @@ detect_separation_relu_fe(const vec &y, const mat &X, const vec &w,
     u.elem(boundary_sample) = arma::clamp(boundary_vals, 0.0, arma::datum::inf);
 
     const double uu = arma::dot(u, u);
-    if (std::abs(uu - uu_old) / (1.0 + uu_old) < params.tol * 0.01) {
+    if (std::abs(uu - uu_old) / (1.0 + uu_old) < params.sep_tol * 0.01) {
       result.iterations = iter + 1;
       break;
     }
@@ -218,9 +206,9 @@ detect_separation_relu_fe(const vec &y, const mat &X, const vec &w,
   }
 
   if (!result.converged) {
-    result.iterations = params.max_iter;
+    result.iterations = params.sep_max_iter;
     const vec boundary_vals = xbd.elem(boundary_sample);
-    const uvec sep_ind_local = arma::find(boundary_vals > params.tol);
+    const uvec sep_ind_local = arma::find(boundary_vals > params.sep_tol);
     if (sep_ind_local.n_elem > 0) {
       result.separated_obs = boundary_sample.elem(sep_ind_local);
       result.num_separated = result.separated_obs.n_elem;
@@ -234,7 +222,7 @@ detect_separation_relu_fe(const vec &y, const mat &X, const vec &w,
 // Main ReLU separation detection algorithm (without FE)
 inline SeparationResult
 detect_separation_relu(const vec &y, const mat &X, const vec &w,
-                       const SeparationParameters &params) {
+                       const CapybaraParameters &params) {
   SeparationResult result;
   result.converged = false;
   result.num_separated = 0;
@@ -254,33 +242,35 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
   const double M = 1.0 / std::sqrt(arma::datum::eps);
 
   vec xbd(n, arma::fill::zeros);
+  vec resid(n);
   double uu_old = arma::dot(u, u);
 
   // Early termination tracking
   double ee_prev = uu_old;
   uword stall_count = 0;
+  const uword max_stall = 3;
 
-  for (uword iter = 0; iter < params.max_iter; ++iter) {
+  for (uword iter = 0; iter < params.sep_max_iter; ++iter) {
     if (iter % 100 == 0)
       check_user_interrupt();
 
-    vec resid;
     solve_lse_weighted(X, u, interior_sample, M, resid);
     xbd = u - resid;
 
     const double ee = arma::dot(resid, resid);
-    const double epsilon = ee + params.tol;
-    const double delta = epsilon + params.tol;
+    const double epsilon = ee + params.sep_tol;
+    const double delta = epsilon + params.sep_tol;
 
     // Early termination: detect stalled convergence
-    if (iter > 3 && std::abs(ee - ee_prev) < params.tol * ee_prev) {
-      ++stall_count;
-      if (stall_count > 3) {
-        result.iterations = iter + 1;
-        break;
+    if (iter > 3) {
+      if (std::abs(ee - ee_prev) < params.sep_tol * ee_prev) {
+        if (++stall_count > max_stall) {
+          result.iterations = iter + 1;
+          break;
+        }
+      } else {
+        stall_count = 0;
       }
-    } else {
-      stall_count = 0;
     }
     ee_prev = ee;
 
@@ -298,7 +288,7 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
       boundary_xbd = xbd.elem(boundary_sample);
     }
 
-    // Check separation
+    // Check separation - all non-negative means we found it
     if (arma::all(boundary_xbd >= 0)) {
       const uvec sep_ind_local = arma::find(boundary_xbd > 0);
       result.separated_obs = boundary_sample.elem(sep_ind_local);
@@ -309,7 +299,7 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
       return result;
     }
 
-    resid.clean(params.zero_tol);
+    resid.clean(params.sep_zero_tol);
     const vec boundary_resid = resid.elem(boundary_sample);
 
     if (boundary_resid.min() >= 0) {
@@ -327,12 +317,12 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
       return result;
     }
 
-    // ReLU update
+    // ReLU update: u = max(xbd, 0) on boundary
     u.zeros();
     u.elem(boundary_sample) = arma::clamp(boundary_xbd, 0.0, arma::datum::inf);
 
     const double uu = arma::dot(u, u);
-    if (std::abs(uu - uu_old) / (1.0 + uu_old) < params.tol * 0.01) {
+    if (std::abs(uu - uu_old) / (1.0 + uu_old) < params.sep_tol * 0.01) {
       result.iterations = iter + 1;
       break;
     }
@@ -340,9 +330,9 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
   }
 
   if (!result.converged) {
-    result.iterations = params.max_iter;
+    result.iterations = params.sep_max_iter;
     const vec boundary_xbd = xbd.elem(boundary_sample);
-    const uvec sep_ind_local = arma::find(boundary_xbd > params.tol);
+    const uvec sep_ind_local = arma::find(boundary_xbd > params.sep_tol);
     if (sep_ind_local.n_elem > 0) {
       result.separated_obs = boundary_sample.elem(sep_ind_local);
       result.num_separated = result.separated_obs.n_elem;
@@ -406,10 +396,10 @@ inline void simplex_presolve(mat &X, uvec &basic_vars, uvec &nonbasic_vars,
   n = basic_vars.n_elem;
 }
 
-// Main simplex algorithm
+// Main simplex algorithm - optimized with early exit
 inline SeparationResult
 detect_separation_simplex(const mat &residuals,
-                          const SeparationParameters &params) {
+                          const CapybaraParameters &params) {
   SeparationResult result;
   result.converged = false;
   result.num_separated = 0;
@@ -423,40 +413,35 @@ detect_separation_simplex(const mat &residuals,
   uword n = X.n_rows;
   uword k = X.n_cols;
 
-  // Test 1: Check column bounds
+  // Test 1: Check column bounds (vectorized)
   rowvec col_min = arma::min(X, 0);
   rowvec col_max = arma::max(X, 0);
-  col_min.clean(params.tol);
-  col_max.clean(params.tol);
-
-  // Find special columns
-  const uvec all_zero = arma::find((col_min == 0) && (col_max == 0));
-  const uvec all_positive = arma::find(col_min >= 0);
-  const uvec all_negative = arma::find(col_max <= 0);
+  col_min.clean(params.sep_tol);
+  col_max.clean(params.sep_tol);
 
   uvec dropped_obs(n, arma::fill::zeros);
   uvec dropped_vars(k, arma::fill::zeros);
 
-  if (all_zero.n_elem > 0)
-    dropped_vars.elem(all_zero).ones();
-  if (all_positive.n_elem > 0)
-    dropped_vars.elem(all_positive).ones();
-  if (all_negative.n_elem > 0)
-    dropped_vars.elem(all_negative).ones();
-
-  // Find separated observations from positive/negative columns
-  if (all_positive.n_elem > 0) {
-    dropped_obs
-        .elem(arma::find(arma::max(X.cols(all_positive), 1) > params.tol))
-        .ones();
+  // Find and mark special columns
+  for (uword j = 0; j < k; ++j) {
+    if (col_min(j) == 0 && col_max(j) == 0) {
+      dropped_vars(j) = 1;  // all zero
+    } else if (col_min(j) >= 0) {
+      dropped_vars(j) = 1;  // all positive
+      // Mark obs with positive values as separated
+      for (uword i = 0; i < n; ++i) {
+        if (X(i, j) > params.sep_tol) dropped_obs(i) = 1;
+      }
+    } else if (col_max(j) <= 0) {
+      dropped_vars(j) = 1;  // all negative
+      // Mark obs with negative values as separated
+      for (uword i = 0; i < n; ++i) {
+        if (X(i, j) < -params.sep_tol) dropped_obs(i) = 1;
+      }
+    }
   }
-  if (all_negative.n_elem > 0) {
-    dropped_obs
-        .elem(arma::find(arma::min(X.cols(all_negative), 1) < -params.tol))
-        .ones();
-  }
 
-  // Test 2: Apply simplex on remaining
+  // Test 2: Apply simplex on remaining (only if needed)
   const uvec kept_obs = arma::find(dropped_obs == 0);
   const uvec kept_vars = arma::find(dropped_vars == 0);
 
@@ -470,26 +455,32 @@ detect_separation_simplex(const mat &residuals,
       simplex_presolve(X_simplex, basic_vars, nonbasic_vars, keep_mask, k_simp,
                        n_simp);
 
-      if (X_simplex.n_elem > 0) {
+      if (X_simplex.n_elem > 0 && basic_vars.n_elem > 0) {
         vec c_basic(basic_vars.n_elem, arma::fill::ones);
         vec c_nonbasic(nonbasic_vars.n_elem, arma::fill::ones);
 
-        for (uword iter = 0; iter < params.simplex_max_iter; ++iter) {
+        // Reduced iteration limit for speed
+        const uword effective_max_iter = std::min(params.sep_simplex_max_iter, 
+                                                   (size_t)(100 * k_simp));
+
+        for (uword iter = 0; iter < effective_max_iter; ++iter) {
           if (iter % 100 == 0)
             check_user_interrupt();
 
           vec r = c_nonbasic - X_simplex.t() * c_basic;
           r.clean(1e-14);
 
-          if (r.max() <= 0) {
+          double r_max = r.max();
+          if (r_max <= 0) {
             result.converged = true;
             break;
           }
 
           const uword pivot_col = r.index_max();
           const vec pivot_column = X_simplex.col(pivot_col);
+          double pivot_max = pivot_column.max();
 
-          if (pivot_column.max() <= 0) {
+          if (pivot_max <= 0) {
             c_nonbasic(pivot_col) = 0;
             c_basic.elem(arma::find(pivot_column < 0)).zeros();
             continue;
@@ -501,17 +492,17 @@ detect_separation_simplex(const mat &residuals,
           if (std::abs(pivot) < 1e-14)
             continue;
 
-          // Pivot operations
+          // Pivot operations (in-place)
           X_simplex.row(pivot_row) /= pivot;
 
-          vec col_mult = pivot_column;
-          col_mult(pivot_row) = 0.0;
-          X_simplex -= col_mult * X_simplex.row(pivot_row);
+          for (uword i = 0; i < X_simplex.n_rows; ++i) {
+            if (i != pivot_row && std::abs(pivot_column(i)) > 1e-14) {
+              X_simplex.row(i) -= pivot_column(i) * X_simplex.row(pivot_row);
+            }
+          }
 
           std::swap(basic_vars(pivot_row), nonbasic_vars(pivot_col));
           std::swap(c_basic(pivot_row), c_nonbasic(pivot_col));
-
-          X_simplex.clean(1e-10);
         }
 
         // Identify separated observations
@@ -539,7 +530,7 @@ detect_separation_simplex(const mat &residuals,
 
 inline SeparationResult check_separation(const vec &y, const mat &X,
                                          const vec &w,
-                                         const SeparationParameters &params) {
+                                         const CapybaraParameters &params) {
   SeparationResult result;
   result.num_separated = 0;
   result.converged = true;
@@ -562,7 +553,7 @@ inline SeparationResult check_separation(const vec &y, const mat &X,
   }
 
   // Simplex
-  if (params.use_simplex && X_centered.n_cols > 0) {
+  if (params.sep_use_simplex && X_centered.n_cols > 0) {
     SeparationResult simplex_result =
         detect_separation_simplex(X_centered.rows(boundary_sample), params);
 
@@ -573,7 +564,7 @@ inline SeparationResult check_separation(const vec &y, const mat &X,
   }
 
   // ReLU
-  if (params.use_relu) {
+  if (params.sep_use_relu) {
     SeparationResult relu_result =
         detect_separation_relu(y, X_centered, w, params);
 

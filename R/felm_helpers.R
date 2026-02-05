@@ -27,8 +27,7 @@ get_score_matrix_felm_ <- function(object) {
     tx <- center_variables_(
       X, object[["weights"]], k_list,
       object[["control"]][["center_tol"]],
-      object[["control"]][["iter_center_max"]],
-      object[["control"]][["iter_interrupt"]]
+      object[["control"]][["iter_center_max"]]
     )
     colnames(tx) <- nms_sp
   }
