@@ -354,6 +354,10 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   ObsToGroupMapping group_mapping;
   FelmWorkspace felm_workspace;
 
+#ifdef CAPYBARA_DEBUG
+  auto tglmiter0 = std::chrono::high_resolution_clock::now();
+#endif
+
   for (uword iter = 0; iter < params.iter_max; ++iter) {
     rho = 1.0;
     eta0 = eta;
@@ -444,8 +448,6 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       beta.resize(full_p);
       beta.fill(datum::nan); // Initialize with NaN
     }
-
-
 
     // Step-halving with checks
 
@@ -599,6 +601,15 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 
     result.iter = iter + 1;
   }
+
+#ifdef CAPYBARA_DEBUG
+  auto tglmiter1 = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> glmiter_duration = tglmiter1 - tglmiter0;
+  std::ostringstream glmiter_msg;
+  glmiter_msg << "GLM iteration time: " << glmiter_duration.count()
+              << " seconds.\n";
+  cpp4r::message(glmiter_msg.str());
+#endif
 
   if (conv) {
     mat H = crossprod(X, w_working);
