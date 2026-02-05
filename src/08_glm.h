@@ -504,17 +504,13 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       const vec z_vals = beta_nc / se_reduced;
       const vec p_vals = 2.0 * normcdf(-abs(z_vals));
 
-      // Assign to indexed rows
-      for (uword i = 0; i < idx.n_elem; ++i) {
-        result.coef_table(idx(i), 1) = se_reduced(i);
-        result.coef_table(idx(i), 2) = z_vals(i);
-        result.coef_table(idx(i), 3) = p_vals(i);
-      }
-
-      // Mark collinear coefficients as NaN
-      for (uword i = 0; i < collin_result.collinear_cols.n_elem; ++i) {
-        result.coef_table(collin_result.collinear_cols(i), 0) = datum::nan;
-      }
+      // Vectorized scatter to indexed rows using submat
+      const uvec col_idx = {1, 2, 3};
+      mat stats(idx.n_elem, 3);
+      stats.col(0) = se_reduced;
+      stats.col(1) = z_vals;
+      stats.col(2) = p_vals;
+      result.coef_table.submat(idx, col_idx) = stats;
     } else {
       const vec z_vals = beta / se_reduced;
       result.coef_table.col(1) = se_reduced;

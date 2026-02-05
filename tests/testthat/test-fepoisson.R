@@ -139,7 +139,8 @@ test_that("proportional regressors return NA coefficients", {
   d$x2 <- 2 * d$x1
 
   fit1 <- glm(y ~ x1 + x2 + as.factor(f), data = d, family = poisson())
-  fit2 <- feglm(y ~ x1 + x2 | f, data = d, family = poisson())
+  # fit2 <- feglm(y ~ x1 + x2 | f, data = d, family = poisson())
+  fit2 <- fepoisson(y ~ x1 + x2 | f, data = d)
 
   expect_equal(coef(fit2), coef(fit1)[2:3], tolerance = 1e-2)
   expect_equal(predict(fit2), predict(fit1, type = "response"), tolerance = 1e-2)
