@@ -117,7 +117,8 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
 
   const double chol_tol = 1e-10;
 
-  const bool chol_ok = chol_rank(R_rank, excluded_cols, rank_out, XtX, "upper", chol_tol);
+  const bool chol_ok =
+      chol_rank(R_rank, excluded_cols, rank_out, XtX, "upper", chol_tol);
 
   vec beta_reduced;
 
@@ -138,15 +139,18 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
       vec XtY_sub = Xty(indep);
       mat R_sub = R_rank.submat(indep, indep);
 
-      // Solve triangular systems R_sub^T * y_sub = XtY_sub, then R_sub * beta_sub = y_sub
+      // Solve triangular systems R_sub^T * y_sub = XtY_sub, then R_sub *
+      // beta_sub = y_sub
       vec y_sub;
       if (!solve(y_sub, R_sub.t(), XtY_sub, solve_opts::fast)) {
-        cpp4r::stop("Failed to solve triangular system (R^T) in beta estimation.");
+        cpp4r::stop(
+            "Failed to solve triangular system (R^T) in beta estimation.");
       }
 
       vec beta_sub;
       if (!solve(beta_sub, R_sub, y_sub, solve_opts::fast)) {
-        cpp4r::stop("Failed to solve triangular system (R) in beta estimation.");
+        cpp4r::stop(
+            "Failed to solve triangular system (R) in beta estimation.");
       }
 
       // Scatter reduced solution into full-length reduced vector (size p)
@@ -168,7 +172,8 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
         // XtX corresponds to current X (possibly filtered)
         if (collin_result.has_collinearity) {
           const uvec &valid_cols = collin_result.non_collinear_cols;
-          // valid_cols maps current X columns to original indices; place XtX into those positions
+          // valid_cols maps current X columns to original indices; place XtX
+          // into those positions
           result.hessian.submat(valid_cols, valid_cols) = XtX;
         } else {
           result.hessian = XtX;
@@ -179,7 +184,8 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
     }
   }
 
-  // Assign coefficients: if original collinearity mapping exists, expand to full length
+  // Assign coefficients: if original collinearity mapping exists, expand to
+  // full length
   if (collin_result.has_collinearity) {
     result.coefficients.fill(datum::nan);
     const uvec &orig_idx = collin_result.non_collinear_cols;

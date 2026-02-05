@@ -312,14 +312,14 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
 
   // Adaptive tolerance strategy
   double current_tol = params.collin_tol;
-  
+
   // Ensure tolerance is not too small relative to matrix scale
   if (XtX.n_rows > 0) {
-      double max_diag = max(XtX.diag());
-      double rel_tol = max_diag * 1e-12; // 1e-12 relative tolerance
-      if (current_tol < rel_tol) {
-          current_tol = rel_tol;
-      }
+    double max_diag = max(XtX.diag());
+    double rel_tol = max_diag * 1e-12; // 1e-12 relative tolerance
+    if (current_tol < rel_tol) {
+      current_tol = rel_tol;
+    }
   }
 
   // First pass
@@ -329,59 +329,64 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
 
   // Robustness check: Ensure diagonal elements of R are above tolerance
   // If we find small pivots that were not excluded, we must re-run chol_rank
-  // with a higher tolerance to ensure they are properly excluded during decomposition
+  // with a higher tolerance to ensure they are properly excluded during
+  // decomposition
   const double pivot_thresh = std::sqrt(current_tol) * 10.0; // Safety margin
   bool need_rerun = false;
   double proposed_tol = current_tol;
-  
+
   // Get max diagonal for fallback tolerance
   double max_diag_val = (XtX.n_rows > 0) ? max(XtX.diag()) : 1.0;
 
-  for(uword i=0; i < P_final; ++i) {
-      if (excl(i) == 0) {
-          bool is_nan = std::isnan(R_rank(i,i));
-          if (is_nan || std::abs(R_rank(i,i)) < pivot_thresh) {
-               // Found a pivot that is dangerously small or NaN (from negative pivot).
-               // We should treat this as collinear.
-               double candidate_tol;
-               if (is_nan) {
-                   // If NaN, R_jj was negative and < -tol.
-                   // We need a tolerance larger than the magnitude of that negative pivot.
-                   // Since we don't know it, we assume a safe relative tolerance threshold.
-                   // 1e-8 * max_diag is usually much larger than numeric noise.
-                   candidate_tol = max_diag_val * 1e-8;
-                   // Ensure it's at least significantly bigger than current
-                   if (candidate_tol < current_tol * 100.0) candidate_tol = current_tol * 100.0;
-               } else {
-                   // New tolerance should be slightly larger than observed pivot^2
-                   candidate_tol = std::pow(R_rank(i,i), 2.0) * 1.1; 
-               }
+  for (uword i = 0; i < P_final; ++i) {
+    if (excl(i) == 0) {
+      bool is_nan = std::isnan(R_rank(i, i));
+      if (is_nan || std::abs(R_rank(i, i)) < pivot_thresh) {
+        // Found a pivot that is dangerously small or NaN (from negative pivot).
+        // We should treat this as collinear.
+        double candidate_tol;
+        if (is_nan) {
+          // If NaN, R_jj was negative and < -tol.
+          // We need a tolerance larger than the magnitude of that negative
+          // pivot. Since we don't know it, we assume a safe relative tolerance
+          // threshold. 1e-8 * max_diag is usually much larger than numeric
+          // noise.
+          candidate_tol = max_diag_val * 1e-8;
+          // Ensure it's at least significantly bigger than current
+          if (candidate_tol < current_tol * 100.0)
+            candidate_tol = current_tol * 100.0;
+        } else {
+          // New tolerance should be slightly larger than observed pivot^2
+          candidate_tol = std::pow(R_rank(i, i), 2.0) * 1.1;
+        }
 
-               if (candidate_tol > proposed_tol) {
-                   proposed_tol = candidate_tol;
-               }
-               need_rerun = true;
-          }
+        if (candidate_tol > proposed_tol) {
+          proposed_tol = candidate_tol;
+        }
+        need_rerun = true;
       }
+    }
   }
-  
-  if(need_rerun) {
-       // Second pass with stricter tolerance
-       R_rank.reset();
-       excl.reset();
-       rank = 0;
-       if (!chol_rank(R_rank, excl, rank, XtX, "upper", proposed_tol)) {
-            // If it fails again, try one last time with very high tolerance
-             double last_resort_tol = max_diag_val * 1e-6;
-             if (last_resort_tol > proposed_tol) {
-                 R_rank.reset(); excl.reset(); rank = 0;
-                 if(!chol_rank(R_rank, excl, rank, XtX, "upper", last_resort_tol)) {
-                     throw std::runtime_error("chol_rank failed in felm_fit rerun");
-                 }
-             } else {
-                 throw std::runtime_error("chol_rank failed in felm_fit rerun");
-             }
-       }
+
+  if (need_rerun) {
+    // Second pass with stricter tolerance
+    R_rank.reset();
+    excl.reset();
+    rank = 0;
+    if (!chol_rank(R_rank, excl, rank, XtX, "upper", proposed_tol)) {
+      // If it fails again, try one last time with very high tolerance
+      double last_resort_tol = max_diag_val * 1e-6;
+      if (last_resort_tol > proposed_tol) {
+        R_rank.reset();
+        excl.reset();
+        rank = 0;
+        if (!chol_rank(R_rank, excl, rank, XtX, "upper", last_resort_tol)) {
+          throw std::runtime_error("chol_rank failed in felm_fit rerun");
+        }
+      } else {
+        throw std::runtime_error("chol_rank failed in felm_fit rerun");
+      }
+    }
   }
 
   collin_result.has_collinearity = any(excl);
@@ -437,7 +442,8 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
   result.coef_table.col(0) = beta_solved;
   mat hessian_reduced = R_sub.t() * R_sub;
   if (collin_result.has_collinearity) {
-    expand_vcov(result.hessian, hessian_reduced, collin_result.non_collinear_cols, n_coef);
+    expand_vcov(result.hessian, hessian_reduced,
+                collin_result.non_collinear_cols, n_coef);
   } else {
     result.hessian = hessian_reduced;
   }
