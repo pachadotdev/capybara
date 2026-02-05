@@ -50,8 +50,7 @@
 #' @noRd
 NULL
 
-# Package-level cache for repeated calls
-.capybara_cache_env <- new.env(parent = emptyenv())
+
 
 #' NA_standards
 #' @srrstatsNA {G2.14} Missing observations are dropped, otherwise providing
@@ -67,67 +66,8 @@ NULL
 #' @param data Data frame
 #' @noRd
 get_index_list_ <- function(k_vars, data) {
-  # Optional caching to avoid recomputing FE index lists
-  if (isTRUE(getOption("capybara.cache_fe", FALSE))) {
-    # Build a lightweight signature based on FE levels and row count
-    n <- nrow(data)
-    lvl_sig <- paste(
-      vapply(
-        k_vars,
-        function(v) {
-          lv <- levels(data[[v]])
-          if (is.null(lv)) {
-            lv <- unique(as.character(data[[v]]))
-          }
-          paste(lv, collapse = ",")
-        },
-        character(1)
-      ),
-      collapse = "|"
-    )
-    key <- paste0(
-      "FEs:",
-      paste(k_vars, collapse = "|"),
-      ";n=",
-      n,
-      ";levels=",
-      lvl_sig
-    )
-    if (exists(key, envir = .capybara_cache_env, inherits = FALSE)) {
-      return(get(key, envir = .capybara_cache_env, inherits = FALSE))
-    }
-  }
-
   n <- nrow(data)
-  out <- lapply(
-    k_vars,
-    function(X, n, data) {
-      split(seq.int(1L, n), data[[X]])
-    },
-    n = n,
-    data = data
-  )
-
-  if (isTRUE(getOption("capybara.cache_fe", FALSE))) {
-    assign(key, out, envir = .capybara_cache_env)
-  }
-
-  out
-}
-
-# Cache helpers for warm starts
-cache_get_starts_ <- function(form_key) {
-  if (exists(form_key, envir = .capybara_cache_env, inherits = FALSE)) {
-    val <- get(form_key, envir = .capybara_cache_env, inherits = FALSE)
-    if (is.list(val) && !is.null(val$beta) && !is.null(val$eta)) {
-      return(val)
-    }
-  }
-  NULL
-}
-
-cache_set_starts_ <- function(form_key, beta, eta) {
-  assign(form_key, list(beta = beta, eta = eta), envir = .capybara_cache_env)
+  lapply(k_vars, function(v) split(seq_len(n), data[[v]]))
 }
 
 #' @title Model frame
