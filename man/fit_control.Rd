@@ -14,15 +14,18 @@ fit_control(
   iter_center_max = 10000L,
   iter_inner_max = 50L,
   iter_alpha_max = 10000L,
-  iter_interrupt = 1000L,
   step_halving_memory = 0.9,
   max_step_halving = 2L,
   start_inner_tol = 1e-06,
   sep_tol = 1e-08,
+  sep_zero_tol = 1e-12,
+  sep_max_iter = 200L,
+  sep_simplex_max_iter = 2000L,
+  sep_use_relu = TRUE,
+  sep_use_simplex = TRUE,
   return_fe = TRUE,
   keep_tx = FALSE,
   check_separation = TRUE,
-  sep_max_iter = 1000L,
   init_theta = 0
 )
 }
@@ -53,9 +56,6 @@ algorithm. The default is \code{50L}.}
 
 \item{iter_alpha_max}{maximum iterations for fixed effects computation. The default is \code{10000L}.}
 
-\item{iter_interrupt}{integer indicating the maximum number of iterations before the algorithm is interrupted. The
-default is \code{1000L}.}
-
 \item{step_halving_memory}{numeric memory factor for step-halving algorithm. Controls how much of the previous
 iteration is retained. The default is \code{0.9}.}
 
@@ -64,6 +64,16 @@ iteration is retained. The default is \code{0.9}.}
 \item{start_inner_tol}{starting tolerance for inner solver iterations. The default is \code{1.0e-04}.}
 
 \item{sep_tol}{tolerance for separation detection. The default is \code{1.0e-08}.}
+
+\item{sep_zero_tol}{tolerance for treating values as zero in separation detection. The default is \code{1.0e-12}.}
+
+\item{sep_max_iter}{maximum iterations for ReLU separation detection algorithm. The default is \code{200L}.}
+
+\item{sep_simplex_max_iter}{maximum iterations for simplex separation detection algorithm. The default is \code{2000L}.}
+
+\item{sep_use_relu}{logical indicating whether to use the ReLU algorithm for separation detection. The default is \code{TRUE}.}
+
+\item{sep_use_simplex}{logical indicating whether to use the simplex algorithm for separation detection. The default is \code{TRUE}.}
 
 \item{return_fe}{logical indicating if the fixed effects should be returned. This can be useful when fitting general
 equilibrium models where skipping the fixed effects for intermediate steps speeds up computation. The default is
@@ -77,8 +87,6 @@ some computation time at the cost of memory. The default is \code{TRUE}.}
 (default), observations with perfect prediction are automatically detected and excluded from estimation. Set to
 \code{FALSE} to skip this check and speed up computation when separation is known not to be an issue. The default
 is \code{TRUE}.}
-
-\item{sep_max_iter}{maximum iterations for separation detection. The default is \code{1000L}.}
 
 \item{init_theta}{Initial value for the negative binomial dispersion parameter (theta). The default is \code{0.0}.}
 }

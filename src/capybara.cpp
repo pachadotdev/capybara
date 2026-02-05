@@ -65,16 +65,22 @@ struct CapybaraParameters {
   double collin_tol;
   double step_halving_factor;
   double alpha_tol;
-  double sep_tol; // Separation detection tolerance
+  
+  // Separation detection parameters
+  double sep_tol;           // Convergence tolerance
+  double sep_zero_tol;      // Tolerance for treating values as zero
+  size_t sep_max_iter;      // Max iterations for ReLU algorithm
+  size_t sep_simplex_max_iter; // Max iterations for simplex algorithm
+  bool check_separation;    // Whether to perform separation detection
+  bool sep_use_relu;        // Use ReLU algorithm
+  bool sep_use_simplex;     // Use simplex algorithm
+  
   size_t iter_max;
   size_t iter_center_max;
   size_t iter_inner_max;
   size_t iter_alpha_max;
-  size_t iter_interrupt;
-  size_t sep_max_iter; // Max iterations for separation detection
   bool return_fe;
   bool keep_tx;
-  bool check_separation; // Whether to perform separation detection
 
   // Step-halving parameters
   double step_halving_memory;
@@ -83,10 +89,13 @@ struct CapybaraParameters {
 
   CapybaraParameters()
       : dev_tol(1.0e-08), center_tol(1.0e-08), collin_tol(1.0e-10),
-        step_halving_factor(0.5), alpha_tol(1.0e-08), sep_tol(1.0e-08),
+        step_halving_factor(0.5), alpha_tol(1.0e-08),
+        sep_tol(1.0e-08), sep_zero_tol(1.0e-12), sep_max_iter(200),
+        sep_simplex_max_iter(2000), check_separation(true),
+        sep_use_relu(true), sep_use_simplex(true),
         iter_max(25), iter_center_max(10000), iter_inner_max(50),
-        iter_alpha_max(10000), iter_interrupt(1000), sep_max_iter(1000),
-        return_fe(true), keep_tx(false), check_separation(true),
+        iter_alpha_max(10000),
+        return_fe(true), keep_tx(false),
         step_halving_memory(0.9), max_step_halving(2), start_inner_tol(1e-06) {}
 
   explicit CapybaraParameters(const cpp4r::list &control) {
@@ -95,21 +104,22 @@ struct CapybaraParameters {
     collin_tol = as_cpp<double>(control["collin_tol"]);
     step_halving_factor = as_cpp<double>(control["step_halving_factor"]);
     alpha_tol = as_cpp<double>(control["alpha_tol"]);
-    sep_tol = control.contains("sep_tol") ? as_cpp<double>(control["sep_tol"])
-                                          : 1.0e-08;
+    
+    // Separation detection parameters
+    sep_tol = as_cpp<double>(control["sep_tol"]);
+    sep_zero_tol = as_cpp<double>(control["sep_zero_tol"]);
+    sep_max_iter = as_cpp<size_t>(control["sep_max_iter"]);
+    sep_simplex_max_iter = as_cpp<size_t>(control["sep_simplex_max_iter"]);
+    check_separation = as_cpp<bool>(control["check_separation"]);
+    sep_use_relu = as_cpp<bool>(control["sep_use_relu"]);
+    sep_use_simplex = as_cpp<bool>(control["sep_use_simplex"]);
+    
     iter_max = as_cpp<size_t>(control["iter_max"]);
     iter_center_max = as_cpp<size_t>(control["iter_center_max"]);
     iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]);
     iter_alpha_max = as_cpp<size_t>(control["iter_alpha_max"]);
-    iter_interrupt = as_cpp<size_t>(control["iter_interrupt"]);
-    sep_max_iter = control.contains("sep_max_iter")
-                       ? as_cpp<size_t>(control["sep_max_iter"])
-                       : 1000;
     return_fe = as_cpp<bool>(control["return_fe"]);
     keep_tx = as_cpp<bool>(control["keep_tx"]);
-    check_separation = control.contains("check_separation")
-                           ? as_cpp<bool>(control["check_separation"])
-                           : true;
     step_halving_memory = as_cpp<double>(control["step_halving_memory"]);
     max_step_halving = as_cpp<size_t>(control["max_step_halving"]);
     start_inner_tol = as_cpp<double>(control["start_inner_tol"]);
@@ -175,15 +185,13 @@ inline field<field<uvec>> R_list_to_Armadillo_field(const list &FEs) {
 // instead of a CapybaraParameters object
 [[cpp4r::register]] doubles_matrix<>
 center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
-                  const list &klist, const double &tol, const size_t &max_iter,
-                  const size_t &iter_interrupt) {
+                  const list &klist, const double &tol, const size_t &max_iter) {
   mat V = as_mat(V_r);
   vec w = as_col(w_r);
 
   field<field<uvec>> group_indices = R_list_to_Armadillo_field(klist);
 
-  capybara::center_variables(V, w, group_indices, tol, max_iter,
-                             iter_interrupt);
+  capybara::center_variables(V, w, group_indices, tol, max_iter);
 
   return as_doubles_matrix(V);
 }
