@@ -64,67 +64,6 @@ inline vec crossprod_Xy(const mat &X, const vec &w, const vec &y) {
   return X.t() * (w % y);
 }
 
-inline CollinearityResult
-check_collinearity(mat &X, const vec &w, bool has_weights, double tolerance) {
-
-  const uword p = X.n_cols;
-
-  CollinearityResult result(p);
-
-  if (p == 0) {
-    result.coef_status.reset();
-    return result;
-  }
-
-  // For single column, check if variance is near zero
-  if (p == 1) {
-    double variance;
-
-    if (has_weights) {
-      const double sum_w = accu(w);
-      const vec &x = X.col(0);
-      const double mean_val = dot(x, w) / sum_w;
-      variance = dot(w, square(x)) / sum_w - mean_val * mean_val;
-    } else {
-      variance = var(X.col(0), 1);
-    }
-
-    if (variance < tolerance * tolerance) {
-      result.coef_status.zeros();
-      result.has_collinearity = true;
-      result.n_valid = 0;
-      result.non_collinear_cols.reset();
-      X.reset();
-    }
-    return result;
-  }
-
-  const mat XtX = has_weights ? crossprod(X, w) : crossprod(X);
-
-  mat Q, R;
-  qr_econ(Q, R, XtX);
-
-  // Vectorized collinearity detection using abs() on diagonal
-  const vec diag_R = abs(diagvec(R));
-  const uvec excluded = conv_to<uvec>::from(diag_R < tolerance);
-  const uvec indep = find(excluded == 0);
-
-  result.coef_status.zeros();
-  if (indep.n_elem > 0) {
-    result.coef_status.elem(indep).ones();
-  }
-
-  result.has_collinearity = (indep.n_elem < p);
-  result.n_valid = indep.n_elem;
-  result.non_collinear_cols = indep;
-
-  if (result.has_collinearity) {
-    X = indep.n_elem > 0 ? X.cols(indep) : mat();
-  }
-
-  return result;
-}
-
 inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
                               const vec &w,
                               const CollinearityResult &collin_result,
