@@ -11,8 +11,20 @@
 #include <chrono>
 #endif
 
+using arma::accu;
+using arma::any;
+using arma::clamp;
+using arma::cumsum;
+using arma::dot;
+using arma::exp;
 using arma::field;
+using arma::log;
 using arma::mat;
+using arma::mean;
+using arma::pow;
+using arma::sqrt;
+using arma::square;
+using arma::sum;
 using arma::uvec;
 using arma::uword;
 using arma::vec;
@@ -552,7 +564,7 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
                                                  const doubles_matrix<> &w_r,
                                                  const list &jlist) {
   const mat M = as_mat(M_r);
-  const mat w = as_mat(w_r);
+  const vec w = vectorise(as_mat(w_r));
 
   const size_t J = jlist.size();
   field<uvec> group_indices(J);
@@ -562,7 +574,7 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
         R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
   }
 
-  mat result = capybara::group_sums(M, w, group_indices);
+  vec result = capybara::group_sums(M, w, group_indices);
 
   return as_doubles_matrix(result);
 }
@@ -572,8 +584,8 @@ group_sums_spectral_(const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
                      const doubles_matrix<> &w_r, const size_t K,
                      const list &jlist) {
   const mat M = as_mat(M_r);
-  const mat v = as_mat(v_r);
-  const mat w = as_mat(w_r);
+  const vec v = vectorise(as_mat(v_r));
+  const vec w = vectorise(as_mat(w_r));
 
   const size_t J = jlist.size();
   field<uvec> group_indices(J);
@@ -583,7 +595,7 @@ group_sums_spectral_(const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
         R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
   }
 
-  mat result = capybara::group_sums_spectral(M, v, w, K, group_indices);
+  vec result = capybara::group_sums_spectral(M, v, w, K, group_indices);
 
   return as_doubles_matrix(result);
 }
