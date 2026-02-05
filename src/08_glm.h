@@ -278,8 +278,35 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 #endif
 
   const bool use_weights = !all(w == 1.0);
-  CollinearityResult collin_result =
-      check_collinearity(X, w, use_weights, params.collin_tol);
+  
+  CollinearityResult collin_result(X.n_cols);
+  mat XtX;
+  if (use_weights) {
+    XtX = crossprod(X, w);
+  } else {
+    XtX = crossprod(X);
+  }
+
+  mat R_rank;
+  uvec excl;
+  uword rank;
+
+  if (!chol_rank(R_rank, excl, rank, XtX, "upper", params.collin_tol)) {
+    // Should not happen
+  }
+
+  if (any(excl)) {
+    collin_result.has_collinearity = true;
+    collin_result.non_collinear_cols = find(excl == 0);
+    collin_result.collinear_cols = find(excl != 0);
+    collin_result.coef_status = 1 - excl;
+
+    X.shed_cols(collin_result.collinear_cols);
+  } else {
+    collin_result.has_collinearity = false;
+    collin_result.non_collinear_cols = regspace<uvec>(0, X.n_cols - 1);
+    collin_result.coef_status.fill(1);
+  }
 
 #ifdef CAPYBARA_DEBUG
   auto tcoll1 = std::chrono::high_resolution_clock::now();

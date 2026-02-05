@@ -266,9 +266,6 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
 
   const bool use_weights = any(w != 1.0);
 
-  CollinearityResult collin_result =
-      check_collinearity(X, w, use_weights, params.collin_tol);
-
   if (has_fixed_effects) {
     CenteringWorkspace centering_workspace;
     ObsToGroupMapping group_info = precompute_group_info(fe_groups, w);
@@ -294,18 +291,157 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
     result.has_tx = true;
   }
 
-  InferenceBeta beta_result = get_beta(X, ws->y_demeaned, ws->y_demeaned, w,
-                                       collin_result, false, false, nullptr);
+  const uword P_final = X.n_cols;
 
-  const uword n_coef = beta_result.coefficients.n_elem;
+  // New solver
+  CollinearityResult collin_result(P_final);
+  mat XtX;
+  vec XtY_vec;
+
+  if (use_weights) {
+    XtX = crossprod(X, w);
+    XtY_vec = X.t() * (w % ws->y_demeaned);
+  } else {
+    XtX = crossprod(X);
+    XtY_vec = X.t() * ws->y_demeaned;
+  }
+
+  mat R_rank;
+  uvec excl;
+  uword rank;
+
+  // Adaptive tolerance strategy
+  double current_tol = params.collin_tol;
+  
+  // Ensure tolerance is not too small relative to matrix scale
+  if (XtX.n_rows > 0) {
+      double max_diag = max(XtX.diag());
+      double rel_tol = max_diag * 1e-12; // 1e-12 relative tolerance
+      if (current_tol < rel_tol) {
+          current_tol = rel_tol;
+      }
+  }
+
+  // First pass
+  if (!chol_rank(R_rank, excl, rank, XtX, "upper", current_tol)) {
+    throw std::runtime_error("chol_rank failed in felm_fit");
+  }
+
+  // Robustness check: Ensure diagonal elements of R are above tolerance
+  // If we find small pivots that were not excluded, we must re-run chol_rank
+  // with a higher tolerance to ensure they are properly excluded during decomposition
+  const double pivot_thresh = std::sqrt(current_tol) * 10.0; // Safety margin
+  bool need_rerun = false;
+  double proposed_tol = current_tol;
+  
+  // Get max diagonal for fallback tolerance
+  double max_diag_val = (XtX.n_rows > 0) ? max(XtX.diag()) : 1.0;
+
+  for(uword i=0; i < P_final; ++i) {
+      if (excl(i) == 0) {
+          bool is_nan = std::isnan(R_rank(i,i));
+          if (is_nan || std::abs(R_rank(i,i)) < pivot_thresh) {
+               // Found a pivot that is dangerously small or NaN (from negative pivot).
+               // We should treat this as collinear.
+               double candidate_tol;
+               if (is_nan) {
+                   // If NaN, R_jj was negative and < -tol.
+                   // We need a tolerance larger than the magnitude of that negative pivot.
+                   // Since we don't know it, we assume a safe relative tolerance threshold.
+                   // 1e-8 * max_diag is usually much larger than numeric noise.
+                   candidate_tol = max_diag_val * 1e-8;
+                   // Ensure it's at least significantly bigger than current
+                   if (candidate_tol < current_tol * 100.0) candidate_tol = current_tol * 100.0;
+               } else {
+                   // New tolerance should be slightly larger than observed pivot^2
+                   candidate_tol = std::pow(R_rank(i,i), 2.0) * 1.1; 
+               }
+
+               if (candidate_tol > proposed_tol) {
+                   proposed_tol = candidate_tol;
+               }
+               need_rerun = true;
+          }
+      }
+  }
+  
+  if(need_rerun) {
+       // Second pass with stricter tolerance
+       R_rank.reset();
+       excl.reset();
+       rank = 0;
+       if (!chol_rank(R_rank, excl, rank, XtX, "upper", proposed_tol)) {
+            // If it fails again, try one last time with very high tolerance
+             double last_resort_tol = max_diag_val * 1e-6;
+             if (last_resort_tol > proposed_tol) {
+                 R_rank.reset(); excl.reset(); rank = 0;
+                 if(!chol_rank(R_rank, excl, rank, XtX, "upper", last_resort_tol)) {
+                     throw std::runtime_error("chol_rank failed in felm_fit rerun");
+                 }
+             } else {
+                 throw std::runtime_error("chol_rank failed in felm_fit rerun");
+             }
+       }
+  }
+
+  collin_result.has_collinearity = any(excl);
+
+  if (collin_result.has_collinearity) {
+    collin_result.non_collinear_cols = find(excl == 0);
+    collin_result.collinear_cols = find(excl != 0);
+    collin_result.coef_status = 1 - excl;
+  } else {
+    collin_result.non_collinear_cols = regspace<uvec>(0, P_final - 1);
+    collin_result.coef_status.fill(1);
+  }
+
+  vec beta_solved(P_final);
+  beta_solved.fill(datum::nan);
+  mat R_sub(rank, rank);
+  vec XtY_sub(rank);
+
+  uword r = 0;
+  for (uword i = 0; i < P_final; ++i) {
+    if (excl(i) != 0)
+      continue;
+
+    XtY_sub(r) = XtY_vec(i);
+
+    uword c = 0;
+    for (uword j = 0; j < P_final; ++j) {
+      if (excl(j) != 0)
+        continue;
+      R_sub(r, c) = R_rank(i, j);
+      ++c;
+    }
+    ++r;
+  }
+
+  vec y_sub = solve(trimatl(R_sub.t()), XtY_sub);
+  vec beta_sub = solve(trimatu(R_sub), y_sub);
+
+  r = 0;
+  for (uword i = 0; i < P_final; ++i) {
+    if (excl(i) == 0) {
+      beta_solved(i) = beta_sub(r);
+      ++r;
+    }
+  }
+
+  const uword n_coef = P_final;
   if (result.coef_table.n_rows != n_coef) {
     result.coef_table.set_size(n_coef, 4);
   }
-
-  result.coef_table.col(0) = beta_result.coefficients;
   result.coef_status = std::move(collin_result.coef_status);
-  result.hessian = std::move(beta_result.hessian);
-  result.success = beta_result.success;
+
+  result.coef_table.col(0) = beta_solved;
+  mat hessian_reduced = R_sub.t() * R_sub;
+  if (collin_result.has_collinearity) {
+    expand_vcov(result.hessian, hessian_reduced, collin_result.non_collinear_cols, n_coef);
+  } else {
+    result.hessian = hessian_reduced;
+  }
+  result.success = true;
 
   compute_fitted_values(ws, result, collin_result, fe_groups, params);
 

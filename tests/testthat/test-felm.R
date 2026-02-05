@@ -152,7 +152,7 @@ test_that("proportional regressors return NA coefficients", {
   fit2 <- felm(y ~ x1 + x2 | f, data = d)
 
   # fit1$coefficients
-  # fit2$coefficients
+  # fit2$coef_table
 
   expect_equal(coef(fit2), coef(fit1)[2:3], tolerance = 1e-2)
   expect_equal(predict(fit2), predict(fit1), tolerance = 1e-2)
