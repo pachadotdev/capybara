@@ -79,15 +79,23 @@ struct AlphaWorkspace {
 // Accumulate values into groups
 // group_sums[j] = sum of values[i] where obs_to_group[i] == j
 inline void scatter_add(vec &group_sums, const vec &values,
-                        const uvec &obs_to_group, uword n_groups) {
+                        const uvec &obs_to_group, uword n_groups,
+                        const vec *w = nullptr) {
   group_sums.head(n_groups).zeros();
   const uword N = values.n_elem;
   const double *val_ptr = values.memptr();
   const uword *grp_ptr = obs_to_group.memptr();
   double *sum_ptr = group_sums.memptr();
 
-  for (uword i = 0; i < N; ++i) {
-    sum_ptr[grp_ptr[i]] += val_ptr[i];
+  if (w) {
+    const double *w_ptr = w->memptr();
+    for (uword i = 0; i < N; ++i) {
+      sum_ptr[grp_ptr[i]] += val_ptr[i] * w_ptr[i];
+    }
+  } else {
+    for (uword i = 0; i < N; ++i) {
+      sum_ptr[grp_ptr[i]] += val_ptr[i];
+    }
   }
 }
 
@@ -102,7 +110,7 @@ inline field<vec>
 get_alpha(const vec &pi, const field<field<uvec>> &group_indices,
           double tol = 1e-8, uword iter_max = 10000,
           field<AlphaGroupInfo> *precomputed_group_info = nullptr,
-          AlphaWorkspace *workspace = nullptr) {
+          AlphaWorkspace *workspace = nullptr, const vec *weights = nullptr) {
   const uword K = group_indices.n_elem;
   const uword N = pi.n_elem;
   field<vec> coefficients(K);
@@ -134,6 +142,21 @@ get_alpha(const vec &pi, const field<field<uvec>> &group_indices,
 
   ws->residual = pi;
 
+  // Precompute denominators (sum of weights per group)
+  field<vec> denominators(K);
+  vec ones_vec;
+  if (weights) {
+    ones_vec.ones(N);
+    for (uword k = 0; k < K; ++k) {
+      const uword J = (*group_info_ptr)(k).n_groups;
+      denominators(k).set_size(J);
+      scatter_add(denominators(k), ones_vec, (*group_info_ptr)(k).obs_to_group,
+                  J, weights);
+      // Avoid division by zero
+      denominators(k).replace(0.0, 1.0);
+    }
+  }
+
   double crit = 1.0;
   uword iter = 0;
 
@@ -154,10 +177,15 @@ get_alpha(const vec &pi, const field<field<uvec>> &group_indices,
       vec temp = ws->residual + ws->alpha_expanded;
 
       // Step 3: Scatter-add to get group sums
-      scatter_add(ws->group_sums, temp, info.obs_to_group, J);
+      scatter_add(ws->group_sums, temp, info.obs_to_group, J, weights);
 
-      // Step 4: Compute new coefficients by dividing by group sizes
-      vec new_coef = ws->group_sums.head(J) / info.group_sizes;
+      // Step 4: Compute new coefficients by dividing by group sizes/weights
+      vec new_coef;
+      if (weights) {
+        new_coef = ws->group_sums.head(J) / denominators(k);
+      } else {
+        new_coef = ws->group_sums.head(J) / info.group_sizes;
+      }
 
       // Step 5: Compute difference and update criterion
       vec diff = new_coef - coef_k;

@@ -105,13 +105,14 @@ struct CapybaraParameters {
 };
 
 #include "01_center.h"
-#include "02_beta.h"
-#include "03_alpha.h"
-#include "04_separation.h"
-#include "05_fit_helpers.h"
-#include "06_lm.h"
-#include "07_glm.h"
-#include "08_negbin.h"
+#include "02_chol.h"
+#include "03_beta.h"
+#include "04_alpha.h"
+#include "05_separation.h"
+#include "06_fit_helpers.h"
+#include "07_lm.h"
+#include "08_glm.h"
+#include "09_negbin.h"
 
 using LMResult = capybara::InferenceLM;
 using GLMResult = capybara::InferenceGLM;

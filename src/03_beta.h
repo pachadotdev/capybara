@@ -171,38 +171,91 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
 
   const vec Xty = has_weights ? crossprod_Xy(X, w, y) : X.t() * y;
 
-  vec beta_reduced;
-  const bool solve_success = solve(beta_reduced, XtX, Xty, solve_opts::fast);
+  // Use rank-revealing Cholesky to get triangular factor and excluded cols
+  mat R_rank;
+  Col<uword> excluded_cols;
+  uword rank_out = 0;
 
-  if (!solve_success) {
+  const double chol_tol = 1e-10;
+
+  const bool chol_ok = chol_rank(R_rank, excluded_cols, rank_out, XtX, "upper", chol_tol);
+
+  vec beta_reduced;
+
+  if (!chol_ok) {
     cpp4r::stop("Failed to solve normal equations for beta estimation.");
+  } else {
+    // Determine independent columns from excluded_cols (0 = independent)
+    const uvec indep = find(excluded_cols == 0);
+    const uword rnk = indep.n_elem;
+
+    if (rnk == 0) {
+      beta_reduced.set_size(p);
+      beta_reduced.fill(datum::nan);
+      result.coef_status = uvec(p, fill::zeros);
+      result.hessian.zeros(p_orig, p_orig);
+    } else {
+      // Extract reduced R and corresponding XtY
+      vec XtY_sub = Xty(indep);
+      mat R_sub = R_rank.submat(indep, indep);
+
+      // Solve triangular systems R_sub^T * y_sub = XtY_sub, then R_sub * beta_sub = y_sub
+      vec y_sub;
+      if (!solve(y_sub, R_sub.t(), XtY_sub, solve_opts::fast)) {
+        cpp4r::stop("Failed to solve triangular system (R^T) in beta estimation.");
+      }
+
+      vec beta_sub;
+      if (!solve(beta_sub, R_sub, y_sub, solve_opts::fast)) {
+        cpp4r::stop("Failed to solve triangular system (R) in beta estimation.");
+      }
+
+      // Scatter reduced solution into full-length reduced vector (size p)
+      beta_reduced.set_size(p);
+      beta_reduced.fill(datum::nan);
+      for (uword k = 0; k < rnk; ++k) {
+        beta_reduced(indep(k)) = beta_sub(k);
+      }
+
+      // Coefficient status within current X
+      result.coef_status.zeros();
+      if (indep.n_elem > 0) {
+        result.coef_status.elem(indep).ones();
+      }
+
+      // Build Hessian for estimable columns (place into full p_orig if needed)
+      result.hessian.zeros(p_orig, p_orig);
+      if (rnk > 0) {
+        // XtX corresponds to current X (possibly filtered)
+        if (collin_result.has_collinearity) {
+          const uvec &valid_cols = collin_result.non_collinear_cols;
+          // valid_cols maps current X columns to original indices; place XtX into those positions
+          result.hessian.submat(valid_cols, valid_cols) = XtX;
+        } else {
+          result.hessian = XtX;
+        }
+      }
+
+      result.rank = static_cast<double>(rank_out);
+    }
   }
 
-  // Assign coefficients
-  // NaN for collinear columns => replaced with NA in the R wrappers
-  result.coefficients.fill(datum::nan);
-
+  // Assign coefficients: if original collinearity mapping exists, expand to full length
   if (collin_result.has_collinearity) {
-    result.coefficients.elem(collin_result.non_collinear_cols) = beta_reduced;
+    result.coefficients.fill(datum::nan);
+    const uvec &orig_idx = collin_result.non_collinear_cols;
+    for (uword j = 0; j < orig_idx.n_elem && j < beta_reduced.n_elem; ++j) {
+      result.coefficients(orig_idx(j)) = beta_reduced(j);
+    }
+    // Ensure coef_status corresponds to original full length
+    result.coef_status = collin_result.coef_status;
   } else {
     result.coefficients = beta_reduced;
   }
 
-  result.coef_status = collin_result.coef_status;
-
   result.fitted_values = X * beta_reduced;
   result.residuals = y_orig - result.fitted_values;
   result.weights = w;
-
-  // Build full Hessian
-  result.hessian.zeros(p_orig, p_orig);
-
-  if (collin_result.has_collinearity) {
-    const uvec &valid_cols = collin_result.non_collinear_cols;
-    result.hessian.submat(valid_cols, valid_cols) = XtX;
-  } else {
-    result.hessian = XtX;
-  }
 
   result.success = true;
   return result;

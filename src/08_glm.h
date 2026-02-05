@@ -208,8 +208,6 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   vec offset_vec;
   if (has_offset) {
     offset_vec = *offset;
-  } else {
-    offset_vec.zeros(n);
   }
 
   // For FE models with Poisson, detect separation early
@@ -279,7 +277,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   auto tcoll0 = std::chrono::high_resolution_clock::now();
 #endif
 
-  bool use_weights = !all(w == 1.0);
+  const bool use_weights = !all(w == 1.0);
   CollinearityResult collin_result =
       check_collinearity(X, w, use_weights, params.collin_tol);
 
@@ -339,37 +337,22 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   double dev0, dev_ratio = datum::inf, dev_ratio_inner, rho;
   bool dev_crit, val_crit, imp_crit, conv = false;
 
-  // Adaptive tolerance variables
-  double hdfe_tolerance = params.center_tol;
-  double highest_inner_tol =
-      std::max(1e-12, std::min(params.center_tol, 0.1 * params.dev_tol));
-  double start_inner_tol = params.start_inner_tol;
-
   bool is_large_model = (n > 100000) || (p_working > 1000) ||
                         (has_fixed_effects && fe_groups.n_elem > 1);
 
-  if (has_fixed_effects) {
-    if (is_large_model) {
-      hdfe_tolerance =
-          std::max(1e-3, std::max(start_inner_tol, params.dev_tol * 10));
-    } else {
-      hdfe_tolerance = std::max(start_inner_tol, params.dev_tol);
-    }
-  }
-
-  bool use_partial = false;
   double step_halving_memory = params.step_halving_memory;
   uword num_step_halving = 0;
   uword max_step_halving = params.max_step_halving;
 
-  vec eps_history(3, fill::value(datum::inf));
-  double predicted_eps = datum::inf;
-
   MNU_increment.zeros();
   nu0.zeros();
   workspace->XtX_cache.reset();
-  uword convergence_count = 0;
   double last_dev_ratio = datum::inf;
+  uword convergence_count = 0;
+
+  // Persistent mapping to avoid rebuilding indices
+  ObsToGroupMapping group_mapping;
+  FelmWorkspace felm_workspace;
 
   for (uword iter = 0; iter < params.iter_max; ++iter) {
     rho = 1.0;
@@ -425,154 +408,34 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       }
     }
 
-    const field<field<GroupInfo>> *group_info_ptr = nullptr;
-    field<field<GroupInfo>> group_info;
-    if (has_fixed_effects) {
-      group_info = precompute_group_info(fe_groups, w_working);
-      group_info_ptr = &group_info;
+    // Compute z = eta + nu
+    vec z = eta + nu;
+
+    if (has_offset) {
+      z -= offset_vec;
     }
 
-    bool iter_solver = has_fixed_effects &&
-                       (hdfe_tolerance > params.dev_tol * 11) &&
-                       (predicted_eps > params.dev_tol);
+    // Use felm_fit for the weighted least squares step
+    // We need a copy of X because felm_fit modifies it (centering)
+    // and we need the original X for the next iteration.
+    mat X_iter = X;
 
-    double current_hdfe_tol;
-    uword current_max_iter;
+    InferenceLM lm_res =
+        felm_fit(X_iter, z, w_working, fe_groups, params, &felm_workspace,
+                 cluster_groups, true);
 
-    // Lower limits: Irons-Tuck + Grand accel converges faster than CG
-    if (is_large_model) {
-      if (iter < 5) {
-        current_hdfe_tol = std::max(hdfe_tolerance, 1e-2);
-        current_max_iter = std::min((uword)params.iter_center_max, uword(100));
-      } else if (iter_solver) {
-        current_hdfe_tol = std::min(hdfe_tolerance, 1e-3);
-        current_max_iter = std::min((uword)params.iter_center_max, uword(200));
-      } else {
-        current_hdfe_tol = std::min(hdfe_tolerance, highest_inner_tol);
-        current_max_iter = std::min((uword)params.iter_center_max, uword(300));
-      }
-    } else {
-      if (iter < 3) {
-        current_max_iter = std::min((uword)params.iter_center_max, uword(50));
-      } else if (dev_ratio > 0.001) {
-        current_max_iter = std::min((uword)params.iter_center_max, uword(150));
-      } else {
-        current_max_iter = std::min((uword)params.iter_center_max, uword(200));
-      }
-      current_hdfe_tol = iter_solver
-                             ? hdfe_tolerance
-                             : std::min(hdfe_tolerance, highest_inner_tol);
-    }
+    // Get new beta (absolute, reduced dimension).
+    // Note: felm_fit returns coefficients for columns in X_iter.
+    // Since X is already filtered (p_working cols), this matches
+    // beta_upd_reduced size.
+    vec beta_upd_reduced = lm_res.coef_table.col(0);
 
-    if (use_partial && iter > 1) {
-      MNU_increment = nu - nu0;
-      MNU += MNU_increment;
-
-      if (has_fixed_effects) {
-#ifdef CAPYBARA_DEBUG
-        auto tcenter0 = std::chrono::high_resolution_clock::now();
-#endif
-
-        center_variables(MNU, w_working, fe_groups, current_hdfe_tol,
-                         current_max_iter, params.iter_interrupt,
-                         group_info_ptr, &centering_workspace);
-
-        center_variables(X, w_working, fe_groups, current_hdfe_tol,
-                         current_max_iter, params.iter_interrupt,
-                         group_info_ptr, &centering_workspace);
-
-#ifdef CAPYBARA_DEBUG
-        double tcenter_total = 0.0;
-        auto tcenter1 = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> tcenter_duration = tcenter1 - tcenter0;
-        tcenter_total += tcenter_duration.count();
-        std::ostringstream msg_tcenter;
-        msg_tcenter << "Cumulative centering with partial out " << tcenter_total
-                    << " seconds\n";
-        cpp4r::message(msg_tcenter.str());
-#endif
-
-        // invalidate cache
-        workspace->XtX_cache.reset();
-      }
-      nu0 = nu;
-    } else {
-      MNU += (nu - nu0);
-      nu0 = nu;
-
-      if (has_fixed_effects) {
-#ifdef CAPYBARA_DEBUG
-        auto tcenter20 = std::chrono::high_resolution_clock::now();
-#endif
-
-        center_variables(MNU, w_working, fe_groups, current_hdfe_tol,
-                         current_max_iter, params.iter_interrupt,
-                         group_info_ptr, &centering_workspace);
-
-        center_variables(X, w_working, fe_groups, current_hdfe_tol,
-                         current_max_iter, params.iter_interrupt,
-                         group_info_ptr, &centering_workspace);
-
-#ifdef CAPYBARA_DEBUG
-        double tcenter2_total = 0.0;
-        auto tcenter21 = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> tcenter2_duration = tcenter21 - tcenter20;
-        tcenter2_total += tcenter2_duration.count();
-        std::ostringstream msg_tcenter2;
-        msg_tcenter2 << "Cumulative centering without partial out "
-                     << tcenter2_total << " seconds\n";
-        cpp4r::message(msg_tcenter2.str());
-#endif
-
-        // invalidate cache
-        workspace->XtX_cache.reset();
-      }
-    }
-
-    // Enable partial out after first iteration
-    use_partial = true;
-
-    // For models without fixed effects, use adjusted dependent variable z = eta
-    // + nu for the proper IRLS working response
-    vec working_response;
-    if (has_fixed_effects) {
-      working_response = MNU;
-    } else {
-      working_response = eta + nu; // z = eta + (y - mu) / mu_eta
-    }
-
-#ifdef CAPYBARA_DEBUG
-    auto tbeta0 = std::chrono::high_resolution_clock::now();
-#endif
-
-    // X is already filtered for collinearity, so beta_result.coefficients
-    // corresponds to non-collinear columns only
-    InferenceBeta beta_result =
-        get_beta(X, working_response, working_response, w_working,
-                 collin_result, false, false, &workspace->XtX_cache);
-
-#ifdef CAPYBARA_DEBUG
-    double tbeta_total = 0.0;
-    auto tbeta1 = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> tbeta_duration = tbeta1 - tbeta0;
-    tbeta_total += tbeta_duration.count();
-    std::ostringstream msg_tbeta;
-    msg_tbeta << "Cumulative beta computation " << tbeta_total << " seconds\n";
-    cpp4r::message(msg_tbeta.str());
-#endif
-
-    // beta_result.coefficients has size p_orig (full size with NaN for
-    // collinear)
-    vec beta_upd_full = beta_result.coefficients;
-
-    // For matrix multiplication with filtered X, extract only non-collinear
-    // elements
-    vec beta_upd_reduced;
-    if (collin_result.has_collinearity &&
-        collin_result.non_collinear_cols.n_elem > 0) {
-      beta_upd_reduced = beta_upd_full.elem(collin_result.non_collinear_cols);
-    } else {
-      beta_upd_reduced = beta_upd_full;
+    // Compute eta update
+    // eta_upd = eta_new - eta0
+    // felm_fit returns fitted values = X*beta + alpha
+    eta_upd = lm_res.fitted_values - eta0;
+    if (has_offset) {
+      eta_upd += offset_vec;
     }
 
     const uword full_p =
@@ -582,24 +445,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       beta.fill(datum::nan); // Initialize with NaN
     }
 
-    // Compute eta update differently for FE vs non-FE cases
-    // X is already filtered for collinearity, beta_upd_reduced matches X.n_cols
-    if (has_fixed_effects) {
-      // For FE case: incremental update scheme
-      if (X.n_cols > 0) {
-        eta_upd = X * beta_upd_reduced + nu - MNU;
-      } else {
-        eta_upd = nu - MNU;
-      }
-    } else {
-      // For non-FE case: beta_upd_reduced is the new beta, not a delta
-      // eta_upd = X * new_beta - eta0 (so eta0 + eta_upd = X * new_beta)
-      if (X.n_cols > 0) {
-        eta_upd = X * beta_upd_reduced - eta0;
-      } else {
-        eta_upd.zeros(n);
-      }
-    }
+
 
     // Step-halving with checks
 
@@ -611,22 +457,12 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       if (collin_result.has_collinearity &&
           collin_result.non_collinear_cols.n_elem > 0) {
         vec beta0_reduced = beta0.elem(collin_result.non_collinear_cols);
-        vec beta_step;
-        if (has_fixed_effects) {
-          // FE case: incremental update
-          beta_step = beta0_reduced + rho * beta_upd_reduced;
-        } else {
-          // Non-FE case: interpolation
-          beta_step = (1.0 - rho) * beta0_reduced + rho * beta_upd_reduced;
-        }
+        vec beta_step = (1.0 - rho) * beta0_reduced + rho * beta_upd_reduced;
+
         beta = beta0;
         beta.elem(collin_result.non_collinear_cols) = beta_step;
       } else {
-        if (has_fixed_effects) {
-          beta = beta0 + rho * beta_upd_reduced;
-        } else {
-          beta = (1.0 - rho) * beta0 + rho * beta_upd_reduced;
-        }
+        beta = (1.0 - rho) * beta0 + rho * beta_upd_reduced;
       }
 
       // Mu update
@@ -709,12 +545,6 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     }
     last_dev_ratio = dev_ratio;
 
-    eps_history(0) = eps_history(1);
-    eps_history(1) = eps_history(2);
-    eps_history(2) = dev_ratio;
-
-    predicted_eps = predict_convergence(eps_history, dev_ratio);
-
     // Early convergence check
     if (dev_ratio < params.dev_tol) {
       conv = true;
@@ -765,29 +595,6 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       continue;
     } else {
       num_step_halving = 0;
-    }
-
-    // Adaptive HDFE tolerance update with model size awareness
-    if (has_fixed_effects) {
-      if (is_large_model) {
-        if (convergence_count >= 2 || dev_ratio < hdfe_tolerance * 0.1) {
-          hdfe_tolerance = std::max(highest_inner_tol, hdfe_tolerance * 0.05);
-        } else if (dev_ratio < hdfe_tolerance * 0.5) {
-          double alt_tol = std::pow(
-              10.0,
-              -std::ceil(std::log10(1.0 / std::max(0.1 * dev_ratio, 1e-16))));
-          hdfe_tolerance = std::max(std::min(0.2 * hdfe_tolerance, alt_tol),
-                                    highest_inner_tol);
-        }
-      } else {
-        if (dev_ratio < hdfe_tolerance * 0.5) {
-          double alt_tol = std::pow(
-              10.0,
-              -std::ceil(std::log10(1.0 / std::max(0.1 * dev_ratio, 1e-16))));
-          hdfe_tolerance = std::max(std::min(0.2 * hdfe_tolerance, alt_tol),
-                                    highest_inner_tol);
-        }
-      }
     }
 
     result.iter = iter + 1;
@@ -1025,8 +832,8 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
     }
     }
 
-    const field<field<GroupInfo>> *group_info_ptr = nullptr;
-    field<field<GroupInfo>> group_info;
+    const ObsToGroupMapping *group_info_ptr = nullptr;
+    ObsToGroupMapping group_info;
     if (fe_groups.n_elem > 0) {
       group_info = precompute_group_info(fe_groups, w_working);
       group_info_ptr = &group_info;
