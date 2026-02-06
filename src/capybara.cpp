@@ -172,8 +172,8 @@ inline field<field<uvec>> R_list_to_Armadillo_field(const list &FEs) {
 // instead of a CapybaraParameters object
 [[cpp4r::register]] doubles_matrix<>
 center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
-                  const list &klist, const double &tol,
-                  const size_t &max_iter, const size_t &grand_acc_period) {
+                  const list &klist, const double &tol, const size_t &max_iter,
+                  const size_t &grand_acc_period) {
   mat V = as_mat(V_r);
   vec w = as_col(w_r);
 
