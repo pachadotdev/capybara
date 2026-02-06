@@ -11,24 +11,6 @@
 #include <chrono>
 #endif
 
-using arma::accu;
-using arma::any;
-using arma::clamp;
-using arma::cumsum;
-using arma::dot;
-using arma::exp;
-using arma::field;
-using arma::log;
-using arma::mat;
-using arma::mean;
-using arma::pow;
-using arma::sqrt;
-using arma::square;
-using arma::sum;
-using arma::uvec;
-using arma::uword;
-using arma::vec;
-
 using cpp4r::doubles;
 using cpp4r::doubles_matrix;
 using cpp4r::integers;
@@ -88,15 +70,18 @@ struct CapybaraParameters {
   size_t max_step_halving;
   double start_inner_tol;
 
+  // Centering acceleration parameters
+  size_t grand_acc_period;
+
   CapybaraParameters()
       : dev_tol(1.0e-08), center_tol(1.0e-08), center_tol_loose(1.0e-04),
         collin_tol(1.0e-10), step_halving_factor(0.5), alpha_tol(1.0e-08),
-        sep_tol(1.0e-08),
-        sep_zero_tol(1.0e-12), sep_max_iter(200), sep_simplex_max_iter(2000),
-        check_separation(true), sep_use_relu(true), sep_use_simplex(true),
-        iter_max(25), iter_center_max(10000), iter_inner_max(50),
-        iter_alpha_max(10000), return_fe(true), keep_tx(false),
-        step_halving_memory(0.9), max_step_halving(2), start_inner_tol(1e-06) {}
+        sep_tol(1.0e-08), sep_zero_tol(1.0e-12), sep_max_iter(200),
+        sep_simplex_max_iter(2000), check_separation(true), sep_use_relu(true),
+        sep_use_simplex(true), iter_max(25), iter_center_max(10000),
+        iter_inner_max(50), iter_alpha_max(10000), return_fe(true),
+        keep_tx(false), step_halving_memory(0.9), max_step_halving(2),
+        start_inner_tol(1e-06), grand_acc_period(10) {}
 
   explicit CapybaraParameters(const cpp4r::list &control) {
     dev_tol = as_cpp<double>(control["dev_tol"]);
@@ -124,6 +109,7 @@ struct CapybaraParameters {
     step_halving_memory = as_cpp<double>(control["step_halving_memory"]);
     max_step_halving = as_cpp<size_t>(control["max_step_halving"]);
     start_inner_tol = as_cpp<double>(control["start_inner_tol"]);
+    grand_acc_period = as_cpp<size_t>(control["grand_acc_period"]);
   }
 };
 

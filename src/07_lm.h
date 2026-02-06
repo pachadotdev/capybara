@@ -249,11 +249,11 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
 
     ws->y_demeaned = y;
     center_variables(ws->y_demeaned, w, fe_map, effective_tol,
-                     params.iter_center_max);
+                     params.iter_center_max, params.grand_acc_period);
 
     if (P > 0) {
       center_variables(ws->X_centered, w, fe_map, effective_tol,
-                       params.iter_center_max);
+                       params.iter_center_max, params.grand_acc_period);
     }
   } else {
     ws->y_demeaned = y;

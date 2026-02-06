@@ -46,24 +46,23 @@ inline vec solve_wls(const mat &X, const vec &y, const vec &w, vec &residuals) {
   uword rank;
   chol_rank(R, excluded, rank, XtWX, "upper");
 
-  vec beta(k, arma::fill::zeros);
+  vec beta(k, fill::zeros);
 
   if (rank == k) {
     // Full rank: solve R'R * beta = XtWy via back-substitution
     vec z;
-    arma::solve(z, arma::trimatl(R.t()), XtWy, arma::solve_opts::fast);
-    arma::solve(beta, arma::trimatu(R), z, arma::solve_opts::fast);
+    solve(z, trimatl(R.t()), XtWy, solve_opts::fast);
+    solve(beta, trimatu(R), z, solve_opts::fast);
   } else if (rank > 0) {
     // Rank-deficient: solve on non-excluded columns
-    const uvec included = arma::find(excluded == 0);
+    const uvec included = find(excluded == 0);
     if (included.n_elem > 0) {
       const mat R_sub = R.submat(included, included);
       const vec XtWy_sub = XtWy.elem(included);
       vec z;
-      arma::solve(z, arma::trimatl(R_sub.t()), XtWy_sub,
-                  arma::solve_opts::fast);
+      solve(z, trimatl(R_sub.t()), XtWy_sub, solve_opts::fast);
       vec beta_sub;
-      arma::solve(beta_sub, arma::trimatu(R_sub), z, arma::solve_opts::fast);
+      solve(beta_sub, trimatu(R_sub), z, solve_opts::fast);
       beta.elem(included) = beta_sub;
     }
   }
@@ -80,7 +79,7 @@ inline vec solve_lse_weighted(const mat &X, const vec &y,
     return vec();
   }
 
-  vec weights(y.n_elem, arma::fill::ones);
+  vec weights(y.n_elem, fill::ones);
   if (constrained_sample.n_elem > 0) {
     weights.elem(constrained_sample).fill(M_weight);
   }
@@ -100,8 +99,8 @@ detect_separation_relu_fe(const vec &y, const mat &X, const vec &w,
   const uword n = y.n_elem;
   const bool has_fe = fe_groups.n_elem > 0;
 
-  const uvec boundary_sample = arma::find(y == 0);
-  const uvec interior_sample = arma::find(y > 0);
+  const uvec boundary_sample = find(y == 0);
+  const uvec interior_sample = find(y > 0);
   const uword num_boundary = boundary_sample.n_elem;
 
   if (num_boundary == 0) {
@@ -109,12 +108,12 @@ detect_separation_relu_fe(const vec &y, const mat &X, const vec &w,
     return result;
   }
 
-  vec u = arma::conv_to<vec>::from(y == 0);
-  const double M = 1.0 / std::sqrt(arma::datum::eps);
+  vec u = conv_to<vec>::from(y == 0);
+  const double M = 1.0 / std::sqrt(datum::eps);
 
-  vec xbd(n, arma::fill::zeros);
+  vec xbd(n, fill::zeros);
   vec weights(n);
-  double uu_old = arma::dot(u, u);
+  double uu_old = dot(u, u);
 
   // Pre-build FE map once (weights are constant M for interior, 1 for boundary)
   weights.ones();
@@ -140,15 +139,15 @@ detect_separation_relu_fe(const vec &y, const mat &X, const vec &w,
 
     if (has_fe) {
       center_variables(u_centered, weights, fe_map, params.center_tol,
-                       params.iter_center_max);
+                       params.iter_center_max, params.grand_acc_period);
       center_variables(X_centered, weights, fe_map, params.center_tol,
-                       params.iter_center_max);
+                       params.iter_center_max, params.grand_acc_period);
     }
 
     solve_wls(X_centered, u_centered, weights, resid);
     xbd = u - resid;
 
-    const double epsilon = arma::dot(resid, resid) + params.sep_tol;
+    const double epsilon = dot(resid, resid) + params.sep_tol;
     const double delta = epsilon + params.sep_tol;
 
     if (interior_sample.n_elem > 0) {
@@ -158,15 +157,15 @@ detect_separation_relu_fe(const vec &y, const mat &X, const vec &w,
     // Zero out boundary values within tolerance
     vec boundary_vals = xbd.elem(boundary_sample);
     const uvec near_zero =
-        arma::find((boundary_vals > -0.1 * delta) % (boundary_vals < delta));
+        find((boundary_vals > -0.1 * delta) % (boundary_vals < delta));
     if (near_zero.n_elem > 0) {
       xbd.elem(boundary_sample.elem(near_zero)).zeros();
       boundary_vals = xbd.elem(boundary_sample);
     }
 
     // Check separation
-    if (arma::all(boundary_vals >= 0)) {
-      const uvec sep_ind_local = arma::find(boundary_vals > 0);
+    if (all(boundary_vals >= 0)) {
+      const uvec sep_ind_local = find(boundary_vals > 0);
       result.separated_obs = boundary_sample.elem(sep_ind_local);
       result.num_separated = result.separated_obs.n_elem;
       result.support = xbd;
@@ -179,12 +178,12 @@ detect_separation_relu_fe(const vec &y, const mat &X, const vec &w,
     const vec boundary_resid = resid.elem(boundary_sample);
 
     if (boundary_resid.min() >= 0) {
-      const uvec pos_resid_idx = arma::find(boundary_resid > delta);
+      const uvec pos_resid_idx = find(boundary_resid > delta);
       if (pos_resid_idx.n_elem > 0) {
         xbd.elem(boundary_sample.elem(pos_resid_idx)).zeros();
       }
       boundary_vals = xbd.elem(boundary_sample);
-      const uvec sep_ind_local = arma::find(boundary_vals > 0);
+      const uvec sep_ind_local = find(boundary_vals > 0);
       result.separated_obs = boundary_sample.elem(sep_ind_local);
       result.num_separated = result.separated_obs.n_elem;
       result.support = xbd;
@@ -195,9 +194,9 @@ detect_separation_relu_fe(const vec &y, const mat &X, const vec &w,
 
     // ReLU: u = max(xbd, 0)
     u.zeros();
-    u.elem(boundary_sample) = arma::clamp(boundary_vals, 0.0, arma::datum::inf);
+    u.elem(boundary_sample) = clamp(boundary_vals, 0.0, datum::inf);
 
-    const double uu = arma::dot(u, u);
+    const double uu = dot(u, u);
     if (std::abs(uu - uu_old) / (1.0 + uu_old) < params.sep_tol * 0.01) {
       result.iterations = iter + 1;
       break;
@@ -208,7 +207,7 @@ detect_separation_relu_fe(const vec &y, const mat &X, const vec &w,
   if (!result.converged) {
     result.iterations = params.sep_max_iter;
     const vec boundary_vals = xbd.elem(boundary_sample);
-    const uvec sep_ind_local = arma::find(boundary_vals > params.sep_tol);
+    const uvec sep_ind_local = find(boundary_vals > params.sep_tol);
     if (sep_ind_local.n_elem > 0) {
       result.separated_obs = boundary_sample.elem(sep_ind_local);
       result.num_separated = result.separated_obs.n_elem;
@@ -229,8 +228,8 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
 
   const uword n = y.n_elem;
 
-  const uvec boundary_sample = arma::find(y == 0);
-  const uvec interior_sample = arma::find(y > 0);
+  const uvec boundary_sample = find(y == 0);
+  const uvec interior_sample = find(y > 0);
   const uword num_boundary = boundary_sample.n_elem;
 
   if (num_boundary == 0) {
@@ -238,14 +237,14 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
     return result;
   }
 
-  vec u = arma::conv_to<vec>::from(y == 0);
-  const double M = 1.0 / std::sqrt(arma::datum::eps);
+  vec u = conv_to<vec>::from(y == 0);
+  const double M = 1.0 / std::sqrt(datum::eps);
 
-  vec xbd(n, arma::fill::zeros);
-  vec xbd_prev1(n, arma::fill::zeros);
-  vec xbd_prev2(n, arma::fill::zeros);
+  vec xbd(n, fill::zeros);
+  vec xbd_prev1(n, fill::zeros);
+  vec xbd_prev2(n, fill::zeros);
   vec resid(n);
-  double uu_old = arma::dot(u, u);
+  double uu_old = dot(u, u);
 
   // Progress tracking for acceleration (from ppmlhdfe)
   double ee_cumulative = 0.0;
@@ -266,7 +265,7 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
     std::swap(xbd_prev1, xbd);
 
     // Build weights with potential acceleration
-    vec weights(n, arma::fill::ones);
+    vec weights(n, fill::ones);
     if (interior_sample.n_elem > 0) {
       weights.elem(interior_sample).fill(M);
     }
@@ -277,8 +276,7 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
       const vec xbd_b_p1 = xbd_prev2.elem(boundary_sample);
       // Find obs stuck at negative values
       for (uword i = 0; i < num_boundary; ++i) {
-        if (xbd_b(i) < -0.1 * params.sep_tol && 
-            xbd_b_p1(i) < 1.01 * xbd_b(i)) {
+        if (xbd_b(i) < -0.1 * params.sep_tol && xbd_b_p1(i) < 1.01 * xbd_b(i)) {
           weights(boundary_sample(i)) = acceleration_value;
         }
       }
@@ -287,13 +285,13 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
     solve_wls(X, u, weights, resid);
     xbd = u - resid;
 
-    const double ee = arma::dot(resid, resid);
+    const double ee = dot(resid, resid);
     const double epsilon = ee + params.sep_tol;
     const double delta = epsilon + params.sep_tol;
 
     // Track cumulative progress (from ppmlhdfe)
     ee_cumulative += ee;
-    const double progress_ratio = 
+    const double progress_ratio =
         ee_boundary > 0 ? 100.0 * ee_cumulative / ee_boundary : 100.0;
 
     // Count candidates for separation
@@ -301,13 +299,14 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
     {
       const vec boundary_xbd_tmp = xbd.elem(boundary_sample);
       for (uword i = 0; i < num_boundary; ++i) {
-        if (boundary_xbd_tmp(i) > delta) num_candidates++;
+        if (boundary_xbd_tmp(i) > delta)
+          num_candidates++;
       }
     }
 
     // Detect stuck convergence and enable acceleration (from ppmlhdfe)
     if (!convergence_is_stuck && iter > 3) {
-      if ((progress_ratio - progress_ratio_prev2 < 1.0) && 
+      if ((progress_ratio - progress_ratio_prev2 < 1.0) &&
           (num_candidates == num_candidates_prev2)) {
         convergence_is_stuck = true;
         acceleration_value = 4.0;
@@ -330,15 +329,15 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
     // Zero out near-zero boundary values
     vec boundary_xbd = xbd.elem(boundary_sample);
     const uvec near_zero =
-        arma::find((boundary_xbd > -0.1 * delta) % (boundary_xbd < delta));
+        find((boundary_xbd > -0.1 * delta) % (boundary_xbd < delta));
     if (near_zero.n_elem > 0) {
       xbd.elem(boundary_sample.elem(near_zero)).zeros();
       boundary_xbd = xbd.elem(boundary_sample);
     }
 
     // Check separation - all non-negative means we found it
-    if (arma::all(boundary_xbd >= 0)) {
-      const uvec sep_ind_local = arma::find(boundary_xbd > 0);
+    if (all(boundary_xbd >= 0)) {
+      const uvec sep_ind_local = find(boundary_xbd > 0);
       result.separated_obs = boundary_sample.elem(sep_ind_local);
       result.num_separated = result.separated_obs.n_elem;
       result.support = xbd;
@@ -351,12 +350,12 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
     const vec boundary_resid = resid.elem(boundary_sample);
 
     if (boundary_resid.min() >= 0) {
-      const uvec pos_resid_idx = arma::find(boundary_resid > delta);
+      const uvec pos_resid_idx = find(boundary_resid > delta);
       if (pos_resid_idx.n_elem > 0) {
         xbd.elem(boundary_sample.elem(pos_resid_idx)).zeros();
       }
       boundary_xbd = xbd.elem(boundary_sample);
-      const uvec sep_ind_local = arma::find(boundary_xbd > 0);
+      const uvec sep_ind_local = find(boundary_xbd > 0);
       result.separated_obs = boundary_sample.elem(sep_ind_local);
       result.num_separated = result.separated_obs.n_elem;
       result.support = xbd;
@@ -367,9 +366,9 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
 
     // ReLU update: u = max(xbd, 0) on boundary
     u.zeros();
-    u.elem(boundary_sample) = arma::clamp(boundary_xbd, 0.0, arma::datum::inf);
+    u.elem(boundary_sample) = clamp(boundary_xbd, 0.0, datum::inf);
 
-    const double uu = arma::dot(u, u);
+    const double uu = dot(u, u);
     if (std::abs(uu - uu_old) / (1.0 + uu_old) < params.sep_tol * 0.01) {
       result.iterations = iter + 1;
       break;
@@ -380,7 +379,7 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
   if (!result.converged) {
     result.iterations = params.sep_max_iter;
     const vec boundary_xbd = xbd.elem(boundary_sample);
-    const uvec sep_ind_local = arma::find(boundary_xbd > params.sep_tol);
+    const uvec sep_ind_local = find(boundary_xbd > params.sep_tol);
     if (sep_ind_local.n_elem > 0) {
       result.separated_obs = boundary_sample.elem(sep_ind_local);
       result.num_separated = result.separated_obs.n_elem;
@@ -398,39 +397,39 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
 inline void simplex_presolve(mat &X, uvec &basic_vars, uvec &nonbasic_vars,
                              uvec &keep_mask, uword &k, uword &n) {
   // First pass: identify and drop empty columns (from ppmlhdfe)
-  uvec is_dropped(k, arma::fill::zeros);
+  uvec is_dropped(k, fill::zeros);
   for (uword j = 0; j < k; ++j) {
-    if (arma::accu(arma::abs(X.col(j))) == 0) {
+    if (accu(abs(X.col(j))) == 0) {
       is_dropped(j) = 1;
     }
   }
-  
+
   // Remove empty columns early
-  const uvec non_empty = arma::find(is_dropped == 0);
+  const uvec non_empty = find(is_dropped == 0);
   if (non_empty.n_elem < k) {
     if (non_empty.n_elem == 0) {
       // All columns empty - trivial case
       keep_mask.ones(n);
-      basic_vars = arma::regspace<uvec>(0, n - 1);
+      basic_vars = regspace<uvec>(0, n - 1);
       nonbasic_vars = uvec();
       k = 0;
       return;
     }
     X = X.cols(non_empty);
     k = non_empty.n_elem;
-    is_dropped.zeros(k);  // Reset for remaining columns
+    is_dropped.zeros(k); // Reset for remaining columns
   }
 
-  mat A(n, k, arma::fill::zeros);
+  mat A(n, k, fill::zeros);
   keep_mask.ones(n);
 
   std::vector<uword> nonbasic_list;
   nonbasic_list.reserve(k);
 
-  const double pivot_tol = arma::datum::eps * 100;
+  const double pivot_tol = datum::eps * 100;
 
   for (uword j = 0; j < k; ++j) {
-    const uvec candidates = arma::find(arma::abs(X.col(j)) > pivot_tol, 1);
+    const uvec candidates = find(abs(X.col(j)) > pivot_tol, 1);
 
     if (candidates.n_elem == 0) {
       is_dropped(j) = 1;
@@ -453,17 +452,17 @@ inline void simplex_presolve(mat &X, uvec &basic_vars, uvec &nonbasic_vars,
     A.clean(1e-14);
   }
 
-  const uvec kept_rows = arma::find(keep_mask);
+  const uvec kept_rows = find(keep_mask);
   X = kept_rows.n_elem > 0 ? A.rows(kept_rows) : mat();
 
-  const uvec not_dropped = arma::find(is_dropped == 0);
+  const uvec not_dropped = find(is_dropped == 0);
   if (not_dropped.n_elem > 0 && not_dropped.n_elem < k) {
     X = X.cols(not_dropped);
     k = not_dropped.n_elem;
   }
 
-  nonbasic_vars = arma::conv_to<uvec>::from(nonbasic_list);
-  basic_vars = arma::find(keep_mask);
+  nonbasic_vars = conv_to<uvec>::from(nonbasic_list);
+  basic_vars = find(keep_mask);
   n = basic_vars.n_elem;
 }
 
@@ -485,13 +484,13 @@ detect_separation_simplex(const mat &residuals,
   uword k = X.n_cols;
 
   // Test 1: Check column bounds (vectorized)
-  rowvec col_min = arma::min(X, 0);
-  rowvec col_max = arma::max(X, 0);
+  rowvec col_min = min(X, 0);
+  rowvec col_max = max(X, 0);
   col_min.clean(params.sep_tol);
   col_max.clean(params.sep_tol);
 
-  uvec dropped_obs(n, arma::fill::zeros);
-  uvec dropped_vars(k, arma::fill::zeros);
+  uvec dropped_obs(n, fill::zeros);
+  uvec dropped_vars(k, fill::zeros);
 
   // Find and mark special columns
   for (uword j = 0; j < k; ++j) {
@@ -515,8 +514,8 @@ detect_separation_simplex(const mat &residuals,
   }
 
   // Test 2: Apply simplex on remaining (only if needed)
-  const uvec kept_obs = arma::find(dropped_obs == 0);
-  const uvec kept_vars = arma::find(dropped_vars == 0);
+  const uvec kept_obs = find(dropped_obs == 0);
+  const uvec kept_vars = find(dropped_vars == 0);
 
   if (kept_vars.n_elem > 1 && kept_obs.n_elem > 0) {
     mat X_simplex = X.submat(kept_obs, kept_vars);
@@ -529,8 +528,8 @@ detect_separation_simplex(const mat &residuals,
                        n_simp);
 
       if (X_simplex.n_elem > 0 && basic_vars.n_elem > 0) {
-        vec c_basic(basic_vars.n_elem, arma::fill::ones);
-        vec c_nonbasic(nonbasic_vars.n_elem, arma::fill::ones);
+        vec c_basic(basic_vars.n_elem, fill::ones);
+        vec c_nonbasic(nonbasic_vars.n_elem, fill::ones);
 
         // Reduced iteration limit for speed
         const uword effective_max_iter =
@@ -555,7 +554,7 @@ detect_separation_simplex(const mat &residuals,
 
           if (pivot_max <= 0) {
             c_nonbasic(pivot_col) = 0;
-            c_basic.elem(arma::find(pivot_column < 0)).zeros();
+            c_basic.elem(find(pivot_column < 0)).zeros();
             continue;
           }
 
@@ -579,10 +578,10 @@ detect_separation_simplex(const mat &residuals,
         }
 
         // Identify separated observations
-        const uvec all_vars = arma::join_vert(basic_vars, nonbasic_vars);
-        const vec all_costs = arma::join_vert(c_basic, c_nonbasic);
+        const uvec all_vars = join_vert(basic_vars, nonbasic_vars);
+        const vec all_costs = join_vert(c_basic, c_nonbasic);
 
-        const uvec zero_cost_idx = arma::find(all_costs == 0);
+        const uvec zero_cost_idx = find(all_costs == 0);
         if (zero_cost_idx.n_elem > 0) {
           dropped_obs.elem(kept_obs.elem(all_vars.elem(zero_cost_idx))).ones();
         }
@@ -590,7 +589,7 @@ detect_separation_simplex(const mat &residuals,
     }
   }
 
-  result.separated_obs = arma::find(dropped_obs);
+  result.separated_obs = find(dropped_obs);
   result.num_separated = result.separated_obs.n_elem;
   result.converged = true;
 
@@ -608,7 +607,7 @@ inline SeparationResult check_separation(const vec &y, const mat &X,
   result.num_separated = 0;
   result.converged = true;
 
-  const uvec boundary_sample = arma::find(y == 0);
+  const uvec boundary_sample = find(y == 0);
   if (boundary_sample.n_elem == 0) {
     return result;
   }
@@ -618,7 +617,7 @@ inline SeparationResult check_separation(const vec &y, const mat &X,
   if (X.n_cols > 0) {
     vec w_interior = w;
     w_interior.elem(boundary_sample).zeros();
-    const double sum_w = arma::accu(w_interior);
+    const double sum_w = accu(w_interior);
 
     if (sum_w > 0) {
       X_centered.each_row() -= (X.t() * w_interior).t() / sum_w;
@@ -643,8 +642,8 @@ inline SeparationResult check_separation(const vec &y, const mat &X,
 
     if (relu_result.num_separated > 0) {
       if (result.num_separated > 0) {
-        result.separated_obs = arma::unique(
-            arma::join_vert(result.separated_obs, relu_result.separated_obs));
+        result.separated_obs =
+            unique(join_vert(result.separated_obs, relu_result.separated_obs));
         result.num_separated = result.separated_obs.n_elem;
       } else {
         result.separated_obs = relu_result.separated_obs;

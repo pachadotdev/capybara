@@ -60,6 +60,10 @@ NULL
 #'  iteration is retained. The default is \code{0.9}.
 #' @param max_step_halving maximum number of post-convergence step-halving attempts. The default is \code{2}.
 #' @param start_inner_tol starting tolerance for inner solver iterations. The default is \code{1.0e-04}.
+#' @param grand_acc_period integer indicating the period (in iterations) for grand acceleration in the centering
+#'  algorithm. Grand acceleration applies a second-level Irons-Tuck extrapolation on the overall convergence
+#'  trajectory. Lower values (e.g., 5-10) may speed up convergence for difficult problems. Set to a very large
+#'  value (e.g., 10000) to effectively disable. The default is \code{10L}.
 #' @param return_fe logical indicating if the fixed effects should be returned. This can be useful when fitting general
 #'  equilibrium models where skipping the fixed effects for intermediate steps speeds up computation. The default is
 #'  \code{TRUE} and only applies to the \code{feglm} class.
@@ -94,6 +98,7 @@ fit_control <- function(
   step_halving_memory = 0.9,
   max_step_halving = 2L,
   start_inner_tol = 1.0e-06,
+  grand_acc_period = 10L,
   sep_tol = 1.0e-08,
   sep_zero_tol = 1.0e-12,
   sep_max_iter = 200L,
@@ -180,6 +185,15 @@ fit_control <- function(
     )
   }
 
+  # Check validity of grand_acc_period
+  grand_acc_period <- as.integer(grand_acc_period)
+  if (grand_acc_period < 1L) {
+    stop(
+      "grand_acc_period should be greater than or equal to one.",
+      call. = FALSE
+    )
+  }
+
   list(
     dev_tol = dev_tol,
     center_tol = center_tol,
@@ -194,6 +208,7 @@ fit_control <- function(
     step_halving_memory = step_halving_memory,
     max_step_halving = max_step_halving,
     start_inner_tol = start_inner_tol,
+    grand_acc_period = grand_acc_period,
     sep_tol = sep_tol,
     sep_zero_tol = sep_zero_tol,
     sep_max_iter = sep_max_iter,

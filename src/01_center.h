@@ -177,9 +177,9 @@ inline void center_2fe_block_alpha2(const uword n_obs, const uword p_start,
   }
 }
 
-// Optimized 2FE centering with Irons-Tuck acceleration
+// 2FE centering with Irons-Tuck acceleration + grand acceleration
 inline void center_2fe(mat &V, const vec &w, const FlatFEMap &map, double tol,
-                       uword max_iter) {
+                       uword max_iter, uword grand_acc_period) {
   const uword n_obs = V.n_rows;
   const uword P = V.n_cols;
   const uword n1 = map.n_groups[0];
@@ -194,12 +194,19 @@ inline void center_2fe(mat &V, const vec &w, const FlatFEMap &map, double tol,
 
   constexpr uword block_size = 4;
 
-  // Ring buffer for acceleration history (3 matrices, use indices)
+  // Ring buffer for inner IT acceleration history (3 matrices)
   mat hist0(n1, P, fill::zeros);
   mat hist1(n1, P, fill::zeros);
   mat hist2(n1, P, fill::zeros);
   mat *hist[3] = {&hist0, &hist1, &hist2};
   uword hist_idx = 0;
+
+  // Grand acceleration: track trajectory every grand_acc_period iterations
+  // Y -> GY -> GGY cycle for second-level IT
+  mat grand_Y(n1, P, fill::zeros);
+  mat grand_GY(n1, P, fill::zeros);
+  mat grand_GGY(n1, P, fill::zeros);
+  uword grand_stage = 0; // 0, 1, 2 for Y, GY, GGY
 
   const uword total_elem = n1 * P;
 
@@ -225,7 +232,7 @@ inline void center_2fe(mat &V, const vec &w, const FlatFEMap &map, double tol,
     }
     scale_rows_inplace(alpha2, map.inv_weights[1]);
 
-    // Irons-Tuck acceleration (after warmup)
+    // Inner Irons-Tuck acceleration (after warmup)
     if (iter >= 3) {
       const mat *alpha1_prev = hist[(hist_idx + 1) % 3];
       const mat *alpha1_prev2 = hist[hist_idx];
@@ -261,6 +268,59 @@ inline void center_2fe(mat &V, const vec &w, const FlatFEMap &map, double tol,
           }
           scale_rows_inplace(alpha2, map.inv_weights[1]);
         }
+      }
+    }
+
+    // Grand acceleration: second-level IT on overall trajectory
+    if (iter > 0 && iter % grand_acc_period == 0) {
+      if (grand_stage == 0) {
+        // Save Y
+        std::memcpy(grand_Y.memptr(), alpha1.memptr(),
+                    total_elem * sizeof(double));
+        grand_stage = 1;
+      } else if (grand_stage == 1) {
+        // Save GY
+        std::memcpy(grand_GY.memptr(), alpha1.memptr(),
+                    total_elem * sizeof(double));
+        grand_stage = 2;
+      } else {
+        // Save GGY and apply grand IT
+        std::memcpy(grand_GGY.memptr(), alpha1.memptr(),
+                    total_elem * sizeof(double));
+
+        // Apply Irons-Tuck on (Y, GY, GGY)
+        const double *Y_ptr = grand_Y.memptr();
+        const double *GY_ptr = grand_GY.memptr();
+        const double *GGY_ptr = grand_GGY.memptr();
+
+        double ssq = 0.0, vprod = 0.0;
+        for (uword i = 0; i < total_elem; ++i) {
+          double delta_GX = GGY_ptr[i] - GY_ptr[i];
+          double delta2_X = delta_GX - GY_ptr[i] + Y_ptr[i];
+          ssq += delta2_X * delta2_X;
+          vprod += delta_GX * delta2_X;
+        }
+
+        if (ssq > 1e-14) {
+          double coef = vprod / ssq;
+          if (coef > 0.0 && coef < 2.0) {
+            // Update alpha1 with grand-accelerated value
+            double *a1_ptr = alpha1.memptr();
+            for (uword i = 0; i < total_elem; ++i) {
+              double delta_GX = GGY_ptr[i] - GY_ptr[i];
+              a1_ptr[i] = GGY_ptr[i] - coef * delta_GX;
+            }
+            // Recompute alpha2 after grand acceleration
+            alpha2.zeros();
+            for (uword p = 0; p < P; p += block_size) {
+              uword b_sz = std::min(block_size, P - p);
+              center_2fe_block_alpha2(n_obs, p, b_sz, w_ptr, g1, g2, V, alpha1,
+                                      alpha2);
+            }
+            scale_rows_inplace(alpha2, map.inv_weights[1]);
+          }
+        }
+        grand_stage = 0; // Reset cycle
       }
     }
 
@@ -302,8 +362,9 @@ inline void center_2fe(mat &V, const vec &w, const FlatFEMap &map, double tol,
 }
 
 // General K-FE centering with blocked processing
+// Includes grand acceleration (second-level IT) on overall trajectory
 inline void center_kfe(mat &V, const vec &w, const FlatFEMap &map, double tol,
-                       uword max_iter) {
+                       uword max_iter, uword grand_acc_period) {
   const uword n_obs = V.n_rows;
   const uword P = V.n_cols;
   const uword K = map.K;
@@ -323,7 +384,7 @@ inline void center_kfe(mat &V, const vec &w, const FlatFEMap &map, double tol,
     map_ptrs[k] = map.fe_map[k].data();
   }
 
-  // Ring buffer for acceleration history on alpha[0]
+  // Ring buffer for inner IT acceleration history on alpha[0]
   const uword n0 = map.n_groups[0];
   const uword total_elem0 = n0 * P;
   mat hist0(n0, P, fill::zeros);
@@ -331,6 +392,12 @@ inline void center_kfe(mat &V, const vec &w, const FlatFEMap &map, double tol,
   mat hist2(n0, P, fill::zeros);
   mat *hist[3] = {&hist0, &hist1, &hist2};
   uword hist_idx = 0;
+
+  // Grand acceleration: track trajectory every grand_acc_period iterations
+  mat grand_Y(n0, P, fill::zeros);
+  mat grand_GY(n0, P, fill::zeros);
+  mat grand_GGY(n0, P, fill::zeros);
+  uword grand_stage = 0;
 
   // Pre-allocate other_ptrs outside loop
   std::vector<std::vector<const double *>> other_ptrs(K);
@@ -422,6 +489,46 @@ inline void center_kfe(mat &V, const vec &w, const FlatFEMap &map, double tol,
       }
     }
 
+    // Grand acceleration: second-level IT on overall trajectory
+    if (iter > 0 && iter % grand_acc_period == 0) {
+      if (grand_stage == 0) {
+        std::memcpy(grand_Y.memptr(), alpha[0].memptr(),
+                    total_elem0 * sizeof(double));
+        grand_stage = 1;
+      } else if (grand_stage == 1) {
+        std::memcpy(grand_GY.memptr(), alpha[0].memptr(),
+                    total_elem0 * sizeof(double));
+        grand_stage = 2;
+      } else {
+        std::memcpy(grand_GGY.memptr(), alpha[0].memptr(),
+                    total_elem0 * sizeof(double));
+
+        const double *Y_ptr = grand_Y.memptr();
+        const double *GY_ptr = grand_GY.memptr();
+        const double *GGY_ptr = grand_GGY.memptr();
+
+        double ssq = 0.0, vprod = 0.0;
+        for (uword i = 0; i < total_elem0; ++i) {
+          double delta_GX = GGY_ptr[i] - GY_ptr[i];
+          double delta2_X = delta_GX - GY_ptr[i] + Y_ptr[i];
+          ssq += delta2_X * delta2_X;
+          vprod += delta_GX * delta2_X;
+        }
+
+        if (ssq > 1e-14) {
+          double coef = vprod / ssq;
+          if (coef > 0.0 && coef < 2.0) {
+            double *a0_ptr = alpha[0].memptr();
+            for (uword i = 0; i < total_elem0; ++i) {
+              double delta_GX = GGY_ptr[i] - GY_ptr[i];
+              a0_ptr[i] = GGY_ptr[i] - coef * delta_GX;
+            }
+          }
+        }
+        grand_stage = 0;
+      }
+    }
+
     // Convergence check - inline without temporary
     double diff_sq = 0.0;
     const double *curr = alpha[0].memptr();
@@ -470,31 +577,33 @@ inline void center_kfe(mat &V, const vec &w, const FlatFEMap &map, double tol,
 
 // Main centering dispatch
 inline void center_impl(mat &V, const vec &w, const FlatFEMap &map, double tol,
-                        uword max_iter) {
+                        uword max_iter, uword grand_acc_period = 10) {
   if (map.K == 2) {
-    center_2fe(V, w, map, tol, max_iter);
+    center_2fe(V, w, map, tol, max_iter, grand_acc_period);
   } else {
-    center_kfe(V, w, map, tol, max_iter);
+    center_kfe(V, w, map, tol, max_iter, grand_acc_period);
   }
 }
 
 // Public interface
 inline void center_variables(mat &V, const vec &w, const FlatFEMap &map,
-                             double tol, uword max_iter) {
+                             double tol, uword max_iter,
+                             uword grand_acc_period = 10) {
   if (V.is_empty() || map.K == 0)
     return;
-  center_impl(V, w, map, tol, max_iter);
+  center_impl(V, w, map, tol, max_iter, grand_acc_period);
 }
 
 inline void center_variables(mat &V, const vec &w,
                              const field<field<uvec>> &group_indices,
-                             double tol, uword max_iter) {
+                             double tol, uword max_iter,
+                             uword grand_acc_period = 10) {
   if (V.is_empty() || group_indices.n_elem == 0)
     return;
   FlatFEMap map;
   map.build(group_indices);
   map.update_weights(w);
-  center_impl(V, w, map, tol, max_iter);
+  center_impl(V, w, map, tol, max_iter, grand_acc_period);
 }
 
 inline FlatFEMap build_fe_map(const field<field<uvec>> &group_indices,

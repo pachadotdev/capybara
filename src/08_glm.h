@@ -329,9 +329,9 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 
     // Weighted least squares via felm_fit (no copy needed - felm_fit uses
     // workspace)
-    InferenceLM lm_res = felm_fit(X, z, w_working, fe_groups, params,
-                                  &felm_workspace, cluster_groups, true,
-                                  adaptive_center_tol);
+    InferenceLM lm_res =
+        felm_fit(X, z, w_working, fe_groups, params, &felm_workspace,
+                 cluster_groups, true, adaptive_center_tol);
 
     const vec &beta_upd_reduced = lm_res.coef_table.col(0);
 
@@ -399,7 +399,8 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 
     // Update adaptive centering tolerance based on GLM convergence
     // As dev_ratio decreases, tighten the centering tolerance
-    // Linear interpolation: at dev_ratio=0.1 use loose, at dev_ratio<1e-4 use tight
+    // Linear interpolation: at dev_ratio=0.1 use loose, at dev_ratio<1e-4 use
+    // tight
     if (dev_ratio < 0.1) {
       const double t = std::max(0.0, std::min(1.0, (0.1 - dev_ratio) / 0.1));
       adaptive_center_tol =
@@ -658,7 +659,7 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
     Myadj += yadj;
 
     center_variables(Myadj, w_working, fe_map, adaptive_tol,
-                     params.iter_center_max);
+                     params.iter_center_max, params.grand_acc_period);
 
     const vec eta_upd = yadj - Myadj + offset - eta;
 

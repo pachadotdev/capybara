@@ -52,32 +52,33 @@ bench_capybara <- function(check_separation = FALSE) {
     round(coef(fit), 4)
 }
 
-bench_fixest <- function() {
-    fit <- fixest::fepois(
-        trade ~ log(dist) + contig + fta | etfe + itfe,
-        data = bench_data,
-        cluster = ~pair
-    )
+# bench_fixest <- function() {
+#     fit <- fixest::fepois(
+#         trade ~ log(dist) + contig + fta | etfe + itfe,
+#         data = bench_data,
+#         cluster = ~pair
+#     )
 
-    # add these for a fair comparison
-    fit$fixed_effects <- fixest::fixef(fit)
+#     # add these for a fair comparison
+#     fit$fixed_effects <- fixest::fixef(fit)
 
-    round(coef(fit), 4)
-}
+#     round(coef(fit), 4)
+# }
 
 # bench_capybara(check_separation = FALSE)
 
 bench_capybara(check_separation = TRUE)
 
-bench_fixest()
+# bench_fixest()
 
 bench <- suppressMessages({
     summary(microbenchmark(
         capybara_check = bench_capybara(check_separation = FALSE),
-        capybara_nocheck = bench_capybara(check_separation = TRUE),
-        times = 30L,
+        # capybara_nocheck = bench_capybara(check_separation = TRUE),
+        # fixest = bench_fixest(),
+        times = 100L,
         unit = "s"
     ))
 })
 
-bench
+bench$median
