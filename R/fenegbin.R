@@ -170,7 +170,7 @@ fenegbin <- function(
   nt <- nrow(data)
 
   # Extract model response and regressor matrix ----
-  nms_sp <- p <- NA
+  nms_sp <- NA
   model_response_(data, formula)
 
   # Extract weights if required ----
@@ -226,12 +226,14 @@ fenegbin <- function(
 
   # Get names and number of levels in each fixed effects category ----
   if (length(fe_vars) > 0) {
-    fe_levels <- vapply(lapply(data[fe_vars], levels), length, integer(1))
+    nms_fe <- lapply(data[fe_vars], levels)
+    fe_levels <- vapply(nms_fe, length, integer(1))
     # Generate auxiliary list of indexes for different sub panels ----
     FEs <- get_index_list_(fe_vars, data)
     names(FEs) <- fe_vars
   } else {
     # No fixed effects - create empty list
+    nms_fe <- list()
     fe_levels <- integer(0)
     FEs <- list()
   }
@@ -289,11 +291,7 @@ fenegbin <- function(
   # Add to fit list ----
   fit[["nobs"]] <- nobs
   fit[["fe_levels"]] <- fe_levels
-  fit[["nms_fe"]] <- if (length(fe_vars) > 0) {
-    lapply(data[fe_vars], levels)
-  } else {
-    list()
-  }
+  fit[["nms_fe"]] <- nms_fe
   fit[["formula"]] <- formula
   fit[["data"]] <- data
   fit[["family"]] <- negative.binomial(theta = fit[["theta"]], link = link)
