@@ -368,21 +368,37 @@ inline mat compute_sandwich_vcov(const mat &MX, const vec &y, const vec &mu,
     }
   }
 
-  const vec resid = y - mu;
+  // Precompute residuals
+  vec resid = y - mu;
+  const double *resid_ptr = resid.memptr();
+  
   const double adj = (G > 1) ? static_cast<double>(G) / (G - 1.0) : 1.0;
 
   // Meat: B = sum_g (score_g * score_g')
-  // Pre-compute score contributions: MX_i * resid_i for each row
-  const mat score_contrib = MX.each_col() % resid;
-
+  // Compute cluster scores directly without intermediate matrix
   mat B(p, p, fill::zeros);
+  vec cluster_score(p);
+  
   for (uword g = 0; g < G; ++g) {
     const uvec &idx = cluster_groups(g);
-    if (idx.n_elem == 0)
+    const uword ng = idx.n_elem;
+    if (ng == 0)
       continue;
 
-    // Sum scores within cluster
-    const vec cluster_score = arma::sum(score_contrib.rows(idx), 0).t();
+    // Sum scores within cluster: score[j] = sum_i MX[i,j] * resid[i]
+    cluster_score.zeros();
+    double *cs_ptr = cluster_score.memptr();
+    const uword *idx_ptr = idx.memptr();
+    
+    for (uword i = 0; i < ng; ++i) {
+      const uword obs = idx_ptr[i];
+      const double r = resid_ptr[obs];
+      for (uword j = 0; j < p; ++j) {
+        cs_ptr[j] += MX(obs, j) * r;
+      }
+    }
+    
+    // B += cluster_score * cluster_score'
     B += cluster_score * cluster_score.t();
   }
 
