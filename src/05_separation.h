@@ -242,37 +242,85 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
   const double M = 1.0 / std::sqrt(arma::datum::eps);
 
   vec xbd(n, arma::fill::zeros);
+  vec xbd_prev1(n, arma::fill::zeros);
+  vec xbd_prev2(n, arma::fill::zeros);
   vec resid(n);
   double uu_old = arma::dot(u, u);
 
-  // Early termination tracking
-  double ee_prev = uu_old;
-  uword stall_count = 0;
-  const uword max_stall = 3;
+  // Progress tracking for acceleration (from ppmlhdfe)
+  double ee_cumulative = 0.0;
+  const double ee_boundary = uu_old;
+  double progress_ratio_prev1 = 0.0;
+  double progress_ratio_prev2 = 0.0;
+  uword num_candidates_prev1 = 0;
+  uword num_candidates_prev2 = 0;
+  bool convergence_is_stuck = false;
+  double acceleration_value = 1.0;
 
   for (uword iter = 0; iter < params.sep_max_iter; ++iter) {
     if (iter % 100 == 0)
       check_user_interrupt();
 
-    solve_lse_weighted(X, u, interior_sample, M, resid);
+    // Shift xbd history for acceleration detection
+    std::swap(xbd_prev2, xbd_prev1);
+    std::swap(xbd_prev1, xbd);
+
+    // Build weights with potential acceleration
+    vec weights(n, arma::fill::ones);
+    if (interior_sample.n_elem > 0) {
+      weights.elem(interior_sample).fill(M);
+    }
+
+    // Apply acceleration to stuck negative boundary observations
+    if (convergence_is_stuck && iter > 3) {
+      const vec xbd_b = xbd_prev1.elem(boundary_sample);
+      const vec xbd_b_p1 = xbd_prev2.elem(boundary_sample);
+      // Find obs stuck at negative values
+      for (uword i = 0; i < num_boundary; ++i) {
+        if (xbd_b(i) < -0.1 * params.sep_tol && 
+            xbd_b_p1(i) < 1.01 * xbd_b(i)) {
+          weights(boundary_sample(i)) = acceleration_value;
+        }
+      }
+    }
+
+    solve_wls(X, u, weights, resid);
     xbd = u - resid;
 
     const double ee = arma::dot(resid, resid);
     const double epsilon = ee + params.sep_tol;
     const double delta = epsilon + params.sep_tol;
 
-    // Early termination: detect stalled convergence
-    if (iter > 3) {
-      if (std::abs(ee - ee_prev) < params.sep_tol * ee_prev) {
-        if (++stall_count > max_stall) {
-          result.iterations = iter + 1;
-          break;
-        }
-      } else {
-        stall_count = 0;
+    // Track cumulative progress (from ppmlhdfe)
+    ee_cumulative += ee;
+    const double progress_ratio = 
+        ee_boundary > 0 ? 100.0 * ee_cumulative / ee_boundary : 100.0;
+
+    // Count candidates for separation
+    uword num_candidates = 0;
+    {
+      const vec boundary_xbd_tmp = xbd.elem(boundary_sample);
+      for (uword i = 0; i < num_boundary; ++i) {
+        if (boundary_xbd_tmp(i) > delta) num_candidates++;
       }
     }
-    ee_prev = ee;
+
+    // Detect stuck convergence and enable acceleration (from ppmlhdfe)
+    if (!convergence_is_stuck && iter > 3) {
+      if ((progress_ratio - progress_ratio_prev2 < 1.0) && 
+          (num_candidates == num_candidates_prev2)) {
+        convergence_is_stuck = true;
+        acceleration_value = 4.0;
+      }
+    } else if (convergence_is_stuck) {
+      acceleration_value = std::min(256.0, 4.0 * acceleration_value);
+    }
+
+    // Update history
+    progress_ratio_prev2 = progress_ratio_prev1;
+    progress_ratio_prev1 = progress_ratio;
+    num_candidates_prev2 = num_candidates_prev1;
+    num_candidates_prev1 = num_candidates;
 
     // Enforce constraints on interior
     if (interior_sample.n_elem > 0) {
@@ -349,9 +397,32 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
 
 inline void simplex_presolve(mat &X, uvec &basic_vars, uvec &nonbasic_vars,
                              uvec &keep_mask, uword &k, uword &n) {
+  // First pass: identify and drop empty columns (from ppmlhdfe)
+  uvec is_dropped(k, arma::fill::zeros);
+  for (uword j = 0; j < k; ++j) {
+    if (arma::accu(arma::abs(X.col(j))) == 0) {
+      is_dropped(j) = 1;
+    }
+  }
+  
+  // Remove empty columns early
+  const uvec non_empty = arma::find(is_dropped == 0);
+  if (non_empty.n_elem < k) {
+    if (non_empty.n_elem == 0) {
+      // All columns empty - trivial case
+      keep_mask.ones(n);
+      basic_vars = arma::regspace<uvec>(0, n - 1);
+      nonbasic_vars = uvec();
+      k = 0;
+      return;
+    }
+    X = X.cols(non_empty);
+    k = non_empty.n_elem;
+    is_dropped.zeros(k);  // Reset for remaining columns
+  }
+
   mat A(n, k, arma::fill::zeros);
   keep_mask.ones(n);
-  uvec is_dropped(k, arma::fill::zeros);
 
   std::vector<uword> nonbasic_list;
   nonbasic_list.reserve(k);
