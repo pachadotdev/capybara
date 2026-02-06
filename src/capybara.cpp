@@ -62,6 +62,7 @@ inline void set_omp_threads_from_config() {
 struct CapybaraParameters {
   double dev_tol;
   double center_tol;
+  double center_tol_loose;
   double collin_tol;
   double step_halving_factor;
   double alpha_tol;
@@ -88,8 +89,9 @@ struct CapybaraParameters {
   double start_inner_tol;
 
   CapybaraParameters()
-      : dev_tol(1.0e-08), center_tol(1.0e-08), collin_tol(1.0e-10),
-        step_halving_factor(0.5), alpha_tol(1.0e-08), sep_tol(1.0e-08),
+      : dev_tol(1.0e-08), center_tol(1.0e-08), center_tol_loose(1.0e-04),
+        collin_tol(1.0e-10), step_halving_factor(0.5), alpha_tol(1.0e-08),
+        sep_tol(1.0e-08),
         sep_zero_tol(1.0e-12), sep_max_iter(200), sep_simplex_max_iter(2000),
         check_separation(true), sep_use_relu(true), sep_use_simplex(true),
         iter_max(25), iter_center_max(10000), iter_inner_max(50),
@@ -99,6 +101,7 @@ struct CapybaraParameters {
   explicit CapybaraParameters(const cpp4r::list &control) {
     dev_tol = as_cpp<double>(control["dev_tol"]);
     center_tol = as_cpp<double>(control["center_tol"]);
+    center_tol_loose = as_cpp<double>(control["center_tol_loose"]);
     collin_tol = as_cpp<double>(control["collin_tol"]);
     step_halving_factor = as_cpp<double>(control["step_halving_factor"]);
     alpha_tol = as_cpp<double>(control["alpha_tol"]);

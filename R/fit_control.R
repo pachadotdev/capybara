@@ -36,6 +36,9 @@ NULL
 #' @param center_tol tolerance level for the stopping condition of the centering algorithm. The stopping condition is
 #'  based on the relative change of the centered variable similar to the \code{'lfe'} package. The default is
 #'  \code{1.0e-08}.
+#' @param center_tol_loose initial (loose) tolerance for adaptive centering in GLM iterations. During early IRLS
+#'  iterations when deviance is changing rapidly, this looser tolerance is used to save computation. As the GLM
+#'  converges, the tolerance is tightened towards \code{center_tol}. The default is \code{1.0e-04}.
 #' @param collin_tol tolerance level for detecting collinearity. The default is \code{1.0e-07}.
 #' @param alpha_tol tolerance for fixed effects (alpha) convergence. The default is \code{1.0e-06}.
 #' @param sep_tol tolerance for separation detection. The default is \code{1.0e-08}.
@@ -80,6 +83,7 @@ NULL
 fit_control <- function(
   dev_tol = 1.0e-08,
   center_tol = 1.0e-08,
+  center_tol_loose = 1.0e-04,
   collin_tol = 1.0e-10,
   step_halving_factor = 0.5,
   alpha_tol = 1.0e-08,
@@ -105,6 +109,7 @@ fit_control <- function(
   if (
     dev_tol <= 0.0 ||
       center_tol <= 0.0 ||
+      center_tol_loose <= 0.0 ||
       collin_tol <= 0.0 ||
       step_halving_factor <= 0.0 ||
       alpha_tol <= 0.0 ||
@@ -178,6 +183,7 @@ fit_control <- function(
   list(
     dev_tol = dev_tol,
     center_tol = center_tol,
+    center_tol_loose = center_tol_loose,
     collin_tol = collin_tol,
     step_halving_factor = step_halving_factor,
     alpha_tol = alpha_tol,

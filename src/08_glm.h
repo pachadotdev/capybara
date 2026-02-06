@@ -278,6 +278,12 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   const double step_halving_memory = params.step_halving_memory;
   uword num_step_halving = 0;
 
+  // Adaptive centering tolerance parameters
+  // Start with loose tolerance, tighten as GLM converges
+  const double center_tol_loose = params.center_tol_loose;
+  const double center_tol_tight = params.center_tol;
+  double adaptive_center_tol = center_tol_loose;
+
   // Convergence acceleration for large models
   const bool is_large_model = (n > 100000) || (p_working > 1000) ||
                               (has_fixed_effects && fe_groups.n_elem > 1);
@@ -324,7 +330,8 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     // Weighted least squares via felm_fit (no copy needed - felm_fit uses
     // workspace)
     InferenceLM lm_res = felm_fit(X, z, w_working, fe_groups, params,
-                                  &felm_workspace, cluster_groups, true);
+                                  &felm_workspace, cluster_groups, true,
+                                  adaptive_center_tol);
 
     const vec &beta_upd_reduced = lm_res.coef_table.col(0);
 
@@ -389,6 +396,15 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 
     dev_ratio = std::fabs(dev - dev0) / (0.1 + std::fabs(dev));
     const double delta_deviance = dev0 - dev;
+
+    // Update adaptive centering tolerance based on GLM convergence
+    // As dev_ratio decreases, tighten the centering tolerance
+    // Linear interpolation: at dev_ratio=0.1 use loose, at dev_ratio<1e-4 use tight
+    if (dev_ratio < 0.1) {
+      const double t = std::max(0.0, std::min(1.0, (0.1 - dev_ratio) / 0.1));
+      adaptive_center_tol =
+          center_tol_loose * std::pow(center_tol_tight / center_tol_loose, t);
+    }
 
     // Early convergence detection for large models
     if (is_large_model && dev_ratio < last_dev_ratio * 0.5) {

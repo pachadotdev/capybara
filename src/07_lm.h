@@ -203,7 +203,8 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
                      const CapybaraParameters &params,
                      FelmWorkspace *workspace = nullptr,
                      const field<uvec> *cluster_groups = nullptr,
-                     bool run_from_glm = false) {
+                     bool run_from_glm = false,
+                     double adaptive_center_tol = 0.0) {
   const uword N = y.n_elem;
   const uword P_input = X.n_cols;
   const bool has_fixed_effects = fe_groups.n_elem > 0;
@@ -242,12 +243,16 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
   if (has_fixed_effects) {
     FlatFEMap fe_map = build_fe_map(fe_groups, w);
 
+    // Use adaptive tolerance if provided, otherwise use params.center_tol
+    const double effective_tol =
+        (adaptive_center_tol > 0.0) ? adaptive_center_tol : params.center_tol;
+
     ws->y_demeaned = y;
-    center_variables(ws->y_demeaned, w, fe_map, params.center_tol,
+    center_variables(ws->y_demeaned, w, fe_map, effective_tol,
                      params.iter_center_max);
 
     if (P > 0) {
-      center_variables(ws->X_centered, w, fe_map, params.center_tol,
+      center_variables(ws->X_centered, w, fe_map, effective_tol,
                        params.iter_center_max);
     }
   } else {
