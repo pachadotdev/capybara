@@ -35,7 +35,8 @@ struct FelmWorkspace {
   vec y_demeaned;
   vec x_beta;
   vec pi;
-  mat X_original;
+  mat X_original;  // Uncentered X for fitted values computation
+  mat X_centered;  // Working copy that gets centered in place
   vec y_original;
 
   uword cached_N, cached_P;
@@ -52,6 +53,7 @@ struct FelmWorkspace {
     }
     if (P > cached_P || N > X_original.n_rows) {
       X_original.set_size(N, P);
+      X_centered.set_size(N, P);
       cached_P = P;
     }
   }
@@ -196,14 +198,18 @@ inline void expand_vcov(mat &vcov_full, const mat &vcov_reduced,
   }
 }
 
-InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
+InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
                      const field<field<uvec>> &fe_groups,
                      const CapybaraParameters &params,
                      FelmWorkspace *workspace = nullptr,
                      const field<uvec> *cluster_groups = nullptr,
                      bool run_from_glm = false) {
   const uword N = y.n_elem;
-  const uword P = X.n_cols;
+  const uword P_input = X.n_cols;
+  const bool has_fixed_effects = fe_groups.n_elem > 0;
+
+  // Determine final P (with or without intercept)
+  const uword P = (!has_fixed_effects && !run_from_glm) ? P_input + 1 : P_input;
 
   InferenceLM result(N, P);
   result.weights = w;
@@ -213,17 +219,25 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
   ws->ensure_size(N, P);
   ws->y_original = y;
 
-  const bool has_fixed_effects = fe_groups.n_elem > 0;
   result.has_fe = has_fixed_effects;
 
-  // Add intercept column if no fixed effects
+  // Copy X to workspace buffers (only copy needed per iteration)
   if (!has_fixed_effects && !run_from_glm) {
-    X = join_horiz(ones<vec>(N), X);
+    // Add intercept column
+    ws->X_original.col(0).ones();
+    if (P_input > 0) {
+      ws->X_original.cols(1, P - 1) = X;
+    }
+  } else {
+    ws->X_original = X;
   }
-
-  ws->X_original = X;
+  ws->X_centered = ws->X_original;  // Copy for centering
 
   const bool use_weights = any(w != 1.0);
+
+  #ifdef CAPYBARA_DEBUG
+  auto tcenter0 = std::chrono::high_resolution_clock::now();
+  #endif
 
   if (has_fixed_effects) {
     FlatFEMap fe_map = build_fe_map(fe_groups, w);
@@ -232,125 +246,87 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
     center_variables(ws->y_demeaned, w, fe_map, params.center_tol,
                      params.iter_center_max);
 
-    if (X.n_cols > 0) {
-      center_variables(X, w, fe_map, params.center_tol,
+    if (P > 0) {
+      center_variables(ws->X_centered, w, fe_map, params.center_tol,
                        params.iter_center_max);
     }
   } else {
     ws->y_demeaned = y;
   }
 
-  if (params.keep_tx && X.n_cols > 0) {
-    result.TX = X;
+  #ifdef CAPYBARA_DEBUG
+  auto tcenter1 = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> center_duration = tcenter1 - tcenter0;
+  std::ostringstream center_msg;
+  center_msg << "Centering time: " << center_duration.count() << " seconds.\n";
+  cpp4r::message(center_msg.str());
+  #endif
+
+  if (params.keep_tx && P > 0) {
+    result.TX = ws->X_centered;
     result.has_tx = true;
   }
 
-  const uword P_final = X.n_cols;
+  const uword P_final = P;
 
-  // New solver
-  CollinearityResult collin_result(P_final);
+  // Solve normal equations using rank-revealing Cholesky
+  #ifdef CAPYBARA_DEBUG
+  auto tsolve0 = std::chrono::high_resolution_clock::now();
+  #endif
+
   mat XtX;
   vec XtY_vec;
 
   if (use_weights) {
-    XtX = crossprod(X, w);
-    XtY_vec = X.t() * (w % ws->y_demeaned);
+    XtX = crossprod(ws->X_centered, w);
+    XtY_vec = ws->X_centered.t() * (w % ws->y_demeaned);
   } else {
-    XtX = crossprod(X);
-    XtY_vec = X.t() * ws->y_demeaned;
+    XtX = crossprod(ws->X_centered);
+    XtY_vec = ws->X_centered.t() * ws->y_demeaned;
   }
 
   mat R_rank;
   uvec excl;
   uword rank;
 
-  // Adaptive tolerance strategy
-  double current_tol = params.collin_tol;
-
-  // Ensure tolerance is not too small relative to matrix scale
-  if (XtX.n_rows > 0) {
-    double max_diag = max(XtX.diag());
-    double rel_tol = max_diag * 1e-12; // 1e-12 relative tolerance
-    if (current_tol < rel_tol) {
-      current_tol = rel_tol;
-    }
-  }
-
-  // First pass
-  if (!chol_rank(R_rank, excl, rank, XtX, "upper", current_tol)) {
+  if (!chol_rank(R_rank, excl, rank, XtX, "upper", params.collin_tol)) {
     throw std::runtime_error("chol_rank failed in felm_fit");
   }
 
-  // Robustness check: Ensure diagonal elements of R are above tolerance
-  // If we find small pivots that were not excluded, we must re-run chol_rank
-  const double pivot_thresh = std::sqrt(current_tol) * 10.0;
-  const double max_diag_val = (XtX.n_rows > 0) ? max(XtX.diag()) : 1.0;
-
-  // Vectorized check: find non-excluded indices with bad pivots
-  const vec R_diag = R_rank.diag();
-  const uvec kept = find(excl == 0);
-  const vec kept_diag = R_diag.elem(kept);
-
-  // Check for NaN or small pivots in kept columns
-  const uvec bad_pivots =
-      find((kept_diag != kept_diag) || // NaN check (x != x for NaN)
-           (abs(kept_diag) < pivot_thresh));
-
-  if (bad_pivots.n_elem > 0) {
-    // Find maximum tolerance needed
-    const vec bad_vals = kept_diag.elem(bad_pivots);
-    const uvec finite_idx = find_finite(bad_vals);
-    const double max_bad =
-        finite_idx.n_elem > 0 ? max(abs(bad_vals.elem(finite_idx))) : 0.0;
-
-    // Propose tolerance based on worst case
-    const double proposed_tol = std::max(
-        {max_diag_val * 1e-8, current_tol * 100.0, max_bad * max_bad * 1.1});
-
-    // Second pass with stricter tolerance
-    if (!chol_rank(R_rank, excl, rank, XtX, "upper", proposed_tol)) {
-      const double last_resort_tol = max_diag_val * 1e-6;
-      if (!chol_rank(R_rank, excl, rank, XtX, "upper", last_resort_tol)) {
-        throw std::runtime_error("chol_rank failed in felm_fit rerun");
-      }
-    }
-  }
-
+  // Populate collinearity result from excl vector
+  CollinearityResult collin_result(P_final);
   collin_result.has_collinearity = any(excl);
+  collin_result.non_collinear_cols = find(excl == 0);
+  collin_result.collinear_cols = find(excl != 0);
+  collin_result.coef_status = 1 - excl;
 
-  if (collin_result.has_collinearity) {
-    collin_result.non_collinear_cols = find(excl == 0);
-    collin_result.collinear_cols = find(excl != 0);
-    collin_result.coef_status = 1 - excl;
-  } else {
-    collin_result.non_collinear_cols = regspace<uvec>(0, P_final - 1);
-    collin_result.coef_status.fill(1);
+  // Solve reduced system for non-excluded columns
+  const uword n_coef = P_final;
+  vec beta_solved(n_coef, fill::value(datum::nan));
+  mat hessian_reduced;
+
+  if (rank > 0) {
+    const uvec keep_idx = collin_result.non_collinear_cols;
+    const mat R_sub = R_rank.submat(keep_idx, keep_idx);
+    const vec XtY_sub = XtY_vec.elem(keep_idx);
+
+    // Solve triangular systems: R'y = XtY, then Rb = y
+    const vec y_sub = solve(trimatl(R_sub.t()), XtY_sub);
+    const vec beta_sub = solve(trimatu(R_sub), y_sub);
+
+    // Scatter into full beta (excluded entries remain NaN)
+    beta_solved.elem(keep_idx) = beta_sub;
+
+    // Hessian from Cholesky factor: X'X = R'R
+    hessian_reduced = R_sub.t() * R_sub;
   }
 
-  vec beta_solved(P_final, fill::value(datum::nan));
-
-  // Extract submatrix and subvector using Armadillo indexing
-  const uvec keep_idx = find(excl == 0);
-
-  // Use .submat() for proper submatrix extraction with index vectors
-  const mat R_sub = R_rank.submat(keep_idx, keep_idx);
-  const vec XtY_sub = XtY_vec.elem(keep_idx);
-
-  // Solve triangular systems
-  const vec y_sub = solve(trimatl(R_sub.t()), XtY_sub);
-  const vec beta_sub = solve(trimatu(R_sub), y_sub);
-
-  // Place results back (vectorized)
-  beta_solved.elem(keep_idx) = beta_sub;
-
-  const uword n_coef = P_final;
   if (result.coef_table.n_rows != n_coef) {
     result.coef_table.set_size(n_coef, 4);
   }
   result.coef_status = std::move(collin_result.coef_status);
 
   result.coef_table.col(0) = beta_solved;
-  mat hessian_reduced = R_sub.t() * R_sub;
   if (collin_result.has_collinearity) {
     expand_vcov(result.hessian, hessian_reduced,
                 collin_result.non_collinear_cols, n_coef);
@@ -366,6 +342,14 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
     return result;
   }
 
+  #ifdef CAPYBARA_DEBUG
+  auto tsolve1 = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> solve_duration = tsolve1 - tsolve0;
+  std::ostringstream solve_msg;
+  solve_msg << "Solving time: " << solve_duration.count() << " seconds.\n";
+  cpp4r::message(solve_msg.str());
+  #endif
+
   result.residuals = ws->y_original - result.fitted_values;
 
   compute_r_squared(result, ws->y_original, result.residuals, w, n_coef,
@@ -376,7 +360,7 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
 
   if (cluster_groups != nullptr && cluster_groups->n_elem > 0) {
     vcov_reduced =
-        compute_sandwich_vcov(X, ws->y_original, result.fitted_values,
+        compute_sandwich_vcov(ws->X_centered, ws->y_original, result.fitted_values,
                               result.hessian, *cluster_groups);
   } else {
     mat H_inv;

@@ -7,6 +7,7 @@ namespace capybara {
 struct GlmWorkspace {
   vec mu;        // fitted values on response scale
   vec w_working; // working weights
+  vec nu;        // working residuals
   vec eta0;      // previous eta (for step-halving)
   vec beta0;     // previous beta (for step-halving)
 
@@ -19,6 +20,7 @@ struct GlmWorkspace {
     if (n > cached_n) {
       mu.set_size(n);
       w_working.set_size(n);
+      nu.set_size(n);
       eta0.set_size(n);
       cached_n = n;
     }
@@ -256,6 +258,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   // Workspace references
   vec &mu = ws.mu;
   vec &w_working = ws.w_working;
+  vec &nu = ws.nu;
   vec &eta0 = ws.eta0;
   vec &beta0 = ws.beta0;
 
@@ -285,6 +288,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   FelmWorkspace felm_workspace;
 
 #ifdef CAPYBARA_DEBUG
+  cpp4r::message("/// Begin GLM iterations...\n");
   auto tglmiter0 = std::chrono::high_resolution_clock::now();
 #endif
 
@@ -296,7 +300,10 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     dev0 = dev;
 
     // Compute working weights and working residuals
-    vec nu(n);
+    #ifdef CAPYBARA_DEBUG
+    auto twwnu0 = std::chrono::high_resolution_clock::now();
+    #endif
+
     compute_ww_nu(w_working, nu, w, mu, y, theta);
 
     // Working response z = eta + nu - offset
@@ -305,9 +312,16 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       z -= offset_vec;
     }
 
-    // Weighted least squares via felm_fit
-    mat X_iter = X; // Copy needed as felm_fit centers in place
-    InferenceLM lm_res = felm_fit(X_iter, z, w_working, fe_groups, params,
+    #ifdef CAPYBARA_DEBUG
+    auto twwnu1 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> wwnu_duration = twwnu1 - twwnu0;
+    std::ostringstream wwnu_msg;
+    wwnu_msg << "Working weights and nu time: " << wwnu_duration.count() << " seconds.\n";
+    cpp4r::message(wwnu_msg.str());
+    #endif
+
+    // Weighted least squares via felm_fit (no copy needed - felm_fit uses workspace)
+    InferenceLM lm_res = felm_fit(X, z, w_working, fe_groups, params,
                                   &felm_workspace, cluster_groups, true);
 
     const vec &beta_upd_reduced = lm_res.coef_table.col(0);
@@ -405,6 +419,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   }
 
 #ifdef CAPYBARA_DEBUG
+  cpp4r::message("/// End GLM iterations...\n");
   auto tglmiter1 = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> glmiter_duration = tglmiter1 - tglmiter0;
   std::ostringstream glmiter_msg;
@@ -446,7 +461,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     auto tfe1 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> tfe_duration = tfe1 - tfe0;
     std::ostringstream msg_tfe;
-    msg_tfe << "\nFixed effects recovery time: " << tfe_duration.count()
+    msg_tfe << "Fixed effects recovery time: " << tfe_duration.count()
             << " seconds.\n";
     cpp4r::message(msg_tfe.str());
 #endif

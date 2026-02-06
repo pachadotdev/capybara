@@ -112,45 +112,108 @@ Family get_family_type(const std::string &fam) {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Deviance residuals
+// Deviance residuals - optimized with fused operations
 ///////////////////////////////////////////////////////////////////////////
 
 inline double dev_resids_gaussian(const vec &y, const vec &mu, const vec &wt) {
-  return arma::dot(wt, arma::square(y - mu));
+  const uword n = y.n_elem;
+  const double *y_ptr = y.memptr();
+  const double *mu_ptr = mu.memptr();
+  const double *wt_ptr = wt.memptr();
+  
+  double sum = 0.0;
+  for (uword i = 0; i < n; ++i) {
+    double diff = y_ptr[i] - mu_ptr[i];
+    sum += wt_ptr[i] * diff * diff;
+  }
+  return sum;
 }
 
 inline double dev_resids_poisson(const vec &y, const vec &mu, const vec &wt) {
   // 2 * sum(wt * (y * log(max(y,1)/mu) - (y - mu)))
-  return 2.0 *
-         arma::dot(wt, y % arma::log(arma::clamp(y, 1.0, datum::inf) / mu) -
-                           (y - mu));
+  const uword n = y.n_elem;
+  const double *y_ptr = y.memptr();
+  const double *mu_ptr = mu.memptr();
+  const double *wt_ptr = wt.memptr();
+  
+  double sum = 0.0;
+  for (uword i = 0; i < n; ++i) {
+    double yi = y_ptr[i];
+    double mui = mu_ptr[i];
+    double y_clamped = (yi < 1.0) ? 1.0 : yi;
+    sum += wt_ptr[i] * (yi * std::log(y_clamped / mui) - (yi - mui));
+  }
+  return 2.0 * sum;
 }
 
 inline double dev_resids_logit(const vec &y, const vec &mu, const vec &wt) {
   // 2 * sum(wt * (y*log(y/mu) + (1-y)*log((1-y)/(1-mu))))
-  // Handle y=0 and y=1 cases where log(0) would occur
-  const vec y_safe = arma::clamp(y, datum::eps, 1.0 - datum::eps);
-  return 2.0 *
-         arma::dot(wt, y % arma::log(y_safe / mu) +
-                           (1.0 - y) % arma::log((1.0 - y_safe) / (1.0 - mu)));
+  const uword n = y.n_elem;
+  const double *y_ptr = y.memptr();
+  const double *mu_ptr = mu.memptr();
+  const double *wt_ptr = wt.memptr();
+  
+  double sum = 0.0;
+  for (uword i = 0; i < n; ++i) {
+    double yi = y_ptr[i];
+    double mui = mu_ptr[i];
+    // Clamp y to avoid log(0)
+    double y_safe = (yi < datum::eps) ? datum::eps : ((yi > 1.0 - datum::eps) ? 1.0 - datum::eps : yi);
+    sum += wt_ptr[i] * (yi * std::log(y_safe / mui) + (1.0 - yi) * std::log((1.0 - y_safe) / (1.0 - mui)));
+  }
+  return 2.0 * sum;
 }
 
 inline double dev_resids_gamma(const vec &y, const vec &mu, const vec &wt) {
-  return -2.0 *
-         arma::dot(wt, arma::log(arma::clamp(y / mu, datum::eps, datum::inf)) -
-                           (y - mu) / mu);
+  const uword n = y.n_elem;
+  const double *y_ptr = y.memptr();
+  const double *mu_ptr = mu.memptr();
+  const double *wt_ptr = wt.memptr();
+  
+  double sum = 0.0;
+  for (uword i = 0; i < n; ++i) {
+    double yi = y_ptr[i];
+    double mui = mu_ptr[i];
+    double ratio = yi / mui;
+    double ratio_clamped = (ratio < datum::eps) ? datum::eps : ratio;
+    sum += wt_ptr[i] * (std::log(ratio_clamped) - (yi - mui) / mui);
+  }
+  return -2.0 * sum;
 }
 
 inline double dev_resids_invgaussian(const vec &y, const vec &mu,
                                      const vec &wt) {
-  return arma::dot(wt, arma::square(y - mu) / (y % arma::square(mu)));
+  const uword n = y.n_elem;
+  const double *y_ptr = y.memptr();
+  const double *mu_ptr = mu.memptr();
+  const double *wt_ptr = wt.memptr();
+  
+  double sum = 0.0;
+  for (uword i = 0; i < n; ++i) {
+    double yi = y_ptr[i];
+    double mui = mu_ptr[i];
+    double diff = yi - mui;
+    sum += wt_ptr[i] * (diff * diff) / (yi * mui * mui);
+  }
+  return sum;
 }
 
 inline double dev_resids_negbin(const vec &y, const vec &mu,
                                 const double &theta, const vec &wt) {
-  return 2.0 *
-         arma::dot(wt, y % arma::log(arma::clamp(y, 1.0, datum::inf) / mu) -
-                           (y + theta) % arma::log((y + theta) / (mu + theta)));
+  const uword n = y.n_elem;
+  const double *y_ptr = y.memptr();
+  const double *mu_ptr = mu.memptr();
+  const double *wt_ptr = wt.memptr();
+  
+  double sum = 0.0;
+  for (uword i = 0; i < n; ++i) {
+    double yi = y_ptr[i];
+    double mui = mu_ptr[i];
+    double y_clamped = (yi < 1.0) ? 1.0 : yi;
+    double y_theta = yi + theta;
+    sum += wt_ptr[i] * (yi * std::log(y_clamped / mui) - y_theta * std::log(y_theta / (mui + theta)));
+  }
+  return 2.0 * sum;
 }
 
 inline vec link_inv(const vec &eta, const Family family_type) {
