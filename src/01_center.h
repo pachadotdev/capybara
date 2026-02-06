@@ -6,12 +6,11 @@
 namespace capybara {
 
 // In-place row scaling for all columns: A(i,j) *= scale[i] for all j
-// Replaces A.each_col() %= scale which applies scale element-wise to each column
 inline void scale_rows_inplace(mat &A, const vec &scale) {
   const uword n_rows = A.n_rows;
   const uword n_cols = A.n_cols;
   const double *s_ptr = scale.memptr();
-  
+
   for (uword j = 0; j < n_cols; ++j) {
     double *col = A.colptr(j);
     for (uword i = 0; i < n_rows; ++i) {
@@ -22,15 +21,17 @@ inline void scale_rows_inplace(mat &A, const vec &scale) {
 
 // Flat FE structure using std::vector for guaranteed contiguous memory
 struct FlatFEMap {
-  std::vector<std::vector<uword>> fe_map;  // K x n_obs: fe_map[k][i] = group of obs i
-  std::vector<vec> inv_weights;             // K: precomputed 1/sum(w) per group
-  std::vector<uword> n_groups;              // K: number of groups per FE
+  std::vector<std::vector<uword>>
+      fe_map;                   // K x n_obs: fe_map[k][i] = group of obs i
+  std::vector<vec> inv_weights; // K: precomputed 1/sum(w) per group
+  std::vector<uword> n_groups;  // K: number of groups per FE
   uword n_obs;
   uword K;
 
   void build(const field<field<uvec>> &group_indices) {
     K = group_indices.n_elem;
-    if (K == 0) return;
+    if (K == 0)
+      return;
 
     n_groups.resize(K);
     n_obs = 0;
@@ -67,7 +68,8 @@ struct FlatFEMap {
   }
 
   void update_weights(const vec &w) {
-    if (K == 0) return;
+    if (K == 0)
+      return;
 
     inv_weights.resize(K);
     const bool use_w = (w.n_elem == n_obs);
@@ -98,69 +100,79 @@ struct FlatFEMap {
 };
 
 // Blocked iteration for 2FE case - update alpha1
-template <int B_SZ>
+// Block size 4 with manual unrolling for portability (works with GCC, Clang,
+// MSVC)
 inline void center_2fe_block_alpha1(const uword n_obs, const uword p_start,
-                                    const uword real_b_sz, const double *w_ptr,
+                                    const uword b_sz, const double *w_ptr,
                                     const uword *g1, const uword *g2, mat &V,
                                     mat &alpha1, const mat &alpha2) {
-  const double *v_ptrs[B_SZ];
-  double *a1_ptrs[B_SZ];
-  const double *a2_ptrs[B_SZ];
+  // Get column pointers for this block
+  const double *v0 = V.colptr(p_start);
+  const double *v1 = (b_sz > 1) ? V.colptr(p_start + 1) : nullptr;
+  const double *v2 = (b_sz > 2) ? V.colptr(p_start + 2) : nullptr;
+  const double *v3 = (b_sz > 3) ? V.colptr(p_start + 3) : nullptr;
 
-  for (int j = 0; j < B_SZ; ++j) {
-    if (j < (int)real_b_sz) {
-      v_ptrs[j] = V.colptr(p_start + j);
-      a1_ptrs[j] = alpha1.colptr(p_start + j);
-      a2_ptrs[j] = alpha2.colptr(p_start + j);
-    }
-  }
+  double *a1_0 = alpha1.colptr(p_start);
+  double *a1_1 = (b_sz > 1) ? alpha1.colptr(p_start + 1) : nullptr;
+  double *a1_2 = (b_sz > 2) ? alpha1.colptr(p_start + 2) : nullptr;
+  double *a1_3 = (b_sz > 3) ? alpha1.colptr(p_start + 3) : nullptr;
+
+  const double *a2_0 = alpha2.colptr(p_start);
+  const double *a2_1 = (b_sz > 1) ? alpha2.colptr(p_start + 1) : nullptr;
+  const double *a2_2 = (b_sz > 2) ? alpha2.colptr(p_start + 2) : nullptr;
+  const double *a2_3 = (b_sz > 3) ? alpha2.colptr(p_start + 3) : nullptr;
 
   for (uword i = 0; i < n_obs; ++i) {
-    double wi = w_ptr[i];
+    const double wi = w_ptr[i];
     if (wi > 1e-14) {
-      uword u_g1 = g1[i];
-      uword u_g2 = g2[i];
+      const uword ug1 = g1[i];
+      const uword ug2 = g2[i];
 
-#pragma GCC unroll 4
-      for (int j = 0; j < B_SZ; ++j) {
-        if (j < (int)real_b_sz) {
-          a1_ptrs[j][u_g1] += wi * (v_ptrs[j][i] - a2_ptrs[j][u_g2]);
-        }
-      }
+      // Manual unroll - compiler will optimize away null pointer branches
+      a1_0[ug1] += wi * (v0[i] - a2_0[ug2]);
+      if (b_sz > 1)
+        a1_1[ug1] += wi * (v1[i] - a2_1[ug2]);
+      if (b_sz > 2)
+        a1_2[ug1] += wi * (v2[i] - a2_2[ug2]);
+      if (b_sz > 3)
+        a1_3[ug1] += wi * (v3[i] - a2_3[ug2]);
     }
   }
 }
 
 // Blocked iteration for 2FE case - update alpha2
-template <int B_SZ>
 inline void center_2fe_block_alpha2(const uword n_obs, const uword p_start,
-                                    const uword real_b_sz, const double *w_ptr,
+                                    const uword b_sz, const double *w_ptr,
                                     const uword *g1, const uword *g2, mat &V,
                                     const mat &alpha1, mat &alpha2) {
-  const double *v_ptrs[B_SZ];
-  const double *a1_ptrs[B_SZ];
-  double *a2_ptrs[B_SZ];
+  const double *v0 = V.colptr(p_start);
+  const double *v1 = (b_sz > 1) ? V.colptr(p_start + 1) : nullptr;
+  const double *v2 = (b_sz > 2) ? V.colptr(p_start + 2) : nullptr;
+  const double *v3 = (b_sz > 3) ? V.colptr(p_start + 3) : nullptr;
 
-  for (int j = 0; j < B_SZ; ++j) {
-    if (j < (int)real_b_sz) {
-      v_ptrs[j] = V.colptr(p_start + j);
-      a1_ptrs[j] = alpha1.colptr(p_start + j);
-      a2_ptrs[j] = alpha2.colptr(p_start + j);
-    }
-  }
+  const double *a1_0 = alpha1.colptr(p_start);
+  const double *a1_1 = (b_sz > 1) ? alpha1.colptr(p_start + 1) : nullptr;
+  const double *a1_2 = (b_sz > 2) ? alpha1.colptr(p_start + 2) : nullptr;
+  const double *a1_3 = (b_sz > 3) ? alpha1.colptr(p_start + 3) : nullptr;
+
+  double *a2_0 = alpha2.colptr(p_start);
+  double *a2_1 = (b_sz > 1) ? alpha2.colptr(p_start + 1) : nullptr;
+  double *a2_2 = (b_sz > 2) ? alpha2.colptr(p_start + 2) : nullptr;
+  double *a2_3 = (b_sz > 3) ? alpha2.colptr(p_start + 3) : nullptr;
 
   for (uword i = 0; i < n_obs; ++i) {
-    double wi = w_ptr[i];
+    const double wi = w_ptr[i];
     if (wi > 1e-14) {
-      uword u_g1 = g1[i];
-      uword u_g2 = g2[i];
+      const uword ug1 = g1[i];
+      const uword ug2 = g2[i];
 
-#pragma GCC unroll 4
-      for (int j = 0; j < B_SZ; ++j) {
-        if (j < (int)real_b_sz) {
-          a2_ptrs[j][u_g2] += wi * (v_ptrs[j][i] - a1_ptrs[j][u_g1]);
-        }
-      }
+      a2_0[ug2] += wi * (v0[i] - a1_0[ug1]);
+      if (b_sz > 1)
+        a2_1[ug2] += wi * (v1[i] - a1_1[ug1]);
+      if (b_sz > 2)
+        a2_2[ug2] += wi * (v2[i] - a1_2[ug1]);
+      if (b_sz > 3)
+        a2_3[ug2] += wi * (v3[i] - a1_3[ug1]);
     }
   }
 }
@@ -183,28 +195,25 @@ inline void center_2fe(mat &V, const vec &w, const FlatFEMap &map, double tol,
   constexpr uword block_size = 4;
 
   // Ring buffer for acceleration history (3 matrices, use indices)
-  // hist[0] = alpha1_prev2, hist[1] = alpha1_prev, hist[2] = alpha1_old
   mat hist0(n1, P, fill::zeros);
   mat hist1(n1, P, fill::zeros);
   mat hist2(n1, P, fill::zeros);
   mat *hist[3] = {&hist0, &hist1, &hist2};
-  uword hist_idx = 0;  // Points to oldest (prev2)
+  uword hist_idx = 0;
 
-  // Pre-allocated buffer for Irons-Tuck computation
   const uword total_elem = n1 * P;
 
   for (uword iter = 0; iter < max_iter; ++iter) {
-    // Save current alpha1 to history ring buffer (reuse oldest slot)
-    // hist[hist_idx] becomes "old" for this iteration
+    // Save current alpha1 to history ring buffer
     mat *alpha1_old = hist[(hist_idx + 2) % 3];
-    std::memcpy(alpha1_old->memptr(), alpha1.memptr(), total_elem * sizeof(double));
+    std::memcpy(alpha1_old->memptr(), alpha1.memptr(),
+                total_elem * sizeof(double));
 
     // Update alpha1
     alpha1.zeros();
     for (uword p = 0; p < P; p += block_size) {
       uword b_sz = std::min(block_size, P - p);
-      center_2fe_block_alpha1<4>(n_obs, p, b_sz, w_ptr, g1, g2, V, alpha1,
-                                 alpha2);
+      center_2fe_block_alpha1(n_obs, p, b_sz, w_ptr, g1, g2, V, alpha1, alpha2);
     }
     scale_rows_inplace(alpha1, map.inv_weights[0]);
 
@@ -212,12 +221,11 @@ inline void center_2fe(mat &V, const vec &w, const FlatFEMap &map, double tol,
     alpha2.zeros();
     for (uword p = 0; p < P; p += block_size) {
       uword b_sz = std::min(block_size, P - p);
-      center_2fe_block_alpha2<4>(n_obs, p, b_sz, w_ptr, g1, g2, V, alpha1,
-                                 alpha2);
+      center_2fe_block_alpha2(n_obs, p, b_sz, w_ptr, g1, g2, V, alpha1, alpha2);
     }
     scale_rows_inplace(alpha2, map.inv_weights[1]);
 
-    // Irons-Tuck acceleration (after warmup) - inline computation
+    // Irons-Tuck acceleration (after warmup)
     if (iter >= 3) {
       const mat *alpha1_prev = hist[(hist_idx + 1) % 3];
       const mat *alpha1_prev2 = hist[hist_idx];
@@ -248,15 +256,15 @@ inline void center_2fe(mat &V, const vec &w, const FlatFEMap &map, double tol,
           alpha2.zeros();
           for (uword p = 0; p < P; p += block_size) {
             uword b_sz = std::min(block_size, P - p);
-            center_2fe_block_alpha2<4>(n_obs, p, b_sz, w_ptr, g1, g2, V, alpha1,
-                                       alpha2);
+            center_2fe_block_alpha2(n_obs, p, b_sz, w_ptr, g1, g2, V, alpha1,
+                                    alpha2);
           }
           scale_rows_inplace(alpha2, map.inv_weights[1]);
         }
       }
     }
 
-    // Convergence check - compute norm inline without temporary
+    // Convergence check
     double diff_sq = 0.0;
     const double *curr = alpha1.memptr();
     const double *old_ptr = alpha1_old->memptr();
@@ -267,7 +275,6 @@ inline void center_2fe(mat &V, const vec &w, const FlatFEMap &map, double tol,
     if (std::sqrt(diff_sq) < tol)
       break;
 
-    // Rotate ring buffer index
     hist_idx = (hist_idx + 1) % 3;
   }
 
@@ -334,13 +341,14 @@ inline void center_kfe(mat &V, const vec &w, const FlatFEMap &map, double tol,
   for (uword iter = 0; iter < max_iter; ++iter) {
     // Save current alpha[0] to history ring buffer
     mat *alpha0_old = hist[(hist_idx + 2) % 3];
-    std::memcpy(alpha0_old->memptr(), alpha[0].memptr(), total_elem0 * sizeof(double));
+    std::memcpy(alpha0_old->memptr(), alpha[0].memptr(),
+                total_elem0 * sizeof(double));
 
     // Gauss-Seidel sweep over all K fixed effects
     for (uword k = 0; k < K; ++k) {
       mat &alpha_k = alpha[k];
       const uword *gk = map_ptrs[k];
-      
+
       alpha_k.zeros();
 
       // Blocked accumulation
