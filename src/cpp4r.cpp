@@ -6,10 +6,10 @@
 #include <R_ext/Visibility.h>
 
 // capybara.cpp
-doubles_matrix<> center_variables_(const doubles_matrix<> & V_r, const doubles & w_r, const list & klist, const double & tol, const size_t & max_iter);
-extern "C" SEXP _capybara_center_variables_(SEXP V_r, SEXP w_r, SEXP klist, SEXP tol, SEXP max_iter) {
+doubles_matrix<> center_variables_(const doubles_matrix<> & V_r, const doubles & w_r, const list & klist, const double & tol, const size_t & max_iter, const size_t & grand_acc_period);
+extern "C" SEXP _capybara_center_variables_(SEXP V_r, SEXP w_r, SEXP klist, SEXP tol, SEXP max_iter, SEXP grand_acc_period) {
   BEGIN_CPP4R
-    return cpp4r::as_sexp(center_variables_(cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(V_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(w_r), cpp4r::as_cpp<cpp4r::decay_t<const list &>>(klist), cpp4r::as_cpp<cpp4r::decay_t<const double &>>(tol), cpp4r::as_cpp<cpp4r::decay_t<const size_t &>>(max_iter)));
+    return cpp4r::as_sexp(center_variables_(cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(V_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(w_r), cpp4r::as_cpp<cpp4r::decay_t<const list &>>(klist), cpp4r::as_cpp<cpp4r::decay_t<const double &>>(tol), cpp4r::as_cpp<cpp4r::decay_t<const size_t &>>(max_iter), cpp4r::as_cpp<cpp4r::decay_t<const size_t &>>(grand_acc_period)));
   END_CPP4R
 }
 // capybara.cpp
@@ -71,7 +71,7 @@ extern "C" SEXP _capybara_group_sums_cov_(SEXP M_r, SEXP N_r, SEXP jlist) {
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
-    {"_capybara_center_variables_",    (DL_FUNC) &_capybara_center_variables_,     5},
+    {"_capybara_center_variables_",    (DL_FUNC) &_capybara_center_variables_,     6},
     {"_capybara_feglm_fit_",           (DL_FUNC) &_capybara_feglm_fit_,           11},
     {"_capybara_feglm_offset_fit_",    (DL_FUNC) &_capybara_feglm_offset_fit_,     7},
     {"_capybara_felm_fit_",            (DL_FUNC) &_capybara_felm_fit_,             6},

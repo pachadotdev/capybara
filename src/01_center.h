@@ -1,5 +1,16 @@
 // Centering using flat observation-to-group mapping
-// Optimized for speed: raw pointer access, blocked processing
+//
+// Key optimization: cell aggregation for 2-FE case reduces O(N) loops to
+// O(n_cells) where n_cells << N for typical panel data
+//
+// Some ideas borrowed from fixest/reghdfe:
+// - Cell aggregation for 2-FE case
+// - Irons-Tuck acceleration
+// - Grand acceleration (second-level IT)
+// - Post-acceleration projection
+// - fixest-style per-coefficient convergence criterion
+// - SSR-based stopping (periodic)
+
 #ifndef CAPYBARA_CENTER_H
 #define CAPYBARA_CENTER_H
 
@@ -19,6 +30,18 @@ inline void scale_rows_inplace(mat &A, const vec &scale) {
   }
 }
 
+// Whereas iteration should continue/stop
+
+inline bool continue_crit(double a, double b, double diffMax) {
+  double diff = std::fabs(a - b);
+  return (diff > diffMax) && (diff / (0.1 + std::fabs(a)) > diffMax);
+}
+
+inline bool stopping_crit(double a, double b, double diffMax) {
+  double diff = std::fabs(a - b);
+  return (diff < diffMax) || (diff / (0.1 + std::fabs(a)) < diffMax);
+}
+
 // Flat FE structure using std::vector for guaranteed contiguous memory
 struct FlatFEMap {
   std::vector<std::vector<uword>>
@@ -27,6 +50,9 @@ struct FlatFEMap {
   std::vector<uword> n_groups;  // K: number of groups per FE
   uword n_obs;
   uword K;
+  bool structure_built; // Flag to indicate structure is ready
+
+  FlatFEMap() : n_obs(0), K(0), structure_built(false) {}
 
   void build(const field<field<uvec>> &group_indices) {
     K = group_indices.n_elem;
@@ -65,6 +91,8 @@ struct FlatFEMap {
         }
       }
     }
+
+    structure_built = true;
   }
 
   void update_weights(const vec &w) {
@@ -99,211 +127,340 @@ struct FlatFEMap {
   }
 };
 
-// Blocked iteration for 2FE case - update alpha1
-// Block size 4 with manual unrolling for portability (works with GCC, Clang,
-// MSVC)
-inline void center_2fe_block_alpha1(const uword n_obs, const uword p_start,
-                                    const uword b_sz, const double *w_ptr,
-                                    const uword *g1, const uword *g2, mat &V,
-                                    mat &alpha1, const mat &alpha2) {
-  // Get column pointers for this block
-  const double *v0 = V.colptr(p_start);
-  const double *v1 = (b_sz > 1) ? V.colptr(p_start + 1) : nullptr;
-  const double *v2 = (b_sz > 2) ? V.colptr(p_start + 2) : nullptr;
-  const double *v3 = (b_sz > 3) ? V.colptr(p_start + 3) : nullptr;
+// Cell-aggregated 2-FE centering
+//
+// Key idea from fixest/reghdfe: for 2 FEs with n1 and n2 groups,
+// many observations share the same (g1, g2) cell. Instead of looping
+// over all N observations in the inner iteration, pre-aggregate the
+// weighted sums of V into unique cells. The alpha update then iterates
+// over n_cells (typically much smaller than N).
+//
+// The structure (cell_g1, cell_g2, obs_to_cell) is invariant across
+// IRLS iterations — only cell_w and cell_wV change with weights.
 
-  double *a1_0 = alpha1.colptr(p_start);
-  double *a1_1 = (b_sz > 1) ? alpha1.colptr(p_start + 1) : nullptr;
-  double *a1_2 = (b_sz > 2) ? alpha1.colptr(p_start + 2) : nullptr;
-  double *a1_3 = (b_sz > 3) ? alpha1.colptr(p_start + 3) : nullptr;
+struct CellAggregated2FE {
+  // Cell structure (invariant across weight updates)
+  std::vector<uword> cell_g1; // FE1 group for each cell
+  std::vector<uword> cell_g2; // FE2 group for each cell
+  uword n_cells;
 
-  const double *a2_0 = alpha2.colptr(p_start);
-  const double *a2_1 = (b_sz > 1) ? alpha2.colptr(p_start + 1) : nullptr;
-  const double *a2_2 = (b_sz > 2) ? alpha2.colptr(p_start + 2) : nullptr;
-  const double *a2_3 = (b_sz > 3) ? alpha2.colptr(p_start + 3) : nullptr;
+  // Mapping from observations to cells (invariant)
+  std::vector<uword> obs_to_cell; // obs_to_cell[i] = cell index
 
-  for (uword i = 0; i < n_obs; ++i) {
-    const double wi = w_ptr[i];
-    if (wi > 1e-14) {
-      const uword ug1 = g1[i];
-      const uword ug2 = g2[i];
+  // Weight-dependent data (changes each IRLS iteration)
+  std::vector<double> cell_w; // total weight per cell
 
-      // Manual unroll - compiler will optimize away null pointer branches
-      a1_0[ug1] += wi * (v0[i] - a2_0[ug2]);
-      if (b_sz > 1)
-        a1_1[ug1] += wi * (v1[i] - a2_1[ug2]);
-      if (b_sz > 2)
-        a1_2[ug1] += wi * (v2[i] - a2_2[ug2]);
-      if (b_sz > 3)
-        a1_3[ug1] += wi * (v3[i] - a2_3[ug2]);
+  // Pre-aggregated weighted V sums per cell (P columns)
+  mat cell_wV; // n_cells x P: sum of w[i]*V[i,p] for obs in cell
+
+  bool structure_built;
+
+  CellAggregated2FE() : n_cells(0), structure_built(false) {}
+
+  // Build cell structure (call once, structure is invariant)
+  void build_structure(const uword *g1, const uword *g2, uword n_obs, uword n1,
+                       uword n2) {
+    const uword max_cells = n1 * n2;
+    const uword sentinel = std::numeric_limits<uword>::max();
+    std::vector<uword> pair_to_cell(max_cells, sentinel);
+    obs_to_cell.resize(n_obs);
+
+    n_cells = 0;
+    cell_g1.clear();
+    cell_g2.clear();
+
+    cell_g1.reserve(std::min(max_cells, n_obs));
+    cell_g2.reserve(std::min(max_cells, n_obs));
+
+    for (uword i = 0; i < n_obs; ++i) {
+      const uword pair_id = g1[i] * n2 + g2[i];
+      uword cell_id = pair_to_cell[pair_id];
+      if (cell_id == sentinel) {
+        cell_id = n_cells++;
+        pair_to_cell[pair_id] = cell_id;
+        cell_g1.push_back(g1[i]);
+        cell_g2.push_back(g2[i]);
+      }
+      obs_to_cell[i] = cell_id;
+    }
+
+    structure_built = true;
+  }
+
+  // Update weights per cell (call each IRLS iteration)
+  void update_cell_weights(const double *w_ptr, uword n_obs) {
+    cell_w.assign(n_cells, 0.0);
+    for (uword i = 0; i < n_obs; ++i) {
+      cell_w[obs_to_cell[i]] += w_ptr[i];
     }
   }
-}
 
-// Blocked iteration for 2FE case - update alpha2
-inline void center_2fe_block_alpha2(const uword n_obs, const uword p_start,
-                                    const uword b_sz, const double *w_ptr,
-                                    const uword *g1, const uword *g2, mat &V,
-                                    const mat &alpha1, mat &alpha2) {
-  const double *v0 = V.colptr(p_start);
-  const double *v1 = (b_sz > 1) ? V.colptr(p_start + 1) : nullptr;
-  const double *v2 = (b_sz > 2) ? V.colptr(p_start + 2) : nullptr;
-  const double *v3 = (b_sz > 3) ? V.colptr(p_start + 3) : nullptr;
+  // Aggregate weighted V values into cells (call each centering invocation)
+  void aggregate_wV(const mat &V, const double *w_ptr, uword n_obs) {
+    const uword P = V.n_cols;
+    cell_wV.zeros(n_cells, P);
 
-  const double *a1_0 = alpha1.colptr(p_start);
-  const double *a1_1 = (b_sz > 1) ? alpha1.colptr(p_start + 1) : nullptr;
-  const double *a1_2 = (b_sz > 2) ? alpha1.colptr(p_start + 2) : nullptr;
-  const double *a1_3 = (b_sz > 3) ? alpha1.colptr(p_start + 3) : nullptr;
-
-  double *a2_0 = alpha2.colptr(p_start);
-  double *a2_1 = (b_sz > 1) ? alpha2.colptr(p_start + 1) : nullptr;
-  double *a2_2 = (b_sz > 2) ? alpha2.colptr(p_start + 2) : nullptr;
-  double *a2_3 = (b_sz > 3) ? alpha2.colptr(p_start + 3) : nullptr;
-
-  for (uword i = 0; i < n_obs; ++i) {
-    const double wi = w_ptr[i];
-    if (wi > 1e-14) {
-      const uword ug1 = g1[i];
-      const uword ug2 = g2[i];
-
-      a2_0[ug2] += wi * (v0[i] - a1_0[ug1]);
-      if (b_sz > 1)
-        a2_1[ug2] += wi * (v1[i] - a1_1[ug1]);
-      if (b_sz > 2)
-        a2_2[ug2] += wi * (v2[i] - a1_2[ug1]);
-      if (b_sz > 3)
-        a2_3[ug2] += wi * (v3[i] - a1_3[ug1]);
+    for (uword p = 0; p < P; ++p) {
+      const double *v_col = V.colptr(p);
+      double *cwv_col = cell_wV.colptr(p);
+      for (uword i = 0; i < n_obs; ++i) {
+        cwv_col[obs_to_cell[i]] += w_ptr[i] * v_col[i];
+      }
     }
   }
+};
+
+// Helper: recompute alpha2 from alpha1 using cell-aggregated data
+inline void recompute_alpha2(mat &alpha2, const mat &alpha1,
+                             const CellAggregated2FE &cells,
+                             const FlatFEMap &map, uword P) {
+  const uword nc = cells.n_cells;
+  const uword *cg1 = cells.cell_g1.data();
+  const uword *cg2 = cells.cell_g2.data();
+  const double *cw = cells.cell_w.data();
+
+  alpha2.zeros();
+  for (uword p = 0; p < P; ++p) {
+    const double *a1 = alpha1.colptr(p);
+    double *a2 = alpha2.colptr(p);
+    const double *cwv = cells.cell_wV.colptr(p);
+    for (uword c = 0; c < nc; ++c) {
+      a2[cg2[c]] += cwv[c] - cw[c] * a1[cg1[c]];
+    }
+  }
+  scale_rows_inplace(alpha2, map.inv_weights[1]);
 }
 
-// Optimized 2FE centering with Irons-Tuck acceleration
-inline void center_2fe(mat &V, const vec &w, const FlatFEMap &map, double tol,
-                       uword max_iter) {
+// Optimized 2FE centering with cell aggregation, Irons-Tuck acceleration,
+// grand acceleration, post-acceleration projection, and fixest-style
+// convergence
+inline void center_2fe(mat &V, const vec &w, const FlatFEMap &map,
+                       CellAggregated2FE &cells, double tol, uword max_iter,
+                       uword grand_acc_period = 4) {
   const uword n_obs = V.n_rows;
   const uword P = V.n_cols;
   const uword n1 = map.n_groups[0];
   const uword n2 = map.n_groups[1];
 
-  mat alpha1(n1, P, fill::zeros);
-  mat alpha2(n2, P, fill::zeros);
-
   const uword *g1 = map.fe_map[0].data();
   const uword *g2 = map.fe_map[1].data();
   const double *w_ptr = w.memptr();
 
-  constexpr uword block_size = 4;
+  // Build cell structure if not already built
+  if (!cells.structure_built) {
+    cells.build_structure(g1, g2, n_obs, n1, n2);
+  }
 
-  // Ring buffer for acceleration history (3 matrices, use indices)
-  mat hist0(n1, P, fill::zeros);
-  mat hist1(n1, P, fill::zeros);
-  mat hist2(n1, P, fill::zeros);
-  mat *hist[3] = {&hist0, &hist1, &hist2};
-  uword hist_idx = 0;
+  // Update weights and aggregate V (weight-dependent, changes each call)
+  cells.update_cell_weights(w_ptr, n_obs);
+  cells.aggregate_wV(V, w_ptr, n_obs);
 
+  const uword nc = cells.n_cells;
+  const uword *cg1 = cells.cell_g1.data();
+  const uword *cg2 = cells.cell_g2.data();
+  const double *cw = cells.cell_w.data();
+
+  mat alpha1(n1, P, fill::zeros);
+  mat alpha2(n2, P, fill::zeros);
+
+  // IT acceleration: X, GX, G2X pattern (fixest-style)
   const uword total_elem = n1 * P;
+  mat X_it(n1, P, fill::zeros);  // alpha1 at step n
+  mat GX_it(n1, P, fill::zeros); // alpha1 at step n+1
+  // alpha1 itself serves as G2X (alpha1 at step n+2)
+
+  // IT acceleration working buffers
+  std::vector<double> delta_GX(total_elem);
+  std::vector<double> delta2_X(total_elem);
+
+  // Grand acceleration buffers
+  mat grand_Y(n1, P, fill::zeros);
+  mat grand_GY(n1, P, fill::zeros);
+  uword grand_stage = 0;
+
+  // Post-acceleration projection threshold
+  constexpr uword iter_proj_after_acc = 40;
+
+  // SSR-based stopping (periodic check)
+  constexpr uword ssr_check_period = 40;
+  double ssr_old = datum::inf;
 
   for (uword iter = 0; iter < max_iter; ++iter) {
-    // Save current alpha1 to history ring buffer
-    mat *alpha1_old = hist[(hist_idx + 2) % 3];
-    std::memcpy(alpha1_old->memptr(), alpha1.memptr(),
-                total_elem * sizeof(double));
+    // Save current alpha1 as X_it (the "before" state)
+    std::memcpy(X_it.memptr(), alpha1.memptr(), total_elem * sizeof(double));
+
+    // === Gauss-Seidel sweep 1: compute GX ===
 
     // Update alpha1
     alpha1.zeros();
-    for (uword p = 0; p < P; p += block_size) {
-      uword b_sz = std::min(block_size, P - p);
-      center_2fe_block_alpha1(n_obs, p, b_sz, w_ptr, g1, g2, V, alpha1, alpha2);
+    for (uword p = 0; p < P; ++p) {
+      double *a1 = alpha1.colptr(p);
+      const double *a2 = alpha2.colptr(p);
+      const double *cwv = cells.cell_wV.colptr(p);
+      for (uword c = 0; c < nc; ++c) {
+        a1[cg1[c]] += cwv[c] - cw[c] * a2[cg2[c]];
+      }
     }
     scale_rows_inplace(alpha1, map.inv_weights[0]);
 
     // Update alpha2
-    alpha2.zeros();
-    for (uword p = 0; p < P; p += block_size) {
-      uword b_sz = std::min(block_size, P - p);
-      center_2fe_block_alpha2(n_obs, p, b_sz, w_ptr, g1, g2, V, alpha1, alpha2);
-    }
-    scale_rows_inplace(alpha2, map.inv_weights[1]);
+    recompute_alpha2(alpha2, alpha1, cells, map, P);
 
-    // Irons-Tuck acceleration (after warmup)
-    if (iter >= 3) {
-      const mat *alpha1_prev = hist[(hist_idx + 1) % 3];
-      const mat *alpha1_prev2 = hist[hist_idx];
+    // Save GX
+    std::memcpy(GX_it.memptr(), alpha1.memptr(), total_elem * sizeof(double));
 
-      const double *curr = alpha1.memptr();
-      const double *prev = alpha1_prev->memptr();
-      const double *prev2 = alpha1_prev2->memptr();
+    // === Gauss-Seidel sweep 2: compute G2X ===
 
-      // Compute Irons-Tuck coefficient inline
-      double ssq = 0.0, vprod = 0.0;
-      for (uword i = 0; i < total_elem; ++i) {
-        double d1 = prev[i] - prev2[i];
-        double d2 = curr[i] - prev[i];
-        double dd = d2 - d1;
-        ssq += dd * dd;
-        vprod += d2 * dd;
+    alpha1.zeros();
+    for (uword p = 0; p < P; ++p) {
+      double *a1 = alpha1.colptr(p);
+      const double *a2 = alpha2.colptr(p);
+      const double *cwv = cells.cell_wV.colptr(p);
+      for (uword c = 0; c < nc; ++c) {
+        a1[cg1[c]] += cwv[c] - cw[c] * a2[cg2[c]];
       }
+    }
+    scale_rows_inplace(alpha1, map.inv_weights[0]);
 
-      if (ssq > 1e-14) {
-        double coef = vprod / ssq;
-        if (coef > 0.0 && coef < 2.0) {
-          // Extrapolate alpha1 in place
-          double *a1_ptr = alpha1.memptr();
-          for (uword i = 0; i < total_elem; ++i) {
-            a1_ptr[i] += coef * (a1_ptr[i] - prev[i]);
-          }
-          // Recompute alpha2 after acceleration
-          alpha2.zeros();
-          for (uword p = 0; p < P; p += block_size) {
-            uword b_sz = std::min(block_size, P - p);
-            center_2fe_block_alpha2(n_obs, p, b_sz, w_ptr, g1, g2, V, alpha1,
-                                    alpha2);
-          }
-          scale_rows_inplace(alpha2, map.inv_weights[1]);
+    // Update alpha2
+    recompute_alpha2(alpha2, alpha1, cells, map, P);
+
+    // alpha1 is now G2X
+
+    // === Irons-Tuck acceleration ===
+    // X_it = G2X - coef * delta_GX
+    // where delta_GX = G2X - GX, delta2_X = delta_GX - GX + X
+
+    const double *x_ptr = X_it.memptr();
+    const double *gx_ptr = GX_it.memptr();
+    const double *ggx_ptr = alpha1.memptr();
+
+    double vprod = 0.0, ssq = 0.0;
+    for (uword i = 0; i < total_elem; ++i) {
+      double dGX = ggx_ptr[i] - gx_ptr[i];
+      double d2X = dGX - gx_ptr[i] + x_ptr[i];
+      delta_GX[i] = dGX;
+      delta2_X[i] = d2X;
+      vprod += dGX * d2X;
+      ssq += d2X * d2X;
+    }
+
+    bool numconv = false;
+    if (ssq == 0.0) {
+      numconv = true;
+    } else {
+      double coef = vprod / ssq;
+      double *a1_ptr = alpha1.memptr();
+      for (uword i = 0; i < total_elem; ++i) {
+        a1_ptr[i] = ggx_ptr[i] - coef * delta_GX[i];
+      }
+    }
+
+    // Recompute alpha2 after IT acceleration
+    recompute_alpha2(alpha2, alpha1, cells, map, P);
+
+    // Post-acceleration projection: after iter_proj_after_acc iterations,
+    // do an extra Gauss-Seidel sweep to project back into feasible set
+    if (iter >= iter_proj_after_acc) {
+      alpha1.zeros();
+      for (uword p = 0; p < P; ++p) {
+        double *a1 = alpha1.colptr(p);
+        const double *a2 = alpha2.colptr(p);
+        const double *cwv = cells.cell_wV.colptr(p);
+        for (uword c = 0; c < nc; ++c) {
+          a1[cg1[c]] += cwv[c] - cw[c] * a2[cg2[c]];
         }
       }
+      scale_rows_inplace(alpha1, map.inv_weights[0]);
+      recompute_alpha2(alpha2, alpha1, cells, map, P);
     }
 
-    // Convergence check
-    double diff_sq = 0.0;
-    const double *curr = alpha1.memptr();
-    const double *old_ptr = alpha1_old->memptr();
-    for (uword i = 0; i < total_elem; ++i) {
-      double d = curr[i] - old_ptr[i];
-      diff_sq += d * d;
-    }
-    if (std::sqrt(diff_sq) < tol)
+    if (numconv)
       break;
 
-    hist_idx = (hist_idx + 1) % 3;
-  }
+    // === Grand acceleration ===
+    if (grand_acc_period > 0 && iter > 0 && iter % grand_acc_period == 0) {
+      if (grand_stage == 0) {
+        std::memcpy(grand_Y.memptr(), alpha1.memptr(),
+                    total_elem * sizeof(double));
+        grand_stage = 1;
+      } else if (grand_stage == 1) {
+        std::memcpy(grand_GY.memptr(), alpha1.memptr(),
+                    total_elem * sizeof(double));
+        grand_stage = 2;
+      } else {
+        // alpha1 is G2Y
+        const double *Y_ptr = grand_Y.memptr();
+        const double *GY_ptr = grand_GY.memptr();
+        const double *G2Y_ptr = alpha1.memptr();
 
-  // Final subtraction (blocked)
-  for (uword p = 0; p < P; p += block_size) {
-    uword b_sz = std::min(block_size, P - p);
-    double *v_ptrs[4];
-    const double *a1_ptrs[4];
-    const double *a2_ptrs[4];
+        double g_vprod = 0.0, g_ssq = 0.0;
+        for (uword i = 0; i < total_elem; ++i) {
+          double dGX = G2Y_ptr[i] - GY_ptr[i];
+          double d2X = dGX - GY_ptr[i] + Y_ptr[i];
+          g_ssq += d2X * d2X;
+          g_vprod += dGX * d2X;
+        }
 
-    for (uword j = 0; j < b_sz; ++j) {
-      v_ptrs[j] = V.colptr(p + j);
-      a1_ptrs[j] = alpha1.colptr(p + j);
-      a2_ptrs[j] = alpha2.colptr(p + j);
+        if (g_ssq > 1e-14) {
+          double coef = g_vprod / g_ssq;
+          double *a1_ptr = alpha1.memptr();
+          for (uword i = 0; i < total_elem; ++i) {
+            double dGX = G2Y_ptr[i] - GY_ptr[i];
+            a1_ptr[i] = G2Y_ptr[i] - coef * dGX;
+          }
+          recompute_alpha2(alpha2, alpha1, cells, map, P);
+        }
+        grand_stage = 0;
+      }
     }
 
-    for (uword i = 0; i < n_obs; ++i) {
-      uword u_g1 = g1[i];
-      uword u_g2 = g2[i];
-      for (uword j = 0; j < b_sz; ++j) {
-        v_ptrs[j][i] -= a1_ptrs[j][u_g1] + a2_ptrs[j][u_g2];
+    // === Convergence check: fixest-style per-coefficient criterion ===
+    const double *curr = alpha1.memptr();
+    const double *old = X_it.memptr();
+    bool keep_going = false;
+    for (uword i = 0; i < total_elem; ++i) {
+      if (continue_crit(curr[i], old[i], tol)) {
+        keep_going = true;
+        break;
       }
+    }
+    if (!keep_going)
+      break;
+
+    // === SSR-based stopping (periodic, more expensive) ===
+    if (iter > 0 && iter % ssr_check_period == 0) {
+      // Compute SSR = sum_obs w[i] * (V[i] - alpha1[g1[i]] - alpha2[g2[i]])^2
+      double ssr = 0.0;
+      for (uword p = 0; p < P; ++p) {
+        const double *v_col = V.colptr(p);
+        const double *a1 = alpha1.colptr(p);
+        const double *a2 = alpha2.colptr(p);
+        for (uword i = 0; i < n_obs; ++i) {
+          double r = v_col[i] - a1[g1[i]] - a2[g2[i]];
+          ssr += w_ptr[i] * r * r;
+        }
+      }
+      if (stopping_crit(ssr_old, ssr, tol))
+        break;
+      ssr_old = ssr;
+    }
+  }
+
+  // Final subtraction: V[i,p] -= alpha1[g1[i]] + alpha2[g2[i]]
+  for (uword p = 0; p < P; ++p) {
+    double *v_col = V.colptr(p);
+    const double *a1 = alpha1.colptr(p);
+    const double *a2 = alpha2.colptr(p);
+    for (uword i = 0; i < n_obs; ++i) {
+      v_col[i] -= a1[g1[i]] + a2[g2[i]];
     }
   }
 }
 
 // General K-FE centering with blocked processing
 inline void center_kfe(mat &V, const vec &w, const FlatFEMap &map, double tol,
-                       uword max_iter) {
+                       uword max_iter, uword grand_acc_period = 4) {
   const uword n_obs = V.n_rows;
   const uword P = V.n_cols;
   const uword K = map.K;
@@ -323,14 +480,23 @@ inline void center_kfe(mat &V, const vec &w, const FlatFEMap &map, double tol,
     map_ptrs[k] = map.fe_map[k].data();
   }
 
-  // Ring buffer for acceleration history on alpha[0]
+  // IT acceleration on alpha[0]: X, GX, G2X pattern
   const uword n0 = map.n_groups[0];
   const uword total_elem0 = n0 * P;
-  mat hist0(n0, P, fill::zeros);
-  mat hist1(n0, P, fill::zeros);
-  mat hist2(n0, P, fill::zeros);
-  mat *hist[3] = {&hist0, &hist1, &hist2};
-  uword hist_idx = 0;
+  mat X_it(n0, P, fill::zeros);
+  mat GX_it(n0, P, fill::zeros);
+
+  std::vector<double> delta_GX(total_elem0);
+  std::vector<double> delta2_X(total_elem0);
+
+  // Grand acceleration buffers
+  mat grand_Y(n0, P, fill::zeros);
+  mat grand_GY(n0, P, fill::zeros);
+  uword grand_stage = 0;
+
+  constexpr uword iter_proj_after_acc = 40;
+  constexpr uword ssr_check_period = 40;
+  double ssr_old = datum::inf;
 
   // Pre-allocate other_ptrs outside loop
   std::vector<std::vector<const double *>> other_ptrs(K);
@@ -338,20 +504,14 @@ inline void center_kfe(mat &V, const vec &w, const FlatFEMap &map, double tol,
     other_ptrs[o].resize(block_size);
   }
 
-  for (uword iter = 0; iter < max_iter; ++iter) {
-    // Save current alpha[0] to history ring buffer
-    mat *alpha0_old = hist[(hist_idx + 2) % 3];
-    std::memcpy(alpha0_old->memptr(), alpha[0].memptr(),
-                total_elem0 * sizeof(double));
-
-    // Gauss-Seidel sweep over all K fixed effects
+  // Lambda for a full Gauss-Seidel sweep
+  auto gauss_seidel_sweep = [&]() {
     for (uword k = 0; k < K; ++k) {
       mat &alpha_k = alpha[k];
       const uword *gk = map_ptrs[k];
 
       alpha_k.zeros();
 
-      // Blocked accumulation
       for (uword p = 0; p < P; p += block_size) {
         uword b_sz = std::min(block_size, P - p);
 
@@ -362,7 +522,6 @@ inline void center_kfe(mat &V, const vec &w, const FlatFEMap &map, double tol,
           v_ptrs[j] = V.colptr(p + j);
         }
 
-        // Prepare other alpha pointers (reuse pre-allocated vectors)
         for (uword o = 0; o < K; ++o) {
           if (o != k) {
             for (uword j = 0; j < b_sz; ++j) {
@@ -389,55 +548,124 @@ inline void center_kfe(mat &V, const vec &w, const FlatFEMap &map, double tol,
         }
       }
 
-      // Apply inverse weights
       scale_rows_inplace(alpha_k, map.inv_weights[k]);
     }
+  };
 
-    // Irons-Tuck acceleration on alpha[0] - inline computation
-    if (iter >= 3) {
-      const mat *alpha0_prev = hist[(hist_idx + 1) % 3];
-      const mat *alpha0_prev2 = hist[hist_idx];
+  for (uword iter = 0; iter < max_iter; ++iter) {
+    // Save current alpha[0] as X_it
+    std::memcpy(X_it.memptr(), alpha[0].memptr(), total_elem0 * sizeof(double));
 
-      const double *curr = alpha[0].memptr();
-      const double *prev = alpha0_prev->memptr();
-      const double *prev2 = alpha0_prev2->memptr();
+    // Gauss-Seidel sweep 1 -> GX
+    gauss_seidel_sweep();
+    std::memcpy(GX_it.memptr(), alpha[0].memptr(),
+                total_elem0 * sizeof(double));
 
-      double ssq = 0.0, vprod = 0.0;
-      for (uword i = 0; i < total_elem0; ++i) {
-        double d1 = prev[i] - prev2[i];
-        double d2 = curr[i] - prev[i];
-        double dd = d2 - d1;
-        ssq += dd * dd;
-        vprod += d2 * dd;
-      }
+    // Gauss-Seidel sweep 2 -> G2X (alpha[0] is G2X)
+    gauss_seidel_sweep();
 
-      if (ssq > 1e-14) {
-        double coef = vprod / ssq;
-        if (coef > 0.0 && coef < 2.0) {
-          double *a0_ptr = alpha[0].memptr();
-          for (uword i = 0; i < total_elem0; ++i) {
-            a0_ptr[i] += coef * (a0_ptr[i] - prev[i]);
-          }
-        }
-      }
-    }
+    // Irons-Tuck acceleration on alpha[0]
+    const double *x_ptr = X_it.memptr();
+    const double *gx_ptr = GX_it.memptr();
+    const double *ggx_ptr = alpha[0].memptr();
 
-    // Convergence check - inline without temporary
-    double diff_sq = 0.0;
-    const double *curr = alpha[0].memptr();
-    const double *old_ptr = alpha0_old->memptr();
+    double vprod = 0.0, ssq = 0.0;
     for (uword i = 0; i < total_elem0; ++i) {
-      double d = curr[i] - old_ptr[i];
-      diff_sq += d * d;
+      double dGX = ggx_ptr[i] - gx_ptr[i];
+      double d2X = dGX - gx_ptr[i] + x_ptr[i];
+      delta_GX[i] = dGX;
+      delta2_X[i] = d2X;
+      vprod += dGX * d2X;
+      ssq += d2X * d2X;
     }
-    if (std::sqrt(diff_sq) < tol)
+
+    bool numconv = false;
+    if (ssq == 0.0) {
+      numconv = true;
+    } else {
+      double coef = vprod / ssq;
+      double *a0_ptr = alpha[0].memptr();
+      for (uword i = 0; i < total_elem0; ++i) {
+        a0_ptr[i] = ggx_ptr[i] - coef * delta_GX[i];
+      }
+    }
+
+    // Post-acceleration projection
+    if (iter >= iter_proj_after_acc) {
+      gauss_seidel_sweep();
+    }
+
+    if (numconv)
       break;
 
-    // Rotate ring buffer
-    hist_idx = (hist_idx + 1) % 3;
+    // Grand acceleration
+    if (grand_acc_period > 0 && iter > 0 && iter % grand_acc_period == 0) {
+      if (grand_stage == 0) {
+        std::memcpy(grand_Y.memptr(), alpha[0].memptr(),
+                    total_elem0 * sizeof(double));
+        grand_stage = 1;
+      } else if (grand_stage == 1) {
+        std::memcpy(grand_GY.memptr(), alpha[0].memptr(),
+                    total_elem0 * sizeof(double));
+        grand_stage = 2;
+      } else {
+        const double *Y_ptr = grand_Y.memptr();
+        const double *GY_ptr = grand_GY.memptr();
+        const double *G2Y_ptr = alpha[0].memptr();
+
+        double g_vprod = 0.0, g_ssq = 0.0;
+        for (uword i = 0; i < total_elem0; ++i) {
+          double dGX = G2Y_ptr[i] - GY_ptr[i];
+          double d2X = dGX - GY_ptr[i] + Y_ptr[i];
+          g_ssq += d2X * d2X;
+          g_vprod += dGX * d2X;
+        }
+
+        if (g_ssq > 1e-14) {
+          double coef = g_vprod / g_ssq;
+          double *a0_ptr = alpha[0].memptr();
+          for (uword i = 0; i < total_elem0; ++i) {
+            double dGX = G2Y_ptr[i] - GY_ptr[i];
+            a0_ptr[i] = G2Y_ptr[i] - coef * dGX;
+          }
+        }
+        grand_stage = 0;
+      }
+    }
+
+    // Convergence check: fixest-style per-coefficient criterion
+    const double *curr = alpha[0].memptr();
+    const double *old = X_it.memptr();
+    bool keep_going = false;
+    for (uword i = 0; i < total_elem0; ++i) {
+      if (continue_crit(curr[i], old[i], tol)) {
+        keep_going = true;
+        break;
+      }
+    }
+    if (!keep_going)
+      break;
+
+    // SSR-based stopping (periodic)
+    if (iter > 0 && iter % ssr_check_period == 0) {
+      double ssr = 0.0;
+      for (uword p = 0; p < P; ++p) {
+        const double *v_col = V.colptr(p);
+        for (uword i = 0; i < n_obs; ++i) {
+          double r = v_col[i];
+          for (uword k = 0; k < K; ++k) {
+            r -= alpha[k].at(map_ptrs[k][i], p);
+          }
+          ssr += w_ptr[i] * r * r;
+        }
+      }
+      if (stopping_crit(ssr_old, ssr, tol))
+        break;
+      ssr_old = ssr;
+    }
   }
 
-  // Final subtraction - pre-allocate a_ptrs outside loop
+  // Final subtraction
   std::vector<std::vector<const double *>> a_ptrs(K);
   for (uword k = 0; k < K; ++k) {
     a_ptrs[k].resize(block_size);
@@ -469,40 +697,16 @@ inline void center_kfe(mat &V, const vec &w, const FlatFEMap &map, double tol,
 }
 
 // Main centering dispatch
-inline void center_impl(mat &V, const vec &w, const FlatFEMap &map, double tol,
-                        uword max_iter) {
-  if (map.K == 2) {
-    center_2fe(V, w, map, tol, max_iter);
-  } else {
-    center_kfe(V, w, map, tol, max_iter);
-  }
-}
-
-// Public interface
-inline void center_variables(mat &V, const vec &w, const FlatFEMap &map,
-                             double tol, uword max_iter) {
+inline void center_variables(mat &V, const vec &w, FlatFEMap &map,
+                             CellAggregated2FE &cells, double tol,
+                             uword max_iter, uword grand_acc_period) {
   if (V.is_empty() || map.K == 0)
     return;
-  center_impl(V, w, map, tol, max_iter);
-}
-
-inline void center_variables(mat &V, const vec &w,
-                             const field<field<uvec>> &group_indices,
-                             double tol, uword max_iter) {
-  if (V.is_empty() || group_indices.n_elem == 0)
-    return;
-  FlatFEMap map;
-  map.build(group_indices);
-  map.update_weights(w);
-  center_impl(V, w, map, tol, max_iter);
-}
-
-inline FlatFEMap build_fe_map(const field<field<uvec>> &group_indices,
-                              const vec &w) {
-  FlatFEMap map;
-  map.build(group_indices);
-  map.update_weights(w);
-  return map;
+  if (map.K == 2) {
+    center_2fe(V, w, map, cells, tol, max_iter, grand_acc_period);
+  } else {
+    center_kfe(V, w, map, tol, max_iter, grand_acc_period);
+  }
 }
 
 } // namespace capybara

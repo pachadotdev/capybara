@@ -68,9 +68,9 @@ inline double predict_convergence(const vec &eps_history, double current_eps) {
   }
 
   // Vectorized regression: log(eps) = a + b*x with x = {1,2,3}
-  const vec log_eps = arma::log(last3);
+  const vec log_eps = log(last3);
   // slope = (log_eps(2) - log_eps(0)) / 2, predict at x=4: mean + 2*slope
-  return std::max(std::exp(arma::mean(log_eps) + (log_eps(2) - log_eps(0))),
+  return std::max(std::exp(mean(log_eps) + (log_eps(2) - log_eps(0))),
                   datum::eps);
 }
 
@@ -226,13 +226,13 @@ inline vec link_inv(const vec &eta, const Family family_type) {
     return eta;
   case POISSON:
   case NEG_BIN:
-    return arma::exp(eta);
+    return exp(eta);
   case BINOMIAL:
-    return 1.0 / (1.0 + arma::exp(-eta));
+    return 1.0 / (1.0 + exp(-eta));
   case GAMMA:
     return 1.0 / eta;
   case INV_GAUSSIAN:
-    return 1.0 / arma::sqrt(eta);
+    return 1.0 / sqrt(eta);
   default:
     stop("Unknown family");
   }
@@ -271,7 +271,7 @@ inline bool valid_eta(const vec &eta, const Family family_type) {
   case NEG_BIN:
     return true;
   case GAMMA:
-    return !arma::any(eta == 0.0);
+    return !any(eta == 0.0);
   case INV_GAUSSIAN:
     return eta.min() > 0.0;
   default:
@@ -310,16 +310,16 @@ inline vec inverse_link_derivative(const vec &eta, const Family family_type) {
     return vec(eta.n_elem, fill::ones);
   case POISSON:
   case NEG_BIN:
-    return arma::exp(eta);
+    return exp(eta);
   case BINOMIAL: {
     // d/d(eta) [1/(1+exp(-eta))] = exp(eta)/(1+exp(eta))^2
-    const vec exp_eta = arma::exp(eta);
-    return exp_eta / arma::square(1.0 + exp_eta);
+    const vec exp_eta = exp(eta);
+    return exp_eta / square(1.0 + exp_eta);
   }
   case GAMMA:
-    return -1.0 / arma::square(eta);
+    return -1.0 / square(eta);
   case INV_GAUSSIAN:
-    return -0.5 * arma::pow(eta, -1.5);
+    return -0.5 * pow(eta, -1.5);
   default:
     stop("Unknown family");
   }
@@ -336,11 +336,11 @@ inline vec variance(const vec &mu, const double &theta,
   case BINOMIAL:
     return mu % (1.0 - mu);
   case GAMMA:
-    return arma::square(mu);
+    return square(mu);
   case INV_GAUSSIAN:
-    return arma::pow(mu, 3.0);
+    return pow(mu, 3.0);
   case NEG_BIN:
-    return mu + arma::square(mu) / theta;
+    return mu + square(mu) / theta;
   default:
     stop("Unknown family");
   }
@@ -425,11 +425,11 @@ inline vec group_sums(const mat &M, const vec &w,
     if (idx.n_elem == 0)
       continue;
 
-    const double denom = arma::accu(w.elem(idx));
+    const double denom = accu(w.elem(idx));
     if (denom == 0.0)
       continue;
 
-    b += arma::sum(M.rows(idx), 0).t() / denom;
+    b += sum(M.rows(idx), 0).t() / denom;
   }
   return b;
 }
@@ -447,12 +447,12 @@ inline vec group_sums_spectral(const mat &M, const vec &v, const vec &w,
     if (I <= 1)
       continue;
 
-    const double denom = arma::accu(w.elem(idx));
+    const double denom = accu(w.elem(idx));
     if (denom == 0.0)
       continue;
 
     const vec v_group = v.elem(idx);
-    const vec v_cumsum = arma::cumsum(v_group);
+    const vec v_cumsum = cumsum(v_group);
     const uword max_k = std::min(K, I - 1);
 
     // Compute shifted sum: v_shifted[i] = sum_{k=1}^{min(K,i)} v_group[i-k]
@@ -478,7 +478,7 @@ inline mat group_sums_var(const mat &M, const field<uvec> &group_indices) {
     if (idx.n_elem == 0)
       continue;
 
-    const rowvec row_sum = arma::sum(M.rows(idx), 0);
+    const rowvec row_sum = sum(M.rows(idx), 0);
     V += row_sum.t() * row_sum;
   }
   return V;

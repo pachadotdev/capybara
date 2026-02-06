@@ -39,9 +39,14 @@ struct FelmWorkspace {
   mat X_centered; // Working copy that gets centered in place
   vec y_original;
 
+  // Persistent FE structures (survive across IRLS iterations)
+  FlatFEMap fe_map;            // FE group structure (invariant)
+  CellAggregated2FE cells_2fe; // Cell structure for 2-FE case (invariant)
+  bool fe_map_initialized;     // Has fe_map.build() been called?
+
   uword cached_N, cached_P;
 
-  FelmWorkspace() : cached_N(0), cached_P(0) {}
+  FelmWorkspace() : fe_map_initialized(false), cached_N(0), cached_P(0) {}
 
   void ensure_size(uword N, uword P) {
     if (N > cached_N) {
@@ -56,6 +61,15 @@ struct FelmWorkspace {
       X_centered.set_size(N, P);
       cached_P = P;
     }
+  }
+
+  // Build FE map structure once; only update weights on subsequent calls
+  void ensure_fe_map(const field<field<uvec>> &fe_groups, const vec &w) {
+    if (!fe_map_initialized) {
+      fe_map.build(fe_groups);
+      fe_map_initialized = true;
+    }
+    fe_map.update_weights(w);
   }
 };
 
@@ -203,7 +217,8 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
                      const CapybaraParameters &params,
                      FelmWorkspace *workspace = nullptr,
                      const field<uvec> *cluster_groups = nullptr,
-                     bool run_from_glm = false) {
+                     bool run_from_glm = false,
+                     double adaptive_center_tol = 0.0) {
   const uword N = y.n_elem;
   const uword P_input = X.n_cols;
   const bool has_fixed_effects = fe_groups.n_elem > 0;
@@ -240,15 +255,22 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
 #endif
 
   if (has_fixed_effects) {
-    FlatFEMap fe_map = build_fe_map(fe_groups, w);
+    // Build FE map structure once, only update weights each call
+    ws->ensure_fe_map(fe_groups, w);
+
+    // Use adaptive tolerance if provided, otherwise use params.center_tol
+    const double effective_tol =
+        (adaptive_center_tol > 0.0) ? adaptive_center_tol : params.center_tol;
 
     ws->y_demeaned = y;
-    center_variables(ws->y_demeaned, w, fe_map, params.center_tol,
-                     params.iter_center_max);
+    center_variables(ws->y_demeaned, w, ws->fe_map, ws->cells_2fe,
+                     effective_tol, params.iter_center_max,
+                     params.grand_acc_period);
 
     if (P > 0) {
-      center_variables(ws->X_centered, w, fe_map, params.center_tol,
-                       params.iter_center_max);
+      center_variables(ws->X_centered, w, ws->fe_map, ws->cells_2fe,
+                       effective_tol, params.iter_center_max,
+                       params.grand_acc_period);
     }
   } else {
     ws->y_demeaned = y;
