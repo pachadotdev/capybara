@@ -65,16 +65,16 @@ struct CapybaraParameters {
   double collin_tol;
   double step_halving_factor;
   double alpha_tol;
-  
+
   // Separation detection parameters
-  double sep_tol;           // Convergence tolerance
-  double sep_zero_tol;      // Tolerance for treating values as zero
-  size_t sep_max_iter;      // Max iterations for ReLU algorithm
+  double sep_tol;              // Convergence tolerance
+  double sep_zero_tol;         // Tolerance for treating values as zero
+  size_t sep_max_iter;         // Max iterations for ReLU algorithm
   size_t sep_simplex_max_iter; // Max iterations for simplex algorithm
-  bool check_separation;    // Whether to perform separation detection
-  bool sep_use_relu;        // Use ReLU algorithm
-  bool sep_use_simplex;     // Use simplex algorithm
-  
+  bool check_separation;       // Whether to perform separation detection
+  bool sep_use_relu;           // Use ReLU algorithm
+  bool sep_use_simplex;        // Use simplex algorithm
+
   size_t iter_max;
   size_t iter_center_max;
   size_t iter_inner_max;
@@ -89,13 +89,11 @@ struct CapybaraParameters {
 
   CapybaraParameters()
       : dev_tol(1.0e-08), center_tol(1.0e-08), collin_tol(1.0e-10),
-        step_halving_factor(0.5), alpha_tol(1.0e-08),
-        sep_tol(1.0e-08), sep_zero_tol(1.0e-12), sep_max_iter(200),
-        sep_simplex_max_iter(2000), check_separation(true),
-        sep_use_relu(true), sep_use_simplex(true),
+        step_halving_factor(0.5), alpha_tol(1.0e-08), sep_tol(1.0e-08),
+        sep_zero_tol(1.0e-12), sep_max_iter(200), sep_simplex_max_iter(2000),
+        check_separation(true), sep_use_relu(true), sep_use_simplex(true),
         iter_max(25), iter_center_max(10000), iter_inner_max(50),
-        iter_alpha_max(10000),
-        return_fe(true), keep_tx(false),
+        iter_alpha_max(10000), return_fe(true), keep_tx(false),
         step_halving_memory(0.9), max_step_halving(2), start_inner_tol(1e-06) {}
 
   explicit CapybaraParameters(const cpp4r::list &control) {
@@ -104,7 +102,7 @@ struct CapybaraParameters {
     collin_tol = as_cpp<double>(control["collin_tol"]);
     step_halving_factor = as_cpp<double>(control["step_halving_factor"]);
     alpha_tol = as_cpp<double>(control["alpha_tol"]);
-    
+
     // Separation detection parameters
     sep_tol = as_cpp<double>(control["sep_tol"]);
     sep_zero_tol = as_cpp<double>(control["sep_zero_tol"]);
@@ -113,7 +111,7 @@ struct CapybaraParameters {
     check_separation = as_cpp<bool>(control["check_separation"]);
     sep_use_relu = as_cpp<bool>(control["sep_use_relu"]);
     sep_use_simplex = as_cpp<bool>(control["sep_use_simplex"]);
-    
+
     iter_max = as_cpp<size_t>(control["iter_max"]);
     iter_center_max = as_cpp<size_t>(control["iter_center_max"]);
     iter_inner_max = as_cpp<size_t>(control["iter_inner_max"]);
@@ -185,7 +183,8 @@ inline field<field<uvec>> R_list_to_Armadillo_field(const list &FEs) {
 // instead of a CapybaraParameters object
 [[cpp4r::register]] doubles_matrix<>
 center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
-                  const list &klist, const double &tol, const size_t &max_iter) {
+                  const list &klist, const double &tol,
+                  const size_t &max_iter) {
   mat V = as_mat(V_r);
   vec w = as_col(w_r);
 

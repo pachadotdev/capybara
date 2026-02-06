@@ -299,10 +299,10 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     beta0 = beta;
     dev0 = dev;
 
-    // Compute working weights and working residuals
-    #ifdef CAPYBARA_DEBUG
+// Compute working weights and working residuals
+#ifdef CAPYBARA_DEBUG
     auto twwnu0 = std::chrono::high_resolution_clock::now();
-    #endif
+#endif
 
     compute_ww_nu(w_working, nu, w, mu, y, theta);
 
@@ -312,15 +312,17 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       z -= offset_vec;
     }
 
-    #ifdef CAPYBARA_DEBUG
+#ifdef CAPYBARA_DEBUG
     auto twwnu1 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> wwnu_duration = twwnu1 - twwnu0;
     std::ostringstream wwnu_msg;
-    wwnu_msg << "Working weights and nu time: " << wwnu_duration.count() << " seconds.\n";
+    wwnu_msg << "Working weights and nu time: " << wwnu_duration.count()
+             << " seconds.\n";
     cpp4r::message(wwnu_msg.str());
-    #endif
+#endif
 
-    // Weighted least squares via felm_fit (no copy needed - felm_fit uses workspace)
+    // Weighted least squares via felm_fit (no copy needed - felm_fit uses
+    // workspace)
     InferenceLM lm_res = felm_fit(X, z, w_working, fe_groups, params,
                                   &felm_workspace, cluster_groups, true);
 

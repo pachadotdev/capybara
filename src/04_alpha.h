@@ -17,15 +17,18 @@ struct InferenceAlpha {
 
 // Optimized alpha recovery using flat obs->group mapping (like centering)
 struct AlphaFlatMap {
-  std::vector<std::vector<uword>> fe_map;  // K x N: fe_map[k][i] = group of obs i
-  std::vector<vec> inv_weights;             // K: precomputed 1/sum(w) per group
-  std::vector<uword> n_groups;              // K: number of groups per FE
+  std::vector<std::vector<uword>>
+      fe_map;                   // K x N: fe_map[k][i] = group of obs i
+  std::vector<vec> inv_weights; // K: precomputed 1/sum(w) per group
+  std::vector<uword> n_groups;  // K: number of groups per FE
   uword n_obs;
   uword K;
 
-  void build(const field<field<uvec>> &group_indices, const vec *weights = nullptr) {
+  void build(const field<field<uvec>> &group_indices,
+             const vec *weights = nullptr) {
     K = group_indices.n_elem;
-    if (K == 0) return;
+    if (K == 0)
+      return;
 
     n_groups.resize(K);
     n_obs = 0;
@@ -91,10 +94,10 @@ struct AlphaFlatMap {
 inline field<vec>
 get_alpha(const vec &pi, const field<field<uvec>> &group_indices,
           double tol = 1e-8, uword iter_max = 10000,
-          void *unused = nullptr,  // kept for API compatibility
+          void *unused = nullptr, // kept for API compatibility
           const vec *weights = nullptr) {
-  (void)unused;  // suppress warning
-  
+  (void)unused; // suppress warning
+
   const uword K = group_indices.n_elem;
   const uword N = pi.n_elem;
   field<vec> coefficients(K);
@@ -183,7 +186,8 @@ get_alpha(const vec &pi, const field<field<uvec>> &group_indices,
     ++iter;
   }
 
-  // Normalize: shift so first level of last FE is zero (fixest/Stata convention)
+  // Normalize: shift so first level of last FE is zero (fixest/Stata
+  // convention)
   if (K > 0 && coefficients(K - 1).n_elem > 0) {
     const double shift = coefficients(K - 1)(0);
     coefficients(K - 1) -= shift;

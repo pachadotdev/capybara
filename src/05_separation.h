@@ -121,7 +121,7 @@ detect_separation_relu_fe(const vec &y, const mat &X, const vec &w,
   if (interior_sample.n_elem > 0) {
     weights.elem(interior_sample).fill(M);
   }
-  
+
   FlatFEMap fe_map;
   if (has_fe) {
     fe_map = build_fe_map(fe_groups, weights);
@@ -425,18 +425,20 @@ detect_separation_simplex(const mat &residuals,
   // Find and mark special columns
   for (uword j = 0; j < k; ++j) {
     if (col_min(j) == 0 && col_max(j) == 0) {
-      dropped_vars(j) = 1;  // all zero
+      dropped_vars(j) = 1; // all zero
     } else if (col_min(j) >= 0) {
-      dropped_vars(j) = 1;  // all positive
+      dropped_vars(j) = 1; // all positive
       // Mark obs with positive values as separated
       for (uword i = 0; i < n; ++i) {
-        if (X(i, j) > params.sep_tol) dropped_obs(i) = 1;
+        if (X(i, j) > params.sep_tol)
+          dropped_obs(i) = 1;
       }
     } else if (col_max(j) <= 0) {
-      dropped_vars(j) = 1;  // all negative
+      dropped_vars(j) = 1; // all negative
       // Mark obs with negative values as separated
       for (uword i = 0; i < n; ++i) {
-        if (X(i, j) < -params.sep_tol) dropped_obs(i) = 1;
+        if (X(i, j) < -params.sep_tol)
+          dropped_obs(i) = 1;
       }
     }
   }
@@ -460,8 +462,8 @@ detect_separation_simplex(const mat &residuals,
         vec c_nonbasic(nonbasic_vars.n_elem, arma::fill::ones);
 
         // Reduced iteration limit for speed
-        const uword effective_max_iter = std::min(params.sep_simplex_max_iter, 
-                                                   (size_t)(100 * k_simp));
+        const uword effective_max_iter =
+            std::min(params.sep_simplex_max_iter, (size_t)(100 * k_simp));
 
         for (uword iter = 0; iter < effective_max_iter; ++iter) {
           if (iter % 100 == 0)

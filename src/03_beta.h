@@ -45,32 +45,32 @@ inline mat crossprod(const mat &X, const vec &w = vec()) {
   if (X.is_empty()) {
     return mat();
   }
-  
+
   const uword n = X.n_rows;
   const uword p = X.n_cols;
-  
+
   if (w.is_empty()) {
     return symmatu(X.t() * X);
   }
-  
+
   // Direct X'WX computation: result(i,j) = sum_k w[k] * X[k,i] * X[k,j]
   // Only compute upper triangle, then symmetrize
   mat result(p, p, fill::zeros);
-  
+
   const double *w_ptr = w.memptr();
-  
+
   // Process in blocks for better cache utilization
   constexpr uword block_size = 64;
-  
+
   for (uword j = 0; j < p; ++j) {
     const double *Xj = X.colptr(j);
-    
+
     for (uword i = 0; i <= j; ++i) {
       const double *Xi = X.colptr(i);
-      
+
       double sum = 0.0;
       uword k = 0;
-      
+
       // Process in blocks
       for (; k + block_size <= n; k += block_size) {
         double block_sum = 0.0;
@@ -79,16 +79,16 @@ inline mat crossprod(const mat &X, const vec &w = vec()) {
         }
         sum += block_sum;
       }
-      
+
       // Remainder
       for (; k < n; ++k) {
         sum += w_ptr[k] * Xi[k] * Xj[k];
       }
-      
+
       result(i, j) = sum;
     }
   }
-  
+
   return symmatu(result);
 }
 

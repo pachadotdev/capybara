@@ -35,8 +35,8 @@ struct FelmWorkspace {
   vec y_demeaned;
   vec x_beta;
   vec pi;
-  mat X_original;  // Uncentered X for fitted values computation
-  mat X_centered;  // Working copy that gets centered in place
+  mat X_original; // Uncentered X for fitted values computation
+  mat X_centered; // Working copy that gets centered in place
   vec y_original;
 
   uword cached_N, cached_P;
@@ -231,13 +231,13 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
   } else {
     ws->X_original = X;
   }
-  ws->X_centered = ws->X_original;  // Copy for centering
+  ws->X_centered = ws->X_original; // Copy for centering
 
   const bool use_weights = any(w != 1.0);
 
-  #ifdef CAPYBARA_DEBUG
+#ifdef CAPYBARA_DEBUG
   auto tcenter0 = std::chrono::high_resolution_clock::now();
-  #endif
+#endif
 
   if (has_fixed_effects) {
     FlatFEMap fe_map = build_fe_map(fe_groups, w);
@@ -254,13 +254,13 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
     ws->y_demeaned = y;
   }
 
-  #ifdef CAPYBARA_DEBUG
+#ifdef CAPYBARA_DEBUG
   auto tcenter1 = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> center_duration = tcenter1 - tcenter0;
   std::ostringstream center_msg;
   center_msg << "Centering time: " << center_duration.count() << " seconds.\n";
   cpp4r::message(center_msg.str());
-  #endif
+#endif
 
   if (params.keep_tx && P > 0) {
     result.TX = ws->X_centered;
@@ -269,10 +269,10 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
 
   const uword P_final = P;
 
-  // Solve normal equations using rank-revealing Cholesky
-  #ifdef CAPYBARA_DEBUG
+// Solve normal equations using rank-revealing Cholesky
+#ifdef CAPYBARA_DEBUG
   auto tsolve0 = std::chrono::high_resolution_clock::now();
-  #endif
+#endif
 
   mat XtX;
   vec XtY_vec;
@@ -342,13 +342,13 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
     return result;
   }
 
-  #ifdef CAPYBARA_DEBUG
+#ifdef CAPYBARA_DEBUG
   auto tsolve1 = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> solve_duration = tsolve1 - tsolve0;
   std::ostringstream solve_msg;
   solve_msg << "Solving time: " << solve_duration.count() << " seconds.\n";
   cpp4r::message(solve_msg.str());
-  #endif
+#endif
 
   result.residuals = ws->y_original - result.fitted_values;
 
@@ -359,9 +359,9 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
   const double rss = dot(w % result.residuals, result.residuals);
 
   if (cluster_groups != nullptr && cluster_groups->n_elem > 0) {
-    vcov_reduced =
-        compute_sandwich_vcov(ws->X_centered, ws->y_original, result.fitted_values,
-                              result.hessian, *cluster_groups);
+    vcov_reduced = compute_sandwich_vcov(ws->X_centered, ws->y_original,
+                                         result.fitted_values, result.hessian,
+                                         *cluster_groups);
   } else {
     mat H_inv;
     bool success = inv(H_inv, result.hessian);
