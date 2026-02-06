@@ -329,9 +329,13 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 
     // Weighted least squares via felm_fit (no copy needed - felm_fit uses
     // workspace)
+    // First iteration: use 10x looser centering tolerance (like fixest)
+    const double iter_center_tol =
+        (iter == 0) ? adaptive_center_tol * 10.0 : adaptive_center_tol;
+
     InferenceLM lm_res =
         felm_fit(X, z, w_working, fe_groups, params, &felm_workspace,
-                 cluster_groups, true, adaptive_center_tol);
+                 cluster_groups, true, iter_center_tol);
 
     const vec &beta_upd_reduced = lm_res.coef_table.col(0);
 
@@ -641,6 +645,13 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
     adaptive_tol = std::max(params.center_tol, 1e-3);
   }
 
+  // Persistent FE structures
+  FlatFEMap fe_map;
+  CellAggregated2FE cells_2fe;
+  if (fe_groups.n_elem > 0) {
+    fe_map.build(fe_groups);
+  }
+
   // Maximize the log-likelihood
   for (uword iter = 0; iter < params.iter_max; ++iter) {
     double rho = 1.0;
@@ -650,15 +661,14 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
     // Compute working weights and adjusted response
     compute_ww_yadj(w_working, yadj, w, mu, y, eta, offset);
 
-    // Build FE map with current working weights
-    FlatFEMap fe_map;
+    // Only update weights on the persistent FE map
     if (fe_groups.n_elem > 0) {
-      fe_map = build_fe_map(fe_groups, w_working);
+      fe_map.update_weights(w_working);
     }
 
     Myadj += yadj;
 
-    center_variables(Myadj, w_working, fe_map, adaptive_tol,
+    center_variables(Myadj, w_working, fe_map, cells_2fe, adaptive_tol,
                      params.iter_center_max, params.grand_acc_period);
 
     const vec eta_upd = yadj - Myadj + offset - eta;

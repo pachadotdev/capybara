@@ -6,7 +6,7 @@
 \usage{
 fit_control(
   dev_tol = 1e-08,
-  center_tol = 1e-08,
+  center_tol = 1e-06,
   center_tol_loose = 1e-04,
   collin_tol = 1e-10,
   step_halving_factor = 0.5,
@@ -18,7 +18,7 @@ fit_control(
   step_halving_memory = 0.9,
   max_step_halving = 2L,
   start_inner_tol = 1e-06,
-  grand_acc_period = 10L,
+  grand_acc_period = 4L,
   sep_tol = 1e-08,
   sep_zero_tol = 1e-12,
   sep_max_iter = 200L,
@@ -38,7 +38,7 @@ is based on the relative change of the deviance in iteration \eqn{r} and can be 
 
 \item{center_tol}{tolerance level for the stopping condition of the centering algorithm. The stopping condition is
 based on the relative change of the centered variable similar to the \code{'lfe'} package. The default is
-\code{1.0e-08}.}
+\code{1.0e-06}.}
 
 \item{center_tol_loose}{initial (loose) tolerance for adaptive centering in GLM iterations. During early IRLS
 iterations when deviance is changing rapidly, this looser tolerance is used to save computation. As the GLM
@@ -71,8 +71,8 @@ iteration is retained. The default is \code{0.9}.}
 
 \item{grand_acc_period}{integer indicating the period (in iterations) for grand acceleration in the centering
 algorithm. Grand acceleration applies a second-level Irons-Tuck extrapolation on the overall convergence
-trajectory. Lower values (e.g., 5-10) may speed up convergence for difficult problems. Set to a very large
-value (e.g., 10000) to effectively disable. The default is \code{10L}.}
+trajectory. Lower values (e.g., 4-10) may speed up convergence for difficult problems. Set to a very large
+value (e.g., 10000) to effectively disable. The default is \code{4L}.}
 
 \item{sep_tol}{tolerance for separation detection. The default is \code{1.0e-08}.}
 
