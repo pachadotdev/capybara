@@ -535,8 +535,7 @@ get_score_matrix_feglm_ <- function(object) {
       w,
       k_list,
       object[["control"]][["center_tol"]],
-      object[["control"]][["iter_center_max"]],
-      object[["control"]][["iter_interrupt"]]
+      object[["control"]][["iter_center_max"]]
     )
     colnames(X) <- nms_sp
   }

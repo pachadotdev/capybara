@@ -140,16 +140,12 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   # Get names of the fixed effects variables ----
   fe_vars <- check_fe_(formula, data)
 
-  # Generate temporary variable ----
-  tmp_var <- temp_var_(data)
-
   # Transform fixed effects and clusters to factors ----
   data <- transform_fe_(data, formula, fe_vars)
   nt <- nrow(data)
 
   # Extract model response and regressor matrix ----
   nms_sp <- NA
-  p <- NA
   model_response_(data, formula)
 
   # Extract weights if required ----
@@ -177,12 +173,14 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
 
   # Get names and number of levels in each fixed effects category ----
   if (length(fe_vars) > 0) {
-    fe_levels <- vapply(lapply(data[fe_vars], levels), length, integer(1))
+    nms_fe <- lapply(data[fe_vars], levels)
+    fe_levels <- vapply(nms_fe, length, integer(1))
     # Generate auxiliary list of indexes for different sub panels ----
     FEs <- get_index_list_(fe_vars, data)
     names(FEs) <- fe_vars
   } else {
     # No fixed effects - create empty list
+    nms_fe <- list()
     fe_levels <- integer(0)
     FEs <- list()
   }
@@ -208,7 +206,6 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
 
   nobs <- nobs_(nobs_full, nobs_na, y, fit[["fitted_values"]])
 
-  y <- NULL
   X <- NULL
 
   # Add names to coef_table, hessian, T(X) (if provided), and fitted values ----
@@ -235,11 +232,7 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   # Add to fit list ----
   fit[["nobs"]] <- nobs
   fit[["fe_levels"]] <- fe_levels
-  fit[["nms_fe"]] <- if (length(fe_vars) > 0) {
-    lapply(data[fe_vars], levels)
-  } else {
-    list()
-  }
+  fit[["nms_fe"]] <- nms_fe
   fit[["formula"]] <- formula
   fit[["data"]] <- data
   fit[["control"]] <- control

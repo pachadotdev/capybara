@@ -35,66 +35,27 @@ struct FelmWorkspace {
   vec y_demeaned;
   vec x_beta;
   vec pi;
-  mat X_original;
+  mat X_original; // Uncentered X for fitted values computation
+  mat X_centered; // Working copy that gets centered in place
   vec y_original;
-  vec scratch;
 
   uword cached_N, cached_P;
-  bool is_initialized;
 
-  FelmWorkspace() : cached_N(0), cached_P(0), is_initialized(false) {}
-
-  FelmWorkspace(uword N, uword P)
-      : cached_N(N), cached_P(P), is_initialized(true) {
-    const uword safe_N = std::max(N, uword(1));
-    const uword safe_P = std::max(P, uword(1));
-
-    y_demeaned.set_size(safe_N);
-    x_beta.set_size(safe_N);
-    pi.set_size(safe_N);
-    X_original.set_size(safe_N, safe_P);
-    y_original.set_size(safe_N);
-    scratch.set_size(safe_N);
-  }
+  FelmWorkspace() : cached_N(0), cached_P(0) {}
 
   void ensure_size(uword N, uword P) {
-    if (!is_initialized || N > cached_N || P > cached_P) {
-      const uword new_N = std::max(N, cached_N);
-      const uword new_P = std::max(P, cached_P);
-
-      // Resize only if necessary
-      if (y_demeaned.n_elem < new_N)
-        y_demeaned.set_size(new_N);
-      if (x_beta.n_elem < new_N)
-        x_beta.set_size(new_N);
-      if (pi.n_elem < new_N)
-        pi.set_size(new_N);
-      if (scratch.n_elem < new_N)
-        scratch.set_size(new_N);
-      if (X_original.n_rows < new_N || X_original.n_cols < new_P) {
-        X_original.set_size(new_N, new_P);
-      }
-      if (y_original.n_elem < new_N)
-        y_original.set_size(new_N);
-
-      cached_N = new_N;
-      cached_P = new_P;
-      is_initialized = true;
+    if (N > cached_N) {
+      y_demeaned.set_size(N);
+      x_beta.set_size(N);
+      pi.set_size(N);
+      y_original.set_size(N);
+      cached_N = N;
     }
-  }
-
-  ~FelmWorkspace() { clear(); }
-
-  void clear() {
-    y_demeaned.reset();
-    x_beta.reset();
-    pi.reset();
-    X_original.reset();
-    y_original.reset();
-    scratch.reset();
-    cached_N = 0;
-    cached_P = 0;
-    is_initialized = false;
+    if (P > cached_P || N > X_original.n_rows) {
+      X_original.set_size(N, P);
+      X_centered.set_size(N, P);
+      cached_P = P;
+    }
   }
 };
 
@@ -110,12 +71,14 @@ precompute_fe_accum_info(const field<field<uvec>> &fe_groups, uword N) {
   field<FEAccumInfo> info(K);
 
   for (uword k = 0; k < K; ++k) {
-    const uword J = fe_groups(k).n_elem;
+    const field<uvec> &groups_k = fe_groups(k);
+    const uword J = groups_k.n_elem;
     info(k).n_groups = J;
     info(k).obs_to_group.set_size(N);
 
+    // Vectorized scatter: fill group index for all obs in each group
     for (uword j = 0; j < J; ++j) {
-      info(k).obs_to_group.elem(fe_groups(k)(j)).fill(j);
+      info(k).obs_to_group.elem(groups_k(j)).fill(j);
     }
   }
   return info;
@@ -138,18 +101,16 @@ inline void accumulate_fixed_effects(vec &fitted_values,
                                      const field<vec> &fixed_effects,
                                      const field<field<uvec>> &fe_groups) {
   const uword K = fe_groups.n_elem;
-  const uword N = fitted_values.n_elem;
 
   for (uword k = 0; k < K; ++k) {
-    const uword J = fe_groups(k).n_elem;
+    const field<uvec> &groups_k = fe_groups(k);
     const vec &fe_k = fixed_effects(k);
+    const uword J = groups_k.n_elem;
 
-    uvec obs_to_group(N);
+    // Scatter fixed effects to observations (vectorized per group)
     for (uword j = 0; j < J; ++j) {
-      obs_to_group.elem(fe_groups(k)(j)).fill(j);
+      fitted_values.elem(groups_k(j)) += fe_k(j);
     }
-
-    fitted_values += fe_k.elem(obs_to_group);
   }
 }
 
@@ -186,7 +147,7 @@ inline void compute_fitted_values(FelmWorkspace *ws, InferenceLM &result,
 
     result.fixed_effects =
         get_alpha(ws->pi, fe_groups, params.alpha_tol, params.iter_alpha_max,
-                  nullptr, nullptr, coef_weights);
+                  nullptr, coef_weights);
     result.has_fe = true;
 
     result.fitted_values = ws->x_beta;
@@ -202,7 +163,8 @@ inline void compute_r_squared(InferenceLM &result, const vec &y,
                               const vec &residuals, const vec &w, uword n_coef,
                               const field<field<uvec>> &fe_groups) {
   const uword N = y.n_elem;
-  const double y_mean = dot(w, y) / accu(w);
+  const double w_sum = accu(w);
+  const double y_mean = dot(w, y) / w_sum;
 
   const vec y_centered = y - y_mean;
 
@@ -211,6 +173,7 @@ inline void compute_r_squared(InferenceLM &result, const vec &y,
 
   result.r_squared = (tss > 1e-12) ? (1.0 - rss / tss) : 0.0;
 
+  // Count degrees of freedom for FE
   uword k = n_coef;
   const uword K = fe_groups.n_elem;
   for (uword j = 0; j < K; ++j) {
@@ -229,22 +192,24 @@ inline void expand_vcov(mat &vcov_full, const mat &vcov_reduced,
   vcov_full.fill(datum::nan);
 
   const uword n_idx = non_collinear_cols.n_elem;
-  for (uword j = 0; j < n_idx; ++j) {
-    const uword col_j = non_collinear_cols(j);
-    for (uword i = 0; i < n_idx; ++i) {
-      vcov_full(non_collinear_cols(i), col_j) = vcov_reduced(i, j);
-    }
+  if (n_idx > 0 && n_idx == vcov_reduced.n_rows &&
+      n_idx == vcov_reduced.n_cols) {
+    vcov_full.submat(non_collinear_cols, non_collinear_cols) = vcov_reduced;
   }
 }
 
-InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
+InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
                      const field<field<uvec>> &fe_groups,
                      const CapybaraParameters &params,
                      FelmWorkspace *workspace = nullptr,
                      const field<uvec> *cluster_groups = nullptr,
                      bool run_from_glm = false) {
   const uword N = y.n_elem;
-  const uword P = X.n_cols;
+  const uword P_input = X.n_cols;
+  const bool has_fixed_effects = fe_groups.n_elem > 0;
+
+  // Determine final P (with or without intercept)
+  const uword P = (!has_fixed_effects && !run_from_glm) ? P_input + 1 : P_input;
 
   InferenceLM result(N, P);
   result.weights = w;
@@ -254,58 +219,121 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
   ws->ensure_size(N, P);
   ws->y_original = y;
 
-  const bool has_fixed_effects = fe_groups.n_elem > 0;
   result.has_fe = has_fixed_effects;
 
-  // Add intercept column if no fixed effects
+  // Copy X to workspace buffers (only copy needed per iteration)
   if (!has_fixed_effects && !run_from_glm) {
-    X = join_horiz(ones<vec>(N), X);
+    // Add intercept column
+    ws->X_original.col(0).ones();
+    if (P_input > 0) {
+      ws->X_original.cols(1, P - 1) = X;
+    }
+  } else {
+    ws->X_original = X;
   }
-
-  ws->X_original = X;
+  ws->X_centered = ws->X_original; // Copy for centering
 
   const bool use_weights = any(w != 1.0);
 
-  CollinearityResult collin_result =
-      check_collinearity(X, w, use_weights, params.collin_tol);
+#ifdef CAPYBARA_DEBUG
+  auto tcenter0 = std::chrono::high_resolution_clock::now();
+#endif
 
   if (has_fixed_effects) {
-    CenteringWorkspace centering_workspace;
-    ObsToGroupMapping group_info = precompute_group_info(fe_groups, w);
-    const ObsToGroupMapping *group_info_ptr = &group_info;
+    FlatFEMap fe_map = build_fe_map(fe_groups, w);
 
     ws->y_demeaned = y;
+    center_variables(ws->y_demeaned, w, fe_map, params.center_tol,
+                     params.iter_center_max);
 
-    center_variables(ws->y_demeaned, w, fe_groups, params.center_tol,
-                     params.iter_center_max, params.iter_interrupt,
-                     group_info_ptr, &centering_workspace);
-
-    if (X.n_cols > 0) {
-      center_variables(X, w, fe_groups, params.center_tol,
-                       params.iter_center_max, params.iter_interrupt,
-                       group_info_ptr, &centering_workspace);
+    if (P > 0) {
+      center_variables(ws->X_centered, w, fe_map, params.center_tol,
+                       params.iter_center_max);
     }
   } else {
     ws->y_demeaned = y;
   }
 
-  if (params.keep_tx && X.n_cols > 0) {
-    result.TX = X;
+#ifdef CAPYBARA_DEBUG
+  auto tcenter1 = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> center_duration = tcenter1 - tcenter0;
+  std::ostringstream center_msg;
+  center_msg << "Centering time: " << center_duration.count() << " seconds.\n";
+  cpp4r::message(center_msg.str());
+#endif
+
+  if (params.keep_tx && P > 0) {
+    result.TX = ws->X_centered;
     result.has_tx = true;
   }
 
-  InferenceBeta beta_result = get_beta(X, ws->y_demeaned, ws->y_demeaned, w,
-                                       collin_result, false, false, nullptr);
+  const uword P_final = P;
 
-  const uword n_coef = beta_result.coefficients.n_elem;
+// Solve normal equations using rank-revealing Cholesky
+#ifdef CAPYBARA_DEBUG
+  auto tsolve0 = std::chrono::high_resolution_clock::now();
+#endif
+
+  mat XtX;
+  vec XtY_vec;
+
+  if (use_weights) {
+    XtX = crossprod(ws->X_centered, w);
+    XtY_vec = ws->X_centered.t() * (w % ws->y_demeaned);
+  } else {
+    XtX = crossprod(ws->X_centered);
+    XtY_vec = ws->X_centered.t() * ws->y_demeaned;
+  }
+
+  mat R_rank;
+  uvec excl;
+  uword rank;
+
+  if (!chol_rank(R_rank, excl, rank, XtX, "upper", params.collin_tol)) {
+    throw std::runtime_error("chol_rank failed in felm_fit");
+  }
+
+  // Populate collinearity result from excl vector
+  CollinearityResult collin_result(P_final);
+  collin_result.has_collinearity = any(excl);
+  collin_result.non_collinear_cols = find(excl == 0);
+  collin_result.collinear_cols = find(excl != 0);
+  collin_result.coef_status = 1 - excl;
+
+  // Solve reduced system for non-excluded columns
+  const uword n_coef = P_final;
+  vec beta_solved(n_coef, fill::value(datum::nan));
+  mat hessian_reduced;
+
+  if (rank > 0) {
+    const uvec keep_idx = collin_result.non_collinear_cols;
+    const mat R_sub = R_rank.submat(keep_idx, keep_idx);
+    const vec XtY_sub = XtY_vec.elem(keep_idx);
+
+    // Solve triangular systems: R'y = XtY, then Rb = y
+    const vec y_sub = solve(trimatl(R_sub.t()), XtY_sub);
+    const vec beta_sub = solve(trimatu(R_sub), y_sub);
+
+    // Scatter into full beta (excluded entries remain NaN)
+    beta_solved.elem(keep_idx) = beta_sub;
+
+    // Hessian from Cholesky factor: X'X = R'R
+    hessian_reduced = R_sub.t() * R_sub;
+  }
+
   if (result.coef_table.n_rows != n_coef) {
     result.coef_table.set_size(n_coef, 4);
   }
-
-  result.coef_table.col(0) = beta_result.coefficients;
   result.coef_status = std::move(collin_result.coef_status);
-  result.hessian = std::move(beta_result.hessian);
-  result.success = beta_result.success;
+
+  result.coef_table.col(0) = beta_solved;
+  if (collin_result.has_collinearity) {
+    expand_vcov(result.hessian, hessian_reduced,
+                collin_result.non_collinear_cols, n_coef);
+  } else {
+    result.hessian = hessian_reduced;
+  }
+  result.success = true;
 
   compute_fitted_values(ws, result, collin_result, fe_groups, params);
 
@@ -313,6 +341,14 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
     // Only return coefficients
     return result;
   }
+
+#ifdef CAPYBARA_DEBUG
+  auto tsolve1 = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> solve_duration = tsolve1 - tsolve0;
+  std::ostringstream solve_msg;
+  solve_msg << "Solving time: " << solve_duration.count() << " seconds.\n";
+  cpp4r::message(solve_msg.str());
+#endif
 
   result.residuals = ws->y_original - result.fitted_values;
 
@@ -323,9 +359,9 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
   const double rss = dot(w % result.residuals, result.residuals);
 
   if (cluster_groups != nullptr && cluster_groups->n_elem > 0) {
-    vcov_reduced =
-        compute_sandwich_vcov(X, ws->y_original, result.fitted_values,
-                              result.hessian, *cluster_groups);
+    vcov_reduced = compute_sandwich_vcov(ws->X_centered, ws->y_original,
+                                         result.fitted_values, result.hessian,
+                                         *cluster_groups);
   } else {
     mat H_inv;
     bool success = inv(H_inv, result.hessian);
@@ -357,12 +393,12 @@ InferenceLM felm_fit(mat &X, const vec &y, const vec &w,
   result.coef_table.col(3) = 2.0 * normcdf(-abs(z_values));
 
   // Mark collinear coefficients as NaN
-  if (collin_result.has_collinearity) {
-    const uvec collinear_idx = find(result.coef_status == 0);
-    for (uword i = 0; i < collinear_idx.n_elem; ++i) {
-      result.coef_table.row(collinear_idx(i)).fill(datum::nan);
-    }
-  }
+  // if (collin_result.has_collinearity) {
+  //   const uvec collinear_idx = find(result.coef_status == 0);
+  //   for (uword i = 0; i < collinear_idx.n_elem; ++i) {
+  //     result.coef_table.row(collinear_idx(i)).fill(datum::nan);
+  //   }
+  // }
 
   return result;
 }

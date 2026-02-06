@@ -47,10 +47,12 @@ NULL
 #'  \code{10000L}.
 #' @param iter_inner_max integer indicating the maximum number of iterations in the inner loop of the centering
 #'  algorithm. The default is \code{50L}.
-#' @param iter_interrupt integer indicating the maximum number of iterations before the algorithm is interrupted. The
-#'  default is \code{1000L}.
 #' @param iter_alpha_max maximum iterations for fixed effects computation. The default is \code{10000L}.
-#' @param sep_max_iter maximum iterations for separation detection. The default is \code{1000L}.
+#' @param sep_max_iter maximum iterations for ReLU separation detection algorithm. The default is \code{200L}.
+#' @param sep_simplex_max_iter maximum iterations for simplex separation detection algorithm. The default is \code{2000L}.
+#' @param sep_zero_tol tolerance for treating values as zero in separation detection. The default is \code{1.0e-12}.
+#' @param sep_use_relu logical indicating whether to use the ReLU algorithm for separation detection. The default is \code{TRUE}.
+#' @param sep_use_simplex logical indicating whether to use the simplex algorithm for separation detection. The default is \code{TRUE}.
 #' @param step_halving_memory numeric memory factor for step-halving algorithm. Controls how much of the previous
 #'  iteration is retained. The default is \code{0.9}.
 #' @param max_step_halving maximum number of post-convergence step-halving attempts. The default is \code{2}.
@@ -85,15 +87,18 @@ fit_control <- function(
   iter_center_max = 10000L,
   iter_inner_max = 50L,
   iter_alpha_max = 10000L,
-  iter_interrupt = 1000L,
   step_halving_memory = 0.9,
   max_step_halving = 2L,
   start_inner_tol = 1.0e-06,
   sep_tol = 1.0e-08,
+  sep_zero_tol = 1.0e-12,
+  sep_max_iter = 200L,
+  sep_simplex_max_iter = 2000L,
+  sep_use_relu = TRUE,
+  sep_use_simplex = TRUE,
   return_fe = TRUE,
   keep_tx = FALSE,
   check_separation = TRUE,
-  sep_max_iter = 1000L,
   init_theta = 0.0
 ) {
   # Check validity of tolerance parameters
@@ -103,7 +108,8 @@ fit_control <- function(
       collin_tol <= 0.0 ||
       step_halving_factor <= 0.0 ||
       alpha_tol <= 0.0 ||
-      sep_tol <= 0.0
+      sep_tol <= 0.0 ||
+      sep_zero_tol <= 0.0
   ) {
     stop(
       "All tolerance parameters should be greater than zero.",
@@ -115,15 +121,15 @@ fit_control <- function(
   iter_max <- as.integer(iter_max)
   iter_center_max <- as.integer(iter_center_max)
   iter_inner_max <- as.integer(iter_inner_max)
-  iter_interrupt <- as.integer(iter_interrupt)
   sep_max_iter <- as.integer(sep_max_iter)
+  sep_simplex_max_iter <- as.integer(sep_simplex_max_iter)
 
   if (
     iter_max < 1L ||
       iter_center_max < 1L ||
       iter_inner_max < 1L ||
-      iter_interrupt < 1L ||
-      sep_max_iter < 1L
+      sep_max_iter < 1L ||
+      sep_simplex_max_iter < 1L
   ) {
     stop(
       "All iteration parameters should be greater than or equal to one.",
@@ -135,7 +141,10 @@ fit_control <- function(
   return_fe <- as.logical(return_fe)
   keep_tx <- as.logical(keep_tx)
   check_separation <- as.logical(check_separation)
-  if (is.na(return_fe) || is.na(keep_tx) || is.na(check_separation)) {
+  sep_use_relu <- as.logical(sep_use_relu)
+  sep_use_simplex <- as.logical(sep_use_simplex)
+  if (is.na(return_fe) || is.na(keep_tx) || is.na(check_separation) ||
+      is.na(sep_use_relu) || is.na(sep_use_simplex)) {
     stop(
       "All logical parameters should be TRUE or FALSE.",
       call. = FALSE
@@ -176,15 +185,18 @@ fit_control <- function(
     iter_center_max = iter_center_max,
     iter_inner_max = iter_inner_max,
     iter_alpha_max = iter_alpha_max,
-    iter_interrupt = iter_interrupt,
     step_halving_memory = step_halving_memory,
     max_step_halving = max_step_halving,
     start_inner_tol = start_inner_tol,
     sep_tol = sep_tol,
+    sep_zero_tol = sep_zero_tol,
+    sep_max_iter = sep_max_iter,
+    sep_simplex_max_iter = sep_simplex_max_iter,
+    sep_use_relu = sep_use_relu,
+    sep_use_simplex = sep_use_simplex,
     return_fe = return_fe,
     keep_tx = keep_tx,
     check_separation = check_separation,
-    sep_max_iter = sep_max_iter,
     init_theta = init_theta
   )
 }

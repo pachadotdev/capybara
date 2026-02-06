@@ -12,7 +12,6 @@ struct InferenceBeta {
   mat hessian;
   uvec coef_status;
   double scale;
-  uvec pivot;
   double rank;
   bool success;
 
@@ -40,89 +39,65 @@ struct CollinearityResult {
         has_collinearity(false), n_valid(0) {}
 };
 
-inline mat crossprod(const mat &X) {
-  if (X.is_empty()) {
-    return mat();
-  }
-  return symmatu(X.t() * X);
-}
-
-inline mat crossprod(const mat &X, const vec &w) {
+// X'X with optional weights (X'WX where W = diag(w))
+// Computes directly without sqrt(w) intermediate matrix
+inline mat crossprod(const mat &X, const vec &w = vec()) {
   if (X.is_empty()) {
     return mat();
   }
 
-  if (w.is_empty() || !any(w != 1.0)) {
+  const uword n = X.n_rows;
+  const uword p = X.n_cols;
+
+  if (w.is_empty()) {
     return symmatu(X.t() * X);
   }
 
-  const mat Xw = X.each_col() % sqrt(w);
-  return symmatu(Xw.t() * Xw);
+  // Direct X'WX computation: result(i,j) = sum_k w[k] * X[k,i] * X[k,j]
+  // Only compute upper triangle, then symmetrize
+  mat result(p, p, fill::zeros);
+
+  const double *w_ptr = w.memptr();
+
+  // Process in blocks for better cache utilization
+  constexpr uword block_size = 64;
+
+  for (uword j = 0; j < p; ++j) {
+    const double *Xj = X.colptr(j);
+
+    for (uword i = 0; i <= j; ++i) {
+      const double *Xi = X.colptr(i);
+
+      double sum = 0.0;
+      uword k = 0;
+
+      // Process in blocks
+      for (; k + block_size <= n; k += block_size) {
+        double block_sum = 0.0;
+        for (uword b = 0; b < block_size; ++b) {
+          block_sum += w_ptr[k + b] * Xi[k + b] * Xj[k + b];
+        }
+        sum += block_sum;
+      }
+
+      // Remainder
+      for (; k < n; ++k) {
+        sum += w_ptr[k] * Xi[k] * Xj[k];
+      }
+
+      result(i, j) = sum;
+    }
+  }
+
+  return symmatu(result);
 }
 
+// X'Wy (or X'y if w empty)
 inline vec crossprod_Xy(const mat &X, const vec &w, const vec &y) {
+  if (w.is_empty()) {
+    return X.t() * y;
+  }
   return X.t() * (w % y);
-}
-
-inline CollinearityResult
-check_collinearity(mat &X, const vec &w, bool has_weights, double tolerance) {
-
-  const uword p = X.n_cols;
-
-  CollinearityResult result(p);
-
-  if (p == 0) {
-    result.coef_status.reset();
-    return result;
-  }
-
-  // For single column, check if variance is near zero
-  if (p == 1) {
-    double variance;
-
-    if (has_weights) {
-      const double sum_w = accu(w);
-      const vec &x = X.col(0);
-      const double mean_val = dot(x, w) / sum_w;
-      variance = dot(w, square(x)) / sum_w - mean_val * mean_val;
-    } else {
-      variance = var(X.col(0), 1);
-    }
-
-    if (variance < tolerance * tolerance) {
-      result.coef_status.zeros();
-      result.has_collinearity = true;
-      result.n_valid = 0;
-      result.non_collinear_cols.reset();
-      X.reset();
-    }
-    return result;
-  }
-
-  const mat XtX = has_weights ? crossprod(X, w) : crossprod(X);
-
-  mat Q, R;
-  qr_econ(Q, R, XtX);
-
-  // Vectorized collinearity detection using abs() on diagonal
-  const vec diag_R = abs(diagvec(R));
-  const uvec excluded = conv_to<uvec>::from(diag_R < tolerance);
-  const uvec indep = find(excluded == 0);
-
-  result.coef_status.zeros();
-  if (indep.n_elem > 0) {
-    result.coef_status.elem(indep).ones();
-  }
-
-  result.has_collinearity = (indep.n_elem < p);
-  result.n_valid = indep.n_elem;
-  result.non_collinear_cols = indep;
-
-  if (result.has_collinearity) {
-    X = indep.n_elem > 0 ? X.cols(indep) : mat();
-  }
-
-  return result;
 }
 
 inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
@@ -135,119 +110,92 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
   const uword p_orig =
       collin_result.has_collinearity ? collin_result.coef_status.n_elem : p;
 
-  const bool has_weights = w.n_elem > 0 && any(w != 1.0);
-
   InferenceBeta result(n, p_orig);
 
+  // Early exit: no predictors
   if (p == 0) {
     result.success = true;
-    result.coefficients.zeros();
     result.coef_status = collin_result.coef_status;
-    result.fitted_values.zeros();
     result.residuals = y_orig;
     result.weights = w;
-    result.hessian.zeros();
     return result;
   }
 
-  if (y.n_elem == 0) {
-    result.success = false;
+  // Early exit: no observations
+  if (y.is_empty()) {
     return result;
   }
 
-  // Solve normal equations
+  // Build or use cached X'WX
   mat XtX;
-
-  if (cached_XtX && cached_XtX->n_rows == p && cached_XtX->n_cols == p) {
+  if (cached_XtX && cached_XtX->n_rows == p) {
     XtX = *cached_XtX;
   } else {
-    XtX = has_weights ? crossprod(X, w) : crossprod(X);
+    XtX = crossprod(X, w);
     if (cached_XtX) {
       *cached_XtX = XtX;
     }
   }
 
-  XtX.diag() += 1e-10; // Regularization for numerical stability
+  // Regularization for numerical stability
+  XtX.diag() += 1e-10;
 
-  const vec Xty = has_weights ? crossprod_Xy(X, w, y) : X.t() * y;
+  // X'Wy
+  const vec Xty = crossprod_Xy(X, w, y);
 
-  // Use rank-revealing Cholesky to get triangular factor and excluded cols
+  // Rank-revealing Cholesky
   mat R_rank;
   Col<uword> excluded_cols;
   uword rank_out = 0;
 
-  const double chol_tol = 1e-10;
-
-  const bool chol_ok = chol_rank(R_rank, excluded_cols, rank_out, XtX, "upper", chol_tol);
-
-  vec beta_reduced;
-
-  if (!chol_ok) {
+  if (!chol_rank(R_rank, excluded_cols, rank_out, XtX, "upper", 1e-10)) {
     cpp4r::stop("Failed to solve normal equations for beta estimation.");
-  } else {
-    // Determine independent columns from excluded_cols (0 = independent)
-    const uvec indep = find(excluded_cols == 0);
-    const uword rnk = indep.n_elem;
-
-    if (rnk == 0) {
-      beta_reduced.set_size(p);
-      beta_reduced.fill(datum::nan);
-      result.coef_status = uvec(p, fill::zeros);
-      result.hessian.zeros(p_orig, p_orig);
-    } else {
-      // Extract reduced R and corresponding XtY
-      vec XtY_sub = Xty(indep);
-      mat R_sub = R_rank.submat(indep, indep);
-
-      // Solve triangular systems R_sub^T * y_sub = XtY_sub, then R_sub * beta_sub = y_sub
-      vec y_sub;
-      if (!solve(y_sub, R_sub.t(), XtY_sub, solve_opts::fast)) {
-        cpp4r::stop("Failed to solve triangular system (R^T) in beta estimation.");
-      }
-
-      vec beta_sub;
-      if (!solve(beta_sub, R_sub, y_sub, solve_opts::fast)) {
-        cpp4r::stop("Failed to solve triangular system (R) in beta estimation.");
-      }
-
-      // Scatter reduced solution into full-length reduced vector (size p)
-      beta_reduced.set_size(p);
-      beta_reduced.fill(datum::nan);
-      for (uword k = 0; k < rnk; ++k) {
-        beta_reduced(indep(k)) = beta_sub(k);
-      }
-
-      // Coefficient status within current X
-      result.coef_status.zeros();
-      if (indep.n_elem > 0) {
-        result.coef_status.elem(indep).ones();
-      }
-
-      // Build Hessian for estimable columns (place into full p_orig if needed)
-      result.hessian.zeros(p_orig, p_orig);
-      if (rnk > 0) {
-        // XtX corresponds to current X (possibly filtered)
-        if (collin_result.has_collinearity) {
-          const uvec &valid_cols = collin_result.non_collinear_cols;
-          // valid_cols maps current X columns to original indices; place XtX into those positions
-          result.hessian.submat(valid_cols, valid_cols) = XtX;
-        } else {
-          result.hessian = XtX;
-        }
-      }
-
-      result.rank = static_cast<double>(rank_out);
-    }
   }
 
-  // Assign coefficients: if original collinearity mapping exists, expand to full length
+  // Independent columns (excluded_cols == 0 means kept)
+  const uvec indep = find(excluded_cols == 0);
+  const uword rnk = indep.n_elem;
+
+  vec beta_reduced(p, fill::value(datum::nan));
+
+  if (rnk == 0) {
+    result.coef_status.zeros();
+    result.hessian.zeros();
+  } else {
+    // Extract submatrices for independent columns
+    const mat R_sub = R_rank.submat(indep, indep);
+    const vec Xty_sub = Xty.elem(indep);
+
+    // Solve R'R * beta = Xty via two triangular solves
+    vec beta_sub;
+    if (!solve(beta_sub, trimatl(R_sub.t()), Xty_sub, solve_opts::fast) ||
+        !solve(beta_sub, trimatu(R_sub), beta_sub, solve_opts::fast)) {
+      cpp4r::stop("Failed to solve triangular system in beta estimation.");
+    }
+
+    // Scatter into full beta vector
+    beta_reduced.elem(indep) = beta_sub;
+
+    // Coefficient status
+    result.coef_status.zeros();
+    result.coef_status.elem(indep).ones();
+
+    // Hessian: place XtX into correct positions
+    if (collin_result.has_collinearity) {
+      const uvec &valid_cols = collin_result.non_collinear_cols;
+      result.hessian.submat(valid_cols, valid_cols) = XtX;
+    } else {
+      result.hessian = XtX;
+    }
+
+    result.rank = static_cast<double>(rank_out);
+  }
+
+  // Expand coefficients if collinearity mapping exists
   if (collin_result.has_collinearity) {
     result.coefficients.fill(datum::nan);
-    const uvec &orig_idx = collin_result.non_collinear_cols;
-    for (uword j = 0; j < orig_idx.n_elem && j < beta_reduced.n_elem; ++j) {
-      result.coefficients(orig_idx(j)) = beta_reduced(j);
-    }
-    // Ensure coef_status corresponds to original full length
+    result.coefficients.elem(collin_result.non_collinear_cols) =
+        beta_reduced.head(collin_result.non_collinear_cols.n_elem);
     result.coef_status = collin_result.coef_status;
   } else {
     result.coefficients = beta_reduced;
@@ -256,8 +204,8 @@ inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
   result.fitted_values = X * beta_reduced;
   result.residuals = y_orig - result.fitted_values;
   result.weights = w;
-
   result.success = true;
+
   return result;
 }
 

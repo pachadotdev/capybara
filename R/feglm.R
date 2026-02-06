@@ -225,17 +225,6 @@ feglm <- function(
   p <- NA
   model_response_(data, formula)
 
-  # Warm-start (opt-in): reuse previous eta if available and sizes match ----
-  if (isTRUE(getOption("capybara.warm_start", FALSE))) {
-    form_key <- paste(deparse(formula), collapse = "")
-    prev <- cache_get_starts_(form_key)
-    if (is.null(beta_start) && is.null(eta_start) && !is.null(prev)) {
-      if (length(prev$eta) == nrow(X)) {
-        eta_start <- prev$eta
-      }
-    }
-  }
-
   # Extract weights if required ----
   if (is.null(weights)) {
     wt <- rep(1.0, nt)
@@ -279,17 +268,17 @@ feglm <- function(
 
   # Get names and number of levels in each fixed effects category ----
   if (length(fe_vars) > 0) {
-    fe_levels <- vapply(lapply(data[fe_vars], levels), length, integer(1))
+    nms_fe <- lapply(data[fe_vars], levels)
+    fe_levels <- vapply(nms_fe, length, integer(1))
     # Generate auxiliary list of indexes for different sub panels ----
     FEs <- get_index_list_(fe_vars, data)
+    names(FEs) <- fe_vars
   } else {
     # No fixed effects - create empty list
+    nms_fe <- list()
     fe_levels <- integer(0)
     FEs <- list()
   }
-
-  # Set names on the FEs to ensure they're passed to C++
-  names(FEs) <- fe_vars
 
   # Extract cluster variable from formula (third part) ----
   cl_vars_temp <- suppressWarnings(attr(
@@ -337,20 +326,6 @@ feglm <- function(
 
   nobs <- nobs_(nobs_full, nobs_na, y, fit[["fitted_values"]], num_separated)
 
-  # Cache starts for potential warm-start in repeated calls (opt-in) ----
-  if (isTRUE(getOption("capybara.warm_start", FALSE))) {
-    if (!is.null(fit$coef_table) && !is.null(fit$eta)) {
-      if (ncol(fit$coef_table) >= 1L && length(fit$eta) == nrow(X)) {
-        cache_set_starts_(
-          paste(deparse(formula), collapse = ""),
-          fit$coef_table[, 1],
-          fit$eta
-        )
-      }
-    }
-  }
-
-  y <- NULL
   X <- NULL
   eta <- NULL
 
@@ -378,10 +353,9 @@ feglm <- function(
 
   # Add separation info if present ----
   if (isTRUE(fit$has_separation)) {
-    num_sep <- if (!is.null(fit$separated_obs)) length(fit$separated_obs) else 0
     message(
       "Separation detected: ",
-      num_sep,
+      num_separated,
       " observation(s) ",
       "with perfect prediction were excluded from estimation."
     )
@@ -392,11 +366,7 @@ feglm <- function(
   # Add to fit list ----
   fit[["nobs"]] <- nobs
   fit[["fe_levels"]] <- fe_levels
-  fit[["nms_fe"]] <- if (length(fe_vars) > 0) {
-    lapply(data[fe_vars], levels)
-  } else {
-    list()
-  }
+  fit[["nms_fe"]] <- nms_fe
   fit[["formula"]] <- formula
   fit[["data"]] <- data
   fit[["family"]] <- family

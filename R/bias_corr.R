@@ -120,8 +120,7 @@ bias_corr <- function(
     X <- center_variables_(
       X, w, k_list,
       object[["control"]][["center_tol"]],
-      object[["control"]][["iter_center_max"]],
-      object[["control"]][["iter_interrupt"]]
+      object[["control"]][["iter_center_max"]]
     )
   }
 
@@ -172,8 +171,7 @@ bias_corr <- function(
   X <- center_variables_(
     X, w, k_list,
     object[["control"]][["center_tol"]],
-    object[["control"]][["iter_center_max"]],
-    object[["control"]][["iter_interrupt"]]
+    object[["control"]][["iter_center_max"]]
   )
   colnames(X) <- names(beta_uncorr)
 

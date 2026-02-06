@@ -15,102 +15,89 @@ struct InferenceAlpha {
   InferenceAlpha() : is_regular(true), success(false) {}
 };
 
-// Group info using observation-to-group mapping for sparse ops
-struct AlphaGroupInfo {
-  uvec obs_to_group;
-  vec group_sizes;
-  uword n_groups;
+// Optimized alpha recovery using flat obs->group mapping (like centering)
+struct AlphaFlatMap {
+  std::vector<std::vector<uword>>
+      fe_map;                   // K x N: fe_map[k][i] = group of obs i
+  std::vector<vec> inv_weights; // K: precomputed 1/sum(w) per group
+  std::vector<uword> n_groups;  // K: number of groups per FE
+  uword n_obs;
+  uword K;
+
+  void build(const field<field<uvec>> &group_indices,
+             const vec *weights = nullptr) {
+    K = group_indices.n_elem;
+    if (K == 0)
+      return;
+
+    n_groups.resize(K);
+    n_obs = 0;
+
+    // First pass: find n_obs and n_groups
+    for (uword k = 0; k < K; ++k) {
+      n_groups[k] = group_indices(k).n_elem;
+      for (uword g = 0; g < n_groups[k]; ++g) {
+        const uvec &idx = group_indices(k)(g);
+        if (idx.n_elem > 0) {
+          n_obs = std::max(n_obs, idx.max() + 1);
+        }
+      }
+    }
+
+    // Allocate fe_map
+    fe_map.resize(K);
+    for (uword k = 0; k < K; ++k) {
+      fe_map[k].assign(n_obs, 0);
+    }
+
+    // Fill fe_map
+    for (uword k = 0; k < K; ++k) {
+      uword *map_k = fe_map[k].data();
+      for (uword g = 0; g < n_groups[k]; ++g) {
+        const uvec &idx = group_indices(k)(g);
+        const uword *idx_ptr = idx.memptr();
+        const uword cnt = idx.n_elem;
+        for (uword j = 0; j < cnt; ++j) {
+          map_k[idx_ptr[j]] = g;
+        }
+      }
+    }
+
+    // Compute inverse weights
+    inv_weights.resize(K);
+    const bool use_w = (weights != nullptr && weights->n_elem == n_obs);
+    const double *w_ptr = use_w ? weights->memptr() : nullptr;
+
+    for (uword k = 0; k < K; ++k) {
+      inv_weights[k].zeros(n_groups[k]);
+      double *inv_w_ptr = inv_weights[k].memptr();
+      const uword *map_k = fe_map[k].data();
+
+      if (use_w) {
+        for (uword i = 0; i < n_obs; ++i) {
+          inv_w_ptr[map_k[i]] += w_ptr[i];
+        }
+      } else {
+        for (uword i = 0; i < n_obs; ++i) {
+          inv_w_ptr[map_k[i]] += 1.0;
+        }
+      }
+
+      // Invert
+      for (uword g = 0; g < n_groups[k]; ++g) {
+        inv_w_ptr[g] = (inv_w_ptr[g] > 1e-12) ? (1.0 / inv_w_ptr[g]) : 0.0;
+      }
+    }
+  }
 };
-
-// Precompute group info
-inline field<AlphaGroupInfo>
-precompute_alpha_group_info(const field<field<uvec>> &group_indices, uword N) {
-  const uword K = group_indices.n_elem;
-  field<AlphaGroupInfo> group_info(K);
-
-  for (uword k = 0; k < K; ++k) {
-    const uword J = group_indices(k).n_elem;
-    AlphaGroupInfo &info = group_info(k);
-    info.n_groups = J;
-    info.obs_to_group.set_size(N);
-    info.group_sizes.set_size(J);
-
-    for (uword j = 0; j < J; ++j) {
-      const uvec &indexes = group_indices(k)(j);
-      info.group_sizes(j) = static_cast<double>(indexes.n_elem);
-      info.obs_to_group.elem(indexes).fill(j);
-    }
-  }
-
-  return group_info;
-}
-
-struct AlphaWorkspace {
-  vec residual;       // pi - sum(alpha_k)
-  vec group_sums;     // for accumulating group sums
-  vec alpha_expanded; // Alpha values expanded to observation level
-  uword cached_N;
-  uword cached_max_groups;
-  bool is_initialized;
-
-  AlphaWorkspace() : cached_N(0), cached_max_groups(0), is_initialized(false) {}
-
-  void ensure_size(uword N, uword max_groups) {
-    if (!is_initialized || N > cached_N || max_groups > cached_max_groups) {
-      residual.set_size(N);
-      group_sums.set_size(max_groups);
-      alpha_expanded.set_size(N);
-      cached_N = N;
-      cached_max_groups = max_groups;
-      is_initialized = true;
-    }
-  }
-
-  void clear() {
-    residual.reset();
-    group_sums.reset();
-    alpha_expanded.reset();
-    cached_N = 0;
-    cached_max_groups = 0;
-    is_initialized = false;
-  }
-};
-
-// Accumulate values into groups
-// group_sums[j] = sum of values[i] where obs_to_group[i] == j
-inline void scatter_add(vec &group_sums, const vec &values,
-                        const uvec &obs_to_group, uword n_groups,
-                        const vec *w = nullptr) {
-  group_sums.head(n_groups).zeros();
-  const uword N = values.n_elem;
-  const double *val_ptr = values.memptr();
-  const uword *grp_ptr = obs_to_group.memptr();
-  double *sum_ptr = group_sums.memptr();
-
-  if (w) {
-    const double *w_ptr = w->memptr();
-    for (uword i = 0; i < N; ++i) {
-      sum_ptr[grp_ptr[i]] += val_ptr[i] * w_ptr[i];
-    }
-  } else {
-    for (uword i = 0; i < N; ++i) {
-      sum_ptr[grp_ptr[i]] += val_ptr[i];
-    }
-  }
-}
-
-// Expand group values to observation level
-// result[i] = group_values[obs_to_group[i]]
-inline void gather(vec &result, const vec &group_values,
-                   const uvec &obs_to_group) {
-  result = group_values.elem(obs_to_group);
-}
 
 inline field<vec>
 get_alpha(const vec &pi, const field<field<uvec>> &group_indices,
           double tol = 1e-8, uword iter_max = 10000,
-          field<AlphaGroupInfo> *precomputed_group_info = nullptr,
-          AlphaWorkspace *workspace = nullptr, const vec *weights = nullptr) {
+          void *unused = nullptr, // kept for API compatibility
+          const vec *weights = nullptr) {
+  (void)unused; // suppress warning
+
   const uword K = group_indices.n_elem;
   const uword N = pi.n_elem;
   field<vec> coefficients(K);
@@ -119,43 +106,23 @@ get_alpha(const vec &pi, const field<field<uvec>> &group_indices,
     return coefficients;
   }
 
-  // Group info
-  field<AlphaGroupInfo> local_group_info;
-  const field<AlphaGroupInfo> *group_info_ptr = precomputed_group_info;
+  // Build flat map (like centering does)
+  AlphaFlatMap map;
+  map.build(group_indices, weights);
 
-  if (!group_info_ptr) {
-    local_group_info = precompute_alpha_group_info(group_indices, N);
-    group_info_ptr = &local_group_info;
-  }
-
-  // Initialize coefficients and find max groups
-  uword max_groups = 0;
+  // Initialize coefficients to zero
   for (uword k = 0; k < K; ++k) {
-    const uword J = (*group_info_ptr)(k).n_groups;
-    max_groups = std::max(max_groups, J);
-    coefficients(k).zeros(J);
+    coefficients(k).zeros(map.n_groups[k]);
   }
 
-  AlphaWorkspace local_workspace;
-  AlphaWorkspace *ws = workspace ? workspace : &local_workspace;
-  ws->ensure_size(N, max_groups);
+  // Residual: r = pi - sum_k(alpha_k expanded)
+  vec r = pi;
+  const double *r_ptr = r.memptr();
+  double *r_ptr_w = r.memptr();
 
-  ws->residual = pi;
-
-  // Precompute denominators (sum of weights per group)
-  field<vec> denominators(K);
-  vec ones_vec;
-  if (weights) {
-    ones_vec.ones(N);
-    for (uword k = 0; k < K; ++k) {
-      const uword J = (*group_info_ptr)(k).n_groups;
-      denominators(k).set_size(J);
-      scatter_add(denominators(k), ones_vec, (*group_info_ptr)(k).obs_to_group,
-                  J, weights);
-      // Avoid division by zero
-      denominators(k).replace(0.0, 1.0);
-    }
-  }
+  // Weight pointer (may be null)
+  const bool use_w = (weights != nullptr && weights->n_elem == N);
+  const double *w_ptr = use_w ? weights->memptr() : nullptr;
 
   double crit = 1.0;
   uword iter = 0;
@@ -164,67 +131,78 @@ get_alpha(const vec &pi, const field<field<uvec>> &group_indices,
     double sum_sq0 = 0.0, sum_sq_diff = 0.0;
 
     for (uword k = 0; k < K; ++k) {
-      const AlphaGroupInfo &info = (*group_info_ptr)(k);
-      const uword J = info.n_groups;
-      vec &coef_k = coefficients(k);
+      const uword *gk = map.fe_map[k].data();
+      const uword J = map.n_groups[k];
+      const double *inv_wk = map.inv_weights[k].memptr();
+      vec &alpha_k = coefficients(k);
+      double *ak_ptr = alpha_k.memptr();
 
-      sum_sq0 += dot(coef_k, coef_k);
+      sum_sq0 += dot(alpha_k, alpha_k);
 
-      // Step 1: Expand current alpha to observation level
-      gather(ws->alpha_expanded, coef_k, info.obs_to_group);
+      // Compute new alpha using scatter-gather with raw pointers
+      vec new_alpha(J, fill::zeros);
+      double *new_ak_ptr = new_alpha.memptr();
 
-      // Step 2: Compute (residual + alpha_expanded)
-      vec temp = ws->residual + ws->alpha_expanded;
-
-      // Step 3: Scatter-add to get group sums
-      scatter_add(ws->group_sums, temp, info.obs_to_group, J, weights);
-
-      // Step 4: Compute new coefficients by dividing by group sizes/weights
-      vec new_coef;
-      if (weights) {
-        new_coef = ws->group_sums.head(J) / denominators(k);
+      // Accumulate: new_alpha[g] += w[i] * (r[i] + alpha_k[g[i]])
+      if (use_w) {
+        for (uword i = 0; i < N; ++i) {
+          uword g = gk[i];
+          new_ak_ptr[g] += w_ptr[i] * (r_ptr[i] + ak_ptr[g]);
+        }
       } else {
-        new_coef = ws->group_sums.head(J) / info.group_sizes;
+        for (uword i = 0; i < N; ++i) {
+          uword g = gk[i];
+          new_ak_ptr[g] += r_ptr[i] + ak_ptr[g];
+        }
       }
 
-      // Step 5: Compute difference and update criterion
-      vec diff = new_coef - coef_k;
-      sum_sq_diff += dot(diff, diff);
+      // Apply inverse weights
+      for (uword j = 0; j < J; ++j) {
+        new_ak_ptr[j] *= inv_wk[j];
+      }
 
-      // Step 6: Update residual by subtracting the change in alpha
-      gather(ws->alpha_expanded, diff, info.obs_to_group);
-      ws->residual -= ws->alpha_expanded;
+      // Compute diff and update criterion
+      double local_diff_sq = 0.0;
+      for (uword j = 0; j < J; ++j) {
+        double d = new_ak_ptr[j] - ak_ptr[j];
+        local_diff_sq += d * d;
+      }
+      sum_sq_diff += local_diff_sq;
 
-      // Step 7: Update coefficients
-      coef_k = new_coef;
+      // Update residual: r[i] -= (new_alpha[g[i]] - alpha_k[g[i]])
+      for (uword i = 0; i < N; ++i) {
+        uword g = gk[i];
+        r_ptr_w[i] -= new_ak_ptr[g] - ak_ptr[g];
+      }
+
+      // Update coefficients
+      alpha_k = std::move(new_alpha);
     }
 
     // Convergence criterion
-    if (sum_sq0 > 0.0) {
-      crit = std::sqrt(sum_sq_diff / sum_sq0);
-    } else if (sum_sq_diff > 0.0) {
-      crit = std::sqrt(sum_sq_diff);
-    } else {
-      crit = 0.0;
-    }
+    crit = (sum_sq0 > 0.0) ? std::sqrt(sum_sq_diff / sum_sq0)
+                           : std::sqrt(sum_sq_diff);
 
     ++iter;
   }
 
-  // Normalize fixed effects for identifiability (fixest/Stata convention)
-  if (K > 0) {
-    vec &last_coef = coefficients(K - 1);
-
-    if (last_coef.n_elem > 0) {
-      // Shift so first level of last FE is zero
-      const double first_fe_last_val = last_coef(0);
-      last_coef -= first_fe_last_val;
-      coefficients(0) += first_fe_last_val;
-    }
+  // Normalize: shift so first level of last FE is zero (fixest/Stata
+  // convention)
+  if (K > 0 && coefficients(K - 1).n_elem > 0) {
+    const double shift = coefficients(K - 1)(0);
+    coefficients(K - 1) -= shift;
+    coefficients(0) += shift;
   }
 
   return coefficients;
 }
+
+// Legacy struct for API compatibility (not used internally anymore)
+struct AlphaGroupInfo {
+  uvec obs_to_group;
+  vec group_sizes;
+  uword n_groups;
+};
 
 } // namespace capybara
 
