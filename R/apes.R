@@ -170,7 +170,8 @@ apes <- function(
       w,
       k_list,
       object[["control"]][["center_tol"]],
-      object[["control"]][["iter_center_max"]]
+      object[["control"]][["iter_center_max"]],
+      object[["control"]][["grand_acc_period"]]
     )
   }
 
@@ -211,7 +212,8 @@ apes <- function(
     w,
     k_list,
     object[["control"]][["center_tol"]],
-    object[["control"]][["iter_max"]]
+    object[["control"]][["iter_max"]],
+    object[["control"]][["grand_acc_period"]]
   )
   ppsi <- (-delta1 / w) - mpsi
   rm(delta1)

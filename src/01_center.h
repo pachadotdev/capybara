@@ -30,13 +30,13 @@ inline void scale_rows_inplace(mat &A, const vec &scale) {
   }
 }
 
-// If iteration should continue
+// Whereas iteration should continue/stop
+
 inline bool continue_crit(double a, double b, double diffMax) {
   double diff = std::fabs(a - b);
   return (diff > diffMax) && (diff / (0.1 + std::fabs(a)) > diffMax);
 }
 
-// If iteration should stop
 inline bool stopping_crit(double a, double b, double diffMax) {
   double diff = std::fabs(a - b);
   return (diff < diffMax) || (diff / (0.1 + std::fabs(a)) < diffMax);
@@ -697,55 +697,16 @@ inline void center_kfe(mat &V, const vec &w, const FlatFEMap &map, double tol,
 }
 
 // Main centering dispatch
-inline void center_impl(mat &V, const vec &w, const FlatFEMap &map,
-                        CellAggregated2FE &cells, double tol, uword max_iter,
-                        uword grand_acc_period = 4) {
+inline void center_variables(mat &V, const vec &w, FlatFEMap &map,
+                             CellAggregated2FE &cells, double tol,
+                             uword max_iter, uword grand_acc_period) {
+  if (V.is_empty() || map.K == 0)
+    return;
   if (map.K == 2) {
     center_2fe(V, w, map, cells, tol, max_iter, grand_acc_period);
   } else {
     center_kfe(V, w, map, tol, max_iter, grand_acc_period);
   }
-}
-
-// Public interface: with persistent FlatFEMap and CellAggregated2FE
-inline void center_variables(mat &V, const vec &w, const FlatFEMap &map,
-                             CellAggregated2FE &cells, double tol,
-                             uword max_iter, uword grand_acc_period = 4) {
-  if (V.is_empty() || map.K == 0)
-    return;
-  center_impl(V, w, map, cells, tol, max_iter, grand_acc_period);
-}
-
-// Public interface: without persistent cell structure (builds internally)
-inline void center_variables(mat &V, const vec &w, const FlatFEMap &map,
-                             double tol, uword max_iter,
-                             uword grand_acc_period = 4) {
-  if (V.is_empty() || map.K == 0)
-    return;
-  CellAggregated2FE cells;
-  center_impl(V, w, map, cells, tol, max_iter, grand_acc_period);
-}
-
-// Legacy public interface: builds FlatFEMap from group_indices
-inline void center_variables(mat &V, const vec &w,
-                             const field<field<uvec>> &group_indices,
-                             double tol, uword max_iter,
-                             uword grand_acc_period = 4) {
-  if (V.is_empty() || group_indices.n_elem == 0)
-    return;
-  FlatFEMap map;
-  map.build(group_indices);
-  map.update_weights(w);
-  CellAggregated2FE cells;
-  center_impl(V, w, map, cells, tol, max_iter, grand_acc_period);
-}
-
-inline FlatFEMap build_fe_map(const field<field<uvec>> &group_indices,
-                              const vec &w) {
-  FlatFEMap map;
-  map.build(group_indices);
-  map.update_weights(w);
-  return map;
 }
 
 } // namespace capybara
