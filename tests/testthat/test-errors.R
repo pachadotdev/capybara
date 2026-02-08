@@ -156,14 +156,14 @@ test_that("error conditions in helpers", {
 
   expect_error(
     fepoisson(trade ~ log_dist | rta, data = NULL),
-    "'data' must be specified"
+    "'data' has zero observations"
   )
 
   # empty data
 
   expect_error(
     fepoisson(trade ~ log_dist | rta, data = list()),
-    "'data' must be a data.frame"
+    "'data' has zero observations"
   )
 
   # incorrect control
@@ -320,7 +320,7 @@ test_that("model errors on invalid formula", {
 test_that("model errors on non-existent variables", {
   expect_error(
     fepoisson(mpg ~ nonexistent | cyl, mtcars),
-    "undefined columns"
+    "column not found"
   )
 })
 
@@ -339,7 +339,7 @@ test_that("predict errors on missing newdata variables", {
 
   expect_error(
     predict(mod, newdata = newdata),
-    "undefined columns selected"
+    "columns not found"
   )
 })
 

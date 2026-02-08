@@ -283,31 +283,31 @@ check_family_ <- function(family) {
 check_response_ <- function(data, lhs, family) {
   if (family[["family"]] == "binomial") {
     # Check if 'y' is numeric
-    y <- data[[lhs]]
-    if (is.numeric(y)) {
-      if (any(y < 0 | y > 1)) stop("Model response must be within [0,1].")
+    if (data[, is.numeric(get(lhs))]) {
+      # Check if 'y' is in [0, 1]
+      if (data[, any(get(lhs) < 0.0 | get(lhs) > 1.0)]) {
+        stop("Model response must be within [0,1].")
+      }
     } else {
       # Check if 'y' is factor and transform otherwise
-      y <- check_factor_(y)
+      data[, (lhs) := check_factor_(get(lhs))]
 
       # Check if the number of levels equals two
-      if (nlevels(y) != 2) {
+      if (data[, length(levels(get(lhs)))] != 2L) {
         stop("Model response has to be binary.")
       }
 
-      # Ensure 'y' is 0-1 encoded
-      y <- as.numeric(y) - 1
-
-      data[[lhs]] <- y
+      # Ensure 'y' is 0-1 encoded (in-place)
+      data[, (lhs) := as.numeric(get(lhs)) - 1.0]
     }
   } else if (family[["family"]] %in% c("Gamma", "inverse.gaussian")) {
-    # Check if 'y' is strictly positive (base R)
-    if (any(data[[lhs]] <= 0.0, na.rm = TRUE)) {
+    # Check if 'y' is strictly positive
+    if (data[, any(get(lhs) <= 0.0, na.rm = TRUE)]) {
       stop("Model response has to be positive.", call. = FALSE)
     }
   } else if (family[["family"]] != "gaussian") {
-    # Check if 'y' is positive (base R)
-    if (any(data[[lhs]] < 0.0, na.rm = TRUE)) {
+    # Check if 'y' is positive
+    if (data[, any(get(lhs) < 0.0, na.rm = TRUE)]) {
       stop("Model response has to be strictly positive.", call. = FALSE)
     }
   }
@@ -329,40 +329,31 @@ drop_by_link_type_ <- function(data, lhs, family, tmp_var, k_vars, control) {
       c("binomial", "poisson") &&
       isTRUE(control[["check_separation"]])
   ) {
-    # Convert response to numeric if it's an integer
+    # Convert response to numeric if it's an integer (in-place)
     if (is.integer(data[[lhs]])) {
-      data[[lhs]] <- as.numeric(data[[lhs]])
+      data[, (lhs) := as.numeric(get(lhs))]
     }
 
-    ncheck <- 0
-    nrow_data <- nrow(data)
+    repeat {
+      ncheck <- nrow(data)
 
-    while (ncheck != nrow_data) {
-      ncheck <- nrow_data
-
-      invisible(lapply(k_vars, function(j) {
-        # Compute group means using base R (ave)
-        data[[tmp_var]] <<- ave(
-          as.numeric(data[[lhs]]),
-          data[[j]],
-          FUN = function(x) mean(x, na.rm = TRUE)
-        )
+      for (j in k_vars) {
+        # Compute group means in-place using data.table
+        data[, (tmp_var) := mean(get(lhs)), by = eval(j)]
 
         # Filter rows based on family type
         if (family[["family"]] == "binomial") {
-          data <<- data[
-            data[[tmp_var]] > 0 & data[[tmp_var]] < 1, ,
-            drop = FALSE
-          ]
+          data <- data[get(tmp_var) > 0.0 & get(tmp_var) < 1.0]
         } else {
-          data <<- data[data[[tmp_var]] > 0, , drop = FALSE]
+          data <- data[get(tmp_var) > 0.0]
         }
 
-        # Remove temporary column
-        data[[tmp_var]] <<- NULL
-      }))
+        # Remove temporary column in-place
+        data[, (tmp_var) := NULL]
+      }
 
-      nrow_data <- nrow(data)
+      # Check termination
+      if (ncheck == nrow(data)) break
     }
   }
 

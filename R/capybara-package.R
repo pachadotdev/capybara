@@ -44,6 +44,7 @@ NULL
 #' altering the functions' arguments or outputs.
 #'
 #' @name capybara-package
+#' @importFrom data.table setDT setkeyv := .SD
 #' @importFrom Formula Formula
 #' @importFrom ggplot2 ggplot aes geom_point geom_errorbar labs theme_minimal coord_flip autoplot
 #' @importFrom MASS negative.binomial theta.ml

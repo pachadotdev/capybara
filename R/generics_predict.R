@@ -43,7 +43,8 @@ predict.feglm <- function(
     all_vars <- c(pred_vars, k_vars)
 
     # Extract and prepare data
-    data <- newdata[, all_vars, drop = FALSE]
+    setDT(newdata)
+    data <- newdata[, ..all_vars]
 
     # Keep track of original row indices for NA handling
     original_rows <- seq_len(nrow(data))
@@ -51,12 +52,12 @@ predict.feglm <- function(
     # Remove rows with NA in any required variable
     complete_cases <- complete.cases(data)
     if (!all(complete_cases)) {
-      data <- data[complete_cases, , drop = FALSE]
+      data <- data[complete_cases]
       original_rows <- original_rows[complete_cases]
     }
 
     # Transform fixed effects to factors
-    data <- transform_fe_(data, formula, k_vars)
+    transform_fe_(data, formula, k_vars)
 
     # Create design matrix from predictors only
     if (length(pred_vars) > 0) {
@@ -114,7 +115,7 @@ predict.feglm <- function(
       } else if (is.numeric(offset_spec)) {
         # If offset was originally a vector, we need it to match newdata length
         if (length(offset_spec) == nrow(data)) {
-          offset_newdata <- offset_spec[rownames(data)]
+          offset_newdata <- offset_spec[original_rows]
         } else {
           stop(
             "Cannot apply numeric offset to newdata: length mismatch.",
@@ -142,14 +143,10 @@ predict.feglm <- function(
 
   # Convert to vector and assign names
   eta <- as.vector(eta)
-  # Prefer row names from the prediction data (or original object), fall back to sequential
   if (!is.null(newdata)) {
-    rn <- rownames(newdata) # Use original newdata rownames, not filtered data
-  } else {
-    rn <- rownames(object$data)
-  }
-  if (!is.null(rn)) {
-    names(eta) <- rn
+    names(eta) <- seq_len(nrow(newdata))
+  } else if (".rowid" %in% colnames(object$data)) {
+    names(eta) <- object$data[[".rowid"]]
   } else {
     names(eta) <- seq_along(eta)
   }
@@ -190,7 +187,8 @@ predict.felm <- function(
     all_vars <- c(pred_vars, fe_names)
 
     # Extract and prepare data
-    data <- newdata[, all_vars, drop = FALSE]
+    setDT(newdata)
+    data <- newdata[, ..all_vars]
 
     # Keep track of original row indices for NA handling
     original_rows <- seq_len(nrow(data))
@@ -198,12 +196,12 @@ predict.felm <- function(
     # Remove rows with NA in any required variable
     complete_cases <- complete.cases(data)
     if (!all(complete_cases)) {
-      data <- data[complete_cases, , drop = FALSE]
+      data <- data[complete_cases]
       original_rows <- original_rows[complete_cases]
     }
 
     # Transform fixed effects to factors
-    data <- transform_fe_(data, formula, fe_names)
+    transform_fe_(data, formula, fe_names)
 
     # Create design matrix from predictors only
     if (length(pred_vars) > 0) {
@@ -271,14 +269,10 @@ predict.felm <- function(
 
   # Ensure y is a vector and assign names
   y <- as.vector(y)
-  # Prefer row names from the prediction data (or original object), fall back to sequential
   if (!is.null(newdata)) {
-    rn <- rownames(newdata) # Use original newdata rownames, not filtered data
-  } else {
-    rn <- rownames(object$data)
-  }
-  if (!is.null(rn)) {
-    names(y) <- rn
+    names(y) <- seq_len(nrow(newdata))
+  } else if (".rowid" %in% colnames(object$data)) {
+    names(y) <- object$data[[".rowid"]]
   } else {
     names(y) <- seq_along(y)
   }

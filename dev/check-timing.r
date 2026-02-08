@@ -1,3 +1,9 @@
+# available cores - 1
+# n_cores <- parallel::detectCores() - 1L
+n_cores <- parallel::detectCores() / 2
+Sys.setenv(CAPYBARA_OPTIMIZATIONS = "yes")
+Sys.setenv(CAPYBARA_NCORES = n_cores)
+
 Sys.setenv(CAPYBARA_DEBUG="no")
 
 # clean_dll()

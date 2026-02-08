@@ -107,17 +107,21 @@ model_frame_ <- function(data, formula, weights) {
     )
   }
 
-  # Extract needed columns (base R)
-  data <- data[, needed_cols, drop = FALSE]
+  # Subset to needed columns (data.table) — this creates a new data.table,
+  # avoiding modification of the user's original data
+  data <- data[, needed_cols, with = FALSE]
+
+  # Add a row ID column to track original positions for offset alignment
+  data[, .rowid := .I]
 
   lhs <- names(data)[1L]
   nobs_full <- nrow(data)
   data <- na.omit(data)
 
-  # Convert columns of type "units" to numeric (base R)
+  # Convert columns of type "units" to numeric in-place
   unit_cols <- names(data)[vapply(data, inherits, what = "units", logical(1))]
   if (length(unit_cols) > 0) {
-    data[unit_cols] <- lapply(data[unit_cols], as.numeric)
+    data[, (unit_cols) := lapply(.SD, as.numeric), .SDcols = unit_cols]
   }
 
   nobs_na <- nobs_full - nrow(data)
@@ -136,7 +140,7 @@ model_frame_ <- function(data, formula, weights) {
 #' @noRd
 transform_fe_ <- function(data, formula, k_vars) {
   if (length(k_vars) > 0) {
-    data[k_vars] <- lapply(data[k_vars], check_factor_)
+    data[, (k_vars) := lapply(.SD, check_factor_), .SDcols = k_vars]
   }
 
   if (length(formula)[[2L]] > 2L) {
@@ -146,7 +150,7 @@ transform_fe_ <- function(data, formula, k_vars) {
     if (length(add_vars) > 0) {
       existing_vars <- add_vars[add_vars %in% colnames(data)]
       if (length(existing_vars) > 0) {
-        data[existing_vars] <- lapply(data[existing_vars], check_factor_)
+        data[, (existing_vars) := lapply(.SD, check_factor_), .SDcols = existing_vars]
       }
     }
   }

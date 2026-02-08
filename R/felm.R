@@ -124,6 +124,7 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   check_formula_(formula)
 
   # Check validity of data ----
+  setDT(data)
   check_data_(data)
 
   # Check validity of control + Extract control list ----
@@ -173,7 +174,7 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
 
   # Get names and number of levels in each fixed effects category ----
   if (length(fe_vars) > 0) {
-    nms_fe <- lapply(data[fe_vars], levels)
+    nms_fe <- lapply(data[, fe_vars, with = FALSE], levels)
     fe_levels <- vapply(nms_fe, length, integer(1))
     # Generate auxiliary list of indexes for different sub panels ----
     FEs <- get_index_list_(fe_vars, data)
@@ -222,9 +223,9 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   if (control[["keep_tx"]]) {
     colnames(fit[["tx"]]) <- nms_sp
   }
-  # Preserve row names from the data when possible to match base R prediction naming
-  if (!is.null(rownames(data))) {
-    names(fit[["fitted_values"]]) <- rownames(data)
+  # Preserve row IDs from the data when possible to match base R prediction naming
+  if (".rowid" %in% colnames(data)) {
+    names(fit[["fitted_values"]]) <- data[[".rowid"]]
   } else {
     names(fit[["fitted_values"]]) <- seq_along(fit[["fitted_values"]])
   }

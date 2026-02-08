@@ -158,6 +158,7 @@ feglm <- function(
   check_formula_(formula)
 
   # Check validity of data ----
+  setDT(data)
   check_data_(data)
 
   # Check validity of family ----
@@ -193,7 +194,8 @@ feglm <- function(
         call. = FALSE
       )
     }
-    names(offset_vec_original) <- rownames(data)
+    # Name by row position (before any filtering); model_frame_ adds .rowid
+    names(offset_vec_original) <- seq_len(nrow(data))
   }
 
   # Generate model.frame
@@ -253,8 +255,8 @@ feglm <- function(
   if (is.null(offset)) {
     offset_vec <- rep(0.0, nt)
   } else {
-    # Use row names to subset the offset vector to match filtered data
-    offset_vec <- offset_vec_original[rownames(data)]
+    # Use .rowid column to subset the offset vector to match filtered data
+    offset_vec <- offset_vec_original[as.character(data[[".rowid"]])]
     if (length(offset_vec) != nt) {
       stop(
         "Length of offset does not match number of observations after filtering.",
@@ -268,7 +270,7 @@ feglm <- function(
 
   # Get names and number of levels in each fixed effects category ----
   if (length(fe_vars) > 0) {
-    nms_fe <- lapply(data[fe_vars], levels)
+    nms_fe <- lapply(data[, fe_vars, with = FALSE], levels)
     fe_levels <- vapply(nms_fe, length, integer(1))
     # Generate auxiliary list of indexes for different sub panels ----
     FEs <- get_index_list_(fe_vars, data)
@@ -344,9 +346,9 @@ feglm <- function(
   non_na_nms_sp <- nms_sp[!is.na(fit[["coef_table"]][, 1])]
   dimnames(fit[["hessian"]]) <- list(non_na_nms_sp, non_na_nms_sp)
   dimnames(fit[["vcov"]]) <- list(non_na_nms_sp, non_na_nms_sp)
-  # Preserve row names from the data when possible to match base R prediction naming
-  if (!is.null(rownames(data))) {
-    names(fit[["fitted_values"]]) <- rownames(data)
+  # Preserve row IDs from the data when possible to match base R prediction naming
+  if (".rowid" %in% colnames(data)) {
+    names(fit[["fitted_values"]]) <- data[[".rowid"]]
   } else {
     names(fit[["fitted_values"]]) <- seq_along(fit[["fitted_values"]])
   }

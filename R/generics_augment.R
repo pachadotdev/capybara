@@ -44,9 +44,9 @@ NULL
 #' @export
 augment.feglm <- function(x, newdata = NULL, ...) {
   if (is.null(newdata)) {
-    res <- x$data
+    res <- as.data.frame(x$data)
   } else {
-    res <- newdata
+    res <- as.data.frame(newdata)
   }
 
   res[[".fitted"]] <- predict(x, type = "response")

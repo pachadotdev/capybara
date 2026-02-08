@@ -135,6 +135,9 @@ fenegbin <- function(
   # Check validity of data ----
   check_data_(data)
 
+  # Convert to data.table in-place for memory-efficient operations ----
+  setDT(data)
+
   # Check validity of link ----
   link <- match.arg(link)
 
@@ -154,7 +157,7 @@ fenegbin <- function(
   # Get names of the fixed effects variables ----
   fe_vars <- check_fe_(formula, data)
 
-  # Get names of the fixed effects variables and sort ----
+  # Get names of the fixed effects variables ----
   fe_names <- attr(terms(formula, rhs = 2L), "term.labels")
 
   # Generate temporary variable ----
@@ -226,7 +229,7 @@ fenegbin <- function(
 
   # Get names and number of levels in each fixed effects category ----
   if (length(fe_vars) > 0) {
-    nms_fe <- lapply(data[fe_vars], levels)
+    nms_fe <- lapply(data[, fe_vars, with = FALSE], levels)
     fe_levels <- vapply(nms_fe, length, integer(1))
     # Generate auxiliary list of indexes for different sub panels ----
     FEs <- get_index_list_(fe_vars, data)
