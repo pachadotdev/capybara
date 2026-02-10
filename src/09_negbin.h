@@ -80,7 +80,6 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
 
   // Estimate initial theta from y statistics (no mu needed)
   double theta = (init_theta > 0.0) ? init_theta : estimate_theta(y);
-  double dev_prev = poisson_fit.deviance;
   double theta_prev = theta;
 
   // Outer iteration: alternate GLM fit and theta update
@@ -101,8 +100,6 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
       return result;
     }
 
-    const double dev = glm_fit.deviance;
-
     // Update theta estimate from current fit
     double theta_new = estimate_theta(y);
 
@@ -111,15 +108,17 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
       theta_new = theta;
     }
 
-    // Check convergence using relative criteria
-    // Using std::abs for scalar operations (faster than arma functions for
-    // scalars)
-    const double dev_crit =
-        std::abs(dev - dev_prev) / (tol_denom + std::abs(dev));
+    // Scale-invariant convergence: relative change in eta + theta
+    // Green & Santos Silva 2025: deviance is scale-dependent for PPML
+    const uword n_nb = glm_fit.eta.n_elem;
+    const double eta_norm_nb = std::sqrt(dot(glm_fit.eta, glm_fit.eta) / n_nb);
+    const double eta_crit =
+        std::sqrt(dot(glm_fit.eta - eta, glm_fit.eta - eta) / n_nb) /
+        std::max(eta_norm_nb, 1.0);
     const double theta_crit =
         std::abs(theta_new - theta_prev) / (tol_denom + std::abs(theta_prev));
 
-    if (dev_crit <= tol && theta_crit <= tol) {
+    if (eta_crit <= tol && theta_crit <= tol) {
       // Converged - finalize result
       static_cast<InferenceGLM &>(result) = std::move(glm_fit);
       result.theta = theta_new;
@@ -129,7 +128,6 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
 
     // Update for next iteration
     theta = theta_new;
-    dev_prev = dev;
 
     // Move coefficients for warm start (avoid copy)
     beta_coef = std::move(glm_fit.coef_table.col(0));

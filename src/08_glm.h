@@ -271,7 +271,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   double dev = dev_resids(y, mu, theta, w, family_type);
   const double null_dev = dev_resids(y, ymean, theta, w, family_type);
 
-  double dev0, dev_ratio;
+  double dev0;
   bool conv = false;
 
   // Step-halving state
@@ -287,7 +287,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   // Convergence acceleration for large models
   const bool is_large_model = (n > 100000) || (p_working > 1000) ||
                               (has_fixed_effects && fe_groups.n_elem > 1);
-  double last_dev_ratio = datum::inf;
+  double last_eta_change = datum::inf;
   uword convergence_count = 0;
 
   // Persistent felm workspace
@@ -398,29 +398,32 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       compute_mu(mu, eta0);
     }
 
-    dev_ratio = std::fabs(dev - dev0) / (0.1 + std::fabs(dev));
     const double delta_deviance = dev0 - dev;
 
-    // Update adaptive centering tolerance based on GLM convergence
-    // As dev_ratio decreases, tighten the centering tolerance
-    // Linear interpolation: at dev_ratio=0.1 use loose, at dev_ratio<1e-4 use
-    // tight
-    if (dev_ratio < 0.1) {
-      const double t = std::max(0.0, std::min(1.0, (0.1 - dev_ratio) / 0.1));
+    // Scale-invariant convergence criterion: relative change in eta
+    // Green & Santos Silva 2025: deviance is scale-dependent for PPML,
+    // so convergence should be based on the linear predictor)
+    const double eta_norm = std::sqrt(dot(eta, eta) / n);
+    const double eta_change =
+        std::sqrt(dot(eta - eta0, eta - eta0) / n) / std::max(eta_norm, 1.0);
+
+    // Update adaptive centering tolerance based on convergence
+    if (eta_change < 0.1) {
+      const double t = std::max(0.0, std::min(1.0, (0.1 - eta_change) / 0.1));
       adaptive_center_tol =
           center_tol_loose * std::pow(center_tol_tight / center_tol_loose, t);
     }
 
     // Early convergence detection for large models
-    if (is_large_model && dev_ratio < last_dev_ratio * 0.5) {
+    if (is_large_model && eta_change < last_eta_change * 0.5) {
       ++convergence_count;
     } else {
       convergence_count = 0;
     }
-    last_dev_ratio = dev_ratio;
+    last_eta_change = eta_change;
 
-    if (dev_ratio < params.dev_tol ||
-        (convergence_count >= 2 && dev_ratio < params.dev_tol * 10)) {
+    if (eta_change < params.dev_tol ||
+        (convergence_count >= 2 && eta_change < params.dev_tol * 10)) {
       conv = true;
       break;
     }
@@ -700,14 +703,18 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
       break;
     }
 
-    const double dev_ratio = std::fabs(dev - dev0) / (0.1 + std::fabs(dev));
+    // Scale-invariant convergence criterion: relative change in eta
+    // (Green & Santos Silva 2025)
+    const double eta_norm = std::sqrt(dot(eta, eta) / n);
+    const double eta_change =
+        std::sqrt(dot(eta - eta0, eta - eta0) / n) / std::max(eta_norm, 1.0);
 
     // Relax tolerance after initial iterations for large models
-    if (n > 100000 && iter > 5 && dev_ratio < 0.1) {
+    if (n > 100000 && iter > 5 && eta_change < 0.1) {
       adaptive_tol = params.center_tol;
     }
 
-    if (dev_ratio < params.dev_tol) {
+    if (eta_change < params.dev_tol) {
       break;
     }
 
