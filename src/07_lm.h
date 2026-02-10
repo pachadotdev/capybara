@@ -262,13 +262,22 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
     const double effective_tol =
         (adaptive_center_tol > 0.0) ? adaptive_center_tol : params.center_tol;
 
-    ws->y_demeaned = y;
-    center_variables(ws->y_demeaned, w, ws->fe_map, ws->cells_2fe,
-                     effective_tol, params.iter_center_max,
-                     params.grand_acc_period);
-
     if (P > 0) {
-      center_variables(ws->X_centered, w, ws->fe_map, ws->cells_2fe,
+      // Combined centering: center [y | X] as a single (N x P+1) matrix
+      // This avoids duplicate cell aggregation, weight updates, and iteration
+      // overhead that would occur with two separate center_variables() calls
+      mat yX(N, P + 1);
+      yX.col(0) = y;
+      yX.cols(1, P) = ws->X_original;
+
+      center_variables(yX, w, ws->fe_map, ws->cells_2fe, effective_tol,
+                       params.iter_center_max, params.grand_acc_period);
+
+      ws->y_demeaned = yX.col(0);
+      ws->X_centered = yX.cols(1, P);
+    } else {
+      ws->y_demeaned = y;
+      center_variables(ws->y_demeaned, w, ws->fe_map, ws->cells_2fe,
                        effective_tol, params.iter_center_max,
                        params.grand_acc_period);
     }
