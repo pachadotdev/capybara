@@ -318,6 +318,22 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       z -= offset_vec;
     }
 
+    // Guard against non-finite working weights/response from mu
+    // overflow or division-by-zero (e.g., exp(eta) = Inf for Poisson).
+    // Zero the weight for affected observations so they don't poison
+    // the cross-product X'WX that feeds into the Cholesky solver.
+    {
+      uvec bad_w = find_nonfinite(w_working);
+      uvec bad_z = find_nonfinite(z);
+      uvec bad = (bad_w.n_elem > 0 && bad_z.n_elem > 0)
+                     ? unique(join_cols(bad_w, bad_z))
+                     : (bad_w.n_elem > 0 ? bad_w : bad_z);
+      if (bad.n_elem > 0) {
+        w_working.elem(bad).zeros();
+        z.elem(bad).zeros();
+      }
+    }
+
 #ifdef CAPYBARA_DEBUG
     auto twwnu1 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> wwnu_duration = twwnu1 - twwnu0;

@@ -734,6 +734,15 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
     }
   }
 
+  // Replace non-finite offset values with 0 to prevent NaN propagation
+  // into eta and subsequently into the Cholesky solver (DLASCL error -4)
+  {
+    uvec bad_offset = find_nonfinite(offset);
+    if (bad_offset.n_elem > 0) {
+      offset.elem(bad_offset).zeros();
+    }
+  }
+
   // Add offset to eta (the linear predictor is eta = X*beta + alpha + offset)
   if (eta.n_elem > 0) {
     eta += offset;

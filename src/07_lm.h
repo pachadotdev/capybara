@@ -276,7 +276,39 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
 
   ws->y_original = y;
 
-  const bool use_weights = any(w != 1.0);
+  // When called standalone (not from GLM), guard against non-finite
+  // values in y, w, or X that would produce NaN in X'WX and crash
+  // the LAPACK Cholesky solver (DLASCL error -4).
+  // When called from GLM, the guard is in feglm_fit's IRLS loop.
+  // We create local working copies so the rest of the function uses clean data.
+  vec w_work = w;
+  if (!run_from_glm) {
+    // Build a mask of observations where y, w, or any X column is non-finite
+    uvec bad = find_nonfinite(y);
+    {
+      uvec bad_w = find_nonfinite(w);
+      if (bad_w.n_elem > 0) {
+        bad = (bad.n_elem > 0) ? unique(join_cols(bad, bad_w)) : bad_w;
+      }
+    }
+    for (uword j = 0; j < P_input && bad.n_elem < N; ++j) {
+      uvec bad_j = find_nonfinite(X.col(j));
+      if (bad_j.n_elem > 0)
+        bad = unique(join_cols(bad, bad_j));
+    }
+    if (bad.n_elem > 0 && bad.n_elem < N) {
+      // Zero the weight for non-finite rows so they contribute nothing
+      // to the cross-product X'WX and X'Wy
+      w_work.elem(bad).zeros();
+      // Replace non-finite y values with 0 to prevent NaN propagation
+      vec y_clean = y;
+      y_clean.elem(bad).zeros();
+      ws->y_original = y_clean;
+    }
+    result.weights = w_work;
+  }
+
+  const bool use_weights = any(w_work != 1.0);
 
 #ifdef CAPYBARA_DEBUG
   auto tcenter0 = std::chrono::high_resolution_clock::now();
@@ -284,7 +316,7 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
 
   if (has_fixed_effects) {
     // Build FE map structure once, only update weights each call
-    ws->ensure_fe_map(fe_map, w);
+    ws->ensure_fe_map(fe_map, w_work);
 
     // Use adaptive tolerance if provided, otherwise use params.center_tol
     const double effective_tol =
@@ -302,12 +334,13 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
     // y_demeaned and X_centered point into the same buffer, so
     // center_variables(yX_view, ...) demeans all P+1 columns in-place
     // with zero extra allocation.
-    std::memcpy(ws->y_demeaned.memptr(), y.memptr(), N * sizeof(double));
+    std::memcpy(ws->y_demeaned.memptr(), ws->y_original.memptr(),
+                N * sizeof(double));
     if (P > 0) {
       std::memcpy(ws->X_centered.memptr(), X.memptr(), N * P * sizeof(double));
     }
 
-    center_variables(ws->yX_view, w, ws->fe_map, effective_tol,
+    center_variables(ws->yX_view, w_work, ws->fe_map, effective_tol,
                      params.iter_center_max, params.grand_acc_period,
                      &ws->warm_start);
   } else {
@@ -322,7 +355,8 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
       ws->X_original = X;
     }
     // No FE: y_demeaned = y (unmodified), X_centered = X_original
-    std::memcpy(ws->y_demeaned.memptr(), y.memptr(), N * sizeof(double));
+    std::memcpy(ws->y_demeaned.memptr(), ws->y_original.memptr(),
+                N * sizeof(double));
     std::memcpy(ws->X_centered.memptr(), ws->X_original.memptr(),
                 N * P * sizeof(double));
   }
@@ -351,8 +385,8 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
   vec XtY_vec;
 
   if (use_weights) {
-    XtX = crossprod(ws->X_centered, w);
-    XtY_vec = ws->X_centered.t() * (w % ws->y_demeaned);
+    XtX = crossprod(ws->X_centered, w_work);
+    XtY_vec = ws->X_centered.t() * (w_work % ws->y_demeaned);
   } else {
     XtX = crossprod(ws->X_centered);
     XtY_vec = ws->X_centered.t() * ws->y_demeaned;
@@ -426,11 +460,11 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
 
   result.residuals = ws->y_original - result.fitted_values;
 
-  compute_r_squared(result, ws->y_original, result.residuals, w, n_coef,
+  compute_r_squared(result, ws->y_original, result.residuals, w_work, n_coef,
                     fe_map);
 
   mat vcov_reduced;
-  const double rss = dot(w % result.residuals, result.residuals);
+  const double rss = dot(w_work % result.residuals, result.residuals);
 
   if (cluster_groups != nullptr && cluster_groups->n_elem > 0) {
     vcov_reduced = compute_sandwich_vcov(ws->X_centered, ws->y_original,
