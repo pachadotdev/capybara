@@ -37,9 +37,9 @@ struct FelmWorkspace {
   // views pointing into it.  This lets center_variables() operate on
   // all P+1 columns in a single call — no temporary yX matrix, no memcpy.
   std::vector<double> center_buf; // owns the memory: N * (P+1) doubles
-  vec y_demeaned;  // non-owning view of center_buf[0..N-1]
-  mat X_centered;  // non-owning view of center_buf[N..N*(P+1)-1]
-  mat yX_view;     // non-owning view of entire buffer as N x (P+1)
+  vec y_demeaned;                 // non-owning view of center_buf[0..N-1]
+  mat X_centered;                 // non-owning view of center_buf[N..N*(P+1)-1]
+  mat yX_view; // non-owning view of entire buffer as N x (P+1)
 
   vec x_beta;
   vec pi;
@@ -304,8 +304,7 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
     // with zero extra allocation.
     std::memcpy(ws->y_demeaned.memptr(), y.memptr(), N * sizeof(double));
     if (P > 0) {
-      std::memcpy(ws->X_centered.memptr(), X.memptr(),
-                  N * P * sizeof(double));
+      std::memcpy(ws->X_centered.memptr(), X.memptr(), N * P * sizeof(double));
     }
 
     center_variables(ws->yX_view, w, ws->fe_map, effective_tol,

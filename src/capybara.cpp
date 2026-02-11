@@ -542,14 +542,13 @@ inline PreparedData prepare_raw_data(const doubles_matrix<> &X_r,
 }
 
 // Helper: package FE names and levels into R list for return
-inline void add_fe_metadata_to_result(writable::list &ret,
-                                      const field<std::string> &fe_names,
-                                      const field<field<std::string>> &fe_levels,
-                                      size_t nobs_used,
-                                      const uvec &obs_indices,
-                                      bool all_valid) {
+inline void add_fe_metadata_to_result(
+    writable::list &ret, const field<std::string> &fe_names,
+    const field<field<std::string>> &fe_levels, size_t nobs_used,
+    const uvec &obs_indices, bool all_valid) {
   // nobs_used
-  ret.push_back({"nobs_used"_nm = writable::integers({static_cast<int>(nobs_used)})});
+  ret.push_back(
+      {"nobs_used"_nm = writable::integers({static_cast<int>(nobs_used)})});
 
   // obs_indices (1-based) — only if some rows were dropped
   if (!all_valid) {
@@ -684,8 +683,8 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   }
 
   // Add metadata for R-side post-processing
-  add_fe_metadata_to_result(ret, data.fe_names, data.fe_levels,
-                            data.nobs_used, data.obs_indices, all_valid);
+  add_fe_metadata_to_result(ret, data.fe_names, data.fe_levels, data.nobs_used,
+                            data.obs_indices, all_valid);
 
   return ret;
 }
@@ -715,7 +714,8 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
       // Subset eta to valid rows
       eta.set_size(data.nobs_used);
       for (size_t i = 0; i < data.nobs_used; ++i) {
-        eta(i) = static_cast<double>(eta_r[static_cast<R_xlen_t>(data.obs_indices(i) - 1)]);
+        eta(i) = static_cast<double>(
+            eta_r[static_cast<R_xlen_t>(data.obs_indices(i) - 1)]);
       }
     }
   } else {
@@ -729,7 +729,8 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
   } else {
     offset.set_size(data.nobs_used);
     for (size_t i = 0; i < data.nobs_used; ++i) {
-      offset(i) = static_cast<double>(offset_r[static_cast<R_xlen_t>(data.obs_indices(i) - 1)]);
+      offset(i) = static_cast<double>(
+          offset_r[static_cast<R_xlen_t>(data.obs_indices(i) - 1)]);
     }
   }
 
@@ -833,8 +834,8 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
   }
 
   // Add metadata for R-side post-processing
-  add_fe_metadata_to_result(out, data.fe_names, data.fe_levels,
-                            data.nobs_used, data.obs_indices, all_valid);
+  add_fe_metadata_to_result(out, data.fe_names, data.fe_levels, data.nobs_used,
+                            data.obs_indices, all_valid);
 
   return out;
 }
@@ -881,7 +882,8 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
   } else {
     offset_vec.set_size(data.nobs_used);
     for (size_t i = 0; i < data.nobs_used; ++i) {
-      offset_vec(i) = static_cast<double>(offset_r[static_cast<R_xlen_t>(data.obs_indices(i) - 1)]);
+      offset_vec(i) = static_cast<double>(
+          offset_r[static_cast<R_xlen_t>(data.obs_indices(i) - 1)]);
     }
   }
 
@@ -956,8 +958,8 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
   }
 
   // Add metadata for R-side post-processing
-  add_fe_metadata_to_result(out, data.fe_names, data.fe_levels,
-                            data.nobs_used, data.obs_indices, all_valid);
+  add_fe_metadata_to_result(out, data.fe_names, data.fe_levels, data.nobs_used,
+                            data.obs_indices, all_valid);
 
   return out;
 }
