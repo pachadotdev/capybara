@@ -16,7 +16,7 @@ get_score_matrix_felm_ <- function(object) {
     tx <- object[["tx"]]
   } else {
     # Generate flat FE codes to project out the fixed effects
-    k_list <- get_index_list_(names(object[["lvls_k"]]), object[["data"]])
+    k_list <- get_index_list_(object[["nms_fe"]], object[["data"]])
 
     # Extract regressor matrix
     X <- model.matrix(object[["formula"]], object[["data"]], rhs = 1L)[, -1L, drop = FALSE]

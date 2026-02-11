@@ -154,7 +154,7 @@ fit_control <- function(
   sep_use_relu <- as.logical(sep_use_relu)
   sep_use_simplex <- as.logical(sep_use_simplex)
   if (is.na(return_fe) || is.na(keep_tx) || is.na(check_separation) ||
-      is.na(sep_use_relu) || is.na(sep_use_simplex)) {
+    is.na(sep_use_relu) || is.na(sep_use_simplex)) {
     stop(
       "All logical parameters should be TRUE or FALSE.",
       call. = FALSE

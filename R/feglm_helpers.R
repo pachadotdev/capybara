@@ -123,18 +123,6 @@ partial_mu_eta_ <- function(eta, family, order) {
   }
 }
 
-#' @title Temporary variable
-#' @description Generates a temporary variable name
-#' @param data Data frame
-#' @noRd
-temp_var_ <- function(data) {
-  tmp_var <- "capybara_temp12345"
-  while (tmp_var %in% colnames(data)) {
-    tmp_var <- paste0("capybara_temp", sample(letters, 5, replace = TRUE))
-  }
-  tmp_var
-}
-
 #' @title Check formula
 #' @description Checks formulas for LM/GLM/NegBin models
 #' @param formula Formula object
@@ -313,74 +301,56 @@ check_response_ <- function(data, lhs, family) {
   }
 }
 
-#' @title Drop by link type
-#' @description Drops observations that do not contribute to the log-likelihood
-#'  for binomial and poisson models
-#' @param data Data frame
-#' @param lhs Left-hand side of the formula
-#' @param family Family object
-#' @param tmp_var Temporary variable
-#' @param k_vars Fixed effects
-#' @param control Control list
-#' @noRd
-drop_by_link_type_ <- function(data, lhs, family, tmp_var, k_vars, control) {
-  if (
-    family[["family"]] %in%
-      c("binomial", "poisson") &&
-      isTRUE(control[["check_separation"]])
-  ) {
-    # Convert response to numeric if it's an integer
-    if (is.integer(data[[lhs]])) {
-      data[[lhs]] <- as.numeric(data[[lhs]])
-    }
-
-    ncheck <- 0
-    nrow_data <- nrow(data)
-
-    while (ncheck != nrow_data) {
-      ncheck <- nrow_data
-
-      invisible(lapply(k_vars, function(j) {
-        # Compute group means using base R (ave)
-        data[[tmp_var]] <<- ave(
-          as.numeric(data[[lhs]]),
-          data[[j]],
-          FUN = function(x) mean(x, na.rm = TRUE)
-        )
-
-        # Filter rows based on family type
-        if (family[["family"]] == "binomial") {
-          data <<- data[
-            data[[tmp_var]] > 0 & data[[tmp_var]] < 1, ,
-            drop = FALSE
-          ]
-        } else {
-          data <<- data[data[[tmp_var]] > 0, , drop = FALSE]
-        }
-
-        # Remove temporary column
-        data[[tmp_var]] <<- NULL
-      }))
-
-      nrow_data <- nrow(data)
-    }
-  }
-
-  data
-}
-
 #' @title Model response
-#' @description Computes the model response
+#' @description Computes the model response and design matrix.
+#'  Fast path: when all RHS variables are numeric and no special operators
+#'  (factor, poly, ns, bs) are present, evaluates terms directly with eval()
+#'  to avoid the overhead of model.frame() + model.matrix().
+#'  Slow path: falls back to model.frame() + model.matrix() when factors or
+#'  special operators are detected.
 #' @param data Data frame
 #' @param formula Formula object
 #' @noRd
 model_response_ <- function(data, formula) {
-  # Evaluate the left-hand side of the formula in the context of data
-  mf <- model.frame(formula, data, na.action = na.pass)
-  y <- model.response(mf)
-  X <- model.matrix(formula, data, rhs = 1L)[, -1L, drop = FALSE]
-  nms_sp <- colnames(X)
-  attr(X, "dimnames") <- NULL
+  # Use only LHS + RHS1 sub-formula to avoid processing FE/cluster columns
+  f1 <- formula(formula, lhs = 1L, rhs = 1L)
+  tt <- terms(f1)
+  rhs_labels <- attr(tt, "term.labels")
+  resp_var <- as.character(attr(tt, "variables")[[2L]])
+
+  # Determine if we can take the fast path
+  use_fast <- FALSE
+  if (length(rhs_labels) > 0L) {
+    # Get all variable names referenced in the RHS terms
+    rhs_vars <- all.vars(parse(text = paste(rhs_labels, collapse = "+")))
+    rhs_vars <- rhs_vars[rhs_vars %in% colnames(data)]
+    all_numeric <- length(rhs_vars) > 0L &&
+      all(vapply(data[rhs_vars], is.numeric, logical(1)))
+    has_special <- any(grepl("factor|poly|ns\\(|bs\\(|strata", rhs_labels))
+    has_interaction <- any(grepl(":", rhs_labels, fixed = TRUE))
+    use_fast <- all_numeric && !has_special && !has_interaction
+  }
+
+  if (use_fast) {
+    # Fast path: evaluate LHS and each RHS term directly
+    y <- eval(attr(tt, "variables")[[2L]], data)
+
+    n <- length(y)
+    p <- length(rhs_labels)
+    X <- matrix(NA_real_, nrow = n, ncol = p)
+    for (j in seq_len(p)) {
+      X[, j] <- eval(str2lang(rhs_labels[j]), data)
+    }
+    nms_sp <- rhs_labels
+  } else {
+    # Slow path: fall back to model.frame + model.matrix
+    mm_vars <- all.vars(f1)
+    mf <- model.frame(f1, data[, mm_vars, drop = FALSE], na.action = na.pass)
+    y <- model.response(mf)
+    X <- model.matrix(tt, mf)[, -1L, drop = FALSE]
+    nms_sp <- colnames(X)
+    attr(X, "dimnames") <- NULL
+  }
 
   assign("y", y, envir = parent.frame())
   assign("X", X, envir = parent.frame())
@@ -399,27 +369,6 @@ check_weights_ <- function(wt) {
   if (any(wt < 0)) {
     stop("Negative weights are not allowed.", call. = FALSE)
   }
-}
-
-#' @title Check starting theta
-#' @description Checks if starting theta is valid for NegBin models
-#' @param init_theta Initial theta value
-#' @param link Link function
-#' @noRd
-init_theta_ <- function(init_theta, link) {
-  if (is.null(init_theta)) {
-    family <- poisson(link)
-  } else {
-    # Validity of input argument (beta_start)
-    if (length(init_theta) != 1L) {
-      stop("'init_theta' has to be a scalar.", call. = FALSE)
-    } else if (init_theta <= 0.0) {
-      stop("'init_theta' has to be strictly positive.", call. = FALSE)
-    }
-    family <- negative.binomial(init_theta, link)
-  }
-
-  family
 }
 
 #' @title Check starting guesses
@@ -519,7 +468,7 @@ get_score_matrix_feglm_ <- function(object) {
     X <- object[["tx"]]
   } else {
     # Generate flat FE codes to project out the fixed effects
-    k_list <- get_index_list_(names(object[["lvls_k"]]), object[["data"]])
+    k_list <- get_index_list_(object[["nms_fe"]], object[["data"]])
 
     # Extract regressor matrix
     X <- model.matrix(object[["formula"]], object[["data"]], rhs = 1L)[,

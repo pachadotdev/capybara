@@ -32,11 +32,18 @@ struct InferenceLM {
 };
 
 struct FelmWorkspace {
-  vec y_demeaned;
+  // Contiguous memory block holding [y_demeaned | X_centered] column-major.
+  // A single allocation of N*(P+1) doubles, with non-owning Armadillo
+  // views pointing into it.  This lets center_variables() operate on
+  // all P+1 columns in a single call — no temporary yX matrix, no memcpy.
+  std::vector<double> center_buf; // owns the memory: N * (P+1) doubles
+  vec y_demeaned;  // non-owning view of center_buf[0..N-1]
+  mat X_centered;  // non-owning view of center_buf[N..N*(P+1)-1]
+  mat yX_view;     // non-owning view of entire buffer as N x (P+1)
+
   vec x_beta;
   vec pi;
   mat X_original; // Uncentered X for fitted values computation
-  mat X_centered; // Working copy that gets centered in place
   vec y_original;
 
   // Persistent FE structures (survive across IRLS iterations)
@@ -49,18 +56,24 @@ struct FelmWorkspace {
   FelmWorkspace() : fe_map_initialized(false), cached_N(0), cached_P(0) {}
 
   void ensure_size(uword N, uword P) {
-    if (N > cached_N) {
-      y_demeaned.set_size(N);
-      x_beta.set_size(N);
-      pi.set_size(N);
-      y_original.set_size(N);
+    if (N != cached_N || P != cached_P) {
+      // Allocate one contiguous block: [y (N doubles) | X (N*P doubles)]
+      center_buf.resize(N * (P + 1));
+      double *buf = center_buf.data();
+
+      // Non-owning Armadillo views into the buffer
+      // copy_aux_mem=false, strict=true -> Armadillo won't reallocate
+      y_demeaned = vec(buf, N, false, true);
+      X_centered = mat(buf + N, N, P, false, true);
+      yX_view = mat(buf, N, P + 1, false, true);
+
       cached_N = N;
-    }
-    if (P > cached_P || N > X_original.n_rows) {
-      X_original.set_size(N, P);
-      X_centered.set_size(N, P);
       cached_P = P;
     }
+    x_beta.set_size(N);
+    pi.set_size(N);
+    y_original.set_size(N);
+    X_original.set_size(N, P);
   }
 
   // Build FE map structure once; only update weights on subsequent calls
@@ -114,16 +127,18 @@ inline void compute_fitted_values(FelmWorkspace *ws, InferenceLM &result,
     // This is exact (same as X*beta + FE_means(y - X*beta)) because
     // centering is linear: M_fe(y - X*beta) = M_fe(y) - M_fe(X)*beta.
     vec x_centered_beta;
+    const uword Pc = ws->X_centered.n_cols;
     if (collin_result.has_collinearity &&
         !collin_result.non_collinear_cols.is_empty()) {
       const uvec &cols = collin_result.non_collinear_cols;
       x_centered_beta = ws->X_centered.cols(cols) * coef.elem(cols);
-    } else if (ws->X_centered.n_cols > 0) {
+    } else if (Pc > 0) {
       x_centered_beta = ws->X_centered * coef;
     } else {
       x_centered_beta.zeros(N);
     }
-    result.fitted_values = ws->y_original - ws->y_demeaned + x_centered_beta;
+    result.fitted_values =
+        ws->y_original - ws->y_demeaned + x_centered_beta;
     result.has_fe = true;
     return;
   }
@@ -238,25 +253,20 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
     // X_original needed for X*beta in compute_fitted_values
     ws->X_original = X;
 
+    // Copy y and X into the contiguous center_buf via the non-owning views.
+    // y_demeaned and X_centered point into the same buffer, so
+    // center_variables(yX_view, ...) demeans all P+1 columns in-place
+    // with zero extra allocation.
+    std::memcpy(ws->y_demeaned.memptr(), y.memptr(), N * sizeof(double));
     if (P > 0) {
-      // Combined centering: build [y | X] once, center in-place, split back
-      mat yX(N, P + 1);
-      std::memcpy(yX.colptr(0), y.memptr(), N * sizeof(double));
-      std::memcpy(yX.colptr(1), X.memptr(), N * P * sizeof(double));
-
-      center_variables(yX, w, ws->fe_map, effective_tol, params.iter_center_max,
-                       params.grand_acc_period, &ws->warm_start);
-
-      ws->y_demeaned = yX.col(0);
-      ws->X_centered = yX.cols(1, P);
-    } else {
-      ws->y_demeaned = y;
-      center_variables(ws->y_demeaned, w, ws->fe_map, effective_tol,
-                       params.iter_center_max, params.grand_acc_period,
-                       &ws->warm_start);
+      std::memcpy(ws->X_centered.memptr(), X.memptr(),
+                  N * P * sizeof(double));
     }
+
+    center_variables(ws->yX_view, w, ws->fe_map, effective_tol,
+                     params.iter_center_max, params.grand_acc_period,
+                     &ws->warm_start);
   } else {
-    ws->y_demeaned = y;
     // Copy X to workspace buffers
     if (!run_from_glm) {
       // Standalone felm: add intercept column
@@ -267,7 +277,10 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
     } else {
       ws->X_original = X;
     }
-    ws->X_centered = ws->X_original;
+    // No FE: y_demeaned = y (unmodified), X_centered = X_original
+    std::memcpy(ws->y_demeaned.memptr(), y.memptr(), N * sizeof(double));
+    std::memcpy(ws->X_centered.memptr(), ws->X_original.memptr(),
+                N * P * sizeof(double));
   }
 
 #ifdef CAPYBARA_DEBUG

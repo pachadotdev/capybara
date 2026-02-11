@@ -141,8 +141,8 @@ fenegbin <- function(
   # Check validity of control + Extract control list ----
   control <- check_control_(control)
 
-  # Generate model.frame
-  X <- eta <- lhs <- nobs_na <- nobs_full <- NA
+  # Generate model.frame (column subsetting + weight extraction)
+  X <- eta <- lhs <- nobs_full <- NA
   model_frame_(data, formula, weights)
 
   # Create a dummy family for response checking
@@ -156,15 +156,6 @@ fenegbin <- function(
 
   # Get names of the fixed effects variables and sort ----
   fe_names <- attr(terms(formula, rhs = 2L), "term.labels")
-
-  # Generate temporary variable ----
-  tmp_var <- temp_var_(data)
-
-  # Drop observations that do not contribute to the log likelihood ----
-  data <- drop_by_link_type_(data, lhs, family, tmp_var, fe_names, control)
-
-  # Transform fixed effects and clusters to factors ----
-  data <- transform_fe_(data, formula, fe_names)
 
   # Determine the number of dropped observations ----
   nt <- nrow(data)
@@ -214,30 +205,21 @@ fenegbin <- function(
   beta <- if (!is.null(beta_start)) {
     as.numeric(beta_start)
   } else {
-    numeric(0) # Empty vector for default initialization in C++
+    numeric(0)
   }
 
   # Get eta starting guesses if provided
   eta_vec <- if (!is.null(eta_start)) {
     as.numeric(eta_start)
   } else {
-    numeric(0) # Empty vector for default initialization in C++
+    numeric(0)
   }
 
-  # Get names and number of levels in each fixed effects category ----
-  if (length(fe_vars) > 0) {
-    nms_fe <- lapply(data[fe_vars], levels)
-    fe_levels <- vapply(nms_fe, length, integer(1))
-    # Generate flat FE codes for C++ FlatFEMap
-    FEs <- get_index_list_(fe_vars, data)
-  } else {
-    # No fixed effects - create empty list
-    nms_fe <- list()
-    fe_levels <- integer(0)
-    FEs <- list(codes = list(), levels = list())
-  }
+  # Extract raw FE columns as a list of vectors ----
+  fe_cols <- lapply(fe_vars, function(v) data[[v]])
+  names(fe_cols) <- fe_vars
 
-  # Set init_theta to 0 if NULL (C++ will handle default)
+  # Set init_theta to 0 if NULL
   if (is.null(init_theta)) {
     init_theta <- 0.0
   } else {
@@ -247,7 +229,6 @@ fenegbin <- function(
     }
   }
 
-  # Fit negative binomial model using C++ implementation - now just one call
   if (is.integer(y)) {
     y <- as.numeric(y)
   }
@@ -257,8 +238,7 @@ fenegbin <- function(
       X,
       y,
       w,
-      FEs[["codes"]],
-      FEs[["levels"]],
+      fe_cols,
       link,
       beta,
       eta_vec,
@@ -269,8 +249,18 @@ fenegbin <- function(
     class = c("feglm", "fenegbin")
   )
 
-  # Compute nobs using y and fitted values
-  nobs <- nobs_(nobs_full, nobs_na, y, predict(fit, type = "link"))
+  # Organize nobs info ----
+  nobs_na <- nobs_full - fit[["nobs_used"]]
+  nobs <- c(
+    nobs_full = nobs_full,
+    nobs_na = nobs_na,
+    nobs_separated = 0L,
+    nobs_pc = 0L,
+    nobs = fit[["nobs_used"]]
+  )
+
+  nms_fe <- fit[["nms_fe"]]
+  fe_levels <- fit[["fe_levels"]]
 
   # Information if convergence failed ----
   if (!fit[["conv_outer"]]) {
@@ -287,6 +277,25 @@ fenegbin <- function(
   }
   dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
   dimnames(fit[["vcov"]]) <- list(nms_sp, nms_sp)
+
+  # Use the row indices to set fitted_values names
+  if (!is.null(fit[["obs_indices"]])) {
+    rn <- rownames(data)
+    if (!is.null(rn)) {
+      names(fit[["fitted_values"]]) <- rn[fit[["obs_indices"]]]
+    } else {
+      names(fit[["fitted_values"]]) <- fit[["obs_indices"]]
+    }
+    data <- data[fit[["obs_indices"]], , drop = FALSE]
+  } else if (!is.null(rownames(data))) {
+    names(fit[["fitted_values"]]) <- rownames(data)
+  } else {
+    names(fit[["fitted_values"]]) <- seq_along(fit[["fitted_values"]])
+  }
+
+  # Clean up C++ internal fields not needed by user
+  fit[["obs_indices"]] <- NULL
+  fit[["nobs_used"]] <- NULL
 
   # Add to fit list ----
   fit[["nobs"]] <- nobs

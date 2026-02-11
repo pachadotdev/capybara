@@ -152,8 +152,6 @@ feglm <- function(
   offset = NULL,
   control = NULL
 ) {
-  # t0 <- Sys.time()
-
   # Check validity of formula ----
   check_formula_(formula)
 
@@ -196,9 +194,8 @@ feglm <- function(
     names(offset_vec_original) <- rownames(data)
   }
 
-  # Generate model.frame
-  lhs <- NA # just to avoid global variable warning
-  nobs_na <- NA
+  # Generate model.frame (column subsetting + weight extraction)
+  lhs <- NA
   nobs_full <- NA
   weights_vec <- NA
   weights_col <- NA
@@ -210,26 +207,16 @@ feglm <- function(
   # Get names of the fixed effects variables ----
   fe_vars <- check_fe_(formula, data)
 
-  # Generate temporary variable ----
-  tmp_var <- temp_var_(data)
-
-  # Drop observations that do not contribute to the log likelihood ----
-  data <- drop_by_link_type_(data, lhs, family, tmp_var, fe_vars, control)
-
-  # Transform fixed effects and clusters to factors ----
-  data <- transform_fe_(data, formula, fe_vars)
-  nt <- nrow(data)
-
   # Extract model response and regressor matrix ----
   nms_sp <- NA
   p <- NA
   model_response_(data, formula)
 
   # Extract weights if required ----
+  nt <- nrow(data)
   if (is.null(weights)) {
     wt <- rep(1.0, nt)
   } else if (!all(is.na(weights_vec))) {
-    # Weights provided as vector
     if (length(weights_vec) != nrow(data)) {
       stop(
         "Length of weights vector must equal number of observations.",
@@ -238,10 +225,8 @@ feglm <- function(
     }
     wt <- weights_vec
   } else if (!all(is.na(weights_col))) {
-    # Weights provided as formula - use the extracted column name
     wt <- data[[weights_col]]
   } else {
-    # Weights provided as column name
     wt <- data[[weights]]
   }
 
@@ -249,11 +234,9 @@ feglm <- function(
   check_weights_(wt)
 
   # Extract offset if required ----
-  # Subset the pre-computed offset vector to match the filtered data
   if (is.null(offset)) {
     offset_vec <- rep(0.0, nt)
   } else {
-    # Use row names to subset the offset vector to match filtered data
     offset_vec <- offset_vec_original[rownames(data)]
     if (length(offset_vec) != nt) {
       stop(
@@ -266,37 +249,22 @@ feglm <- function(
   # Compute and check starting guesses ----
   start_guesses_(beta_start, eta_start, y, X, beta, nt, wt, p, family)
 
-  # Get names and number of levels in each fixed effects category ----
-  if (length(fe_vars) > 0) {
-    nms_fe <- lapply(data[fe_vars], levels)
-    fe_levels <- vapply(nms_fe, length, integer(1))
-    # Generate flat FE codes for C++ FlatFEMap
-    FEs <- get_index_list_(fe_vars, data)
-  } else {
-    # No fixed effects - create empty list
-    nms_fe <- list()
-    fe_levels <- integer(0)
-    FEs <- list(codes = list(), levels = list())
-  }
+  # Extract raw FE columns as a list of vectors ----
+  fe_cols <- lapply(fe_vars, function(v) data[[v]])
+  names(fe_cols) <- fe_vars
 
   # Extract cluster variable from formula (third part) ----
   cl_vars_temp <- suppressWarnings(attr(
     terms(formula, rhs = 3L),
     "term.labels"
   ))
-  if (length(cl_vars_temp) >= 1L) {
-    # Get cluster index list (inverted-index format for sandwich estimator)
-    cl_list <- get_cluster_list_(cl_vars_temp[1L], data)
-  } else {
-    cl_list <- list()
-  }
+
+  cl_col <- if (length(cl_vars_temp) >= 1L) data[[cl_vars_temp[1L]]] else NULL
 
   # Fit generalized linear model ----
   if (is.integer(y)) {
     y <- as.numeric(y)
   }
-
-  # t1 <- Sys.time()
 
   fit <- feglm_fit_(
     beta,
@@ -308,14 +276,12 @@ feglm <- function(
     0.0,
     family[["family"]],
     control,
-    FEs[["codes"]],
-    FEs[["levels"]],
-    cl_list
+    fe_cols,
+    cl_col
   )
 
-  # t2 <- Sys.time()
-
-  # Count separated observations if present
+  # Organize nobs info ----
+  nobs_na <- nobs_full - fit[["nobs_used"]]
   num_separated <- if (
     isTRUE(fit$has_separation) && !is.null(fit$separated_obs)
   ) {
@@ -324,13 +290,21 @@ feglm <- function(
     0
   }
 
-  nobs <- nobs_(nobs_full, nobs_na, y, fit[["fitted_values"]], num_separated)
+  nobs <- c(
+    nobs_full = nobs_full,
+    nobs_na = nobs_na,
+    nobs_separated = num_separated,
+    nobs_pc = 0L,
+    nobs = fit[["nobs_used"]]
+  )
+
+  nms_fe <- fit[["nms_fe"]]
+  fe_levels <- fit[["fe_levels"]]
 
   X <- NULL
   eta <- NULL
 
   # Add names to coef_table, hessian, T(X) (if provided), and fitted values ----
-  # When there are no fixed effects, C++ adds an intercept column
   if (length(fe_vars) == 0) {
     nms_sp <- c("(Intercept)", nms_sp)
   }
@@ -344,8 +318,17 @@ feglm <- function(
   non_na_nms_sp <- nms_sp[!is.na(fit[["coef_table"]][, 1])]
   dimnames(fit[["hessian"]]) <- list(non_na_nms_sp, non_na_nms_sp)
   dimnames(fit[["vcov"]]) <- list(non_na_nms_sp, non_na_nms_sp)
-  # Preserve row names from the data when possible to match base R prediction naming
-  if (!is.null(rownames(data))) {
+
+  # Use the row indices to set fitted_values names
+  if (!is.null(fit[["obs_indices"]])) {
+    rn <- rownames(data)
+    if (!is.null(rn)) {
+      names(fit[["fitted_values"]]) <- rn[fit[["obs_indices"]]]
+    } else {
+      names(fit[["fitted_values"]]) <- fit[["obs_indices"]]
+    }
+    data <- data[fit[["obs_indices"]], , drop = FALSE]
+  } else if (!is.null(rownames(data))) {
     names(fit[["fitted_values"]]) <- rownames(data)
   } else {
     names(fit[["fitted_values"]]) <- seq_along(fit[["fitted_values"]])
@@ -363,6 +346,10 @@ feglm <- function(
     fit[["separation_support"]] <- fit$separation_support
   }
 
+  # Clean up C++ internal fields
+  fit[["obs_indices"]] <- NULL
+  fit[["nobs_used"]] <- NULL
+
   # Add to fit list ----
   fit[["nobs"]] <- nobs
   fit[["fe_levels"]] <- fe_levels
@@ -373,15 +360,6 @@ feglm <- function(
   fit[["control"]] <- control
   fit[["offset"]] <- offset_vec
   fit[["offset_spec"]] <- offset
-
-  # t3 <- Sys.time()
-
-  # print(sprintf(
-  #   "feglm fit completed in %.2f seconds (data prep: %.2f s, model fit: %.2f s).",
-  #   as.numeric(difftime(t3, t0, units = "secs")),
-  #   as.numeric(difftime(t1, t0, units = "secs")),
-  #   as.numeric(difftime(t2, t1, units = "secs"))
-  # ))
 
   # Return result list ----
   structure(fit, class = "feglm")

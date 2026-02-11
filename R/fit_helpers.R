@@ -61,25 +61,32 @@ NULL
 
 #' @title Get FE codes
 #' @description Returns flat 0-based integer factor codes for each FE variable
-#'  plus level names. This is the lean replacement for the old inverted-index
-#'  approach: R passes K integer vectors of length N (the factor codes) and
-#'  K character vectors of level names. C++ builds FlatFEMap directly in O(N).
+#'  plus level names. Uses match() + unique() to avoid expensive factor()
+#'  conversion. Works on character, numeric, or factor columns equally.
 #' @param k_vars Fixed effects variable names
 #' @param data Data frame
 #' @return A named list with two elements:
-#'   \code{codes}: a list of K integer vectors (0-based factor codes, length N)
-#'   \code{levels}: a list of K character vectors (level names)
+#'   \code{codes}: a list of K integer vectors (0-based codes, length N)
+#'   \code{levels}: a list of K character vectors (unique level names)
 #' @noRd
 get_index_list_ <- function(k_vars, data) {
-  codes <- lapply(k_vars, function(v) {
-    f <- as.factor(data[[v]])
-    as.integer(f) - 1L
-  })
-  lvls <- lapply(k_vars, function(v) {
-    levels(as.factor(data[[v]]))
-  })
+  codes <- vector("list", length(k_vars))
+  lvls <- vector("list", length(k_vars))
   names(codes) <- k_vars
   names(lvls) <- k_vars
+  for (i in seq_along(k_vars)) {
+    v <- k_vars[i]
+    x <- data[[v]]
+    if (is.factor(x)) {
+      x <- droplevels(x)
+      codes[[i]] <- as.integer(x) - 1L
+      lvls[[i]] <- levels(x)
+    } else {
+      u <- unique(x)
+      codes[[i]] <- match(x, u) - 1L
+      lvls[[i]] <- as.character(u)
+    }
+  }
   list(codes = codes, levels = lvls)
 }
 
@@ -97,7 +104,8 @@ get_cluster_list_ <- function(cl_var, data) {
 }
 
 #' @title Model frame
-#' @description Creates model frame for GLM/NegBin models
+#' @description Extracts needed columns from the data frame and handles weight
+#'  extraction. NA removal is deferred to C++ for performance.
 #' @param data Data frame
 #' @param formula Formula object
 #' @param weights Weights
@@ -133,12 +141,11 @@ model_frame_ <- function(data, formula, weights) {
     )
   }
 
-  # Extract needed columns (base R)
+  # Extract needed columns only
   data <- data[, needed_cols, drop = FALSE]
 
   lhs <- names(data)[1L]
   nobs_full <- nrow(data)
-  data <- na.omit(data)
 
   # Convert columns of type "units" to numeric (base R)
   unit_cols <- names(data)[vapply(data, inherits, what = "units", logical(1))]
@@ -146,33 +153,37 @@ model_frame_ <- function(data, formula, weights) {
     data[unit_cols] <- lapply(data[unit_cols], as.numeric)
   }
 
-  nobs_na <- nobs_full - nrow(data)
-
   assign("data", data, envir = parent.frame())
   assign("lhs", lhs, envir = parent.frame())
-  assign("nobs_na", nobs_na, envir = parent.frame())
   assign("nobs_full", nobs_full, envir = parent.frame())
 }
 
 #' @title Transform fixed effects
-#' @description Transforms fixed effects that are factors
+#' @description Drops unused factor levels for FE/cluster columns that are
+#'  already factors. Non-factor columns (character, numeric) are left as-is
+#'  since get_index_list_() and get_cluster_list_() handle them directly.
 #' @param data Data frame
 #' @param formula Formula object
 #' @param k_vars Fixed effects
 #' @noRd
 transform_fe_ <- function(data, formula, k_vars) {
+  # Only droplevels for columns that are already factors
   if (length(k_vars) > 0) {
-    data[k_vars] <- lapply(data[k_vars], check_factor_)
+    for (v in k_vars) {
+      if (is.factor(data[[v]])) {
+        data[[v]] <- droplevels(data[[v]])
+      }
+    }
   }
 
   if (length(formula)[[2L]] > 2L) {
     add_vars <- attr(terms(formula, rhs = 3L), "term.labels")
-    # Only transform cluster variables if they exist in data
-    # (they're not needed for prediction, only for fitting)
     if (length(add_vars) > 0) {
       existing_vars <- add_vars[add_vars %in% colnames(data)]
-      if (length(existing_vars) > 0) {
-        data[existing_vars] <- lapply(data[existing_vars], check_factor_)
+      for (v in existing_vars) {
+        if (is.factor(data[[v]])) {
+          data[[v]] <- droplevels(data[[v]])
+        }
       }
     }
   }
@@ -180,44 +191,6 @@ transform_fe_ <- function(data, formula, k_vars) {
   return(data)
 }
 
-
-#' @title Number of observations
-#' @description Computes the number of observations
-#' @param nobs_full Number of observations in the full data set
-#' @param nobs_na Number of observations with missing values (NA values)
-#' @param y Dependent variable
-#' @param yhat Predicted values
-#' @param num_separated Number of separated observations (default 0)
-#' @noRd
-nobs_ <- function(nobs_full, nobs_na, y, yhat, num_separated = 0) {
-  # Use tolerance for floating-point comparisons
-  tol <- sqrt(.Machine$double.eps)
-
-  # Count non-NA fitted values (excludes separated/dropped observations)
-  nobs_used <- sum(!is.na(yhat))
-
-  # Count observations with perfect prediction (among non-NA)
-  if (nobs_used > 0) {
-    nobs_pc <- sum(
-      abs(y[!is.na(yhat)] - yhat[!is.na(yhat)]) < tol,
-      na.rm = TRUE
-    )
-  } else {
-    nobs_pc <- 0
-  }
-
-  # Separated observations are tracked separately from missing
-  # Total dropped = original NA + singletons (separated tracked separately)
-  total_dropped <- nobs_full - nobs_used - num_separated
-
-  c(
-    nobs_full = nobs_full, # Original dataset size
-    nobs_na = total_dropped, # Missing/dropped (NA + singletons, excluding separated)
-    nobs_separated = num_separated, # Separated observations
-    nobs_pc = nobs_pc, # Perfect classification count
-    nobs = nobs_used # Observations used in model
-  )
-}
 
 #' @title Ensure fixed effects variables
 #' @description Extracts fixed effect variable names from formula

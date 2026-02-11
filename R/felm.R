@@ -129,9 +129,8 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   # Check validity of control + Extract control list ----
   check_control_(control)
 
-  # Generate model.frame ----
-  lhs <- NA # just to avoid global variable warning
-  nobs_na <- NA
+  # Generate model.frame (column subsetting + weight extraction) ----
+  lhs <- NA
   nobs_full <- NA
   weights_vec <- NA
   weights_col <- NA
@@ -140,20 +139,16 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   # Get names of the fixed effects variables ----
   fe_vars <- check_fe_(formula, data)
 
-  # Transform fixed effects and clusters to factors ----
-  data <- transform_fe_(data, formula, fe_vars)
-  nt <- nrow(data)
-
   # Extract model response and regressor matrix ----
   nms_sp <- NA
   model_response_(data, formula)
 
   # Extract weights if required ----
+  nt <- nrow(data)
   if (is.null(weights)) {
     w <- rep(1.0, nt)
   } else if (!all(is.na(weights_vec))) {
-    # Weights provided as vector
-    if (length(weights_vec) != nrow(data)) {
+    if (length(weights_vec) != nt) {
       stop(
         "Length of weights vector must equal number of observations.",
         call. = FALSE
@@ -161,54 +156,48 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
     }
     w <- weights_vec
   } else if (!all(is.na(weights_col))) {
-    # Weights provided as formula - use the extracted column name
     w <- data[[weights_col]]
   } else {
-    # Weights provided as column name
     w <- data[[weights]]
   }
 
   # Check validity of weights ----
   check_weights_(w)
 
-  # Get names and number of levels in each fixed effects category ----
-  if (length(fe_vars) > 0) {
-    nms_fe <- lapply(data[fe_vars], levels)
-    fe_levels <- vapply(nms_fe, length, integer(1))
-    # Generate flat FE codes for C++ FlatFEMap
-    FEs <- get_index_list_(fe_vars, data)
-  } else {
-    # No fixed effects - create empty list
-    nms_fe <- list()
-    fe_levels <- integer(0)
-    FEs <- list(codes = list(), levels = list())
-  }
+  # Extract raw FE columns as a list of vectors ----
+  fe_cols <- lapply(fe_vars, function(v) data[[v]])
+  names(fe_cols) <- fe_vars
 
   # Extract cluster variable from formula (third part) ----
   cl_vars_temp <- suppressWarnings(attr(
     terms(formula, rhs = 3L),
     "term.labels"
   ))
-  if (length(cl_vars_temp) >= 1L) {
-    # Get cluster index list (inverted-index format for sandwich estimator)
-    cl_list <- get_cluster_list_(cl_vars_temp[1L], data)
-  } else {
-    cl_list <- list()
-  }
+  cl_col <- if (length(cl_vars_temp) >= 1L) data[[cl_vars_temp[1L]]] else NULL
 
   # Fit linear model ----
   if (is.integer(y)) {
     y <- as.numeric(y)
   }
 
-  fit <- felm_fit_(X, y, w, FEs[["codes"]], FEs[["levels"]], control, cl_list)
+  fit <- felm_fit_(X, y, w, fe_cols, cl_col, control)
 
-  nobs <- nobs_(nobs_full, nobs_na, y, fit[["fitted_values"]])
+  # Organize nobs info ----
+  nobs_na <- nobs_full - fit[["nobs_used"]]
+  nobs <- c(
+    nobs_full = nobs_full,
+    nobs_na = nobs_na,
+    nobs_separated = 0L,
+    nobs_pc = 0L,
+    nobs = fit[["nobs_used"]]
+  )
+
+  nms_fe <- fit[["nms_fe"]]
+  fe_levels <- fit[["fe_levels"]]
 
   X <- NULL
 
   # Add names to coef_table, hessian, T(X) (if provided), and fitted values ----
-  # When there are no fixed effects, C++ adds an intercept column
   if (length(fe_vars) == 0) {
     nms_sp <- c("(Intercept)", nms_sp)
   }
@@ -221,12 +210,27 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   if (control[["keep_tx"]]) {
     colnames(fit[["tx"]]) <- nms_sp
   }
-  # Preserve row names from the data when possible to match base R prediction naming
-  if (!is.null(rownames(data))) {
+
+  # Use the row indices to set fitted_values names
+  if (!is.null(fit[["obs_indices"]])) {
+    rn <- rownames(data)
+    if (!is.null(rn)) {
+      names(fit[["fitted_values"]]) <- rn[fit[["obs_indices"]]]
+    } else {
+      names(fit[["fitted_values"]]) <- fit[["obs_indices"]]
+    }
+
+    # Subset data to match C++ output for downstream use
+    data <- data[fit[["obs_indices"]], , drop = FALSE]
+  } else if (!is.null(rownames(data))) {
     names(fit[["fitted_values"]]) <- rownames(data)
   } else {
     names(fit[["fitted_values"]]) <- seq_along(fit[["fitted_values"]])
   }
+
+  # Clean up C++ internal fields not needed by user
+  fit[["obs_indices"]] <- NULL
+  fit[["nobs_used"]] <- NULL
 
   # Add to fit list ----
   fit[["nobs"]] <- nobs
