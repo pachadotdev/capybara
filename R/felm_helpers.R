@@ -15,7 +15,7 @@ get_score_matrix_felm_ <- function(object) {
   if (object[["control"]][["keep_tx"]]) {
     tx <- object[["tx"]]
   } else {
-    # Generate auxiliary list of indexes to project out the fixed effects
+    # Generate flat FE codes to project out the fixed effects
     k_list <- get_index_list_(names(object[["lvls_k"]]), object[["data"]])
 
     # Extract regressor matrix
@@ -25,7 +25,7 @@ get_score_matrix_felm_ <- function(object) {
 
     # Center variables
     tx <- center_variables_(
-      X, object[["weights"]], k_list,
+      X, object[["weights"]], k_list[["codes"]],
       object[["control"]][["center_tol"]],
       object[["control"]][["iter_center_max"]]
     )

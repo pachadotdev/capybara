@@ -228,14 +228,13 @@ fenegbin <- function(
   if (length(fe_vars) > 0) {
     nms_fe <- lapply(data[fe_vars], levels)
     fe_levels <- vapply(nms_fe, length, integer(1))
-    # Generate auxiliary list of indexes for different sub panels ----
+    # Generate flat FE codes for C++ FlatFEMap
     FEs <- get_index_list_(fe_vars, data)
-    names(FEs) <- fe_vars
   } else {
     # No fixed effects - create empty list
     nms_fe <- list()
     fe_levels <- integer(0)
-    FEs <- list()
+    FEs <- list(codes = list(), levels = list())
   }
 
   # Set init_theta to 0 if NULL (C++ will handle default)
@@ -258,7 +257,8 @@ fenegbin <- function(
       X,
       y,
       w,
-      FEs,
+      FEs[["codes"]],
+      FEs[["levels"]],
       link,
       beta,
       eta_vec,

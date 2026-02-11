@@ -270,14 +270,13 @@ feglm <- function(
   if (length(fe_vars) > 0) {
     nms_fe <- lapply(data[fe_vars], levels)
     fe_levels <- vapply(nms_fe, length, integer(1))
-    # Generate auxiliary list of indexes for different sub panels ----
+    # Generate flat FE codes for C++ FlatFEMap
     FEs <- get_index_list_(fe_vars, data)
-    names(FEs) <- fe_vars
   } else {
     # No fixed effects - create empty list
     nms_fe <- list()
     fe_levels <- integer(0)
-    FEs <- list()
+    FEs <- list(codes = list(), levels = list())
   }
 
   # Extract cluster variable from formula (third part) ----
@@ -286,8 +285,8 @@ feglm <- function(
     "term.labels"
   ))
   if (length(cl_vars_temp) >= 1L) {
-    # Get cluster index list (similar to FEs but only one level)
-    cl_list <- get_index_list_(cl_vars_temp[1L], data)[[1L]]
+    # Get cluster index list (inverted-index format for sandwich estimator)
+    cl_list <- get_cluster_list_(cl_vars_temp[1L], data)
   } else {
     cl_list <- list()
   }
@@ -309,7 +308,8 @@ feglm <- function(
     0.0,
     family[["family"]],
     control,
-    FEs,
+    FEs[["codes"]],
+    FEs[["levels"]],
     cl_list
   )
 

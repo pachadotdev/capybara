@@ -90,14 +90,14 @@ inline vec solve_lse_weighted(const mat &X, const vec &y,
 // ReLU separation detection with fixed effects support
 inline SeparationResult
 detect_separation_relu_fe(const vec &y, const mat &X, const vec &w,
-                          const field<field<uvec>> &fe_groups,
+                          const FlatFEMap &fe_map,
                           const CapybaraParameters &params) {
   SeparationResult result;
   result.converged = false;
   result.num_separated = 0;
 
   const uword n = y.n_elem;
-  const bool has_fe = fe_groups.n_elem > 0;
+  const bool has_fe = fe_map.K > 0;
 
   const uvec boundary_sample = find(y == 0);
   const uvec interior_sample = find(y > 0);
@@ -121,11 +121,12 @@ detect_separation_relu_fe(const vec &y, const mat &X, const vec &w,
     weights.elem(interior_sample).fill(M);
   }
 
-  FlatFEMap fe_map;
+  // Use the shared FE map; build a mutable copy for weight updates
+  FlatFEMap local_fe_map;
   CellAggregated2FE cells_2fe;
   if (has_fe) {
-    fe_map.build(fe_groups);
-    fe_map.update_weights(weights);
+    local_fe_map = fe_map; // copy structure
+    local_fe_map.update_weights(weights);
   }
 
   // Reusable buffers
@@ -140,10 +141,10 @@ detect_separation_relu_fe(const vec &y, const mat &X, const vec &w,
     X_centered = X;
 
     if (has_fe) {
-      center_variables(u_centered, weights, fe_map, cells_2fe,
+      center_variables(u_centered, weights, local_fe_map, cells_2fe,
                        params.center_tol, params.iter_center_max,
                        params.grand_acc_period);
-      center_variables(X_centered, weights, fe_map, cells_2fe,
+      center_variables(X_centered, weights, local_fe_map, cells_2fe,
                        params.center_tol, params.iter_center_max,
                        params.grand_acc_period);
     }

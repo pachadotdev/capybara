@@ -138,49 +138,79 @@ inline uvec R_1based_to_Cpp_0based_indices(const integers &r_indices) {
   return cpp_indices;
 }
 
-// Convert R FEs from list to Armadillo field<field<uvec>>
-inline field<field<uvec>> R_list_to_Armadillo_field(const list &FEs) {
-  const size_t K = FEs.size();
-  field<field<uvec>> group_indices(K);
+// Build FlatFEMap directly from R integer code vectors (the lean path).
+// fe_codes is a list of K integer vectors, each of length N, with 0-based
+// group codes. This is O(N*K) with zero intermediate allocation — no more
+// field<field<uvec>> of hundreds of small heap-allocated uvecs.
+inline capybara::FlatFEMap
+R_codes_to_FlatFEMap(const list &fe_codes) {
+  capybara::FlatFEMap map;
+  const size_t K = fe_codes.size();
+  if (K == 0)
+    return map;
+
+  map.K = K;
+  map.n_groups.resize(K);
+  map.fe_map.resize(K);
+  map.n_obs = 0;
 
   for (size_t k = 0; k < K; ++k) {
-    const list group_list = as_cpp<list>(FEs[k]);
-    const size_t n_groups = group_list.size();
+    const integers codes_k = as_cpp<integers>(fe_codes[k]);
+    const size_t N = codes_k.size();
+    if (k == 0) map.n_obs = N;
 
-    group_indices(k).set_size(n_groups);
-    for (size_t g = 0; g < n_groups; ++g) {
-      const integers group_obs = as_cpp<integers>(group_list[g]);
+    // Find max code to determine n_groups, and copy into fe_map in one pass
+    map.fe_map[k].resize(N);
+    uword *map_k = map.fe_map[k].data();
+    uword max_code = 0;
+    for (size_t i = 0; i < N; ++i) {
+      const uword c = static_cast<uword>(codes_k[i]);
+      map_k[i] = c;
+      if (c > max_code) max_code = c;
+    }
+    map.n_groups[k] = max_code + 1;
+  }
 
-      uvec indices(group_obs.size());
-      size_t I = group_obs.size();
-      for (size_t i = 0; i < I; ++i) {
-        size_t r_idx = group_obs[i];
-        // if (r_idx < 1) {
-        //   r_idx = 1; // Set to first element if invalid
-        // }
-        indices[i] = static_cast<uword>(r_idx - 1);
-      }
+  map.structure_built = true;
+  return map;
+}
 
-      group_indices(k)(g) = indices;
+// Extract FE level names from an R list of character vectors.
+// Returns field<field<string>> for output labeling.
+inline void extract_fe_names_and_levels(
+    const list &fe_codes, const list &fe_levels_r,
+    field<std::string> &fe_names,
+    field<field<std::string>> &fe_levels) {
+  const size_t K = fe_codes.size();
+  fe_names.set_size(K);
+  fe_levels.set_size(K);
+
+  // FE variable names
+  if (!fe_codes.names().empty()) {
+    cpp4r::strings names_r = fe_codes.names();
+    for (R_xlen_t i = 0; i < names_r.size(); i++) {
+      fe_names(i) = std::string(names_r[i]);
     }
   }
 
-  return group_indices;
+  // Level names per FE
+  for (size_t k = 0; k < K; ++k) {
+    const cpp4r::strings lvl_k = as_cpp<cpp4r::strings>(fe_levels_r[k]);
+    fe_levels(k).set_size(lvl_k.size());
+    for (R_xlen_t j = 0; j < lvl_k.size(); j++) {
+      fe_levels(k)(j) = std::string(lvl_k[j]);
+    }
+  }
 }
 
-// this function is not visible by the end-user, so we use multiple parameters
-// instead of a CapybaraParameters object
 [[cpp4r::register]] doubles_matrix<>
 center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
-                  const list &klist, const double &tol, const size_t &max_iter,
+                  const list &fe_codes, const double &tol, const size_t &max_iter,
                   const size_t &grand_acc_period) {
   mat V = as_mat(V_r);
   vec w = as_col(w_r);
 
-  field<field<uvec>> group_indices = R_list_to_Armadillo_field(klist);
-
-  capybara::FlatFEMap map;
-  map.build(group_indices);
+  capybara::FlatFEMap map = R_codes_to_FlatFEMap(fe_codes);
   map.update_weights(w);
   capybara::CellAggregated2FE cells;
   capybara::center_variables(V, w, map, cells, tol, max_iter, grand_acc_period);
@@ -190,7 +220,8 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
 
 [[cpp4r::register]] list felm_fit_(const doubles_matrix<> &X_r,
                                    const doubles &y_r, const doubles &w_r,
-                                   const list &FEs, const list &control,
+                                   const list &fe_codes, const list &fe_levels_r,
+                                   const list &control,
                                    const list &cl_list) {
   CapybaraParameters params(control);
 
@@ -198,7 +229,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   vec y = as_col(y_r);
   vec w = as_col(w_r);
 
-  field<field<uvec>> fe_groups = R_list_to_Armadillo_field(FEs);
+  capybara::FlatFEMap fe_map = R_codes_to_FlatFEMap(fe_codes);
 
   // Convert cluster list to Armadillo field<uvec>
   field<uvec> cluster_groups;
@@ -217,29 +248,11 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   const field<uvec> *cluster_ptr = has_clusters ? &cluster_groups : nullptr;
 
   capybara::InferenceLM result =
-      capybara::felm_fit(X, y, w, fe_groups, params, nullptr, cluster_ptr);
+      capybara::felm_fit(X, y, w, fe_map, params, nullptr, cluster_ptr);
 
-  field<std::string> fe_names(FEs.size());
-  field<field<std::string>> fe_levels(FEs.size());
-
-  if (!FEs.names().empty()) {
-    cpp4r::strings fe_names_r = FEs.names();
-    for (R_xlen_t i = 0; i < fe_names_r.size(); i++) {
-      fe_names(i) = std::string(fe_names_r[i]);
-    }
-  }
-
-  for (R_xlen_t k = 0; k < FEs.size(); k++) {
-    const list &group_list = as_cpp<list>(FEs[k]);
-    fe_levels(k).set_size(group_list.size());
-
-    if (!group_list.names().empty()) {
-      cpp4r::strings level_names = group_list.names();
-      for (R_xlen_t j = 0; j < level_names.size(); j++) {
-        fe_levels(k)(j) = std::string(level_names[j]);
-      }
-    }
-  }
+  field<std::string> fe_names;
+  field<field<std::string>> fe_levels;
+  extract_fe_names_and_levels(fe_codes, fe_levels_r, fe_names, fe_levels);
 
   // Replace collinear coefficients (NaN) with R's NA_REAL in all columns of
   // coef_table
@@ -290,8 +303,8 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
 
       fe_list[k] = fe_values;
 
-      if (!FEs.names().empty() && k < static_cast<size_t>(FEs.names().size())) {
-        fe_list_names[k] = FEs.names()[k];
+      if (k < fe_names.n_elem && !fe_names(k).empty()) {
+        fe_list_names[k] = fe_names(k);
       } else {
         fe_list_names[k] = std::to_string(k + 1);
       }
@@ -319,7 +332,8 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
 feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
            const doubles_matrix<> &x_r, const doubles &wt_r,
            const doubles &offset_r, const double &theta,
-           const std::string &family, const list &control, const list &k_list,
+           const std::string &family, const list &control,
+           const list &fe_codes, const list &fe_levels_r,
            const list &cl_list) {
   mat X = as_mat(x_r);
   vec beta = as_col(beta_r);
@@ -333,7 +347,7 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
 
   CapybaraParameters params(control);
 
-  field<field<uvec>> fe_groups = R_list_to_Armadillo_field(k_list);
+  capybara::FlatFEMap fe_map = R_codes_to_FlatFEMap(fe_codes);
 
   // Convert cluster list to Armadillo field<uvec>
   field<uvec> cluster_groups;
@@ -357,30 +371,12 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
   const vec *offset_ptr = (any(offset != 0.0)) ? &offset : nullptr;
 
   capybara::InferenceGLM result = capybara::feglm_fit(
-      beta, eta, y, X, w, theta, family_type, fe_groups, params, nullptr,
+      beta, eta, y, X, w, theta, family_type, fe_map, params, nullptr,
       has_clusters ? &cluster_groups : nullptr, offset_ptr);
 
-  field<std::string> fe_names(k_list.size());
-  field<field<std::string>> fe_levels(k_list.size());
-
-  if (!k_list.names().empty()) {
-    cpp4r::strings fe_names_r = k_list.names();
-    for (R_xlen_t i = 0; i < fe_names_r.size(); i++) {
-      fe_names(i) = std::string(fe_names_r[i]);
-    }
-  }
-
-  for (R_xlen_t k = 0; k < k_list.size(); k++) {
-    const list &group_list = as_cpp<list>(k_list[k]);
-    fe_levels(k).set_size(group_list.size());
-
-    if (!group_list.names().empty()) {
-      cpp4r::strings level_names = group_list.names();
-      for (R_xlen_t j = 0; j < level_names.size(); j++) {
-        fe_levels(k)(j) = std::string(level_names[j]);
-      }
-    }
-  }
+  field<std::string> fe_names;
+  field<field<std::string>> fe_levels;
+  extract_fe_names_and_levels(fe_codes, fe_levels_r, fe_names, fe_levels);
 
   // Replace collinear coefficients (NaN) with R's NA_REAL in all columns of
   // coef_table
@@ -452,9 +448,8 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
 
       fe_list[k] = fe_values;
 
-      if (!k_list.names().empty() &&
-          k < static_cast<size_t>(k_list.names().size())) {
-        fe_list_names[k] = k_list.names()[k];
+      if (k < fe_names.n_elem && !fe_names(k).empty()) {
+        fe_list_names[k] = fe_names(k);
       } else {
         fe_list_names[k] = std::to_string(k + 1);
       }
@@ -476,7 +471,7 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
 feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
                   const doubles &offset_r, const doubles &wt_r,
                   const std::string &family, const list &control,
-                  const list &k_list) {
+                  const list &fe_codes) {
   vec eta = as_col(eta_r);
   vec y = as_col(y_r);
   vec offset = as_col(offset_r);
@@ -484,20 +479,22 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
 
   CapybaraParameters params(control);
 
-  field<field<uvec>> fe_groups = R_list_to_Armadillo_field(k_list);
+  capybara::FlatFEMap fe_map = R_codes_to_FlatFEMap(fe_codes);
 
   std::string fam = capybara::tidy_family(family);
   capybara::Family family_type = capybara::get_family_type(fam);
 
   vec result = capybara::feglm_offset_fit(eta, y, offset, w, family_type,
-                                          fe_groups, params);
+                                          fe_map, params);
 
   return as_doubles(result);
 }
 
 [[cpp4r::register]] list
 fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
-              const doubles &w_r, const list &FEs, const std::string &link,
+              const doubles &w_r, const list &fe_codes,
+              const list &fe_levels_r,
+              const std::string &link,
               const doubles &beta_r, const doubles &eta_r,
               const double &init_theta, const doubles &offset_r,
               const list &control) {
@@ -508,10 +505,10 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
 
   CapybaraParameters params(control);
 
-  field<field<uvec>> fe_groups = R_list_to_Armadillo_field(FEs);
+  capybara::FlatFEMap fe_map = R_codes_to_FlatFEMap(fe_codes);
 
   capybara::InferenceNegBin result = capybara::fenegbin_fit(
-      X, y, w, fe_groups, params, offset_vec, init_theta);
+      X, y, w, fe_map, params, offset_vec, init_theta);
 
   // Replace collinear coefficients (NaN) with R's NA_REAL in all columns of
   // coef_table

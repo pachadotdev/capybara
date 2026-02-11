@@ -64,73 +64,35 @@ struct FelmWorkspace {
   }
 
   // Build FE map structure once; only update weights on subsequent calls
-  void ensure_fe_map(const field<field<uvec>> &fe_groups, const vec &w) {
+  void ensure_fe_map(const FlatFEMap &source_map, const vec &w) {
     if (!fe_map_initialized) {
-      fe_map.build(fe_groups);
+      fe_map = source_map; // copy structure
       fe_map_initialized = true;
     }
     fe_map.update_weights(w);
   }
 };
 
-// Precompute observation-to-group mapping
-struct FEAccumInfo {
-  uvec obs_to_group;
-  uword n_groups;
-};
-
-inline field<FEAccumInfo>
-precompute_fe_accum_info(const field<field<uvec>> &fe_groups, uword N) {
-  const uword K = fe_groups.n_elem;
-  field<FEAccumInfo> info(K);
-
-  for (uword k = 0; k < K; ++k) {
-    const field<uvec> &groups_k = fe_groups(k);
-    const uword J = groups_k.n_elem;
-    info(k).n_groups = J;
-    info(k).obs_to_group.set_size(N);
-
-    // Vectorized scatter: fill group index for all obs in each group
-    for (uword j = 0; j < J; ++j) {
-      info(k).obs_to_group.elem(groups_k(j)).fill(j);
-    }
-  }
-  return info;
-}
-
-// Fixed effects accumulation
-inline void
-accumulate_fixed_effects_vectorized(vec &fitted_values,
-                                    const field<vec> &fixed_effects,
-                                    const field<FEAccumInfo> &fe_info) {
-  const uword K = fe_info.n_elem;
-
-  for (uword k = 0; k < K; ++k) {
-    fitted_values += fixed_effects(k).elem(fe_info(k).obs_to_group);
-  }
-}
-
-// Fallback for when precomputed info isn't available
+// Fixed effects accumulation using FlatFEMap (no more FEAccumInfo)
 inline void accumulate_fixed_effects(vec &fitted_values,
                                      const field<vec> &fixed_effects,
-                                     const field<field<uvec>> &fe_groups) {
-  const uword K = fe_groups.n_elem;
+                                     const FlatFEMap &map) {
+  const uword K = map.K;
+  const uword N = map.n_obs;
 
   for (uword k = 0; k < K; ++k) {
-    const field<uvec> &groups_k = fe_groups(k);
-    const vec &fe_k = fixed_effects(k);
-    const uword J = groups_k.n_elem;
-
-    // Scatter fixed effects to observations (vectorized per group)
-    for (uword j = 0; j < J; ++j) {
-      fitted_values.elem(groups_k(j)) += fe_k(j);
+    const uword *gk = map.fe_map[k].data();
+    const double *fek = fixed_effects(k).memptr();
+    double *fv = fitted_values.memptr();
+    for (uword i = 0; i < N; ++i) {
+      fv[i] += fek[gk[i]];
     }
   }
 }
 
 inline void compute_fitted_values(FelmWorkspace *ws, InferenceLM &result,
                                   const CollinearityResult &collin_result,
-                                  const field<field<uvec>> &fe_groups,
+                                  const FlatFEMap &fe_map,
                                   const CapybaraParameters &params) {
   const uword N = ws->y_original.n_elem;
   const vec &coef = result.coef_table.col(0);
@@ -145,29 +107,24 @@ inline void compute_fitted_values(FelmWorkspace *ws, InferenceLM &result,
     ws->x_beta.zeros(N);
   }
 
-  const bool has_fixed_effects = fe_groups.n_elem > 0;
+  const bool has_fixed_effects = fe_map.K > 0;
 
   if (has_fixed_effects) {
     // Vectorized residual pi = y - X*beta
     ws->pi = ws->y_original - ws->x_beta;
 
     const vec *coef_weights = nullptr;
-    // Only pass weights if they are not all 1.
-    // However, result.weights should already be set to input weights w.
-    // If w was all 1s, result.weights is all 1s.
-    // But efficiently, we might want to check.
-    // For feglm, weights are definitely not all 1s.
     coef_weights = &result.weights;
 
     result.fixed_effects =
-        get_alpha(ws->pi, fe_groups, params.alpha_tol, params.iter_alpha_max,
-                  nullptr, coef_weights);
+        get_alpha(ws->pi, fe_map, params.alpha_tol, params.iter_alpha_max,
+                  coef_weights);
     result.has_fe = true;
 
     result.fitted_values = ws->x_beta;
 
     accumulate_fixed_effects(result.fitted_values, result.fixed_effects,
-                             fe_groups);
+                             fe_map);
   } else {
     result.fitted_values = ws->x_beta;
   }
@@ -175,7 +132,7 @@ inline void compute_fitted_values(FelmWorkspace *ws, InferenceLM &result,
 
 inline void compute_r_squared(InferenceLM &result, const vec &y,
                               const vec &residuals, const vec &w, uword n_coef,
-                              const field<field<uvec>> &fe_groups) {
+                              const FlatFEMap &fe_map) {
   const uword N = y.n_elem;
   const double w_sum = accu(w);
   const double y_mean = dot(w, y) / w_sum;
@@ -189,9 +146,9 @@ inline void compute_r_squared(InferenceLM &result, const vec &y,
 
   // Count degrees of freedom for FE
   uword k = n_coef;
-  const uword K = fe_groups.n_elem;
+  const uword K = fe_map.K;
   for (uword j = 0; j < K; ++j) {
-    k += fe_groups(j).n_elem - 1;
+    k += fe_map.n_groups[j] - 1;
   }
 
   const double denom = std::max(1.0, static_cast<double>(N - k));
@@ -213,7 +170,7 @@ inline void expand_vcov(mat &vcov_full, const mat &vcov_reduced,
 }
 
 InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
-                     const field<field<uvec>> &fe_groups,
+                     const FlatFEMap &fe_map,
                      const CapybaraParameters &params,
                      FelmWorkspace *workspace = nullptr,
                      const field<uvec> *cluster_groups = nullptr,
@@ -221,7 +178,7 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
                      double adaptive_center_tol = 0.0) {
   const uword N = y.n_elem;
   const uword P_input = X.n_cols;
-  const bool has_fixed_effects = fe_groups.n_elem > 0;
+  const bool has_fixed_effects = fe_map.K > 0;
 
   // Determine final P (with or without intercept)
   const uword P = (!has_fixed_effects && !run_from_glm) ? P_input + 1 : P_input;
@@ -256,7 +213,7 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
 
   if (has_fixed_effects) {
     // Build FE map structure once, only update weights each call
-    ws->ensure_fe_map(fe_groups, w);
+    ws->ensure_fe_map(fe_map, w);
 
     // Use adaptive tolerance if provided, otherwise use params.center_tol
     const double effective_tol =
@@ -366,7 +323,7 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
   }
   result.success = true;
 
-  compute_fitted_values(ws, result, collin_result, fe_groups, params);
+  compute_fitted_values(ws, result, collin_result, fe_map, params);
 
   if (run_from_glm) {
     // Only return coefficients
@@ -384,7 +341,7 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
   result.residuals = ws->y_original - result.fitted_values;
 
   compute_r_squared(result, ws->y_original, result.residuals, w, n_coef,
-                    fe_groups);
+                    fe_map);
 
   mat vcov_reduced;
   const double rss = dot(w % result.residuals, result.residuals);

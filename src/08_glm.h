@@ -126,7 +126,7 @@ inline WorkingWtsNuFn get_ww_nu_fn(Family family_type) {
 
 InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
                        const double &theta, const Family family_type,
-                       const field<field<uvec>> &fe_groups,
+                       const FlatFEMap &fe_map,
                        const CapybaraParameters &params,
                        GlmWorkspace *workspace = nullptr,
                        const field<uvec> *cluster_groups = nullptr,
@@ -142,7 +142,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 
   const uword n = y.n_elem;
   const uword p_original = X.n_cols;
-  const bool has_fixed_effects = fe_groups.n_elem > 0;
+  const bool has_fixed_effects = fe_map.K > 0;
   const bool has_offset =
       (offset != nullptr && offset->n_elem == n && any(*offset != 0.0));
 
@@ -196,7 +196,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       w_work.elem(sep_result.separated_obs).zeros();
 
       InferenceGLM result_with_sep =
-          feglm_fit(beta, eta, y, X, w_work, theta, family_type, fe_groups,
+          feglm_fit(beta, eta, y, X, w_work, theta, family_type, fe_map,
                     params, &ws, cluster_groups, offset, true);
 
       // Mark separated observations
@@ -286,7 +286,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 
   // Convergence acceleration for large models
   const bool is_large_model = (n > 100000) || (p_working > 1000) ||
-                              (has_fixed_effects && fe_groups.n_elem > 1);
+                              (has_fixed_effects && fe_map.K > 1);
   double last_eta_change = datum::inf;
   uword convergence_count = 0;
 
@@ -334,7 +334,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
         (iter == 0) ? adaptive_center_tol * 10.0 : adaptive_center_tol;
 
     InferenceLM lm_res =
-        felm_fit(X, z, w_working, fe_groups, params, &felm_workspace,
+        felm_fit(X, z, w_working, fe_map, params, &felm_workspace,
                  cluster_groups, true, iter_center_tol);
 
     const vec &beta_upd_reduced = lm_res.coef_table.col(0);
@@ -479,7 +479,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       result.has_fe = true;
       if (params.return_fe) {
         result.fixed_effects =
-            get_alpha(pi, fe_groups, params.alpha_tol, params.iter_alpha_max);
+            get_alpha(pi, fe_map, params.alpha_tol, params.iter_alpha_max);
       }
     }
 
@@ -625,7 +625,7 @@ inline OffsetWwYadjFn get_offset_ww_yadj_fn(Family family_type) {
 
 vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
                      const Family family_type,
-                     const field<field<uvec>> &fe_groups,
+                     const FlatFEMap &fe_map_in,
                      const CapybaraParameters &params) {
   const uword n = y.n_elem;
 
@@ -648,12 +648,9 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
     adaptive_tol = std::max(params.center_tol, 1e-3);
   }
 
-  // Persistent FE structures
-  FlatFEMap fe_map;
+  // Mutable copy of FE map for weight updates
+  FlatFEMap fe_map = fe_map_in;
   CellAggregated2FE cells_2fe;
-  if (fe_groups.n_elem > 0) {
-    fe_map.build(fe_groups);
-  }
 
   // Maximize the log-likelihood
   for (uword iter = 0; iter < params.iter_max; ++iter) {
@@ -665,7 +662,7 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
     compute_ww_yadj(w_working, yadj, w, mu, y, eta, offset);
 
     // Only update weights on the persistent FE map
-    if (fe_groups.n_elem > 0) {
+    if (fe_map.K > 0) {
       fe_map.update_weights(w_working);
     }
 

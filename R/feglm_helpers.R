@@ -518,7 +518,7 @@ get_score_matrix_feglm_ <- function(object) {
   if (object[["control"]][["keep_tx"]]) {
     X <- object[["tx"]]
   } else {
-    # Generate auxiliary list of indexes to project out the fixed effects
+    # Generate flat FE codes to project out the fixed effects
     k_list <- get_index_list_(names(object[["lvls_k"]]), object[["data"]])
 
     # Extract regressor matrix
@@ -533,7 +533,7 @@ get_score_matrix_feglm_ <- function(object) {
     X <- center_variables_(
       X,
       w,
-      k_list,
+      k_list[["codes"]],
       object[["control"]][["center_tol"]],
       object[["control"]][["iter_center_max"]]
     )

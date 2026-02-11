@@ -59,15 +59,41 @@ NULL
 #' @noRd
 NULL
 
-#' @title Get index list
-#' @description Generates an auxiliary list of indexes to project out the fixed effects (on C++ side the outputs are
-#'  0-indexed)
-#' @param k_vars Fixed effects
+#' @title Get FE codes
+#' @description Returns flat 0-based integer factor codes for each FE variable
+#'  plus level names. This is the lean replacement for the old inverted-index
+#'  approach: R passes K integer vectors of length N (the factor codes) and
+#'  K character vectors of level names. C++ builds FlatFEMap directly in O(N).
+#' @param k_vars Fixed effects variable names
 #' @param data Data frame
+#' @return A named list with two elements:
+#'   \code{codes}: a list of K integer vectors (0-based factor codes, length N)
+#'   \code{levels}: a list of K character vectors (level names)
 #' @noRd
 get_index_list_ <- function(k_vars, data) {
+  codes <- lapply(k_vars, function(v) {
+    f <- as.factor(data[[v]])
+    as.integer(f) - 1L
+  })
+  lvls <- lapply(k_vars, function(v) {
+    levels(as.factor(data[[v]]))
+  })
+  names(codes) <- k_vars
+  names(lvls) <- k_vars
+  list(codes = codes, levels = lvls)
+}
+
+#' @title Get cluster index list
+#' @description Generates an auxiliary list of indexes for cluster-robust
+#'  standard errors. Keeps the old inverted-index format (list of integer
+#'  vectors, one per group) since clusters use a different C++ path.
+#' @param cl_var Single cluster variable name (character of length 1)
+#' @param data Data frame
+#' @return A list of integer vectors (1-based observation indices per group)
+#' @noRd
+get_cluster_list_ <- function(cl_var, data) {
   n <- nrow(data)
-  lapply(k_vars, function(v) split(seq_len(n), data[[v]]))
+  split(seq_len(n), data[[cl_var]])
 }
 
 #' @title Model frame

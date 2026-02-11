@@ -143,8 +143,14 @@ apes <- function(
   # Determine which of the regressors are binary
   binary <- apply(X, 2L, function(X) all(X %in% c(0.0, 1.0)))
 
-  # Generate auxiliary list of indexes for different sub panels
-  k_list <- get_index_list_(names(object[["fe_levels"]]), data)
+  # Generate flat FE codes for centering + inverted indices for group_sums
+  fe_names_apes <- names(object[["fe_levels"]])
+  k_list <- get_index_list_(fe_names_apes, data)
+  # Inverted indices for group_sums_ (only called once, not hot path)
+  n_apes <- nrow(data)
+  k_groups <- lapply(fe_names_apes, function(v) {
+    split(seq_len(n_apes), data[[v]])
+  })
 
   # Compute derivatives and weights
   eta <- object[["eta"]]
@@ -168,7 +174,7 @@ apes <- function(
     tx <- center_variables_(
       X,
       w,
-      k_list,
+      k_list[["codes"]],
       object[["control"]][["center_tol"]],
       object[["control"]][["iter_center_max"]],
       object[["control"]][["grand_acc_period"]]
@@ -210,7 +216,7 @@ apes <- function(
   mpsi <- center_variables_(
     -delta1 / w,
     w,
-    k_list,
+    k_list[["codes"]],
     object[["control"]][["center_tol"]],
     object[["control"]][["iter_max"]],
     object[["control"]][["grand_acc_period"]]
@@ -231,7 +237,7 @@ apes <- function(
       ppsi,
       z,
       w,
-      k_list,
+      k_groups,
       panel_structure,
       l,
       k,
@@ -250,7 +256,7 @@ apes <- function(
     v,
     delta,
     gamma,
-    k_list,
+    k_groups,
     adj,
     sampling_fe,
     weak_exo,

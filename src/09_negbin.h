@@ -43,7 +43,7 @@ inline double estimate_theta(const vec &y, const double theta_min = 0.1,
 }
 
 InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
-                             const field<field<uvec>> &fe_groups,
+                             const FlatFEMap &fe_map,
                              const CapybaraParameters &params,
                              const vec &offset = vec(), double init_theta = 0.0,
                              GlmWorkspace *workspace = nullptr) {
@@ -65,7 +65,7 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
 
   // Initial Poisson fit to get good starting values
   InferenceGLM poisson_fit =
-      feglm_fit(beta_coef, eta, y, X, w, 0.0, POISSON, fe_groups, params, &ws);
+      feglm_fit(beta_coef, eta, y, X, w, 0.0, POISSON, fe_map, params, &ws);
 
   if (!poisson_fit.conv) {
     static_cast<InferenceGLM &>(result) = std::move(poisson_fit);
@@ -92,7 +92,7 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
 
     // Fit negative binomial GLM with current theta
     InferenceGLM glm_fit = feglm_fit(beta_coef, eta, y, X, w, theta, NEG_BIN,
-                                     fe_groups, params, &ws);
+                                     fe_map, params, &ws);
 
     if (!glm_fit.conv) {
       static_cast<InferenceGLM &>(result) = std::move(glm_fit);

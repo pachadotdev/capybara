@@ -175,14 +175,13 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   if (length(fe_vars) > 0) {
     nms_fe <- lapply(data[fe_vars], levels)
     fe_levels <- vapply(nms_fe, length, integer(1))
-    # Generate auxiliary list of indexes for different sub panels ----
+    # Generate flat FE codes for C++ FlatFEMap
     FEs <- get_index_list_(fe_vars, data)
-    names(FEs) <- fe_vars
   } else {
     # No fixed effects - create empty list
     nms_fe <- list()
     fe_levels <- integer(0)
-    FEs <- list()
+    FEs <- list(codes = list(), levels = list())
   }
 
   # Extract cluster variable from formula (third part) ----
@@ -191,8 +190,8 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
     "term.labels"
   ))
   if (length(cl_vars_temp) >= 1L) {
-    # Get cluster index list (similar to FEs but only one level)
-    cl_list <- get_index_list_(cl_vars_temp[1L], data)[[1L]]
+    # Get cluster index list (inverted-index format for sandwich estimator)
+    cl_list <- get_cluster_list_(cl_vars_temp[1L], data)
   } else {
     cl_list <- list()
   }
@@ -202,7 +201,7 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
     y <- as.numeric(y)
   }
 
-  fit <- felm_fit_(X, y, w, FEs, control, cl_list)
+  fit <- felm_fit_(X, y, w, FEs[["codes"]], FEs[["levels"]], control, cl_list)
 
   nobs <- nobs_(nobs_full, nobs_na, y, fit[["fitted_values"]])
 

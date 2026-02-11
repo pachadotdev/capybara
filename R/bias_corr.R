@@ -96,8 +96,14 @@ bias_corr <- function(
   X <- model.matrix(object[["formula"]], object[["data"]], rhs = 1L)[, -1L, drop = FALSE]
   attr(X, "dimnames") <- NULL
 
-  # Generate auxiliary list of indexes for different sub panels
-  k_list <- get_index_list_(names(object[["fe_levels"]]), object[["data"]])
+  # Generate flat FE codes for centering + inverted indices for group_sums
+  fe_names <- names(object[["fe_levels"]])
+  k_list <- get_index_list_(fe_names, object[["data"]])
+  # Inverted indices for group_sums_ (only called once, not hot path)
+  n_bc <- nrow(object[["data"]])
+  k_groups <- lapply(fe_names, function(v) {
+    split(seq_len(n_bc), object[["data"]][[v]])
+  })
 
   # Compute derivatives and weights
   mu <- object[["family"]][["linkinv"]](object[["eta"]])
@@ -118,7 +124,7 @@ bias_corr <- function(
     X <- object[["tx"]]
   } else {
     X <- center_variables_(
-      X, w, k_list,
+      X, w, k_list[["codes"]],
       object[["control"]][["center_tol"]],
       object[["control"]][["iter_center_max"]],
       object[["control"]][["grand_acc_period"]]
@@ -128,26 +134,26 @@ bias_corr <- function(
   # Compute bias terms for requested bias correction
   if (panel_structure == "classic") {
     # Compute \hat{B} and \hat{D}
-    b <- as.vector(group_sums_(X * z, w, k_list[[1L]])) / 2.0 / nt
+    b <- as.vector(group_sums_(X * z, w, k_groups[[1L]])) / 2.0 / nt
     if (k > 1L) {
-      b <- b + as.vector(group_sums_(X * z, w, k_list[[2L]])) / 2.0 / nt
+      b <- b + as.vector(group_sums_(X * z, w, k_groups[[2L]])) / 2.0 / nt
     }
 
     # Compute spectral density part of \hat{B}
     if (l > 0L) {
-      b <- (b + group_sums_spectral_(X * w, v, w, l, k_list[[1L]])) / nt
+      b <- (b + group_sums_spectral_(X * w, v, w, l, k_groups[[1L]])) / nt
     }
   } else {
     # Compute \hat{D}_{1}, \hat{D}_{2}, and \hat{B}
-    b <- group_sums_(X * z, w, k_list[[1L]]) / (2.0 * nt)
-    b <- (b + group_sums_(X * z, w, k_list[[2L]])) / (2.0 * nt)
+    b <- group_sums_(X * z, w, k_groups[[1L]]) / (2.0 * nt)
+    b <- (b + group_sums_(X * z, w, k_groups[[2L]])) / (2.0 * nt)
     if (k > 2L) {
-      b <- (b + group_sums_(X * z, w, k_list[[3L]])) / (2.0 * nt)
+      b <- (b + group_sums_(X * z, w, k_groups[[3L]])) / (2.0 * nt)
     }
 
     # Compute spectral density part of \hat{B}
     if (k > 2L && l > 0L) {
-      b <- (b + group_sums_spectral_(X * w, v, w, l, k_list[[3L]])) / nt
+      b <- (b + group_sums_spectral_(X * w, v, w, l, k_groups[[3L]])) / nt
     }
   }
 
@@ -170,7 +176,7 @@ bias_corr <- function(
 
   # Update centered regressor matrix
   X <- center_variables_(
-    X, w, k_list,
+    X, w, k_list[["codes"]],
     object[["control"]][["center_tol"]],
     object[["control"]][["iter_center_max"]],
     object[["control"]][["grand_acc_period"]]

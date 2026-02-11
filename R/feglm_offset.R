@@ -26,7 +26,7 @@ feglm_offset_ <- function(object, offset) {
     stop("'feglm_offset_' called on a non-'feglm' object.")
   }
 
-  # Generate auxiliary list of indexes to project out the fixed effects
+  # Generate flat FE codes for C++ FlatFEMap
   k_list <- get_index_list_(names(object[["fe_levels"]]), object[["data"]])
 
   # Extract dependent variable
@@ -70,6 +70,6 @@ feglm_offset_ <- function(object, offset) {
     object[["weights"]],
     object[["family"]][["family"]],
     object[["control"]],
-    k_list
+    k_list[["codes"]]
   )
 }

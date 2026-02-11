@@ -15,90 +15,12 @@ struct InferenceAlpha {
   InferenceAlpha() : is_regular(true), success(false) {}
 };
 
-// Optimized alpha recovery using flat obs->group mapping (like centering)
-struct AlphaFlatMap {
-  std::vector<std::vector<uword>>
-      fe_map;                   // K x N: fe_map[k][i] = group of obs i
-  std::vector<vec> inv_weights; // K: precomputed 1/sum(w) per group
-  std::vector<uword> n_groups;  // K: number of groups per FE
-  uword n_obs;
-  uword K;
-
-  void build(const field<field<uvec>> &group_indices,
-             const vec *weights = nullptr) {
-    K = group_indices.n_elem;
-    if (K == 0)
-      return;
-
-    n_groups.resize(K);
-    n_obs = 0;
-
-    // First pass: find n_obs and n_groups
-    for (uword k = 0; k < K; ++k) {
-      n_groups[k] = group_indices(k).n_elem;
-      for (uword g = 0; g < n_groups[k]; ++g) {
-        const uvec &idx = group_indices(k)(g);
-        if (idx.n_elem > 0) {
-          n_obs = std::max(n_obs, idx.max() + 1);
-        }
-      }
-    }
-
-    // Allocate fe_map
-    fe_map.resize(K);
-    for (uword k = 0; k < K; ++k) {
-      fe_map[k].assign(n_obs, 0);
-    }
-
-    // Fill fe_map
-    for (uword k = 0; k < K; ++k) {
-      uword *map_k = fe_map[k].data();
-      for (uword g = 0; g < n_groups[k]; ++g) {
-        const uvec &idx = group_indices(k)(g);
-        const uword *idx_ptr = idx.memptr();
-        const uword cnt = idx.n_elem;
-        for (uword j = 0; j < cnt; ++j) {
-          map_k[idx_ptr[j]] = g;
-        }
-      }
-    }
-
-    // Compute inverse weights
-    inv_weights.resize(K);
-    const bool use_w = (weights != nullptr && weights->n_elem == n_obs);
-    const double *w_ptr = use_w ? weights->memptr() : nullptr;
-
-    for (uword k = 0; k < K; ++k) {
-      inv_weights[k].zeros(n_groups[k]);
-      double *inv_w_ptr = inv_weights[k].memptr();
-      const uword *map_k = fe_map[k].data();
-
-      if (use_w) {
-        for (uword i = 0; i < n_obs; ++i) {
-          inv_w_ptr[map_k[i]] += w_ptr[i];
-        }
-      } else {
-        for (uword i = 0; i < n_obs; ++i) {
-          inv_w_ptr[map_k[i]] += 1.0;
-        }
-      }
-
-      // Invert
-      for (uword g = 0; g < n_groups[k]; ++g) {
-        inv_w_ptr[g] = (inv_w_ptr[g] > 1e-12) ? (1.0 / inv_w_ptr[g]) : 0.0;
-      }
-    }
-  }
-};
-
+// get_alpha now takes a const FlatFEMap& directly (no duplicate struct)
 inline field<vec>
-get_alpha(const vec &pi, const field<field<uvec>> &group_indices,
+get_alpha(const vec &pi, const FlatFEMap &map,
           double tol = 1e-8, uword iter_max = 10000,
-          void *unused = nullptr, // kept for API compatibility
           const vec *weights = nullptr) {
-  (void)unused; // suppress warning
-
-  const uword K = group_indices.n_elem;
+  const uword K = map.K;
   const uword N = pi.n_elem;
   field<vec> coefficients(K);
 
@@ -106,23 +28,41 @@ get_alpha(const vec &pi, const field<field<uvec>> &group_indices,
     return coefficients;
   }
 
-  // Build flat map (like centering does)
-  AlphaFlatMap map;
-  map.build(group_indices, weights);
-
   // Initialize coefficients to zero
   for (uword k = 0; k < K; ++k) {
     coefficients(k).zeros(map.n_groups[k]);
   }
 
-  // Residual: r = pi - sum_k(alpha_k expanded)
-  vec r = pi;
-  const double *r_ptr = r.memptr();
-  double *r_ptr_w = r.memptr();
-
-  // Weight pointer (may be null)
+  // Build inverse weights for alpha recovery
+  // (may differ from centering weights if called with different w)
+  std::vector<vec> alpha_inv_weights(K);
   const bool use_w = (weights != nullptr && weights->n_elem == N);
   const double *w_ptr = use_w ? weights->memptr() : nullptr;
+
+  for (uword k = 0; k < K; ++k) {
+    alpha_inv_weights[k].zeros(map.n_groups[k]);
+    double *inv_w_ptr = alpha_inv_weights[k].memptr();
+    const uword *map_k = map.fe_map[k].data();
+
+    if (use_w) {
+      for (uword i = 0; i < N; ++i) {
+        inv_w_ptr[map_k[i]] += w_ptr[i];
+      }
+    } else {
+      for (uword i = 0; i < N; ++i) {
+        inv_w_ptr[map_k[i]] += 1.0;
+      }
+    }
+
+    // Invert
+    for (uword g = 0; g < map.n_groups[k]; ++g) {
+      inv_w_ptr[g] = (inv_w_ptr[g] > 1e-12) ? (1.0 / inv_w_ptr[g]) : 0.0;
+    }
+  }
+
+  // Residual: r = pi - sum_k(alpha_k expanded)
+  vec r = pi;
+  double *r_ptr_w = r.memptr();
 
   double crit = 1.0;
   uword iter = 0;
@@ -133,7 +73,7 @@ get_alpha(const vec &pi, const field<field<uvec>> &group_indices,
     for (uword k = 0; k < K; ++k) {
       const uword *gk = map.fe_map[k].data();
       const uword J = map.n_groups[k];
-      const double *inv_wk = map.inv_weights[k].memptr();
+      const double *inv_wk = alpha_inv_weights[k].memptr();
       vec &alpha_k = coefficients(k);
       double *ak_ptr = alpha_k.memptr();
 
@@ -147,12 +87,12 @@ get_alpha(const vec &pi, const field<field<uvec>> &group_indices,
       if (use_w) {
         for (uword i = 0; i < N; ++i) {
           uword g = gk[i];
-          new_ak_ptr[g] += w_ptr[i] * (r_ptr[i] + ak_ptr[g]);
+          new_ak_ptr[g] += w_ptr[i] * (r_ptr_w[i] + ak_ptr[g]);
         }
       } else {
         for (uword i = 0; i < N; ++i) {
           uword g = gk[i];
-          new_ak_ptr[g] += r_ptr[i] + ak_ptr[g];
+          new_ak_ptr[g] += r_ptr_w[i] + ak_ptr[g];
         }
       }
 
@@ -196,13 +136,6 @@ get_alpha(const vec &pi, const field<field<uvec>> &group_indices,
 
   return coefficients;
 }
-
-// Legacy struct for API compatibility (not used internally anymore)
-struct AlphaGroupInfo {
-  uvec obs_to_group;
-  vec group_sizes;
-  uword n_groups;
-};
 
 } // namespace capybara
 
