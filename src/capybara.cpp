@@ -748,6 +748,23 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
     eta += offset;
   }
 
+  // Safety net: if eta contains non-finite values (e.g. because
+  // start_guesses_ computed log(NA) when y had NA values that
+  // prepare_raw_data subsequently removed), replace with a reasonable
+  // starting value derived from the clean y
+  if (eta.n_elem > 0) {
+    uvec bad_eta = find_nonfinite(eta);
+    if (bad_eta.n_elem > 0) {
+      double y_mean = mean(data.y);
+      // For Poisson/count models the link is log, so log(mean(y)+0.1) is safe
+      // For other families this is still a reasonable fallback
+      double safe_eta = std::log(y_mean + 0.1);
+      if (!std::isfinite(safe_eta))
+        safe_eta = 0.0;
+      eta.elem(bad_eta).fill(safe_eta);
+    }
+  }
+
   // Pass offset pointer so fixed effects can be computed correctly
   const vec *offset_ptr = (any(offset != 0.0)) ? &offset : nullptr;
 

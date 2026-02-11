@@ -471,7 +471,12 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 #endif
 
   if (conv) {
-    const mat H = crossprod(X, w_working);
+    // Use the FE-centered design matrix (MX) from the last felm_fit iteration
+    // for Hessian and sandwich vcov computation.  In the old IRLS scheme X was
+    // centered in-place, so crossprod(X, w_working) was MX'WMX.  Now centering
+    // lives inside felm_fit, so we must retrieve MX from the workspace.
+    const mat &MX = has_fixed_effects ? felm_workspace.X_centered : X;
+    const mat H = crossprod(MX, w_working);
 
 #ifdef CAPYBARA_DEBUG
     auto tfe0 = std::chrono::high_resolution_clock::now();
@@ -510,7 +515,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 
     // Covariance matrix
     if (cluster_groups != nullptr && cluster_groups->n_elem > 0) {
-      result.vcov = compute_sandwich_vcov(X, y, mu, H, *cluster_groups);
+      result.vcov = compute_sandwich_vcov(MX, y, mu, H, *cluster_groups);
     } else {
       mat H_inv;
       if (!inv_sympd(H_inv, H) && !inv(H_inv, H)) {
@@ -570,7 +575,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     }
 
     if (params.keep_tx) {
-      result.TX = X;
+      result.TX = MX;
       result.has_tx = true;
     }
   }

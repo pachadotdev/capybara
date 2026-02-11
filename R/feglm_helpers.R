@@ -437,13 +437,15 @@ start_guesses_ <- function(
     }
   } else {
     # Compute starting guesses if not user specified
+    # Use na.rm = TRUE so that NA values in y do not poison eta
+    # (prepare_raw_data will drop the corresponding rows later in C++)
     beta <- numeric(p)
     if (family[["family"]] == "binomial") {
-      eta <- rep(family[["linkfun"]](sum(wt * (y + 0.5) / 2.0) / sum(wt)), nt)
+      eta <- rep(family[["linkfun"]](sum(wt * (y + 0.5) / 2.0, na.rm = TRUE) / sum(wt[is.finite(y)])), nt)
     } else if (family[["family"]] %in% c("Gamma", "inverse.gaussian")) {
-      eta <- rep(family[["linkfun"]](sum(wt * y) / sum(wt)), nt)
+      eta <- rep(family[["linkfun"]](sum(wt * y, na.rm = TRUE) / sum(wt[is.finite(y)])), nt)
     } else {
-      eta <- rep(family[["linkfun"]](sum(wt * (y + 0.1)) / sum(wt)), nt)
+      eta <- rep(family[["linkfun"]](sum(wt * (y + 0.1), na.rm = TRUE) / sum(wt[is.finite(y)])), nt)
     }
   }
 
