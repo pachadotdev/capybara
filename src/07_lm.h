@@ -51,6 +51,10 @@ struct FelmWorkspace {
   CenterWarmStart warm_start; // Warm-start for centering across IRLS
   bool fe_map_initialized;    // Has fe_map.build() been called?
 
+  // Reusable InferenceLM for IRLS inner calls (avoids re-allocating N-length
+  // vectors + P×P matrices every iteration)
+  std::unique_ptr<InferenceLM> glm_result;
+
   uword cached_N, cached_P;
 
   FelmWorkspace() : fe_map_initialized(false), cached_N(0), cached_P(0) {}
@@ -126,19 +130,32 @@ inline void compute_fitted_values(FelmWorkspace *ws, InferenceLM &result,
     //
     // This is exact (same as X*beta + FE_means(y - X*beta)) because
     // centering is linear: M_fe(y - X*beta) = M_fe(y) - M_fe(X)*beta.
-    vec x_centered_beta;
+    // Compute fitted = y - y_demeaned + X_centered * beta in-place
+    // to avoid temporary vector allocation
+    double *fv = result.fitted_values.memptr();
+    const double *yo = ws->y_original.memptr();
+    const double *yd = ws->y_demeaned.memptr();
     const uword Pc = ws->X_centered.n_cols;
+
     if (collin_result.has_collinearity &&
         !collin_result.non_collinear_cols.is_empty()) {
       const uvec &cols = collin_result.non_collinear_cols;
-      x_centered_beta = ws->X_centered.cols(cols) * coef.elem(cols);
+      const vec x_centered_beta = ws->X_centered.cols(cols) * coef.elem(cols);
+      const double *xb = x_centered_beta.memptr();
+      for (uword i = 0; i < N; ++i) {
+        fv[i] = yo[i] - yd[i] + xb[i];
+      }
     } else if (Pc > 0) {
-      x_centered_beta = ws->X_centered * coef;
+      const vec x_centered_beta = ws->X_centered * coef;
+      const double *xb = x_centered_beta.memptr();
+      for (uword i = 0; i < N; ++i) {
+        fv[i] = yo[i] - yd[i] + xb[i];
+      }
     } else {
-      x_centered_beta.zeros(N);
+      for (uword i = 0; i < N; ++i) {
+        fv[i] = yo[i] - yd[i];
+      }
     }
-    result.fitted_values =
-        ws->y_original - ws->y_demeaned + x_centered_beta;
     result.has_fe = true;
     return;
   }
@@ -226,15 +243,38 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
   // Determine final P (with or without intercept)
   const uword P = (!has_fixed_effects && !run_from_glm) ? P_input + 1 : P_input;
 
-  InferenceLM result(N, P);
-  result.weights = w;
-
   FelmWorkspace local_workspace;
   FelmWorkspace *ws = workspace ? workspace : &local_workspace;
   ws->ensure_size(N, P);
-  ws->y_original = y;
 
-  result.has_fe = has_fixed_effects;
+  // Reuse or create result object.
+  // In the IRLS path (run_from_glm=true) the workspace keeps a persistent
+  // InferenceLM so we don't re-allocate N-length vectors + P×P matrices
+  // every iteration.
+  InferenceLM *res_ptr;
+  if (run_from_glm) {
+    if (!ws->glm_result || ws->glm_result->fitted_values.n_elem != N ||
+        ws->glm_result->coef_table.n_rows != P) {
+      ws->glm_result = std::make_unique<InferenceLM>(N, P);
+    }
+    res_ptr = ws->glm_result.get();
+    // Reset only the fields that matter for each iteration
+    res_ptr->success = false;
+    res_ptr->has_fe = has_fixed_effects;
+  } else {
+    // Standalone felm: allocate fresh (returned to caller)
+    res_ptr = nullptr; // will use local below
+  }
+
+  // For standalone felm we need a local result that we return
+  InferenceLM local_result(run_from_glm ? 0 : N, run_from_glm ? 0 : P);
+  InferenceLM &result = run_from_glm ? *res_ptr : local_result;
+  if (!run_from_glm) {
+    result.weights = w;
+    result.has_fe = has_fixed_effects;
+  }
+
+  ws->y_original = y;
 
   const bool use_weights = any(w != 1.0);
 
@@ -250,8 +290,13 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
     const double effective_tol =
         (adaptive_center_tol > 0.0) ? adaptive_center_tol : params.center_tol;
 
-    // X_original needed for X*beta in compute_fitted_values
-    ws->X_original = X;
+    // X_original is only needed for the full get_alpha() path (standalone
+    // felm).  In the IRLS path (run_from_glm=true) we use the skip_alpha
+    // fast path which computes fitted values from centered quantities
+    // directly, so we skip this N*P copy.
+    if (!run_from_glm) {
+      ws->X_original = X;
+    }
 
     // Copy y and X into the contiguous center_buf via the non-owning views.
     // y_demeaned and X_centered point into the same buffer, so
