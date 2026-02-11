@@ -1,41 +1,26 @@
 // Centering using flat observation-to-group mapping
 //
-// Key optimization: cell aggregation for 2-FE case reduces O(N) loops to
-// O(n_cells) where n_cells << N for typical panel data
+// Algorithm based on fixest (Berge 2018): compute FE coefficients that
+// minimize weighted sum of squares, then subtract to demean.
 //
-// Some ideas borrowed from fixest/reghdfe:
-// - Cell aggregation for 2-FE case
-// - Irons-Tuck acceleration
-// - Grand acceleration (second-level IT)
+// Key design principles:
+// - Precompute in_out[g] = sum_{i: fe[i]==g} w[i] * V[i] once (O(N))
+// - Inner iteration operates on coefficient vectors only (O(n_coef))
+// - 2-FE special case avoids N-length temporaries entirely
+// - No cell aggregation (adds overhead for sparse panels where n_cells ~ N)
+// - Irons-Tuck + grand acceleration on coefficient vectors
 // - Post-acceleration projection
-// - fixest-style per-coefficient convergence criterion
-// - SSR-based stopping (periodic)
+// - Warm-starting across IRLS calls
 //
 // Performance design:
 // - No branching on P: always use colptr()/memptr() with a single code path
-// - Gather/scatter on index arrays, Armadillo dense ops on intermediates
-// - Armadillo vectorized mat ops for IT/grand acceleration (accu, square, %)
-// - Combined [y | X] centering avoids duplicate iteration overhead
+// - All inner-loop work is scatter/gather on index arrays
+// - Armadillo vectorized mat ops for IT/grand acceleration
 
 #ifndef CAPYBARA_CENTER_H
 #define CAPYBARA_CENTER_H
 
 namespace capybara {
-
-// In-place row scaling for all columns: A(i,j) *= scale[i] for all j
-// Uses colptr() for direct column memory access
-inline void scale_rows_inplace(mat &A, const vec &scale) {
-  const uword n_rows = A.n_rows;
-  const uword n_cols = A.n_cols;
-  const double *s_ptr = scale.memptr();
-
-  for (uword j = 0; j < n_cols; ++j) {
-    double *col = A.colptr(j);
-    for (uword i = 0; i < n_rows; ++i) {
-      col[i] *= s_ptr[i];
-    }
-  }
-}
 
 // Whereas iteration should continue/stop
 
@@ -134,161 +119,145 @@ struct FlatFEMap {
   }
 };
 
-// Cell-aggregated 2-FE centering
-//
-// Key idea from fixest/reghdfe: for 2 FEs with n1 and n2 groups,
-// many observations share the same (g1, g2) cell. Instead of looping
-// over all N observations in the inner iteration, pre-aggregate the
-// weighted sums of V into unique cells. The alpha update then iterates
-// over n_cells (typically much smaller than N).
-//
-// The structure (cell_g1, cell_g2, obs_to_cell) is invariant across
-// IRLS iterations — only cell_w and cell_wV change with weights.
+// Warm-start storage for centering across IRLS iterations
+struct CenterWarmStart {
+  std::vector<mat> alpha; // K coefficient matrices (n_groups[k] x P)
+  uword K;
+  uword P;
+  bool valid;
 
-struct CellAggregated2FE {
-  // Cell structure (invariant across weight updates)
-  std::vector<uword> cell_g1; // FE1 group for each cell
-  std::vector<uword> cell_g2; // FE2 group for each cell
-  uword n_cells;
+  CenterWarmStart() : K(0), P(0), valid(false) {}
 
-  // Mapping from observations to cells (invariant)
-  std::vector<uword> obs_to_cell; // obs_to_cell[i] = cell index
-
-  // Weight-dependent data (changes each IRLS iteration)
-  std::vector<double> cell_w; // total weight per cell
-
-  // Pre-aggregated weighted V sums per cell (P columns)
-  mat cell_wV; // n_cells x P: sum of w[i]*V[i,p] for obs in cell
-
-  bool structure_built;
-
-  CellAggregated2FE() : n_cells(0), structure_built(false) {}
-
-  // Build cell structure (call once, structure is invariant)
-  void build_structure(const uword *g1, const uword *g2, uword n_obs, uword n1,
-                       uword n2) {
-    const uword max_cells = n1 * n2;
-    const uword sentinel = std::numeric_limits<uword>::max();
-    std::vector<uword> pair_to_cell(max_cells, sentinel);
-    obs_to_cell.resize(n_obs);
-
-    n_cells = 0;
-    cell_g1.clear();
-    cell_g2.clear();
-
-    cell_g1.reserve(std::min(max_cells, n_obs));
-    cell_g2.reserve(std::min(max_cells, n_obs));
-
-    for (uword i = 0; i < n_obs; ++i) {
-      const uword pair_id = g1[i] * n2 + g2[i];
-      uword cell_id = pair_to_cell[pair_id];
-      if (cell_id == sentinel) {
-        cell_id = n_cells++;
-        pair_to_cell[pair_id] = cell_id;
-        cell_g1.push_back(g1[i]);
-        cell_g2.push_back(g2[i]);
-      }
-      obs_to_cell[i] = cell_id;
+  void save(const std::vector<mat> &coeffs, uword n_fe, uword n_cols) {
+    K = n_fe;
+    P = n_cols;
+    alpha.resize(K);
+    for (uword k = 0; k < K; ++k) {
+      alpha[k] = coeffs[k];
     }
-
-    structure_built = true;
+    valid = true;
   }
 
-  // Update weights per cell (call each IRLS iteration)
-  void update_cell_weights(const double *w_ptr, uword n_obs) {
-    cell_w.assign(n_cells, 0.0);
-    for (uword i = 0; i < n_obs; ++i) {
-      cell_w[obs_to_cell[i]] += w_ptr[i];
-    }
-  }
-
-  // Aggregate weighted V values into cells: cell_wV = S' * diag(w) * V
-  // where S is the sparse (n_obs x n_cells) scatter matrix.
-  // Single code path using colptr() — no branching on P.
-  void aggregate_wV(const mat &V, const double *w_ptr, uword n_obs) {
-    const uword P = V.n_cols;
-    cell_wV.zeros(n_cells, P);
-
-    const uword *otc = obs_to_cell.data();
-
-    // Per-column scatter: the inner loop is a pure gather-multiply-scatter
-    for (uword p = 0; p < P; ++p) {
-      const double *v_col = V.colptr(p);
-      double *cwv_col = cell_wV.colptr(p);
-      for (uword i = 0; i < n_obs; ++i) {
-        cwv_col[otc[i]] += w_ptr[i] * v_col[i];
-      }
-    }
+  bool can_use(uword n_fe, uword n_cols) const {
+    if (!valid || n_fe != K || n_cols != P)
+      return false;
+    return true;
   }
 };
 
-// Gauss-Seidel half-step for 2FE centering (gather -> BLAS subtract -> scatter)
-//
-// Computes alpha_k = diag(inv_w) * G_k' * (cell_wV - diag(cw) * G_other *
-// alpha_other)
-//
-// Decomposed into BLAS-friendly pieces:
-//   1. Gather + scale: temp(c, p) = cw[c] * alpha_other(cg_other[c], p)
-//   2. Dense subtract:  temp = cell_wV - temp                (Armadillo mat op)
-//   3. Scatter-accumulate: alpha_k(cg_k[c], :) += temp(c, :) (index-driven)
-//   4. Scale:  alpha_k = diag(inv_w) * alpha_k               (dense)
-//
-// Single code path — no branching on P.
+// Precompute in_out: in_out_k(g, p) = sum_{i: fe_k[i]==g} w[i] * V(i, p)
+// This is done once per centering call (O(N * P * K))
+inline void compute_in_out(std::vector<mat> &in_out, const mat &V,
+                           const double *w_ptr, const FlatFEMap &map) {
+  const uword n_obs = V.n_rows;
+  const uword P = V.n_cols;
+  const uword K = map.K;
 
-inline void gauss_seidel_half_step(mat &alpha_k, const mat &alpha_other,
-                                   const CellAggregated2FE &cells,
-                                   const vec &inv_w, uword P,
-                                   bool k_is_first, mat &temp) {
-  const uword nc = cells.n_cells;
-  const uword *cg_k = k_is_first ? cells.cell_g1.data() : cells.cell_g2.data();
-  const uword *cg_other =
-      k_is_first ? cells.cell_g2.data() : cells.cell_g1.data();
-  const double *cw = cells.cell_w.data();
-
-  // 1. Gather alpha_other into temp, scaled by cell weight
-  //    temp(c, p) = cw[c] * alpha_other(cg_other[c], p)
-  temp.set_size(nc, P);
-  for (uword p = 0; p < P; ++p) {
-    double *t_col = temp.colptr(p);
-    const double *ao_col = alpha_other.colptr(p);
-    for (uword c = 0; c < nc; ++c) {
-      t_col[c] = cw[c] * ao_col[cg_other[c]];
+  in_out.resize(K);
+  for (uword k = 0; k < K; ++k) {
+    in_out[k].zeros(map.n_groups[k], P);
+    const uword *gk = map.fe_map[k].data();
+    for (uword p = 0; p < P; ++p) {
+      const double *v_col = V.colptr(p);
+      double *io_col = in_out[k].colptr(p);
+      for (uword i = 0; i < n_obs; ++i) {
+        io_col[gk[i]] += w_ptr[i] * v_col[i];
+      }
     }
   }
+}
 
-  // 2. Dense matrix subtraction: residual = cell_wV - temp
-  //    This is a pure BLAS daxpy on (nc × P) dense memory
-  temp = cells.cell_wV - temp;
+// 2-FE Gauss-Seidel update: compute alpha_b from alpha_a + in_out
+// alpha_b[g2] = (in_out_b[g2] - sum_{i: fe_b[i]==g2} w[i] * alpha_a[fe_a[i]])
+//               / sw_b[g2]
+//
+// This is the fixest compute_fe_coef_2 approach: no N-length temporaries,
+// operates directly on coefficient vectors. The O(N) inner loop is a simple
+// scatter with one array read per observation.
+inline void gs_update_2fe(mat &alpha_b, const mat &alpha_a, const mat &in_out_b,
+                          const vec &inv_w_b, const uword *ga, const uword *gb,
+                          const double *w_ptr, uword n_obs, uword P) {
+  const uword n_b = alpha_b.n_rows;
 
-  // 3. Scatter-accumulate residual into alpha_k
-  alpha_k.zeros();
+  for (uword p = 0; p < P; ++p) {
+    double *ab_col = alpha_b.colptr(p);
+    const double *aa_col = alpha_a.colptr(p);
+    const double *io_col = in_out_b.colptr(p);
+
+    // Initialize from precomputed in_out
+    std::memcpy(ab_col, io_col, n_b * sizeof(double));
+
+    // Subtract weighted contribution of alpha_a
+    for (uword i = 0; i < n_obs; ++i) {
+      ab_col[gb[i]] -= w_ptr[i] * aa_col[ga[i]];
+    }
+
+    // Scale by inverse weights
+    const double *iw = inv_w_b.memptr();
+    for (uword g = 0; g < n_b; ++g) {
+      ab_col[g] *= iw[g];
+    }
+  }
+}
+
+// General K-FE Gauss-Seidel update for one FE dimension k:
+// alpha_k[g] = (in_out_k[g] - sum_{i: fe_k[i]==g} w[i] * sum_{j!=k}
+// alpha_j[fe_j[i]]) / sw_k[g]
+inline void gs_update_kfe(mat &alpha_k, const std::vector<mat> &alpha,
+                          const mat &in_out_k, const vec &inv_w_k,
+                          const FlatFEMap &map, const double *w_ptr, uword k,
+                          uword n_obs, uword P) {
+  const uword K = map.K;
+  const uword n_k = alpha_k.n_rows;
+  const uword *gk = map.fe_map[k].data();
+
   for (uword p = 0; p < P; ++p) {
     double *ak_col = alpha_k.colptr(p);
-    const double *t_col = temp.colptr(p);
-    for (uword c = 0; c < nc; ++c) {
-      ak_col[cg_k[c]] += t_col[c];
+    const double *io_col = in_out_k.colptr(p);
+
+    // Initialize from precomputed in_out
+    std::memcpy(ak_col, io_col, n_k * sizeof(double));
+
+    // Subtract weighted sum of other FE contributions
+    for (uword i = 0; i < n_obs; ++i) {
+      double sum_others = 0.0;
+      for (uword j = 0; j < K; ++j) {
+        if (j != k) {
+          sum_others += alpha[j].at(map.fe_map[j].data()[i], p);
+        }
+      }
+      ak_col[gk[i]] -= w_ptr[i] * sum_others;
+    }
+
+    // Scale by inverse weights
+    const double *iw = inv_w_k.memptr();
+    for (uword g = 0; g < n_k; ++g) {
+      ak_col[g] *= iw[g];
     }
   }
-
-  // 4. Scale by inverse weights: dense row-wise scaling
-  scale_rows_inplace(alpha_k, inv_w);
 }
 
-// Recompute alpha2 from alpha1 using cell-aggregated data
-inline void recompute_alpha2(mat &alpha2, const mat &alpha1,
-                             const CellAggregated2FE &cells,
-                             const FlatFEMap &map, uword P, mat &temp) {
-  gauss_seidel_half_step(alpha2, alpha1, cells, map.inv_weights[1], P, false,
-                         temp);
+// Irons-Tuck acceleration on coefficient vectors
+// Returns true if numerically converged (ssq == 0)
+inline bool irons_tuck_acc(mat &X_coef, const mat &GX_coef,
+                           const mat &GGX_coef) {
+  const mat delta_GX = GGX_coef - GX_coef;
+  const mat delta2_X = delta_GX - GX_coef + X_coef;
+  const double ssq = accu(square(delta2_X));
+
+  if (ssq == 0.0) {
+    return true;
+  }
+
+  const double coef = accu(delta_GX % delta2_X) / ssq;
+  X_coef = GGX_coef - coef * delta_GX;
+  return false;
 }
 
-// 2FE centering with cell aggregation, Irons-Tuck + grand acceleration,
-// post-acceleration projection, and fixest-style convergence.
-//
-// All acceleration uses Armadillo vectorized mat arithmetic (accu, square, %).
-// No branching on P anywhere.
+// 2-FE centering: fixest-style in_out precomputation + coefficient-space
+// iteration
 inline void center_2fe(mat &V, const vec &w, const FlatFEMap &map,
-                       CellAggregated2FE &cells, double tol, uword max_iter,
+                       CenterWarmStart &warm, double tol, uword max_iter,
                        uword grand_acc_period = 4) {
   const uword n_obs = V.n_rows;
   const uword P = V.n_cols;
@@ -299,24 +268,32 @@ inline void center_2fe(mat &V, const vec &w, const FlatFEMap &map,
   const uword *g2 = map.fe_map[1].data();
   const double *w_ptr = w.memptr();
 
-  if (!cells.structure_built) {
-    cells.build_structure(g1, g2, n_obs, n1, n2);
+  // Step 1: Precompute in_out (O(N * P * 2)) -- done ONCE
+  std::vector<mat> in_out;
+  compute_in_out(in_out, V, w_ptr, map);
+
+  // Step 2: Initialize coefficient vectors
+  mat alpha1, alpha2;
+  if (warm.can_use(2, P)) {
+    alpha1 = warm.alpha[0];
+    alpha2 = warm.alpha[1];
+  } else {
+    alpha1.zeros(n1, P);
+    alpha2.zeros(n2, P);
   }
 
-  cells.update_cell_weights(w_ptr, n_obs);
-  cells.aggregate_wV(V, w_ptr, n_obs);
+  // Gauss-Seidel sweep: update alpha1 from alpha2, then alpha2 from alpha1
+  // This is entirely in coefficient space -- no N-length temporaries
+  auto gs_sweep = [&]() {
+    gs_update_2fe(alpha1, alpha2, in_out[0], map.inv_weights[0], g2, g1, w_ptr,
+                  n_obs, P);
+    gs_update_2fe(alpha2, alpha1, in_out[1], map.inv_weights[1], g1, g2, w_ptr,
+                  n_obs, P);
+  };
 
-  const uword nc = cells.n_cells;
-
-  mat alpha1(n1, P, fill::zeros);
-  mat alpha2(n2, P, fill::zeros);
-
-  // Reusable temp buffer for gauss_seidel_half_step (avoids re-alloc)
-  mat temp;
-
-  // IT acceleration buffers
-  mat X_it(n1, P, fill::zeros);
-  mat GX_it(n1, P, fill::zeros);
+  // IT acceleration buffers (coefficient-space, not observation-space)
+  mat X_it(n1, P);
+  mat GX_it(n1, P);
 
   // Grand acceleration buffers
   mat grand_Y(n1, P, fill::zeros);
@@ -324,50 +301,34 @@ inline void center_2fe(mat &V, const vec &w, const FlatFEMap &map,
   uword grand_stage = 0;
 
   constexpr uword iter_proj_after_acc = 40;
-  const uword ssr_check_period = (nc > 50000) ? 80 : 40;
+  const uword ssr_check_period = (n_obs > 50000) ? 80 : 40;
   double ssr_old = datum::inf;
 
   for (uword iter = 0; iter < max_iter; ++iter) {
     X_it = alpha1;
 
-    // === Gauss-Seidel sweep 1 -> GX ===
-    gauss_seidel_half_step(alpha1, alpha2, cells, map.inv_weights[0], P, true,
-                           temp);
-    recompute_alpha2(alpha2, alpha1, cells, map, P, temp);
-
+    // GS sweep 1 -> GX
+    gs_sweep();
     GX_it = alpha1;
 
-    // === Gauss-Seidel sweep 2 -> G2X ===
-    gauss_seidel_half_step(alpha1, alpha2, cells, map.inv_weights[0], P, true,
-                           temp);
-    recompute_alpha2(alpha2, alpha1, cells, map, P, temp);
+    // GS sweep 2 -> GGX
+    gs_sweep();
 
-    // === Irons-Tuck acceleration (Armadillo vectorized mat ops) ===
-    const mat delta_GX = alpha1 - GX_it;
-    const mat delta2_X = delta_GX - GX_it + X_it;
+    // IT acceleration on alpha1 (coefficient space)
+    bool numconv = irons_tuck_acc(alpha1, GX_it, alpha1);
 
-    const double ssq = accu(square(delta2_X));
-    bool numconv = false;
-
-    if (ssq == 0.0) {
-      numconv = true;
-    } else {
-      const double coef = accu(delta_GX % delta2_X) / ssq;
-      alpha1 -= coef * delta_GX;
-    }
-
-    recompute_alpha2(alpha2, alpha1, cells, map, P, temp);
+    // Recompute alpha2 from accelerated alpha1
+    gs_update_2fe(alpha2, alpha1, in_out[1], map.inv_weights[1], g1, g2, w_ptr,
+                  n_obs, P);
 
     if (iter >= iter_proj_after_acc) {
-      gauss_seidel_half_step(alpha1, alpha2, cells, map.inv_weights[0], P, true,
-                             temp);
-      recompute_alpha2(alpha2, alpha1, cells, map, P, temp);
+      gs_sweep();
     }
 
     if (numconv)
       break;
 
-    // === Grand acceleration (Armadillo vectorized mat ops) ===
+    // Grand acceleration
     if (grand_acc_period > 0 && iter > 0 && iter % grand_acc_period == 0) {
       if (grand_stage == 0) {
         grand_Y = alpha1;
@@ -383,13 +344,14 @@ inline void center_2fe(mat &V, const vec &w, const FlatFEMap &map,
         if (g_ssq > 1e-14) {
           const double coef = accu(g_delta % g_delta2) / g_ssq;
           alpha1 -= coef * g_delta;
-          recompute_alpha2(alpha2, alpha1, cells, map, P, temp);
+          gs_update_2fe(alpha2, alpha1, in_out[1], map.inv_weights[1], g1, g2,
+                        w_ptr, n_obs, P);
         }
         grand_stage = 0;
       }
     }
 
-    // === Convergence check ===
+    // Convergence check (coefficient-space)
     const double *curr = alpha1.memptr();
     const double *old = X_it.memptr();
     const uword total_elem = n1 * P;
@@ -403,7 +365,7 @@ inline void center_2fe(mat &V, const vec &w, const FlatFEMap &map,
     if (!keep_going)
       break;
 
-    // === SSR-based stopping (periodic) ===
+    // SSR-based stopping (periodic)
     if (iter > 0 && iter % ssr_check_period == 0) {
       double ssr = 0.0;
       for (uword p = 0; p < P; ++p) {
@@ -421,8 +383,11 @@ inline void center_2fe(mat &V, const vec &w, const FlatFEMap &map,
     }
   }
 
+  // Save warm-start
+  std::vector<mat> coeffs = {alpha1, alpha2};
+  warm.save(coeffs, 2, P);
+
   // Final subtraction: V -= G1 * alpha1 + G2 * alpha2
-  // Single code path, colptr() access
   for (uword p = 0; p < P; ++p) {
     double *v_col = V.colptr(p);
     const double *a1 = alpha1.colptr(p);
@@ -433,25 +398,39 @@ inline void center_2fe(mat &V, const vec &w, const FlatFEMap &map,
   }
 }
 
-// General K-FE centering — single colptr() code path, Armadillo mat ops
-// for acceleration. No block_size branching.
-inline void center_kfe(mat &V, const vec &w, const FlatFEMap &map, double tol,
-                       uword max_iter, uword grand_acc_period = 4) {
+// General K-FE centering with in_out precomputation
+inline void center_kfe(mat &V, const vec &w, const FlatFEMap &map,
+                       CenterWarmStart &warm, double tol, uword max_iter,
+                       uword grand_acc_period = 4) {
   const uword n_obs = V.n_rows;
   const uword P = V.n_cols;
   const uword K = map.K;
 
-  std::vector<mat> alpha(K);
-  for (uword k = 0; k < K; ++k) {
-    alpha[k].zeros(map.n_groups[k], P);
-  }
-
   const double *w_ptr = w.memptr();
 
-  std::vector<const uword *> map_ptrs(K);
-  for (uword k = 0; k < K; ++k) {
-    map_ptrs[k] = map.fe_map[k].data();
+  // Precompute in_out
+  std::vector<mat> in_out;
+  compute_in_out(in_out, V, w_ptr, map);
+
+  // Initialize coefficient vectors
+  std::vector<mat> alpha(K);
+  if (warm.can_use(K, P)) {
+    for (uword k = 0; k < K; ++k) {
+      alpha[k] = warm.alpha[k];
+    }
+  } else {
+    for (uword k = 0; k < K; ++k) {
+      alpha[k].zeros(map.n_groups[k], P);
+    }
   }
+
+  // Gauss-Seidel sweep: update each FE in sequence
+  auto gs_sweep = [&]() {
+    for (uword k = 0; k < K; ++k) {
+      gs_update_kfe(alpha[k], alpha, in_out[k], map.inv_weights[k], map, w_ptr,
+                    k, n_obs, P);
+    }
+  };
 
   // IT acceleration on alpha[0]
   const uword n0 = map.n_groups[0];
@@ -468,67 +447,27 @@ inline void center_kfe(mat &V, const vec &w, const FlatFEMap &map, double tol,
   const uword ssr_check_period = (n_obs > 100000) ? 80 : 40;
   double ssr_old = datum::inf;
 
-  // Gauss-Seidel sweep: single colptr() code path
-  auto gauss_seidel_sweep = [&]() {
-    for (uword k = 0; k < K; ++k) {
-      mat &alpha_k = alpha[k];
-      const uword *gk = map_ptrs[k];
-
-      alpha_k.zeros();
-
-      for (uword p = 0; p < P; ++p) {
-        double *ak_col = alpha_k.colptr(p);
-        const double *v_col = V.colptr(p);
-
-        for (uword i = 0; i < n_obs; ++i) {
-          const double wi = w_ptr[i];
-          if (wi > 1e-14) {
-            double sum_others = 0.0;
-            for (uword o = 0; o < K; ++o) {
-              if (o != k) {
-                sum_others += alpha[o].at(map_ptrs[o][i], p);
-              }
-            }
-            ak_col[gk[i]] += wi * (v_col[i] - sum_others);
-          }
-        }
-      }
-
-      scale_rows_inplace(alpha_k, map.inv_weights[k]);
-    }
-  };
-
   for (uword iter = 0; iter < max_iter; ++iter) {
     X_it = alpha[0];
 
-    // Gauss-Seidel sweep 1 -> GX
-    gauss_seidel_sweep();
+    // GS sweep 1 -> GX
+    gs_sweep();
     GX_it = alpha[0];
 
-    // Gauss-Seidel sweep 2 -> G2X
-    gauss_seidel_sweep();
+    // GS sweep 2 -> GGX
+    gs_sweep();
 
-    // IT acceleration (Armadillo vectorized mat ops)
-    const mat delta_GX = alpha[0] - GX_it;
-    const mat delta2_X = delta_GX - GX_it + X_it;
-    const double ssq = accu(square(delta2_X));
-
-    bool numconv = false;
-    if (ssq == 0.0) {
-      numconv = true;
-    } else {
-      const double coef = accu(delta_GX % delta2_X) / ssq;
-      alpha[0] -= coef * delta_GX;
-    }
+    // IT acceleration
+    bool numconv = irons_tuck_acc(alpha[0], GX_it, alpha[0]);
 
     if (iter >= iter_proj_after_acc) {
-      gauss_seidel_sweep();
+      gs_sweep();
     }
 
     if (numconv)
       break;
 
-    // Grand acceleration (Armadillo vectorized mat ops)
+    // Grand acceleration
     if (grand_acc_period > 0 && iter > 0 && iter % grand_acc_period == 0) {
       if (grand_stage == 0) {
         grand_Y = alpha[0];
@@ -565,6 +504,11 @@ inline void center_kfe(mat &V, const vec &w, const FlatFEMap &map, double tol,
     // SSR-based stopping (periodic)
     if (iter > 0 && iter % ssr_check_period == 0) {
       double ssr = 0.0;
+      std::vector<const uword *> map_ptrs(K);
+      for (uword k = 0; k < K; ++k) {
+        map_ptrs[k] = map.fe_map[k].data();
+      }
+
       for (uword p = 0; p < P; ++p) {
         const double *v_col = V.colptr(p);
         for (uword i = 0; i < n_obs; ++i) {
@@ -581,7 +525,15 @@ inline void center_kfe(mat &V, const vec &w, const FlatFEMap &map, double tol,
     }
   }
 
-  // Final subtraction — single colptr() code path
+  // Save warm-start
+  warm.save(alpha, K, P);
+
+  // Final subtraction
+  std::vector<const uword *> map_ptrs(K);
+  for (uword k = 0; k < K; ++k) {
+    map_ptrs[k] = map.fe_map[k].data();
+  }
+
   for (uword p = 0; p < P; ++p) {
     double *v_col = V.colptr(p);
     for (uword i = 0; i < n_obs; ++i) {
@@ -595,15 +547,19 @@ inline void center_kfe(mat &V, const vec &w, const FlatFEMap &map, double tol,
 }
 
 // Main centering dispatch
-inline void center_variables(mat &V, const vec &w, FlatFEMap &map,
-                             CellAggregated2FE &cells, double tol,
-                             uword max_iter, uword grand_acc_period) {
+inline void center_variables(mat &V, const vec &w, FlatFEMap &map, double tol,
+                             uword max_iter, uword grand_acc_period,
+                             CenterWarmStart *warm = nullptr) {
   if (V.is_empty() || map.K == 0)
     return;
+
+  CenterWarmStart local_warm;
+  CenterWarmStart &ws = warm ? *warm : local_warm;
+
   if (map.K == 2) {
-    center_2fe(V, w, map, cells, tol, max_iter, grand_acc_period);
+    center_2fe(V, w, map, ws, tol, max_iter, grand_acc_period);
   } else {
-    center_kfe(V, w, map, tol, max_iter, grand_acc_period);
+    center_kfe(V, w, map, ws, tol, max_iter, grand_acc_period);
   }
 }
 

@@ -16,10 +16,9 @@ struct InferenceAlpha {
 };
 
 // get_alpha now takes a const FlatFEMap& directly (no duplicate struct)
-inline field<vec>
-get_alpha(const vec &pi, const FlatFEMap &map,
-          double tol = 1e-8, uword iter_max = 10000,
-          const vec *weights = nullptr) {
+inline field<vec> get_alpha(const vec &pi, const FlatFEMap &map,
+                            double tol = 1e-8, uword iter_max = 10000,
+                            const vec *weights = nullptr) {
   const uword K = map.K;
   const uword N = pi.n_elem;
   field<vec> coefficients(K);

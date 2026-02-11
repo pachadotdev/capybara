@@ -91,8 +91,8 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
     theta_prev = theta;
 
     // Fit negative binomial GLM with current theta
-    InferenceGLM glm_fit = feglm_fit(beta_coef, eta, y, X, w, theta, NEG_BIN,
-                                     fe_map, params, &ws);
+    InferenceGLM glm_fit =
+        feglm_fit(beta_coef, eta, y, X, w, theta, NEG_BIN, fe_map, params, &ws);
 
     if (!glm_fit.conv) {
       static_cast<InferenceGLM &>(result) = std::move(glm_fit);

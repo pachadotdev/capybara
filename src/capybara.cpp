@@ -142,8 +142,7 @@ inline uvec R_1based_to_Cpp_0based_indices(const integers &r_indices) {
 // fe_codes is a list of K integer vectors, each of length N, with 0-based
 // group codes. This is O(N*K) with zero intermediate allocation — no more
 // field<field<uvec>> of hundreds of small heap-allocated uvecs.
-inline capybara::FlatFEMap
-R_codes_to_FlatFEMap(const list &fe_codes) {
+inline capybara::FlatFEMap R_codes_to_FlatFEMap(const list &fe_codes) {
   capybara::FlatFEMap map;
   const size_t K = fe_codes.size();
   if (K == 0)
@@ -157,7 +156,8 @@ R_codes_to_FlatFEMap(const list &fe_codes) {
   for (size_t k = 0; k < K; ++k) {
     const integers codes_k = as_cpp<integers>(fe_codes[k]);
     const size_t N = codes_k.size();
-    if (k == 0) map.n_obs = N;
+    if (k == 0)
+      map.n_obs = N;
 
     // Find max code to determine n_groups, and copy into fe_map in one pass
     map.fe_map[k].resize(N);
@@ -166,7 +166,8 @@ R_codes_to_FlatFEMap(const list &fe_codes) {
     for (size_t i = 0; i < N; ++i) {
       const uword c = static_cast<uword>(codes_k[i]);
       map_k[i] = c;
-      if (c > max_code) max_code = c;
+      if (c > max_code)
+        max_code = c;
     }
     map.n_groups[k] = max_code + 1;
   }
@@ -177,10 +178,10 @@ R_codes_to_FlatFEMap(const list &fe_codes) {
 
 // Extract FE level names from an R list of character vectors.
 // Returns field<field<string>> for output labeling.
-inline void extract_fe_names_and_levels(
-    const list &fe_codes, const list &fe_levels_r,
-    field<std::string> &fe_names,
-    field<field<std::string>> &fe_levels) {
+inline void extract_fe_names_and_levels(const list &fe_codes,
+                                        const list &fe_levels_r,
+                                        field<std::string> &fe_names,
+                                        field<field<std::string>> &fe_levels) {
   const size_t K = fe_codes.size();
   fe_names.set_size(K);
   fe_levels.set_size(K);
@@ -205,23 +206,22 @@ inline void extract_fe_names_and_levels(
 
 [[cpp4r::register]] doubles_matrix<>
 center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
-                  const list &fe_codes, const double &tol, const size_t &max_iter,
-                  const size_t &grand_acc_period) {
+                  const list &fe_codes, const double &tol,
+                  const size_t &max_iter, const size_t &grand_acc_period) {
   mat V = as_mat(V_r);
   vec w = as_col(w_r);
 
   capybara::FlatFEMap map = R_codes_to_FlatFEMap(fe_codes);
   map.update_weights(w);
-  capybara::CellAggregated2FE cells;
-  capybara::center_variables(V, w, map, cells, tol, max_iter, grand_acc_period);
+  capybara::center_variables(V, w, map, tol, max_iter, grand_acc_period);
 
   return as_doubles_matrix(V);
 }
 
 [[cpp4r::register]] list felm_fit_(const doubles_matrix<> &X_r,
                                    const doubles &y_r, const doubles &w_r,
-                                   const list &fe_codes, const list &fe_levels_r,
-                                   const list &control,
+                                   const list &fe_codes,
+                                   const list &fe_levels_r, const list &control,
                                    const list &cl_list) {
   CapybaraParameters params(control);
 
@@ -332,9 +332,8 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
 feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
            const doubles_matrix<> &x_r, const doubles &wt_r,
            const doubles &offset_r, const double &theta,
-           const std::string &family, const list &control,
-           const list &fe_codes, const list &fe_levels_r,
-           const list &cl_list) {
+           const std::string &family, const list &control, const list &fe_codes,
+           const list &fe_levels_r, const list &cl_list) {
   mat X = as_mat(x_r);
   vec beta = as_col(beta_r);
   vec eta = as_col(eta_r);
@@ -492,12 +491,10 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
 
 [[cpp4r::register]] list
 fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
-              const doubles &w_r, const list &fe_codes,
-              const list &fe_levels_r,
-              const std::string &link,
-              const doubles &beta_r, const doubles &eta_r,
-              const double &init_theta, const doubles &offset_r,
-              const list &control) {
+              const doubles &w_r, const list &fe_codes, const list &fe_levels_r,
+              const std::string &link, const doubles &beta_r,
+              const doubles &eta_r, const double &init_theta,
+              const doubles &offset_r, const list &control) {
   mat X = as_mat(X_r);
   vec y = as_col(y_r);
   vec w = as_col(w_r);
@@ -507,8 +504,8 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
 
   capybara::FlatFEMap fe_map = R_codes_to_FlatFEMap(fe_codes);
 
-  capybara::InferenceNegBin result = capybara::fenegbin_fit(
-      X, y, w, fe_map, params, offset_vec, init_theta);
+  capybara::InferenceNegBin result =
+      capybara::fenegbin_fit(X, y, w, fe_map, params, offset_vec, init_theta);
 
   // Replace collinear coefficients (NaN) with R's NA_REAL in all columns of
   // coef_table

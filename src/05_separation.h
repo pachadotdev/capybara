@@ -123,7 +123,6 @@ detect_separation_relu_fe(const vec &y, const mat &X, const vec &w,
 
   // Use the shared FE map; build a mutable copy for weight updates
   FlatFEMap local_fe_map;
-  CellAggregated2FE cells_2fe;
   if (has_fe) {
     local_fe_map = fe_map; // copy structure
     local_fe_map.update_weights(weights);
@@ -141,12 +140,10 @@ detect_separation_relu_fe(const vec &y, const mat &X, const vec &w,
     X_centered = X;
 
     if (has_fe) {
-      center_variables(u_centered, weights, local_fe_map, cells_2fe,
-                       params.center_tol, params.iter_center_max,
-                       params.grand_acc_period);
-      center_variables(X_centered, weights, local_fe_map, cells_2fe,
-                       params.center_tol, params.iter_center_max,
-                       params.grand_acc_period);
+      center_variables(u_centered, weights, local_fe_map, params.center_tol,
+                       params.iter_center_max, params.grand_acc_period);
+      center_variables(X_centered, weights, local_fe_map, params.center_tol,
+                       params.iter_center_max, params.grand_acc_period);
     }
 
     solve_wls(X_centered, u_centered, weights, resid);

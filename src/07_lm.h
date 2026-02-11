@@ -40,9 +40,9 @@ struct FelmWorkspace {
   vec y_original;
 
   // Persistent FE structures (survive across IRLS iterations)
-  FlatFEMap fe_map;            // FE group structure (invariant)
-  CellAggregated2FE cells_2fe; // Cell structure for 2-FE case (invariant)
-  bool fe_map_initialized;     // Has fe_map.build() been called?
+  FlatFEMap fe_map;           // FE group structure (invariant)
+  CenterWarmStart warm_start; // Warm-start for centering across IRLS
+  bool fe_map_initialized;    // Has fe_map.build() been called?
 
   uword cached_N, cached_P;
 
@@ -93,10 +93,42 @@ inline void accumulate_fixed_effects(vec &fitted_values,
 inline void compute_fitted_values(FelmWorkspace *ws, InferenceLM &result,
                                   const CollinearityResult &collin_result,
                                   const FlatFEMap &fe_map,
-                                  const CapybaraParameters &params) {
+                                  const CapybaraParameters &params,
+                                  bool skip_alpha = false) {
   const uword N = ws->y_original.n_elem;
   const vec &coef = result.coef_table.col(0);
+  const bool has_fixed_effects = fe_map.K > 0;
 
+  if (has_fixed_effects && skip_alpha) {
+    // Fast path for IRLS: recover fitted values from centered quantities
+    // directly, avoiding the expensive iterative get_alpha() call.
+    //
+    // After centering [y|X] we have:
+    //   y_demeaned = y - M_fe(y)      (FE means removed from y)
+    //   X_centered = X - M_fe(X)      (FE means removed from X)
+    //
+    // OLS on centered data gives beta, then:
+    //   residual = y_demeaned - X_centered * beta
+    //   fitted   = y - residual = y - y_demeaned + X_centered * beta
+    //
+    // This is exact (same as X*beta + FE_means(y - X*beta)) because
+    // centering is linear: M_fe(y - X*beta) = M_fe(y) - M_fe(X)*beta.
+    vec x_centered_beta;
+    if (collin_result.has_collinearity &&
+        !collin_result.non_collinear_cols.is_empty()) {
+      const uvec &cols = collin_result.non_collinear_cols;
+      x_centered_beta = ws->X_centered.cols(cols) * coef.elem(cols);
+    } else if (ws->X_centered.n_cols > 0) {
+      x_centered_beta = ws->X_centered * coef;
+    } else {
+      x_centered_beta.zeros(N);
+    }
+    result.fitted_values = ws->y_original - ws->y_demeaned + x_centered_beta;
+    result.has_fe = true;
+    return;
+  }
+
+  // Full path: need X_original * beta
   if (collin_result.has_collinearity &&
       !collin_result.non_collinear_cols.is_empty()) {
     const uvec &cols = collin_result.non_collinear_cols;
@@ -107,18 +139,15 @@ inline void compute_fitted_values(FelmWorkspace *ws, InferenceLM &result,
     ws->x_beta.zeros(N);
   }
 
-  const bool has_fixed_effects = fe_map.K > 0;
-
   if (has_fixed_effects) {
-    // Vectorized residual pi = y - X*beta
+    // Full path: recover FE coefficients via get_alpha
     ws->pi = ws->y_original - ws->x_beta;
 
     const vec *coef_weights = nullptr;
     coef_weights = &result.weights;
 
-    result.fixed_effects =
-        get_alpha(ws->pi, fe_map, params.alpha_tol, params.iter_alpha_max,
-                  coef_weights);
+    result.fixed_effects = get_alpha(ws->pi, fe_map, params.alpha_tol,
+                                     params.iter_alpha_max, coef_weights);
     result.has_fe = true;
 
     result.fitted_values = ws->x_beta;
@@ -170,8 +199,7 @@ inline void expand_vcov(mat &vcov_full, const mat &vcov_reduced,
 }
 
 InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
-                     const FlatFEMap &fe_map,
-                     const CapybaraParameters &params,
+                     const FlatFEMap &fe_map, const CapybaraParameters &params,
                      FelmWorkspace *workspace = nullptr,
                      const field<uvec> *cluster_groups = nullptr,
                      bool run_from_glm = false,
@@ -193,18 +221,6 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
 
   result.has_fe = has_fixed_effects;
 
-  // Copy X to workspace buffers (only copy needed per iteration)
-  if (!has_fixed_effects && !run_from_glm) {
-    // Add intercept column
-    ws->X_original.col(0).ones();
-    if (P_input > 0) {
-      ws->X_original.cols(1, P - 1) = X;
-    }
-  } else {
-    ws->X_original = X;
-  }
-  ws->X_centered = ws->X_original; // Copy for centering
-
   const bool use_weights = any(w != 1.0);
 
 #ifdef CAPYBARA_DEBUG
@@ -219,27 +235,39 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
     const double effective_tol =
         (adaptive_center_tol > 0.0) ? adaptive_center_tol : params.center_tol;
 
-    if (P > 0) {
-      // Combined centering: center [y | X] as a single (N x P+1) matrix
-      // This avoids duplicate cell aggregation, weight updates, and iteration
-      // overhead that would occur with two separate center_variables() calls
-      mat yX(N, P + 1);
-      yX.col(0) = y;
-      yX.cols(1, P) = ws->X_original;
+    // X_original needed for X*beta in compute_fitted_values
+    ws->X_original = X;
 
-      center_variables(yX, w, ws->fe_map, ws->cells_2fe, effective_tol,
-                       params.iter_center_max, params.grand_acc_period);
+    if (P > 0) {
+      // Combined centering: build [y | X] once, center in-place, split back
+      mat yX(N, P + 1);
+      std::memcpy(yX.colptr(0), y.memptr(), N * sizeof(double));
+      std::memcpy(yX.colptr(1), X.memptr(), N * P * sizeof(double));
+
+      center_variables(yX, w, ws->fe_map, effective_tol, params.iter_center_max,
+                       params.grand_acc_period, &ws->warm_start);
 
       ws->y_demeaned = yX.col(0);
       ws->X_centered = yX.cols(1, P);
     } else {
       ws->y_demeaned = y;
-      center_variables(ws->y_demeaned, w, ws->fe_map, ws->cells_2fe,
-                       effective_tol, params.iter_center_max,
-                       params.grand_acc_period);
+      center_variables(ws->y_demeaned, w, ws->fe_map, effective_tol,
+                       params.iter_center_max, params.grand_acc_period,
+                       &ws->warm_start);
     }
   } else {
     ws->y_demeaned = y;
+    // Copy X to workspace buffers
+    if (!run_from_glm) {
+      // Standalone felm: add intercept column
+      ws->X_original.col(0).ones();
+      if (P_input > 0) {
+        ws->X_original.cols(1, P - 1) = X;
+      }
+    } else {
+      ws->X_original = X;
+    }
+    ws->X_centered = ws->X_original;
   }
 
 #ifdef CAPYBARA_DEBUG
@@ -323,7 +351,8 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
   }
   result.success = true;
 
-  compute_fitted_values(ws, result, collin_result, fe_map, params);
+  compute_fitted_values(ws, result, collin_result, fe_map, params,
+                        run_from_glm);
 
   if (run_from_glm) {
     // Only return coefficients

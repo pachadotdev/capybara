@@ -196,8 +196,8 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       w_work.elem(sep_result.separated_obs).zeros();
 
       InferenceGLM result_with_sep =
-          feglm_fit(beta, eta, y, X, w_work, theta, family_type, fe_map,
-                    params, &ws, cluster_groups, offset, true);
+          feglm_fit(beta, eta, y, X, w_work, theta, family_type, fe_map, params,
+                    &ws, cluster_groups, offset, true);
 
       // Mark separated observations
       result_with_sep.eta.elem(sep_result.separated_obs).fill(datum::nan);
@@ -285,8 +285,8 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   double adaptive_center_tol = center_tol_loose;
 
   // Convergence acceleration for large models
-  const bool is_large_model = (n > 100000) || (p_working > 1000) ||
-                              (has_fixed_effects && fe_map.K > 1);
+  const bool is_large_model =
+      (n > 100000) || (p_working > 1000) || (has_fixed_effects && fe_map.K > 1);
   double last_eta_change = datum::inf;
   uword convergence_count = 0;
 
@@ -624,8 +624,7 @@ inline OffsetWwYadjFn get_offset_ww_yadj_fn(Family family_type) {
 }
 
 vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
-                     const Family family_type,
-                     const FlatFEMap &fe_map_in,
+                     const Family family_type, const FlatFEMap &fe_map_in,
                      const CapybaraParameters &params) {
   const uword n = y.n_elem;
 
@@ -650,7 +649,7 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
 
   // Mutable copy of FE map for weight updates
   FlatFEMap fe_map = fe_map_in;
-  CellAggregated2FE cells_2fe;
+  CenterWarmStart warm_start;
 
   // Maximize the log-likelihood
   for (uword iter = 0; iter < params.iter_max; ++iter) {
@@ -668,8 +667,9 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
 
     Myadj += yadj;
 
-    center_variables(Myadj, w_working, fe_map, cells_2fe, adaptive_tol,
-                     params.iter_center_max, params.grand_acc_period);
+    center_variables(Myadj, w_working, fe_map, adaptive_tol,
+                     params.iter_center_max, params.grand_acc_period,
+                     &warm_start);
 
     const vec eta_upd = yadj - Myadj + offset - eta;
 
