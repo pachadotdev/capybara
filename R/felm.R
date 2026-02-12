@@ -173,14 +173,31 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
     terms(formula, rhs = 3L),
     "term.labels"
   ))
-  cl_col <- if (length(cl_vars_temp) >= 1L) data[[cl_vars_temp[1L]]] else NULL
+
+  # For dyadic clustering, expect two variables in the third part
+  # Otherwise, use the first variable as the cluster variable
+  cl_col <- NULL
+  entity1_col <- NULL
+  entity2_col <- NULL
+
+  if (length(cl_vars_temp) >= 1L) {
+    if (!is.null(control$vcov_type) && control$vcov_type == "m-estimator-dyadic") {
+      if (length(cl_vars_temp) < 2L) {
+        stop("For dyadic clustering (vcov_type = 'm-estimator-dyadic'), specify two entity columns in the formula like: y ~ x | fe | entity1 + entity2", call. = FALSE)
+      }
+      entity1_col <- data[[cl_vars_temp[1L]]]
+      entity2_col <- data[[cl_vars_temp[2L]]]
+    } else {
+      cl_col <- data[[cl_vars_temp[1L]]]
+    }
+  }
 
   # Fit linear model ----
   if (is.integer(y)) {
     y <- as.numeric(y)
   }
 
-  fit <- felm_fit_(X, y, w, fe_cols, cl_col, control)
+  fit <- felm_fit_(X, y, w, fe_cols, cl_col, entity1_col, entity2_col, control)
 
   # Organize nobs info ----
   nobs_na <- nobs_full - fit[["nobs_used"]]

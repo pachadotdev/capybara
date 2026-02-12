@@ -358,9 +358,8 @@ inline vec variance(const vec &mu, const double &theta,
 // cluster_groups: indices for each cluster
 // Returns: sandwich covariance matrix (p x p)
 
-inline mat compute_sandwich_vcov(const mat &MX, const vec &y, const vec &mu,
-                                 const mat &H,
-                                 const field<uvec> &cluster_groups) {
+inline mat sandwich_vcov_(const mat &MX, const vec &y, const vec &mu,
+                          const mat &H, const field<uvec> &cluster_groups) {
   const uword p = MX.n_cols;
   const uword G = cluster_groups.n_elem;
 
@@ -463,8 +462,9 @@ inline mat compute_sandwich_vcov(const mat &MX, const vec &y, const vec &mu,
 //  effects estimate by Poisson quasi-MLE Graham (2020ba) provides a dyadic
 //  empirical application.
 
-inline mat compute_sandwich_vcov_mestimator(const mat &A, const mat &scores,
-                                            const field<uvec> &cluster_groups) {
+// Standard one-way clustering for M-estimators
+inline mat sandwich_vcov_mestimator_(const mat &A, const mat &scores,
+                                     const field<uvec> &cluster_groups) {
   const uword p = A.n_cols;
   const uword G = cluster_groups.n_elem;
 
@@ -507,6 +507,94 @@ inline mat compute_sandwich_vcov_mestimator(const mat &A, const mat &scores,
     // B += s_g * s_g'
     B += cluster_score * cluster_score.t();
   }
+
+  // Sandwich: A^{-1} * (adj * B) * A^{-1}
+  return (adj * A_inv) * B * A_inv;
+}
+
+// Dyadic clustering for M-estimators
+// For dyadic data, observations (g,h) and (g',h') are correlated if they share
+// at least one entity: g==g', h==h', g==h', or h==g'
+// This requires passing entity IDs separately from cluster IDs
+inline mat sandwich_vcov_mestimator_dyadic_(const mat &A, const mat &scores,
+                                            const field<uvec> &entity1_groups,
+                                            const field<uvec> &entity2_groups) {
+  const uword p = A.n_cols;
+  const uword n_obs = scores.n_rows;
+  const uword G1 =
+      entity1_groups
+          .n_elem; // Number of unique entity 1 values (e.g., exporters)
+  const uword G2 =
+      entity2_groups
+          .n_elem; // Number of unique entity 2 values (e.g., importers)
+
+  // Bread: A^{-1}
+  mat A_inv;
+  if (!inv_sympd(A_inv, A)) {
+    if (!inv(A_inv, A)) {
+      return mat(p, p, fill::value(datum::inf));
+    }
+  }
+
+  // Build mapping from observation to its entities
+  std::vector<uword> obs_to_entity1(n_obs);
+  std::vector<uword> obs_to_entity2(n_obs);
+
+  for (uword g = 0; g < G1; ++g) {
+    const uvec &idx = entity1_groups(g);
+    for (uword i = 0; i < idx.n_elem; ++i) {
+      obs_to_entity1[idx(i)] = g;
+    }
+  }
+
+  for (uword h = 0; h < G2; ++h) {
+    const uvec &idx = entity2_groups(h);
+    for (uword i = 0; i < idx.n_elem; ++i) {
+      obs_to_entity2[idx(i)] = h;
+    }
+  }
+
+  // Compute entity-level scores by summing observations within each entity
+  std::vector<vec> entity1_scores(G1, vec(p, fill::zeros));
+  std::vector<vec> entity2_scores(G2, vec(p, fill::zeros));
+
+  for (uword i = 0; i < n_obs; ++i) {
+    vec score_i = scores.row(i).t();
+    entity1_scores[obs_to_entity1[i]] += score_i;
+    entity2_scores[obs_to_entity2[i]] += score_i;
+  }
+
+  // Dyadic meat: B = sum_i sum_j 1[i and j share entity] * score_i * score_j'
+  // Cameron-Miller decomposition: B = B_1 + B_2 - B_12
+  // where B_1 accounts for entity1, B_2 for entity2, B_12 for intersection
+
+  // B_1: Sum over entity1 groups
+  mat B1(p, p, fill::zeros);
+  for (uword g = 0; g < G1; ++g) {
+    B1 += entity1_scores[g] * entity1_scores[g].t();
+  }
+
+  // B_2: Sum over entity2 groups
+  mat B2(p, p, fill::zeros);
+  for (uword h = 0; h < G2; ++h) {
+    B2 += entity2_scores[h] * entity2_scores[h].t();
+  }
+
+  // B_12: Sum over dyads (intersection correction)
+  mat B12(p, p, fill::zeros);
+  for (uword i = 0; i < n_obs; ++i) {
+    vec score_i = scores.row(i).t();
+    B12 += score_i * score_i.t();
+  }
+
+  // Cameron-Gelbach-Miller formula for two-way clustering
+  mat B = B1 + B2 - B12;
+
+  // Degrees of freedom adjustment
+  // Use minimum of the two dimensions
+  const uword G_min = std::min(G1, G2);
+  const double adj =
+      (G_min > 1) ? static_cast<double>(G_min) / (G_min - 1.0) : 1.0;
 
   // Sandwich: A^{-1} * (adj * B) * A^{-1}
   return (adj * A_inv) * B * A_inv;

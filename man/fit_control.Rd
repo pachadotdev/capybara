@@ -28,7 +28,8 @@ fit_control(
   return_fe = TRUE,
   keep_tx = FALSE,
   check_separation = TRUE,
-  init_theta = 0
+  init_theta = 0,
+  vcov_type = NULL
 )
 }
 \arguments{
@@ -100,6 +101,13 @@ some computation time at the cost of memory. The default is \code{TRUE}.}
 is \code{TRUE}.}
 
 \item{init_theta}{Initial value for the negative binomial dispersion parameter (theta). The default is \code{0.0}.}
+
+\item{vcov_type}{Optional character string specifying the type of variance-covariance estimator to be used. It only
+applies for formulas with a cluster variable like \code{z ~ x + y | fe | cl}. When \code{NULL} (default), the variance
+covariance matrix follows a regular sandwich estimator. When set to \code{"m-estimator"}, uses standard clustered
+M-estimator sandwich. When set to \code{"m-estimator-dyadic"}, uses dyadic clustering that accounts for correlation
+between observations sharing entities. For dyadic clustering, specify two entity columns in the formula like
+\code{z ~ x + y | fe | cl1 + cl2}.}
 }
 \value{
 A named list of control parameters.

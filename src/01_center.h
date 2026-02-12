@@ -147,8 +147,8 @@ struct CenterWarmStart {
 
 // Precompute in_out: in_out_k(g, p) = sum_{i: fe_k[i]==g} w[i] * V(i, p)
 // This is done once per centering call (O(N * P * K))
-inline void compute_in_out(std::vector<mat> &in_out, const mat &V,
-                           const double *w_ptr, const FlatFEMap &map) {
+inline void in_out_(std::vector<mat> &in_out, const mat &V, const double *w_ptr,
+                    const FlatFEMap &map) {
   const uword n_obs = V.n_rows;
   const uword P = V.n_cols;
   const uword K = map.K;
@@ -171,9 +171,8 @@ inline void compute_in_out(std::vector<mat> &in_out, const mat &V,
 // alpha_b[g2] = (in_out_b[g2] - sum_{i: fe_b[i]==g2} w[i] * alpha_a[fe_a[i]])
 //               / sw_b[g2]
 //
-// This is the fixest compute_fe_coef_2 approach: no N-length temporaries,
-// operates directly on coefficient vectors. The O(N) inner loop is a simple
-// scatter with one array read per observation.
+// no N-length temporaries, operates directly on coefficient vectors. The O(N)
+// inner loop is a simple scatter with one array read per observation.
 inline void gs_update_2fe(mat &alpha_b, const mat &alpha_a, const mat &in_out_b,
                           const vec &inv_w_b, const uword *ga, const uword *gb,
                           const double *w_ptr, uword n_obs, uword P) {
@@ -270,7 +269,7 @@ inline void center_2fe(mat &V, const vec &w, const FlatFEMap &map,
 
   // Step 1: Precompute in_out (O(N * P * 2)) -- done ONCE
   std::vector<mat> in_out;
-  compute_in_out(in_out, V, w_ptr, map);
+  in_out_(in_out, V, w_ptr, map);
 
   // Step 2: Initialize coefficient vectors
   mat alpha1, alpha2;
@@ -410,7 +409,7 @@ inline void center_kfe(mat &V, const vec &w, const FlatFEMap &map,
 
   // Precompute in_out
   std::vector<mat> in_out;
-  compute_in_out(in_out, V, w_ptr, map);
+  in_out_(in_out, V, w_ptr, map);
 
   // Initialize coefficient vectors
   std::vector<mat> alpha(K);

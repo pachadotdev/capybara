@@ -75,6 +75,12 @@ NULL
 #'  \code{FALSE} to skip this check and speed up computation when separation is known not to be an issue. The default
 #'  is \code{TRUE}.
 #' @param init_theta Initial value for the negative binomial dispersion parameter (theta). The default is \code{0.0}.
+#' @param vcov_type Optional character string specifying the type of variance-covariance estimator to be used. It only
+#' applies for formulas with a cluster variable like `z ~ x + y | fe | cl`. When \code{NULL} (default), the variance
+#' covariance matrix follows a regular sandwich estimator. When set to `"m-estimator"`, uses standard clustered
+#' M-estimator sandwich. When set to `"m-estimator-dyadic"`, uses dyadic clustering that accounts for correlation
+#' between observations sharing entities. For dyadic clustering, specify two entity columns in the formula like
+#' `z ~ x + y | fe | cl1 + cl2`.
 #'
 #' @return A named list of control parameters.
 #'
@@ -108,7 +114,8 @@ fit_control <- function(
   return_fe = TRUE,
   keep_tx = FALSE,
   check_separation = TRUE,
-  init_theta = 0.0
+  init_theta = 0.0,
+  vcov_type = NULL
 ) {
   # Check validity of tolerance parameters
   if (
@@ -194,6 +201,14 @@ fit_control <- function(
     )
   }
 
+  # Check validity of vcov_type
+  if (!is.null(vcov_type) && !vcov_type %in% c("m-estimator", "m-estimator-dyadic")) {
+    stop(
+      "vcov_type should be either NULL, 'm-estimator', or 'm-estimator-dyadic'.",
+      call. = FALSE
+    )
+  }
+
   list(
     dev_tol = dev_tol,
     center_tol = center_tol,
@@ -218,6 +233,7 @@ fit_control <- function(
     return_fe = return_fe,
     keep_tx = keep_tx,
     check_separation = check_separation,
-    init_theta = init_theta
+    init_theta = init_theta,
+    vcov_type = vcov_type
   )
 }
