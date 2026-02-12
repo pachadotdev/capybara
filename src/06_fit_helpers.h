@@ -411,6 +411,108 @@ inline mat compute_sandwich_vcov(const mat &MX, const vec &y, const vec &mu,
 }
 
 ///////////////////////////////////////////////////////////////////////////
+// Dyadic for M-estimators and GMM
+///////////////////////////////////////////////////////////////////////////
+
+// This borrows from
+// Dyad-Robust Inference for International Trade Data
+// Colin Cameron (U.C. Davis) and Doug Miller (Cornell University) .
+// Presented at IAAE session at ASSA Meetings
+// January 5, 2024
+
+// Consider dyads for countries g and h
+// For simplicity consider cross-section data
+// y_{gh} = x'_{gh} \beta + u_{gh}.
+// Errors correlated between dyads (g,h) with at least one of g and h in common
+// $E[u_{gh} u_{g' h'} | x_{gh} , x_{g' h'}] = 0
+// unless $g = g'$ or $h = h'$ or $g = h'$ or $h = g'$
+// Extra complication over two-way clustering is $g = h'$ or $h = g'$.
+// Results generalize immediately to multiple observations per data such
+// as panel data
+// y_{ght} = x'_{ght} \beta + u_{ght}.
+
+// Example: G=4 countries and bidirectional trade
+// Six Pairs (1, 2), (1, 3), (1, 4), (2, 3), (2, 4) and (3, 4)
+//  country-pair: only (g , h) = (g 0, h0) diagonal entries denoted CP
+//  two-way: g = g 0 and/or h = h0 denoted CP and 2way.
+//  dyadic: also g = h0 or h = g 0 denoted CP, 2way and DYAD.
+// (g,h) / (g',h') | (1,2) | (1,3) | (1,4) | (2,3) | (2,4) | (3,4)
+// ----------------|-------|-------|-------|-------|-------|-------
+// (1,2)           | CP    | 2way  | 2way  | DYAD  | DYAD  |
+// (1,3)           | 2way  | CP    | 2way  | 2way  |       | DYAD |
+// (1,4)           | 2way  | 2way  | CP    |       | 2way  | 2way |
+// (2,3)           | DYAD  | 2way  |       | CP    | 2way  | DYAD |
+// (2,4)           | DYAD  |       | 2way  | 2way  | CP    | 2way |
+// (3,4)           |       | DYAD  | 2way  | DYAD  | 2way  |   CP |
+// For small G large fraction of correlation matrix is nonzero
+//  G = 10 : 38% of error correlations are nonzero
+//  G = 30 : 13% of error correlations are nonzero.
+// For large G the fraction potentially correlated ! 4/(G  1).
+
+// Extends to m-estimators (e.g. probit), IV, and GMM.
+// M-estimator based on $E[m_{gh} (θ)] = 0$ solves $\sum_{g,h} m_{gh}
+// (\hat{\theta}) = 0$.
+// $\hat{\theta}$ is asymptotically normal with
+// $\hat{V}[\hat{\theta}] = \hat{A}^{-1} \hat{B} \hat{A}^{-1}$
+// $\hat{A} = \sum_{g, h} \left. \frac{\partial m_{gh}}{\partial \theta}
+// \hat{\theta} \right|_{\hat{\theta}}$
+// $\hat{B} = \sum_{g, h} 1[g = g' or h = h' or g = h' or h = g'] \times
+// \hat{m}_{gh} \hat{m}_{g'h'}$ Straightforward generalization to GMM.
+//  Santos and Silva (2006) gravity model has dependent variable in levels
+//  (rather than logs) use an exponential mean model with multiplicative fixed
+//  effects estimate by Poisson quasi-MLE Graham (2020ba) provides a dyadic
+//  empirical application.
+
+inline mat compute_sandwich_vcov_mestimator(const mat &A, const mat &scores,
+                                            const field<uvec> &cluster_groups) {
+  const uword p = A.n_cols;
+  const uword G = cluster_groups.n_elem;
+
+  // Bread: A^{-1} where A = sum_{g,h} d m_{gh} / d theta
+  // (i.e. the Hessian / Jacobian of the moment conditions)
+  mat A_inv;
+  if (!inv_sympd(A_inv, A)) {
+    if (!inv(A_inv, A)) {
+      return mat(p, p, fill::value(datum::inf));
+    }
+  }
+
+  // Small-sample degrees-of-freedom adjustment G / (G - 1)
+  const double adj = (G > 1) ? static_cast<double>(G) / (G - 1.0) : 1.0;
+
+  // Meat: B = sum_g s_g s_g'
+  // where s_g = sum_{i in cluster g} scores_i  (cluster-level score)
+  // scores is n x p, each row is the observation-level score m_{gh}(theta_hat)
+  mat B(p, p, fill::zeros);
+  vec cluster_score(p);
+
+  for (uword g = 0; g < G; ++g) {
+    const uvec &idx = cluster_groups(g);
+    const uword ng = idx.n_elem;
+    if (ng == 0)
+      continue;
+
+    // Sum observation-level scores within cluster g
+    cluster_score.zeros();
+    double *cs_ptr = cluster_score.memptr();
+    const uword *idx_ptr = idx.memptr();
+
+    for (uword i = 0; i < ng; ++i) {
+      const uword obs = idx_ptr[i];
+      for (uword j = 0; j < p; ++j) {
+        cs_ptr[j] += scores(obs, j);
+      }
+    }
+
+    // B += s_g * s_g'
+    B += cluster_score * cluster_score.t();
+  }
+
+  // Sandwich: A^{-1} * (adj * B) * A^{-1}
+  return (adj * A_inv) * B * A_inv;
+}
+
+///////////////////////////////////////////////////////////////////////////
 // Group aggregation functions
 ///////////////////////////////////////////////////////////////////////////
 
