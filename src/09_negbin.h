@@ -97,6 +97,7 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
     if (!glm_fit.conv) {
       static_cast<InferenceGLM &>(result) = std::move(glm_fit);
       result.theta = theta;
+      result.conv_outer = false;
       return result;
     }
 
