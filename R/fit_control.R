@@ -64,6 +64,13 @@ NULL
 #'  algorithm. Grand acceleration applies a second-level Irons-Tuck extrapolation on the overall convergence
 #'  trajectory. Lower values (e.g., 4-10) may speed up convergence for difficult problems. Set to a very large
 #'  value (e.g., 10000) to effectively disable. The default is \code{4L}.
+#' @param centering character string indicating the centering algorithm to use for demeaning fixed effects.
+#'  \code{"stammann"} (default) uses alternating projections with Gauss-Seidel sweeps plus Irons-Tuck and grand
+#'  acceleration on coefficient vectors. Each iteration updates each fixed-effect dimension in sequence.
+#'  \code{"berge"} uses a fixed-point reformulation as described in Berge (2018): all FE updates are composed
+#'  into a single map \eqn{F = f_T \circ f_I}, reducing the problem to finding \eqn{\beta^* = F(\beta^*)}. The
+#'  Irons and Tuck (1969) acceleration is then applied to the composed iteration. Both methods use warm-starting
+#'  and grand acceleration.
 #' @param return_fe logical indicating if the fixed effects should be returned. This can be useful when fitting general
 #'  equilibrium models where skipping the fixed effects for intermediate steps speeds up computation. The default is
 #'  \code{TRUE} and only applies to the \code{feglm} class.
@@ -105,6 +112,7 @@ fit_control <- function(
   max_step_halving = 2L,
   start_inner_tol = 1.0e-06,
   grand_acc_period = 4L,
+  centering = "stammann",
   sep_tol = 1.0e-08,
   sep_zero_tol = 1.0e-12,
   sep_max_iter = 200L,
@@ -201,6 +209,9 @@ fit_control <- function(
     )
   }
 
+  # Check validity of centering
+  centering <- match.arg(centering, c("berge", "stammann"))
+
   # Check validity of vcov_type
   if (!is.null(vcov_type) && !vcov_type %in% c("m-estimator", "m-estimator-dyadic")) {
     stop(
@@ -224,6 +235,7 @@ fit_control <- function(
     max_step_halving = max_step_halving,
     start_inner_tol = start_inner_tol,
     grand_acc_period = grand_acc_period,
+    centering = centering,
     sep_tol = sep_tol,
     sep_zero_tol = sep_zero_tol,
     sep_max_iter = sep_max_iter,

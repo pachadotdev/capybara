@@ -73,6 +73,9 @@ struct CapybaraParameters {
   // Centering acceleration parameters
   size_t grand_acc_period;
 
+  // Centering algorithm: "stammann" (alternating projections) or "berge" (fixed-point)
+  std::string centering;
+
   // Variance-covariance estimator type
   std::string vcov_type;
 
@@ -84,7 +87,8 @@ struct CapybaraParameters {
         sep_use_simplex(true), iter_max(25), iter_center_max(10000),
         iter_inner_max(50), iter_alpha_max(10000), return_fe(true),
         keep_tx(false), step_halving_memory(0.9), max_step_halving(2),
-        start_inner_tol(1e-06), grand_acc_period(10), vcov_type("") {}
+        start_inner_tol(1e-06), grand_acc_period(10), centering("stammann"),
+        vcov_type("") {}
 
   explicit CapybaraParameters(const cpp4r::list &control) {
     dev_tol = as_cpp<double>(control["dev_tol"]);
@@ -113,6 +117,14 @@ struct CapybaraParameters {
     max_step_halving = as_cpp<size_t>(control["max_step_halving"]);
     start_inner_tol = as_cpp<double>(control["start_inner_tol"]);
     grand_acc_period = as_cpp<size_t>(control["grand_acc_period"]);
+
+    // Extract centering method
+    SEXP centering_sexp = control["centering"];
+    if (centering_sexp != R_NilValue) {
+      centering = as_cpp<std::string>(centering_sexp);
+    } else {
+      centering = "stammann";
+    }
 
     // Extract vcov_type (optional string parameter)
     SEXP vcov_type_sexp = control["vcov_type"];

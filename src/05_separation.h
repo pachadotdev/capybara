@@ -141,9 +141,13 @@ detect_separation_relu_fe(const vec &y, const mat &X, const vec &w,
 
     if (has_fe) {
       center_variables(u_centered, weights, local_fe_map, params.center_tol,
-                       params.iter_center_max, params.grand_acc_period);
+                       params.iter_center_max, params.grand_acc_period,
+                       nullptr,
+                       centering_from_string(params.centering));
       center_variables(X_centered, weights, local_fe_map, params.center_tol,
-                       params.iter_center_max, params.grand_acc_period);
+                       params.iter_center_max, params.grand_acc_period,
+                       nullptr,
+                       centering_from_string(params.centering));
     }
 
     solve_wls(X_centered, u_centered, weights, resid);
