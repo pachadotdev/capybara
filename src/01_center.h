@@ -583,6 +583,13 @@ inline void center_kfe_stammann(mat &V, const vec &w, const FlatFEMap &map,
 
 // 2-FE centering (Berge): fixed-point F(beta) = f_2(f_1(beta)) with IT
 // acceleration on beta. alpha is only reconstructed at the end.
+//
+// Optimizations vs. naive:
+// - All buffers pre-allocated (zero heap allocs in the loop)
+// - GX from previous iteration is reused (saves one F evaluation)
+// - Grand acceleration uses full IT (3-snapshot Irons-Tuck)
+// - Convergence checked on unaccelerated step (X vs GX) for stability
+
 inline void center_2fe_berge(mat &V, const vec &w, const FlatFEMap &map,
                             CenterWarmStart &warm, double tol, uword max_iter,
                             uword grand_acc_period = 4) {
@@ -590,6 +597,7 @@ inline void center_2fe_berge(mat &V, const vec &w, const FlatFEMap &map,
   const uword P = V.n_cols;
   const uword n1 = map.n_groups[0];
   const uword n2 = map.n_groups[1];
+  const uword total_elem = n2 * P;
 
   const uword *g1 = map.fe_map[0].data();
   const uword *g2 = map.fe_map[1].data();
@@ -600,7 +608,6 @@ inline void center_2fe_berge(mat &V, const vec &w, const FlatFEMap &map,
   in_out_(in_out, V, w_ptr, map);
 
   // Step 2: Initialize beta (= alpha2, the second FE's coefficients)
-  // In the fixed-point formulation we only track beta; alpha is derived.
   mat beta;
   if (warm.can_use(2, P)) {
     beta = warm.alpha[1];
@@ -608,57 +615,69 @@ inline void center_2fe_berge(mat &V, const vec &w, const FlatFEMap &map,
     beta.zeros(n2, P);
   }
 
-  // Define F(beta): given beta (alpha2), compute alpha1 = f_I(beta),
-  // then return f_T(alpha1) = new beta.
-  // This composes both updates into a single map.
-  mat alpha1_tmp(n1, P);
-  auto F = [&](const mat &b) -> mat {
-    // f_I: alpha1 = (in_out_1 - sum_i w_i * b[g2[i]]) / sw_1
-    gs_update_2fe(alpha1_tmp, b, in_out[0], map.inv_weights[0], g2, g1, w_ptr,
-                  n_obs, P);
-    // f_T: new_beta = (in_out_2 - sum_i w_i * alpha1[g1[i]]) / sw_2
-    mat new_beta(n2, P);
-    gs_update_2fe(new_beta, alpha1_tmp, in_out[1], map.inv_weights[1], g1, g2,
-                  w_ptr, n_obs, P);
-    return new_beta;
-  };
+  // Pre-allocate ALL buffers outside the loop (zero allocations inside)
+  mat alpha1_tmp(n1, P);  // scratch for f_I result
+  mat GX(n2, P);          // G(X) = F(beta)
+  mat GGX(n2, P);         // G(G(X)) = F(F(beta))
+  mat X_it(n2, P);        // saved X for convergence check
 
-  // IT acceleration buffers (only beta, n2 x P)
-  mat X_it(n2, P);
-  mat GX_it(n2, P);
-
-  // Grand acceleration buffers
+  // Grand acceleration buffers (3-snapshot IT)
   mat grand_Y(n2, P, fill::zeros);
   mat grand_GY(n2, P, fill::zeros);
+  mat grand_GGY(n2, P, fill::zeros);
   uword grand_stage = 0;
+
+  // Apply F: given src (alpha2), compute alpha1 from src, then new alpha2.
+  // Result written into dst (no allocation).
+  auto apply_F = [&](const mat &src, mat &dst) {
+    gs_update_2fe(alpha1_tmp, src, in_out[0], map.inv_weights[0], g2, g1,
+                  w_ptr, n_obs, P);
+    gs_update_2fe(dst, alpha1_tmp, in_out[1], map.inv_weights[1], g1, g2,
+                  w_ptr, n_obs, P);
+  };
 
   constexpr uword iter_proj_after_acc = 40;
   const uword ssr_check_period = (n_obs > 50000) ? 80 : 40;
   double ssr_old = datum::inf;
 
+  // Bootstrap: compute GX = F(beta) once before the loop
+  apply_F(beta, GX);
+
   for (uword iter = 0; iter < max_iter; ++iter) {
+    // Convergence check on unaccelerated step: X vs G(X)
+    // This is more stable than checking post-acceleration beta
+    {
+      const double *curr = GX.memptr();
+      const double *old = beta.memptr();
+      bool keep_going = false;
+      for (uword i = 0; i < total_elem; ++i) {
+        if (continue_crit(curr[i], old[i], tol)) {
+          keep_going = true;
+          break;
+        }
+      }
+      if (!keep_going)
+        break;
+    }
+
     X_it = beta;
 
-    // F(beta) -> GX
-    mat F_beta = F(beta);
-    GX_it = F_beta;
+    // GGX = F(GX) -- only ONE new F evaluation needed (GX already computed)
+    apply_F(GX, GGX);
 
-    // F(F(beta)) -> GGX
-    mat FF_beta = F(F_beta);
+    // IT acceleration: beta = GGX - coef * (GGX - GX)
+    bool numconv = irons_tuck_acc(beta, GX, GGX);
 
-    // IT acceleration: beta = F(F(beta)) - coef * delta_F
-    // where delta_F = F(F(beta)) - F(beta), delta2 = delta_F - F(beta) + beta
-    bool numconv = irons_tuck_acc(beta, GX_it, FF_beta);
-
-    // Post-acceleration projection: re-apply F to clean up
+    // Post-acceleration projection to stabilize
     if (iter >= iter_proj_after_acc) {
-      beta = F(beta);
+      apply_F(beta, GX);
+      beta = GX;
     }
 
     if (numconv)
       break;
 
-    // Grand acceleration
+    // Grand acceleration (full 3-snapshot Irons-Tuck)
     if (grand_acc_period > 0 && iter > 0 && iter % grand_acc_period == 0) {
       if (grand_stage == 0) {
         grand_Y = beta;
@@ -667,37 +686,25 @@ inline void center_2fe_berge(mat &V, const vec &w, const FlatFEMap &map,
         grand_GY = beta;
         grand_stage = 2;
       } else {
-        const mat g_delta = beta - grand_GY;
-        const mat g_delta2 = g_delta - grand_GY + grand_Y;
-        const double g_ssq = accu(square(g_delta2));
-
-        if (g_ssq > 1e-14) {
-          const double coef = accu(g_delta % g_delta2) / g_ssq;
-          beta -= coef * g_delta;
+        grand_GGY = beta;
+        // Apply full IT to the slow sequence
+        bool g_numconv = irons_tuck_acc(beta, grand_GY, grand_GGY);
+        if (!g_numconv) {
+          // Re-stabilize after grand acceleration
+          apply_F(beta, GX);
+          beta = GX;
         }
         grand_stage = 0;
       }
     }
 
-    // Convergence check (coefficient-space on beta)
-    const double *curr = beta.memptr();
-    const double *old = X_it.memptr();
-    const uword total_elem = n2 * P;
-    bool keep_going = false;
-    for (uword i = 0; i < total_elem; ++i) {
-      if (continue_crit(curr[i], old[i], tol)) {
-        keep_going = true;
-        break;
-      }
-    }
-    if (!keep_going)
-      break;
+    // Compute GX = F(beta) for next iteration (reused at top of loop)
+    apply_F(beta, GX);
 
     // SSR-based stopping (periodic)
     if (iter > 0 && iter % ssr_check_period == 0) {
-      // Reconstruct alpha1 from current beta
-      gs_update_2fe(alpha1_tmp, beta, in_out[0], map.inv_weights[0], g2, g1,
-                    w_ptr, n_obs, P);
+      // alpha1_tmp is already computed from the last apply_F call
+      // (it holds f_I(beta)), so just evaluate SSR
       double ssr = 0.0;
       for (uword p = 0; p < P; ++p) {
         const double *v_col = V.colptr(p);
@@ -738,6 +745,12 @@ inline void center_2fe_berge(mat &V, const vec &w, const FlatFEMap &map,
 // Compose all K updates into F: given alpha[K-1], compute alpha[0],...,alpha[K-2]
 // in sequence, then recompute alpha[K-1]. Track only the last FE coefficient
 // vector through the fixed-point iteration with IT acceleration.
+//
+// Optimizations vs. naive:
+// - All buffers pre-allocated (zero heap allocs in the loop)
+// - GX from previous iteration is reused (saves one F evaluation)
+// - Grand acceleration uses full IT (3-snapshot Irons-Tuck)
+// - Convergence checked on unaccelerated step (X vs GX) for stability
 inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
                             CenterWarmStart &warm, double tol, uword max_iter,
                             uword grand_acc_period = 4) {
@@ -768,9 +781,20 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
   const uword n_last = map.n_groups[last];
   const uword total_elem_last = n_last * P;
 
-  // Define F(beta): given alpha[last]=beta, compute alpha[0],...,alpha[last-1]
-  // in sequence (each from all others), then recompute alpha[last].
-  auto F = [&](const mat &beta_in) -> mat {
+  // Pre-allocate ALL buffers outside the loop (zero allocations inside)
+  mat GX(n_last, P);           // G(X) = F(beta)
+  mat GGX(n_last, P);          // G(G(X)) = F(F(beta))
+  mat X_it(n_last, P);         // saved X for convergence check
+
+  // Grand acceleration buffers (3-snapshot IT)
+  mat grand_Y(n_last, P, fill::zeros);
+  mat grand_GY(n_last, P, fill::zeros);
+  mat grand_GGY(n_last, P, fill::zeros);
+  uword grand_stage = 0;
+
+  // Apply F: given beta_in, compute alpha[0..last-1] in sequence,
+  // then recompute alpha[last] into dst. No allocation.
+  auto apply_F = [&](const mat &beta_in, mat &dst) {
     alpha[last] = beta_in;
     // Forward sweep: update alpha[0], alpha[1], ..., alpha[last-1]
     for (uword k = 0; k < last; ++k) {
@@ -778,21 +802,9 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
                     k, n_obs, P);
     }
     // Recompute alpha[last] from updated alpha[0..last-1]
-    mat new_beta(n_last, P);
-    // Use alpha[last] temporarily to hold the result via gs_update_kfe
-    gs_update_kfe(new_beta, alpha, in_out[last], map.inv_weights[last], map,
+    gs_update_kfe(dst, alpha, in_out[last], map.inv_weights[last], map,
                   w_ptr, last, n_obs, P);
-    return new_beta;
   };
-
-  // IT acceleration buffers (only beta = alpha[last], n_last x P)
-  mat X_it(n_last, P, fill::zeros);
-  mat GX_it(n_last, P, fill::zeros);
-
-  // Grand acceleration buffers
-  mat grand_Y(n_last, P, fill::zeros);
-  mat grand_GY(n_last, P, fill::zeros);
-  uword grand_stage = 0;
 
   constexpr uword iter_proj_after_acc = 40;
   const uword ssr_check_period = (n_obs > 100000) ? 80 : 40;
@@ -800,28 +812,43 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
 
   mat beta = alpha[last];
 
+  // Bootstrap: compute GX = F(beta) once before the loop
+  apply_F(beta, GX);
+
   for (uword iter = 0; iter < max_iter; ++iter) {
+    // Convergence check on unaccelerated step: X vs G(X)
+    {
+      const double *curr = GX.memptr();
+      const double *old = beta.memptr();
+      bool keep_going = false;
+      for (uword i = 0; i < total_elem_last; ++i) {
+        if (continue_crit(curr[i], old[i], tol)) {
+          keep_going = true;
+          break;
+        }
+      }
+      if (!keep_going)
+        break;
+    }
+
     X_it = beta;
 
-    // F(beta) -> GX
-    mat F_beta = F(beta);
-    GX_it = F_beta;
+    // GGX = F(GX) -- only ONE new F evaluation needed (GX already computed)
+    apply_F(GX, GGX);
 
-    // F(F(beta)) -> GGX
-    mat FF_beta = F(F_beta);
+    // IT acceleration: beta = GGX - coef * (GGX - GX)
+    bool numconv = irons_tuck_acc(beta, GX, GGX);
 
-    // IT acceleration
-    bool numconv = irons_tuck_acc(beta, GX_it, FF_beta);
-
-    // Post-acceleration projection
+    // Post-acceleration projection to stabilize
     if (iter >= iter_proj_after_acc) {
-      beta = F(beta);
+      apply_F(beta, GX);
+      beta = GX;
     }
 
     if (numconv)
       break;
 
-    // Grand acceleration
+    // Grand acceleration (full 3-snapshot Irons-Tuck)
     if (grand_acc_period > 0 && iter > 0 && iter % grand_acc_period == 0) {
       if (grand_stage == 0) {
         grand_Y = beta;
@@ -830,40 +857,24 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
         grand_GY = beta;
         grand_stage = 2;
       } else {
-        const mat g_delta = beta - grand_GY;
-        const mat g_delta2 = g_delta - grand_GY + grand_Y;
-        const double g_ssq = accu(square(g_delta2));
-
-        if (g_ssq > 1e-14) {
-          const double coef = accu(g_delta % g_delta2) / g_ssq;
-          beta -= coef * g_delta;
+        grand_GGY = beta;
+        // Apply full IT to the slow sequence
+        bool g_numconv = irons_tuck_acc(beta, grand_GY, grand_GGY);
+        if (!g_numconv) {
+          // Re-stabilize after grand acceleration
+          apply_F(beta, GX);
+          beta = GX;
         }
         grand_stage = 0;
       }
     }
 
-    // Convergence check
-    const double *curr = beta.memptr();
-    const double *old = X_it.memptr();
-    bool keep_going = false;
-    for (uword i = 0; i < total_elem_last; ++i) {
-      if (continue_crit(curr[i], old[i], tol)) {
-        keep_going = true;
-        break;
-      }
-    }
-    if (!keep_going)
-      break;
+    // Compute GX = F(beta) for next iteration (reused at top of loop)
+    apply_F(beta, GX);
 
     // SSR-based stopping (periodic)
     if (iter > 0 && iter % ssr_check_period == 0) {
-      // Reconstruct all alpha from current beta
-      alpha[last] = beta;
-      for (uword k = 0; k < last; ++k) {
-        gs_update_kfe(alpha[k], alpha, in_out[k], map.inv_weights[k], map,
-                      w_ptr, k, n_obs, P);
-      }
-
+      // alpha[] is up-to-date from the last apply_F call
       double ssr = 0.0;
       std::vector<const uword *> map_ptrs(K);
       for (uword k = 0; k < K; ++k) {

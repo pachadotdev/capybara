@@ -145,3 +145,99 @@ test_that("proportional regressors return NA coefficients", {
   expect_equal(coef(fit2), coef(fit1)[2:3], tolerance = 1e-2)
   expect_equal(predict(fit2), predict(fit1, type = "response"), tolerance = 1e-2)
 })
+
+# Stammann centering ----
+
+test_that("fepoisson is similar to base (stammann centering)", {
+  skip_on_cran()
+  ctrl <- list(centering = "stammann")
+
+  # K = 1
+
+  mod <- fepoisson(mpg ~ wt | cyl | am, mtcars, control = ctrl)
+
+  mod_base <- glm(
+    mpg ~ wt + as.factor(cyl),
+    mtcars,
+    family = quasipoisson(link = "log")
+  )
+
+  dist_variation <- unname(abs(
+    (coef(mod)[1] - coef(mod_base)[2]) / coef(mod)[1]
+  ))
+
+  expect_equal(dist_variation, 0.0, tolerance = 1e-2)
+
+  n <- unname(mod[["nobs"]]["nobs_full"])
+  expect_equal(length(fitted(mod)), n)
+  expect_equal(length(predict(mod)), n)
+  expect_equal(length(coef(mod)), 1)
+
+  # K = 2
+
+  mod <- fepoisson(mpg ~ wt | cyl + am, mtcars, control = ctrl)
+
+  mod_base <- glm(
+    mpg ~ wt + as.factor(cyl) + as.factor(am),
+    mtcars,
+    family = quasipoisson(link = "log")
+  )
+
+  dist_variation <- abs((coef(mod)[1] - coef(mod_base)[2]) / coef(mod)[1])
+
+  expect_lt(dist_variation, 0.05)
+
+  # K = 3
+
+  mod <- fepoisson(mpg ~ wt | cyl + am + carb, mtcars, control = ctrl)
+
+  mod_base <- glm(
+    mpg ~ wt + as.factor(cyl) + as.factor(am) + as.factor(carb),
+    mtcars,
+    family = quasipoisson(link = "log")
+  )
+
+  dist_variation <- abs((coef(mod)[1] - coef(mod_base)[2]) / coef(mod)[1])
+
+  expect_lt(dist_variation, 0.05)
+
+  expect_equal(mod[["fitted_values"]], mod_base[["fitted.values"]], tolerance = 1e-2)
+
+  pred_mod <- predict(mod, type = "response")
+  pred_mod_base <- predict(mod_base, type = "response")
+  expect_equal(pred_mod, pred_mod_base, tolerance = 1e-2)
+
+  pred_mod <- predict(mod, type = "response", newdata = mtcars[1:10, ])
+  pred_mod_base <- predict(mod_base, type = "response", newdata = mtcars[1:10, ])
+  expect_equal(pred_mod, pred_mod_base, tolerance = 1e-2)
+})
+
+test_that("fepoisson estimation is the same adding noise to the data (stammann centering)", {
+  ctrl <- list(centering = "stammann")
+  set.seed(123)
+  d <- mtcars[, c("mpg", "wt", "cyl")]
+  d$wt2 <- d$wt + pmax(rnorm(nrow(d)), 0) * .Machine$double.eps
+
+  m1 <- fepoisson(mpg ~ wt | cyl, d, control = ctrl)
+  m2 <- fepoisson(mpg ~ wt2 | cyl, d, control = ctrl)
+
+  expect_equal(unname(coef(m1)), unname(coef(m2)))
+  expect_equal(m1$fixed.effects, m2$fixed.effects)
+})
+
+test_that("proportional regressors return NA coefficients (stammann centering)", {
+  ctrl <- list(centering = "stammann")
+  set.seed(200100)
+  d <- data.frame(
+    y = rpois(100, 2),
+    x1 = rnorm(100),
+    f = factor(sample(1:2, 100, replace = TRUE))
+  )
+  d$x2 <- 2 * d$x1
+
+  fit1 <- glm(y ~ x1 + x2 + as.factor(f), data = d, family = poisson())
+  fit2 <- fepoisson(y ~ x1 + x2 | f, data = d, control = ctrl)
+
+  expect_equal(coef(fit2), coef(fit1)[2:3], tolerance = 1e-2)
+  expect_equal(predict(fit2), predict(fit1, type = "response"), tolerance = 1e-2)
+})

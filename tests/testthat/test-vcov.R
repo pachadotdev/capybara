@@ -188,3 +188,75 @@ test_that("vcov works for fenegbin", {
   expect_true(is.matrix(v))
   expect_true(all(is.finite(v)))
 })
+
+# Stammann centering ----
+
+test_that("vcov returns correct structure for feglm (stammann centering)", {
+  skip_on_cran()
+  ctrl <- list(centering = "stammann")
+
+  m1 <- fepoisson(mpg ~ wt + disp | cyl, mtcars, control = ctrl)
+
+  v1 <- vcov(m1)
+  expect_true(is.matrix(v1))
+  expect_equal(nrow(v1), 2L)
+  expect_equal(ncol(v1), 2L)
+  expect_true(all(is.finite(v1)))
+
+  m2 <- fepoisson(mpg ~ wt + disp | cyl | carb, mtcars, control = ctrl)
+
+  v2 <- vcov(m2)
+  expect_true(is.matrix(v2))
+  expect_equal(nrow(v2), 2L)
+  expect_equal(ncol(v2), 2L)
+  expect_true(all(is.finite(v2)))
+})
+
+test_that("vcov works for felm (stammann centering)", {
+  skip_on_cran()
+  ctrl <- list(centering = "stammann")
+
+  m <- felm(mpg ~ wt + disp | cyl, mtcars, control = ctrl)
+  v <- vcov(m)
+
+  expect_true(is.matrix(v))
+  expect_equal(nrow(v), 2L)
+  expect_equal(ncol(v), 2L)
+  expect_true(all(is.finite(v)))
+})
+
+test_that("vcov works for felm with clustering (stammann centering)", {
+  skip_on_cran()
+  ctrl <- list(centering = "stammann")
+
+  m <- felm(mpg ~ wt + disp | cyl | carb, mtcars, control = ctrl)
+  v <- vcov(m)
+
+  expect_true(is.matrix(v))
+  expect_equal(nrow(v), 2L)
+  expect_equal(ncol(v), 2L)
+  expect_true(all(is.finite(v)))
+})
+
+test_that("vcov works for binomial feglm (stammann centering)", {
+  skip_on_cran()
+  ctrl <- list(centering = "stammann")
+
+  m <- feglm(am ~ wt + disp | cyl, mtcars, family = binomial(), control = ctrl)
+  v <- vcov(m)
+
+  expect_true(is.matrix(v))
+  expect_equal(nrow(v), 2L)
+  expect_equal(ncol(v), 2L)
+})
+
+test_that("vcov works for fenegbin (stammann centering)", {
+  skip_on_cran()
+  ctrl <- list(centering = "stammann")
+
+  m <- fenegbin(mpg ~ wt | cyl, mtcars, control = ctrl)
+  v <- vcov(m)
+
+  expect_true(is.matrix(v))
+  expect_true(all(is.finite(v)))
+})

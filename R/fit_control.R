@@ -65,9 +65,9 @@ NULL
 #'  trajectory. Lower values (e.g., 4-10) may speed up convergence for difficult problems. Set to a very large
 #'  value (e.g., 10000) to effectively disable. The default is \code{4L}.
 #' @param centering character string indicating the centering algorithm to use for demeaning fixed effects.
-#'  \code{"stammann"} (default) uses alternating projections with Gauss-Seidel sweeps plus Irons-Tuck and grand
+#'  \code{"stammann"} uses alternating projections with Gauss-Seidel sweeps plus Irons-Tuck and grand
 #'  acceleration on coefficient vectors. Each iteration updates each fixed-effect dimension in sequence.
-#'  \code{"berge"} uses a fixed-point reformulation as described in Berge (2018): all FE updates are composed
+#'  \code{"berge"} (default) uses a fixed-point reformulation as described in Berge (2018): all FE updates are composed
 #'  into a single map \eqn{F = f_T \circ f_I}, reducing the problem to finding \eqn{\beta^* = F(\beta^*)}. The
 #'  Irons and Tuck (1969) acceleration is then applied to the composed iteration. Both methods use warm-starting
 #'  and grand acceleration.
@@ -112,7 +112,7 @@ fit_control <- function(
   max_step_halving = 2L,
   start_inner_tol = 1.0e-06,
   grand_acc_period = 4L,
-  centering = "stammann",
+  centering = "berge",
   sep_tol = 1.0e-08,
   sep_zero_tol = 1.0e-12,
   sep_max_iter = 200L,

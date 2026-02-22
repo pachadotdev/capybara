@@ -222,3 +222,148 @@ test_that("felm with weights works", {
 
   expect_gt(coef(m1), coef(m4))
 })
+
+# Stammann centering ----
+
+test_that("felm works (stammann centering)", {
+  ctrl <- list(centering = "stammann")
+
+  # 1-FE ----
+
+  m1 <- felm(formula = mpg ~ wt | cyl, data = mtcars, control = ctrl)
+  m2 <- lm(mpg ~ wt + as.factor(cyl), mtcars)
+
+  expect_equal(coef(m1), coef(m2)[2], tolerance = 1e-2)
+
+  n <- nrow(mtcars)
+  expect_equal(length(fitted(m1)), n)
+  expect_equal(length(predict(m1)), n)
+  expect_equal(length(coef(m1)), 1)
+  expect_equal(length(coef(summary(m1))), 4)
+
+  m1 <- felm(mpg ~ wt + qsec | cyl, mtcars, control = ctrl)
+  m2 <- lm(mpg ~ wt + qsec + as.factor(cyl), mtcars)
+
+  expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-2)
+
+  # 2-FE ----
+
+  m1 <- felm(mpg ~ wt + qsec | cyl + am, mtcars, control = ctrl)
+  m2 <- lm(mpg ~ wt + qsec + as.factor(cyl) + as.factor(am), mtcars)
+
+  expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-2)
+
+  s1 <- summary(m1)
+  s2 <- summary(m2)
+
+  expect_equal(s1$r_squared, s2$r.squared, tolerance = 1e-2)
+  expect_equal(s1$adj_r_squared, s2$adj.r.squared, tolerance = 1e-2)
+
+  mtcars2 <- mtcars
+  mtcars2$wt[2] <- NA
+
+  m1 <- felm(mpg ~ wt + qsec | cyl + am, mtcars2, control = ctrl)
+  m2 <- lm(mpg ~ wt + qsec + as.factor(cyl) + as.factor(am), mtcars2)
+
+  expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-2)
+
+  s1 <- summary(m1)
+  s2 <- summary(m2)
+
+  expect_equal(s1$r_squared, s2$r.squared, tolerance = 1e-2)
+  expect_equal(s1$adj_r_squared, s2$adj.r.squared, tolerance = 1e-2)
+
+  m1 <- felm(mpg ~ wt + qsec | cyl + am | carb, mtcars, control = ctrl)
+
+  expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-2)
+
+  # 3-FE ----
+
+  m1 <- felm(mpg ~ wt + qsec | cyl + am + gear, mtcars, control = ctrl)
+  m2 <- lm(
+    mpg ~ wt + qsec + as.factor(cyl) + as.factor(am) + as.factor(gear),
+    mtcars
+  )
+
+  expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-2)
+
+  s1 <- summary(m1)
+  s2 <- summary(m2)
+  expect_equal(s1$r_squared, s2$r.squared, tolerance = 1e-2)
+  expect_equal(s1$adj_r_squared, s2$adj.r.squared, tolerance = 1e-2)
+})
+
+test_that("felm is correct without fixed effects (stammann centering)", {
+  # centering is unused when there are no FEs, but the control arg
+  # must still be accepted without error
+  ctrl <- list(centering = "stammann")
+  m1 <- felm(mpg ~ wt, mtcars, control = ctrl)
+  m2 <- lm(mpg ~ wt, mtcars)
+
+  s2 <- summary(m2)
+
+  expect_equal(coef(m1), coef(m2), tolerance = 1e-2)
+  expect_equal(m1$r_squared, s2$r.squared, tolerance = 1e-2)
+  expect_equal(m1$adj_r_squared, s2$adj.r.squared, tolerance = 1e-2)
+})
+
+test_that("proportional regressors return NA coefficients (stammann centering)", {
+  ctrl <- list(centering = "stammann")
+  set.seed(200100)
+  d <- data.frame(
+    y = rnorm(100),
+    x1 = rnorm(100),
+    f = factor(sample(1:2, 100, replace = TRUE))
+  )
+
+  d$x2 <- 2 * d$x1
+  fit1 <- lm(y ~ x1 + x2 + as.factor(f), data = d)
+  fit2 <- felm(y ~ x1 + x2 | f, data = d, control = ctrl)
+
+  expect_equal(coef(fit2), coef(fit1)[2:3], tolerance = 1e-2)
+  expect_equal(predict(fit2), predict(fit1), tolerance = 1e-2)
+})
+
+test_that("felm correctly predicts values outside the inter-quartile range (stammann centering)", {
+  ctrl <- list(centering = "stammann")
+
+  mape <- function(y, yhat) mean(abs(y - yhat) / y)
+
+  d1 <- mtcars[
+    mtcars$mpg >= quantile(mtcars$mpg, 0.25) &
+      mtcars$mpg <= quantile(mtcars$mpg, 0.75),
+  ]
+  d2 <- mtcars[
+    mtcars$mpg < quantile(mtcars$mpg, 0.25) |
+      mtcars$mpg > quantile(mtcars$mpg, 0.75),
+  ]
+
+  m1_lm <- felm(mpg ~ wt + disp | cyl, mtcars, control = ctrl)
+  m2_lm <- lm(mpg ~ wt + disp + as.factor(cyl), mtcars)
+
+  pred1_lm <- predict(m1_lm, newdata = d1)
+  pred2_lm <- predict(m1_lm, newdata = d2)
+
+  expect_lt(mape(d1$mpg, pred1_lm), mape(d2$mpg, pred2_lm))
+  expect_equal(pred1_lm, predict(m2_lm, newdata = d1), tolerance = 1e-2)
+  expect_equal(pred2_lm, predict(m2_lm, newdata = d2), tolerance = 1e-2)
+})
+
+test_that("felm with weights works (stammann centering)", {
+  skip_on_cran()
+  ctrl <- list(centering = "stammann")
+
+  m1 <- felm(mpg ~ wt | am, weights = ~cyl, data = mtcars, control = ctrl)
+  m2 <- felm(mpg ~ wt | am, weights = mtcars$cyl, data = mtcars, control = ctrl)
+
+  w <- mtcars$cyl
+  m3 <- felm(mpg ~ wt | am, weights = w, data = mtcars, control = ctrl)
+
+  expect_equal(coef(m2), coef(m1))
+  expect_equal(coef(m3), coef(m1))
+
+  w <- NULL
+  m4 <- felm(mpg ~ wt | am, weights = w, data = mtcars, control = ctrl)
+
+  expect_gt(coef(m1), coef(m4))
+})

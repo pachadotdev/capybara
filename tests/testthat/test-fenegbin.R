@@ -109,3 +109,61 @@ test_that("fenegbin respects control parameters", {
   expect_s3_class(mod, "feglm")
   expect_true(!is.null(mod$coef_table))
 })
+
+# Stammann centering ----
+
+test_that("fenegbin is similar to fixest (stammann centering)", {
+  skip_on_cran()
+  ctrl <- list(centering = "stammann")
+
+  mod <- fenegbin(mpg ~ wt | cyl, mtcars, control = ctrl)
+  mod_mass <- suppressWarnings(MASS::glm.nb(
+    mpg ~ wt + as.factor(cyl),
+    mtcars
+  ))
+
+  expect_equal(coef(mod)[1], coef(mod_mass)[2], tolerance = 0.05)
+})
+
+test_that("fenegbin returns correct structure (stammann centering)", {
+  skip_on_cran()
+  ctrl <- list(centering = "stammann")
+
+  mod <- fenegbin(mpg ~ wt | cyl, mtcars, control = ctrl)
+
+  expect_s3_class(mod, "feglm")
+  expect_true("theta" %in% names(mod))
+  expect_true("coef_table" %in% names(mod))
+  expect_true("deviance" %in% names(mod))
+  expect_true("null_deviance" %in% names(mod))
+})
+
+test_that("fenegbin works with multiple fixed effects (stammann centering)", {
+  skip_on_cran()
+  ctrl <- list(centering = "stammann")
+
+  mod <- fenegbin(mpg ~ wt | cyl + am, mtcars, control = ctrl)
+
+  expect_s3_class(mod, "feglm")
+  expect_true("theta" %in% names(mod))
+})
+
+test_that("fenegbin theta is positive (stammann centering)", {
+  skip_on_cran()
+  ctrl <- list(centering = "stammann")
+
+  mod <- fenegbin(mpg ~ wt | cyl, mtcars, control = ctrl)
+
+  expect_true(mod$theta > 0)
+  expect_true(is.finite(mod$theta))
+})
+
+test_that("fenegbin respects control parameters (stammann centering)", {
+  skip_on_cran()
+
+  ctrl <- fit_control(dev_tol = 1e-10, iter_max = 50L, centering = "stammann")
+  mod <- fenegbin(mpg ~ wt | cyl, mtcars, control = ctrl)
+
+  expect_s3_class(mod, "feglm")
+  expect_true(!is.null(mod$coef_table))
+})

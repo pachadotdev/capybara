@@ -81,6 +81,13 @@ test_that("fit_control validates start_inner_tol", {
   )
 })
 
+test_that("fit_control validates centering", {
+  expect_error(
+    fit_control(centering = "invalid_option"),
+    "should be one of"
+  )
+})
+
 test_that("fit_control returns correct structure", {
   ctrl <- fit_control()
 
@@ -128,7 +135,7 @@ test_that("fit_control has sensible defaults", {
 })
 
 test_that("fit_control works with models", {
-  ctrl <- fit_control(dev_tol = 1e-10)
+  ctrl <- list(dev_tol = 1e-10)
 
   mod <- felm(mpg ~ wt | cyl, mtcars, control = ctrl)
 
@@ -139,11 +146,11 @@ test_that("different control settings affect convergence", {
   skip_on_cran()
 
   # Tight tolerance
-  ctrl_tight <- fit_control(dev_tol = 1e-12, center_tol = 1e-12)
+  ctrl_tight <- list(dev_tol = 1e-12, center_tol = 1e-12)
   mod_tight <- felm(mpg ~ wt | cyl, mtcars, control = ctrl_tight)
 
   # Loose tolerance
-  ctrl_loose <- fit_control(dev_tol = 1e-4, center_tol = 1e-4)
+  ctrl_loose <- list(dev_tol = 1e-4, center_tol = 1e-4)
   mod_loose <- felm(mpg ~ wt | cyl, mtcars, control = ctrl_loose)
 
   # Both should converge
@@ -157,7 +164,7 @@ test_that("different control settings affect convergence", {
 test_that("init_theta parameter works for fenegbin", {
   skip_on_cran()
 
-  ctrl <- fit_control(init_theta = 0.5)
+  ctrl <- list(init_theta = 0.5)
 
   mod <- fenegbin(mpg ~ wt | cyl, mtcars, control = ctrl)
 
