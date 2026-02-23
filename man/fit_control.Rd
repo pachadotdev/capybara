@@ -19,7 +19,7 @@ fit_control(
   max_step_halving = 2L,
   start_inner_tol = 1e-06,
   grand_acc_period = 4L,
-  centering = "stammann",
+  centering = "berge",
   sep_tol = 1e-08,
   sep_zero_tol = 1e-12,
   sep_max_iter = 200L,

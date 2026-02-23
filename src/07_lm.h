@@ -343,8 +343,7 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
 
     center_variables(ws->yX_view, w_work, ws->fe_map, effective_tol,
                      params.iter_center_max, params.grand_acc_period,
-                     &ws->warm_start,
-                     centering_from_string(params.centering));
+                     &ws->warm_start, centering_from_string(params.centering));
   } else {
     // Copy X to workspace buffers
     if (!run_from_glm) {

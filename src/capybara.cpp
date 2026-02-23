@@ -73,7 +73,8 @@ struct CapybaraParameters {
   // Centering acceleration parameters
   size_t grand_acc_period;
 
-  // Centering algorithm: "stammann" (alternating projections) or "berge" (fixed-point)
+  // Centering algorithm: "stammann" (alternating projections) or "berge"
+  // (fixed-point)
   std::string centering;
 
   // Variance-covariance estimator type

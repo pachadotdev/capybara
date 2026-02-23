@@ -713,8 +713,7 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
 
     center_variables(Myadj, w_working, fe_map, adaptive_tol,
                      params.iter_center_max, params.grand_acc_period,
-                     &warm_start,
-                     centering_from_string(params.centering));
+                     &warm_start, centering_from_string(params.centering));
 
     const vec eta_upd = yadj - Myadj + offset - eta;
 
