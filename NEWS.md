@@ -1,5 +1,6 @@
-# capybara 2.0.0 (WIP)
+# capybara 2.0.0
 
+* I rewrote the the Rank-Revealing Cholesky general method to contribute back to Armadillo.
 * I found an error when using `summary(lm/glm, type = "clustered")` that largely underestimated
   the standard errors. This is now fixed and I merged "clustered" and " sandwich" types into a single
   "sandwich" type for clarity and consistency as both use a bread-meat-bread approach.
@@ -13,6 +14,10 @@
 * The default is now `predict(glm_object, type = "response")`, unlike base R behavior.
 * Most of the R and C++ code was refactored to use memory efficiently.
 * Follows fixest-based normalization for fixed effects to match Stata results.
+* Provides the option to use `control = list(centering = "berge")` or `list(centering = "stammann")`. Both
+  methods are equivalent but use different internal logics. Berge's fixed point problem approach is usually
+  faster.
+* Adds parallelization over columns for an efficient centering regardless of the method used.
 * Most of the data processing was moved to C++ port to eae portability (e.g., Python version in the future)
 
 # capybara 1.8.1
