@@ -358,9 +358,8 @@ inline vec variance(const vec &mu, const double &theta,
 // cluster_groups: indices for each cluster
 // Returns: sandwich covariance matrix (p x p)
 
-inline mat compute_sandwich_vcov(const mat &MX, const vec &y, const vec &mu,
-                                 const mat &H,
-                                 const field<uvec> &cluster_groups) {
+inline mat sandwich_vcov_(const mat &MX, const vec &y, const vec &mu,
+                          const mat &H, const field<uvec> &cluster_groups) {
   const uword p = MX.n_cols;
   const uword G = cluster_groups.n_elem;
 
@@ -408,6 +407,197 @@ inline mat compute_sandwich_vcov(const mat &MX, const vec &y, const vec &mu,
 
   // Sandwich: H^{-1} * (adj * B) * H^{-1}
   return (adj * H_inv) * B * H_inv;
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Dyadic for M-estimators and GMM
+///////////////////////////////////////////////////////////////////////////
+
+// This borrows from
+// Dyad-Robust Inference for International Trade Data
+// Colin Cameron (U.C. Davis) and Doug Miller (Cornell University) .
+// Presented at IAAE session at ASSA Meetings
+// January 5, 2024
+
+// Consider dyads for countries g and h
+// For simplicity consider cross-section data
+// y_{gh} = x'_{gh} \beta + u_{gh}.
+// Errors correlated between dyads (g,h) with at least one of g and h in common
+// $E[u_{gh} u_{g' h'} | x_{gh} , x_{g' h'}] = 0
+// unless $g = g'$ or $h = h'$ or $g = h'$ or $h = g'$
+// Extra complication over two-way clustering is $g = h'$ or $h = g'$.
+// Results generalize immediately to multiple observations per data such
+// as panel data
+// y_{ght} = x'_{ght} \beta + u_{ght}.
+
+// Example: G=4 countries and bidirectional trade
+// Six Pairs (1, 2), (1, 3), (1, 4), (2, 3), (2, 4) and (3, 4)
+//  country-pair: only (g , h) = (g 0, h0) diagonal entries denoted CP
+//  two-way: g = g 0 and/or h = h0 denoted CP and 2way.
+//  dyadic: also g = h0 or h = g 0 denoted CP, 2way and DYAD.
+// (g,h) / (g',h') | (1,2) | (1,3) | (1,4) | (2,3) | (2,4) | (3,4)
+// ----------------|-------|-------|-------|-------|-------|-------
+// (1,2)           | CP    | 2way  | 2way  | DYAD  | DYAD  |
+// (1,3)           | 2way  | CP    | 2way  | 2way  |       | DYAD |
+// (1,4)           | 2way  | 2way  | CP    |       | 2way  | 2way |
+// (2,3)           | DYAD  | 2way  |       | CP    | 2way  | DYAD |
+// (2,4)           | DYAD  |       | 2way  | 2way  | CP    | 2way |
+// (3,4)           |       | DYAD  | 2way  | DYAD  | 2way  |   CP |
+// For small G large fraction of correlation matrix is nonzero
+//  G = 10 : 38% of error correlations are nonzero
+//  G = 30 : 13% of error correlations are nonzero.
+// For large G the fraction potentially correlated ! 4/(G  1).
+
+// Extends to m-estimators (e.g. probit), IV, and GMM.
+// M-estimator based on $E[m_{gh} (θ)] = 0$ solves $\sum_{g,h} m_{gh}
+// (\hat{\theta}) = 0$.
+// $\hat{\theta}$ is asymptotically normal with
+// $\hat{V}[\hat{\theta}] = \hat{A}^{-1} \hat{B} \hat{A}^{-1}$
+// $\hat{A} = \sum_{g, h} \left. \frac{\partial m_{gh}}{\partial \theta}
+// \hat{\theta} \right|_{\hat{\theta}}$
+// $\hat{B} = \sum_{g, h} 1[g = g' or h = h' or g = h' or h = g'] \times
+// \hat{m}_{gh} \hat{m}_{g'h'}$ Straightforward generalization to GMM.
+//  Santos and Silva (2006) gravity model has dependent variable in levels
+//  (rather than logs) use an exponential mean model with multiplicative fixed
+//  effects estimate by Poisson quasi-MLE Graham (2020ba) provides a dyadic
+//  empirical application.
+
+// Standard one-way clustering for M-estimators
+inline mat sandwich_vcov_mestimator_(const mat &A, const mat &scores,
+                                     const field<uvec> &cluster_groups) {
+  const uword p = A.n_cols;
+  const uword G = cluster_groups.n_elem;
+
+  // Bread: A^{-1} where A = sum_{g,h} d m_{gh} / d theta
+  // (i.e. the Hessian / Jacobian of the moment conditions)
+  mat A_inv;
+  if (!inv_sympd(A_inv, A)) {
+    if (!inv(A_inv, A)) {
+      return mat(p, p, fill::value(datum::inf));
+    }
+  }
+
+  // Small-sample degrees-of-freedom adjustment G / (G - 1)
+  const double adj = (G > 1) ? static_cast<double>(G) / (G - 1.0) : 1.0;
+
+  // Meat: B = sum_g s_g s_g'
+  // where s_g = sum_{i in cluster g} scores_i  (cluster-level score)
+  // scores is n x p, each row is the observation-level score m_{gh}(theta_hat)
+  mat B(p, p, fill::zeros);
+  vec cluster_score(p);
+
+  for (uword g = 0; g < G; ++g) {
+    const uvec &idx = cluster_groups(g);
+    const uword ng = idx.n_elem;
+    if (ng == 0)
+      continue;
+
+    // Sum observation-level scores within cluster g
+    cluster_score.zeros();
+    double *cs_ptr = cluster_score.memptr();
+    const uword *idx_ptr = idx.memptr();
+
+    for (uword i = 0; i < ng; ++i) {
+      const uword obs = idx_ptr[i];
+      for (uword j = 0; j < p; ++j) {
+        cs_ptr[j] += scores(obs, j);
+      }
+    }
+
+    // B += s_g * s_g'
+    B += cluster_score * cluster_score.t();
+  }
+
+  // Sandwich: A^{-1} * (adj * B) * A^{-1}
+  return (adj * A_inv) * B * A_inv;
+}
+
+// Dyadic clustering for M-estimators
+// For dyadic data, observations (g,h) and (g',h') are correlated if they share
+// at least one entity: g==g', h==h', g==h', or h==g'
+// This requires passing entity IDs separately from cluster IDs
+inline mat sandwich_vcov_mestimator_dyadic_(const mat &A, const mat &scores,
+                                            const field<uvec> &entity1_groups,
+                                            const field<uvec> &entity2_groups) {
+  const uword p = A.n_cols;
+  const uword n_obs = scores.n_rows;
+  const uword G1 =
+      entity1_groups
+          .n_elem; // Number of unique entity 1 values (e.g., exporters)
+  const uword G2 =
+      entity2_groups
+          .n_elem; // Number of unique entity 2 values (e.g., importers)
+
+  // Bread: A^{-1}
+  mat A_inv;
+  if (!inv_sympd(A_inv, A)) {
+    if (!inv(A_inv, A)) {
+      return mat(p, p, fill::value(datum::inf));
+    }
+  }
+
+  // Build mapping from observation to its entities
+  std::vector<uword> obs_to_entity1(n_obs);
+  std::vector<uword> obs_to_entity2(n_obs);
+
+  for (uword g = 0; g < G1; ++g) {
+    const uvec &idx = entity1_groups(g);
+    for (uword i = 0; i < idx.n_elem; ++i) {
+      obs_to_entity1[idx(i)] = g;
+    }
+  }
+
+  for (uword h = 0; h < G2; ++h) {
+    const uvec &idx = entity2_groups(h);
+    for (uword i = 0; i < idx.n_elem; ++i) {
+      obs_to_entity2[idx(i)] = h;
+    }
+  }
+
+  // Compute entity-level scores by summing observations within each entity
+  std::vector<vec> entity1_scores(G1, vec(p, fill::zeros));
+  std::vector<vec> entity2_scores(G2, vec(p, fill::zeros));
+
+  for (uword i = 0; i < n_obs; ++i) {
+    vec score_i = scores.row(i).t();
+    entity1_scores[obs_to_entity1[i]] += score_i;
+    entity2_scores[obs_to_entity2[i]] += score_i;
+  }
+
+  // Dyadic meat: B = sum_i sum_j 1[i and j share entity] * score_i * score_j'
+  // Cameron-Miller decomposition: B = B_1 + B_2 - B_12
+  // where B_1 accounts for entity1, B_2 for entity2, B_12 for intersection
+
+  // B_1: Sum over entity1 groups
+  mat B1(p, p, fill::zeros);
+  for (uword g = 0; g < G1; ++g) {
+    B1 += entity1_scores[g] * entity1_scores[g].t();
+  }
+
+  // B_2: Sum over entity2 groups
+  mat B2(p, p, fill::zeros);
+  for (uword h = 0; h < G2; ++h) {
+    B2 += entity2_scores[h] * entity2_scores[h].t();
+  }
+
+  // B_12: Sum over dyads (intersection correction)
+  mat B12(p, p, fill::zeros);
+  for (uword i = 0; i < n_obs; ++i) {
+    vec score_i = scores.row(i).t();
+    B12 += score_i * score_i.t();
+  }
+
+  // Cameron-Gelbach-Miller formula for two-way clustering
+  mat B = B1 + B2 - B12;
+
+  // Degrees of freedom adjustment
+  // Use minimum of the two dimensions
+  const uword G_min = std::min(G1, G2);
+  const double adj =
+      (G_min > 1) ? static_cast<double>(G_min) / (G_min - 1.0) : 1.0;
+
+  // Sandwich: A^{-1} * (adj * B) * A^{-1}
+  return (adj * A_inv) * B * A_inv;
 }
 
 ///////////////////////////////////////////////////////////////////////////

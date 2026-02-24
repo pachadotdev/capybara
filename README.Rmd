@@ -25,7 +25,7 @@ knitr::opts_chunk$set(
 
 ## About
 
-Please read my article for the full details of this project (Open Access):
+Please read my article for the full details about capybara 1.x.y (Open Access):
 
 > Vargas Sepulveda, Mauricio. 2025. 'Capybara: Efficient Estimation of Generalized Linear Models with High-Dimensional Fixed Effects'. *PLOS ONE* 20 (9): e0331178. https://doi.org/10.1371/journal.pone.0331178.
 
@@ -50,8 +50,8 @@ stability in the estimation process.
 The software heavily borrows from Gaure (2013) and Stammann (2018) works on
 OLS and GLM estimation with large fixed effects implemented in the 'lfe' and
 'alpaca' packages. The differences are that 'capybara' does not use C nor Rcpp
-code, instead it uses cpp11 and
-[cpp11armadillo](https://github.com/pachadotdev/cpp11armadillo).
+code, instead it uses cpp4r and
+[armadillo4r](https://github.com/pachadotdev/armadillo4r).
 
 The summary tables borrow from Stata outputs. I have also provided integrations
 with 'broom' to facilitate the inclusion of statistical tables in Quarto/Jupyter
@@ -108,6 +108,8 @@ up code safety for code speed deserves neither." (Wickham, 2014).
 
 Median time and memory footprint for the different models in the book
 [An Advanced Guide to Trade Policy Analysis](https://www.wto.org/english/res_e/publications_e/advancedguide2016_e.htm).
+
+TODO: Replace this with an updated benchmark!
 
 |Model             |Package  |Median Time   |Memory        |
 |:-----------------|:--------|:-------------|:-------------|

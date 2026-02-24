@@ -73,6 +73,13 @@ struct CapybaraParameters {
   // Centering acceleration parameters
   size_t grand_acc_period;
 
+  // Centering algorithm: "stammann" (alternating projections) or "berge"
+  // (fixed-point)
+  std::string centering;
+
+  // Variance-covariance estimator type
+  std::string vcov_type;
+
   CapybaraParameters()
       : dev_tol(1.0e-08), center_tol(1.0e-08), center_tol_loose(1.0e-04),
         collin_tol(1.0e-10), step_halving_factor(0.5), alpha_tol(1.0e-08),
@@ -81,7 +88,8 @@ struct CapybaraParameters {
         sep_use_simplex(true), iter_max(25), iter_center_max(10000),
         iter_inner_max(50), iter_alpha_max(10000), return_fe(true),
         keep_tx(false), step_halving_memory(0.9), max_step_halving(2),
-        start_inner_tol(1e-06), grand_acc_period(10) {}
+        start_inner_tol(1e-06), grand_acc_period(10), centering("stammann"),
+        vcov_type("") {}
 
   explicit CapybaraParameters(const cpp4r::list &control) {
     dev_tol = as_cpp<double>(control["dev_tol"]);
@@ -110,6 +118,22 @@ struct CapybaraParameters {
     max_step_halving = as_cpp<size_t>(control["max_step_halving"]);
     start_inner_tol = as_cpp<double>(control["start_inner_tol"]);
     grand_acc_period = as_cpp<size_t>(control["grand_acc_period"]);
+
+    // Extract centering method
+    SEXP centering_sexp = control["centering"];
+    if (centering_sexp != R_NilValue) {
+      centering = as_cpp<std::string>(centering_sexp);
+    } else {
+      centering = "stammann";
+    }
+
+    // Extract vcov_type (optional string parameter)
+    SEXP vcov_type_sexp = control["vcov_type"];
+    if (vcov_type_sexp != R_NilValue) {
+      vcov_type = as_cpp<std::string>(vcov_type_sexp);
+    } else {
+      vcov_type = "";
+    }
   }
 };
 
@@ -600,6 +624,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
 [[cpp4r::register]] list felm_fit_(const doubles_matrix<> &X_r,
                                    const doubles &y_r, const doubles &w_r,
                                    const list &fe_cols_r, SEXP cl_col_r,
+                                   SEXP entity1_col_r, SEXP entity2_col_r,
                                    const list &control) {
   CapybaraParameters params(control);
 
@@ -609,8 +634,25 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   const field<uvec> *cluster_ptr =
       data.has_clusters ? &data.cluster_groups : nullptr;
 
-  capybara::InferenceLM result = capybara::felm_fit(
-      data.X, data.y, data.w, data.fe_map, params, nullptr, cluster_ptr);
+  // Prepare entity groups for dyadic clustering if needed
+  field<uvec> entity1_groups, entity2_groups;
+  const field<uvec> *entity1_ptr = nullptr;
+  const field<uvec> *entity2_ptr = nullptr;
+
+  if (params.vcov_type == "m-estimator-dyadic" && entity1_col_r != R_NilValue &&
+      entity2_col_r != R_NilValue) {
+    // Build entity groups from the raw entity columns, using the same keep
+    // indices
+    uvec keep_indices = regspace<uvec>(0, data.y.n_elem - 1);
+    entity1_groups = build_cluster_groups(entity1_col_r, keep_indices);
+    entity2_groups = build_cluster_groups(entity2_col_r, keep_indices);
+    entity1_ptr = &entity1_groups;
+    entity2_ptr = &entity2_groups;
+  }
+
+  capybara::InferenceLM result =
+      capybara::felm_fit(data.X, data.y, data.w, data.fe_map, params, nullptr,
+                         cluster_ptr, false, 0.0, entity1_ptr, entity2_ptr);
 
   // Replace collinear coefficients (NaN) with R's NA_REAL in all columns of
   // coef_table
@@ -694,7 +736,8 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
            const doubles_matrix<> &x_r, const doubles &wt_r,
            const doubles &offset_r, const double &theta,
            const std::string &family, const list &control,
-           const list &fe_cols_r, SEXP cl_col_r) {
+           const list &fe_cols_r, SEXP cl_col_r, SEXP entity1_col_r,
+           SEXP entity2_col_r) {
   CapybaraParameters params(control);
 
   // Prepare data: NA removal + FE coding + cluster coding
@@ -771,9 +814,23 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
   const field<uvec> *cluster_ptr =
       data.has_clusters ? &data.cluster_groups : nullptr;
 
+  // Prepare entity groups for dyadic clustering if needed
+  field<uvec> entity1_groups, entity2_groups;
+  const field<uvec> *entity1_ptr = nullptr;
+  const field<uvec> *entity2_ptr = nullptr;
+
+  if (params.vcov_type == "m-estimator-dyadic" && entity1_col_r != R_NilValue &&
+      entity2_col_r != R_NilValue) {
+    uvec keep_indices = regspace<uvec>(0, data.y.n_elem - 1);
+    entity1_groups = build_cluster_groups(entity1_col_r, keep_indices);
+    entity2_groups = build_cluster_groups(entity2_col_r, keep_indices);
+    entity1_ptr = &entity1_groups;
+    entity2_ptr = &entity2_groups;
+  }
+
   capybara::InferenceGLM result = capybara::feglm_fit(
       beta, eta, data.y, data.X, data.w, theta, family_type, data.fe_map,
-      params, nullptr, cluster_ptr, offset_ptr);
+      params, nullptr, cluster_ptr, offset_ptr, entity1_ptr, entity2_ptr);
 
   // Replace collinear coefficients (NaN) with R's NA_REAL in all columns of
   // coef_table

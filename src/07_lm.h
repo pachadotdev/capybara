@@ -107,11 +107,11 @@ inline void accumulate_fixed_effects(vec &fitted_values,
   }
 }
 
-inline void compute_fitted_values(FelmWorkspace *ws, InferenceLM &result,
-                                  const CollinearityResult &collin_result,
-                                  const FlatFEMap &fe_map,
-                                  const CapybaraParameters &params,
-                                  bool skip_alpha = false) {
+inline void fitted_values_(FelmWorkspace *ws, InferenceLM &result,
+                           const CollinearityResult &collin_result,
+                           const FlatFEMap &fe_map,
+                           const CapybaraParameters &params,
+                           bool skip_alpha = false) {
   const uword N = ws->y_original.n_elem;
   const vec &coef = result.coef_table.col(0);
   const bool has_fixed_effects = fe_map.K > 0;
@@ -191,9 +191,8 @@ inline void compute_fitted_values(FelmWorkspace *ws, InferenceLM &result,
   }
 }
 
-inline void compute_r_squared(InferenceLM &result, const vec &y,
-                              const vec &residuals, const vec &w, uword n_coef,
-                              const FlatFEMap &fe_map) {
+inline void r_squared_(InferenceLM &result, const vec &y, const vec &residuals,
+                       const vec &w, uword n_coef, const FlatFEMap &fe_map) {
   const uword N = y.n_elem;
   const double w_sum = accu(w);
   const double y_mean = dot(w, y) / w_sum;
@@ -235,7 +234,9 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
                      FelmWorkspace *workspace = nullptr,
                      const field<uvec> *cluster_groups = nullptr,
                      bool run_from_glm = false,
-                     double adaptive_center_tol = 0.0) {
+                     double adaptive_center_tol = 0.0,
+                     const field<uvec> *entity1_groups = nullptr,
+                     const field<uvec> *entity2_groups = nullptr) {
   const uword N = y.n_elem;
   const uword P_input = X.n_cols;
   const bool has_fixed_effects = fe_map.K > 0;
@@ -342,7 +343,7 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
 
     center_variables(ws->yX_view, w_work, ws->fe_map, effective_tol,
                      params.iter_center_max, params.grand_acc_period,
-                     &ws->warm_start);
+                     &ws->warm_start, centering_from_string(params.centering));
   } else {
     // Copy X to workspace buffers
     if (!run_from_glm) {
@@ -442,8 +443,7 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
   }
   result.success = true;
 
-  compute_fitted_values(ws, result, collin_result, fe_map, params,
-                        run_from_glm);
+  fitted_values_(ws, result, collin_result, fe_map, params, run_from_glm);
 
   if (run_from_glm) {
     // Only return coefficients
@@ -460,16 +460,37 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
 
   result.residuals = ws->y_original - result.fitted_values;
 
-  compute_r_squared(result, ws->y_original, result.residuals, w_work, n_coef,
-                    fe_map);
+  r_squared_(result, ws->y_original, result.residuals, w_work, n_coef, fe_map);
 
   mat vcov_reduced;
   const double rss = dot(w_work % result.residuals, result.residuals);
 
   if (cluster_groups != nullptr && cluster_groups->n_elem > 0) {
-    vcov_reduced = compute_sandwich_vcov(ws->X_centered, ws->y_original,
-                                         result.fitted_values, result.hessian,
-                                         *cluster_groups);
+    if (params.vcov_type == "m-estimator-dyadic" && entity1_groups != nullptr &&
+        entity2_groups != nullptr) {
+      // For dyadic clustering, compute observation-level scores
+      // Score_i = X_i * (y_i - fitted_i) for OLS
+      const vec resid = ws->y_original - result.fitted_values;
+      mat scores(ws->X_centered.n_rows, ws->X_centered.n_cols);
+      for (uword i = 0; i < ws->X_centered.n_rows; ++i) {
+        scores.row(i) = resid(i) * ws->X_centered.row(i);
+      }
+      vcov_reduced = sandwich_vcov_mestimator_dyadic_(
+          result.hessian, scores, *entity1_groups, *entity2_groups);
+    } else if (params.vcov_type == "m-estimator") {
+      // For standard M-estimator clustering
+      const vec resid = ws->y_original - result.fitted_values;
+      mat scores(ws->X_centered.n_rows, ws->X_centered.n_cols);
+      for (uword i = 0; i < ws->X_centered.n_rows; ++i) {
+        scores.row(i) = resid(i) * ws->X_centered.row(i);
+      }
+      vcov_reduced =
+          sandwich_vcov_mestimator_(result.hessian, scores, *cluster_groups);
+    } else {
+      vcov_reduced =
+          sandwich_vcov_(ws->X_centered, ws->y_original, result.fitted_values,
+                         result.hessian, *cluster_groups);
+    }
   } else {
     mat H_inv;
     bool success = inv(H_inv, result.hessian);

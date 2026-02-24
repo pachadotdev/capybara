@@ -64,6 +64,13 @@ NULL
 #'  algorithm. Grand acceleration applies a second-level Irons-Tuck extrapolation on the overall convergence
 #'  trajectory. Lower values (e.g., 4-10) may speed up convergence for difficult problems. Set to a very large
 #'  value (e.g., 10000) to effectively disable. The default is \code{4L}.
+#' @param centering character string indicating the centering algorithm to use for demeaning fixed effects.
+#'  \code{"stammann"} (default) uses alternating projections with Gauss-Seidel sweeps plus Irons-Tuck and grand
+#'  acceleration on coefficient vectors. Each iteration updates each fixed-effect dimension in sequence.
+#'  \code{"berge"} uses a fixed-point reformulation as described in Berge (2018): all FE updates are composed
+#'  into a single map \eqn{F = f_T \circ f_I}, reducing the problem to finding \eqn{\beta^* = F(\beta^*)}. The
+#'  Irons and Tuck (1969) acceleration is then applied to the composed iteration. Both methods use warm-starting
+#'  and grand acceleration.
 #' @param return_fe logical indicating if the fixed effects should be returned. This can be useful when fitting general
 #'  equilibrium models where skipping the fixed effects for intermediate steps speeds up computation. The default is
 #'  \code{TRUE} and only applies to the \code{feglm} class.
@@ -75,6 +82,12 @@ NULL
 #'  \code{FALSE} to skip this check and speed up computation when separation is known not to be an issue. The default
 #'  is \code{TRUE}.
 #' @param init_theta Initial value for the negative binomial dispersion parameter (theta). The default is \code{0.0}.
+#' @param vcov_type Optional character string specifying the type of variance-covariance estimator to be used. It only
+#' applies for formulas with a cluster variable like `z ~ x + y | fe | cl`. When \code{NULL} (default), the variance
+#' covariance matrix follows a regular sandwich estimator. When set to `"m-estimator"`, uses standard clustered
+#' M-estimator sandwich. When set to `"m-estimator-dyadic"`, uses dyadic clustering that accounts for correlation
+#' between observations sharing entities. For dyadic clustering, specify two entity columns in the formula like
+#' `z ~ x + y | fe | cl1 + cl2`.
 #'
 #' @return A named list of control parameters.
 #'
@@ -99,6 +112,7 @@ fit_control <- function(
   max_step_halving = 2L,
   start_inner_tol = 1.0e-06,
   grand_acc_period = 4L,
+  centering = "berge",
   sep_tol = 1.0e-08,
   sep_zero_tol = 1.0e-12,
   sep_max_iter = 200L,
@@ -108,7 +122,8 @@ fit_control <- function(
   return_fe = TRUE,
   keep_tx = FALSE,
   check_separation = TRUE,
-  init_theta = 0.0
+  init_theta = 0.0,
+  vcov_type = NULL
 ) {
   # Check validity of tolerance parameters
   if (
@@ -194,6 +209,17 @@ fit_control <- function(
     )
   }
 
+  # Check validity of centering
+  centering <- match.arg(centering, c("berge", "stammann"))
+
+  # Check validity of vcov_type
+  if (!is.null(vcov_type) && !vcov_type %in% c("m-estimator", "m-estimator-dyadic")) {
+    stop(
+      "vcov_type should be either NULL, 'm-estimator', or 'm-estimator-dyadic'.",
+      call. = FALSE
+    )
+  }
+
   list(
     dev_tol = dev_tol,
     center_tol = center_tol,
@@ -209,6 +235,7 @@ fit_control <- function(
     max_step_halving = max_step_halving,
     start_inner_tol = start_inner_tol,
     grand_acc_period = grand_acc_period,
+    centering = centering,
     sep_tol = sep_tol,
     sep_zero_tol = sep_zero_tol,
     sep_max_iter = sep_max_iter,
@@ -218,6 +245,7 @@ fit_control <- function(
     return_fe = return_fe,
     keep_tx = keep_tx,
     check_separation = check_separation,
-    init_theta = init_theta
+    init_theta = init_theta,
+    vcov_type = vcov_type
   )
 }

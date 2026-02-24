@@ -131,7 +131,9 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
                        GlmWorkspace *workspace = nullptr,
                        const field<uvec> *cluster_groups = nullptr,
                        const vec *offset = nullptr,
-                       bool skip_separation_check = false) {
+                       bool skip_separation_check = false,
+                       const field<uvec> *entity1_groups = nullptr,
+                       const field<uvec> *entity2_groups = nullptr) {
 #ifdef CAPYBARA_DEBUG
   std::ostringstream feglm_msg;
   feglm_msg << "/////////////////////////////////\n"
@@ -175,8 +177,8 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   ws.ensure_size(n, p);
 
   // Get function pointers once (avoid switch in loop)
-  const MuFromEtaFn compute_mu = get_mu_fn(family_type);
-  const WorkingWtsNuFn compute_ww_nu = get_ww_nu_fn(family_type);
+  const MuFromEtaFn mu_ = get_mu_fn(family_type);
+  const WorkingWtsNuFn ww_nu_ = get_ww_nu_fn(family_type);
 
   // Offset handling
   const vec offset_vec = has_offset ? *offset : vec();
@@ -263,7 +265,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   vec &beta0 = ws.beta0;
 
   // Initial mu from eta
-  compute_mu(mu, eta);
+  mu_(mu, eta);
 
   // Deviance computations
   const double y_mean_scalar = mean(y);
@@ -310,7 +312,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     auto twwnu0 = std::chrono::high_resolution_clock::now();
 #endif
 
-    compute_ww_nu(w_working, nu, w, mu, y, theta);
+    ww_nu_(w_working, nu, w, mu, y, theta);
 
     // Working response z = eta + nu - offset
     vec z = eta + nu;
@@ -386,7 +388,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       }
 
       // Update mu from new eta
-      compute_mu(mu, eta);
+      mu_(mu, eta);
 
       dev = dev_resids(y, mu, theta, w, family_type);
       const double dev_ratio_inner = (dev - dev0) / (0.1 + std::fabs(dev));
@@ -411,7 +413,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       eta = eta0;
       beta = beta0;
       dev = dev0;
-      compute_mu(mu, eta0);
+      mu_(mu, eta0);
     }
 
     const double delta_deviance = dev0 - dev;
@@ -450,7 +452,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       if (num_step_halving > 0 && family_type == POISSON) {
         eta = clamp(eta, -10.0, datum::inf);
       }
-      compute_mu(mu, eta);
+      mu_(mu, eta);
       dev = dev_resids(y, mu, theta, w, family_type);
       ++num_step_halving;
     } else {
@@ -515,7 +517,28 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 
     // Covariance matrix
     if (cluster_groups != nullptr && cluster_groups->n_elem > 0) {
-      result.vcov = compute_sandwich_vcov(MX, y, mu, H, *cluster_groups);
+      if (params.vcov_type == "m-estimator-dyadic" &&
+          entity1_groups != nullptr && entity2_groups != nullptr) {
+        // For dyadic clustering, compute observation-level scores
+        // Score_i = MX_i * (y_i - mu_i) for each observation i
+        const vec resid = y - mu;
+        mat scores(MX.n_rows, MX.n_cols);
+        for (uword i = 0; i < MX.n_rows; ++i) {
+          scores.row(i) = resid(i) * MX.row(i);
+        }
+        result.vcov = sandwich_vcov_mestimator_dyadic_(
+            H, scores, *entity1_groups, *entity2_groups);
+      } else if (params.vcov_type == "m-estimator") {
+        // For standard M-estimator clustering
+        const vec resid = y - mu;
+        mat scores(MX.n_rows, MX.n_cols);
+        for (uword i = 0; i < MX.n_rows; ++i) {
+          scores.row(i) = resid(i) * MX.row(i);
+        }
+        result.vcov = sandwich_vcov_mestimator_(H, scores, *cluster_groups);
+      } else {
+        result.vcov = sandwich_vcov_(MX, y, mu, H, *cluster_groups);
+      }
     } else {
       mat H_inv;
       if (!inv_sympd(H_inv, H) && !inv(H_inv, H)) {
@@ -650,15 +673,15 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
   const uword n = y.n_elem;
 
   // Get function pointers once
-  const MuFromEtaFn compute_mu = get_mu_fn(family_type);
-  const OffsetWwYadjFn compute_ww_yadj = get_offset_ww_yadj_fn(family_type);
+  const MuFromEtaFn mu_ = get_mu_fn(family_type);
+  const OffsetWwYadjFn ww_yadj_ = get_offset_ww_yadj_fn(family_type);
 
   // Working buffers
   vec mu(n), w_working(n), yadj(n), eta0(n);
   vec Myadj(n, fill::zeros);
 
   // Initial mu
-  compute_mu(mu, eta);
+  mu_(mu, eta);
 
   double dev = dev_resids(y, mu, 0.0, w, family_type);
 
@@ -679,7 +702,7 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
     const double dev0 = dev;
 
     // Compute working weights and adjusted response
-    compute_ww_yadj(w_working, yadj, w, mu, y, eta, offset);
+    ww_yadj_(w_working, yadj, w, mu, y, eta, offset);
 
     // Only update weights on the persistent FE map
     if (fe_map.K > 0) {
@@ -690,7 +713,7 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
 
     center_variables(Myadj, w_working, fe_map, adaptive_tol,
                      params.iter_center_max, params.grand_acc_period,
-                     &warm_start);
+                     &warm_start, centering_from_string(params.centering));
 
     const vec eta_upd = yadj - Myadj + offset - eta;
 
@@ -700,7 +723,7 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
     for (uword iter_inner = 0; iter_inner < params.iter_inner_max;
          ++iter_inner) {
       eta = eta0 + rho * eta_upd;
-      compute_mu(mu, eta);
+      mu_(mu, eta);
 
       dev = dev_resids(y, mu, 0.0, w, family_type);
       const double dev_ratio_inner = (dev - dev0) / (0.1 + std::fabs(dev0));
@@ -717,7 +740,7 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
 
     if (!dev_crit || !val_crit) {
       eta = eta0;
-      compute_mu(mu, eta);
+      mu_(mu, eta);
       break;
     }
 

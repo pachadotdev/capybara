@@ -226,3 +226,95 @@ test_that("feglm with weights works", {
 
   expect_gt(coef(m1), coef(m4))
 })
+
+# Stammann centering ----
+
+test_that("feglm is similar to glm (stammann centering)", {
+  ctrl <- list(centering = "stammann")
+
+  # Binomial ----
+  mod_binom <- feglm(am ~ wt + mpg | cyl, mtcars, family = binomial(), control = ctrl)
+  mod_binom_base <- glm(
+    am ~ wt + mpg + as.factor(cyl),
+    mtcars,
+    family = binomial()
+  )
+
+  expect_equal(
+    unname(coef(mod_binom) - coef(mod_binom_base)[2:3]),
+    c(0, 0),
+    tolerance = 1e-2
+  )
+
+  # Gamma ----
+  mod_gamma <- feglm(mpg ~ wt + am | cyl, mtcars, family = Gamma(), control = ctrl)
+  mod_gamma_base <- glm(
+    mpg ~ wt + am + as.factor(cyl),
+    mtcars,
+    family = Gamma()
+  )
+  expect_equal(coef(mod_gamma_base)[2:3], coef(mod_gamma), tolerance = 1e-2)
+
+  # Inverse Gaussian ----
+  mod_invgauss <- feglm(
+    mpg ~ wt + am | cyl,
+    mtcars,
+    family = inverse.gaussian(),
+    control = ctrl
+  )
+  mod_invgauss_base <- glm(
+    mpg ~ wt + am + as.factor(cyl),
+    mtcars,
+    family = inverse.gaussian()
+  )
+  expect_equal(
+    coef(mod_invgauss_base)[2:3],
+    coef(mod_invgauss),
+    tolerance = 1e-2
+  )
+})
+
+test_that("feglm works without fixed effects (stammann centering)", {
+  # centering is unused without FEs, but control must be accepted
+  ctrl <- list(centering = "stammann")
+  m1 <- feglm(log(mpg) ~ log(wt), data = mtcars, control = ctrl)
+  m2 <- glm(log(mpg) ~ log(wt), data = mtcars)
+
+  expect_equal(coef(m1), coef(m2), tolerance = 1e-6)
+})
+
+test_that("proportional regressors return NA coefficients (stammann centering)", {
+  ctrl <- list(centering = "stammann")
+  set.seed(200100)
+  d <- data.frame(
+    y = rnorm(100),
+    x1 = rnorm(100),
+    f = factor(sample(1:2, 100, replace = TRUE))
+  )
+  d$x2 <- 2 * d$x1
+
+  fit1 <- glm(y ~ x1 + x2 + as.factor(f), data = d, family = gaussian())
+  fit2 <- feglm(y ~ x1 + x2 | f, data = d, family = gaussian(), control = ctrl)
+
+  expect_equal(coef(fit2), coef(fit1)[2:3], tolerance = 1e-2)
+  expect_equal(predict(fit2), predict(fit1), tolerance = 1e-2)
+})
+
+test_that("feglm with weights works (stammann centering)", {
+  skip_on_cran()
+  ctrl <- list(centering = "stammann")
+
+  m1 <- feglm(mpg ~ wt | am, weights = ~cyl, data = mtcars, control = ctrl)
+  m2 <- feglm(mpg ~ wt | am, weights = mtcars$cyl, data = mtcars, control = ctrl)
+
+  w <- mtcars$cyl
+  m3 <- feglm(mpg ~ wt | am, weights = w, data = mtcars, control = ctrl)
+
+  expect_equal(coef(m2), coef(m1))
+  expect_equal(coef(m3), coef(m1))
+
+  w <- NULL
+  m4 <- feglm(mpg ~ wt | am, weights = w, data = mtcars, control = ctrl)
+
+  expect_gt(coef(m1), coef(m4))
+})

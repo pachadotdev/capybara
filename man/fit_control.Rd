@@ -19,6 +19,7 @@ fit_control(
   max_step_halving = 2L,
   start_inner_tol = 1e-06,
   grand_acc_period = 4L,
+  centering = "berge",
   sep_tol = 1e-08,
   sep_zero_tol = 1e-12,
   sep_max_iter = 200L,
@@ -28,7 +29,8 @@ fit_control(
   return_fe = TRUE,
   keep_tx = FALSE,
   check_separation = TRUE,
-  init_theta = 0
+  init_theta = 0,
+  vcov_type = NULL
 )
 }
 \arguments{
@@ -74,6 +76,14 @@ algorithm. Grand acceleration applies a second-level Irons-Tuck extrapolation on
 trajectory. Lower values (e.g., 4-10) may speed up convergence for difficult problems. Set to a very large
 value (e.g., 10000) to effectively disable. The default is \code{4L}.}
 
+\item{centering}{character string indicating the centering algorithm to use for demeaning fixed effects.
+\code{"stammann"} (default) uses alternating projections with Gauss-Seidel sweeps plus Irons-Tuck and grand
+acceleration on coefficient vectors. Each iteration updates each fixed-effect dimension in sequence.
+\code{"berge"} uses a fixed-point reformulation as described in Berge (2018): all FE updates are composed
+into a single map \eqn{F = f_T \circ f_I}, reducing the problem to finding \eqn{\beta^* = F(\beta^*)}. The
+Irons and Tuck (1969) acceleration is then applied to the composed iteration. Both methods use warm-starting
+and grand acceleration.}
+
 \item{sep_tol}{tolerance for separation detection. The default is \code{1.0e-08}.}
 
 \item{sep_zero_tol}{tolerance for treating values as zero in separation detection. The default is \code{1.0e-12}.}
@@ -100,6 +110,13 @@ some computation time at the cost of memory. The default is \code{TRUE}.}
 is \code{TRUE}.}
 
 \item{init_theta}{Initial value for the negative binomial dispersion parameter (theta). The default is \code{0.0}.}
+
+\item{vcov_type}{Optional character string specifying the type of variance-covariance estimator to be used. It only
+applies for formulas with a cluster variable like \code{z ~ x + y | fe | cl}. When \code{NULL} (default), the variance
+covariance matrix follows a regular sandwich estimator. When set to \code{"m-estimator"}, uses standard clustered
+M-estimator sandwich. When set to \code{"m-estimator-dyadic"}, uses dyadic clustering that accounts for correlation
+between observations sharing entities. For dyadic clustering, specify two entity columns in the formula like
+\code{z ~ x + y | fe | cl1 + cl2}.}
 }
 \value{
 A named list of control parameters.
