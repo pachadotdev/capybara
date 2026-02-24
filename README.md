@@ -16,12 +16,15 @@ status](https://www.r-pkg.org/badges/version/capybara)](https://CRAN.R-project.o
 
 ## About
 
-Please read my article for the full details of this project (Open
+Please read my article for the full details about capybara 1.x.y (Open
 Access):
 
 > Vargas Sepulveda, Mauricio. 2025. ‘Capybara: Efficient Estimation of
 > Generalized Linear Models with High-Dimensional Fixed Effects’. *PLOS
 > ONE* 20 (9): e0331178. <https://doi.org/10.1371/journal.pone.0331178>.
+
+I am preparing the manuscript for capybara 2.x.y that is about speed and
+memory improvements.
 
 If you have a 2-4GB dataset and you need to estimate a (generalized)
 linear model with a large number of fixed effects, this package is for
@@ -36,16 +39,18 @@ Alpaca package created and maintained by [Dr. Amrei
 Stammann](https://github.com/amrei-stammann). The software can estimate
 Exponential Family models (e.g., Poisson) and Negative Binomial models.
 
-Traditional QR estimation can be unfeasible due to additional memory
-requirements. The method, which is based on Halperin (1962) vector
-projections offers important time and memory savings without
-compromising numerical stability in the estimation process.
+Traditional QR estimation on the full design matrix can be unfeasible
+due to additional memory requirements. The method, which is based on
+Halperin (1962) vector projections offers important time and memory
+savings without compromising numerical stability in the estimation
+process.
 
-The software heavily borrows from Gaure (2013) and Stammann (2018) works
-on OLS and GLM estimation with large fixed effects implemented in the
-‘lfe’ and ‘alpaca’ packages. The differences are that ‘capybara’ does
-not use C nor Rcpp code, instead it uses cpp11 and
-[cpp11armadillo](https://github.com/pachadotdev/cpp11armadillo).
+The software heavily borrows from Gaure (2013), Stammann (2018) and
+Berge (2018) works on OLS and GLM estimation with large fixed effects
+implemented in the ‘lfe’, ‘alpaca’ and ‘fixest’ packages. The
+differences are that ‘capybara’ does not use C nor Rcpp code, instead it
+uses cpp4r and
+[armadillo4r](https://github.com/pachadotdev/armadillo4r).
 
 The summary tables borrow from Stata outputs. I have also provided
 integrations with ‘broom’ to facilitate the inclusion of statistical
@@ -56,6 +61,12 @@ Coffee](https://buymeacoffee.com/pacha). All donations will be used to
 continue improving `capybara`.
 
 ## Installation
+
+You can install the development version of capybara like so:
+
+``` r
+install.packages("capybara", repos = "https://cloud.r-project.org/")
+```
 
 You can install the development version of capybara like so:
 
@@ -90,67 +101,6 @@ Standard errors in parenthesis
 Significance levels: *** p < 0.001; ** p < 0.01; * p < 0.05; . p < 0.1
 ```
 
-## Design choices
-
-Capybara is full of trade-offs. I have used ‘data.table’ to benefit from
-in-place modifications. The model fitting is done on C++ side. While the
-code aims to be fast, I prefer to have some bottlenecks instead of low
-numerical stability or reinvent the wheel. Armadillo works great for the
-size of data and the models that I use for my research. The principle
-was: “He who gives up code safety for code speed deserves neither.”
-(Wickham, 2014).
-
-## Benchmarks
-
-Median time and memory footprint for the different models in the book
-[An Advanced Guide to Trade Policy
-Analysis](https://www.wto.org/english/res_e/publications_e/advancedguide2016_e.htm).
-
-| Model             | Package  | Median Time   | Memory        |
-|:------------------|:---------|:--------------|:--------------|
-| PPML              | Alpaca   | 720.07 ms - 3 | 302.64 MB - 3 |
-| PPML              | Base R   | 41.72 s - 4   | 2.73 GB - 4   |
-| PPML              | Capybara | 405.89 ms - 2 | 19.22 MB - 1  |
-| PPML              | Fixest   | 130.1 ms - 1  | 44.59 MB - 2  |
-|                   |          |               |               |
-| Trade Diversion   | Alpaca   | 3.79 s - 3    | 339.79 MB - 3 |
-| Trade Diversion   | Base R   | 39.84 s - 4   | 2.6 GB - 4    |
-| Trade Diversion   | Capybara | 947.96 ms - 2 | 26.22 MB - 1  |
-| Trade Diversion   | Fixest   | 932.78 ms - 1 | 36.59 MB - 2  |
-|                   |          |               |               |
-| Endogeneity       | Alpaca   | 2.65 s - 3    | 306.27 MB - 3 |
-| Endogeneity       | Base R   | 10.7 m - 4    | 11.94 GB - 4  |
-| Endogeneity       | Capybara | 1.32 s - 2    | 15.55 MB - 1  |
-| Endogeneity       | Fixest   | 225.64 ms - 1 | 28.08 MB - 2  |
-|                   |          |               |               |
-| Reverse Causality | Alpaca   | 3.36 s - 3    | 335.61 MB - 3 |
-| Reverse Causality | Base R   | 10.69 m - 4   | 11.94 GB - 4  |
-| Reverse Causality | Capybara | 1.36 s - 2    | 17.73 MB - 1  |
-| Reverse Causality | Fixest   | 296.63 ms - 1 | 32.43 MB - 2  |
-|                   |          |               |               |
-| Phasing Effects   | Alpaca   | 4.6 s - 3     | 393.86 MB - 3 |
-| Phasing Effects   | Base R   | 10.75 m - 4   | 11.95 GB - 4  |
-| Phasing Effects   | Capybara | 1.57 s - 2    | 22.08 MB - 1  |
-| Phasing Effects   | Fixest   | 471.1 ms - 1  | 41.12 MB - 2  |
-|                   |          |               |               |
-| Globalization     | Alpaca   | 8.2 s - 3     | 539.49 MB - 3 |
-| Globalization     | Base R   | 10.79 m - 4   | 11.97 GB - 4  |
-| Globalization     | Capybara | 2.07 s - 2    | 32.98 MB - 1  |
-| Globalization     | Fixest   | 869.62 ms - 1 | 62.87 MB - 2  |
-
-## Changing the number of cores
-
-Note that you can use `Sys.setenv(CAPYBARA_NCORES = 4)` (or other
-positive integers) to change the number of cores that capybara uses,
-here is an example of how it affects the performance
-
-| cores | PPML | Trade Diversion |
-|:------|-----:|----------------:|
-| 2     | 1.8s |           16.2s |
-| 4     | 1.5s |           14.0s |
-| 6     | 0.8s |            2.4s |
-| 8     | 0.4s |            0.9s |
-
 ## Installing with compiler optimizations
 
 CRAN packages are built with the `-O2` compiler flag, which is
@@ -171,18 +121,16 @@ CXX20FLAGS = -O3
 ```
 
 Additional optimizations can be enabled by setting the
-`CAPYBARA_PORTABLE` environment variable to `"no"` before installing the
-package. This will enable hardware-specific compiler flags that can
-significantly improve performance (sometimes 2-4x faster than just using
-portable flags).
+`CAPYBARA_OPTIMIZATIONS` environment variable to “yes” and choosing the
+number of cores to use for parallel processing (the default is to use
+50% of the available cores). You can do this in your R session like so:
 
 ``` r
+# Install local version
+
 Sys.setenv(CAPYBARA_OPTIMIZATIONS = "yes")
+Sys.setenv(CAPYBARA_CORES = 4) # Set the number of cores to use (optional)
 
-# CRAN version
-install.packages("capybara", type = "source")
-
-# Local version
 install.packages(".", repos = NULL, type = "source")
 # or
 devtools::install()

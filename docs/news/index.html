@@ -62,9 +62,10 @@
 
 
 
-<div id="capybara-2.0.0-wip" class="section level1">
-<h1>capybara 2.0.0 (WIP)</h1>
-<ul><li>I found an error when using <code>summary(lm/glm, type = "clustered")</code> that largely underestimated
+<div id="capybara-2.0.0" class="section level1">
+<h1>capybara 2.0.0</h1>
+<ul><li>I rewrote the the Rank-Revealing Cholesky general method to contribute back to Armadillo.</li>
+<li>I found an error when using <code>summary(lm/glm, type = "clustered")</code> that largely underestimated
 the standard errors. This is now fixed and I merged “clustered” and ” sandwich” types into a single
 “sandwich” type for clarity and consistency as both use a bread-meat-bread approach.</li>
 <li>The <code>InferenceGLM</code> struct now adds the VCOV matrix and the standard errors to reuse computation and<br>
@@ -77,6 +78,11 @@ formulas without slopes such as <code>y ~ 0 | fe1 + fe2</code>.</li>
 <li>The default is now <code>predict(glm_object, type = "response")</code>, unlike base R behavior.</li>
 <li>Most of the R and C++ code was refactored to use memory efficiently.</li>
 <li>Follows fixest-based normalization for fixed effects to match Stata results.</li>
+<li>Provides the option to use <code>control = list(centering = "berge")</code> or <code>list(centering = "stammann")</code>. Both
+methods are equivalent but use different internal logics. Berge’s fixed point problem approach is usually
+faster.</li>
+<li>Adds parallelization over columns for an efficient centering regardless of the method used.</li>
+<li>Most of the data processing was moved to C++ port to eae portability (e.g., Python version in the future)</li>
 </ul></div>
 <div id="capybara-1.8.1" class="section level1">
 <h1>capybara 1.8.1</h1>

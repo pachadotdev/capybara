@@ -73,13 +73,15 @@
 <!-- badges: end --></p>
 <div id="about" class="section level2">
 <h2>About</h2>
-<p>Please read my article for the full details of this project (Open
+<p>Please read my article for the full details about capybara 1.x.y (Open
 Access):</p>
 <blockquote>
 <p>Vargas Sepulveda, Mauricio. 2025. ‘Capybara: Efficient Estimation of
 Generalized Linear Models with High-Dimensional Fixed Effects’. <em>PLOS
 ONE</em> 20 (9): e0331178. <a href="https://doi.org/10.1371/journal.pone.0331178" class="uri">https://doi.org/10.1371/journal.pone.0331178</a>.</p>
 </blockquote>
+<p>I am preparing the manuscript for capybara 2.x.y that is about speed and
+memory improvements.</p>
 <p>If you have a 2-4GB dataset and you need to estimate a (generalized)
 linear model with a large number of fixed effects, this package is for
 you. It works with larger datasets as well and facilites computing
@@ -91,15 +93,17 @@ models with multiple group fixed effects. It is a fork of the excellent
 Alpaca package created and maintained by <a href="https://github.com/amrei-stammann">Dr. Amrei
 Stammann</a>. The software can estimate
 Exponential Family models (e.g., Poisson) and Negative Binomial models.</p>
-<p>Traditional QR estimation can be unfeasible due to additional memory
-requirements. The method, which is based on Halperin (1962) vector
-projections offers important time and memory savings without
-compromising numerical stability in the estimation process.</p>
-<p>The software heavily borrows from Gaure (2013) and Stammann (2018) works
-on OLS and GLM estimation with large fixed effects implemented in the
-‘lfe’ and ‘alpaca’ packages. The differences are that ‘capybara’ does
-not use C nor Rcpp code, instead it uses cpp11 and
-<a href="https://github.com/pachadotdev/cpp11armadillo">cpp11armadillo</a>.</p>
+<p>Traditional QR estimation on the full design matrix can be unfeasible
+due to additional memory requirements. The method, which is based on
+Halperin (1962) vector projections offers important time and memory
+savings without compromising numerical stability in the estimation
+process.</p>
+<p>The software heavily borrows from Gaure (2013), Stammann (2018) and
+Berge (2018) works on OLS and GLM estimation with large fixed effects
+implemented in the ‘lfe’, ‘alpaca’ and ‘fixest’ packages. The
+differences are that ‘capybara’ does not use C nor Rcpp code, instead it
+uses cpp4r and
+<a href="https://github.com/pachadotdev/armadillo4r">armadillo4r</a>.</p>
 <p>The summary tables borrow from Stata outputs. I have also provided
 integrations with ‘broom’ to facilitate the inclusion of statistical
 tables in Quarto/Jupyter notebooks.</p>
@@ -109,6 +113,8 @@ continue improving <code>capybara</code>.</p>
 </div>
 <div id="installation" class="section level2">
 <h2>Installation</h2>
+<p>You can install the development version of capybara like so:</p>
+<pre class="r"><code>install.packages("capybara", repos = "https://cloud.r-project.org/")</code></pre>
 <p>You can install the development version of capybara like so:</p>
 <pre class="r"><code>remotes::install_github("pachadotdev/capybara")</code></pre>
 </div>
@@ -135,163 +141,6 @@ summary_table(m1, m2, model_names = c("Linear", "Poisson"))
 Standard errors in parenthesis
 Significance levels: *** p &lt; 0.001; ** p &lt; 0.01; * p &lt; 0.05; . p &lt; 0.1</code></pre>
 </div>
-<div id="design-choices" class="section level2">
-<h2>Design choices</h2>
-<p>Capybara is full of trade-offs. I have used ‘data.table’ to benefit from
-in-place modifications. The model fitting is done on C++ side. While the
-code aims to be fast, I prefer to have some bottlenecks instead of low
-numerical stability or reinvent the wheel. Armadillo works great for the
-size of data and the models that I use for my research. The principle
-was: “He who gives up code safety for code speed deserves neither.”
-(Wickham, 2014).</p>
-</div>
-<div id="benchmarks" class="section level2">
-<h2>Benchmarks</h2>
-<p>Median time and memory footprint for the different models in the book
-<a href="https://www.wto.org/english/res_e/publications_e/advancedguide2016_e.htm">An Advanced Guide to Trade Policy
-Analysis</a>.</p>
-<table><thead><tr class="header"><th align="left">Model</th>
-<th align="left">Package</th>
-<th align="left">Median Time</th>
-<th align="left">Memory</th>
-</tr></thead><tbody><tr class="odd"><td align="left">PPML</td>
-<td align="left">Alpaca</td>
-<td align="left">720.07 ms - 3</td>
-<td align="left">302.64 MB - 3</td>
-</tr><tr class="even"><td align="left">PPML</td>
-<td align="left">Base R</td>
-<td align="left">41.72 s - 4</td>
-<td align="left">2.73 GB - 4</td>
-</tr><tr class="odd"><td align="left">PPML</td>
-<td align="left">Capybara</td>
-<td align="left">405.89 ms - 2</td>
-<td align="left">19.22 MB - 1</td>
-</tr><tr class="even"><td align="left">PPML</td>
-<td align="left">Fixest</td>
-<td align="left">130.1 ms - 1</td>
-<td align="left">44.59 MB - 2</td>
-</tr><tr class="odd"><td align="left"></td>
-<td align="left"></td>
-<td align="left"></td>
-<td align="left"></td>
-</tr><tr class="even"><td align="left">Trade Diversion</td>
-<td align="left">Alpaca</td>
-<td align="left">3.79 s - 3</td>
-<td align="left">339.79 MB - 3</td>
-</tr><tr class="odd"><td align="left">Trade Diversion</td>
-<td align="left">Base R</td>
-<td align="left">39.84 s - 4</td>
-<td align="left">2.6 GB - 4</td>
-</tr><tr class="even"><td align="left">Trade Diversion</td>
-<td align="left">Capybara</td>
-<td align="left">947.96 ms - 2</td>
-<td align="left">26.22 MB - 1</td>
-</tr><tr class="odd"><td align="left">Trade Diversion</td>
-<td align="left">Fixest</td>
-<td align="left">932.78 ms - 1</td>
-<td align="left">36.59 MB - 2</td>
-</tr><tr class="even"><td align="left"></td>
-<td align="left"></td>
-<td align="left"></td>
-<td align="left"></td>
-</tr><tr class="odd"><td align="left">Endogeneity</td>
-<td align="left">Alpaca</td>
-<td align="left">2.65 s - 3</td>
-<td align="left">306.27 MB - 3</td>
-</tr><tr class="even"><td align="left">Endogeneity</td>
-<td align="left">Base R</td>
-<td align="left">10.7 m - 4</td>
-<td align="left">11.94 GB - 4</td>
-</tr><tr class="odd"><td align="left">Endogeneity</td>
-<td align="left">Capybara</td>
-<td align="left">1.32 s - 2</td>
-<td align="left">15.55 MB - 1</td>
-</tr><tr class="even"><td align="left">Endogeneity</td>
-<td align="left">Fixest</td>
-<td align="left">225.64 ms - 1</td>
-<td align="left">28.08 MB - 2</td>
-</tr><tr class="odd"><td align="left"></td>
-<td align="left"></td>
-<td align="left"></td>
-<td align="left"></td>
-</tr><tr class="even"><td align="left">Reverse Causality</td>
-<td align="left">Alpaca</td>
-<td align="left">3.36 s - 3</td>
-<td align="left">335.61 MB - 3</td>
-</tr><tr class="odd"><td align="left">Reverse Causality</td>
-<td align="left">Base R</td>
-<td align="left">10.69 m - 4</td>
-<td align="left">11.94 GB - 4</td>
-</tr><tr class="even"><td align="left">Reverse Causality</td>
-<td align="left">Capybara</td>
-<td align="left">1.36 s - 2</td>
-<td align="left">17.73 MB - 1</td>
-</tr><tr class="odd"><td align="left">Reverse Causality</td>
-<td align="left">Fixest</td>
-<td align="left">296.63 ms - 1</td>
-<td align="left">32.43 MB - 2</td>
-</tr><tr class="even"><td align="left"></td>
-<td align="left"></td>
-<td align="left"></td>
-<td align="left"></td>
-</tr><tr class="odd"><td align="left">Phasing Effects</td>
-<td align="left">Alpaca</td>
-<td align="left">4.6 s - 3</td>
-<td align="left">393.86 MB - 3</td>
-</tr><tr class="even"><td align="left">Phasing Effects</td>
-<td align="left">Base R</td>
-<td align="left">10.75 m - 4</td>
-<td align="left">11.95 GB - 4</td>
-</tr><tr class="odd"><td align="left">Phasing Effects</td>
-<td align="left">Capybara</td>
-<td align="left">1.57 s - 2</td>
-<td align="left">22.08 MB - 1</td>
-</tr><tr class="even"><td align="left">Phasing Effects</td>
-<td align="left">Fixest</td>
-<td align="left">471.1 ms - 1</td>
-<td align="left">41.12 MB - 2</td>
-</tr><tr class="odd"><td align="left"></td>
-<td align="left"></td>
-<td align="left"></td>
-<td align="left"></td>
-</tr><tr class="even"><td align="left">Globalization</td>
-<td align="left">Alpaca</td>
-<td align="left">8.2 s - 3</td>
-<td align="left">539.49 MB - 3</td>
-</tr><tr class="odd"><td align="left">Globalization</td>
-<td align="left">Base R</td>
-<td align="left">10.79 m - 4</td>
-<td align="left">11.97 GB - 4</td>
-</tr><tr class="even"><td align="left">Globalization</td>
-<td align="left">Capybara</td>
-<td align="left">2.07 s - 2</td>
-<td align="left">32.98 MB - 1</td>
-</tr><tr class="odd"><td align="left">Globalization</td>
-<td align="left">Fixest</td>
-<td align="left">869.62 ms - 1</td>
-<td align="left">62.87 MB - 2</td>
-</tr></tbody></table></div>
-<div id="changing-the-number-of-cores" class="section level2">
-<h2>Changing the number of cores</h2>
-<p>Note that you can use <code>Sys.setenv(CAPYBARA_NCORES = 4)</code> (or other
-positive integers) to change the number of cores that capybara uses,
-here is an example of how it affects the performance</p>
-<table><thead><tr class="header"><th align="left">cores</th>
-<th align="right">PPML</th>
-<th align="right">Trade Diversion</th>
-</tr></thead><tbody><tr class="odd"><td align="left">2</td>
-<td align="right">1.8s</td>
-<td align="right">16.2s</td>
-</tr><tr class="even"><td align="left">4</td>
-<td align="right">1.5s</td>
-<td align="right">14.0s</td>
-</tr><tr class="odd"><td align="left">6</td>
-<td align="right">0.8s</td>
-<td align="right">2.4s</td>
-</tr><tr class="even"><td align="left">8</td>
-<td align="right">0.4s</td>
-<td align="right">0.9s</td>
-</tr></tbody></table></div>
 <div id="installing-with-compiler-optimizations" class="section level2">
 <h2>Installing with compiler optimizations</h2>
 <p>CRAN packages are built with the <code>-O2</code> compiler flag, which is
@@ -307,16 +156,14 @@ CXX14FLAGS = -O3
 CXX17FLAGS = -O3
 CXX20FLAGS = -O3</code></pre>
 <p>Additional optimizations can be enabled by setting the
-<code>CAPYBARA_PORTABLE</code> environment variable to <code>"no"</code> before installing the
-package. This will enable hardware-specific compiler flags that can
-significantly improve performance (sometimes 2-4x faster than just using
-portable flags).</p>
-<pre class="r"><code>Sys.setenv(CAPYBARA_OPTIMIZATIONS = "yes")
+<code>CAPYBARA_OPTIMIZATIONS</code> environment variable to “yes” and choosing the
+number of cores to use for parallel processing (the default is to use
+50% of the available cores). You can do this in your R session like so:</p>
+<pre class="r"><code># Install local version
 
-# CRAN version
-install.packages("capybara", type = "source")
+Sys.setenv(CAPYBARA_OPTIMIZATIONS = "yes")
+Sys.setenv(CAPYBARA_CORES = 4) # Set the number of cores to use (optional)
 
-# Local version
 install.packages(".", repos = NULL, type = "source")
 # or
 devtools::install()</code></pre>
