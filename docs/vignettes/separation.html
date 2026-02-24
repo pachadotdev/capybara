@@ -58,7 +58,14 @@
 <div id="content">
 <div class="content-wrapper">
         <div class="content-main">
-          <h1>Nonexistence of estimates of Poisson models</h1>
+          <h1></h1>
+
+
+
+
+
+<h1 class="title toc-ignore">Nonexistence of estimates of Poisson
+models</h1>
 
 
 
@@ -110,11 +117,8 @@ this data.</p>
   y ~ x1 + x2 + x3 + x4,
   data = ppmlhdfe$example1
 )
-#&gt; Error:
-#&gt; warning:
-#&gt; Separation detected: 5 observation(s) with perfect prediction were excluded from estimation.
 #&gt; Formula: y ~ x1 + x2 + x3 + x4
-#&gt; &lt;environment: 0x55b930000c28&gt;
+#&gt; &lt;environment: 0x5572526f2448&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -122,19 +126,19 @@ this data.</p>
 #&gt;
 #&gt; |             | Estimate | Std. Error | z value | Pr(&gt;|z|) |
 #&gt; |-------------|----------|------------|---------|----------|
-#&gt; | (Intercept) |   0.6469 |     0.3049 |  2.1220 | 0.0338 * |
-#&gt; | x1          |  -0.8928 |     1.1650 | -0.7664 | 0.4435   |
-#&gt; | x2          |   0.2366 |     1.1882 |  0.1991 | 0.8422   |
-#&gt; | x3          |  -0.2626 |     0.1726 | -1.5217 | 0.1281   |
-#&gt; | x4          |  -0.0041 |     0.0389 | -0.1048 | 0.9166   |
+#&gt; | (Intercept) |   0.5909 |     0.3029 |  1.9509 | 0.0511 + |
+#&gt; | x1          | -16.7357 |  3391.5149 | -0.0049 | 0.9961   |
+#&gt; | x2          |  16.2850 |  3391.5150 |  0.0048 | 0.9962   |
+#&gt; | x3          |  -0.4708 |     0.2312 | -2.0368 | 0.0417 * |
+#&gt; | x4          |  -0.0378 |     0.0438 | -0.8636 | 0.3878   |
 #&gt;
 #&gt; Significance codes: ** p &lt; 0.01; * p &lt; 0.05; + p &lt; 0.10
 #&gt;
-#&gt; Pseudo R-squared: 0.436
+#&gt; Pseudo R-squared: 0.5216
 #&gt;
-#&gt; Number of observations: Full 12; Separated 5; Perfect classification 0
+#&gt; Number of observations: Full 12; Missing 0; Perfect classification 0
 #&gt;
-#&gt; Number of Fisher Scoring iterations: 2</code></pre>
+#&gt; Number of Fisher Scoring iterations: 18</code></pre>
 </div>
 <div id="example-2" class="section level2">
 <h2>Example 2</h2>
@@ -184,9 +188,8 @@ model on this data.</p>
   y ~ x1 + x2 + x3 + x4,
   data = ppmlhdfe$example2
 )
-#&gt; Separation detected: 6 observation(s) with perfect prediction were excluded from estimation.
 #&gt; Formula: y ~ x1 + x2 + x3 + x4
-#&gt; &lt;environment: 0x55b930000c28&gt;
+#&gt; &lt;environment: 0x5572526f2448&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -194,19 +197,19 @@ model on this data.</p>
 #&gt;
 #&gt; |             | Estimate | Std. Error | z value | Pr(&gt;|z|) |
 #&gt; |-------------|----------|------------|---------|----------|
-#&gt; | (Intercept) |   0.7373 |     0.2973 |  2.4798 | 0.0131 * |
-#&gt; | x1          |  -0.0426 |     0.1028 | -0.4144 | 0.6786   |
-#&gt; | x2          |  -0.1098 |     0.0566 | -1.9398 | 0.0524 + |
-#&gt; | x3          |   0.0636 |     0.0612 |  1.0399 | 0.2984   |
-#&gt; | x4          |   0.0245 |     0.0169 |  1.4459 | 0.1482   |
+#&gt; | (Intercept) |  -3.6123 |     5.4078 | -0.6680 |   0.5042 |
+#&gt; | x1          |   5.6482 |     7.6916 |  0.7343 |   0.4627 |
+#&gt; | x2          | -19.3380 |    25.0451 | -0.7721 |   0.4400 |
+#&gt; | x3          |  -0.9743 |     1.6226 | -0.6005 |   0.5482 |
+#&gt; | x4          |   0.3155 |     0.3019 |  1.0452 |   0.2959 |
 #&gt;
 #&gt; Significance codes: ** p &lt; 0.01; * p &lt; 0.05; + p &lt; 0.10
 #&gt;
-#&gt; Pseudo R-squared: 0.3861
+#&gt; Pseudo R-squared: 0.9317
 #&gt;
-#&gt; Number of observations: Full 12; Separated 6; Perfect classification 0
+#&gt; Number of observations: Full 12; Missing 0; Perfect classification 0
 #&gt;
-#&gt; Number of Fisher Scoring iterations: 2</code></pre>
+#&gt; Number of Fisher Scoring iterations: 24</code></pre>
 </div>
 <div id="example-3-fixed-effects" class="section level2">
 <h2>Example 3 (fixed effects)</h2>
@@ -215,27 +218,27 @@ fixed effects on the dataset below. The separation in this case is less
 clear, which motivates why capybara uses linear programming to detect
 separation in Poisson models.</p>
 <pre class="r"><code>ppmlhdfe$fe1
-#&gt; # A tibble: 18 × 6
-#&gt;        y    x1    x2     i     j pair
-#&gt;    &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;chr&gt;
-#&gt;  1     2     0     0     2     1 21
-#&gt;  2     0     0     0     4     2 42
-#&gt;  3     0     0     0     1     1 11
-#&gt;  4     1     1     0     4     3 43
-#&gt;  5     0     0     1     2     2 22
-#&gt;  6     0     0     0     2     2 22
-#&gt;  7     1     0     0     5     4 54
-#&gt;  8     0     1     2     2     3 23
-#&gt;  9     1     0     0     1     1 11
-#&gt; 10     0     0     0     2     2 22
-#&gt; 11     0     2     0     1     3 13
-#&gt; 12     0     0     0     1     3 13
-#&gt; 13     0     1     0     2     2 22
-#&gt; 14     0     0     1     5     2 52
-#&gt; 15     0     0     1     2     4 24
-#&gt; 16     0     0     0     1     2 12
-#&gt; 17     0     0     0     1     1 11
-#&gt; 18     2     0     0     1     2 12</code></pre>
+#&gt; # A tibble: 18 × 5
+#&gt;        y    x1    x2     i     j
+#&gt;    &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;
+#&gt;  1     2     0     0     2     1
+#&gt;  2     0     0     0     4     2
+#&gt;  3     0     0     0     1     1
+#&gt;  4     1     1     0     4     3
+#&gt;  5     0     0     1     2     2
+#&gt;  6     0     0     0     2     2
+#&gt;  7     1     0     0     5     4
+#&gt;  8     0     1     2     2     3
+#&gt;  9     1     0     0     1     1
+#&gt; 10     0     0     0     2     2
+#&gt; 11     0     2     0     1     3
+#&gt; 12     0     0     0     1     3
+#&gt; 13     0     1     0     2     2
+#&gt; 14     0     0     1     5     2
+#&gt; 15     0     0     1     2     4
+#&gt; 16     0     0     0     1     2
+#&gt; 17     0     0     0     1     1
+#&gt; 18     2     0     0     1     2</code></pre>
 <p>Base R shall not give a warning when estimating a Poisson model with
 fixed effects on this data.</p>
 <pre class="r"><code>glm(
@@ -264,7 +267,7 @@ fixed effects on this data.</p>
 )
 #&gt; Separation detected: 4 observation(s) with perfect prediction were excluded from estimation.
 #&gt; Formula: y ~ x1 + x2 | i + j
-#&gt; &lt;environment: 0x55b930000c28&gt;
+#&gt; &lt;environment: 0x5572526f2448&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -277,11 +280,11 @@ fixed effects on this data.</p>
 #&gt;
 #&gt; Significance codes: ** p &lt; 0.01; * p &lt; 0.05; + p &lt; 0.10
 #&gt;
-#&gt; Pseudo R-squared: 0.1111
+#&gt; Pseudo R-squared: 0.09081
 #&gt;
-#&gt; Number of observations: Full 14; Separated 4; Perfect classification 0
+#&gt; Number of observations: Full 18; Separated 4; Perfect classification 0
 #&gt;
-#&gt; Number of Fisher Scoring iterations: 7</code></pre>
+#&gt; Number of Fisher Scoring iterations: 5</code></pre>
 <p>‘ppmlhdfe’ will also detect separation when estimating Poisson models
 with fixed effects.</p>
 <pre class="stata"><code>. ppmlhdfe y x1 x2, a(i j)
@@ -329,7 +332,7 @@ fepoisson(
 )
 #&gt; Separation detected: 4 observation(s) with perfect prediction were excluded from estimation.
 #&gt; Formula: y ~ x1 + x2 | i + j | pair
-#&gt; &lt;environment: 0x55b930000c28&gt;
+#&gt; &lt;environment: 0x5572526f2448&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -337,16 +340,16 @@ fepoisson(
 #&gt;
 #&gt; |    | Estimate | Std. Error | z value | Pr(&gt;|z|) |
 #&gt; |----|----------|------------|---------|----------|
-#&gt; | x1 |  -0.4845 |     0.3944 | -1.2285 |   0.2192 |
+#&gt; | x1 |  -0.4845 |     0.3314 | -1.4620 |   0.1437 |
 #&gt; | x2 |       NA |         NA |      NA |   NA     |
 #&gt;
 #&gt; Significance codes: ** p &lt; 0.01; * p &lt; 0.05; + p &lt; 0.10
 #&gt;
-#&gt; Pseudo R-squared: 0.1111
+#&gt; Pseudo R-squared: 0.09081
 #&gt;
-#&gt; Number of observations: Full 14; Separated 4; Perfect classification 0
+#&gt; Number of observations: Full 18; Separated 4; Perfect classification 0
 #&gt;
-#&gt; Number of Fisher Scoring iterations: 7</code></pre>
+#&gt; Number of Fisher Scoring iterations: 5</code></pre>
 <p>Other R packages may not detect separation in Poisson models with
 fixed effects. By disabling the separation check in Capybara, we can
 match ‘alpaca’ and ‘fixest’ results.</p>
@@ -356,9 +359,8 @@ match ‘alpaca’ and ‘fixest’ results.</p>
   data = ppmlhdfe$fe1,
   control = list(check_separation = FALSE)
 )
-#&gt; Separation detected: 4 observation(s) with perfect prediction were excluded from estimation.
 #&gt; Formula: y ~ x1 + x2 | i + j
-#&gt; &lt;environment: 0x55b930000c28&gt;
+#&gt; &lt;environment: 0x5572526f2448&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -367,13 +369,13 @@ match ‘alpaca’ and ‘fixest’ results.</p>
 #&gt; |    | Estimate | Std. Error | z value | Pr(&gt;|z|) |
 #&gt; |----|----------|------------|---------|----------|
 #&gt; | x1 |  -0.4845 |     1.2439 | -0.3895 |   0.6969 |
-#&gt; | x2 | -17.3915 |  4760.9726 | -0.0037 |   0.9971 |
+#&gt; | x2 | -17.3730 |  4668.0414 | -0.0037 |   0.9970 |
 #&gt;
 #&gt; Significance codes: ** p &lt; 0.01; * p &lt; 0.05; + p &lt; 0.10
 #&gt;
 #&gt; Pseudo R-squared: 0.2614
 #&gt;
-#&gt; Number of observations: Full 18; Separated 4; Perfect classification 4
+#&gt; Number of observations: Full 18; Missing 0; Perfect classification 0
 #&gt;
 #&gt; Number of Fisher Scoring iterations: 19</code></pre>
 <p>Alpaca:</p>
@@ -404,7 +406,21 @@ Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 Log-Likelihood: -12.3   Adj. Pseudo R2: -0.353285
            BIC:  50.6     Squared Cor.:  0.261426</code></pre>
 </div>
-        </div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script></div>
         <footer><p id="last-updated">Loading...</p>
 </footer><script src="../js/footer.js"></script><script src="../js/theme.js"></script><script src="../js/search.js"></script><script src="../js/fontsize.js"></script></div>
 </div>

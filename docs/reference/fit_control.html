@@ -72,7 +72,8 @@ conditions are similar to glm.
 
 <pre><code class="language-R">fit_control(
   dev_tol = 1e-08,
-  center_tol = 1e-08,
+  center_tol = 1e-06,
+  center_tol_loose = 1e-04,
   collin_tol = 1e-10,
   step_halving_factor = 0.5,
   alpha_tol = 1e-08,
@@ -80,14 +81,22 @@ conditions are similar to glm.
   iter_center_max = 10000L,
   iter_inner_max = 50L,
   iter_alpha_max = 10000L,
-  iter_interrupt = 1000L,
   step_halving_memory = 0.9,
   max_step_halving = 2L,
   start_inner_tol = 1e-06,
+  grand_acc_period = 4L,
+  centering = "berge",
+  sep_tol = 1e-08,
+  sep_zero_tol = 1e-12,
+  sep_max_iter = 200L,
+  sep_simplex_max_iter = 2000L,
+  sep_use_relu = TRUE,
+  sep_use_simplex = TRUE,
   return_fe = TRUE,
   keep_tx = FALSE,
   check_separation = TRUE,
-  init_theta = 0
+  init_theta = 0,
+  vcov_type = NULL
 )
 </code></pre>
 
@@ -103,7 +112,12 @@ is based on the relative change of the deviance in iteration <code class="reqn">
 <td>
 tolerance level for the stopping condition of the centering algorithm. The stopping condition is
 based on the relative change of the centered variable similar to the <code>'lfe'</code> package. The default is
-<code>1.0e-08</code>.
+<code>1.0e-06</code>.
+</td></tr><tr><td><code id="center_tol_loose">center_tol_loose</code></td>
+<td>
+initial (loose) tolerance for adaptive centering in GLM iterations. During early IRLS
+iterations when deviance is changing rapidly, this looser tolerance is used to save computation. As the GLM
+converges, the tolerance is tightened towards <code>center_tol</code>. The default is <code>1.0e-04</code>.
 </td></tr><tr><td><code id="collin_tol">collin_tol</code></td>
 <td>
 tolerance level for detecting collinearity. The default is <code>1.0e-07</code>.
@@ -129,10 +143,6 @@ algorithm. The default is <code>50L</code>.
 </td></tr><tr><td><code id="iter_alpha_max">iter_alpha_max</code></td>
 <td>
 maximum iterations for fixed effects computation. The default is <code>10000L</code>.
-</td></tr><tr><td><code id="iter_interrupt">iter_interrupt</code></td>
-<td>
-integer indicating the maximum number of iterations before the algorithm is interrupted. The
-default is <code>1000L</code>.
 </td></tr><tr><td><code id="step_halving_memory">step_halving_memory</code></td>
 <td>
 numeric memory factor for step-halving algorithm. Controls how much of the previous
@@ -143,6 +153,39 @@ maximum number of post-convergence step-halving attempts. The default is <code>2
 </td></tr><tr><td><code id="start_inner_tol">start_inner_tol</code></td>
 <td>
 starting tolerance for inner solver iterations. The default is <code>1.0e-04</code>.
+</td></tr><tr><td><code id="grand_acc_period">grand_acc_period</code></td>
+<td>
+integer indicating the period (in iterations) for grand acceleration in the centering
+algorithm. Grand acceleration applies a second-level Irons-Tuck extrapolation on the overall convergence
+trajectory. Lower values (e.g., 4-10) may speed up convergence for difficult problems. Set to a very large
+value (e.g., 10000) to effectively disable. The default is <code>4L</code>.
+</td></tr><tr><td><code id="centering">centering</code></td>
+<td>
+character string indicating the centering algorithm to use for demeaning fixed effects.
+<code>"stammann"</code> (default) uses alternating projections with Gauss-Seidel sweeps plus Irons-Tuck and grand
+acceleration on coefficient vectors. Each iteration updates each fixed-effect dimension in sequence.
+<code>"berge"</code> uses a fixed-point reformulation as described in Berge (2018): all FE updates are composed
+into a single map <code class="reqn">F = f_T \circ f_I</code>, reducing the problem to finding <code class="reqn">\beta^* = F(\beta^*)</code>. The
+Irons and Tuck (1969) acceleration is then applied to the composed iteration. Both methods use warm-starting
+and grand acceleration.
+</td></tr><tr><td><code id="sep_tol">sep_tol</code></td>
+<td>
+tolerance for separation detection. The default is <code>1.0e-08</code>.
+</td></tr><tr><td><code id="sep_zero_tol">sep_zero_tol</code></td>
+<td>
+tolerance for treating values as zero in separation detection. The default is <code>1.0e-12</code>.
+</td></tr><tr><td><code id="sep_max_iter">sep_max_iter</code></td>
+<td>
+maximum iterations for ReLU separation detection algorithm. The default is <code>200L</code>.
+</td></tr><tr><td><code id="sep_simplex_max_iter">sep_simplex_max_iter</code></td>
+<td>
+maximum iterations for simplex separation detection algorithm. The default is <code>2000L</code>.
+</td></tr><tr><td><code id="sep_use_relu">sep_use_relu</code></td>
+<td>
+logical indicating whether to use the ReLU algorithm for separation detection. The default is <code>TRUE</code>.
+</td></tr><tr><td><code id="sep_use_simplex">sep_use_simplex</code></td>
+<td>
+logical indicating whether to use the simplex algorithm for separation detection. The default is <code>TRUE</code>.
 </td></tr><tr><td><code id="return_fe">return_fe</code></td>
 <td>
 logical indicating if the fixed effects should be returned. This can be useful when fitting general
@@ -162,6 +205,14 @@ is <code>TRUE</code>.
 </td></tr><tr><td><code id="init_theta">init_theta</code></td>
 <td>
 Initial value for the negative binomial dispersion parameter (theta). The default is <code>0.0</code>.
+</td></tr><tr><td><code id="vcov_type">vcov_type</code></td>
+<td>
+Optional character string specifying the type of variance-covariance estimator to be used. It only
+applies for formulas with a cluster variable like <code>z ~ x + y | fe | cl</code>. When <code>NULL</code> (default), the variance
+covariance matrix follows a regular sandwich estimator. When set to <code>"m-estimator"</code>, uses standard clustered
+M-estimator sandwich. When set to <code>"m-estimator-dyadic"</code>, uses dyadic clustering that accounts for correlation
+between observations sharing entities. For dyadic clustering, specify two entity columns in the formula like
+<code>z ~ x + y | fe | cl1 + cl2</code>.
 </td></tr></table><h3>Value</h3>
 
 <p>A named list of control parameters.
