@@ -7,26 +7,15 @@
 //    dimension in sequence, then applies IT acceleration to the first FE
 //    coefficient vector. This works on the coefficient space.
 //
-// 2. Berge: Fixed-point reformulation. For 2-FE: defines F(alpha) =
-// f_1(f_2(alpha))
-//    composing both updates into a single map, then solves alpha* = F(alpha*)
-//    using Irons-Tuck acceleration on the composed iteration. For K>=3 FE: uses
-//    a full backward Gauss-Seidel sweep as the composed map F, with IT
-//    acceleration on the first FE's coefficients. This works on the observation
-//    space.
+// 2. Berge: Fixed-point reformulation. For 2-FE: defines
+//    F(alpha) = f_1(f_2(alpha)), composing both updates into a single map,
+//    then solves alpha* = F(alpha*) using Irons-Tuck acceleration. For K>=3
+//    FE: uses a full backward Gauss-Seidel sweep as the composed map F, with
+//    IT acceleration on the first FE's coefficients.
 //
-// Both methods use:
-// - Precompute in_out[g] = sum_{i: fe[i]==g} w[i] * V[i] once (O(N))
-// - Inner iteration operates on coefficient vectors only (O(n_coef))
-// - 2-FE special case avoids N-length temporaries entirely
-// - Irons-Tuck + grand acceleration on coefficient vectors
-// - Post-acceleration projection
-// - Warm-starting across IRLS calls
-//
-// Performance design:
-// - No branching on P: always use colptr()/memptr() with a single code path
-// - All inner-loop work is scatter/gather on index arrays
-// - Armadillo vectorized mat ops for IT/grand acceleration
+// Both methods precompute in_out[g] = sum_{i: fe[i]==g} w[i] * V[i] once,
+// then iterate on coefficient vectors only. Warm-starting is used across
+// IRLS calls.
 
 #ifndef CAPYBARA_CENTER_H
 #define CAPYBARA_CENTER_H
@@ -42,8 +31,6 @@ inline CenteringMethod centering_from_string(const std::string &s) {
     return BERGE;
   return STAMMANN; // default
 }
-
-// Whereas iteration should continue/stop
 
 inline bool continue_crit(double a, double b, double diffMax) {
   double diff = std::fabs(a - b);
@@ -63,7 +50,7 @@ struct FlatFEMap {
   std::vector<uword> n_groups;  // K: number of groups per FE
   uword n_obs;
   uword K;
-  bool structure_built; // Flag to indicate structure is ready
+  bool structure_built;
 
   FlatFEMap() : n_obs(0), K(0), structure_built(false) {}
 
@@ -75,7 +62,6 @@ struct FlatFEMap {
     n_groups.resize(K);
     n_obs = 0;
 
-    // First pass: find n_obs and n_groups
     for (uword k = 0; k < K; ++k) {
       n_groups[k] = group_indices(k).n_elem;
       for (uword g = 0; g < n_groups[k]; ++g) {
@@ -86,13 +72,11 @@ struct FlatFEMap {
       }
     }
 
-    // Allocate fe_map
     fe_map.resize(K);
     for (uword k = 0; k < K; ++k) {
       fe_map[k].assign(n_obs, 0);
     }
 
-    // Fill fe_map
     for (uword k = 0; k < K; ++k) {
       uword *map_k = fe_map[k].data();
       for (uword g = 0; g < n_groups[k]; ++g) {
@@ -121,7 +105,6 @@ struct FlatFEMap {
       double *inv_w_ptr = inv_weights[k].memptr();
       const uword *map_k = fe_map[k].data();
 
-      // Accumulate weights per group
       if (use_w) {
         for (uword i = 0; i < n_obs; ++i) {
           inv_w_ptr[map_k[i]] += w_ptr[i];
@@ -132,7 +115,6 @@ struct FlatFEMap {
         }
       }
 
-      // Invert (clamp to avoid division by zero)
       for (uword g = 0; g < n_groups[k]; ++g) {
         inv_w_ptr[g] = (inv_w_ptr[g] > 1e-12) ? (1.0 / inv_w_ptr[g]) : 0.0;
       }
@@ -147,10 +129,9 @@ struct CenterWarmStart {
   uword P;
   bool valid;
 
-  // Persistent scratch buffers to avoid reallocation across IRLS iterations
-  // These are sized on first use and reused if dimensions match
-  std::vector<mat> scratch_mats; // reusable matrices (GX, GGX, X_it, grand_*)
-  mat scratch_beta;              // beta_tmp for 2-FE case
+  // Persistent scratch buffers (sized on first use, reused if dimensions match)
+  std::vector<mat> scratch_mats;
+  mat scratch_beta; // beta_tmp for 2-FE case
   bool scratch_valid;
   uword scratch_n1, scratch_n2;
 
@@ -174,33 +155,30 @@ struct CenterWarmStart {
     return true;
   }
 
-  // Get or allocate scratch matrices for 2-FE Berge
-  // Returns pointers to: beta_tmp, GX, GGX, X_it, grand_Y, grand_GY, grand_GGY
   void ensure_scratch_2fe(uword n1, uword n2, uword p) {
     if (scratch_valid && scratch_n1 == n1 && scratch_n2 == n2 &&
         scratch_mats.size() >= 6 && scratch_mats[0].n_cols == p) {
-      // Reuse existing buffers — just zero the grand buffers
-      scratch_mats[3].zeros(); // grand_Y
-      scratch_mats[4].zeros(); // grand_GY
-      scratch_mats[5].zeros(); // grand_GGY
+      scratch_mats[3].zeros();
+      scratch_mats[4].zeros();
+      scratch_mats[5].zeros();
       return;
     }
     scratch_mats.resize(6);
-    scratch_mats[0].set_size(n1, p); // GX
-    scratch_mats[1].set_size(n1, p); // GGX
-    scratch_mats[2].set_size(n1, p); // X_it
-    scratch_mats[3].zeros(n1, p);    // grand_Y
-    scratch_mats[4].zeros(n1, p);    // grand_GY
-    scratch_mats[5].zeros(n1, p);    // grand_GGY
-    scratch_beta.set_size(n2, p);    // beta_tmp
+    scratch_mats[0].set_size(n1, p);
+    scratch_mats[1].set_size(n1, p);
+    scratch_mats[2].set_size(n1, p);
+    scratch_mats[3].zeros(n1, p);
+    scratch_mats[4].zeros(n1, p);
+    scratch_mats[5].zeros(n1, p);
+    scratch_beta.set_size(n2, p);
     scratch_n1 = n1;
     scratch_n2 = n2;
     scratch_valid = true;
   }
 };
 
-// Precompute in_out: in_out_k(g, p) = sum_{i: fe_k[i]==g} w[i] * V(i, p)
-// This is done once per centering call (O(N * P * K))
+// Precompute weighted group sums: in_out_k(g, p) = sum_{i: fe_k[i]==g} w[i] *
+// V(i, p)
 inline void in_out_(std::vector<mat> &in_out, const mat &V, const double *w_ptr,
                     const FlatFEMap &map) {
   const uword n_obs = V.n_rows;
@@ -224,12 +202,8 @@ inline void in_out_(std::vector<mat> &in_out, const mat &V, const double *w_ptr,
   }
 }
 
-// 2-FE Gauss-Seidel update: compute alpha_b from alpha_a + in_out
-// alpha_b[g2] = (in_out_b[g2] - sum_{i: fe_b[i]==g2} w[i] * alpha_a[fe_a[i]])
-//               / sw_b[g2]
-//
-// no N-length temporaries, operates directly on coefficient vectors. The O(N)
-// inner loop is a simple scatter with one array read per observation.
+// 2-FE Gauss-Seidel: alpha_b[g] = (in_out_b[g] - sum w[i]*alpha_a[ga[i]]) /
+// sw_b[g]
 inline void gs_update_2fe(mat &alpha_b, const mat &alpha_a, const mat &in_out_b,
                           const vec &inv_w_b, const uword *__restrict__ ga,
                           const uword *__restrict__ gb,
@@ -246,21 +220,18 @@ inline void gs_update_2fe(mat &alpha_b, const mat &alpha_a, const mat &in_out_b,
     const double *__restrict__ aa_col = alpha_a.colptr(p);
     const double *__restrict__ io_col = in_out_b.colptr(p);
 
-    // Fused init + scatter: start from in_out, subtract weighted alpha_a
     std::memcpy(ab_col, io_col, n_b * sizeof(double));
     for (uword i = 0; i < n_obs; ++i) {
       ab_col[gb[i]] -= w_ptr[i] * aa_col[ga[i]];
     }
 
-    // Scale by inverse weights (fused into single loop)
     for (uword g = 0; g < n_b; ++g) {
       ab_col[g] *= iw[g];
     }
   }
 }
 
-// General K-FE Gauss-Seidel update for one FE dimension k:
-// alpha_k[g] = (in_out_k[g] - sum_{i: fe_k[i]==g} w[i] * sum_{j!=k}
+// K-FE Gauss-Seidel: alpha_k[g] = (in_out_k[g] - sum w[i]*sum_{j!=k}
 // alpha_j[fe_j[i]]) / sw_k[g]
 inline void gs_update_kfe(mat &alpha_k, const std::vector<mat> &alpha,
                           const mat &in_out_k, const vec &inv_w_k,
@@ -272,8 +243,6 @@ inline void gs_update_kfe(mat &alpha_k, const std::vector<mat> &alpha,
   const uword *__restrict__ gk = map.fe_map[k].data();
   const double *__restrict__ iw = inv_w_k.memptr();
 
-  // Pre-fetch all FE map pointers and coefficient column pointers
-  // to avoid repeated map.fe_map[j].data() calls in the inner loop
   std::vector<const uword *> fe_ptrs(K);
   for (uword j = 0; j < K; ++j) {
     fe_ptrs[j] = map.fe_map[j].data();
@@ -286,16 +255,13 @@ inline void gs_update_kfe(mat &alpha_k, const std::vector<mat> &alpha,
     double *__restrict__ ak_col = alpha_k.colptr(p);
     const double *__restrict__ io_col = in_out_k.colptr(p);
 
-    // Pre-fetch coefficient column pointers for this column
     std::vector<const double *> alpha_cols(K);
     for (uword j = 0; j < K; ++j) {
       alpha_cols[j] = alpha[j].colptr(p);
     }
 
-    // Initialize from precomputed in_out
     std::memcpy(ak_col, io_col, n_k * sizeof(double));
 
-    // Subtract weighted sum of other FE contributions
     for (uword i = 0; i < n_obs; ++i) {
       double sum_others = 0.0;
       for (uword j = 0; j < K; ++j) {
@@ -306,18 +272,14 @@ inline void gs_update_kfe(mat &alpha_k, const std::vector<mat> &alpha,
       ak_col[gk[i]] -= w_ptr[i] * sum_others;
     }
 
-    // Scale by inverse weights
     for (uword g = 0; g < n_k; ++g) {
       ak_col[g] *= iw[g];
     }
   }
 }
 
-// Irons-Tuck acceleration on coefficient vectors
-// Returns true if numerically converged (ssq == 0)
-//
-// Single-pass, zero-allocation version: computes dot products and updates
-// in one fused loop over the raw memory.
+// Irons-Tuck acceleration on coefficient vectors.
+// Returns true if numerically converged (ssq == 0).
 inline bool irons_tuck_acc(mat &X_coef, const mat &GX_coef,
                            const mat &GGX_coef) {
   const uword n = X_coef.n_elem;
@@ -325,11 +287,10 @@ inline bool irons_tuck_acc(mat &X_coef, const mat &GX_coef,
   const double *__restrict__ gx = GX_coef.memptr();
   const double *__restrict__ ggx = GGX_coef.memptr();
 
-  // Single pass: accumulate vprod and ssq, compute delta_GX in-place
   double vprod = 0.0, ssq = 0.0;
   for (uword i = 0; i < n; ++i) {
-    const double dg = ggx[i] - gx[i];    // delta_GX
-    const double d2 = dg - gx[i] + x[i]; // delta2_X
+    const double dg = ggx[i] - gx[i];
+    const double d2 = dg - gx[i] + x[i];
     vprod += dg * d2;
     ssq += d2 * d2;
   }
@@ -338,7 +299,6 @@ inline bool irons_tuck_acc(mat &X_coef, const mat &GX_coef,
     return true;
   }
 
-  // Update X in a second pass (cannot fuse: need coef first)
   const double coef = vprod / ssq;
   for (uword i = 0; i < n; ++i) {
     x[i] = ggx[i] - coef * (ggx[i] - gx[i]);
@@ -346,13 +306,7 @@ inline bool irons_tuck_acc(mat &X_coef, const mat &GX_coef,
   return false;
 }
 
-// =========================================================================
-// Stammann (alpaca-like): alternating projections with IT acceleration
-// =========================================================================
-
-// 2-FE centering (Stammann): alternating projections with Irons-Tuck
-// acceleration. Each iteration does a full Gauss-Seidel sweep (update alpha1
-// from alpha2, then alpha2 from alpha1). IT acceleration is applied to alpha1.
+// Stammann 2-FE centering: alternating projections with IT acceleration
 inline void center_2fe_stammann(mat &V, const vec &w, const FlatFEMap &map,
                                 CenterWarmStart &warm, double tol,
                                 uword max_iter, uword grand_acc_period = 4) {
@@ -365,11 +319,9 @@ inline void center_2fe_stammann(mat &V, const vec &w, const FlatFEMap &map,
   const uword *g2 = map.fe_map[1].data();
   const double *w_ptr = w.memptr();
 
-  // Step 1: Precompute in_out (O(N * P * 2)) -- done ONCE
   std::vector<mat> in_out;
   in_out_(in_out, V, w_ptr, map);
 
-  // Step 2: Initialize coefficient vectors
   mat alpha1, alpha2;
   if (warm.can_use(2, P)) {
     alpha1 = warm.alpha[0];
@@ -379,8 +331,6 @@ inline void center_2fe_stammann(mat &V, const vec &w, const FlatFEMap &map,
     alpha2.zeros(n2, P);
   }
 
-  // Gauss-Seidel sweep: update alpha1 from alpha2, then alpha2 from alpha1
-  // This is entirely in coefficient space -- no N-length temporaries
   auto gs_sweep = [&]() {
     gs_update_2fe(alpha1, alpha2, in_out[0], map.inv_weights[0], g2, g1, w_ptr,
                   n_obs, P);
@@ -388,11 +338,9 @@ inline void center_2fe_stammann(mat &V, const vec &w, const FlatFEMap &map,
                   n_obs, P);
   };
 
-  // IT acceleration buffers (coefficient-space, not observation-space)
   mat X_it(n1, P);
   mat GX_it(n1, P);
 
-  // Grand acceleration buffers
   mat grand_Y(n1, P, fill::zeros);
   mat grand_GY(n1, P, fill::zeros);
   uword grand_stage = 0;
@@ -406,19 +354,14 @@ inline void center_2fe_stammann(mat &V, const vec &w, const FlatFEMap &map,
   for (uword iter = 0; iter < max_iter; ++iter) {
     X_it = alpha1;
 
-    // GS sweep 1 -> GX
     gs_sweep();
     GX_it = alpha1;
 
-    // GS sweep 2 -> GGX
     gs_sweep();
     GGX_it = alpha1;
 
-    // IT acceleration on alpha1 (coefficient space)
-    // Note: X_it, GX_it, GGX_it are separate buffers (no aliasing)
     bool numconv = irons_tuck_acc(alpha1, GX_it, GGX_it);
 
-    // Recompute alpha2 from accelerated alpha1
     gs_update_2fe(alpha2, alpha1, in_out[1], map.inv_weights[1], g1, g2, w_ptr,
                   n_obs, P);
 
@@ -429,7 +372,6 @@ inline void center_2fe_stammann(mat &V, const vec &w, const FlatFEMap &map,
     if (numconv)
       break;
 
-    // Grand acceleration
     if (grand_acc_period > 0 && iter > 0 && iter % grand_acc_period == 0) {
       if (grand_stage == 0) {
         grand_Y = alpha1;
@@ -452,7 +394,6 @@ inline void center_2fe_stammann(mat &V, const vec &w, const FlatFEMap &map,
       }
     }
 
-    // Convergence check (coefficient-space)
     const double *curr = alpha1.memptr();
     const double *old = X_it.memptr();
     const uword total_elem = n1 * P;
@@ -466,7 +407,6 @@ inline void center_2fe_stammann(mat &V, const vec &w, const FlatFEMap &map,
     if (!keep_going)
       break;
 
-    // SSR-based stopping (periodic)
     if (iter > 0 && iter % ssr_check_period == 0) {
       double ssr = 0.0;
 #ifdef _OPENMP
@@ -487,11 +427,9 @@ inline void center_2fe_stammann(mat &V, const vec &w, const FlatFEMap &map,
     }
   }
 
-  // Save warm-start
   std::vector<mat> coeffs = {alpha1, alpha2};
   warm.save(coeffs, 2, P);
 
-  // Final subtraction: V -= G1 * alpha1 + G2 * alpha2
 #ifdef _OPENMP
 #pragma omp parallel for schedule(static) if (P > 1)
 #endif
@@ -505,7 +443,7 @@ inline void center_2fe_stammann(mat &V, const vec &w, const FlatFEMap &map,
   }
 }
 
-// General K-FE centering (Stammann): alternating projections with Irons-Tuck
+// Stammann K-FE centering: alternating projections with IT acceleration
 inline void center_kfe_stammann(mat &V, const vec &w, const FlatFEMap &map,
                                 CenterWarmStart &warm, double tol,
                                 uword max_iter, uword grand_acc_period = 4) {
@@ -515,11 +453,9 @@ inline void center_kfe_stammann(mat &V, const vec &w, const FlatFEMap &map,
 
   const double *w_ptr = w.memptr();
 
-  // Precompute in_out
   std::vector<mat> in_out;
   in_out_(in_out, V, w_ptr, map);
 
-  // Initialize coefficient vectors
   std::vector<mat> alpha(K);
   if (warm.can_use(K, P)) {
     for (uword k = 0; k < K; ++k) {
@@ -531,7 +467,6 @@ inline void center_kfe_stammann(mat &V, const vec &w, const FlatFEMap &map,
     }
   }
 
-  // Gauss-Seidel sweep: update each FE in sequence
   auto gs_sweep = [&]() {
     for (uword k = 0; k < K; ++k) {
       gs_update_kfe(alpha[k], alpha, in_out[k], map.inv_weights[k], map, w_ptr,
@@ -539,14 +474,12 @@ inline void center_kfe_stammann(mat &V, const vec &w, const FlatFEMap &map,
     }
   };
 
-  // IT acceleration on alpha[0]
   const uword n0 = map.n_groups[0];
   const uword total_elem0 = n0 * P;
   mat X_it(n0, P, fill::zeros);
   mat GX_it(n0, P, fill::zeros);
   mat GGX_it(n0, P, fill::zeros);
 
-  // Grand acceleration buffers
   mat grand_Y(n0, P, fill::zeros);
   mat grand_GY(n0, P, fill::zeros);
   uword grand_stage = 0;
@@ -558,15 +491,12 @@ inline void center_kfe_stammann(mat &V, const vec &w, const FlatFEMap &map,
   for (uword iter = 0; iter < max_iter; ++iter) {
     X_it = alpha[0];
 
-    // GS sweep 1 -> GX
     gs_sweep();
     GX_it = alpha[0];
 
-    // GS sweep 2 -> GGX
     gs_sweep();
     GGX_it = alpha[0];
 
-    // IT acceleration (no aliasing: X_it, GX_it, GGX_it are separate buffers)
     bool numconv = irons_tuck_acc(alpha[0], GX_it, GGX_it);
 
     if (iter >= iter_proj_after_acc) {
@@ -576,7 +506,6 @@ inline void center_kfe_stammann(mat &V, const vec &w, const FlatFEMap &map,
     if (numconv)
       break;
 
-    // Grand acceleration
     if (grand_acc_period > 0 && iter > 0 && iter % grand_acc_period == 0) {
       if (grand_stage == 0) {
         grand_Y = alpha[0];
@@ -597,7 +526,6 @@ inline void center_kfe_stammann(mat &V, const vec &w, const FlatFEMap &map,
       }
     }
 
-    // Convergence check
     const double *curr = alpha[0].memptr();
     const double *old = X_it.memptr();
     bool keep_going = false;
@@ -610,7 +538,6 @@ inline void center_kfe_stammann(mat &V, const vec &w, const FlatFEMap &map,
     if (!keep_going)
       break;
 
-    // SSR-based stopping (periodic)
     if (iter > 0 && iter % ssr_check_period == 0) {
       double ssr = 0.0;
       std::vector<const uword *> map_ptrs(K);
@@ -640,10 +567,8 @@ inline void center_kfe_stammann(mat &V, const vec &w, const FlatFEMap &map,
     }
   }
 
-  // Save warm-start
   warm.save(alpha, K, P);
 
-  // Final subtraction
   std::vector<const uword *> map_ptrs(K);
   for (uword k = 0; k < K; ++k) {
     map_ptrs[k] = map.fe_map[k].data();
@@ -667,27 +592,8 @@ inline void center_kfe_stammann(mat &V, const vec &w, const FlatFEMap &map,
   }
 }
 
-// =========================================================================
-// Berge (fixest-like): fixed-point reformulation
-//
-// The key idea: compose all FE updates into a single map F and solve the
-// fixed-point X* = F(X*) using Irons-Tuck acceleration.
-//
-// For 2-FE: F(alpha) = f_1(f_2(alpha)), where f_2 computes beta from alpha
-// and f_1 computes alpha from beta. IT acceleration on alpha (first FE).
-//
-// For K>=3 FE:
-//   1. Warmup: full K-FE acceleration for a few iterations
-//   2. 2-FE convergence: converge only the first 2 FEs
-//   3. Full K-FE: re-accelerate all K FEs for the remainder
-//
-// The Gauss-Seidel sweep order is backward (K-1 down to 0).
-// =========================================================================
-
-// Backward Gauss-Seidel sweep for K-FE
-// For each FE q (from K-1 to 0), compute the sum of contributions from
-// other FEs using: FEs with index < q from origin, FEs with index > q
-// from destination (which have already been updated this sweep).
+// Berge: backward Gauss-Seidel sweep for K-FE.
+// For FE q (K-1 down to 0): uses alpha_src for h < q, alpha_dst for h > q.
 inline void gs_sweep_backward_kfe(std::vector<mat> &alpha_dst,
                                   const std::vector<mat> &alpha_src,
                                   const std::vector<mat> &in_out,
@@ -696,7 +602,6 @@ inline void gs_sweep_backward_kfe(std::vector<mat> &alpha_dst,
                                   uword P) {
   const uword K = map.K;
 
-  // Pre-fetch all FE map pointers once
   std::vector<const uword *> fe_ptrs(K);
   for (uword h = 0; h < K; ++h) {
     fe_ptrs[h] = map.fe_map[h].data();
@@ -714,8 +619,6 @@ inline void gs_sweep_backward_kfe(std::vector<mat> &alpha_dst,
       double *__restrict__ dst_col = alpha_dst[q].colptr(p);
       const double *__restrict__ io_col = in_out[q].colptr(p);
 
-      // Pre-fetch src/dst column pointers for this column
-      // h < q: read from alpha_src; h > q: read from alpha_dst
       std::vector<const double *> col_ptrs(K);
       for (uword h = 0; h < K; ++h) {
         if (h == q)
@@ -723,10 +626,8 @@ inline void gs_sweep_backward_kfe(std::vector<mat> &alpha_dst,
         col_ptrs[h] = (h < q) ? alpha_src[h].colptr(p) : alpha_dst[h].colptr(p);
       }
 
-      // Initialize from precomputed in_out
       std::memcpy(dst_col, io_col, n_q * sizeof(double));
 
-      // Subtract weighted sum of other FE contributions
       for (uword i = 0; i < n_obs; ++i) {
         double sum_others = 0.0;
         for (uword h = 0; h < K; ++h) {
@@ -737,7 +638,6 @@ inline void gs_sweep_backward_kfe(std::vector<mat> &alpha_dst,
         dst_col[gq[i]] -= w_ptr[i] * sum_others;
       }
 
-      // Scale by inverse weights
       for (uword g = 0; g < n_q; ++g) {
         dst_col[g] *= iw[g];
       }
@@ -745,9 +645,8 @@ inline void gs_sweep_backward_kfe(std::vector<mat> &alpha_dst,
   }
 }
 
-// Fused composed map F(alpha) = f_1(f_2(alpha)).
-// Computes beta from alpha_src, then alpha_dst from beta.
-// For P==1, fuses both steps to reduce memory traffic on beta_tmp.
+// Composed map F(alpha) = f_1(f_2(alpha)): beta from alpha_src, then alpha_dst
+// from beta.
 inline void apply_F_2fe(mat &alpha_dst, mat &beta_tmp, const mat &alpha_src,
                         const std::vector<mat> &in_out, const FlatFEMap &map,
                         const double *__restrict__ w_ptr, uword n_obs,
@@ -769,7 +668,6 @@ inline void apply_F_2fe(mat &alpha_dst, mat &beta_tmp, const mat &alpha_src,
     const double *__restrict__ io2_col = in_out[1].colptr(p);
     double *__restrict__ ad_col = alpha_dst.colptr(p);
 
-    // Step 1: beta = f_2(alpha_src)
     std::memcpy(bt_col, io2_col, n2 * sizeof(double));
     for (uword i = 0; i < n_obs; ++i) {
       bt_col[g2[i]] -= w_ptr[i] * as_col[g1[i]];
@@ -778,7 +676,6 @@ inline void apply_F_2fe(mat &alpha_dst, mat &beta_tmp, const mat &alpha_src,
       bt_col[g] *= iw2[g];
     }
 
-    // Step 2: alpha_dst = f_1(beta)  — beta is hot in cache
     std::memcpy(ad_col, io1_col, n1 * sizeof(double));
     for (uword i = 0; i < n_obs; ++i) {
       ad_col[g1[i]] -= w_ptr[i] * bt_col[g2[i]];
@@ -789,16 +686,8 @@ inline void apply_F_2fe(mat &alpha_dst, mat &beta_tmp, const mat &alpha_src,
   }
 }
 
-// 2-FE centering: fixed-point F(alpha) = f_1(f_2(alpha))
-// with IT acceleration on alpha (first FE).
-//
-// - Track first FE coefficients (alpha) through the fixed point
-// - Composed map F: given alpha, compute beta, then recompute alpha
-// - IT acceleration on alpha
-// - Grand acceleration snapshots GX (= F(X)) at periodic intervals
-// - Post-acceleration projection for stability
-// - Convergence checked on X vs GX (unaccelerated step)
-
+// Berge 2-FE centering: fixed-point F(alpha) = f_1(f_2(alpha)) with IT
+// acceleration
 inline void center_2fe_berge(mat &V, const vec &w, const FlatFEMap &map,
                              CenterWarmStart &warm, double tol, uword max_iter,
                              uword grand_acc_period = 4) {
@@ -811,11 +700,9 @@ inline void center_2fe_berge(mat &V, const vec &w, const FlatFEMap &map,
   const uword *g2 = map.fe_map[1].data();
   const double *w_ptr = w.memptr();
 
-  // Step 1: Precompute in_out (O(N * P * 2)) -- done ONCE
   std::vector<mat> in_out;
   in_out_(in_out, V, w_ptr, map);
 
-  // Step 2: Initialize alpha (= first FE's coefficients, tracked through FP)
   mat alpha;
   if (warm.can_use(2, P)) {
     alpha = warm.alpha[0];
@@ -825,8 +712,6 @@ inline void center_2fe_berge(mat &V, const vec &w, const FlatFEMap &map,
 
   const uword total_elem = n1 * P;
 
-  // Reuse persistent scratch buffers from warm start (avoids reallocation
-  // across IRLS iterations — the dominant allocation cost at large N)
   warm.ensure_scratch_2fe(n1, n2, P);
   mat &beta_tmp = warm.scratch_beta;
   mat &GX = warm.scratch_mats[0];
@@ -841,10 +726,8 @@ inline void center_2fe_berge(mat &V, const vec &w, const FlatFEMap &map,
   const uword ssr_check_period = (n_obs > 50000) ? 80 : 40;
   double ssr_old = datum::inf;
 
-  // Bootstrap: compute GX = F(alpha) once before the loop
   apply_F_2fe(GX, beta_tmp, alpha, in_out, map, w_ptr, n_obs, P);
 
-  // Check if already converged
   {
     bool keep_going = false;
     for (uword i = 0; i < total_elem; ++i) {
@@ -854,7 +737,6 @@ inline void center_2fe_berge(mat &V, const vec &w, const FlatFEMap &map,
       }
     }
     if (!keep_going) {
-      // Already converged, compute beta and subtract
       gs_update_2fe(beta_tmp, GX, in_out[1], map.inv_weights[1], g1, g2, w_ptr,
                     n_obs, P);
       std::vector<mat> coeffs = {GX, beta_tmp};
@@ -875,24 +757,19 @@ inline void center_2fe_berge(mat &V, const vec &w, const FlatFEMap &map,
   }
 
   for (uword iter = 0; iter < max_iter; ++iter) {
-    // GGX = F(GX) -- one new F evaluation (GX already computed)
     apply_F_2fe(GGX, beta_tmp, GX, in_out, map, w_ptr, n_obs, P);
 
-    // IT acceleration: alpha = GGX - coef * (GGX - GX)
     bool numconv = irons_tuck_acc(alpha, GX, GGX);
     if (numconv)
       break;
 
-    // Post-acceleration projection to stabilize
     if (iter >= iter_proj_after_acc) {
       X_it = alpha;
       apply_F_2fe(alpha, beta_tmp, X_it, in_out, map, w_ptr, n_obs, P);
     }
 
-    // Compute GX = F(alpha) for next iteration
     apply_F_2fe(GX, beta_tmp, alpha, in_out, map, w_ptr, n_obs, P);
 
-    // Convergence check: alpha vs GX (fast max-relative-diff)
     {
       const double *__restrict__ curr = alpha.memptr();
       const double *__restrict__ gx = GX.memptr();
@@ -902,7 +779,6 @@ inline void center_2fe_berge(mat &V, const vec &w, const FlatFEMap &map,
         if (d > max_diff)
           max_diff = d;
       }
-      // Quick absolute check, then relative
       if (max_diff < tol)
         break;
       bool keep_going = false;
@@ -916,7 +792,6 @@ inline void center_2fe_berge(mat &V, const vec &w, const FlatFEMap &map,
         break;
     }
 
-    // Grand acceleration (snapshots of GX at periodic intervals)
     if (grand_acc_period > 0 && iter > 0 && iter % grand_acc_period == 0) {
       if (grand_stage == 0) {
         grand_Y = GX;
@@ -926,20 +801,15 @@ inline void center_2fe_berge(mat &V, const vec &w, const FlatFEMap &map,
         grand_stage = 2;
       } else {
         grand_GGY = GX;
-        // IT acceleration on the grand snapshots -> updates grand_Y
         bool grand_numconv = irons_tuck_acc(grand_Y, grand_GY, grand_GGY);
         if (!grand_numconv && grand_Y.is_finite()) {
-          // Stabilize with one F call: GX = F(grand_Y)
           apply_F_2fe(GX, beta_tmp, grand_Y, in_out, map, w_ptr, n_obs, P);
         }
         grand_stage = 0;
       }
     }
 
-    // SSR-based stopping (periodic)
     if (iter > 0 && iter % ssr_check_period == 0) {
-      // beta_tmp was computed in the last apply_F_2fe call
-      // Recompute beta from current best alpha for SSR
       gs_update_2fe(beta_tmp, alpha, in_out[1], map.inv_weights[1], g1, g2,
                     w_ptr, n_obs, P);
 
@@ -962,17 +832,14 @@ inline void center_2fe_berge(mat &V, const vec &w, const FlatFEMap &map,
     }
   }
 
-  // Final iteration to get clean alpha and beta
   apply_F_2fe(GX, beta_tmp, alpha, in_out, map, w_ptr, n_obs, P);
   alpha = GX;
   gs_update_2fe(beta_tmp, alpha, in_out[1], map.inv_weights[1], g1, g2, w_ptr,
                 n_obs, P);
 
-  // Save warm-start
   std::vector<mat> coeffs = {alpha, beta_tmp};
   warm.save(coeffs, 2, P);
 
-  // Final subtraction: V -= G1 * alpha + G2 * beta
 #ifdef _OPENMP
 #pragma omp parallel for schedule(static) if (P > 1)
 #endif
@@ -987,14 +854,8 @@ inline void center_2fe_berge(mat &V, const vec &w, const FlatFEMap &map,
 }
 
 // Berge K-FE centering: IT-accelerated backward sweep.
-//
-// For K>=3 FEs, compose all K updates into a single backward sweep F
-// (updating FE K-1 down to FE 0). IT acceleration tracks alpha[0,...,K-2]
-// (all FEs except the last) through the fixed-point.
-//
-// X/GX/GGX are flat vectors of ALL FE coefficients.
-// IT acceleration updates FEs 0,...,K-2).
-// The last FE's coefficients are only updated by the sweep, never by IT.
+// IT acceleration tracks FEs 0,...,K-2; the last FE is only updated by the
+// sweep.
 inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
                              CenterWarmStart &warm, double tol, uword max_iter,
                              uword grand_acc_period = 4) {
@@ -1002,7 +863,6 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
   const uword P = V.n_cols;
   const uword K = map.K;
 
-  // For K==2, delegate to the specialized 2-FE function
   if (K == 2) {
     center_2fe_berge(V, w, map, warm, tol, max_iter, grand_acc_period);
     return;
@@ -1010,11 +870,9 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
 
   const double *w_ptr = w.memptr();
 
-  // Precompute in_out
   std::vector<mat> in_out;
   in_out_(in_out, V, w_ptr, map);
 
-  // Initialize all coefficient vectors
   std::vector<mat> alpha(K);
   if (warm.can_use(K, P)) {
     for (uword k = 0; k < K; ++k) {
@@ -1026,14 +884,12 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
     }
   }
 
-  // Composed map F: backward sweep from K-1 to 0
   std::vector<mat> GX(K), GGX(K);
   for (uword k = 0; k < K; ++k) {
     GX[k].zeros(map.n_groups[k], P);
     GGX[k].zeros(map.n_groups[k], P);
   }
 
-  // Grand acceleration buffers (vector<mat> snapshots, no flat packing)
   std::vector<mat> grand_alpha_Y(K - 1), grand_alpha_GY(K - 1);
   for (uword k = 0; k < K - 1; ++k) {
     grand_alpha_Y[k].zeros(map.n_groups[k], P);
@@ -1045,10 +901,8 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
   const uword ssr_check_period = (n_obs > 100000) ? 80 : 40;
   double ssr_old = datum::inf;
 
-  // Bootstrap: GX = F(alpha)
   gs_sweep_backward_kfe(GX, alpha, in_out, map, w_ptr, n_obs, P);
 
-  // Check if already converged (on FEs 0,...,K-2)
   {
     bool keep_going = false;
     for (uword k = 0; k < K - 1 && !keep_going; ++k) {
@@ -1089,11 +943,8 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
   }
 
   for (uword iter = 0; iter < max_iter; ++iter) {
-    // GGX = F(GX)
     gs_sweep_backward_kfe(GGX, GX, in_out, map, w_ptr, n_obs, P);
 
-    // IT acceleration directly on vector<mat> — no pack/unpack needed
-    // First pass: compute vprod and ssq over FEs 0,...,K-2
     double vprod = 0.0, ssq = 0.0;
     for (uword k = 0; k < K - 1; ++k) {
       const uword n_elem = alpha[k].n_elem;
@@ -1112,7 +963,6 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
     if (ssq == 0.0) {
       numconv = true;
     } else {
-      // Second pass: update alpha[0,...,K-2]
       const double coef = vprod / ssq;
       for (uword k = 0; k < K - 1; ++k) {
         const uword n_elem = alpha[k].n_elem;
@@ -1125,23 +975,19 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
       }
     }
 
-    // Copy last FE from GGX (not accelerated, only swept)
     alpha[K - 1] = GGX[K - 1];
 
     if (numconv)
       break;
 
-    // Post-acceleration projection
     if (iter >= iter_proj_after_acc) {
       gs_sweep_backward_kfe(GX, alpha, in_out, map, w_ptr, n_obs, P);
       for (uword k = 0; k < K; ++k)
         alpha[k] = GX[k];
     }
 
-    // GX = F(alpha) for next iteration
     gs_sweep_backward_kfe(GX, alpha, in_out, map, w_ptr, n_obs, P);
 
-    // Convergence check on FEs 0,...,K-2 (no pack/unpack)
     {
       bool keep_going = false;
       for (uword k = 0; k < K - 1 && !keep_going; ++k) {
@@ -1159,7 +1005,6 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
         break;
     }
 
-    // Grand acceleration (on FEs 0,...,K-2, using vector<mat> snapshots)
     if (grand_acc_period > 0 && iter > 0 && iter % grand_acc_period == 0) {
       if (grand_stage == 0) {
         for (uword k = 0; k < K - 1; ++k)
@@ -1170,7 +1015,6 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
           grand_alpha_GY[k] = GX[k];
         grand_stage = 2;
       } else {
-        // IT acceleration on the grand snapshots directly
         double gvprod = 0.0, gssq = 0.0;
         for (uword k = 0; k < K - 1; ++k) {
           const uword n_elem = GX[k].n_elem;
@@ -1212,7 +1056,6 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
       }
     }
 
-    // SSR-based stopping (periodic)
     if (iter > 0 && iter % ssr_check_period == 0) {
       double ssr = 0.0;
       std::vector<const uword *> mp(K);
@@ -1241,15 +1084,12 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
     }
   }
 
-  // Final backward sweep to get clean coefficients
   gs_sweep_backward_kfe(GX, alpha, in_out, map, w_ptr, n_obs, P);
   for (uword k = 0; k < K; ++k)
     alpha[k] = GX[k];
 
-  // Save warm-start
   warm.save(alpha, K, P);
 
-  // Final subtraction
   std::vector<const uword *> map_ptrs(K);
   for (uword k = 0; k < K; ++k) {
     map_ptrs[k] = map.fe_map[k].data();
@@ -1273,7 +1113,6 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
   }
 }
 
-// Main centering dispatch
 inline void center_variables(mat &V, const vec &w, FlatFEMap &map, double tol,
                              uword max_iter, uword grand_acc_period,
                              CenterWarmStart *warm = nullptr,
