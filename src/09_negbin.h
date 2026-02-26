@@ -65,7 +65,8 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
 
   // Initial Poisson fit to get good starting values
   InferenceGLM poisson_fit =
-      feglm_fit(beta_coef, eta, y, X, w, 0.0, POISSON, fe_map, params, &ws);
+      feglm_fit(beta_coef, eta, y, X, w, 0.0, POISSON, fe_map, params, &ws,
+                nullptr, nullptr, false, nullptr, nullptr, true);
 
   if (!poisson_fit.conv) {
     static_cast<InferenceGLM &>(result) = std::move(poisson_fit);
@@ -92,7 +93,8 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
 
     // Fit negative binomial GLM with current theta
     InferenceGLM glm_fit =
-        feglm_fit(beta_coef, eta, y, X, w, theta, NEG_BIN, fe_map, params, &ws);
+        feglm_fit(beta_coef, eta, y, X, w, theta, NEG_BIN, fe_map, params, &ws,
+                  nullptr, nullptr, false, nullptr, nullptr, true);
 
     if (!glm_fit.conv) {
       static_cast<InferenceGLM &>(result) = std::move(glm_fit);
@@ -121,8 +123,13 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
         std::abs(theta_new - theta_prev) / (tol_denom + std::abs(theta_prev));
 
     if (beta_crit <= tol && theta_crit <= tol) {
-      // Converged - finalize result
-      static_cast<InferenceGLM &>(result) = std::move(glm_fit);
+      // Converged - do one final full fit (run_from_negbin=false) to
+      // compute Hessian, vcov, FE recovery, SE/z/p, pseudo R-sq, etc.
+      beta_coef = glm_fit.coef_table.col(0);
+      eta = glm_fit.eta;
+      InferenceGLM final_fit = feglm_fit(beta_coef, eta, y, X, w, theta_new,
+                                         NEG_BIN, fe_map, params, &ws);
+      static_cast<InferenceGLM &>(result) = std::move(final_fit);
       result.theta = theta_new;
       result.conv_outer = true;
       return result;
@@ -134,12 +141,15 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
     // Move coefficients for warm start (avoid copy)
     beta_coef = std::move(glm_fit.coef_table.col(0));
     eta = std::move(glm_fit.eta);
-
-    // Store current state as best result (in case we hit max iterations)
-    static_cast<InferenceGLM &>(result) = std::move(glm_fit);
   }
 
   // Max iterations reached without convergence
+  // Do a final full fit to populate Hessian, vcov, FE, SE/z/p
+  {
+    InferenceGLM final_fit =
+        feglm_fit(beta_coef, eta, y, X, w, theta, NEG_BIN, fe_map, params, &ws);
+    static_cast<InferenceGLM &>(result) = std::move(final_fit);
+  }
   result.theta = theta;
   result.conv_outer = false;
 

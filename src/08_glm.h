@@ -124,16 +124,14 @@ inline WorkingWtsNuFn get_ww_nu_fn(Family family_type) {
   }
 }
 
-InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
-                       const double &theta, const Family family_type,
-                       const FlatFEMap &fe_map,
-                       const CapybaraParameters &params,
-                       GlmWorkspace *workspace = nullptr,
-                       const field<uvec> *cluster_groups = nullptr,
-                       const vec *offset = nullptr,
-                       bool skip_separation_check = false,
-                       const field<uvec> *entity1_groups = nullptr,
-                       const field<uvec> *entity2_groups = nullptr) {
+InferenceGLM feglm_fit(
+    vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
+    const double &theta, const Family family_type, const FlatFEMap &fe_map,
+    const CapybaraParameters &params, GlmWorkspace *workspace = nullptr,
+    const field<uvec> *cluster_groups = nullptr, const vec *offset = nullptr,
+    bool skip_separation_check = false,
+    const field<uvec> *entity1_groups = nullptr,
+    const field<uvec> *entity2_groups = nullptr, bool run_from_negbin = false) {
 #ifdef CAPYBARA_DEBUG
   std::ostringstream feglm_msg;
   feglm_msg << "/////////////////////////////////\n"
@@ -162,7 +160,9 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   const uword p = X.n_cols;
 
   // Store original X once (needed for FE recovery)
-  const mat X0 = X;
+  // Skip when called from negbin outer loop - only the final converged
+  // call needs FE recovery, and that call will have run_from_negbin=false
+  const mat X0 = run_from_negbin ? mat() : mat(X);
 
   InferenceGLM result(n, p);
 
@@ -423,9 +423,8 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     // Beta is fully scale-invariant (rescaling y does not change beta),
     // so convergence based on beta avoids any scale dependence.
     const double beta_norm = std::sqrt(dot(beta, beta));
-    const double beta_change =
-        std::sqrt(dot(beta - beta0, beta - beta0)) /
-        std::max(beta_norm, datum::eps);
+    const double beta_change = std::sqrt(dot(beta - beta0, beta - beta0)) /
+                               std::max(beta_norm, datum::eps);
 
     // Update adaptive centering tolerance based on convergence
     if (beta_change < 0.1) {
@@ -475,6 +474,22 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 #endif
 
   if (conv) {
+    // Fast path for negbin outer loop: only return beta, eta, mu, and
+    // convergence status.  Skip Hessian, FE recovery, vcov, SE/z/p.
+    // The final converged call from fenegbin_fit will use
+    // run_from_negbin=false to compute the full result.
+    if (run_from_negbin) {
+      result.coef_table.col(0) = beta;
+      result.coef_status = std::move(collin_result.coef_status);
+      result.eta = eta;
+      result.fitted_values = mu;
+      result.weights = w;
+      result.deviance = dev;
+      result.null_deviance = null_dev;
+      result.conv = true;
+      return result;
+    }
+
     // Use the FE-centered design matrix (MX) from the last felm_fit iteration
     // for Hessian and sandwich vcov computation.  In the old IRLS scheme X was
     // centered in-place, so crossprod(X, w_working) was MX'WMX.  Now centering
@@ -751,9 +766,8 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
     // relative criterion (epsilon guard instead of a scale-dependent
     // floor of 1).
     const double eta_norm = std::sqrt(dot(eta, eta) / n);
-    const double eta_change =
-        std::sqrt(dot(eta - eta0, eta - eta0) / n) /
-        std::max(eta_norm, datum::eps);
+    const double eta_change = std::sqrt(dot(eta - eta0, eta - eta0) / n) /
+                              std::max(eta_norm, datum::eps);
 
     // Relax tolerance after initial iterations for large models
     if (n > 100000 && iter > 5 && eta_change < 0.1) {

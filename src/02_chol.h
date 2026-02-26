@@ -5,7 +5,8 @@
 // chol_rank was submitted to Armadillo
 // assume it is available from version X.Y.Z
 // define it here only for older versions
-#if !(ARMA_VERSION_MAJOR >= 99 && ARMA_VERSION_MINOR >= 99 && ARMA_VERSION_PATCH >= 99)
+#if !(ARMA_VERSION_MAJOR >= 99 && ARMA_VERSION_MINOR >= 99 &&                  \
+      ARMA_VERSION_PATCH >= 99)
 
 namespace capybara {
 template <typename T1>
