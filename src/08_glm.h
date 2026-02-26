@@ -289,7 +289,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   // Convergence acceleration for large models
   const bool is_large_model =
       (n > 100000) || (p_working > 1000) || (has_fixed_effects && fe_map.K > 1);
-  double last_eta_change = datum::inf;
+  double last_beta_change = datum::inf;
   uword convergence_count = 0;
 
   // Persistent felm workspace
@@ -418,30 +418,32 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 
     const double delta_deviance = dev0 - dev;
 
-    // Scale-invariant convergence criterion: relative change in eta
-    // Green & Santos Silva 2025: deviance is scale-dependent for PPML,
-    // so convergence should be based on the linear predictor)
-    const double eta_norm = std::sqrt(dot(eta, eta) / n);
-    const double eta_change =
-        std::sqrt(dot(eta - eta0, eta - eta0) / n) / std::max(eta_norm, 1.0);
+    // Scale-invariant convergence criterion: relative change in beta
+    // Green & Santos Silva 2025: deviance is scale-dependent for PPML.
+    // Beta is fully scale-invariant (rescaling y does not change beta),
+    // so convergence based on beta avoids any scale dependence.
+    const double beta_norm = std::sqrt(dot(beta, beta));
+    const double beta_change =
+        std::sqrt(dot(beta - beta0, beta - beta0)) /
+        std::max(beta_norm, datum::eps);
 
     // Update adaptive centering tolerance based on convergence
-    if (eta_change < 0.1) {
-      const double t = std::max(0.0, std::min(1.0, (0.1 - eta_change) / 0.1));
+    if (beta_change < 0.1) {
+      const double t = std::max(0.0, std::min(1.0, (0.1 - beta_change) / 0.1));
       adaptive_center_tol =
           center_tol_loose * std::pow(center_tol_tight / center_tol_loose, t);
     }
 
     // Early convergence detection for large models
-    if (is_large_model && eta_change < last_eta_change * 0.5) {
+    if (is_large_model && beta_change < last_beta_change * 0.5) {
       ++convergence_count;
     } else {
       convergence_count = 0;
     }
-    last_eta_change = eta_change;
+    last_beta_change = beta_change;
 
-    if (eta_change < params.dev_tol ||
-        (convergence_count >= 2 && eta_change < params.dev_tol * 10)) {
+    if (beta_change < params.dev_tol ||
+        (convergence_count >= 2 && beta_change < params.dev_tol * 10)) {
       conv = true;
       break;
     }
@@ -744,11 +746,14 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
       break;
     }
 
-    // Scale-invariant convergence criterion: relative change in eta
-    // (Green & Santos Silva 2025)
+    // Convergence criterion: relative change in eta
+    // No betas available (offset-only), so we track eta with a pure
+    // relative criterion (epsilon guard instead of a scale-dependent
+    // floor of 1).
     const double eta_norm = std::sqrt(dot(eta, eta) / n);
     const double eta_change =
-        std::sqrt(dot(eta - eta0, eta - eta0) / n) / std::max(eta_norm, 1.0);
+        std::sqrt(dot(eta - eta0, eta - eta0) / n) /
+        std::max(eta_norm, datum::eps);
 
     // Relax tolerance after initial iterations for large models
     if (n > 100000 && iter > 5 && eta_change < 0.1) {

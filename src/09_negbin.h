@@ -109,17 +109,18 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
       theta_new = theta;
     }
 
-    // Scale-invariant convergence: relative change in eta + theta
-    // Green & Santos Silva 2025: deviance is scale-dependent for PPML
-    const uword n_nb = glm_fit.eta.n_elem;
-    const double eta_norm_nb = std::sqrt(dot(glm_fit.eta, glm_fit.eta) / n_nb);
-    const double eta_crit =
-        std::sqrt(dot(glm_fit.eta - eta, glm_fit.eta - eta) / n_nb) /
-        std::max(eta_norm_nb, 1.0);
+    // Scale-invariant convergence: relative change in beta + theta
+    // Green & Santos Silva 2025: deviance is scale-dependent for PPML.
+    // Beta is fully scale-invariant, so we track beta instead of eta.
+    const vec beta_new = glm_fit.coef_table.col(0);
+    const double beta_norm_nb = std::sqrt(dot(beta_new, beta_new));
+    const double beta_crit =
+        std::sqrt(dot(beta_new - beta_coef, beta_new - beta_coef)) /
+        std::max(beta_norm_nb, datum::eps);
     const double theta_crit =
         std::abs(theta_new - theta_prev) / (tol_denom + std::abs(theta_prev));
 
-    if (eta_crit <= tol && theta_crit <= tol) {
+    if (beta_crit <= tol && theta_crit <= tol) {
       // Converged - finalize result
       static_cast<InferenceGLM &>(result) = std::move(glm_fit);
       result.theta = theta_new;
