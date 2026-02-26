@@ -418,31 +418,46 @@ InferenceGLM feglm_fit(
 
     const double delta_deviance = dev0 - dev;
 
-    // Scale-invariant convergence criterion: relative change in beta
-    // Green & Santos Silva 2025: deviance is scale-dependent for PPML.
-    // Beta is fully scale-invariant (rescaling y does not change beta),
-    // so convergence based on beta avoids any scale dependence.
-    const double beta_norm = std::sqrt(dot(beta, beta));
-    const double beta_change = std::sqrt(dot(beta - beta0, beta - beta0)) /
-                               std::max(beta_norm, datum::eps);
+    // Adaptive centering tolerance: always driven by eta, since the
+    // centering routine operates on eta-scale quantities.
+    const double eta_norm = std::sqrt(dot(eta, eta) / n);
+    const double eta_change = std::sqrt(dot(eta - eta0, eta - eta0) / n) /
+                              std::max(eta_norm, datum::eps);
 
-    // Update adaptive centering tolerance based on convergence
-    if (beta_change < 0.1) {
-      const double t = std::max(0.0, std::min(1.0, (0.1 - beta_change) / 0.1));
+    if (eta_change < 0.1) {
+      const double t = std::max(0.0, std::min(1.0, (0.1 - eta_change) / 0.1));
       adaptive_center_tol =
           center_tol_loose * std::pow(center_tol_tight / center_tol_loose, t);
     }
 
-    // Early convergence detection for large models
-    if (is_large_model && beta_change < last_beta_change * 0.5) {
+    // Early convergence detection for large models: eta-driven,
+    // since eta reflects the overall fit progress across all n observations.
+    if (is_large_model && eta_change < last_beta_change * 0.5) {
       ++convergence_count;
     } else {
       convergence_count = 0;
     }
-    last_beta_change = beta_change;
+    last_beta_change = eta_change;
 
-    if (beta_change < params.dev_tol ||
-        (convergence_count >= 2 && beta_change < params.dev_tol * 10)) {
+    // Outer convergence criterion:
+    // - When structural regressors are present (p_working > 0): use relative
+    //   change in beta. Beta is fully scale-invariant (rescaling y does not
+    //   change beta), satisfying Green & Santos Silva 2025.
+    // - When there are no structural regressors (pure FE model, p_working ==
+    // 0):
+    //   beta is empty so fall back to eta, which is the only quantity that
+    //   carries convergence information in that case.
+    double conv_change;
+    if (p_working > 0) {
+      const double beta_norm = std::sqrt(dot(beta, beta));
+      conv_change = std::sqrt(dot(beta - beta0, beta - beta0)) /
+                    std::max(beta_norm, datum::eps);
+    } else {
+      conv_change = eta_change;
+    }
+
+    if (conv_change < params.dev_tol ||
+        (convergence_count >= 2 && conv_change < params.dev_tol * 10)) {
       conv = true;
       break;
     }
