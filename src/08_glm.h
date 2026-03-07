@@ -8,6 +8,7 @@ struct GlmWorkspace {
   vec mu;        // fitted values on response scale
   vec w_working; // working weights
   vec nu;        // working residuals
+  vec z;         // working response (reused across iterations)
   vec eta0;      // previous eta (for step-halving)
   vec beta0;     // previous beta (for step-halving)
 
@@ -21,6 +22,7 @@ struct GlmWorkspace {
       mu.set_size(n);
       w_working.set_size(n);
       nu.set_size(n);
+      z.set_size(n);
       eta0.set_size(n);
       cached_n = n;
     }
@@ -159,10 +161,10 @@ InferenceGLM feglm_fit(
 
   const uword p = X.n_cols;
 
-  // Store original X once (needed for FE recovery)
-  // Skip when called from negbin outer loop - only the final converged
-  // call needs FE recovery, and that call will have run_from_negbin=false
-  const mat X0 = run_from_negbin ? mat() : mat(X);
+  // Store original X in the FelmWorkspace (needed for FE recovery after
+  // convergence). Skip when called from negbin outer loop — only the final
+  // converged call needs FE recovery (run_from_negbin=false).
+  // This avoids an upfront N×P copy; instead the workspace owns it.
 
   InferenceGLM result(n, p);
 
@@ -272,7 +274,7 @@ InferenceGLM feglm_fit(
 #endif
 
   // Collinearity check (once before iterations)
-  const bool use_weights = !all(w == 1.0);
+  const bool use_weights = any(w != 1.0);
   const mat XtX = use_weights ? crossprod(X, w) : crossprod(X);
 
   mat R_rank;
@@ -308,6 +310,7 @@ InferenceGLM feglm_fit(
   vec &mu = ws.mu;
   vec &w_working = ws.w_working;
   vec &nu = ws.nu;
+  vec &z = ws.z;
   vec &eta0 = ws.eta0;
   vec &beta0 = ws.beta0;
 
@@ -342,6 +345,9 @@ InferenceGLM feglm_fit(
   // Persistent felm workspace
   FelmWorkspace felm_workspace;
 
+  // Copy X before shed_cols for FE recovery later
+  const mat X0 = run_from_negbin ? mat() : mat(X);
+
 #ifdef CAPYBARA_DEBUG
   cpp4r::message("/// Begin GLM iterations...\n");
   auto tglmiter0 = std::chrono::high_resolution_clock::now();
@@ -361,8 +367,8 @@ InferenceGLM feglm_fit(
 
     ww_nu_(w_working, nu, w, mu, y, theta);
 
-    // Working response z = eta + nu - offset
-    vec z = eta + nu;
+    // Working response z = eta + nu - offset (reuses workspace buffer)
+    z = eta + nu;
     if (has_offset) {
       z -= offset_vec;
     }
@@ -371,15 +377,15 @@ InferenceGLM feglm_fit(
     // overflow or division-by-zero (e.g., exp(eta) = Inf for Poisson).
     // Zero the weight for affected observations so they don't poison
     // the cross-product X'WX that feeds into the Cholesky solver.
+    // Single fused pass instead of find_nonfinite + unique + join_cols.
     {
-      uvec bad_w = find_nonfinite(w_working);
-      uvec bad_z = find_nonfinite(z);
-      uvec bad = (bad_w.n_elem > 0 && bad_z.n_elem > 0)
-                     ? unique(join_cols(bad_w, bad_z))
-                     : (bad_w.n_elem > 0 ? bad_w : bad_z);
-      if (bad.n_elem > 0) {
-        w_working.elem(bad).zeros();
-        z.elem(bad).zeros();
+      double *ww_ptr = w_working.memptr();
+      double *z_ptr = z.memptr();
+      for (uword i = 0; i < n; ++i) {
+        if (!std::isfinite(ww_ptr[i]) || !std::isfinite(z_ptr[i])) {
+          ww_ptr[i] = 0.0;
+          z_ptr[i] = 0.0;
+        }
       }
     }
 

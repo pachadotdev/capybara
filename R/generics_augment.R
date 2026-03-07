@@ -44,7 +44,8 @@ NULL
 #' @export
 augment.feglm <- function(x, newdata = NULL, ...) {
   if (is.null(newdata)) {
-    res <- x$data
+    # copy() for data.table to avoid mutating x$data via reference semantics
+    res <- if (inherits(x$data, "data.table")) copy(x$data) else x$data
   } else {
     res <- newdata
   }

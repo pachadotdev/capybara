@@ -455,10 +455,13 @@ inline PreparedData prepare_raw_data(const doubles_matrix<> &X_r,
     }
   }
 
-  // w
-  for (size_t i = 0; i < N; ++i) {
-    if (valid[i] && !R_finite(static_cast<double>(w_r[i])))
-      valid[i] = false;
+  // w (skip if empty — means unit weights)
+  const bool has_weights = (w_r.size() > 0);
+  if (has_weights) {
+    for (size_t i = 0; i < N; ++i) {
+      if (valid[i] && !R_finite(static_cast<double>(w_r[i])))
+        valid[i] = false;
+    }
   }
 
   // FE columns
@@ -507,16 +510,26 @@ inline PreparedData prepare_raw_data(const doubles_matrix<> &X_r,
   if (all_valid) {
     out.y = as_col(y_r);
     out.X = as_mat(X_r);
-    out.w = as_col(w_r);
+    if (has_weights) {
+      out.w = as_col(w_r);
+    } else {
+      out.w.ones(n_valid);
+    }
   } else {
     out.y.set_size(n_valid);
     out.X.set_size(n_valid, p);
-    out.w.set_size(n_valid);
 
     for (size_t i = 0; i < n_valid; ++i) {
       size_t src = keep_0based(i);
       out.y(i) = static_cast<double>(y_r[src]);
-      out.w(i) = static_cast<double>(w_r[src]);
+    }
+    if (has_weights) {
+      out.w.set_size(n_valid);
+      for (size_t i = 0; i < n_valid; ++i) {
+        out.w(i) = static_cast<double>(w_r[static_cast<R_xlen_t>(keep_0based(i))]);
+      }
+    } else {
+      out.w.ones(n_valid);
     }
     for (size_t j = 0; j < p; ++j) {
       for (size_t i = 0; i < n_valid; ++i) {
@@ -765,21 +778,25 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
     eta.set_size(0);
   }
 
-  // Handle offset: subset to match clean data
+  // Handle offset: if empty, use zero offset; otherwise subset to match
+  // clean data
   vec offset;
-  if (all_valid) {
+  if (offset_r.size() == 0) {
+    offset.zeros(data.nobs_used);
+  } else if (all_valid) {
     offset = as_col(offset_r);
+    // Replace non-finite offset values with 0 to prevent NaN propagation
+    // into eta and subsequently into the Cholesky solver (DLASCL error -4)
+    uvec bad_offset = find_nonfinite(offset);
+    if (bad_offset.n_elem > 0) {
+      offset.elem(bad_offset).zeros();
+    }
   } else {
     offset.set_size(data.nobs_used);
     for (size_t i = 0; i < data.nobs_used; ++i) {
       offset(i) = static_cast<double>(
           offset_r[static_cast<R_xlen_t>(data.obs_indices(i) - 1)]);
     }
-  }
-
-  // Replace non-finite offset values with 0 to prevent NaN propagation
-  // into eta and subsequently into the Cholesky solver (DLASCL error -4)
-  {
     uvec bad_offset = find_nonfinite(offset);
     if (bad_offset.n_elem > 0) {
       offset.elem(bad_offset).zeros();

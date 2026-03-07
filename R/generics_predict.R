@@ -146,7 +146,8 @@ predict.feglm <- function(
   if (!is.null(newdata)) {
     rn <- rownames(newdata) # Use original newdata rownames, not filtered data
   } else {
-    rn <- rownames(object$data)
+    rn <- attr(object$data, ".rownames")
+    if (is.null(rn)) rn <- rownames(object$data)
   }
   if (!is.null(rn)) {
     names(eta) <- rn
@@ -275,7 +276,8 @@ predict.felm <- function(
   if (!is.null(newdata)) {
     rn <- rownames(newdata) # Use original newdata rownames, not filtered data
   } else {
-    rn <- rownames(object$data)
+    rn <- attr(object$data, ".rownames")
+    if (is.null(rn)) rn <- rownames(object$data)
   }
   if (!is.null(rn)) {
     names(y) <- rn
