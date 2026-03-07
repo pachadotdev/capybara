@@ -141,16 +141,36 @@ model_frame_ <- function(data, formula, weights) {
     )
   }
 
-  # Extract needed columns only
-  data <- data[, needed_cols, drop = FALSE]
+  # Extract needed columns only and convert to data.table for fast in-place ops.
+  # - If the input is already a data.table, copy() prevents mutating the user's
+  #   object via reference semantics.
+  # - Otherwise (data.frame, tibble, etc.) as.data.table() is a cheap shallow
+  #   conversion that lets all downstream helpers use := freely.
+  # The internal data.table is converted back to a plain data.frame before
+  # being stored in fit[["data"]], so the user never sees a data.table.
+  # Preserve rownames before conversion — as.data.table() drops them
+  orig_rn <- rownames(data)
+
+  if (inherits(data, "data.table")) {
+    data <- copy(data[, needed_cols, with = FALSE])
+  } else {
+    data <- as.data.table(data[, needed_cols, drop = FALSE])
+  }
+
+  # Restore rownames as a hidden attribute so downstream code can recover them
+  if (!is.null(orig_rn)) {
+    attr(data, ".rownames") <- orig_rn
+  }
 
   lhs <- names(data)[1L]
   nobs_full <- nrow(data)
 
-  # Convert columns of type "units" to numeric (base R)
+  # Convert columns of type "units" to numeric in-place
   unit_cols <- names(data)[vapply(data, inherits, what = "units", logical(1))]
   if (length(unit_cols) > 0) {
-    data[unit_cols] <- lapply(data[unit_cols], as.numeric)
+    for (uc in unit_cols) {
+      data[, (uc) := as.numeric(get(uc))]
+    }
   }
 
   assign("data", data, envir = parent.frame())

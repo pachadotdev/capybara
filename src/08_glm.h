@@ -187,31 +187,78 @@ InferenceGLM feglm_fit(
   auto tsep0 = std::chrono::high_resolution_clock::now();
 #endif
 
-  // Separation detection for Poisson FE models
+  // Group-level separation pre-filter (replaces R-side drop_by_link_type_)
+  // For Poisson/NegBin/Binomial FE models: drop entire FE groups where
+  // mean(y)==0 (Poisson/NegBin) or mean(y) in {0,1} (Binomial)
+  SeparationResult group_sep_result;
+  if (!skip_separation_check && has_fixed_effects && params.check_separation &&
+      (family_type == POISSON || family_type == NEG_BIN ||
+       family_type == BINOMIAL)) {
+    group_sep_result =
+        check_group_separation(y, w, fe_map, family_type);
+  }
+
+  // Observation-level separation detection (ReLU + Simplex) for Poisson FE
   if (family_type == Family::POISSON && !skip_separation_check &&
       has_fixed_effects && params.check_separation) {
-    SeparationResult sep_result = check_separation(y, X, w, params);
+    // Use weights with group-separated obs already zeroed
+    vec w_for_sep = w;
+    if (group_sep_result.num_separated > 0) {
+      w_for_sep.elem(group_sep_result.separated_obs).zeros();
+    }
 
-    if (sep_result.num_separated > 0) {
-      // Zero weights for separated obs (keeps dimensions consistent)
+    SeparationResult sep_result = check_separation(y, X, w_for_sep, params);
+
+    // Merge group-level and observation-level results
+    if (group_sep_result.num_separated > 0 || sep_result.num_separated > 0) {
+      uvec all_separated;
+      if (group_sep_result.num_separated > 0 &&
+          sep_result.num_separated > 0) {
+        all_separated = unique(
+            join_vert(group_sep_result.separated_obs,
+                      sep_result.separated_obs));
+      } else if (group_sep_result.num_separated > 0) {
+        all_separated = group_sep_result.separated_obs;
+      } else {
+        all_separated = sep_result.separated_obs;
+      }
+
+      // Zero weights for all separated obs
       vec w_work = w;
-      w_work.elem(sep_result.separated_obs).zeros();
+      w_work.elem(all_separated).zeros();
 
       InferenceGLM result_with_sep =
-          feglm_fit(beta, eta, y, X, w_work, theta, family_type, fe_map, params,
-                    &ws, cluster_groups, offset, true);
+          feglm_fit(beta, eta, y, X, w_work, theta, family_type, fe_map,
+                    params, &ws, cluster_groups, offset, true);
 
-      // Mark separated observations
-      result_with_sep.eta.elem(sep_result.separated_obs).fill(datum::nan);
-      result_with_sep.fitted_values.elem(sep_result.separated_obs)
-          .fill(datum::nan);
+      result_with_sep.eta.elem(all_separated).fill(datum::nan);
+      result_with_sep.fitted_values.elem(all_separated).fill(datum::nan);
       result_with_sep.has_separation = true;
-      result_with_sep.separated_obs = sep_result.separated_obs;
-      result_with_sep.num_separated = sep_result.num_separated;
-      result_with_sep.separation_support = sep_result.support;
+      result_with_sep.separated_obs = all_separated;
+      result_with_sep.num_separated = all_separated.n_elem;
+      if (sep_result.support.n_elem > 0) {
+        result_with_sep.separation_support = sep_result.support;
+      }
 
       return result_with_sep;
     }
+  } else if (group_sep_result.num_separated > 0) {
+    // Non-Poisson (Binomial, NegBin) with group separation only
+    vec w_work = w;
+    w_work.elem(group_sep_result.separated_obs).zeros();
+
+    InferenceGLM result_with_sep =
+        feglm_fit(beta, eta, y, X, w_work, theta, family_type, fe_map,
+                  params, &ws, cluster_groups, offset, true);
+
+    result_with_sep.eta.elem(group_sep_result.separated_obs).fill(datum::nan);
+    result_with_sep.fitted_values.elem(group_sep_result.separated_obs)
+        .fill(datum::nan);
+    result_with_sep.has_separation = true;
+    result_with_sep.separated_obs = group_sep_result.separated_obs;
+    result_with_sep.num_separated = group_sep_result.num_separated;
+
+    return result_with_sep;
   }
 
 #ifdef CAPYBARA_DEBUG

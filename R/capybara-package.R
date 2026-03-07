@@ -27,7 +27,6 @@ NULL
 #' @srrstatsNA {G2.14c} Missing data is not replaced with imputed values.
 #' @srrstatsNA {G2.14c} Replacing data with imputed values bias the estimation. This is not done in the package, and it
 #'  is left to the user to decide when processing the data.
-#' @srrstatsNA {RE7.0a} No cross-validation implemented in this package.
 #' @noRd
 NULL
 
@@ -44,6 +43,7 @@ NULL
 #' altering the functions' arguments or outputs.
 #'
 #' @name capybara-package
+#' @importFrom data.table copy as.data.table set := .I
 #' @importFrom Formula Formula
 #' @importFrom ggplot2 ggplot aes geom_point geom_errorbar labs theme_minimal coord_flip autoplot
 #' @importFrom MASS negative.binomial theta.ml

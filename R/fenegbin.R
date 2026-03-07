@@ -278,19 +278,26 @@ fenegbin <- function(
   dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
   dimnames(fit[["vcov"]]) <- list(nms_sp, nms_sp)
 
-  # Use the row indices to set fitted_values names
+  # Use the row indices to set fitted_values names, then convert to data.frame
+  rn <- attr(data, ".rownames")
   if (!is.null(fit[["obs_indices"]])) {
-    rn <- rownames(data)
     if (!is.null(rn)) {
       names(fit[["fitted_values"]]) <- rn[fit[["obs_indices"]]]
     } else {
       names(fit[["fitted_values"]]) <- fit[["obs_indices"]]
     }
-    data <- data[fit[["obs_indices"]], , drop = FALSE]
-  } else if (!is.null(rownames(data))) {
-    names(fit[["fitted_values"]]) <- rownames(data)
+    data_df <- as.data.frame(data[fit[["obs_indices"]], , drop = FALSE])
+    if (!is.null(rn)) rownames(data_df) <- rn[fit[["obs_indices"]]]
+    data <- data_df
   } else {
-    names(fit[["fitted_values"]]) <- seq_along(fit[["fitted_values"]])
+    if (!is.null(rn)) {
+      names(fit[["fitted_values"]]) <- rn
+    } else {
+      names(fit[["fitted_values"]]) <- seq_along(fit[["fitted_values"]])
+    }
+    data_df <- as.data.frame(data)
+    if (!is.null(rn)) rownames(data_df) <- rn
+    data <- data_df
   }
 
   # Clean up C++ internal fields not needed by user

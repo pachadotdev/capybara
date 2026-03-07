@@ -228,9 +228,9 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
     colnames(fit[["tx"]]) <- nms_sp
   }
 
-  # Use the row indices to set fitted_values names
+  # Use the row indices to set fitted_values names, then convert to data.frame
+  rn <- attr(data, ".rownames")
   if (!is.null(fit[["obs_indices"]])) {
-    rn <- rownames(data)
     if (!is.null(rn)) {
       names(fit[["fitted_values"]]) <- rn[fit[["obs_indices"]]]
     } else {
@@ -238,11 +238,18 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
     }
 
     # Subset data to match C++ output for downstream use
-    data <- data[fit[["obs_indices"]], , drop = FALSE]
-  } else if (!is.null(rownames(data))) {
-    names(fit[["fitted_values"]]) <- rownames(data)
+    data_df <- as.data.frame(data[fit[["obs_indices"]], , drop = FALSE])
+    if (!is.null(rn)) rownames(data_df) <- rn[fit[["obs_indices"]]]
+    data <- data_df
   } else {
-    names(fit[["fitted_values"]]) <- seq_along(fit[["fitted_values"]])
+    if (!is.null(rn)) {
+      names(fit[["fitted_values"]]) <- rn
+    } else {
+      names(fit[["fitted_values"]]) <- seq_along(fit[["fitted_values"]])
+    }
+    data_df <- as.data.frame(data)
+    if (!is.null(rn)) rownames(data_df) <- rn
+    data <- data_df
   }
 
   # Clean up C++ internal fields not needed by user

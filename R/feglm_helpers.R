@@ -159,7 +159,6 @@ check_data_ <- function(data) {
     stop("'data' must be a data.frame.", call. = FALSE)
   }
   if (nrow(data) == 0L) stop("'data' has zero observations.", call. = FALSE)
-  # Keep as base data.frame; do not convert to data.table to avoid setup cost
 }
 
 #' @title Check control
@@ -262,43 +261,66 @@ check_family_ <- function(family) {
   }
 }
 
+#' @title Temporary variable
+#' @description Generates a collision-free temporary column name
+#' @param data Data frame
+#' @noRd
+temp_var_ <- function(data) {
+  tmp_var <- "capybara_temp12345"
+  while (tmp_var %in% colnames(data)) {
+    tmp_var <- paste0("capybara_temp", paste(sample(letters, 5L, replace = TRUE), collapse = ""))
+  }
+  tmp_var
+}
+
 #' @title Check response
 #' @description Checks response for GLM/NegBin models
-#' @param data Data frame
+#' @param data Data frame (data.table internally)
 #' @param lhs Left-hand side of the formula
 #' @param family Family object
 #' @noRd
 check_response_ <- function(data, lhs, family) {
   if (family[["family"]] == "binomial") {
     # Check if 'y' is numeric
-    y <- data[[lhs]]
-    if (is.numeric(y)) {
-      if (any(y < 0 | y > 1)) stop("Model response must be within [0,1].")
+    if (data[, is.numeric(get(lhs))]) {
+      if (data[, any(get(lhs) < 0.0 | get(lhs) > 1.0, na.rm = TRUE)]) {
+        stop("Model response must be within [0,1].")
+      }
     } else {
-      # Check if 'y' is factor and transform otherwise
-      y <- check_factor_(y)
-
-      # Check if the number of levels equals two
-      if (nlevels(y) != 2) {
+      # Coerce factor/character to factor and validate two levels
+      data[, (lhs) := check_factor_(get(lhs))]
+      if (data[, length(levels(get(lhs)))] != 2L) {
         stop("Model response has to be binary.")
       }
-
-      # Ensure 'y' is 0-1 encoded
-      y <- as.numeric(y) - 1
-
-      data[[lhs]] <- y
+      # Encode as 0/1 in-place
+      data[, (lhs) := as.numeric(get(lhs)) - 1.0]
     }
   } else if (family[["family"]] %in% c("Gamma", "inverse.gaussian")) {
-    # Check if 'y' is strictly positive (base R)
-    if (any(data[[lhs]] <= 0.0, na.rm = TRUE)) {
+    if (data[, any(get(lhs) <= 0.0, na.rm = TRUE)]) {
       stop("Model response has to be positive.", call. = FALSE)
     }
   } else if (family[["family"]] != "gaussian") {
-    # Check if 'y' is positive (base R)
-    if (any(data[[lhs]] < 0.0, na.rm = TRUE)) {
+    if (data[, any(get(lhs) < 0.0, na.rm = TRUE)]) {
       stop("Model response has to be strictly positive.", call. = FALSE)
     }
   }
+}
+
+#' @title Drop by link type
+#' @description Drops observations that do not contribute to the log-likelihood
+#'  for binomial and poisson models (separation check)
+#' @param data Data frame (data.table internally)
+#' @param lhs Left-hand side of the formula
+#' @param family Family object
+#' @param tmp_var Temporary column name (from temp_var_())
+#' @param k_vars Fixed effects variable names
+#' @param control Control list
+#' @noRd
+drop_by_link_type_ <- function(data, lhs, family, tmp_var, k_vars, control) {
+  # Group-level separation pre-filter is now handled in C++
+  # (check_group_separation in 05_separation.h, called from feglm_fit).
+  # This R-side function is kept as a no-op for backward compatibility.
+  data
 }
 
 #' @title Model response
@@ -325,7 +347,7 @@ model_response_ <- function(data, formula) {
     rhs_vars <- all.vars(parse(text = paste(rhs_labels, collapse = "+")))
     rhs_vars <- rhs_vars[rhs_vars %in% colnames(data)]
     all_numeric <- length(rhs_vars) > 0L &&
-      all(vapply(data[rhs_vars], is.numeric, logical(1)))
+      all(vapply(data[, rhs_vars, with = FALSE], is.numeric, logical(1)))
     has_special <- any(grepl("factor|poly|ns\\(|bs\\(|strata", rhs_labels))
     has_interaction <- any(grepl(":", rhs_labels, fixed = TRUE))
     use_fast <- all_numeric && !has_special && !has_interaction
@@ -345,7 +367,7 @@ model_response_ <- function(data, formula) {
   } else {
     # Slow path: fall back to model.frame + model.matrix
     mm_vars <- all.vars(f1)
-    mf <- model.frame(f1, data[, mm_vars, drop = FALSE], na.action = na.pass)
+    mf <- model.frame(f1, data[, mm_vars, with = FALSE], na.action = na.pass)
     y <- model.response(mf)
     X <- model.matrix(tt, mf)[, -1L, drop = FALSE]
     nms_sp <- colnames(X)

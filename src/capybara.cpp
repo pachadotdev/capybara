@@ -863,8 +863,8 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
     out.push_back({"pseudo.rsq"_nm = result.pseudo_rsq});
   }
 
-  // Add separation detection results for Poisson models
-  if (family_type == capybara::POISSON && result.has_separation) {
+  // Add separation detection results (Poisson, Binomial, NegBin)
+  if (result.has_separation) {
     out.push_back({"has_separation"_nm = writable::logicals({true})});
 
     // Convert 0-based indices to 1-based for R
@@ -940,10 +940,8 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
   std::string fam = capybara::tidy_family(family);
   capybara::Family family_type = capybara::get_family_type(fam);
 
-  vec result = capybara::feglm_offset_fit(eta, y, offset, w, family_type,
-                                          fe_map, params);
-
-  return as_doubles(result);
+  return as_doubles(capybara::feglm_offset_fit(eta, y, offset, w, family_type,
+                                          fe_map, params));
 }
 
 [[cpp4r::register]] list
@@ -1061,9 +1059,7 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
         R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
   }
 
-  vec result = capybara::group_sums(M, w, group_indices);
-
-  return as_doubles_matrix(result);
+  return as_doubles_matrix(capybara::group_sums(M, w, group_indices));
 }
 
 [[cpp4r::register]] doubles_matrix<>
@@ -1082,9 +1078,7 @@ group_sums_spectral_(const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
         R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
   }
 
-  vec result = capybara::group_sums_spectral(M, v, w, K, group_indices);
-
-  return as_doubles_matrix(result);
+  return as_doubles_matrix(capybara::group_sums_spectral(M, v, w, K, group_indices));
 }
 
 [[cpp4r::register]] doubles_matrix<>
@@ -1099,9 +1093,7 @@ group_sums_var_(const doubles_matrix<> &M_r, const list &jlist) {
         R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
   }
 
-  mat result = capybara::group_sums_var(M, group_indices);
-
-  return as_doubles_matrix(result);
+  return as_doubles_matrix(capybara::group_sums_var(M, group_indices));
 }
 
 [[cpp4r::register]] doubles_matrix<>
@@ -1118,7 +1110,5 @@ group_sums_cov_(const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
         R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
   }
 
-  mat result = capybara::group_sums_cov(M, N, group_indices);
-
-  return as_doubles_matrix(result);
+  return as_doubles_matrix(capybara::group_sums_cov(M, N, group_indices));
 }
