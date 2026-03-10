@@ -41,6 +41,8 @@
     <a href="../reference/fenegbin.html">fenegbin</a>
     <a href="../reference/fepoisson.html">fepoisson</a>
     <a href="../reference/fit_control.html">fit_control</a>
+    <a href="../reference/felm_fml.html">felm_fml</a>
+    <a href="../reference/felm_formula.html">felm_formula</a>
     <a href="../reference/summary_table.html">summary_table</a>
   </div>
 
@@ -48,6 +50,7 @@
     <label>Vignettes</label>
     <a href="../vignettes/intro.html">Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors</a>
     <a href="../vignettes/separation.html">Nonexistence of estimates of Poisson models</a>
+    <a href="../vignettes/variance-covariance.html">variance-covariance</a>
   </div>
 
   <div class="submenu">
@@ -58,14 +61,7 @@
 <div id="content">
 <div class="content-wrapper">
         <div class="content-main">
-          <h1></h1>
-
-
-
-
-
-<h1 class="title toc-ignore">Nonexistence of estimates of Poisson
-models</h1>
+          <h1>Nonexistence of estimates of Poisson models</h1>
 
 
 
@@ -77,7 +73,7 @@ models</h1>
 regressors. Observations 5 is separated because <span class="math inline">\(y=0\)</span> and <span class="math inline">\(z
 \neq x_2 - x_1\)</span> is positive in those observations, and zero
 otherwise.</p>
-<pre class="r"><code>ppmlhdfe$example1
+<pre class="r"><code>correia2019$example1
 #&gt; # A tibble: 12 × 5
 #&gt;        y    x1    x2    x3    x4
 #&gt;    &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;
@@ -93,17 +89,17 @@ otherwise.</p>
 #&gt; 10     4     0     0    -3    15
 #&gt; 11     6    -3    -3     0     4
 #&gt; 12     6     0     0     0     4
-which(ppmlhdfe$example1$x2 - ppmlhdfe$example1$x1 != 0 &amp; ppmlhdfe$example1$y == 0)
+which(correia2019$example1$x2 - correia2019$example1$x1 != 0 &amp; correia2019$example1$y == 0)
 #&gt; [1] 5</code></pre>
 <p>Base R shall not give a warning when estimating a Poisson model on
 this data.</p>
 <pre class="r"><code>glm(
   y ~ x1 + x2 + x3 + x4,
-  data = ppmlhdfe$example1,
+  data = correia2019$example1,
   family = poisson()
 )
 #&gt;
-#&gt; Call:  glm(formula = y ~ x1 + x2 + x3 + x4, family = poisson(), data = ppmlhdfe$example1)
+#&gt; Call:  glm(formula = y ~ x1 + x2 + x3 + x4, family = poisson(), data = correia2019$example1)
 #&gt;
 #&gt; Coefficients:
 #&gt; (Intercept)           x1           x2           x3           x4
@@ -115,10 +111,10 @@ this data.</p>
 <p>Capybara will detect separation on this dataset.</p>
 <pre class="r"><code>fepoisson(
   y ~ x1 + x2 + x3 + x4,
-  data = ppmlhdfe$example1
+  data = correia2019$example1
 )
 #&gt; Formula: y ~ x1 + x2 + x3 + x4
-#&gt; &lt;environment: 0x56532360b368&gt;
+#&gt; &lt;environment: 0x557777c60d50&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -127,8 +123,8 @@ this data.</p>
 #&gt; |             | Estimate | Std. Error | z value | Pr(&gt;|z|) |
 #&gt; |-------------|----------|------------|---------|----------|
 #&gt; | (Intercept) |   0.5909 |     0.3029 |  1.9509 | 0.0511 + |
-#&gt; | x1          | -16.7357 |  3391.5149 | -0.0049 | 0.9961   |
-#&gt; | x2          |  16.2850 |  3391.5150 |  0.0048 | 0.9962   |
+#&gt; | x1          | -16.7357 |  3391.5124 | -0.0049 | 0.9961   |
+#&gt; | x2          |  16.2850 |  3391.5125 |  0.0048 | 0.9962   |
 #&gt; | x3          |  -0.4708 |     0.2312 | -2.0368 | 0.0417 * |
 #&gt; | x4          |  -0.0378 |     0.0438 | -0.8636 | 0.3878   |
 #&gt;
@@ -146,7 +142,7 @@ this data.</p>
 four regressors. Observations 2, 3, 6, 7 and 8 are separated because
 <span class="math inline">\(y=0\)</span> and <span class="math inline">\(z &gt; x_2 - x_1\)</span> is positive in those
 observations, and zero otherwise.</p>
-<pre class="r"><code>ppmlhdfe$example2
+<pre class="r"><code>correia2019$example2
 #&gt; # A tibble: 12 × 5
 #&gt;        y    x1    x2    x3    x4
 #&gt;    &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;
@@ -162,19 +158,19 @@ observations, and zero otherwise.</p>
 #&gt; 10     9     0     0     0    18
 #&gt; 11     4     2     0     6    -1
 #&gt; 12     2     1     0     0    -7
-which(ppmlhdfe$example2$x2 - ppmlhdfe$example2$x1 &gt; 0 &amp; ppmlhdfe$example2$y == 0)
+which(correia2019$example2$x2 - correia2019$example2$x1 &gt; 0 &amp; correia2019$example2$y == 0)
 #&gt; [1] 2 3 6 7 8</code></pre>
 <p>Base R shall give a convergence warning when estimating a Poisson
 model on this data.</p>
 <pre class="r"><code>glm(
   y ~ x1 + x2 + x3 + x4,
-  data = ppmlhdfe$example2,
+  data = correia2019$example2,
   family = poisson()
 )
 #&gt; Warning: glm.fit: algorithm did not converge
 #&gt; Warning: glm.fit: fitted rates numerically 0 occurred
 #&gt;
-#&gt; Call:  glm(formula = y ~ x1 + x2 + x3 + x4, family = poisson(), data = ppmlhdfe$example2)
+#&gt; Call:  glm(formula = y ~ x1 + x2 + x3 + x4, family = poisson(), data = correia2019$example2)
 #&gt;
 #&gt; Coefficients:
 #&gt; (Intercept)           x1           x2           x3           x4
@@ -186,10 +182,10 @@ model on this data.</p>
 <p>Capybara will detect separation on this dataset.</p>
 <pre class="r"><code>fepoisson(
   y ~ x1 + x2 + x3 + x4,
-  data = ppmlhdfe$example2
+  data = correia2019$example2
 )
 #&gt; Formula: y ~ x1 + x2 + x3 + x4
-#&gt; &lt;environment: 0x56532360b368&gt;
+#&gt; &lt;environment: 0x557777c60d50&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -217,7 +213,7 @@ model on this data.</p>
 fixed effects on the dataset below. The separation in this case is less
 clear, which motivates why capybara uses linear programming to detect
 separation in Poisson models.</p>
-<pre class="r"><code>ppmlhdfe$fe1
+<pre class="r"><code>correia2019$fe1
 #&gt; # A tibble: 18 × 5
 #&gt;        y    x1    x2     i     j
 #&gt;    &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;
@@ -243,13 +239,13 @@ separation in Poisson models.</p>
 fixed effects on this data.</p>
 <pre class="r"><code>glm(
   y ~ x1 + x2 + factor(i) + factor(j),
-  data = ppmlhdfe$fe1,
+  data = correia2019$fe1,
   family = poisson()
 )
 #&gt; Warning: glm.fit: fitted rates numerically 0 occurred
 #&gt;
 #&gt; Call:  glm(formula = y ~ x1 + x2 + factor(i) + factor(j), family = poisson(),
-#&gt;     data = ppmlhdfe$fe1)
+#&gt;     data = correia2019$fe1)
 #&gt;
 #&gt; Coefficients:
 #&gt; (Intercept)           x1           x2   factor(i)2   factor(i)4   factor(i)5
@@ -263,11 +259,11 @@ fixed effects on this data.</p>
 <p>Capybara will detect separation when estimating Poisson models.</p>
 <pre class="r"><code>fepoisson(
   y ~ x1 + x2 | i + j,
-  data = ppmlhdfe$fe1
+  data = correia2019$fe1
 )
 #&gt; Separation detected: 4 observation(s) with perfect prediction were excluded from estimation.
 #&gt; Formula: y ~ x1 + x2 | i + j
-#&gt; &lt;environment: 0x56532360b368&gt;
+#&gt; &lt;environment: 0x557777c60d50&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -285,9 +281,9 @@ fixed effects on this data.</p>
 #&gt; Number of observations: Full 18; Separated 4; Perfect classification 0
 #&gt;
 #&gt; Number of Fisher Scoring iterations: 5</code></pre>
-<p>‘ppmlhdfe’ will also detect separation when estimating Poisson models
-with fixed effects.</p>
-<pre class="stata"><code>. ppmlhdfe y x1 x2, a(i j)
+<p>‘correia2019’ will also detect separation when estimating Poisson
+models with fixed effects.</p>
+<pre class="stata"><code>. correia2019 y x1 x2, a(i j)
 (simplex method dropped 4 separated observations)
 (dropped 1 singleton observations)
 note: 1 variable omitted because of collinearity: x2
@@ -321,18 +317,18 @@ Absorbed degrees of freedom:
            i |         3           0           3     |
            j |         3           1           2     |
 -----------------------------------------------------+</code></pre>
-<p>A difference with respect to Stata’s ‘ppmlhdfe’ is that capybara
+<p>A difference with respect to Stata’s ‘correia2019’ is that capybara
 requires an explicit cluster term in the formula to compute robust
 standard errors using a sandwich operation.</p>
-<pre class="r"><code>ppmlhdfe$fe1$pair &lt;- paste0(ppmlhdfe$fe1$i, ppmlhdfe$fe1$j)
+<pre class="r"><code>correia2019$fe1$pair &lt;- paste0(correia2019$fe1$i, correia2019$fe1$j)
 
 fepoisson(
   y ~ x1 + x2 | i + j | pair,
-  data = ppmlhdfe$fe1
+  data = correia2019$fe1
 )
 #&gt; Separation detected: 4 observation(s) with perfect prediction were excluded from estimation.
 #&gt; Formula: y ~ x1 + x2 | i + j | pair
-#&gt; &lt;environment: 0x56532360b368&gt;
+#&gt; &lt;environment: 0x557777c60d50&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -356,11 +352,11 @@ match ‘alpaca’ and ‘fixest’ results.</p>
 <p>Capybara without checking separation (incorrect <span class="math inline">\(\beta_2\)</span>):</p>
 <pre class="r"><code>fepoisson(
   y ~ x1 + x2 | i + j,
-  data = ppmlhdfe$fe1,
+  data = correia2019$fe1,
   control = list(check_separation = FALSE)
 )
 #&gt; Formula: y ~ x1 + x2 | i + j
-#&gt; &lt;environment: 0x56532360b368&gt;
+#&gt; &lt;environment: 0x557777c60d50&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -381,7 +377,7 @@ match ‘alpaca’ and ‘fixest’ results.</p>
 <p>Alpaca:</p>
 <pre class="r"><code>alpaca::feglm(
   y ~ x1 + x2 | i + j,
-  data = ppmlhdfe$fe1,
+  data = correia2019$fe1,
   family = poisson()
 )</code></pre>
 <pre class="r"><code>poisson - log link, l= [4, 4]
@@ -391,7 +387,7 @@ match ‘alpaca’ and ‘fixest’ results.</p>
 <p>Fixest:</p>
 <pre class="r"><code>fixest::feglm(
   y ~ x1 + x2 | i + j,
-  data = ppmlhdfe$fe1,
+  data = correia2019$fe1,
   family = poisson()
 )</code></pre>
 <pre class="r"><code>GLM estimation, family = poisson, Dep. Var.: y
@@ -406,21 +402,7 @@ Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 Log-Likelihood: -12.3   Adj. Pseudo R2: -0.353285
            BIC:  50.6     Squared Cor.:  0.261426</code></pre>
 </div>
-
-
-
-<!-- code folding -->
-
-
-<!-- dynamically load mathjax for compatibility with self-contained -->
-<script>
-  (function () {
-    var script = document.createElement("script");
-    script.type = "text/javascript";
-    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
-    document.getElementsByTagName("head")[0].appendChild(script);
-  })();
-</script></div>
+        </div>
         <footer><p id="last-updated">Loading...</p>
 </footer><script src="../js/footer.js"></script><script src="../js/theme.js"></script><script src="../js/search.js"></script><script src="../js/fontsize.js"></script></div>
 </div>

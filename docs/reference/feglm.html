@@ -41,6 +41,8 @@
     <a href="../reference/fenegbin.html">fenegbin</a>
     <a href="../reference/fepoisson.html">fepoisson</a>
     <a href="../reference/fit_control.html">fit_control</a>
+    <a href="../reference/felm_fml.html">felm_fml</a>
+    <a href="../reference/felm_formula.html">felm_formula</a>
     <a href="../reference/summary_table.html">summary_table</a>
   </div>
 
@@ -48,6 +50,7 @@
     <label>Vignettes</label>
     <a href="../vignettes/intro.html">Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors</a>
     <a href="../vignettes/separation.html">Nonexistence of estimates of Poisson models</a>
+    <a href="../vignettes/variance-covariance.html">variance-covariance</a>
   </div>
 
   <div class="submenu">
@@ -75,6 +78,7 @@ term fixed effect means having one intercept for each level in each category.
   data = NULL,
   family = gaussian(),
   weights = NULL,
+  vcov = NULL,
   beta_start = NULL,
   eta_start = NULL,
   offset = NULL,
@@ -102,6 +106,15 @@ functions.
 </td></tr><tr><td><code id="weights">weights</code></td>
 <td>
 an optional string with the name of the prior weights variable in <code>data</code>.
+</td></tr><tr><td><code id="vcov">vcov</code></td>
+<td>
+an optional character string specifying the type of variance-covariance estimator.
+One of <code>"iid"</code> (default OLS, ignore cluster part of formula), <code>"hetero"</code> (heteroskedastic-robust
+HC0, computed in C++ — no cluster variable needed), <code>"cluster"</code> (one-way sandwich using the cluster
+variable in the formula), <code>"m-estimator"</code> (M-estimator one-way sandwich), or <code>"dyadic"</code>
+(Cameron-Miller dyadic sandwich; requires two entity variables in the third part of the formula).
+When <code>NULL</code> (default), the type is inferred from the formula: if a cluster variable is present the
+standard sandwich is used, otherwise the inverse Hessian (IID) is returned.
 </td></tr><tr><td><code id="beta_start">beta_start</code></td>
 <td>
 an optional vector of starting values for the structural parameters in the linear predictor.
@@ -174,6 +187,10 @@ the family used in the model
 </td></tr><tr><td><code>control</code></td>
 <td>
 the control list used in the model
+</td></tr><tr><td><code>vcov_type</code></td>
+<td>
+a character string indicating the variance-covariance type used: <code>"iid"</code>,
+<code>"hetero"</code>, <code>"cluster"</code>, <code>"m-estimator"</code>, or <code>"dyadic"</code>
 </td></tr></table><h3>References</h3>
 
 <p>Gaure, S. (2013). "OLS with Multiple High Dimensional Category Variables". Computational Statistics and
@@ -192,13 +209,23 @@ k-Way Fixed Effects". ArXiv e-prints.
 
 <h3>Examples</h3>
 
-<pre><code class="language-R"># Model without clustering - uses inverse Hessian for vcov
+<pre><code class="language-R"># IID (default — no cluster in formula)
 mod &lt;- feglm(mpg ~ wt | cyl, mtcars, family = poisson(link = "log"))
 summary(mod)
 
-# Model with clustering - uses sandwich vcov automatically
-mod &lt;- feglm(mpg ~ wt | cyl | am, mtcars, family = poisson(link = "log"))
-summary(mod)
+# Heteroskedastic-robust HC0
+mod_h &lt;- feglm(mpg ~ wt | cyl, mtcars, family = poisson(link = "log"), vcov = "hetero")
+sqrt(diag(vcov(mod_h)))
+
+# One-way cluster sandwich
+mod_cl &lt;- feglm(mpg ~ wt | cyl | am, mtcars,
+  family = poisson(link = "log"), vcov = "cluster")
+summary(mod_cl)
+
+# Dyadic-robust (Cameron &amp; Miller) — two entity columns in cluster part
+mod_dy &lt;- feglm(mpg ~ wt | cyl | am + vs, mtcars,
+  family = poisson(link = "log"), vcov = "dyadic")
+sqrt(diag(vcov(mod_dy)))
 
 </code></pre>
 

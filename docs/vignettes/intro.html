@@ -41,6 +41,8 @@
     <a href="../reference/fenegbin.html">fenegbin</a>
     <a href="../reference/fepoisson.html">fepoisson</a>
     <a href="../reference/fit_control.html">fit_control</a>
+    <a href="../reference/felm_fml.html">felm_fml</a>
+    <a href="../reference/felm_formula.html">felm_formula</a>
     <a href="../reference/summary_table.html">summary_table</a>
   </div>
 
@@ -48,6 +50,7 @@
     <label>Vignettes</label>
     <a href="../vignettes/intro.html">Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors</a>
     <a href="../vignettes/separation.html">Nonexistence of estimates of Poisson models</a>
+    <a href="../vignettes/variance-covariance.html">variance-covariance</a>
   </div>
 
   <div class="submenu">
@@ -58,14 +61,7 @@
 <div id="content">
 <div class="content-wrapper">
         <div class="content-main">
-          <h1></h1>
-
-
-
-
-
-<h1 class="title toc-ignore">Poisson Pseudo-Maximum Likelihood (PPML)
-Model with Cluster-Robust Standard Errors</h1>
+          <h1>Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors</h1>
 
 
 
@@ -93,7 +89,7 @@ estimated coefficients and we add the fixed effects as
 <p>Model estimation:</p>
 <pre class="r"><code>fit &lt;- fepoisson(
   trade ~ log_dist + cntg + lang + clny + rta | exp_year + imp_year,
-  data = trade_panel
+  data = yotov2017
 )
 
 summary(fit)</code></pre>
@@ -124,7 +120,7 @@ used by the software. Capybara uses the demeaning algorithm proposed by
 <span class="citation">Stammann (2018)</span>.</p>
 <pre class="r"><code>fit &lt;- fepoisson(
   trade ~ log_dist + cntg + lang + clny + rta | exp_year + imp_year | pair,
-  data = trade_panel
+  data = yotov2017
 )
 
 summary(fit, type = "clustered")</code></pre>
@@ -175,21 +171,7 @@ Model</em>. WTO iLibrary.
 </div>
 </div>
 </div>
-
-
-
-<!-- code folding -->
-
-
-<!-- dynamically load mathjax for compatibility with self-contained -->
-<script>
-  (function () {
-    var script = document.createElement("script");
-    script.type = "text/javascript";
-    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
-    document.getElementsByTagName("head")[0].appendChild(script);
-  })();
-</script></div>
+        </div>
         <footer><p id="last-updated">Loading...</p>
 </footer><script src="../js/footer.js"></script><script src="../js/theme.js"></script><script src="../js/search.js"></script><script src="../js/fontsize.js"></script></div>
 </div>

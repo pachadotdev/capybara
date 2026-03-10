@@ -41,6 +41,8 @@
     <a href="../reference/fenegbin.html">fenegbin</a>
     <a href="../reference/fepoisson.html">fepoisson</a>
     <a href="../reference/fit_control.html">fit_control</a>
+    <a href="../reference/felm_fml.html">felm_fml</a>
+    <a href="../reference/felm_formula.html">felm_formula</a>
     <a href="../reference/summary_table.html">summary_table</a>
   </div>
 
@@ -48,6 +50,7 @@
     <label>Vignettes</label>
     <a href="../vignettes/intro.html">Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors</a>
     <a href="../vignettes/separation.html">Nonexistence of estimates of Poisson models</a>
+    <a href="../vignettes/variance-covariance.html">variance-covariance</a>
   </div>
 
   <div class="submenu">
@@ -71,7 +74,7 @@ approach.
 
 <h3>Usage</h3>
 
-<pre><code class="language-R">felm(formula = NULL, data = NULL, weights = NULL, control = NULL)
+<pre><code class="language-R">felm(formula = NULL, data = NULL, weights = NULL, vcov = NULL, control = NULL)
 </code></pre>
 
 
@@ -89,6 +92,15 @@ in the model.
 </td></tr><tr><td><code id="weights">weights</code></td>
 <td>
 an optional string with the name of the prior weights variable in <code>data</code>.
+</td></tr><tr><td><code id="vcov">vcov</code></td>
+<td>
+an optional character string specifying the type of variance-covariance estimator.
+One of <code>"iid"</code> (default OLS, ignore cluster part of formula), <code>"hetero"</code> (heteroskedastic-robust
+HC0, computed in C++ — no cluster variable needed), <code>"cluster"</code> (one-way sandwich using the cluster
+variable in the formula), <code>"m-estimator"</code> (M-estimator one-way sandwich), or <code>"dyadic"</code>
+(Cameron-Miller dyadic sandwich; requires two entity variables in the third part of the formula).
+When <code>NULL</code> (default), the type is inferred from the formula: if a cluster variable is present the
+standard sandwich is used, otherwise the inverse Hessian (IID) is returned.
 </td></tr><tr><td><code id="control">control</code></td>
 <td>
 a named list of parameters for controlling the fitting process. See fit_control for details.

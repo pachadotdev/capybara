@@ -117,7 +117,7 @@ present, or a clustered sandwich when one is. Other values:
 \code{"hetero"} — heteroskedastic-robust HC0 sandwich (no cluster variable needed);
 \code{"m-estimator"} — one-way M-estimator sandwich (cluster variable required);
 \code{"m-estimator-dyadic"} — dyadic-robust Cameron-Miller sandwich (two entity columns required in the
-third part of the formula like \code{z ~ x + y | fe | entity1 + entity2}).}
+third part of the formula like \code{z ~ x + y | fe | cl1 + cl2}).}
 }
 \value{
 A named list of control parameters.

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>summary_table • capybara</title><link rel="stylesheet" href="../menu.css"><link rel="stylesheet" href="../content.css"><!-- MathJax Configuration --><script>
+<html lang="en"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>felm_formula • capybara</title><link rel="stylesheet" href="../menu.css"><link rel="stylesheet" href="../content.css"><!-- MathJax Configuration --><script>
     window.MathJax = {
       tex: {
         inlineMath: [['\\(', '\\)'], ['$', '$']],
@@ -62,66 +62,61 @@
 <div class="content-wrapper">
         <div class="content-main">
 
-<table style="width: 100%;"><tr><td>summary_table {capybara}</td><td style="text-align: right;">R Documentation</td></tr></table><h2>Generate formatted regression tables</h2>
+<table style="width: 100%;"><tr><td>felm_formula {capybara}</td><td style="text-align: right;">R Documentation</td></tr></table><h2>Build a felm / feglm formula from parts</h2>
 
 <h3>Description</h3>
 
-<p>Generate formatted regression tables
+<p>Constructs a <code>|</code>-separated formula accepted by <code>felm()</code> and <code>feglm()</code> from
+a base <code>y ~ x</code> formula plus optional fixed-effects and cluster components
+supplied as plain character strings.  This avoids calling <code>update.formula()</code>,
+which cannot handle the <code>|</code> syntax and raises <em>"+ not meaningful for
+factors"</em> errors.
 </p>
 
 
 <h3>Usage</h3>
 
-<pre><code class="language-R">summary_table(
-  ...,
-  coef_digits = 3,
-  se_digits = 3,
-  stars = TRUE,
-  latex = FALSE,
-  model_names = NULL,
-  caption = NULL,
-  label = NULL
-)
+<pre><code class="language-R">felm_formula(base, fe = NULL, cluster = NULL)
 </code></pre>
 
 
 <h3>Arguments</h3>
 
-<table role="presentation"><tr><td><code id="...">...</code></td>
+<table role="presentation"><tr><td><code id="base">base</code></td>
 <td>
-One or more model objects of <code>felm</code> or <code>feglm</code> class.
-</td></tr><tr><td><code id="coef_digits">coef_digits</code></td>
+A one-sided or two-sided <code>formula</code> object <strong>or</strong> a character
+string that can be coerced to one, e.g.
+<code>"ltrade ~ bothin + onein + gsp"</code>.
+</td></tr><tr><td><code id="fe">fe</code></td>
 <td>
-Number of digits for coefficients. The default is 3.
-</td></tr><tr><td><code id="se_digits">se_digits</code></td>
+Optional character string naming the fixed-effect variable(s),
+e.g. <code>"year"</code> or <code>"country + year"</code>.  Omit or pass <code>NULL</code> for models
+without fixed effects.
+</td></tr><tr><td><code id="cluster">cluster</code></td>
 <td>
-Number of digits for standard errors. The default is 3.
-</td></tr><tr><td><code id="stars">stars</code></td>
-<td>
-Whether to include significance stars. The default is <code>TRUE</code>.
-</td></tr><tr><td><code id="latex">latex</code></td>
-<td>
-Whether to output as LaTeX code. The default is <code>FALSE</code>.
-</td></tr><tr><td><code id="model_names">model_names</code></td>
-<td>
-Optional vector of custom model names
-</td></tr><tr><td><code id="caption">caption</code></td>
-<td>
-Optional caption for the table (LaTeX only)
-</td></tr><tr><td><code id="label">label</code></td>
-<td>
-Optional label for cross-referencing (LaTeX only)
+Optional character string naming the cluster variable(s),
+e.g. <code>"pair"</code> or <code>"ctry1 + ctry2"</code>.  Omit or pass <code>NULL</code> for models
+without explicit clustering.
 </td></tr></table><h3>Value</h3>
 
-<p>A formatted table
+<p>A <code>formula</code> of the form <code>y ~ x</code>, <code>y ~ x | fe</code>, or
+<code>y ~ x | fe | cluster</code> depending on which parts are supplied.
 </p>
 
 
 <h3>Examples</h3>
 
-<pre><code class="language-R">m1 &lt;- felm(mpg ~ wt | cyl, mtcars)
-m2 &lt;- fepoisson(mpg ~ wt | cyl, mtcars)
-summary_table(m1, m2, model_names = c("Linear", "Poisson"))
+<pre><code class="language-R">rhs &lt;- "ltrade ~ bothin + onein + lrgdp"
+
+felm_formula(rhs)
+#&gt; ltrade ~ bothin + onein + lrgdp
+
+felm_formula(rhs, fe = "year")
+#&gt; ltrade ~ bothin + onein + lrgdp | year
+
+felm_formula(rhs, fe = "year", cluster = "ctry1 + ctry2")
+#&gt; ltrade ~ bothin + onein + lrgdp | year | ctry1 + ctry2
+
 </code></pre>
 
 

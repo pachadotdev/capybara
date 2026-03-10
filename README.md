@@ -6,12 +6,13 @@
 <!-- badges: start -->
 
 [![R-CMD-check](https://github.com/pachadotdev/capybara/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/pachadotdev/capybara/actions/workflows/R-CMD-check.yaml)
-[![codecov](https://app.codecov.io/gh/pachadotdev/capybara/graph/badge.svg?token=kDP0pWmfRk)](https://app.codecov.io/gh/pachadotdev/capybara)
 [![BuyMeACoffee](https://raw.githubusercontent.com/pachadotdev/buymeacoffee-badges/main/bmc-donate-yellow.svg)](https://buymeacoffee.com/pacha)
 [![Lifecycle:
 stable](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
 [![CRAN
 status](https://www.r-pkg.org/badges/version/capybara)](https://CRAN.R-project.org/package=capybara)
+[![Test
+coverage](https://raw.githubusercontent.com/pachadotdev/capybara/coverage/badges/coverage.svg)](https://github.com/pachadotdev/capybara/actions/workflows/test-coverage.yaml)
 <!-- badges: end -->
 
 ## About
