@@ -8,6 +8,7 @@ fepoisson(
   formula = NULL,
   data = NULL,
   weights = NULL,
+  vcov = NULL,
   beta_start = NULL,
   eta_start = NULL,
   offset = NULL,
@@ -23,6 +24,14 @@ dataset with the variables specified in \code{formula} and a number of rows at l
 in the model.}
 
 \item{weights}{an optional string with the name of the prior weights variable in \code{data}.}
+
+\item{vcov}{an optional character string specifying the type of variance-covariance estimator.
+One of \code{"iid"} (default OLS, ignore cluster part of formula), \code{"hetero"} (heteroskedastic-robust
+HC0, computed in C++ — no cluster variable needed), \code{"cluster"} (one-way sandwich using the cluster
+variable in the formula), \code{"m-estimator"} (M-estimator one-way sandwich), or \code{"dyadic"}
+(Cameron-Miller dyadic sandwich; requires two entity variables in the third part of the formula).
+When \code{NULL} (default), the type is inferred from the formula: if a cluster variable is present the
+standard sandwich is used, otherwise the inverse Hessian (IID) is returned.}
 
 \item{beta_start}{an optional vector of starting values for the structural parameters in the linear predictor.
 Default is \eqn{\boldsymbol{\beta} = \mathbf{0}}{\beta = 0}.}

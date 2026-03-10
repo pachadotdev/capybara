@@ -4,7 +4,7 @@
 \alias{felm}
 \title{LM fitting with high-dimensional k-way fixed effects}
 \usage{
-felm(formula = NULL, data = NULL, weights = NULL, control = NULL)
+felm(formula = NULL, data = NULL, weights = NULL, vcov = NULL, control = NULL)
 }
 \arguments{
 \item{formula}{an object of class \code{"formula"}: a symbolic description of the model to be fitted. \code{formula}
@@ -15,6 +15,14 @@ dataset with the variables specified in \code{formula} and a number of rows at l
 in the model.}
 
 \item{weights}{an optional string with the name of the prior weights variable in \code{data}.}
+
+\item{vcov}{an optional character string specifying the type of variance-covariance estimator.
+One of \code{"iid"} (default OLS, ignore cluster part of formula), \code{"hetero"} (heteroskedastic-robust
+HC0, computed in C++ — no cluster variable needed), \code{"cluster"} (one-way sandwich using the cluster
+variable in the formula), \code{"m-estimator"} (M-estimator one-way sandwich), or \code{"dyadic"}
+(Cameron-Miller dyadic sandwich; requires two entity variables in the third part of the formula).
+When \code{NULL} (default), the type is inferred from the formula: if a cluster variable is present the
+standard sandwich is used, otherwise the inverse Hessian (IID) is returned.}
 
 \item{control}{a named list of parameters for controlling the fitting process. See \link{fit_control} for details.}
 }

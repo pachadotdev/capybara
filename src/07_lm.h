@@ -465,19 +465,30 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
   mat vcov_reduced;
   const double rss = dot(w_work % result.residuals, result.residuals);
 
-  if (cluster_groups != nullptr && cluster_groups->n_elem > 0) {
-    if (params.vcov_type == "m-estimator-dyadic" && entity1_groups != nullptr &&
-        entity2_groups != nullptr) {
-      // For dyadic clustering, compute observation-level scores
-      // Score_i = X_i * (y_i - fitted_i) for OLS
-      const vec resid = ws->y_original - result.fitted_values;
-      mat scores(ws->X_centered.n_rows, ws->X_centered.n_cols);
-      for (uword i = 0; i < ws->X_centered.n_rows; ++i) {
-        scores.row(i) = resid(i) * ws->X_centered.row(i);
-      }
-      vcov_reduced = sandwich_vcov_mestimator_dyadic_(
-          result.hessian, scores, *entity1_groups, *entity2_groups);
-    } else if (params.vcov_type == "m-estimator") {
+  if (params.vcov_type == "hetero") {
+    // HC0: heteroskedastic-robust, no clustering needed
+    const vec resid = ws->y_original - result.fitted_values;
+    vcov_reduced = sandwich_vcov_hetero_(ws->X_centered, resid, result.hessian);
+  } else if (params.vcov_type == "two-way" && entity1_groups != nullptr &&
+             entity2_groups != nullptr) {
+    // Two-way cluster (Cameron, Gelbach & Miller 2011): V1 + V2 - V12
+    vcov_reduced =
+        sandwich_vcov_twoway_(ws->X_centered, ws->y_original,
+                              result.fitted_values, result.hessian,
+                              *entity1_groups, *entity2_groups);
+  } else if (params.vcov_type == "m-estimator-dyadic" &&
+             entity1_groups != nullptr && entity2_groups != nullptr) {
+    // Dyadic-robust (Cameron & Miller 2014): does not require cluster_groups
+    // Score_i = (y_i - fitted_i) * X_i  (OLS M-estimator score)
+    const vec resid = ws->y_original - result.fitted_values;
+    mat scores(ws->X_centered.n_rows, ws->X_centered.n_cols);
+    for (uword i = 0; i < ws->X_centered.n_rows; ++i) {
+      scores.row(i) = resid(i) * ws->X_centered.row(i);
+    }
+    vcov_reduced = sandwich_vcov_mestimator_dyadic_(
+        result.hessian, scores, *entity1_groups, *entity2_groups);
+  } else if (cluster_groups != nullptr && cluster_groups->n_elem > 0) {
+    if (params.vcov_type == "m-estimator") {
       // For standard M-estimator clustering
       const vec resid = ws->y_original - result.fitted_values;
       mat scores(ws->X_centered.n_rows, ws->X_centered.n_cols);

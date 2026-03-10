@@ -410,6 +410,92 @@ inline mat sandwich_vcov_(const mat &MX, const vec &y, const vec &mu,
 }
 
 ///////////////////////////////////////////////////////////////////////////
+// Two-way cluster covariance matrix (Cameron-Gelbach-Miller 2011)
+// V_{2way} = V_{c1} + V_{c2} - V_{c1 x c2}
+///////////////////////////////////////////////////////////////////////////
+
+inline mat sandwich_vcov_twoway_(const mat &MX, const vec &y, const vec &mu,
+                                 const mat &H,
+                                 const field<uvec> &cl1_groups,
+                                 const field<uvec> &cl2_groups) {
+  const uword n   = MX.n_rows;
+  const uword G1  = cl1_groups.n_elem;
+  const uword G2  = cl2_groups.n_elem;
+
+  // Build obs -> cl1 / cl2 reverse maps
+  std::vector<uword> obs_to_cl1(n), obs_to_cl2(n);
+  for (uword g = 0; g < G1; ++g) {
+    const uvec &idx = cl1_groups(g);
+    for (uword i = 0; i < idx.n_elem; ++i)
+      obs_to_cl1[idx(i)] = g;
+  }
+  for (uword h = 0; h < G2; ++h) {
+    const uvec &idx = cl2_groups(h);
+    for (uword i = 0; i < idx.n_elem; ++i)
+      obs_to_cl2[idx(i)] = h;
+  }
+
+  // Build interaction groups: (g, h) pair -> bucket of obs indices
+  std::unordered_map<uword, uword> pair_map;
+  pair_map.reserve(std::min(G1 * G2, n));
+  std::vector<std::vector<uword>> pair_buckets;
+  for (uword i = 0; i < n; ++i) {
+    const uword key = obs_to_cl1[i] * G2 + obs_to_cl2[i];
+    auto it = pair_map.find(key);
+    if (it == pair_map.end()) {
+      pair_map[key] = pair_buckets.size();
+      pair_buckets.push_back({i});
+    } else {
+      pair_buckets[it->second].push_back(i);
+    }
+  }
+
+  field<uvec> cl12_groups(pair_buckets.size());
+  for (uword g = 0; g < pair_buckets.size(); ++g) {
+    cl12_groups(g) = uvec(pair_buckets[g]);
+  }
+
+  const mat V1  = sandwich_vcov_(MX, y, mu, H, cl1_groups);
+  const mat V2  = sandwich_vcov_(MX, y, mu, H, cl2_groups);
+  const mat V12 = sandwich_vcov_(MX, y, mu, H, cl12_groups);
+
+  return V1 + V2 - V12;
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Heteroskedastic-robust (HC0) covariance matrix
+///////////////////////////////////////////////////////////////////////////
+
+// HC0: V = H^{-1} * (sum_i e_i^2 * x_i x_i') * H^{-1}
+// This is the sandwich with every observation as its own cluster.
+// Works for both LM and GLM; just pass the demeaned design matrix (MX)
+// and the fitted residuals e = y - mu (or y - fitted for LM).
+
+inline mat sandwich_vcov_hetero_(const mat &MX, const vec &resid,
+                                 const mat &H) {
+  const uword p = MX.n_cols;
+  const uword n = MX.n_rows;
+
+  mat H_inv;
+  if (!inv_sympd(H_inv, H)) {
+    if (!inv(H_inv, H)) {
+      return mat(p, p, fill::value(datum::inf));
+    }
+  }
+
+  // Meat: sum_i e_i^2 * x_i x_i'
+  // accumulated column-by-column to stay cache-friendly
+  mat meat(p, p, fill::zeros);
+  for (uword i = 0; i < n; ++i) {
+    const double ei2 = resid(i) * resid(i);
+    const rowvec xi = MX.row(i);
+    meat += ei2 * xi.t() * xi;
+  }
+
+  return H_inv * meat * H_inv;
+}
+
+///////////////////////////////////////////////////////////////////////////
 // Dyadic for M-estimators and GMM
 ///////////////////////////////////////////////////////////////////////////
 
@@ -564,37 +650,85 @@ inline mat sandwich_vcov_mestimator_dyadic_(const mat &A, const mat &scores,
     entity2_scores[obs_to_entity2[i]] += score_i;
   }
 
-  // Dyadic meat: B = sum_i sum_j 1[i and j share entity] * score_i * score_j'
-  // Cameron-Miller decomposition: B = B_1 + B_2 - B_12
-  // where B_1 accounts for entity1, B_2 for entity2, B_12 for intersection
-
-  // B_1: Sum over entity1 groups
-  mat B1(p, p, fill::zeros);
-  for (uword g = 0; g < G1; ++g) {
-    B1 += entity1_scores[g] * entity1_scores[g].t();
-  }
-
-  // B_2: Sum over entity2 groups
-  mat B2(p, p, fill::zeros);
-  for (uword h = 0; h < G2; ++h) {
-    B2 += entity2_scores[h] * entity2_scores[h].t();
-  }
-
-  // B_12: Sum over dyads (intersection correction)
-  mat B12(p, p, fill::zeros);
+  // Compute dyad-pair aggregate scores
+  // T_{gh} = sum_{i: e1_i=g, e2_i=h} s_i
+  // Key: g * G2 + h  (packed pair index using the aligned codebook)
+  std::unordered_map<uword, vec> dyad_scores;
+  dyad_scores.reserve(n_obs);
   for (uword i = 0; i < n_obs; ++i) {
-    vec score_i = scores.row(i).t();
-    B12 += score_i * score_i.t();
+    const uword key = obs_to_entity1[i] * G2 + obs_to_entity2[i];
+    auto it = dyad_scores.find(key);
+    if (it == dyad_scores.end()) {
+      dyad_scores[key] = scores.row(i).t();
+    } else {
+      it->second += scores.row(i).t();
+    }
   }
 
-  // Cameron-Gelbach-Miller formula for two-way clustering
-  mat B = B1 + B2 - B12;
+  // Dyadic meat — Cameron & Miller (2014) full decomposition:
+  // B = B_11 + B_22 + B_12 + B_21 - B_same - B_rev
+  //
+  // where
+  // S^1_g = sum_{i: e1_i=g} s_i,  S^2_h = sum_{i: e2_i=h} s_i,
+  // T_{gh}  = sum_{i: e1_i=g, e2_i=h} s_i   (dyad aggregate score)
+  //
+  // B_11    = sum_g S^1_g (S^1_g)'  [same exporter]
+  // B_22    = sum_h S^2_h (S^2_h)'  [same importer]
+  // B_12    = sum_e S^1_e (S^2_e)'  [entity1_i = entity2_j]
+  // B_21    = sum_e S^2_e (S^1_e)'  [entity2_i = entity1_j]
+  // B_same  = sum_{g,h} T_{gh} T_{gh}'   [same dyad pair, corrects
+  //           double-counting in B11+B22 for same-dyad pairs]
+  // B_rev   = sum_{g,h} T_{gh} T_{hg}'   [reverse dyad (g,h)/(h,g),
+  //           corrects double-counting in B12+B21 for reverse pairs]
+  //
+  // B_same + B_rev replaces the simpler -B_diag used in two-way clustering.
+  // For cross-sectional data (one obs per dyad) B_same == B_diag, so the
+  // reduction to B11+B22+B12+B21 - B_diag - B_rev is equivalent.
 
-  // Degrees of freedom adjustment
-  // Use minimum of the two dimensions
-  const uword G_min = std::min(G1, G2);
+  // B_11
+  mat B11(p, p, fill::zeros);
+  for (uword g = 0; g < G1; ++g)
+    B11 += entity1_scores[g] * entity1_scores[g].t();
+
+  // B_22
+  mat B22(p, p, fill::zeros);
+  for (uword h = 0; h < G2; ++h)
+    B22 += entity2_scores[h] * entity2_scores[h].t();
+
+  // B_12 and B_21 (cross terms; G1==G2 with aligned codebook)
+  const uword G_E = G1; // G1 == G2 after alignment
+  mat B12(p, p, fill::zeros);
+  mat B21(p, p, fill::zeros);
+  for (uword e = 0; e < G_E; ++e) {
+    B12 += entity1_scores[e] * entity2_scores[e].t();
+    B21 += entity2_scores[e] * entity1_scores[e].t();
+  }
+
+  // B_same and B_rev from dyad aggregate scores
+  mat B_same(p, p, fill::zeros);
+  mat B_rev(p, p, fill::zeros);
+  for (const auto &kv : dyad_scores) {
+    const uword key_gh = kv.first;
+    const vec &T_gh = kv.second;
+
+    B_same += T_gh * T_gh.t();
+
+    // Reverse key: h * G2 + g
+    const uword g = key_gh / G2;
+    const uword h = key_gh % G2;
+    const uword key_hg = h * G2 + g;
+    auto it_rev = dyad_scores.find(key_hg);
+    if (it_rev != dyad_scores.end()) {
+      B_rev += T_gh * it_rev->second.t();
+    }
+  }
+
+  mat B = B11 + B22 + B12 + B21 - B_same - B_rev;
+
+  // Degrees-of-freedom adjustment: G / (G - 1) where G = number of unique
+  // entities (same set for both dimensions after aligned codebook).
   const double adj =
-      (G_min > 1) ? static_cast<double>(G_min) / (G_min - 1.0) : 1.0;
+      (G_E > 1) ? static_cast<double>(G_E) / (G_E - 1.0) : 1.0;
 
   // Sandwich: A^{-1} * (adj * B) * A^{-1}
   return (adj * A_inv) * B * A_inv;

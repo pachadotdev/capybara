@@ -9,6 +9,7 @@ feglm(
   data = NULL,
   family = gaussian(),
   weights = NULL,
+  vcov = NULL,
   beta_start = NULL,
   eta_start = NULL,
   offset = NULL,
@@ -28,6 +29,14 @@ of a call to a family function. Default is \code{gaussian()}. See \link[stats]{f
 functions.}
 
 \item{weights}{an optional string with the name of the prior weights variable in \code{data}.}
+
+\item{vcov}{an optional character string specifying the type of variance-covariance estimator.
+One of \code{"iid"} (default OLS, ignore cluster part of formula), \code{"hetero"} (heteroskedastic-robust
+HC0, computed in C++ — no cluster variable needed), \code{"cluster"} (one-way sandwich using the cluster
+variable in the formula), \code{"m-estimator"} (M-estimator one-way sandwich), or \code{"dyadic"}
+(Cameron-Miller dyadic sandwich; requires two entity variables in the third part of the formula).
+When \code{NULL} (default), the type is inferred from the formula: if a cluster variable is present the
+standard sandwich is used, otherwise the inverse Hessian (IID) is returned.}
 
 \item{beta_start}{an optional vector of starting values for the structural parameters in the linear predictor.
 Default is \eqn{\boldsymbol{\beta} = \mathbf{0}}{\beta = 0}.}
@@ -58,6 +67,8 @@ perfectly predicted observations}
 observations}
 \item{family}{the family used in the model}
 \item{control}{the control list used in the model}
+\item{vcov_type}{a character string indicating the variance-covariance type used: \code{"iid"},
+\code{"hetero"}, \code{"cluster"}, \code{"m-estimator"}, or \code{"dyadic"}}
 }
 \description{
 \link{feglm} can be used to fit generalized linear models with many high-dimensional fixed effects. The
@@ -68,13 +79,23 @@ If \link{feglm} does not converge this is often a sign of linear dependence betw
 regressors and a fixed effects category. In this case, you should carefully inspect your model specification.
 }
 \examples{
-# Model without clustering - uses inverse Hessian for vcov
+# IID (default — no cluster in formula)
 mod <- feglm(mpg ~ wt | cyl, mtcars, family = poisson(link = "log"))
 summary(mod)
 
-# Model with clustering - uses sandwich vcov automatically
-mod <- feglm(mpg ~ wt | cyl | am, mtcars, family = poisson(link = "log"))
-summary(mod)
+# Heteroskedastic-robust HC0
+mod_h <- feglm(mpg ~ wt | cyl, mtcars, family = poisson(link = "log"), vcov = "hetero")
+sqrt(diag(vcov(mod_h)))
+
+# One-way cluster sandwich
+mod_cl <- feglm(mpg ~ wt | cyl | am, mtcars,
+  family = poisson(link = "log"), vcov = "cluster")
+summary(mod_cl)
+
+# Dyadic-robust (Cameron & Miller) — two entity columns in cluster part
+mod_dy <- feglm(mpg ~ wt | cyl | am + vs, mtcars,
+  family = poisson(link = "log"), vcov = "dyadic")
+sqrt(diag(vcov(mod_dy)))
 
 }
 \references{

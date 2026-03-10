@@ -111,12 +111,13 @@ is \code{TRUE}.}
 
 \item{init_theta}{Initial value for the negative binomial dispersion parameter (theta). The default is \code{0.0}.}
 
-\item{vcov_type}{Optional character string specifying the type of variance-covariance estimator to be used. It only
-applies for formulas with a cluster variable like \code{z ~ x + y | fe | cl}. When \code{NULL} (default), the variance
-covariance matrix follows a regular sandwich estimator. When set to \code{"m-estimator"}, uses standard clustered
-M-estimator sandwich. When set to \code{"m-estimator-dyadic"}, uses dyadic clustering that accounts for correlation
-between observations sharing entities. For dyadic clustering, specify two entity columns in the formula like
-\code{z ~ x + y | fe | cl1 + cl2}.}
+\item{vcov_type}{Optional character string specifying the type of variance-covariance estimator to be used.
+When \code{NULL} (default), the covariance matrix is the inverse Hessian (IID) when no cluster variable is
+present, or a clustered sandwich when one is. Other values:
+\code{"hetero"} — heteroskedastic-robust HC0 sandwich (no cluster variable needed);
+\code{"m-estimator"} — one-way M-estimator sandwich (cluster variable required);
+\code{"m-estimator-dyadic"} — dyadic-robust Cameron-Miller sandwich (two entity columns required in the
+third part of the formula like \code{z ~ x + y | fe | entity1 + entity2}).}
 }
 \value{
 A named list of control parameters.

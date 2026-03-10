@@ -601,19 +601,28 @@ InferenceGLM feglm_fit(
 #endif
 
     // Covariance matrix
-    if (cluster_groups != nullptr && cluster_groups->n_elem > 0) {
-      if (params.vcov_type == "m-estimator-dyadic" &&
-          entity1_groups != nullptr && entity2_groups != nullptr) {
-        // For dyadic clustering, compute observation-level scores
-        // Score_i = MX_i * (y_i - mu_i) for each observation i
-        const vec resid = y - mu;
-        mat scores(MX.n_rows, MX.n_cols);
-        for (uword i = 0; i < MX.n_rows; ++i) {
-          scores.row(i) = resid(i) * MX.row(i);
-        }
-        result.vcov = sandwich_vcov_mestimator_dyadic_(
-            H, scores, *entity1_groups, *entity2_groups);
-      } else if (params.vcov_type == "m-estimator") {
+    if (params.vcov_type == "hetero") {
+      // HC0: heteroskedastic-robust, no clustering needed
+      const vec resid = y - mu;
+      result.vcov = sandwich_vcov_hetero_(MX, resid, H);
+    } else if (params.vcov_type == "two-way" && entity1_groups != nullptr &&
+               entity2_groups != nullptr) {
+      // Two-way cluster (Cameron, Gelbach & Miller 2011): V1 + V2 - V12
+      result.vcov =
+          sandwich_vcov_twoway_(MX, y, mu, H, *entity1_groups, *entity2_groups);
+    } else if (params.vcov_type == "m-estimator-dyadic" &&
+               entity1_groups != nullptr && entity2_groups != nullptr) {
+      // Dyadic-robust (Cameron & Miller 2014): does not require cluster_groups
+      // Score_i = (y_i - mu_i) * MX_i  (GLM M-estimator score)
+      const vec resid = y - mu;
+      mat scores(MX.n_rows, MX.n_cols);
+      for (uword i = 0; i < MX.n_rows; ++i) {
+        scores.row(i) = resid(i) * MX.row(i);
+      }
+      result.vcov = sandwich_vcov_mestimator_dyadic_(
+          H, scores, *entity1_groups, *entity2_groups);
+    } else if (cluster_groups != nullptr && cluster_groups->n_elem > 0) {
+      if (params.vcov_type == "m-estimator") {
         // For standard M-estimator clustering
         const vec resid = y - mu;
         mat scores(MX.n_rows, MX.n_cols);

@@ -427,6 +427,99 @@ inline field<uvec> build_cluster_groups(SEXP col, const uvec &keep_indices) {
   return groups;
 }
 
+// Build entity groups for two columns sharing the same IDs
+// (e.g. ctry1 = exporter, ctry2 = importer).
+// Both field<uvec> are coded with the same shared codebook so that
+// entity1_groups(e) and entity2_groups(e) refer to the same entities.
+// This is required by the dyadic sandwich cross-terms
+// B_12 = sum_e S^1_e (S^2_e)'   [entity1_i = entity2_j]
+// which only make sense when index e is consistent across dimensions.
+inline void build_aligned_entity_groups(SEXP col1, SEXP col2,
+                                        const uvec &keep_indices,
+                                        field<uvec> &groups1,
+                                        field<uvec> &groups2) {
+  const size_t n = keep_indices.n_elem;
+
+  // Build shared codebook from the union of both columns ---
+  // This works with a shared SEXP types as code_column: integer (incl. factor),
+  // real, character, logical.
+  // Treat every value as a string (i.e., 1 -> "1") and
+  // use a string-keyed map
+  // => low overhead vs sandwich of two separate code_column + map + remap steps
+  auto to_string = [](SEXP col, R_xlen_t i) -> std::string {
+    switch (TYPEOF(col)) {
+    case INTSXP: {
+      // Check for factor first
+      SEXP lvls = Rf_getAttrib(col, R_LevelsSymbol);
+      int v = INTEGER(col)[i];
+      if (lvls != R_NilValue)
+        return std::string(CHAR(STRING_ELT(lvls, v - 1)));
+      return std::to_string(v);
+    }
+    case REALSXP: {
+      char buf[64];
+      snprintf(buf, sizeof(buf), "%.15g", REAL(col)[i]);
+      return std::string(buf);
+    }
+    case STRSXP:
+      return std::string(CHAR(STRING_ELT(col, i)));
+    case LGLSXP:
+      return LOGICAL(col)[i] ? "TRUE" : "FALSE";
+    default:
+      return "";
+    }
+  };
+
+  // First pass: collect all entity names in encounter order from col1 then
+  // col2, building a shared map.
+  std::unordered_map<std::string, uword> entity_map;
+  entity_map.reserve(512);
+  std::vector<std::string> ordered_names; // for consistent ordering
+
+  for (size_t i = 0; i < n; ++i) {
+    std::string nm = to_string(col1, keep_indices(i));
+    if (entity_map.find(nm) == entity_map.end()) {
+      entity_map[nm] = ordered_names.size();
+      ordered_names.push_back(nm);
+    }
+  }
+  for (size_t i = 0; i < n; ++i) {
+    std::string nm = to_string(col2, keep_indices(i));
+    if (entity_map.find(nm) == entity_map.end()) {
+      entity_map[nm] = ordered_names.size();
+      ordered_names.push_back(nm);
+    }
+  }
+
+  const size_t n_entities = ordered_names.size();
+
+  // Second pass: assign codes and count
+  std::vector<uword> codes1(n), codes2(n);
+  std::vector<size_t> cnt1(n_entities, 0), cnt2(n_entities, 0);
+  for (size_t i = 0; i < n; ++i) {
+    codes1[i] = entity_map[to_string(col1, keep_indices(i))];
+    cnt1[codes1[i]]++;
+    codes2[i] = entity_map[to_string(col2, keep_indices(i))];
+    cnt2[codes2[i]]++;
+  }
+
+  // Allocate groups
+  groups1.set_size(n_entities);
+  groups2.set_size(n_entities);
+  for (size_t g = 0; g < n_entities; ++g) {
+    groups1(g).set_size(cnt1[g]);
+    groups2(g).set_size(cnt2[g]);
+  }
+
+  std::vector<size_t> off1(n_entities, 0), off2(n_entities, 0);
+  for (size_t i = 0; i < n; ++i) {
+    uword g1 = codes1[i];
+    groups1(g1)(off1[g1]++) = i;
+    uword g2 = codes2[i];
+    groups2(g2)(off2[g2]++) = i;
+  }
+}
+
 // Main preparation function: takes raw R data, returns clean C++ data
 inline PreparedData prepare_raw_data(const doubles_matrix<> &X_r,
                                      const doubles &y_r, const doubles &w_r,
@@ -652,13 +745,12 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   const field<uvec> *entity1_ptr = nullptr;
   const field<uvec> *entity2_ptr = nullptr;
 
-  if (params.vcov_type == "m-estimator-dyadic" && entity1_col_r != R_NilValue &&
-      entity2_col_r != R_NilValue) {
-    // Build entity groups from the raw entity columns, using the same keep
-    // indices
+  if ((params.vcov_type == "m-estimator-dyadic" ||
+       params.vcov_type == "two-way") &&
+      entity1_col_r != R_NilValue && entity2_col_r != R_NilValue) {
     uvec keep_indices = regspace<uvec>(0, data.y.n_elem - 1);
-    entity1_groups = build_cluster_groups(entity1_col_r, keep_indices);
-    entity2_groups = build_cluster_groups(entity2_col_r, keep_indices);
+    build_aligned_entity_groups(entity1_col_r, entity2_col_r, keep_indices,
+                                entity1_groups, entity2_groups);
     entity1_ptr = &entity1_groups;
     entity2_ptr = &entity2_groups;
   }
@@ -836,11 +928,12 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
   const field<uvec> *entity1_ptr = nullptr;
   const field<uvec> *entity2_ptr = nullptr;
 
-  if (params.vcov_type == "m-estimator-dyadic" && entity1_col_r != R_NilValue &&
-      entity2_col_r != R_NilValue) {
+  if ((params.vcov_type == "m-estimator-dyadic" ||
+       params.vcov_type == "two-way") &&
+      entity1_col_r != R_NilValue && entity2_col_r != R_NilValue) {
     uvec keep_indices = regspace<uvec>(0, data.y.n_elem - 1);
-    entity1_groups = build_cluster_groups(entity1_col_r, keep_indices);
-    entity2_groups = build_cluster_groups(entity2_col_r, keep_indices);
+    build_aligned_entity_groups(entity1_col_r, entity2_col_r, keep_indices,
+                                entity1_groups, entity2_groups);
     entity1_ptr = &entity1_groups;
     entity2_ptr = &entity2_groups;
   }

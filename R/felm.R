@@ -119,7 +119,13 @@ NULL
 #' summary(mod)
 #'
 #' @export
-felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
+felm <- function(
+  formula = NULL,
+  data = NULL,
+  weights = NULL,
+  vcov = NULL,
+  control = NULL
+) {
   # Check validity of formula ----
   check_formula_(formula)
 
@@ -128,6 +134,30 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
 
   # Check validity of control + Extract control list ----
   check_control_(control)
+
+  # Process vcov argument ----
+  # Maps friendly vcov names to the C++ vcov_type control parameter.
+  # 'iid'         - inverse Hessian (no cluster needed)
+  # 'hetero'      - HC0 heteroskedastic-robust (computed in C++, no cluster needed)
+  # 'cluster'     - one-way standard sandwich (cluster variable required)
+  # 'm-estimator' - one-way M-estimator sandwich (cluster variable required)
+  # 'dyadic'      - dyadic-robust Cameron-Miller sandbox (two entity cols required)
+  vcov_label <- NULL
+  if (!is.null(vcov)) {
+    vcov <- match.arg(vcov, c("iid", "hetero", "cluster", "m-estimator", "dyadic"))
+    vcov_label <- vcov
+    if (vcov == "iid") {
+      control$vcov_type <- NULL
+    } else if (vcov == "hetero") {
+      control$vcov_type <- "hetero"
+    } else if (vcov == "cluster") {
+      control$vcov_type <- NULL
+    } else if (vcov == "m-estimator") {
+      control$vcov_type <- "m-estimator"
+    } else if (vcov == "dyadic") {
+      control$vcov_type <- "m-estimator-dyadic"
+    }
+  }
 
   # Generate model.frame (column subsetting + weight extraction) ----
   lhs <- NA
@@ -180,15 +210,29 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   entity1_col <- NULL
   entity2_col <- NULL
 
-  if (length(cl_vars_temp) >= 1L) {
+  # Skip cluster extraction for iid / hetero (ignore any cluster spec in formula)
+  skip_cluster <- isTRUE(vcov_label %in% c("iid", "hetero"))
+
+  if (!skip_cluster && length(cl_vars_temp) >= 1L) {
     if (!is.null(control$vcov_type) && control$vcov_type == "m-estimator-dyadic") {
       if (length(cl_vars_temp) < 2L) {
-        stop("For dyadic clustering (vcov_type = 'm-estimator-dyadic'), specify two entity columns in the formula like: y ~ x | fe | entity1 + entity2", call. = FALSE)
+        stop(
+          "For dyadic clustering (vcov = 'dyadic'), specify two entity columns ",
+          "in the formula like: y ~ x | fe | entity1 + entity2",
+          call. = FALSE
+        )
       }
       entity1_col <- data[[cl_vars_temp[1L]]]
       entity2_col <- data[[cl_vars_temp[2L]]]
     } else {
-      cl_col <- data[[cl_vars_temp[1L]]]
+      if (length(cl_vars_temp) >= 2L) {
+        # Two-way: CGM V_c1 + V_c2 - V_{c1 x c2}, fully handled in C++
+        control$vcov_type <- "two-way"
+        entity1_col <- data[[cl_vars_temp[1L]]]
+        entity2_col <- data[[cl_vars_temp[2L]]]
+      } else {
+        cl_col <- data[[cl_vars_temp[1L]]]
+      }
     }
   }
 
@@ -259,6 +303,14 @@ felm <- function(formula = NULL, data = NULL, weights = NULL, control = NULL) {
   fit[["formula"]] <- formula
   fit[["data"]] <- data
   fit[["control"]] <- control
+  fit[["vcov_type"]] <- if (!is.null(vcov_label)) vcov_label else {
+    # Infer label from what was actually computed
+    if (!is.null(cl_col) || !is.null(entity1_col)) {
+      if (!is.null(control$vcov_type)) control$vcov_type else "cluster"
+    } else {
+      "iid"
+    }
+  }
 
   # Return result list ----
   structure(fit, class = "felm")

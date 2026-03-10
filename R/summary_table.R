@@ -134,6 +134,26 @@ summary_table <- function(
     )
   }
 
+  # SE type row (from vcov_type stored on each model)
+  vcov_label_map <- c(
+    "iid"              = "IID",
+    "hetero"           = "Heteroskedastic-robust",
+    "cluster"          = "Cluster-robust",
+    "m-estimator"      = "Cluster-robust (M-est.)",
+    "m-estimator-dyadic" = "Dyadic-robust",
+    "dyadic"           = "Dyadic-robust"
+  )
+  se_type_row <- c(
+    "SE type",
+    sapply(models, function(m) {
+      vt <- m[["vcov_type"]]
+      if (is.null(vt)) "" else {
+        lbl <- vcov_label_map[vt]
+        if (is.na(lbl)) vt else lbl
+      }
+    })
+  )
+
   # Add model statistics
   stats_rows <- list()
 
@@ -187,7 +207,8 @@ summary_table <- function(
     do.call(rbind, fe_rows),
     c("", rep("", length(models))), # for spacing
     obs_row,
-    r2_row
+    r2_row,
+    se_type_row
   )
 
   # Set column names from result_df

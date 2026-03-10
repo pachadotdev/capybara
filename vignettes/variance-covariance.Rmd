@@ -1,0 +1,107 @@
+---
+title: "variance-covariance"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{variance-covariance}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+# library(capybara)
+```
+
+A very quick verification of Ross (2004) is to obtain the coefficients for the OLS model from table 1:
+
+```{r verification1}
+felm(ltrade ~ bothin + onein + gsp + ldist + lrgdp + lrgdppc + regional +
+  custrict + comlang + border + landl + island + lareap + comcol +
+  curcol + colony + comctry | year, data = ross2004)
+```
+
+This does not involve many fixed effects. However, capybara will be particularly useful to
+obtain different standard errors for the same functional form, which is the main focus of
+table 4B in Cameron & Miller (2014).
+
+Table 4B shows the following clustering methods that we can replicate with the third part of the
+model formula (e.g. `y ~ x1 + x2 + ... | fe1 + fe2 | cl1 + cl2`)  and using the `vcov` argument
+to select how the clustering variables are used:
+
+| `vcov` value     | Description                                    |
+|:-----------------|:-----------------------------------------------|
+| `"iid"`          | Default OLS (i.i.d. errors)                    |
+| `"hetero"`       | Heteroskedastic-robust (HC0)                   |
+| `"cluster"`      | One-way cluster sandwich                       |
+| `"m-estimator"`  | One-way M-estimator sandwich                   |
+| `"dyadic"`       | Dyadic-robust (Cameron & Miller, 2014)         |
+
+Capybara provides an `update()` method to easily modify the formula for each model, as we need
+to change the clustering variables for each model, which avoids error-prone copy-pasting of the full
+formula every time.
+
+```{r table4b_models, cache = TRUE}
+fml <- ltrade ~ bothin + onein + gsp + ldist + lrgdp + lrgdppc + regional +
+  custrict + comlang + border + landl + island + lareap + comcol +
+  curcol + colony + comctry | year
+
+# IID  (no cluster part in formula)
+fit_iid <- felm(
+  fml,
+  data = ross2004, vcov = "iid"
+)
+
+# Heteroskedastic-robust (HC0)
+fit_hetero <- felm(
+  fml,
+  data = ross2004, vcov = "hetero"
+)
+
+# One-way: cluster on country-pair (g,h)
+fit_pairs <- felm(
+  update(fml, . ~ . | . | pair),
+  data = ross2004, vcov = "cluster"
+)
+
+# One-way: cluster on country 1 (g)
+fit_ctry1 <- felm(
+  update(fml, . ~ . | . | ctry1),
+  data = ross2004, vcov = "cluster"
+)
+
+# One-way: cluster on country 2 (h)
+fit_ctry2 <- felm(
+  update(fml, . ~ . | . | ctry2),
+  data = ross2004, vcov = "cluster"
+)
+
+# Two-way: cluster on (g) and (h) simultaneously
+fit_2way <- felm(
+  update(fml, . ~ . | . | ctry1 + ctry2),
+  data = ross2004, vcov = "cluster"
+)
+
+# Dyadic-robust: Cameron-Miller (2014) sandwich with cross-dyad correlations
+fit_dyadic <- felm(
+  update(fml, . ~ . | . | ctry1 + ctry2),
+  data = ross2004, vcov = "dyadic"
+)
+```
+
+With the above models, we can replicate Table 4B from Cameron & Miller (2014) using
+`summary_table()`, another convenience function in capybara to display multiple models side-by-side.
+This completely avoids calling `summary()` on each model and then conducting post-processing to
+extract the relevant information for the table.
+
+```{r table4b_display}
+summary_table(
+  fit_iid, fit_hetero, fit_pairs, fit_ctry1, fit_ctry2, fit_2way, fit_dyadic,
+  model_names = c("IID", "Hetero", "Pairs", "Country 1", "Country 2", "2-Way", "Dyadic")
+)
+```

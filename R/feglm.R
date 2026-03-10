@@ -91,6 +91,13 @@ NULL
 #'  of a call to a family function. Default is \code{gaussian()}. See \link[stats]{family} for details of family
 #'  functions.
 #' @param weights an optional string with the name of the prior weights variable in \code{data}.
+#' @param vcov an optional character string specifying the type of variance-covariance estimator.
+#'  One of \code{"iid"} (default OLS, ignore cluster part of formula), \code{"hetero"} (heteroskedastic-robust
+#'  HC0, computed in C++ — no cluster variable needed), \code{"cluster"} (one-way sandwich using the cluster
+#'  variable in the formula), \code{"m-estimator"} (M-estimator one-way sandwich), or \code{"dyadic"}
+#'  (Cameron-Miller dyadic sandwich; requires two entity variables in the third part of the formula).
+#'  When \code{NULL} (default), the type is inferred from the formula: if a cluster variable is present the
+#'  standard sandwich is used, otherwise the inverse Hessian (IID) is returned.
 #' @param beta_start an optional vector of starting values for the structural parameters in the linear predictor.
 #'  Default is \eqn{\boldsymbol{\beta} = \mathbf{0}}{\beta = 0}.
 #' @param eta_start an optional vector of starting values for the linear predictor.
@@ -119,6 +126,8 @@ NULL
 #'   observations}
 #'  \item{family}{the family used in the model}
 #'  \item{control}{the control list used in the model}
+#'  \item{vcov_type}{a character string indicating the variance-covariance type used: \code{"iid"},
+#'   \code{"hetero"}, \code{"cluster"}, \code{"m-estimator"}, or \code{"dyadic"}}
 #'
 #' @references Gaure, S. (2013). "OLS with Multiple High Dimensional Category Variables". Computational Statistics and
 #'  Data Analysis, 66.
@@ -133,13 +142,23 @@ NULL
 #'  k-Way Fixed Effects". ArXiv e-prints.
 #'
 #' @examples
-#' # Model without clustering - uses inverse Hessian for vcov
+#' # IID (default — no cluster in formula)
 #' mod <- feglm(mpg ~ wt | cyl, mtcars, family = poisson(link = "log"))
 #' summary(mod)
 #'
-#' # Model with clustering - uses sandwich vcov automatically
-#' mod <- feglm(mpg ~ wt | cyl | am, mtcars, family = poisson(link = "log"))
-#' summary(mod)
+#' # Heteroskedastic-robust HC0
+#' mod_h <- feglm(mpg ~ wt | cyl, mtcars, family = poisson(link = "log"), vcov = "hetero")
+#' sqrt(diag(vcov(mod_h)))
+#'
+#' # One-way cluster sandwich
+#' mod_cl <- feglm(mpg ~ wt | cyl | am, mtcars,
+#'   family = poisson(link = "log"), vcov = "cluster")
+#' summary(mod_cl)
+#'
+#' # Dyadic-robust (Cameron & Miller) — two entity columns in cluster part
+#' mod_dy <- feglm(mpg ~ wt | cyl | am + vs, mtcars,
+#'   family = poisson(link = "log"), vcov = "dyadic")
+#' sqrt(diag(vcov(mod_dy)))
 #'
 #' @export
 feglm <- function(
@@ -147,6 +166,7 @@ feglm <- function(
   data = NULL,
   family = gaussian(),
   weights = NULL,
+  vcov = NULL,
   beta_start = NULL,
   eta_start = NULL,
   offset = NULL,
@@ -163,6 +183,30 @@ feglm <- function(
 
   # Check validity of control + Extract control list ----
   check_control_(control)
+
+  # Process vcov argument ----
+  # Maps friendly vcov names to the C++ vcov_type control parameter.
+  # 'iid'         - inverse Hessian (no cluster needed)
+  # 'hetero'      - HC0 heteroskedastic-robust (computed in C++, no cluster needed)
+  # 'cluster'     - one-way standard sandwich (cluster variable required)
+  # 'm-estimator' - one-way M-estimator sandwich (cluster variable required)
+  # 'dyadic'      - dyadic-robust Cameron-Miller sandbox (two entity cols required)
+  vcov_label <- NULL
+  if (!is.null(vcov)) {
+    vcov <- match.arg(vcov, c("iid", "hetero", "cluster", "m-estimator", "dyadic"))
+    vcov_label <- vcov
+    if (vcov == "iid") {
+      control$vcov_type <- NULL
+    } else if (vcov == "hetero") {
+      control$vcov_type <- "hetero"
+    } else if (vcov == "cluster") {
+      control$vcov_type <- NULL
+    } else if (vcov == "m-estimator") {
+      control$vcov_type <- "m-estimator"
+    } else if (vcov == "dyadic") {
+      control$vcov_type <- "m-estimator-dyadic"
+    }
+  }
 
   # Extract offset before data filtering ----
   offset_vec_original <- NULL
@@ -276,10 +320,17 @@ feglm <- function(
   entity1_col <- NULL
   entity2_col <- NULL
 
-  if (length(cl_vars_temp) >= 1L) {
+  # Skip cluster extraction for iid / hetero (ignore any cluster spec in formula)
+  skip_cluster <- isTRUE(vcov_label %in% c("iid", "hetero"))
+
+  if (!skip_cluster && length(cl_vars_temp) >= 1L) {
     if (!is.null(control$vcov_type) && control$vcov_type == "m-estimator-dyadic") {
       if (length(cl_vars_temp) < 2L) {
-        stop("For dyadic clustering (vcov_type = 'm-estimator-dyadic'), specify two entity columns in the formula like: y ~ x | fe | entity1 + entity2", call. = FALSE)
+        stop(
+          "For dyadic clustering (vcov = 'dyadic'), specify two entity columns ",
+          "in the formula like: y ~ x | fe | entity1 + entity2",
+          call. = FALSE
+        )
       }
       entity1_col <- data[[cl_vars_temp[1L]]]
       entity2_col <- data[[cl_vars_temp[2L]]]
@@ -394,6 +445,13 @@ feglm <- function(
   fit[["control"]] <- control
   fit[["offset"]] <- offset_vec
   fit[["offset_spec"]] <- offset
+  fit[["vcov_type"]] <- if (!is.null(vcov_label)) vcov_label else {
+    if (!is.null(cl_col) || !is.null(entity1_col)) {
+      if (!is.null(control$vcov_type)) control$vcov_type else "cluster"
+    } else {
+      "iid"
+    }
+  }
 
   # Return result list ----
   structure(fit, class = "feglm")
