@@ -1,8 +1,8 @@
 ---
-title: "variance-covariance"
+title: "Different Variance-Covariance Estimators"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{variance-covariance}
+  %\VignetteIndexEntry{Different Variance-Covariance Estimators}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

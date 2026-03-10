@@ -7,7 +7,7 @@
 \method{update}{felm_formula}(object, formula., ...)
 }
 \arguments{
-\item{object}{A \code{felm_formula} object (created by \code{\link[=felm_fml]{felm_fml()}}).}
+\item{object}{A \code{felm_formula} object.}
 
 \item{formula.}{Update specification, e.g. \code{. ~ . | . | ctry1 + ctry2}.}
 
@@ -17,8 +17,8 @@
 A new \code{felm_formula} object.
 }
 \description{
-S3 method for \code{\link[=update]{update()}} on objects created with \code{\link[=felm_fml]{felm_fml()}}.  Splits the
-formula on \code{|}, updates each segment independently, and reassembles.
+S3 method for \code{\link[=update]{update()}} on \code{felm_formula} objects.  Splits the formula on
+\code{|}, updates each segment independently, and reassembles.
 
 The \code{.} placeholder behaves as in \code{\link[=update.formula]{update.formula()}}:
 \itemize{

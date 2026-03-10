@@ -3,7 +3,7 @@
 #' Returns a list with elements `base` (`"y ~ x"`), `fe` (or `NULL`), and
 #' `cluster` (or `NULL`).  Used internally by [update.felm()] and
 #' [update.feglm()] so that each segment can be updated independently before
-#' reassembly via [felm_formula()].
+#' reassembly.
 #' @noRd
 felm_formula_parts_ <- function(formula) {
   fml_chr <- deparse1(formula)
@@ -67,7 +67,7 @@ update.felm <- function(object, formula. = . ~ ., vcov = NULL, ...) {
     old$cluster
   }
 
-  new_formula <- felm_formula(new_base, fe = new_fe, cluster = new_cluster)
+  new_formula <- felm_formula_(new_base, fe = new_fe, cluster = new_cluster)
 
   felm(
     formula = new_formula,
@@ -113,7 +113,7 @@ update.feglm <- function(object, formula. = . ~ ., vcov = NULL, family = NULL, .
     old$cluster
   }
 
-  new_formula <- felm_formula(new_base, fe = new_fe, cluster = new_cluster)
+  new_formula <- felm_formula_(new_base, fe = new_fe, cluster = new_cluster)
 
   feglm(
     formula = new_formula,
@@ -174,46 +174,22 @@ update.formula <- function(object, formula., ...) {
     old$cluster
   }
 
-  felm_formula(new_base, fe = new_fe, cluster = new_cluster)
-}
-
-#' @title Create a \code{|}-aware formula for felm / feglm
-#' @description
-#' Wraps a `|`-separated formula in the subclass `"felm_formula"` so that
-#' [update()] dispatches to [update.felm_formula()] instead of base R's
-#' [update.formula()], which cannot handle the `|` syntax and raises
-#' *"'|' not meaningful for factors"* errors.
-#'
-#' The returned object is fully compatible with [felm()] and [feglm()].
-#'
-#' @param formula A formula of the form `y ~ x`, `y ~ x | fe`, or
-#'   `y ~ x | fe | cluster`.
-#'
-#' @return The same formula with an additional `"felm_formula"` class prepended.
-#'
-#' @examples
-#' fml <- felm_fml(ltrade ~ bothin + lrgdp | year)
-#'
-#' # update() now works safely on fml
-#' update(fml, . ~ . | . | pair)
-#' #> ltrade ~ bothin + lrgdp | year | pair
-#'
-#' @export
-felm_fml <- function(formula) {
-  structure(formula, class = c("felm_formula", "formula"))
+  fml <- felm_formula_(new_base, fe = new_fe, cluster = new_cluster)
+  environment(fml) <- environment(object)
+  fml
 }
 
 #' @title Update a \code{felm_formula} object
 #' @description
-#' S3 method for [update()] on objects created with [felm_fml()].  Splits the
-#' formula on `|`, updates each segment independently, and reassembles.
+#' S3 method for [update()] on `felm_formula` objects.  Splits the formula on
+#' `|`, updates each segment independently, and reassembles.
 #'
 #' The `.` placeholder behaves as in [update.formula()]:
 #' * `. ~ .` — keep current response and RHS unchanged.
 #' * Second `|` segment — replaces (or keeps with `.`) the fixed effects.
 #' * Third `|` segment — replaces (or keeps with `.`) the cluster variables.
 #'
-#' @param object A `felm_formula` object (created by [felm_fml()]).
+#' @param object A `felm_formula` object.
 #' @param formula. Update specification, e.g. `. ~ . | . | ctry1 + ctry2`.
 #' @param ... Ignored.
 #'
@@ -246,44 +222,13 @@ update.felm_formula <- function(object, formula., ...) {
     old$cluster
   }
 
-  felm_fml(felm_formula(new_base, fe = new_fe, cluster = new_cluster))
+  fml <- felm_formula_(new_base, fe = new_fe, cluster = new_cluster)
+  environment(fml) <- environment(object)
+  structure(fml, class = c("felm_formula", "formula"))
 }
 
-#' @title Build a felm / feglm formula from parts
-#' @description
-#' Constructs a `|`-separated formula accepted by [felm()] and [feglm()] from
-#' a base `y ~ x` formula plus optional fixed-effects and cluster components
-#' supplied as plain character strings.  This avoids calling [update.formula()],
-#' which cannot handle the `|` syntax and raises *"+ not meaningful for
-#' factors"* errors.
-#'
-#' @param base A one-sided or two-sided `formula` object **or** a character
-#'   string that can be coerced to one, e.g.
-#'   `"ltrade ~ bothin + onein + gsp"`.
-#' @param fe Optional character string naming the fixed-effect variable(s),
-#'   e.g. `"year"` or `"country + year"`.  Omit or pass `NULL` for models
-#'   without fixed effects.
-#' @param cluster Optional character string naming the cluster variable(s),
-#'   e.g. `"pair"` or `"ctry1 + ctry2"`.  Omit or pass `NULL` for models
-#'   without explicit clustering.
-#'
-#' @return A `formula` of the form `y ~ x`, `y ~ x | fe`, or
-#'   `y ~ x | fe | cluster` depending on which parts are supplied.
-#'
-#' @examples
-#' rhs <- "ltrade ~ bothin + onein + lrgdp"
-#'
-#' felm_formula(rhs)
-#' #> ltrade ~ bothin + onein + lrgdp
-#'
-#' felm_formula(rhs, fe = "year")
-#' #> ltrade ~ bothin + onein + lrgdp | year
-#'
-#' felm_formula(rhs, fe = "year", cluster = "ctry1 + ctry2")
-#' #> ltrade ~ bothin + onein + lrgdp | year | ctry1 + ctry2
-#'
-#' @export
-felm_formula <- function(base, fe = NULL, cluster = NULL) {
+#' @noRd
+felm_formula_ <- function(base, fe = NULL, cluster = NULL) {
   base_chr <- if (inherits(base, "formula")) {
     deparse1(base)
   } else {
