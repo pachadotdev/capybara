@@ -16,7 +16,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
       
-      - uses: pachadotdev/clang-format@v1.1
+      - uses: pachadotdev/clang-format@v1
         with:
           version: '21'
           files: 'src/*.cpp src/*.h inst/include/*.h'
