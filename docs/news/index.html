@@ -65,7 +65,14 @@
 
 <div id="capybara-2.0.0" class="section level1">
 <h1>capybara 2.0.0</h1>
-<ul><li>I rewrote the the Rank-Revealing Cholesky general method to contribute back to Armadillo.</li>
+<ul><li>Capybara now offers different variance-covariance estimators that do not require to call <code>summary()</code>
+(e.g., this differens from Alpaca). I added a vignette replicating Cameron and Miller (2014)
+to show how to use 1-way, 2-way, and dyadic clustering.</li>
+<li>Besides vcov estimation, capybara now allows to update formulas, which is explained in the vcov
+vignette. tldr; you can use <code>fml &lt;- mpg ~ wt | am</code> followed by
+<code>felm(update(fml, . ~ . | cyl), data = mtcars</code> and variations of (same for <code>feglm()</code> and cluster
+update)</li>
+<li>I rewrote the the Rank-Revealing Cholesky general method to contribute back to Armadillo.</li>
 <li>I found an error when using <code>summary(lm/glm, type = "clustered")</code> that largely underestimated
 the standard errors. This is now fixed and I merged “clustered” and ” sandwich” types into a single
 “sandwich” type for clarity and consistency as both use a bread-meat-bread approach.</li>
@@ -83,7 +90,7 @@ formulas without slopes such as <code>y ~ 0 | fe1 + fe2</code>.</li>
 methods are equivalent but use different internal logics. Berge’s fixed point problem approach is usually
 faster.</li>
 <li>Adds parallelization over columns for an efficient centering regardless of the method used.</li>
-<li>Most of the data processing was moved to C++ port to eae portability (e.g., Python version in the future)</li>
+<li>Most of the data processing was moved to C++ port to ease portability (e.g., Python version in the future)</li>
 </ul></div>
 <div id="capybara-1.8.1" class="section level1">
 <h1>capybara 1.8.1</h1>

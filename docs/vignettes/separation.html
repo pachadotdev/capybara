@@ -66,10 +66,7 @@
 <p>This vignette is adapted from <a href="https://github.com/sergiocorreia/ppmlhdfe/blob/master/guides/nonexistence_benchmarks.md#r-packages" class="uri">https://github.com/sergiocorreia/ppmlhdfe/blob/master/guides/nonexistence_benchmarks.md#r-packages</a>.</p>
 <div id="example-1" class="section level2">
 <h2>Example 1</h2>
-<pre class="r"><code>library(capybara)
-#&gt; Registered S3 method overwritten by 'capybara':
-#&gt;   method         from
-#&gt;   update.formula stats</code></pre>
+<pre class="r"><code>library(capybara)</code></pre>
 <p>The table below shows a dataset with 12 observations and four
 regressors. Observations 5 is separated because <span class="math inline">\(y=0\)</span> and <span class="math inline">\(z
 \neq x_2 - x_1\)</span> is positive in those observations, and zero
@@ -115,7 +112,7 @@ this data.</p>
   data = correia2019$example1
 )
 #&gt; Formula: y ~ x1 + x2 + x3 + x4
-#&gt; &lt;environment: 0x555bd5ad4a10&gt;
+#&gt; &lt;environment: 0x555bdc098898&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -124,8 +121,8 @@ this data.</p>
 #&gt; |             | Estimate | Std. Error | z value | Pr(&gt;|z|) |
 #&gt; |-------------|----------|------------|---------|----------|
 #&gt; | (Intercept) |   0.5909 |     0.3029 |  1.9509 | 0.0511 + |
-#&gt; | x1          | -16.7357 |  3391.5118 | -0.0049 | 0.9961   |
-#&gt; | x2          |  16.2850 |  3391.5118 |  0.0048 | 0.9962   |
+#&gt; | x1          | -16.7357 |  3391.5124 | -0.0049 | 0.9961   |
+#&gt; | x2          |  16.2850 |  3391.5125 |  0.0048 | 0.9962   |
 #&gt; | x3          |  -0.4708 |     0.2312 | -2.0368 | 0.0417 * |
 #&gt; | x4          |  -0.0378 |     0.0438 | -0.8636 | 0.3878   |
 #&gt;
@@ -186,7 +183,7 @@ model on this data.</p>
   data = correia2019$example2
 )
 #&gt; Formula: y ~ x1 + x2 + x3 + x4
-#&gt; &lt;environment: 0x555bd5ad4a10&gt;
+#&gt; &lt;environment: 0x555bdc098898&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -264,7 +261,7 @@ fixed effects on this data.</p>
 )
 #&gt; Separation detected: 4 observation(s) with perfect prediction were excluded from estimation.
 #&gt; Formula: y ~ x1 + x2 | i + j
-#&gt; &lt;environment: 0x555bd5ad4a10&gt;
+#&gt; &lt;environment: 0x555bdc098898&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -329,7 +326,7 @@ fepoisson(
 )
 #&gt; Separation detected: 4 observation(s) with perfect prediction were excluded from estimation.
 #&gt; Formula: y ~ x1 + x2 | i + j | pair
-#&gt; &lt;environment: 0x555bd5ad4a10&gt;
+#&gt; &lt;environment: 0x555bdc098898&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -357,7 +354,7 @@ match ‘alpaca’ and ‘fixest’ results.</p>
   control = list(check_separation = FALSE)
 )
 #&gt; Formula: y ~ x1 + x2 | i + j
-#&gt; &lt;environment: 0x555bd5ad4a10&gt;
+#&gt; &lt;environment: 0x555bdc098898&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;

@@ -1,5 +1,12 @@
 # capybara 2.0.0
 
+* Capybara now offers different variance-covariance estimators that do not require to call `summary()`
+  (e.g., this differens from Alpaca). I added a vignette replicating Cameron and Miller (2014)
+  to show how to use 1-way, 2-way, and dyadic clustering.
+* Besides vcov estimation, capybara now allows to update formulas, which is explained in the vcov
+  vignette. tldr; you can use `fml <- mpg ~ wt | am` followed by
+  `felm(update(fml, . ~ . | cyl), data = mtcars` and variations of (same for `feglm()` and cluster
+  update)
 * I rewrote the the Rank-Revealing Cholesky general method to contribute back to Armadillo.
 * I found an error when using `summary(lm/glm, type = "clustered")` that largely underestimated
   the standard errors. This is now fixed and I merged "clustered" and " sandwich" types into a single
@@ -18,7 +25,8 @@
   methods are equivalent but use different internal logics. Berge's fixed point problem approach is usually
   faster.
 * Adds parallelization over columns for an efficient centering regardless of the method used.
-* Most of the data processing was moved to C++ port to eae portability (e.g., Python version in the future)
+* Most of the data processing was moved to C++ port to ease portability (e.g., Python version in the future)
+
 
 # capybara 1.8.1
 
