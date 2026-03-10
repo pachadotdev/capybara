@@ -26,8 +26,8 @@ The table below shows a dataset with 12 observations and four regressors. Observ
 because $y=0$ and $z \neq x_2 - x_1$ is positive in those observations, and zero otherwise.
 
 ```{r example1-data}
-ppmlhdfe$example1
-which(ppmlhdfe$example1$x2 - ppmlhdfe$example1$x1 != 0 & ppmlhdfe$example1$y == 0)
+correia2019$example1
+which(correia2019$example1$x2 - correia2019$example1$x1 != 0 & correia2019$example1$y == 0)
 ```
 
 Base R shall not give a warning when estimating a Poisson model on this data.
@@ -35,7 +35,7 @@ Base R shall not give a warning when estimating a Poisson model on this data.
 ```{r example1-glm}
 glm(
   y ~ x1 + x2 + x3 + x4,
-  data = ppmlhdfe$example1,
+  data = correia2019$example1,
   family = poisson()
 )
 ```
@@ -45,7 +45,7 @@ Capybara will detect separation on this dataset.
 ```{r example1-fepoisson}
 fepoisson(
   y ~ x1 + x2 + x3 + x4,
-  data = ppmlhdfe$example1
+  data = correia2019$example1
 )
 ```
 
@@ -55,8 +55,8 @@ The table below shows a different dataset with 12 observations and four regresso
 separated because $y=0$ and $z > x_2 - x_1$ is positive in those observations, and zero otherwise.
 
 ```{r example2-data}
-ppmlhdfe$example2
-which(ppmlhdfe$example2$x2 - ppmlhdfe$example2$x1 > 0 & ppmlhdfe$example2$y == 0)
+correia2019$example2
+which(correia2019$example2$x2 - correia2019$example2$x1 > 0 & correia2019$example2$y == 0)
 ```
 
 Base R shall give a convergence warning when estimating a Poisson model on this data.
@@ -64,7 +64,7 @@ Base R shall give a convergence warning when estimating a Poisson model on this 
 ```{r example2-glm, warning=TRUE}
 glm(
   y ~ x1 + x2 + x3 + x4,
-  data = ppmlhdfe$example2,
+  data = correia2019$example2,
   family = poisson()
 )
 ```
@@ -74,7 +74,7 @@ Capybara will detect separation on this dataset.
 ```{r example2-fepoisson}
 fepoisson(
   y ~ x1 + x2 + x3 + x4,
-  data = ppmlhdfe$example2
+  data = correia2019$example2
 )
 ```
 
@@ -84,7 +84,7 @@ Base R shall not give a warning when estimating a Poisson model with fixed effec
 in this case is less clear, which motivates why capybara uses linear programming to detect separation in Poisson models.
 
 ```{r fe1-data}
-ppmlhdfe$fe1
+correia2019$fe1
 ```
 
 Base R shall not give a warning when estimating a Poisson model with fixed effects on this data.
@@ -92,7 +92,7 @@ Base R shall not give a warning when estimating a Poisson model with fixed effec
 ```{r fe1-glm}
 glm(
   y ~ x1 + x2 + factor(i) + factor(j),
-  data = ppmlhdfe$fe1,
+  data = correia2019$fe1,
   family = poisson()
 )
 ```
@@ -102,14 +102,14 @@ Capybara will detect separation when estimating Poisson models.
 ```{r fe1-capybara}
 fepoisson(
   y ~ x1 + x2 | i + j,
-  data = ppmlhdfe$fe1
+  data = correia2019$fe1
 )
 ```
 
-'ppmlhdfe' will also detect separation when estimating Poisson models with fixed effects.
+'correia2019' will also detect separation when estimating Poisson models with fixed effects.
 
 ```stata
-. ppmlhdfe y x1 x2, a(i j)
+. correia2019 y x1 x2, a(i j)
 (simplex method dropped 4 separated observations)
 (dropped 1 singleton observations)
 note: 1 variable omitted because of collinearity: x2
@@ -145,15 +145,15 @@ Absorbed degrees of freedom:
 -----------------------------------------------------+
 ```
 
-A difference with respect to Stata's 'ppmlhdfe' is that capybara requires an explicit cluster term in the formula
+A difference with respect to Stata's 'correia2019' is that capybara requires an explicit cluster term in the formula
 to compute robust standard errors using a sandwich operation.
 
 ```{r fe1-capybara-2}
-ppmlhdfe$fe1$pair <- paste0(ppmlhdfe$fe1$i, ppmlhdfe$fe1$j)
+correia2019$fe1$pair <- paste0(correia2019$fe1$i, correia2019$fe1$j)
 
 fepoisson(
   y ~ x1 + x2 | i + j | pair,
-  data = ppmlhdfe$fe1
+  data = correia2019$fe1
 )
 ```
 
@@ -165,7 +165,7 @@ Capybara without checking separation (incorrect $\beta_2$):
 ```{r fe-capybara-3}
 fepoisson(
   y ~ x1 + x2 | i + j,
-  data = ppmlhdfe$fe1,
+  data = correia2019$fe1,
   control = list(check_separation = FALSE)
 )
 ```
@@ -175,7 +175,7 @@ Alpaca:
 ```{r fe-alpaca, eval = FALSE}
 alpaca::feglm(
   y ~ x1 + x2 | i + j,
-  data = ppmlhdfe$fe1,
+  data = correia2019$fe1,
   family = poisson()
 )
 ```
@@ -192,7 +192,7 @@ Fixest:
 ```{r fe-fixest, eval = FALSE}
 fixest::feglm(
   y ~ x1 + x2 | i + j,
-  data = ppmlhdfe$fe1,
+  data = correia2019$fe1,
   family = poisson()
 )
 ```

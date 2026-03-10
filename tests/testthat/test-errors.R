@@ -11,7 +11,7 @@ NULL
 test_that("error conditions in APEs", {
   skip_on_cran()
 
-  trade_short <- trade_panel[trade_panel$exp_year == "CAN1994", ]
+  trade_short <- yotov2017[yotov2017$exp_year == "CAN1994", ]
   trade_short <- trade_short[trade_short$trade > 100, ]
   trade_short$trade_200 <- ifelse(trade_short$trade >= 200, 1, 0)
   trade_short$trade_200_100 <- as.factor(ifelse(
@@ -75,7 +75,7 @@ test_that("error conditions in APEs", {
 })
 
 test_that("error conditions in GLMs", {
-  trade_short <- trade_panel[trade_panel$year == 2002, ]
+  trade_short <- yotov2017[yotov2017$year == 2002, ]
   trade_short$trade_200 <- ifelse(trade_short$trade >= 100, 1, 0)
   trade_short$trade_200_100 <- as.factor(ifelse(
     trade_short$trade >= 200,
@@ -129,7 +129,7 @@ test_that("error conditions in GLMs", {
 })
 
 test_that("error conditions in helpers", {
-  trade_short <- trade_panel[trade_panel$year == 2002, ]
+  trade_short <- yotov2017[yotov2017$year == 2002, ]
   trade_short$trade_200 <- ifelse(trade_short$trade >= 100, 1, 0)
   trade_short$trade_200_100 <- as.factor(ifelse(
     trade_short$trade >= 200,

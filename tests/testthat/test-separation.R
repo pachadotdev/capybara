@@ -10,12 +10,12 @@ test_that("check_separation works as expected", {
 
   fit1 <- coef(fepoisson(
     y ~ x1 + x2 | i + j,
-    data = ppmlhdfe$fe1
+    data = correia2019$fe1
   ))
 
   fit2 <- coef(fepoisson(
     y ~ x1 + x2 | i + j,
-    data = ppmlhdfe$fe1,
+    data = correia2019$fe1,
     control = list(check_separation = FALSE)
   ))
 

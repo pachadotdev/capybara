@@ -193,10 +193,10 @@ test_that("model handles small sample sizes", {
 test_that("model handles many fixed effect levels", {
   skip_on_cran()
 
-  data("trade_panel", package = "capybara")
+  data("yotov2017", package = "capybara")
 
   # This has many levels in exp_year and imp_iso
-  mod <- fepoisson(trade ~ log_dist | exp_year, trade_panel)
+  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017)
 
   expect_s3_class(mod, "feglm")
 })

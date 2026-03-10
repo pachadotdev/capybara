@@ -13,7 +13,7 @@ NULL
 test_that("apes/bias works", {
   skip_on_cran()
 
-  trade_short <- trade_panel[trade_panel$exp_year == "CAN1994", ]
+  trade_short <- yotov2017[yotov2017$exp_year == "CAN1994", ]
   trade_short <- trade_short[trade_short$trade > 100, ]
   trade_short$trade <- ifelse(trade_short$trade > 200, 1L, 0L)
 
@@ -134,7 +134,7 @@ test_that("apes/bias works (stammann centering)", {
   skip_on_cran()
   ctrl <- list(centering = "stammann")
 
-  trade_short <- trade_panel[trade_panel$exp_year == "CAN1994", ]
+  trade_short <- yotov2017[yotov2017$exp_year == "CAN1994", ]
   trade_short <- trade_short[trade_short$trade > 100, ]
   trade_short$trade <- ifelse(trade_short$trade > 200, 1L, 0L)
 

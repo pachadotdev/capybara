@@ -93,8 +93,8 @@ test_that("fenegbin works with different data", {
   skip_on_cran()
 
   # Test with a different dataset
-  data("trade_panel", package = "capybara")
-  mod <- fenegbin(trade ~ log_dist | exp_year, trade_panel)
+  data("yotov2017", package = "capybara")
+  mod <- fenegbin(trade ~ log_dist | exp_year, yotov2017)
 
   expect_s3_class(mod, "feglm")
   expect_true(!is.null(mod$coef_table))

@@ -45,7 +45,7 @@ Model estimation:
 ```r
 fit <- fepoisson(
   trade ~ log_dist + cntg + lang + clny + rta | exp_year + imp_year,
-  data = trade_panel
+  data = yotov2017
 )
 
 summary(fit)
@@ -83,7 +83,7 @@ uses the demeaning algorithm proposed by @stammann2018fast.
 ```r
 fit <- fepoisson(
   trade ~ log_dist + cntg + lang + clny + rta | exp_year + imp_year | pair,
-  data = trade_panel
+  data = yotov2017
 )
 
 summary(fit, type = "clustered")
