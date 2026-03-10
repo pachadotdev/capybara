@@ -415,12 +415,11 @@ inline mat sandwich_vcov_(const mat &MX, const vec &y, const vec &mu,
 ///////////////////////////////////////////////////////////////////////////
 
 inline mat sandwich_vcov_twoway_(const mat &MX, const vec &y, const vec &mu,
-                                 const mat &H,
-                                 const field<uvec> &cl1_groups,
+                                 const mat &H, const field<uvec> &cl1_groups,
                                  const field<uvec> &cl2_groups) {
-  const uword n   = MX.n_rows;
-  const uword G1  = cl1_groups.n_elem;
-  const uword G2  = cl2_groups.n_elem;
+  const uword n = MX.n_rows;
+  const uword G1 = cl1_groups.n_elem;
+  const uword G2 = cl2_groups.n_elem;
 
   // Build obs -> cl1 / cl2 reverse maps
   std::vector<uword> obs_to_cl1(n), obs_to_cl2(n);
@@ -455,8 +454,8 @@ inline mat sandwich_vcov_twoway_(const mat &MX, const vec &y, const vec &mu,
     cl12_groups(g) = uvec(pair_buckets[g]);
   }
 
-  const mat V1  = sandwich_vcov_(MX, y, mu, H, cl1_groups);
-  const mat V2  = sandwich_vcov_(MX, y, mu, H, cl2_groups);
+  const mat V1 = sandwich_vcov_(MX, y, mu, H, cl1_groups);
+  const mat V2 = sandwich_vcov_(MX, y, mu, H, cl2_groups);
   const mat V12 = sandwich_vcov_(MX, y, mu, H, cl12_groups);
 
   return V1 + V2 - V12;
@@ -727,8 +726,7 @@ inline mat sandwich_vcov_mestimator_dyadic_(const mat &A, const mat &scores,
 
   // Degrees-of-freedom adjustment: G / (G - 1) where G = number of unique
   // entities (same set for both dimensions after aligned codebook).
-  const double adj =
-      (G_E > 1) ? static_cast<double>(G_E) / (G_E - 1.0) : 1.0;
+  const double adj = (G_E > 1) ? static_cast<double>(G_E) / (G_E - 1.0) : 1.0;
 
   // Sandwich: A^{-1} * (adj * B) * A^{-1}
   return (adj * A_inv) * B * A_inv;
@@ -831,9 +829,9 @@ inline mat group_sums_cov(const mat &M, const mat &N,
 // Equivalent to the R-side drop_by_link_type_() but runs in C++.
 // ============================================================================
 
-inline SeparationResult
-check_group_separation(const vec &y, const vec &w, const FlatFEMap &fe_map,
-                       Family family_type) {
+inline SeparationResult check_group_separation(const vec &y, const vec &w,
+                                               const FlatFEMap &fe_map,
+                                               Family family_type) {
   SeparationResult result;
   result.num_separated = 0;
   result.converged = true;
@@ -866,7 +864,8 @@ check_group_separation(const vec &y, const vec &w, const FlatFEMap &fe_map,
       vec grp_wt(n_grp, fill::zeros);
 
       for (uword i = 0; i < n; ++i) {
-        if (drop_mask(i)) continue;
+        if (drop_mask(i))
+          continue;
         const uword g = map_k[i];
         const double wi = w(i);
         grp_sum(g) += wi * y(i);
@@ -875,9 +874,11 @@ check_group_separation(const vec &y, const vec &w, const FlatFEMap &fe_map,
 
       // Identify degenerate groups
       for (uword i = 0; i < n; ++i) {
-        if (drop_mask(i)) continue;
+        if (drop_mask(i))
+          continue;
         const uword g = map_k[i];
-        if (grp_wt(g) <= 0.0) continue;
+        if (grp_wt(g) <= 0.0)
+          continue;
 
         const double grp_mean = grp_sum(g) / grp_wt(g);
 

@@ -619,7 +619,8 @@ inline PreparedData prepare_raw_data(const doubles_matrix<> &X_r,
     if (has_weights) {
       out.w.set_size(n_valid);
       for (size_t i = 0; i < n_valid; ++i) {
-        out.w(i) = static_cast<double>(w_r[static_cast<R_xlen_t>(keep_0based(i))]);
+        out.w(i) =
+            static_cast<double>(w_r[static_cast<R_xlen_t>(keep_0based(i))]);
       }
     } else {
       out.w.ones(n_valid);
@@ -1051,7 +1052,7 @@ feglm_offset_fit_(const doubles &eta_r, const doubles &y_r,
   capybara::Family family_type = capybara::get_family_type(fam);
 
   return as_doubles(capybara::feglm_offset_fit(eta, y, offset, w, family_type,
-                                          fe_map, params));
+                                               fe_map, params));
 }
 
 [[cpp4r::register]] list
@@ -1188,7 +1189,8 @@ group_sums_spectral_(const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
         R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
   }
 
-  return as_doubles_matrix(capybara::group_sums_spectral(M, v, w, K, group_indices));
+  return as_doubles_matrix(
+      capybara::group_sums_spectral(M, v, w, K, group_indices));
 }
 
 [[cpp4r::register]] doubles_matrix<>

@@ -472,10 +472,9 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
   } else if (params.vcov_type == "two-way" && entity1_groups != nullptr &&
              entity2_groups != nullptr) {
     // Two-way cluster (Cameron, Gelbach & Miller 2011): V1 + V2 - V12
-    vcov_reduced =
-        sandwich_vcov_twoway_(ws->X_centered, ws->y_original,
-                              result.fitted_values, result.hessian,
-                              *entity1_groups, *entity2_groups);
+    vcov_reduced = sandwich_vcov_twoway_(ws->X_centered, ws->y_original,
+                                         result.fitted_values, result.hessian,
+                                         *entity1_groups, *entity2_groups);
   } else if (params.vcov_type == "m-estimator-dyadic" &&
              entity1_groups != nullptr && entity2_groups != nullptr) {
     // Dyadic-robust (Cameron & Miller 2014): does not require cluster_groups
