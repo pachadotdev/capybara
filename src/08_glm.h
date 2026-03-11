@@ -333,11 +333,10 @@ InferenceGLM feglm_fit(
   const double center_tol_tight = params.center_tol;
   double adaptive_center_tol = center_tol_loose;
 
-  // Convergence acceleration for large models
-  const bool is_large_model =
-      (n > 100000) || (p_working > 1000) || (has_fixed_effects && fe_map.K > 1);
   double last_beta_change = datum::inf;
   uword convergence_count = 0;
+  double conv_change =
+      datum::inf; // hoisted: readable after loop for post-loop check
 
   // Persistent felm workspace
   FelmWorkspace felm_workspace;
@@ -480,9 +479,9 @@ InferenceGLM feglm_fit(
           center_tol_loose * std::pow(center_tol_tight / center_tol_loose, t);
     }
 
-    // Early convergence detection for large models: eta-driven,
-    // since eta reflects the overall fit progress across all n observations.
-    if (is_large_model && eta_change < last_beta_change * 0.5) {
+    // Early convergence detection: eta-driven, since eta reflects the overall
+    // fit progress across all n observations.
+    if (eta_change < last_beta_change * 0.5) {
       ++convergence_count;
     } else {
       convergence_count = 0;
@@ -497,7 +496,6 @@ InferenceGLM feglm_fit(
     // 0):
     //   beta is empty so fall back to eta, which is the only quantity that
     //   carries convergence information in that case.
-    double conv_change;
     if (p_working > 0) {
       const double beta_norm = std::sqrt(dot(beta, beta));
       conv_change = std::sqrt(dot(beta - beta0, beta - beta0)) /
@@ -537,6 +535,16 @@ InferenceGLM feglm_fit(
               << " seconds.\n";
   cpp4r::message(glmiter_msg.str());
 #endif
+
+  // Post-loop safety net: if the loop exhausted iter_max but conv_change is
+  // within 10 * dev_tol (i.e. < 1e-7 with default settings), treat as
+  // converged. This covers platforms where FMA-based BLAS (e.g. macOS
+  // Accelerate) rounds conv_change to just above dev_tol on borderline cases.
+  // Factor of 10 is intentionally tight: genuine non-convergence produces
+  // conv_change orders of magnitude larger.
+  if (!conv && conv_change < params.dev_tol * 10.0) {
+    conv = true;
+  }
 
   if (conv) {
     // Fast path for negbin outer loop: only return beta, eta, mu, and

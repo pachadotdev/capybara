@@ -10,7 +10,7 @@ test_that("feglm + updated fixed effects in formula", {
   fml <- mpg ~ wt | am
   expect_equal(
     # TODO: using coef() for strange Mac issue (check later)
-    coef(feglm(update(fml, . ~ . | cyl), data = mtcars)),
-    coef(feglm(mpg ~ wt | cyl, data = mtcars))
+    feglm(update(fml, . ~ . | cyl), data = mtcars),
+    feglm(mpg ~ wt | cyl, data = mtcars)
   )
 })
