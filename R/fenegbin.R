@@ -263,7 +263,7 @@ fenegbin <- function(
   fe_levels <- fit[["fe_levels"]]
 
   # Information if convergence failed ----
-  if (!fit[["conv_outer"]]) {
+  if (!isTRUE(fit[["conv_outer"]])) {
     cat("Algorithm did not converge.\n")
   }
 
