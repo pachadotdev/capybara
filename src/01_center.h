@@ -2,16 +2,19 @@
 //
 // Two centering algorithms are available:
 //
-// 1. Stammann (default): Alternating projections with Irons-Tuck acceleration.
+// 1. Stammann (default): Alternating projections with RRE-2 acceleration.
 //    Each iteration performs a full Gauss-Seidel sweep updating each FE
-//    dimension in sequence, then applies IT acceleration to the first FE
-//    coefficient vector. This works on the coefficient space.
+//    dimension in sequence, then applies RRE-2 (Reduced Rank Extrapolation
+//    with 2 columns) acceleration using 4 iterates (X, GX, GGX, GGGX).
+//    This is based on Ramière-Helfer's "alternate 2-delta method" which uses
+//    a third iteration to improve convergence vs. the simpler Irons-Tuck
+//    method.
 //
 // 2. Berge: Fixed-point reformulation. For 2-FE: defines
 //    F(alpha) = f_1(f_2(alpha)), composing both updates into a single map,
-//    then solves alpha* = F(alpha*) using Irons-Tuck acceleration. For K>=3
+//    then solves alpha* = F(alpha*) using RRE-2 acceleration. For K>=3
 //    FE: uses a full backward Gauss-Seidel sweep as the composed map F, with
-//    IT acceleration on the first FE's coefficients.
+//    RRE-2 acceleration on the first K-1 FE's coefficients.
 //
 // Both methods precompute in_out[g] = sum_{i: fe[i]==g} w[i] * V[i] once,
 // then iterate on coefficient vectors only. Warm-starting is used across
@@ -157,19 +160,21 @@ struct CenterWarmStart {
 
   void ensure_scratch_2fe(uword n1, uword n2, uword p) {
     if (scratch_valid && scratch_n1 == n1 && scratch_n2 == n2 &&
-        scratch_mats.size() >= 6 && scratch_mats[0].n_cols == p) {
+        scratch_mats.size() >= 7 && scratch_mats[0].n_cols == p) {
       scratch_mats[3].zeros();
       scratch_mats[4].zeros();
       scratch_mats[5].zeros();
+      scratch_mats[6].zeros();
       return;
     }
-    scratch_mats.resize(6);
-    scratch_mats[0].set_size(n1, p);
-    scratch_mats[1].set_size(n1, p);
-    scratch_mats[2].set_size(n1, p);
-    scratch_mats[3].zeros(n1, p);
-    scratch_mats[4].zeros(n1, p);
-    scratch_mats[5].zeros(n1, p);
+    scratch_mats.resize(7);
+    scratch_mats[0].set_size(n1, p);  // GX
+    scratch_mats[1].set_size(n1, p);  // GGX
+    scratch_mats[2].set_size(n1, p);  // X_it
+    scratch_mats[3].zeros(n1, p);     // grand_Y
+    scratch_mats[4].zeros(n1, p);     // grand_GY
+    scratch_mats[5].zeros(n1, p);     // grand_GGY
+    scratch_mats[6].set_size(n1, p);  // GGGX
     scratch_beta.set_size(n2, p);
     scratch_n1 = n1;
     scratch_n2 = n2;
@@ -306,7 +311,78 @@ inline bool irons_tuck_acc(mat &X_coef, const mat &GX_coef,
   return false;
 }
 
-// Stammann 2-FE centering: alternating projections with IT acceleration
+// RRE-2 acceleration using 4 iterates (Ramière-Helfer "alternate 2-delta method").
+// Uses X, G(X), G^2(X), G^3(X) to compute extrapolation with two columns of
+// second differences. Falls back to Irons-Tuck if the 2x2 system is singular.
+// Returns true if numerically converged.
+inline bool rre2_acc(mat &X_coef, const mat &GX_coef, const mat &GGX_coef,
+                     const mat &GGGX_coef) {
+  const uword n = X_coef.n_elem;
+  double *__restrict__ x = X_coef.memptr();
+  const double *__restrict__ gx = GX_coef.memptr();
+  const double *__restrict__ ggx = GGX_coef.memptr();
+  const double *__restrict__ gggx = GGGX_coef.memptr();
+
+  // Compute differences and second differences
+  // u0 = GX - X, u1 = GGX - GX, u2 = GGGX - GGX
+  // v0 = u1 - u0 = GGX - 2*GX + X
+  // v1 = u2 - u1 = GGGX - 2*GGX + GX
+
+  // Build the 2x2 Gram matrix: M = [<v0,v0>, <v0,v1>; <v0,v1>, <v1,v1>]
+  // and right-hand side: b = -[<v0,u2>, <v1,u2>]
+  double v0v0 = 0.0, v0v1 = 0.0, v1v1 = 0.0;
+  double v0u2 = 0.0, v1u2 = 0.0;
+
+  for (uword i = 0; i < n; ++i) {
+    const double u1 = ggx[i] - gx[i];
+    const double u2 = gggx[i] - ggx[i];
+    const double v0 = u1 - gx[i] + x[i];       // GGX - 2*GX + X
+    const double v1 = u2 - u1;                 // GGGX - 2*GGX + GX
+
+    v0v0 += v0 * v0;
+    v0v1 += v0 * v1;
+    v1v1 += v1 * v1;
+    v0u2 += v0 * u2;
+    v1u2 += v1 * u2;
+  }
+
+  // Check for convergence
+  if (v0v0 + v1v1 < 1e-30) {
+    return true;
+  }
+
+  // Solve 2x2 system: [v0v0, v0v1; v0v1, v1v1] * [g0; g1] = -[v0u2; v1u2]
+  const double det = v0v0 * v1v1 - v0v1 * v0v1;
+
+  // If system is nearly singular, fall back to Irons-Tuck (single column)
+  if (std::fabs(det) < 1e-14 * (v0v0 * v1v1 + 1e-30)) {
+    // Fall back to IT using v0 only
+    if (v0v0 < 1e-30) {
+      return true;
+    }
+    const double coef = v0u2 / v0v0;
+    for (uword i = 0; i < n; ++i) {
+      const double u2 = gggx[i] - ggx[i];
+      x[i] = gggx[i] - coef * u2;
+    }
+    return false;
+  }
+
+  // Solve via Cramer's rule
+  const double inv_det = 1.0 / det;
+  const double g0 = (-v0u2 * v1v1 + v1u2 * v0v1) * inv_det;
+  const double g1 = (-v1u2 * v0v0 + v0u2 * v0v1) * inv_det;
+
+  // Extrapolate: X_acc = GGGX + g0 * u1 + g1 * u2
+  for (uword i = 0; i < n; ++i) {
+    const double u1 = ggx[i] - gx[i];
+    const double u2 = gggx[i] - ggx[i];
+    x[i] = gggx[i] + g0 * u1 + g1 * u2;
+  }
+  return false;
+}
+
+// Stammann 2-FE centering: alternating projections with RRE-2 acceleration
 inline void center_2fe_stammann(mat &V, const vec &w, const FlatFEMap &map,
                                 CenterWarmStart &warm, double tol,
                                 uword max_iter, uword grand_acc_period = 4) {
@@ -340,6 +416,8 @@ inline void center_2fe_stammann(mat &V, const vec &w, const FlatFEMap &map,
 
   mat X_it(n1, P);
   mat GX_it(n1, P);
+  mat GGX_it(n1, P);
+  mat GGGX_it(n1, P);
 
   mat grand_Y(n1, P, fill::zeros);
   mat grand_GY(n1, P, fill::zeros);
@@ -348,8 +426,6 @@ inline void center_2fe_stammann(mat &V, const vec &w, const FlatFEMap &map,
   constexpr uword iter_proj_after_acc = 40;
   const uword ssr_check_period = (n_obs > 50000) ? 80 : 40;
   double ssr_old = datum::inf;
-
-  mat GGX_it(n1, P);
 
   for (uword iter = 0; iter < max_iter; ++iter) {
     X_it = alpha1;
@@ -360,7 +436,10 @@ inline void center_2fe_stammann(mat &V, const vec &w, const FlatFEMap &map,
     gs_sweep();
     GGX_it = alpha1;
 
-    bool numconv = irons_tuck_acc(alpha1, GX_it, GGX_it);
+    gs_sweep();
+    GGGX_it = alpha1;
+
+    bool numconv = rre2_acc(alpha1, GX_it, GGX_it, GGGX_it);
 
     gs_update_2fe(alpha2, alpha1, in_out[1], map.inv_weights[1], g1, g2, w_ptr,
                   n_obs, P);
@@ -443,7 +522,7 @@ inline void center_2fe_stammann(mat &V, const vec &w, const FlatFEMap &map,
   }
 }
 
-// Stammann K-FE centering: alternating projections with IT acceleration
+// Stammann K-FE centering: alternating projections with RRE-2 acceleration
 inline void center_kfe_stammann(mat &V, const vec &w, const FlatFEMap &map,
                                 CenterWarmStart &warm, double tol,
                                 uword max_iter, uword grand_acc_period = 4) {
@@ -479,6 +558,7 @@ inline void center_kfe_stammann(mat &V, const vec &w, const FlatFEMap &map,
   mat X_it(n0, P, fill::zeros);
   mat GX_it(n0, P, fill::zeros);
   mat GGX_it(n0, P, fill::zeros);
+  mat GGGX_it(n0, P, fill::zeros);
 
   mat grand_Y(n0, P, fill::zeros);
   mat grand_GY(n0, P, fill::zeros);
@@ -497,7 +577,10 @@ inline void center_kfe_stammann(mat &V, const vec &w, const FlatFEMap &map,
     gs_sweep();
     GGX_it = alpha[0];
 
-    bool numconv = irons_tuck_acc(alpha[0], GX_it, GGX_it);
+    gs_sweep();
+    GGGX_it = alpha[0];
+
+    bool numconv = rre2_acc(alpha[0], GX_it, GGX_it, GGGX_it);
 
     if (iter >= iter_proj_after_acc) {
       gs_sweep();
@@ -686,7 +769,7 @@ inline void apply_F_2fe(mat &alpha_dst, mat &beta_tmp, const mat &alpha_src,
   }
 }
 
-// Berge 2-FE centering: fixed-point F(alpha) = f_1(f_2(alpha)) with IT
+// Berge 2-FE centering: fixed-point F(alpha) = f_1(f_2(alpha)) with RRE-2
 // acceleration
 inline void center_2fe_berge(mat &V, const vec &w, const FlatFEMap &map,
                              CenterWarmStart &warm, double tol, uword max_iter,
@@ -720,6 +803,7 @@ inline void center_2fe_berge(mat &V, const vec &w, const FlatFEMap &map,
   mat &grand_Y = warm.scratch_mats[3];
   mat &grand_GY = warm.scratch_mats[4];
   mat &grand_GGY = warm.scratch_mats[5];
+  mat &GGGX = warm.scratch_mats[6];
   uword grand_stage = 0;
 
   constexpr uword iter_proj_after_acc = 40;
@@ -758,8 +842,9 @@ inline void center_2fe_berge(mat &V, const vec &w, const FlatFEMap &map,
 
   for (uword iter = 0; iter < max_iter; ++iter) {
     apply_F_2fe(GGX, beta_tmp, GX, in_out, map, w_ptr, n_obs, P);
+    apply_F_2fe(GGGX, beta_tmp, GGX, in_out, map, w_ptr, n_obs, P);
 
-    bool numconv = irons_tuck_acc(alpha, GX, GGX);
+    bool numconv = rre2_acc(alpha, GX, GGX, GGGX);
     if (numconv)
       break;
 
@@ -884,10 +969,11 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
     }
   }
 
-  std::vector<mat> GX(K), GGX(K);
+  std::vector<mat> GX(K), GGX(K), GGGX(K);
   for (uword k = 0; k < K; ++k) {
     GX[k].zeros(map.n_groups[k], P);
     GGX[k].zeros(map.n_groups[k], P);
+    GGGX[k].zeros(map.n_groups[k], P);
   }
 
   std::vector<mat> grand_alpha_Y(K - 1), grand_alpha_GY(K - 1);
@@ -944,38 +1030,72 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
 
   for (uword iter = 0; iter < max_iter; ++iter) {
     gs_sweep_backward_kfe(GGX, GX, in_out, map, w_ptr, n_obs, P);
+    gs_sweep_backward_kfe(GGGX, GGX, in_out, map, w_ptr, n_obs, P);
 
-    double vprod = 0.0, ssq = 0.0;
+    // RRE-2 acceleration across all K-1 FEs jointly
+    // Build the 2x2 Gram matrix and RHS across all elements
+    double v0v0 = 0.0, v0v1 = 0.0, v1v1 = 0.0;
+    double v0u2 = 0.0, v1u2 = 0.0;
+
     for (uword k = 0; k < K - 1; ++k) {
       const uword n_elem = alpha[k].n_elem;
       const double *__restrict__ x = alpha[k].memptr();
       const double *__restrict__ gx_p = GX[k].memptr();
       const double *__restrict__ ggx_p = GGX[k].memptr();
+      const double *__restrict__ gggx_p = GGGX[k].memptr();
       for (uword i = 0; i < n_elem; ++i) {
-        const double dg = ggx_p[i] - gx_p[i];
-        const double d2 = dg - gx_p[i] + x[i];
-        vprod += dg * d2;
-        ssq += d2 * d2;
+        const double u1 = ggx_p[i] - gx_p[i];
+        const double u2 = gggx_p[i] - ggx_p[i];
+        const double v0 = u1 - gx_p[i] + x[i];  // GGX - 2*GX + X
+        const double v1 = u2 - u1;              // GGGX - 2*GGX + GX
+
+        v0v0 += v0 * v0;
+        v0v1 += v0 * v1;
+        v1v1 += v1 * v1;
+        v0u2 += v0 * u2;
+        v1u2 += v1 * u2;
       }
     }
 
     bool numconv = false;
-    if (ssq == 0.0) {
+    if (v0v0 + v1v1 < 1e-30) {
       numconv = true;
     } else {
-      const double coef = vprod / ssq;
-      for (uword k = 0; k < K - 1; ++k) {
-        const uword n_elem = alpha[k].n_elem;
-        double *__restrict__ x = alpha[k].memptr();
-        const double *__restrict__ gx_p = GX[k].memptr();
-        const double *__restrict__ ggx_p = GGX[k].memptr();
-        for (uword i = 0; i < n_elem; ++i) {
-          x[i] = ggx_p[i] - coef * (ggx_p[i] - gx_p[i]);
+      const double det = v0v0 * v1v1 - v0v1 * v0v1;
+
+      double g0, g1;
+      if (std::fabs(det) < 1e-14 * (v0v0 * v1v1 + 1e-30)) {
+        // Fall back to single-column (IT-style)
+        if (v0v0 < 1e-30) {
+          numconv = true;
+        } else {
+          g0 = 0.0;
+          g1 = -v0u2 / v0v0;
+        }
+      } else {
+        const double inv_det = 1.0 / det;
+        g0 = (-v0u2 * v1v1 + v1u2 * v0v1) * inv_det;
+        g1 = (-v1u2 * v0v0 + v0u2 * v0v1) * inv_det;
+      }
+
+      if (!numconv) {
+        // Apply extrapolation: alpha_k = GGGX_k + g0 * u1_k + g1 * u2_k
+        for (uword k = 0; k < K - 1; ++k) {
+          const uword n_elem = alpha[k].n_elem;
+          double *__restrict__ x = alpha[k].memptr();
+          const double *__restrict__ gx_p = GX[k].memptr();
+          const double *__restrict__ ggx_p = GGX[k].memptr();
+          const double *__restrict__ gggx_p = GGGX[k].memptr();
+          for (uword i = 0; i < n_elem; ++i) {
+            const double u1 = ggx_p[i] - gx_p[i];
+            const double u2 = gggx_p[i] - ggx_p[i];
+            x[i] = gggx_p[i] + g0 * u1 + g1 * u2;
+          }
         }
       }
     }
 
-    alpha[K - 1] = GGX[K - 1];
+    alpha[K - 1] = GGGX[K - 1];
 
     if (numconv)
       break;
