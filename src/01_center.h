@@ -5,8 +5,8 @@
 // 1. Stammann (default): Alternating projections with RRE-2 acceleration.
 //    Each iteration performs a full Gauss-Seidel sweep updating each FE
 //    dimension in sequence, then applies RRE-2 (Reduced Rank Extrapolation
-//    with 2 columns) acceleration using 4 iterates (X, GX, GGX, GGGX).
-//    This is based on Ramière-Helfer's "alternate 2-delta method" which uses
+//    with 2 columns) acceleration using 4 iterates (X, GX, G2X, G3X).
+//    This is based on Ramiere-Helfer's "alternate 2-delta method" which uses
 //    a third iteration to improve convergence vs. the simpler Irons-Tuck
 //    method.
 //
@@ -168,13 +168,13 @@ struct CenterWarmStart {
       return;
     }
     scratch_mats.resize(7);
-    scratch_mats[0].set_size(n1, p);  // GX
-    scratch_mats[1].set_size(n1, p);  // GGX
-    scratch_mats[2].set_size(n1, p);  // X_it
-    scratch_mats[3].zeros(n1, p);     // grand_Y
-    scratch_mats[4].zeros(n1, p);     // grand_GY
-    scratch_mats[5].zeros(n1, p);     // grand_GGY
-    scratch_mats[6].set_size(n1, p);  // GGGX
+    scratch_mats[0].set_size(n1, p); // GX
+    scratch_mats[1].set_size(n1, p); // G2X
+    scratch_mats[2].set_size(n1, p); // X_it
+    scratch_mats[3].zeros(n1, p);    // grand_Y
+    scratch_mats[4].zeros(n1, p);    // grand_GY
+    scratch_mats[5].zeros(n1, p);    // grand_GGY
+    scratch_mats[6].set_size(n1, p); // G3X
     scratch_beta.set_size(n2, p);
     scratch_n1 = n1;
     scratch_n2 = n2;
@@ -253,17 +253,22 @@ inline void gs_update_kfe(mat &alpha_k, const std::vector<mat> &alpha,
     fe_ptrs[j] = map.fe_map[j].data();
   }
 
+  // Pre-allocate column pointer storage outside parallel region
+  std::vector<std::vector<const double *>> all_alpha_cols(
+      P, std::vector<const double *>(K));
+  for (uword p = 0; p < P; ++p) {
+    for (uword j = 0; j < K; ++j) {
+      all_alpha_cols[p][j] = alpha[j].colptr(p);
+    }
+  }
+
 #ifdef _OPENMP
 #pragma omp parallel for schedule(static) if (P > 1)
 #endif
   for (uword p = 0; p < P; ++p) {
     double *__restrict__ ak_col = alpha_k.colptr(p);
     const double *__restrict__ io_col = in_out_k.colptr(p);
-
-    std::vector<const double *> alpha_cols(K);
-    for (uword j = 0; j < K; ++j) {
-      alpha_cols[j] = alpha[j].colptr(p);
-    }
+    const double *const *__restrict__ alpha_cols = all_alpha_cols[p].data();
 
     std::memcpy(ak_col, io_col, n_k * sizeof(double));
 
@@ -286,15 +291,15 @@ inline void gs_update_kfe(mat &alpha_k, const std::vector<mat> &alpha,
 // Irons-Tuck acceleration on coefficient vectors.
 // Returns true if numerically converged (ssq == 0).
 inline bool irons_tuck_acc(mat &X_coef, const mat &GX_coef,
-                           const mat &GGX_coef) {
+                           const mat &G2X_coef) {
   const uword n = X_coef.n_elem;
   double *__restrict__ x = X_coef.memptr();
   const double *__restrict__ gx = GX_coef.memptr();
-  const double *__restrict__ ggx = GGX_coef.memptr();
+  const double *__restrict__ G2X = G2X_coef.memptr();
 
   double vprod = 0.0, ssq = 0.0;
   for (uword i = 0; i < n; ++i) {
-    const double dg = ggx[i] - gx[i];
+    const double dg = G2X[i] - gx[i];
     const double d2 = dg - gx[i] + x[i];
     vprod += dg * d2;
     ssq += d2 * d2;
@@ -306,27 +311,27 @@ inline bool irons_tuck_acc(mat &X_coef, const mat &GX_coef,
 
   const double coef = vprod / ssq;
   for (uword i = 0; i < n; ++i) {
-    x[i] = ggx[i] - coef * (ggx[i] - gx[i]);
+    x[i] = G2X[i] - coef * (G2X[i] - gx[i]);
   }
   return false;
 }
 
-// RRE-2 acceleration using 4 iterates (Ramière-Helfer "alternate 2-delta method").
-// Uses X, G(X), G^2(X), G^3(X) to compute extrapolation with two columns of
-// second differences. Falls back to Irons-Tuck if the 2x2 system is singular.
-// Returns true if numerically converged.
-inline bool rre2_acc(mat &X_coef, const mat &GX_coef, const mat &GGX_coef,
-                     const mat &GGGX_coef) {
+// RRE-2 acceleration using 4 iterates (Ramiere-Helfer "alternate 2-delta
+// method"). Uses X, G(X), G^2(X), G^3(X) to compute extrapolation with two
+// columns of second differences. Falls back to Irons-Tuck if the 2x2 system is
+// singular. Returns true if numerically converged.
+inline bool rre2_acc(mat &X_coef, const mat &GX_coef, const mat &G2X_coef,
+                     const mat &G3X_coef) {
   const uword n = X_coef.n_elem;
   double *__restrict__ x = X_coef.memptr();
   const double *__restrict__ gx = GX_coef.memptr();
-  const double *__restrict__ ggx = GGX_coef.memptr();
-  const double *__restrict__ gggx = GGGX_coef.memptr();
+  const double *__restrict__ G2X = G2X_coef.memptr();
+  const double *__restrict__ G3X = G3X_coef.memptr();
 
   // Compute differences and second differences
-  // u0 = GX - X, u1 = GGX - GX, u2 = GGGX - GGX
-  // v0 = u1 - u0 = GGX - 2*GX + X
-  // v1 = u2 - u1 = GGGX - 2*GGX + GX
+  // u0 = GX - X, u1 = G2X - GX, u2 = G3X - G2X
+  // v0 = u1 - u0 = G2X - 2*GX + X
+  // v1 = u2 - u1 = G3X - 2*G2X + GX
 
   // Build the 2x2 Gram matrix: M = [<v0,v0>, <v0,v1>; <v0,v1>, <v1,v1>]
   // and right-hand side: b = -[<v0,u2>, <v1,u2>]
@@ -334,10 +339,10 @@ inline bool rre2_acc(mat &X_coef, const mat &GX_coef, const mat &GGX_coef,
   double v0u2 = 0.0, v1u2 = 0.0;
 
   for (uword i = 0; i < n; ++i) {
-    const double u1 = ggx[i] - gx[i];
-    const double u2 = gggx[i] - ggx[i];
-    const double v0 = u1 - gx[i] + x[i];       // GGX - 2*GX + X
-    const double v1 = u2 - u1;                 // GGGX - 2*GGX + GX
+    const double u1 = G2X[i] - gx[i];
+    const double u2 = G3X[i] - G2X[i];
+    const double v0 = u1 - gx[i] + x[i]; // G2X - 2*GX + X
+    const double v1 = u2 - u1;           // G3X - 2*G2X + GX
 
     v0v0 += v0 * v0;
     v0v1 += v0 * v1;
@@ -362,8 +367,8 @@ inline bool rre2_acc(mat &X_coef, const mat &GX_coef, const mat &GGX_coef,
     }
     const double coef = v0u2 / v0v0;
     for (uword i = 0; i < n; ++i) {
-      const double u2 = gggx[i] - ggx[i];
-      x[i] = gggx[i] - coef * u2;
+      const double u2 = G3X[i] - G2X[i];
+      x[i] = G3X[i] - coef * u2;
     }
     return false;
   }
@@ -373,11 +378,11 @@ inline bool rre2_acc(mat &X_coef, const mat &GX_coef, const mat &GGX_coef,
   const double g0 = (-v0u2 * v1v1 + v1u2 * v0v1) * inv_det;
   const double g1 = (-v1u2 * v0v0 + v0u2 * v0v1) * inv_det;
 
-  // Extrapolate: X_acc = GGGX + g0 * u1 + g1 * u2
+  // Extrapolate: X_acc = G3X + g0 * u1 + g1 * u2
   for (uword i = 0; i < n; ++i) {
-    const double u1 = ggx[i] - gx[i];
-    const double u2 = gggx[i] - ggx[i];
-    x[i] = gggx[i] + g0 * u1 + g1 * u2;
+    const double u1 = G2X[i] - gx[i];
+    const double u2 = G3X[i] - G2X[i];
+    x[i] = G3X[i] + g0 * u1 + g1 * u2;
   }
   return false;
 }
@@ -416,11 +421,15 @@ inline void center_2fe_stammann(mat &V, const vec &w, const FlatFEMap &map,
 
   mat X_it(n1, P);
   mat GX_it(n1, P);
-  mat GGX_it(n1, P);
-  mat GGGX_it(n1, P);
+  mat G2X_it(n1, P);
+  mat G3X_it(n1, P);
 
-  mat grand_Y(n1, P, fill::zeros);
-  mat grand_GY(n1, P, fill::zeros);
+  // Only allocate grand acceleration matrices if needed
+  mat grand_Y, grand_GY;
+  if (grand_acc_period > 0) {
+    grand_Y.zeros(n1, P);
+    grand_GY.zeros(n1, P);
+  }
   uword grand_stage = 0;
 
   constexpr uword iter_proj_after_acc = 40;
@@ -434,12 +443,12 @@ inline void center_2fe_stammann(mat &V, const vec &w, const FlatFEMap &map,
     GX_it = alpha1;
 
     gs_sweep();
-    GGX_it = alpha1;
+    G2X_it = alpha1;
 
     gs_sweep();
-    GGGX_it = alpha1;
+    G3X_it = alpha1;
 
-    bool numconv = rre2_acc(alpha1, GX_it, GGX_it, GGGX_it);
+    bool numconv = rre2_acc(alpha1, GX_it, G2X_it, G3X_it);
 
     gs_update_2fe(alpha2, alpha1, in_out[1], map.inv_weights[1], g1, g2, w_ptr,
                   n_obs, P);
@@ -557,11 +566,15 @@ inline void center_kfe_stammann(mat &V, const vec &w, const FlatFEMap &map,
   const uword total_elem0 = n0 * P;
   mat X_it(n0, P, fill::zeros);
   mat GX_it(n0, P, fill::zeros);
-  mat GGX_it(n0, P, fill::zeros);
-  mat GGGX_it(n0, P, fill::zeros);
+  mat G2X_it(n0, P, fill::zeros);
+  mat G3X_it(n0, P, fill::zeros);
 
-  mat grand_Y(n0, P, fill::zeros);
-  mat grand_GY(n0, P, fill::zeros);
+  // Only allocate grand acceleration matrices if needed
+  mat grand_Y, grand_GY;
+  if (grand_acc_period > 0) {
+    grand_Y.zeros(n0, P);
+    grand_GY.zeros(n0, P);
+  }
   uword grand_stage = 0;
 
   constexpr uword iter_proj_after_acc = 40;
@@ -575,12 +588,12 @@ inline void center_kfe_stammann(mat &V, const vec &w, const FlatFEMap &map,
     GX_it = alpha[0];
 
     gs_sweep();
-    GGX_it = alpha[0];
+    G2X_it = alpha[0];
 
     gs_sweep();
-    GGGX_it = alpha[0];
+    G3X_it = alpha[0];
 
-    bool numconv = rre2_acc(alpha[0], GX_it, GGX_it, GGGX_it);
+    bool numconv = rre2_acc(alpha[0], GX_it, G2X_it, G3X_it);
 
     if (iter >= iter_proj_after_acc) {
       gs_sweep();
@@ -623,9 +636,17 @@ inline void center_kfe_stammann(mat &V, const vec &w, const FlatFEMap &map,
 
     if (iter > 0 && iter % ssr_check_period == 0) {
       double ssr = 0.0;
-      std::vector<const uword *> map_ptrs(K);
+      std::vector<const uword *> ssr_map_ptrs(K);
       for (uword k = 0; k < K; ++k) {
-        map_ptrs[k] = map.fe_map[k].data();
+        ssr_map_ptrs[k] = map.fe_map[k].data();
+      }
+
+      // Pre-allocate alpha column pointers
+      std::vector<std::vector<const double *>> ssr_alpha_cols(
+          P, std::vector<const double *>(K));
+      for (uword p = 0; p < P; ++p) {
+        for (uword k = 0; k < K; ++k)
+          ssr_alpha_cols[p][k] = alpha[k].colptr(p);
       }
 
 #ifdef _OPENMP
@@ -633,13 +654,11 @@ inline void center_kfe_stammann(mat &V, const vec &w, const FlatFEMap &map,
 #endif
       for (uword p = 0; p < P; ++p) {
         const double *v_col = V.colptr(p);
-        std::vector<const double *> alpha_cols(K);
-        for (uword k = 0; k < K; ++k)
-          alpha_cols[k] = alpha[k].colptr(p);
+        const double *const *alpha_cols = ssr_alpha_cols[p].data();
         for (uword i = 0; i < n_obs; ++i) {
           double r = v_col[i];
           for (uword k = 0; k < K; ++k) {
-            r -= alpha_cols[k][map_ptrs[k][i]];
+            r -= alpha_cols[k][ssr_map_ptrs[k][i]];
           }
           ssr += w_ptr[i] * r * r;
         }
@@ -657,14 +676,20 @@ inline void center_kfe_stammann(mat &V, const vec &w, const FlatFEMap &map,
     map_ptrs[k] = map.fe_map[k].data();
   }
 
+  // Pre-allocate alpha column pointers for final subtraction
+  std::vector<std::vector<const double *>> final_alpha_cols(
+      P, std::vector<const double *>(K));
+  for (uword p = 0; p < P; ++p) {
+    for (uword k = 0; k < K; ++k)
+      final_alpha_cols[p][k] = alpha[k].colptr(p);
+  }
+
 #ifdef _OPENMP
 #pragma omp parallel for schedule(static) if (P > 1)
 #endif
   for (uword p = 0; p < P; ++p) {
     double *v_col = V.colptr(p);
-    std::vector<const double *> alpha_cols(K);
-    for (uword k = 0; k < K; ++k)
-      alpha_cols[k] = alpha[k].colptr(p);
+    const double *const *alpha_cols = final_alpha_cols[p].data();
     for (uword i = 0; i < n_obs; ++i) {
       double sum_a = 0.0;
       for (uword k = 0; k < K; ++k) {
@@ -695,19 +720,26 @@ inline void gs_sweep_backward_kfe(std::vector<mat> &alpha_dst,
     const uword *__restrict__ gq = fe_ptrs[q];
     const double *__restrict__ iw = map.inv_weights[q].memptr();
 
+    // Pre-allocate column pointers for this q level
+    // col_ptrs_all[p][h] = pointer to column p for FE h
+    std::vector<std::vector<const double *>> col_ptrs_all(
+        P, std::vector<const double *>(K));
+    for (uword p = 0; p < P; ++p) {
+      for (uword h = 0; h < K; ++h) {
+        if (h == q)
+          continue;
+        col_ptrs_all[p][h] =
+            (h < q) ? alpha_src[h].colptr(p) : alpha_dst[h].colptr(p);
+      }
+    }
+
 #ifdef _OPENMP
 #pragma omp parallel for schedule(static) if (P > 1)
 #endif
     for (uword p = 0; p < P; ++p) {
       double *__restrict__ dst_col = alpha_dst[q].colptr(p);
       const double *__restrict__ io_col = in_out[q].colptr(p);
-
-      std::vector<const double *> col_ptrs(K);
-      for (uword h = 0; h < K; ++h) {
-        if (h == q)
-          continue;
-        col_ptrs[h] = (h < q) ? alpha_src[h].colptr(p) : alpha_dst[h].colptr(p);
-      }
+      const double *const *__restrict__ col_ptrs = col_ptrs_all[p].data();
 
       std::memcpy(dst_col, io_col, n_q * sizeof(double));
 
@@ -798,12 +830,12 @@ inline void center_2fe_berge(mat &V, const vec &w, const FlatFEMap &map,
   warm.ensure_scratch_2fe(n1, n2, P);
   mat &beta_tmp = warm.scratch_beta;
   mat &GX = warm.scratch_mats[0];
-  mat &GGX = warm.scratch_mats[1];
+  mat &G2X = warm.scratch_mats[1];
   mat &X_it = warm.scratch_mats[2];
   mat &grand_Y = warm.scratch_mats[3];
   mat &grand_GY = warm.scratch_mats[4];
   mat &grand_GGY = warm.scratch_mats[5];
-  mat &GGGX = warm.scratch_mats[6];
+  mat &G3X = warm.scratch_mats[6];
   uword grand_stage = 0;
 
   constexpr uword iter_proj_after_acc = 40;
@@ -841,10 +873,10 @@ inline void center_2fe_berge(mat &V, const vec &w, const FlatFEMap &map,
   }
 
   for (uword iter = 0; iter < max_iter; ++iter) {
-    apply_F_2fe(GGX, beta_tmp, GX, in_out, map, w_ptr, n_obs, P);
-    apply_F_2fe(GGGX, beta_tmp, GGX, in_out, map, w_ptr, n_obs, P);
+    apply_F_2fe(G2X, beta_tmp, GX, in_out, map, w_ptr, n_obs, P);
+    apply_F_2fe(G3X, beta_tmp, G2X, in_out, map, w_ptr, n_obs, P);
 
-    bool numconv = rre2_acc(alpha, GX, GGX, GGGX);
+    bool numconv = rre2_acc(alpha, GX, G2X, G3X);
     if (numconv)
       break;
 
@@ -969,17 +1001,22 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
     }
   }
 
-  std::vector<mat> GX(K), GGX(K), GGGX(K);
+  std::vector<mat> GX(K), G2X(K), G3X(K);
   for (uword k = 0; k < K; ++k) {
     GX[k].zeros(map.n_groups[k], P);
-    GGX[k].zeros(map.n_groups[k], P);
-    GGGX[k].zeros(map.n_groups[k], P);
+    G2X[k].zeros(map.n_groups[k], P);
+    G3X[k].zeros(map.n_groups[k], P);
   }
 
-  std::vector<mat> grand_alpha_Y(K - 1), grand_alpha_GY(K - 1);
-  for (uword k = 0; k < K - 1; ++k) {
-    grand_alpha_Y[k].zeros(map.n_groups[k], P);
-    grand_alpha_GY[k].zeros(map.n_groups[k], P);
+  // Only allocate grand acceleration matrices if needed
+  std::vector<mat> grand_alpha_Y, grand_alpha_GY;
+  if (grand_acc_period > 0) {
+    grand_alpha_Y.resize(K - 1);
+    grand_alpha_GY.resize(K - 1);
+    for (uword k = 0; k < K - 1; ++k) {
+      grand_alpha_Y[k].zeros(map.n_groups[k], P);
+      grand_alpha_GY[k].zeros(map.n_groups[k], P);
+    }
   }
   uword grand_stage = 0;
 
@@ -1029,8 +1066,8 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
   }
 
   for (uword iter = 0; iter < max_iter; ++iter) {
-    gs_sweep_backward_kfe(GGX, GX, in_out, map, w_ptr, n_obs, P);
-    gs_sweep_backward_kfe(GGGX, GGX, in_out, map, w_ptr, n_obs, P);
+    gs_sweep_backward_kfe(G2X, GX, in_out, map, w_ptr, n_obs, P);
+    gs_sweep_backward_kfe(G3X, G2X, in_out, map, w_ptr, n_obs, P);
 
     // RRE-2 acceleration across all K-1 FEs jointly
     // Build the 2x2 Gram matrix and RHS across all elements
@@ -1041,13 +1078,13 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
       const uword n_elem = alpha[k].n_elem;
       const double *__restrict__ x = alpha[k].memptr();
       const double *__restrict__ gx_p = GX[k].memptr();
-      const double *__restrict__ ggx_p = GGX[k].memptr();
-      const double *__restrict__ gggx_p = GGGX[k].memptr();
+      const double *__restrict__ G2X_p = G2X[k].memptr();
+      const double *__restrict__ G3X_p = G3X[k].memptr();
       for (uword i = 0; i < n_elem; ++i) {
-        const double u1 = ggx_p[i] - gx_p[i];
-        const double u2 = gggx_p[i] - ggx_p[i];
-        const double v0 = u1 - gx_p[i] + x[i];  // GGX - 2*GX + X
-        const double v1 = u2 - u1;              // GGGX - 2*GGX + GX
+        const double u1 = G2X_p[i] - gx_p[i];
+        const double u2 = G3X_p[i] - G2X_p[i];
+        const double v0 = u1 - gx_p[i] + x[i]; // G2X - 2*GX + X
+        const double v1 = u2 - u1;             // G3X - 2*G2X + GX
 
         v0v0 += v0 * v0;
         v0v1 += v0 * v1;
@@ -1079,23 +1116,23 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
       }
 
       if (!numconv) {
-        // Apply extrapolation: alpha_k = GGGX_k + g0 * u1_k + g1 * u2_k
+        // Apply extrapolation: alpha_k = G3X_k + g0 * u1_k + g1 * u2_k
         for (uword k = 0; k < K - 1; ++k) {
           const uword n_elem = alpha[k].n_elem;
           double *__restrict__ x = alpha[k].memptr();
           const double *__restrict__ gx_p = GX[k].memptr();
-          const double *__restrict__ ggx_p = GGX[k].memptr();
-          const double *__restrict__ gggx_p = GGGX[k].memptr();
+          const double *__restrict__ G2X_p = G2X[k].memptr();
+          const double *__restrict__ G3X_p = G3X[k].memptr();
           for (uword i = 0; i < n_elem; ++i) {
-            const double u1 = ggx_p[i] - gx_p[i];
-            const double u2 = gggx_p[i] - ggx_p[i];
-            x[i] = gggx_p[i] + g0 * u1 + g1 * u2;
+            const double u1 = G2X_p[i] - gx_p[i];
+            const double u2 = G3X_p[i] - G2X_p[i];
+            x[i] = G3X_p[i] + g0 * u1 + g1 * u2;
           }
         }
       }
     }
 
-    alpha[K - 1] = GGGX[K - 1];
+    alpha[K - 1] = G3X[K - 1];
 
     if (numconv)
       break;
@@ -1182,14 +1219,20 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
       for (uword k = 0; k < K; ++k)
         mp[k] = map.fe_map[k].data();
 
+      // Pre-allocate GX column pointers
+      std::vector<std::vector<const double *>> all_gx_cols(
+          P, std::vector<const double *>(K));
+      for (uword p = 0; p < P; ++p) {
+        for (uword k = 0; k < K; ++k)
+          all_gx_cols[p][k] = GX[k].colptr(p);
+      }
+
 #ifdef _OPENMP
 #pragma omp parallel for schedule(static) reduction(+ : ssr) if (P > 1)
 #endif
       for (uword p = 0; p < P; ++p) {
         const double *v_col = V.colptr(p);
-        std::vector<const double *> gx_cols(K);
-        for (uword k = 0; k < K; ++k)
-          gx_cols[k] = GX[k].colptr(p);
+        const double *const *gx_cols = all_gx_cols[p].data();
         for (uword i = 0; i < n_obs; ++i) {
           double r = v_col[i];
           for (uword k = 0; k < K; ++k) {
@@ -1215,14 +1258,20 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
     map_ptrs[k] = map.fe_map[k].data();
   }
 
+  // Pre-allocate alpha column pointers for final subtraction
+  std::vector<std::vector<const double *>> final_alpha_cols(
+      P, std::vector<const double *>(K));
+  for (uword p = 0; p < P; ++p) {
+    for (uword k = 0; k < K; ++k)
+      final_alpha_cols[p][k] = alpha[k].colptr(p);
+  }
+
 #ifdef _OPENMP
 #pragma omp parallel for schedule(static) if (P > 1)
 #endif
   for (uword p = 0; p < P; ++p) {
     double *v_col = V.colptr(p);
-    std::vector<const double *> alpha_cols(K);
-    for (uword k = 0; k < K; ++k)
-      alpha_cols[k] = alpha[k].colptr(p);
+    const double *const *alpha_cols = final_alpha_cols[p].data();
     for (uword i = 0; i < n_obs; ++i) {
       double sum_a = 0.0;
       for (uword k = 0; k < K; ++k) {
