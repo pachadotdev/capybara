@@ -143,19 +143,14 @@ InferenceGLM feglm_fit(
 #endif
 
   const uword n = y.n_elem;
-  const uword p_original = X.n_cols;
   const bool has_fixed_effects = fe_map.K > 0;
   const bool has_offset =
       (offset != nullptr && offset->n_elem == n && any(*offset != 0.0));
 
-  // Add intercept column if no fixed effects
+  // Add intercept column if no fixed effects (in-place to avoid allocation)
   if (!has_fixed_effects) {
-    mat X_with_intercept(n, p_original + 1);
-    X_with_intercept.col(0).ones();
-    if (p_original > 0) {
-      X_with_intercept.cols(1, p_original) = X;
-    }
-    X = std::move(X_with_intercept);
+    X.insert_cols(0, 1);
+    X.col(0).ones();
     beta = join_cols(vec{0.0}, beta);
   }
 
@@ -768,8 +763,9 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
   const MuFromEtaFn mu_ = get_mu_fn(family_type);
   const OffsetWwYadjFn ww_yadj_ = get_offset_ww_yadj_fn(family_type);
 
-  // Working buffers
-  vec mu(n), w_working(n), yadj(n), eta0(n);
+  // Working buffers (fill::none for buffers immediately overwritten)
+  vec mu(n, fill::none), w_working(n, fill::none), yadj(n, fill::none),
+      eta0(n, fill::none);
   vec Myadj(n, fill::zeros);
 
   // Initial mu

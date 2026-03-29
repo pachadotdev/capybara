@@ -617,22 +617,30 @@ inline SeparationResult check_separation(const vec &y, const mat &X,
     return result;
   }
 
-  // Partial out: center X on y > 0
-  mat X_centered = X;
+  // Compute centering vector (weighted mean of X on interior samples)
+  // Avoid full N×P copy when possible
+  vec center_vec;
+  bool needs_centering = false;
   if (X.n_cols > 0) {
     vec w_interior = w;
     w_interior.elem(boundary_sample).zeros();
     const double sum_w = accu(w_interior);
 
     if (sum_w > 0) {
-      X_centered.each_row() -= (X.t() * w_interior).t() / sum_w;
+      center_vec = (X.t() * w_interior) / sum_w;
+      needs_centering = true;
     }
   }
 
-  // Simplex
-  if (params.sep_use_simplex && X_centered.n_cols > 0) {
+  // Simplex: only create centered submatrix for boundary rows (much smaller)
+  if (params.sep_use_simplex && X.n_cols > 0) {
+    mat X_boundary = X.rows(boundary_sample);
+    if (needs_centering) {
+      X_boundary.each_row() -= center_vec.t();
+    }
+
     SeparationResult simplex_result =
-        detect_separation_simplex(X_centered.rows(boundary_sample), params);
+        detect_separation_simplex(X_boundary, params);
 
     if (simplex_result.num_separated > 0) {
       result.separated_obs = boundary_sample.elem(simplex_result.separated_obs);
@@ -640,10 +648,17 @@ inline SeparationResult check_separation(const vec &y, const mat &X,
     }
   }
 
-  // ReLU
+  // ReLU: create full centered matrix only if ReLU is enabled
   if (params.sep_use_relu) {
+    mat X_centered;
+    if (needs_centering) {
+      X_centered = X;
+      X_centered.each_row() -= center_vec.t();
+    }
+    const mat &X_for_relu = needs_centering ? X_centered : X;
+
     SeparationResult relu_result =
-        detect_separation_relu(y, X_centered, w, params);
+        detect_separation_relu(y, X_for_relu, w, params);
 
     if (relu_result.num_separated > 0) {
       if (result.num_separated > 0) {

@@ -34,16 +34,12 @@ struct InferenceGLM {
   vec separation_support;
 
   InferenceGLM(uword n, uword p)
-      : coef_table(p, 4), eta(n), fitted_values(n), weights(n, fill::ones),
-        hessian(p, p), vcov(p, p), deviance(0.0), null_deviance(0.0),
-        conv(false), iter(0), coef_status(p, fill::ones), pseudo_rsq(0.0),
-        has_fe(false), has_tx(false), has_separation(false), num_separated(0) {
-    coef_table.zeros();
-    eta.zeros();
-    fitted_values.zeros();
-    hessian.zeros();
-    vcov.zeros();
-  }
+      : coef_table(p, 4, fill::zeros), eta(n, fill::zeros),
+        fitted_values(n, fill::zeros), weights(n, fill::ones),
+        hessian(p, p, fill::zeros), vcov(p, p, fill::zeros), deviance(0.0),
+        null_deviance(0.0), conv(false), iter(0), coef_status(p, fill::ones),
+        pseudo_rsq(0.0), has_fe(false), has_tx(false), has_separation(false),
+        num_separated(0) {}
 };
 
 enum Family {
@@ -505,13 +501,19 @@ inline mat sandwich_vcov_hetero_(const mat &MX, const vec &resid,
   }
 
   // Meat: sum_i e_i^2 * x_i x_i'
-  // accumulated column-by-column to stay cache-friendly
+  // Direct rank-1 updates without temporaries (column-major access pattern)
   mat meat(p, p, fill::zeros);
+  const double *resid_ptr = resid.memptr();
   for (uword i = 0; i < n; ++i) {
-    const double ei2 = resid(i) * resid(i);
-    const rowvec xi = MX.row(i);
-    meat += ei2 * xi.t() * xi;
+    const double ei2 = resid_ptr[i] * resid_ptr[i];
+    for (uword j = 0; j < p; ++j) {
+      const double xij_ei2 = MX(i, j) * ei2;
+      for (uword k = j; k < p; ++k) {
+        meat(j, k) += xij_ei2 * MX(i, k);
+      }
+    }
   }
+  meat = symmatu(meat);
 
   return H_inv * meat * H_inv;
 }
