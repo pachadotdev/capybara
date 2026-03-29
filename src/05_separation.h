@@ -128,16 +128,17 @@ detect_separation_relu_fe(const vec &y, const mat &X, const vec &w,
     local_fe_map.update_weights(weights);
   }
 
-  // Reusable buffers
+  // Reusable buffers - allocate once, reuse across iterations
   vec u_centered(n), resid(n);
-  mat X_centered;
+  mat X_centered(arma::size(X));
 
   for (uword iter = 0; iter < params.sep_max_iter; ++iter) {
     if (iter % 100 == 0)
       check_user_interrupt();
 
     u_centered = u;
-    X_centered = X;
+    // Copy X into pre-allocated buffer instead of reallocating
+    std::memcpy(X_centered.memptr(), X.memptr(), X.n_elem * sizeof(double));
 
     if (has_fe) {
       center_variables(u_centered, weights, local_fe_map, params.center_tol,

@@ -56,10 +56,13 @@ struct FelmWorkspace {
   std::unique_ptr<InferenceLM> glm_result;
 
   uword cached_N, cached_P;
+  bool x_original_allocated;
 
-  FelmWorkspace() : fe_map_initialized(false), cached_N(0), cached_P(0) {}
+  FelmWorkspace()
+      : fe_map_initialized(false), cached_N(0), cached_P(0),
+        x_original_allocated(false) {}
 
-  void ensure_size(uword N, uword P) {
+  void ensure_size(uword N, uword P, bool need_x_original = true) {
     if (N != cached_N || P != cached_P) {
       // Allocate one contiguous block: [y (N doubles) | X (N*P doubles)]
       center_buf.resize(N * (P + 1));
@@ -73,11 +76,17 @@ struct FelmWorkspace {
 
       cached_N = N;
       cached_P = P;
+      x_original_allocated = false;
     }
     x_beta.set_size(N);
     pi.set_size(N);
     y_original.set_size(N);
-    X_original.set_size(N, P);
+
+    // Only allocate X_original when needed (standalone felm, not IRLS inner)
+    if (need_x_original && !x_original_allocated) {
+      X_original.set_size(N, P);
+      x_original_allocated = true;
+    }
   }
 
   // Build FE map structure once; only update weights on subsequent calls
@@ -246,7 +255,8 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
 
   FelmWorkspace local_workspace;
   FelmWorkspace *ws = workspace ? workspace : &local_workspace;
-  ws->ensure_size(N, P);
+  // Only allocate X_original for standalone felm calls (not IRLS inner loop)
+  ws->ensure_size(N, P, !run_from_glm);
 
   // Reuse or create result object.
   // In the IRLS path (run_from_glm=true) the workspace keeps a persistent
@@ -477,25 +487,16 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
                                          *entity1_groups, *entity2_groups);
   } else if (params.vcov_type == "m-estimator-dyadic" &&
              entity1_groups != nullptr && entity2_groups != nullptr) {
-    // Dyadic-robust (Cameron & Miller 2014): does not require cluster_groups
-    // Score_i = (y_i - fitted_i) * X_i  (OLS M-estimator score)
+    // Dyadic-robust: memory-efficient overload computes scores on-the-fly
     const vec resid = ws->y_original - result.fitted_values;
-    mat scores(ws->X_centered.n_rows, ws->X_centered.n_cols);
-    for (uword i = 0; i < ws->X_centered.n_rows; ++i) {
-      scores.row(i) = resid(i) * ws->X_centered.row(i);
-    }
     vcov_reduced = sandwich_vcov_mestimator_dyadic_(
-        result.hessian, scores, *entity1_groups, *entity2_groups);
+        result.hessian, ws->X_centered, resid, *entity1_groups, *entity2_groups);
   } else if (cluster_groups != nullptr && cluster_groups->n_elem > 0) {
     if (params.vcov_type == "m-estimator") {
-      // For standard M-estimator clustering
+      // Memory-efficient: computes scores on-the-fly
       const vec resid = ws->y_original - result.fitted_values;
-      mat scores(ws->X_centered.n_rows, ws->X_centered.n_cols);
-      for (uword i = 0; i < ws->X_centered.n_rows; ++i) {
-        scores.row(i) = resid(i) * ws->X_centered.row(i);
-      }
-      vcov_reduced =
-          sandwich_vcov_mestimator_(result.hessian, scores, *cluster_groups);
+      vcov_reduced = sandwich_vcov_mestimator_(result.hessian, ws->X_centered,
+                                               resid, *cluster_groups);
     } else {
       vcov_reduced =
           sandwich_vcov_(ws->X_centered, ws->y_original, result.fitted_values,

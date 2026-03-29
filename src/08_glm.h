@@ -315,10 +315,8 @@ InferenceGLM feglm_fit(
   mu_(mu, eta);
 
   // Deviance computations
-  const double y_mean_scalar = mean(y);
-  const vec ymean(n, fill::value(y_mean_scalar));
   double dev = dev_resids(y, mu, theta, w, family_type);
-  const double null_dev = dev_resids(y, ymean, theta, w, family_type);
+  const double null_dev = null_deviance(y, theta, w, family_type);
 
   double dev0;
   bool conv = false;
@@ -341,8 +339,9 @@ InferenceGLM feglm_fit(
   // Persistent felm workspace
   FelmWorkspace felm_workspace;
 
-  // Copy X before shed_cols for FE recovery later
-  const mat X0 = run_from_negbin ? mat() : mat(X);
+  // NOTE: We no longer copy X0 here. After shed_cols, X contains exactly
+  // the non-collinear columns. For FE recovery, we use X directly with
+  // beta.elem(non_collinear_cols) which matches the post-shed column structure.
 
 #ifdef CAPYBARA_DEBUG
   cpp4r::message("/// Begin GLM iterations...\n");
@@ -576,12 +575,13 @@ InferenceGLM feglm_fit(
 
     if (has_fixed_effects) {
       // Compute pi = eta - X*beta - offset for FE recovery
+      // X has been shed of collinear columns, so its columns match the
+      // non-collinear indices. Extract matching beta elements.
       vec x_beta;
       if (collin_result.has_collinearity) {
-        x_beta = X0.cols(collin_result.non_collinear_cols) *
-                 beta.elem(collin_result.non_collinear_cols);
+        x_beta = X * beta.elem(collin_result.non_collinear_cols);
       } else {
-        x_beta = X0 * beta;
+        x_beta = X * beta;
       }
 
       vec pi = eta - x_beta;
@@ -617,24 +617,17 @@ InferenceGLM feglm_fit(
           sandwich_vcov_twoway_(MX, y, mu, H, *entity1_groups, *entity2_groups);
     } else if (params.vcov_type == "m-estimator-dyadic" &&
                entity1_groups != nullptr && entity2_groups != nullptr) {
-      // Dyadic-robust (Cameron & Miller 2014): does not require cluster_groups
-      // Score_i = (y_i - mu_i) * MX_i  (GLM M-estimator score)
+      // Dyadic-robust (Cameron & Miller 2014): uses memory-efficient overload
+      // that computes scores on-the-fly without N×P allocation
       const vec resid = y - mu;
-      mat scores(MX.n_rows, MX.n_cols);
-      for (uword i = 0; i < MX.n_rows; ++i) {
-        scores.row(i) = resid(i) * MX.row(i);
-      }
-      result.vcov = sandwich_vcov_mestimator_dyadic_(H, scores, *entity1_groups,
+      result.vcov = sandwich_vcov_mestimator_dyadic_(H, MX, resid,
+                                                     *entity1_groups,
                                                      *entity2_groups);
     } else if (cluster_groups != nullptr && cluster_groups->n_elem > 0) {
       if (params.vcov_type == "m-estimator") {
-        // For standard M-estimator clustering
+        // Memory-efficient: computes scores on-the-fly
         const vec resid = y - mu;
-        mat scores(MX.n_rows, MX.n_cols);
-        for (uword i = 0; i < MX.n_rows; ++i) {
-          scores.row(i) = resid(i) * MX.row(i);
-        }
-        result.vcov = sandwich_vcov_mestimator_(H, scores, *cluster_groups);
+        result.vcov = sandwich_vcov_mestimator_(H, MX, resid, *cluster_groups);
       } else {
         result.vcov = sandwich_vcov_(MX, y, mu, H, *cluster_groups);
       }

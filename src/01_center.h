@@ -140,7 +140,9 @@ struct CenterWarmStart {
 
   CenterWarmStart()
       : K(0), P(0), valid(false), scratch_valid(false), scratch_n1(0),
-        scratch_n2(0) {}
+        scratch_n2(0), stammann_2fe_valid(false), stammann_2fe_n1(0),
+        stammann_2fe_p(0), stammann_kfe_valid(false), stammann_kfe_n0(0),
+        stammann_kfe_p(0) {}
 
   void save(const std::vector<mat> &coeffs, uword n_fe, uword n_cols) {
     K = n_fe;
@@ -158,6 +160,7 @@ struct CenterWarmStart {
     return true;
   }
 
+  // For Berge 2-FE: reuse scratch matrices across calls
   void ensure_scratch_2fe(uword n1, uword n2, uword p) {
     if (scratch_valid && scratch_n1 == n1 && scratch_n2 == n2 &&
         scratch_mats.size() >= 7 && scratch_mats[0].n_cols == p) {
@@ -179,6 +182,58 @@ struct CenterWarmStart {
     scratch_n1 = n1;
     scratch_n2 = n2;
     scratch_valid = true;
+  }
+
+  // Persistent storage for Stammann 2-FE scratch matrices
+  std::vector<mat> stammann_2fe_scratch; // X_it, GX_it, G2X_it, G3X_it
+  mat stammann_2fe_grand_Y, stammann_2fe_grand_GY;
+  bool stammann_2fe_valid;
+  uword stammann_2fe_n1, stammann_2fe_p;
+
+  // For Stammann 2-FE: reuse scratch matrices across calls
+  void ensure_scratch_stammann_2fe(uword n1, uword p) {
+    if (stammann_2fe_valid && stammann_2fe_n1 == n1 && stammann_2fe_p == p) {
+      // Reset grand acceleration matrices (they accumulate state)
+      stammann_2fe_grand_Y.zeros();
+      stammann_2fe_grand_GY.zeros();
+      return;
+    }
+    stammann_2fe_scratch.resize(4);
+    stammann_2fe_scratch[0].set_size(n1, p); // X_it
+    stammann_2fe_scratch[1].set_size(n1, p); // GX_it
+    stammann_2fe_scratch[2].set_size(n1, p); // G2X_it
+    stammann_2fe_scratch[3].set_size(n1, p); // G3X_it
+    stammann_2fe_grand_Y.zeros(n1, p);
+    stammann_2fe_grand_GY.zeros(n1, p);
+    stammann_2fe_n1 = n1;
+    stammann_2fe_p = p;
+    stammann_2fe_valid = true;
+  }
+
+  // Persistent storage for Stammann K-FE scratch matrices
+  std::vector<mat> stammann_kfe_scratch; // X_it, GX_it, G2X_it, G3X_it
+  mat stammann_kfe_grand_Y, stammann_kfe_grand_GY;
+  bool stammann_kfe_valid;
+  uword stammann_kfe_n0, stammann_kfe_p;
+
+  // For Stammann K-FE: reuse scratch matrices across calls
+  void ensure_scratch_stammann_kfe(uword n0, uword p) {
+    if (stammann_kfe_valid && stammann_kfe_n0 == n0 && stammann_kfe_p == p) {
+      // Reset grand acceleration matrices
+      stammann_kfe_grand_Y.zeros();
+      stammann_kfe_grand_GY.zeros();
+      return;
+    }
+    stammann_kfe_scratch.resize(4);
+    stammann_kfe_scratch[0].zeros(n0, p); // X_it
+    stammann_kfe_scratch[1].zeros(n0, p); // GX_it
+    stammann_kfe_scratch[2].zeros(n0, p); // G2X_it
+    stammann_kfe_scratch[3].zeros(n0, p); // G3X_it
+    stammann_kfe_grand_Y.zeros(n0, p);
+    stammann_kfe_grand_GY.zeros(n0, p);
+    stammann_kfe_n0 = n0;
+    stammann_kfe_p = p;
+    stammann_kfe_valid = true;
   }
 };
 
@@ -419,17 +474,14 @@ inline void center_2fe_stammann(mat &V, const vec &w, const FlatFEMap &map,
                   n_obs, P);
   };
 
-  mat X_it(n1, P);
-  mat GX_it(n1, P);
-  mat G2X_it(n1, P);
-  mat G3X_it(n1, P);
-
-  // Only allocate grand acceleration matrices if needed
-  mat grand_Y, grand_GY;
-  if (grand_acc_period > 0) {
-    grand_Y.zeros(n1, P);
-    grand_GY.zeros(n1, P);
-  }
+  // Use warm-start scratch buffers to avoid repeated allocations
+  warm.ensure_scratch_stammann_2fe(n1, P);
+  mat &X_it = warm.stammann_2fe_scratch[0];
+  mat &GX_it = warm.stammann_2fe_scratch[1];
+  mat &G2X_it = warm.stammann_2fe_scratch[2];
+  mat &G3X_it = warm.stammann_2fe_scratch[3];
+  mat &grand_Y = warm.stammann_2fe_grand_Y;
+  mat &grand_GY = warm.stammann_2fe_grand_GY;
   uword grand_stage = 0;
 
   constexpr uword iter_proj_after_acc = 40;
@@ -564,17 +616,15 @@ inline void center_kfe_stammann(mat &V, const vec &w, const FlatFEMap &map,
 
   const uword n0 = map.n_groups[0];
   const uword total_elem0 = n0 * P;
-  mat X_it(n0, P, fill::zeros);
-  mat GX_it(n0, P, fill::zeros);
-  mat G2X_it(n0, P, fill::zeros);
-  mat G3X_it(n0, P, fill::zeros);
 
-  // Only allocate grand acceleration matrices if needed
-  mat grand_Y, grand_GY;
-  if (grand_acc_period > 0) {
-    grand_Y.zeros(n0, P);
-    grand_GY.zeros(n0, P);
-  }
+  // Use warm-start scratch buffers to avoid repeated allocations
+  warm.ensure_scratch_stammann_kfe(n0, P);
+  mat &X_it = warm.stammann_kfe_scratch[0];
+  mat &GX_it = warm.stammann_kfe_scratch[1];
+  mat &G2X_it = warm.stammann_kfe_scratch[2];
+  mat &G3X_it = warm.stammann_kfe_scratch[3];
+  mat &grand_Y = warm.stammann_kfe_grand_Y;
+  mat &grand_GY = warm.stammann_kfe_grand_GY;
   uword grand_stage = 0;
 
   constexpr uword iter_proj_after_acc = 40;

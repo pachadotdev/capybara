@@ -112,52 +112,62 @@ Family get_family_type(const std::string &fam) {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Deviance residuals - optimized with fused operations
+// Deviance residuals - templated for both scalar and vector mu
 ///////////////////////////////////////////////////////////////////////////
 
-inline double dev_resids_gaussian(const vec &y, const vec &mu, const vec &wt) {
+// Helper to get mu[i] - works for both scalar (returns mu) and vector (returns mu[i])
+template <typename MuType>
+inline double get_mu_i(const MuType &mu, uword i) {
+  if constexpr (std::is_arithmetic_v<MuType>) {
+    (void)i; // suppress unused warning
+    return mu;
+  } else {
+    return mu(i);
+  }
+}
+
+template <typename MuType>
+inline double dev_resids_gaussian(const vec &y, const MuType &mu,
+                                  const vec &wt) {
   const uword n = y.n_elem;
   const double *y_ptr = y.memptr();
-  const double *mu_ptr = mu.memptr();
   const double *wt_ptr = wt.memptr();
 
   double sum = 0.0;
   for (uword i = 0; i < n; ++i) {
-    double diff = y_ptr[i] - mu_ptr[i];
+    double diff = y_ptr[i] - get_mu_i(mu, i);
     sum += wt_ptr[i] * diff * diff;
   }
   return sum;
 }
 
-inline double dev_resids_poisson(const vec &y, const vec &mu, const vec &wt) {
-  // 2 * sum(wt * (y * log(max(y,1)/mu) - (y - mu)))
+template <typename MuType>
+inline double dev_resids_poisson(const vec &y, const MuType &mu,
+                                 const vec &wt) {
   const uword n = y.n_elem;
   const double *y_ptr = y.memptr();
-  const double *mu_ptr = mu.memptr();
   const double *wt_ptr = wt.memptr();
 
   double sum = 0.0;
   for (uword i = 0; i < n; ++i) {
     double yi = y_ptr[i];
-    double mui = mu_ptr[i];
+    double mui = get_mu_i(mu, i);
     double y_clamped = (yi < 1.0) ? 1.0 : yi;
     sum += wt_ptr[i] * (yi * std::log(y_clamped / mui) - (yi - mui));
   }
   return 2.0 * sum;
 }
 
-inline double dev_resids_logit(const vec &y, const vec &mu, const vec &wt) {
-  // 2 * sum(wt * (y*log(y/mu) + (1-y)*log((1-y)/(1-mu))))
+template <typename MuType>
+inline double dev_resids_logit(const vec &y, const MuType &mu, const vec &wt) {
   const uword n = y.n_elem;
   const double *y_ptr = y.memptr();
-  const double *mu_ptr = mu.memptr();
   const double *wt_ptr = wt.memptr();
 
   double sum = 0.0;
   for (uword i = 0; i < n; ++i) {
     double yi = y_ptr[i];
-    double mui = mu_ptr[i];
-    // Clamp y to avoid log(0)
+    double mui = get_mu_i(mu, i);
     double y_safe = (yi < datum::eps)
                         ? datum::eps
                         : ((yi > 1.0 - datum::eps) ? 1.0 - datum::eps : yi);
@@ -167,16 +177,16 @@ inline double dev_resids_logit(const vec &y, const vec &mu, const vec &wt) {
   return 2.0 * sum;
 }
 
-inline double dev_resids_gamma(const vec &y, const vec &mu, const vec &wt) {
+template <typename MuType>
+inline double dev_resids_gamma(const vec &y, const MuType &mu, const vec &wt) {
   const uword n = y.n_elem;
   const double *y_ptr = y.memptr();
-  const double *mu_ptr = mu.memptr();
   const double *wt_ptr = wt.memptr();
 
   double sum = 0.0;
   for (uword i = 0; i < n; ++i) {
     double yi = y_ptr[i];
-    double mui = mu_ptr[i];
+    double mui = get_mu_i(mu, i);
     double ratio = yi / mui;
     double ratio_clamped = (ratio < datum::eps) ? datum::eps : ratio;
     sum += wt_ptr[i] * (std::log(ratio_clamped) - (yi - mui) / mui);
@@ -184,40 +194,73 @@ inline double dev_resids_gamma(const vec &y, const vec &mu, const vec &wt) {
   return -2.0 * sum;
 }
 
-inline double dev_resids_invgaussian(const vec &y, const vec &mu,
+template <typename MuType>
+inline double dev_resids_invgaussian(const vec &y, const MuType &mu,
                                      const vec &wt) {
   const uword n = y.n_elem;
   const double *y_ptr = y.memptr();
-  const double *mu_ptr = mu.memptr();
   const double *wt_ptr = wt.memptr();
 
   double sum = 0.0;
   for (uword i = 0; i < n; ++i) {
     double yi = y_ptr[i];
-    double mui = mu_ptr[i];
+    double mui = get_mu_i(mu, i);
     double diff = yi - mui;
     sum += wt_ptr[i] * (diff * diff) / (yi * mui * mui);
   }
   return sum;
 }
 
-inline double dev_resids_negbin(const vec &y, const vec &mu,
+template <typename MuType>
+inline double dev_resids_negbin(const vec &y, const MuType &mu,
                                 const double &theta, const vec &wt) {
   const uword n = y.n_elem;
   const double *y_ptr = y.memptr();
-  const double *mu_ptr = mu.memptr();
   const double *wt_ptr = wt.memptr();
 
   double sum = 0.0;
   for (uword i = 0; i < n; ++i) {
     double yi = y_ptr[i];
-    double mui = mu_ptr[i];
+    double mui = get_mu_i(mu, i);
     double y_clamped = (yi < 1.0) ? 1.0 : yi;
     double y_theta = yi + theta;
     sum += wt_ptr[i] * (yi * std::log(y_clamped / mui) -
                         y_theta * std::log(y_theta / (mui + theta)));
   }
   return 2.0 * sum;
+}
+
+template <typename MuType>
+inline double dev_resids_(const vec &y, const MuType &mu, const double &theta,
+                          const vec &wt, const Family family_type) {
+  switch (family_type) {
+  case GAUSSIAN:
+    return dev_resids_gaussian(y, mu, wt);
+  case POISSON:
+    return dev_resids_poisson(y, mu, wt);
+  case BINOMIAL:
+    return dev_resids_logit(y, mu, wt);
+  case GAMMA:
+    return dev_resids_gamma(y, mu, wt);
+  case INV_GAUSSIAN:
+    return dev_resids_invgaussian(y, mu, wt);
+  case NEG_BIN:
+    return dev_resids_negbin(y, mu, theta, wt);
+  default:
+    stop("Unknown family");
+  }
+  return 0.0;
+}
+
+// Convenience wrappers for the two common cases
+inline double null_deviance(const vec &y, const double &theta, const vec &wt,
+                            const Family family_type) {
+  return dev_resids_(y, mean(y), theta, wt, family_type);
+}
+
+inline double dev_resids(const vec &y, const vec &mu, const double &theta,
+                         const vec &wt, const Family family_type) {
+  return dev_resids_(y, mu, theta, wt, family_type);
 }
 
 inline vec link_inv(const vec &eta, const Family family_type) {
@@ -237,27 +280,6 @@ inline vec link_inv(const vec &eta, const Family family_type) {
     stop("Unknown family");
   }
   return eta;
-}
-
-inline double dev_resids(const vec &y, const vec &mu, const double &theta,
-                         const vec &wt, const Family family_type) {
-  switch (family_type) {
-  case GAUSSIAN:
-    return dev_resids_gaussian(y, mu, wt);
-  case POISSON:
-    return dev_resids_poisson(y, mu, wt);
-  case BINOMIAL:
-    return dev_resids_logit(y, mu, wt);
-  case GAMMA:
-    return dev_resids_gamma(y, mu, wt);
-  case INV_GAUSSIAN:
-    return dev_resids_invgaussian(y, mu, wt);
-  case NEG_BIN:
-    return dev_resids_negbin(y, mu, theta, wt);
-  default:
-    stop("Unknown family");
-  }
-  return 0.0;
 }
 
 inline bool valid_eta(const vec &eta, const Family family_type) {
@@ -597,6 +619,51 @@ inline mat sandwich_vcov_mestimator_(const mat &A, const mat &scores,
   return (adj * A_inv) * B * A_inv;
 }
 
+// Memory-efficient overload: computes scores on-the-fly from MX and resid
+// Avoids N*P scores matrix allocation when score_i = resid_i * MX_i
+inline mat sandwich_vcov_mestimator_(const mat &A, const mat &MX,
+                                     const vec &resid,
+                                     const field<uvec> &cluster_groups) {
+  const uword p = A.n_cols;
+  const uword G = cluster_groups.n_elem;
+
+  mat A_inv;
+  if (!inv_sympd(A_inv, A)) {
+    if (!inv(A_inv, A)) {
+      return mat(p, p, fill::value(datum::inf));
+    }
+  }
+
+  const double adj = (G > 1) ? static_cast<double>(G) / (G - 1.0) : 1.0;
+  const double *resid_ptr = resid.memptr();
+
+  mat B(p, p, fill::zeros);
+  vec cluster_score(p);
+
+  for (uword g = 0; g < G; ++g) {
+    const uvec &idx = cluster_groups(g);
+    const uword ng = idx.n_elem;
+    if (ng == 0)
+      continue;
+
+    cluster_score.zeros();
+    double *cs_ptr = cluster_score.memptr();
+    const uword *idx_ptr = idx.memptr();
+
+    for (uword i = 0; i < ng; ++i) {
+      const uword obs = idx_ptr[i];
+      const double r = resid_ptr[obs];
+      for (uword j = 0; j < p; ++j) {
+        cs_ptr[j] += r * MX(obs, j);
+      }
+    }
+
+    B += cluster_score * cluster_score.t();
+  }
+
+  return (adj * A_inv) * B * A_inv;
+}
+
 // Dyadic clustering for M-estimators
 // For dyadic data, observations (g,h) and (g',h') are correlated if they share
 // at least one entity: g==g', h==h', g==h', or h==g'
@@ -729,6 +796,112 @@ inline mat sandwich_vcov_mestimator_dyadic_(const mat &A, const mat &scores,
   const double adj = (G_E > 1) ? static_cast<double>(G_E) / (G_E - 1.0) : 1.0;
 
   // Sandwich: A^{-1} * (adj * B) * A^{-1}
+  return (adj * A_inv) * B * A_inv;
+}
+
+// Memory-efficient overload: computes scores on-the-fly from MX and resid
+// Avoids N*P scores matrix allocation when score_i = resid_i * MX_i
+inline mat sandwich_vcov_mestimator_dyadic_(const mat &A, const mat &MX,
+                                            const vec &resid,
+                                            const field<uvec> &entity1_groups,
+                                            const field<uvec> &entity2_groups) {
+  const uword p = A.n_cols;
+  const uword n_obs = MX.n_rows;
+  const uword G1 = entity1_groups.n_elem;
+  const uword G2 = entity2_groups.n_elem;
+
+  mat A_inv;
+  if (!inv_sympd(A_inv, A)) {
+    if (!inv(A_inv, A)) {
+      return mat(p, p, fill::value(datum::inf));
+    }
+  }
+
+  // Build mapping from observation to its entities
+  std::vector<uword> obs_to_entity1(n_obs);
+  std::vector<uword> obs_to_entity2(n_obs);
+
+  for (uword g = 0; g < G1; ++g) {
+    const uvec &idx = entity1_groups(g);
+    for (uword i = 0; i < idx.n_elem; ++i)
+      obs_to_entity1[idx(i)] = g;
+  }
+
+  for (uword h = 0; h < G2; ++h) {
+    const uvec &idx = entity2_groups(h);
+    for (uword i = 0; i < idx.n_elem; ++i)
+      obs_to_entity2[idx(i)] = h;
+  }
+
+  // Compute entity-level scores on-the-fly
+  const double *resid_ptr = resid.memptr();
+  std::vector<vec> entity1_scores(G1, vec(p, fill::zeros));
+  std::vector<vec> entity2_scores(G2, vec(p, fill::zeros));
+  std::unordered_map<uword, vec> dyad_scores;
+  dyad_scores.reserve(n_obs);
+
+  for (uword i = 0; i < n_obs; ++i) {
+    const double r = resid_ptr[i];
+    const uword e1 = obs_to_entity1[i];
+    const uword e2 = obs_to_entity2[i];
+    const uword key = e1 * G2 + e2;
+
+    // Compute score_i = r * MX.row(i) and accumulate
+    for (uword j = 0; j < p; ++j) {
+      const double s = r * MX(i, j);
+      entity1_scores[e1](j) += s;
+      entity2_scores[e2](j) += s;
+    }
+
+    // Accumulate dyad scores
+    auto it = dyad_scores.find(key);
+    if (it == dyad_scores.end()) {
+      vec s(p);
+      for (uword j = 0; j < p; ++j)
+        s(j) = r * MX(i, j);
+      dyad_scores[key] = std::move(s);
+    } else {
+      for (uword j = 0; j < p; ++j)
+        it->second(j) += r * MX(i, j);
+    }
+  }
+
+  // Compute dyadic meat components (same logic as above)
+  mat B11(p, p, fill::zeros);
+  for (uword g = 0; g < G1; ++g)
+    B11 += entity1_scores[g] * entity1_scores[g].t();
+
+  mat B22(p, p, fill::zeros);
+  for (uword h = 0; h < G2; ++h)
+    B22 += entity2_scores[h] * entity2_scores[h].t();
+
+  const uword G_E = G1;
+  mat B12(p, p, fill::zeros);
+  mat B21(p, p, fill::zeros);
+  for (uword e = 0; e < G_E; ++e) {
+    B12 += entity1_scores[e] * entity2_scores[e].t();
+    B21 += entity2_scores[e] * entity1_scores[e].t();
+  }
+
+  mat B_same(p, p, fill::zeros);
+  mat B_rev(p, p, fill::zeros);
+  for (const auto &kv : dyad_scores) {
+    const uword key_gh = kv.first;
+    const vec &T_gh = kv.second;
+    B_same += T_gh * T_gh.t();
+
+    const uword g = key_gh / G2;
+    const uword h = key_gh % G2;
+    const uword key_hg = h * G2 + g;
+    auto it_rev = dyad_scores.find(key_hg);
+    if (it_rev != dyad_scores.end()) {
+      B_rev += T_gh * it_rev->second.t();
+    }
+  }
+
+  mat B = B11 + B22 + B12 + B21 - B_same - B_rev;
+  const double adj = (G_E > 1) ? static_cast<double>(G_E) / (G_E - 1.0) : 1.0;
+
   return (adj * A_inv) * B * A_inv;
 }
 
