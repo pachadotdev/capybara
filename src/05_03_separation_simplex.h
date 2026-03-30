@@ -6,25 +6,32 @@
 namespace capybara {
 
 inline void simplex_presolve(mat &X, uvec &basic_vars, uvec &nonbasic_vars,
-                             uvec &keep_mask, uword &k, uword &n) {
-  // First pass: identify and drop empty columns (from ppmlhdfe)
-  uvec is_dropped(k, fill::zeros);
+                             Col<unsigned char> &keep_mask, uword &k, uword &n) {
+  // First pass: identify and drop empty columns (byte mask for memory efficiency)
+  Col<unsigned char> is_dropped(k, fill::zeros);
+  uword num_dropped = 0;
   for (uword j = 0; j < k; ++j) {
     if (accu(abs(X.col(j))) == 0) {
       is_dropped(j) = 1;
+      ++num_dropped;
     }
   }
 
   // Remove empty columns early
-  const uvec non_empty = find(is_dropped == 0);
-  if (non_empty.n_elem < k) {
-    if (non_empty.n_elem == 0) {
+  if (num_dropped > 0) {
+    if (num_dropped == k) {
       // All columns empty - trivial case
       keep_mask.ones(n);
       basic_vars = regspace<uvec>(0, n - 1);
       nonbasic_vars = uvec();
       k = 0;
       return;
+    }
+    // Build index of non-empty columns
+    uvec non_empty(k - num_dropped);
+    uword idx = 0;
+    for (uword j = 0; j < k; ++j) {
+      if (!is_dropped(j)) non_empty(idx++) = j;
     }
     X = X.cols(non_empty);
     k = non_empty.n_elem;
@@ -66,8 +73,17 @@ inline void simplex_presolve(mat &X, uvec &basic_vars, uvec &nonbasic_vars,
   const uvec kept_rows = find(keep_mask);
   X = kept_rows.n_elem > 0 ? A.rows(kept_rows) : mat();
 
-  const uvec not_dropped = find(is_dropped == 0);
-  if (not_dropped.n_elem > 0 && not_dropped.n_elem < k) {
+  // Count and extract non-dropped columns (from byte mask)
+  uword num_kept = 0;
+  for (uword j = 0; j < k; ++j) {
+    if (!is_dropped(j)) ++num_kept;
+  }
+  if (num_kept > 0 && num_kept < k) {
+    uvec not_dropped(num_kept);
+    uword idx = 0;
+    for (uword j = 0; j < k; ++j) {
+      if (!is_dropped(j)) not_dropped(idx++) = j;
+    }
     X = X.cols(not_dropped);
     k = not_dropped.n_elem;
   }
@@ -100,8 +116,9 @@ detect_separation_simplex(const mat &residuals,
   col_min.clean(params.sep_tol);
   col_max.clean(params.sep_tol);
 
-  uvec dropped_obs(n, fill::zeros);
-  uvec dropped_vars(k, fill::zeros);
+  // Use byte masks instead of uvec (8x memory reduction)
+  Col<unsigned char> dropped_obs(n, fill::zeros);
+  Col<unsigned char> dropped_vars(k, fill::zeros);
 
   // Find and mark special columns
   for (uword j = 0; j < k; ++j) {
@@ -125,8 +142,18 @@ detect_separation_simplex(const mat &residuals,
   }
 
   // Test 2: Apply simplex on remaining (only if needed)
-  const uvec kept_obs = find(dropped_obs == 0);
-  const uvec kept_vars = find(dropped_vars == 0);
+  // Build indices from byte masks
+  uword num_kept_obs = 0, num_kept_vars = 0;
+  for (uword i = 0; i < n; ++i) if (!dropped_obs(i)) ++num_kept_obs;
+  for (uword j = 0; j < k; ++j) if (!dropped_vars(j)) ++num_kept_vars;
+
+  uvec kept_obs(num_kept_obs);
+  uvec kept_vars(num_kept_vars);
+  {
+    uword oi = 0, vi = 0;
+    for (uword i = 0; i < n; ++i) if (!dropped_obs(i)) kept_obs(oi++) = i;
+    for (uword j = 0; j < k; ++j) if (!dropped_vars(j)) kept_vars(vi++) = j;
+  }
 
   if (kept_vars.n_elem > 1 && kept_obs.n_elem > 0) {
     mat X_simplex = X.submat(kept_obs, kept_vars);
@@ -134,7 +161,8 @@ detect_separation_simplex(const mat &residuals,
     uword k_simp = X_simplex.n_cols;
 
     if (n_simp > k_simp) {
-      uvec basic_vars, nonbasic_vars, keep_mask;
+      uvec basic_vars, nonbasic_vars;
+      Col<unsigned char> keep_mask;
       simplex_presolve(X_simplex, basic_vars, nonbasic_vars, keep_mask, k_simp,
                        n_simp);
 

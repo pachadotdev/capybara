@@ -7,10 +7,36 @@
 
 namespace capybara {
 
+// Workspace struct to avoid repeated allocations in ReLU separation
+struct SeparationReluWorkspace {
+  vec xbd;
+  vec xbd_prev1;
+  vec xbd_prev2;
+  vec resid;
+  vec u;
+  vec weights;
+  vec boundary_xbd;  // sized to num_boundary
+
+  void ensure_size(uword n, uword num_boundary) {
+    if (xbd.n_elem != n) {
+      xbd.set_size(n);
+      xbd_prev1.set_size(n);
+      xbd_prev2.set_size(n);
+      resid.set_size(n);
+      u.set_size(n);
+      weights.set_size(n);
+    }
+    if (boundary_xbd.n_elem != num_boundary) {
+      boundary_xbd.set_size(num_boundary);
+    }
+  }
+};
+
 // Main ReLU separation detection algorithm (without FE)
 inline SeparationResult
 detect_separation_relu(const vec &y, const mat &X, const vec &w,
-                       const CapybaraParameters &params) {
+                       const CapybaraParameters &params,
+                       SeparationReluWorkspace *ws = nullptr) {
   SeparationResult result;
   result.converged = false;
   result.num_separated = 0;
@@ -20,20 +46,40 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
   const uvec boundary_sample = find(y == 0);
   const uvec interior_sample = find(y > 0);
   const uword num_boundary = boundary_sample.n_elem;
+  const uword *bnd_ptr = boundary_sample.memptr();
+  const uword *int_ptr = interior_sample.memptr();
+  const uword num_interior = interior_sample.n_elem;
 
   if (num_boundary == 0) {
     result.converged = true;
     return result;
   }
 
-  vec u = conv_to<vec>::from(y == 0);
-  const double M = 1.0 / std::sqrt(datum::eps);
+  // Use workspace if provided, otherwise create local buffers
+  SeparationReluWorkspace local_ws;
+  SeparationReluWorkspace &work = ws ? *ws : local_ws;
+  work.ensure_size(n, num_boundary);
 
-  vec xbd(n, fill::zeros);
-  vec xbd_prev1(n, fill::zeros);
-  vec xbd_prev2(n, fill::zeros);
-  vec resid(n);
-  double uu_old = dot(u, u);
+  vec &xbd = work.xbd;
+  vec &xbd_prev1 = work.xbd_prev1;
+  vec &xbd_prev2 = work.xbd_prev2;
+  vec &resid = work.resid;
+  vec &u = work.u;
+  vec &weights = work.weights;
+  vec &boundary_xbd = work.boundary_xbd;
+
+  xbd.zeros();
+  xbd_prev1.zeros();
+  xbd_prev2.zeros();
+
+  // Initialize u = indicator(y == 0)
+  u.zeros();
+  for (uword i = 0; i < num_boundary; ++i) {
+    u(bnd_ptr[i]) = 1.0;
+  }
+
+  const double M = 1.0 / std::sqrt(datum::eps);
+  double uu_old = static_cast<double>(num_boundary);
 
   // Progress tracking for acceleration (from ppmlhdfe)
   double ee_cumulative = 0.0;
@@ -53,20 +99,24 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
     std::swap(xbd_prev2, xbd_prev1);
     std::swap(xbd_prev1, xbd);
 
-    // Build weights with potential acceleration
-    vec weights(n, fill::ones);
-    if (interior_sample.n_elem > 0) {
-      weights.elem(interior_sample).fill(M);
+    // Build weights with potential acceleration (reuse buffer)
+    weights.ones();
+    double *wgt_ptr = weights.memptr();
+    for (uword i = 0; i < num_interior; ++i) {
+      wgt_ptr[int_ptr[i]] = M;
     }
 
-    // Apply acceleration to stuck negative boundary observations
+    // Apply acceleration to stuck negative boundary observations (direct access)
     if (convergence_is_stuck && iter > 3) {
-      const vec xbd_b = xbd_prev1.elem(boundary_sample);
-      const vec xbd_b_p1 = xbd_prev2.elem(boundary_sample);
-      // Find obs stuck at negative values
+      const double *xbd_p1_ptr = xbd_prev1.memptr();
+      const double *xbd_p2_ptr = xbd_prev2.memptr();
+      const double neg_tol = -0.1 * params.sep_tol;
       for (uword i = 0; i < num_boundary; ++i) {
-        if (xbd_b(i) < -0.1 * params.sep_tol && xbd_b_p1(i) < 1.01 * xbd_b(i)) {
-          weights(boundary_sample(i)) = acceleration_value;
+        uword idx = bnd_ptr[i];
+        double xb = xbd_p1_ptr[idx];
+        double xb_p1 = xbd_p2_ptr[idx];
+        if (xb < neg_tol && xb_p1 < 1.01 * xb) {
+          wgt_ptr[idx] = acceleration_value;
         }
       }
     }
@@ -83,12 +133,12 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
     const double progress_ratio =
         ee_boundary > 0 ? 100.0 * ee_cumulative / ee_boundary : 100.0;
 
-    // Count candidates for separation
+    // Count candidates for separation (direct access, no temporary)
     uword num_candidates = 0;
     {
-      const vec boundary_xbd_tmp = xbd.elem(boundary_sample);
+      const double *xbd_ptr = xbd.memptr();
       for (uword i = 0; i < num_boundary; ++i) {
-        if (boundary_xbd_tmp(i) > delta)
+        if (xbd_ptr[bnd_ptr[i]] > delta)
           num_candidates++;
       }
     }
@@ -110,22 +160,30 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
     num_candidates_prev2 = num_candidates_prev1;
     num_candidates_prev1 = num_candidates;
 
-    // Enforce constraints on interior
-    if (interior_sample.n_elem > 0) {
-      xbd.elem(interior_sample).zeros();
+    // Enforce constraints on interior (direct access)
+    double *xbd_ptr = xbd.memptr();
+    for (uword i = 0; i < num_interior; ++i) {
+      xbd_ptr[int_ptr[i]] = 0.0;
     }
 
-    // Zero out near-zero boundary values
-    vec boundary_xbd = xbd.elem(boundary_sample);
-    const uvec near_zero =
-        find((boundary_xbd > -0.1 * delta) % (boundary_xbd < delta));
-    if (near_zero.n_elem > 0) {
-      xbd.elem(boundary_sample.elem(near_zero)).zeros();
-      boundary_xbd = xbd.elem(boundary_sample);
+    // Extract boundary_xbd and zero out near-zero values (direct access)
+    const double neg_delta = -0.1 * delta;
+    for (uword i = 0; i < num_boundary; ++i) {
+      uword idx = bnd_ptr[i];
+      double val = xbd_ptr[idx];
+      if (val > neg_delta && val < delta) {
+        xbd_ptr[idx] = 0.0;
+        val = 0.0;
+      }
+      boundary_xbd(i) = xbd_ptr[idx];
     }
 
     // Check separation - all non-negative means we found it
-    if (all(boundary_xbd >= 0)) {
+    bool all_nonneg = true;
+    for (uword i = 0; i < num_boundary && all_nonneg; ++i) {
+      if (boundary_xbd(i) < 0) all_nonneg = false;
+    }
+    if (all_nonneg) {
       const uvec sep_ind_local = find(boundary_xbd > 0);
       result.separated_obs = boundary_sample.elem(sep_ind_local);
       result.num_separated = result.separated_obs.n_elem;
@@ -136,14 +194,24 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
     }
 
     resid.clean(params.sep_zero_tol);
-    const vec boundary_resid = resid.elem(boundary_sample);
+    
+    // Check boundary residuals (direct access)
+    const double *resid_ptr = resid.memptr();
+    double min_bnd_resid = datum::inf;
+    for (uword i = 0; i < num_boundary; ++i) {
+      double r = resid_ptr[bnd_ptr[i]];
+      if (r < min_bnd_resid) min_bnd_resid = r;
+    }
 
-    if (boundary_resid.min() >= 0) {
-      const uvec pos_resid_idx = find(boundary_resid > delta);
-      if (pos_resid_idx.n_elem > 0) {
-        xbd.elem(boundary_sample.elem(pos_resid_idx)).zeros();
+    if (min_bnd_resid >= 0) {
+      // Zero out boundary obs with positive residuals
+      for (uword i = 0; i < num_boundary; ++i) {
+        uword idx = bnd_ptr[i];
+        if (resid_ptr[idx] > delta) {
+          xbd_ptr[idx] = 0.0;
+        }
+        boundary_xbd(i) = xbd_ptr[idx];
       }
-      boundary_xbd = xbd.elem(boundary_sample);
       const uvec sep_ind_local = find(boundary_xbd > 0);
       result.separated_obs = boundary_sample.elem(sep_ind_local);
       result.num_separated = result.separated_obs.n_elem;
@@ -153,9 +221,12 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
       return result;
     }
 
-    // ReLU update: u = max(xbd, 0) on boundary
+    // ReLU update: u = max(xbd, 0) on boundary (direct access)
     u.zeros();
-    u.elem(boundary_sample) = clamp(boundary_xbd, 0.0, datum::inf);
+    double *u_ptr = u.memptr();
+    for (uword i = 0; i < num_boundary; ++i) {
+      u_ptr[bnd_ptr[i]] = std::max(boundary_xbd(i), 0.0);
+    }
 
     const double uu = dot(u, u);
     if (std::abs(uu - uu_old) / (1.0 + uu_old) < params.sep_tol * 0.01) {
@@ -167,7 +238,11 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
 
   if (!result.converged) {
     result.iterations = params.sep_max_iter;
-    const vec boundary_xbd = xbd.elem(boundary_sample);
+    // Extract final boundary_xbd (direct access)
+    const double *xbd_ptr = xbd.memptr();
+    for (uword i = 0; i < num_boundary; ++i) {
+      boundary_xbd(i) = xbd_ptr[bnd_ptr[i]];
+    }
     const uvec sep_ind_local = find(boundary_xbd > params.sep_tol);
     if (sep_ind_local.n_elem > 0) {
       result.separated_obs = boundary_sample.elem(sep_ind_local);
