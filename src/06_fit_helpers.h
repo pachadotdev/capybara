@@ -123,125 +123,72 @@ template <typename MuType> inline double get_mu_i(const MuType &mu, uword i) {
 }
 
 template <typename MuType>
-inline double dev_resids_gaussian(const vec &y, const MuType &mu,
-                                  const vec &wt) {
-  const uword n = y.n_elem;
-  const double *y_ptr = y.memptr();
-  const double *wt_ptr = wt.memptr();
-
-  double sum = 0.0;
-  for (uword i = 0; i < n; ++i) {
-    double diff = y_ptr[i] - get_mu_i(mu, i);
-    sum += wt_ptr[i] * diff * diff;
-  }
-  return sum;
-}
-
-template <typename MuType>
-inline double dev_resids_poisson(const vec &y, const MuType &mu,
-                                 const vec &wt) {
-  const uword n = y.n_elem;
-  const double *y_ptr = y.memptr();
-  const double *wt_ptr = wt.memptr();
-
-  double sum = 0.0;
-  for (uword i = 0; i < n; ++i) {
-    double yi = y_ptr[i];
-    double mui = get_mu_i(mu, i);
-    double y_clamped = (yi < 1.0) ? 1.0 : yi;
-    sum += wt_ptr[i] * (yi * std::log(y_clamped / mui) - (yi - mui));
-  }
-  return 2.0 * sum;
-}
-
-template <typename MuType>
-inline double dev_resids_logit(const vec &y, const MuType &mu, const vec &wt) {
-  const uword n = y.n_elem;
-  const double *y_ptr = y.memptr();
-  const double *wt_ptr = wt.memptr();
-
-  double sum = 0.0;
-  for (uword i = 0; i < n; ++i) {
-    double yi = y_ptr[i];
-    double mui = get_mu_i(mu, i);
-    double y_safe = (yi < datum::eps)
-                        ? datum::eps
-                        : ((yi > 1.0 - datum::eps) ? 1.0 - datum::eps : yi);
-    sum += wt_ptr[i] * (yi * std::log(y_safe / mui) +
-                        (1.0 - yi) * std::log((1.0 - y_safe) / (1.0 - mui)));
-  }
-  return 2.0 * sum;
-}
-
-template <typename MuType>
-inline double dev_resids_gamma(const vec &y, const MuType &mu, const vec &wt) {
-  const uword n = y.n_elem;
-  const double *y_ptr = y.memptr();
-  const double *wt_ptr = wt.memptr();
-
-  double sum = 0.0;
-  for (uword i = 0; i < n; ++i) {
-    double yi = y_ptr[i];
-    double mui = get_mu_i(mu, i);
-    double ratio = yi / mui;
-    double ratio_clamped = (ratio < datum::eps) ? datum::eps : ratio;
-    sum += wt_ptr[i] * (std::log(ratio_clamped) - (yi - mui) / mui);
-  }
-  return -2.0 * sum;
-}
-
-template <typename MuType>
-inline double dev_resids_invgaussian(const vec &y, const MuType &mu,
-                                     const vec &wt) {
-  const uword n = y.n_elem;
-  const double *y_ptr = y.memptr();
-  const double *wt_ptr = wt.memptr();
-
-  double sum = 0.0;
-  for (uword i = 0; i < n; ++i) {
-    double yi = y_ptr[i];
-    double mui = get_mu_i(mu, i);
-    double diff = yi - mui;
-    sum += wt_ptr[i] * (diff * diff) / (yi * mui * mui);
-  }
-  return sum;
-}
-
-template <typename MuType>
-inline double dev_resids_negbin(const vec &y, const MuType &mu,
-                                const double &theta, const vec &wt) {
-  const uword n = y.n_elem;
-  const double *y_ptr = y.memptr();
-  const double *wt_ptr = wt.memptr();
-
-  double sum = 0.0;
-  for (uword i = 0; i < n; ++i) {
-    double yi = y_ptr[i];
-    double mui = get_mu_i(mu, i);
-    double y_clamped = (yi < 1.0) ? 1.0 : yi;
-    double y_theta = yi + theta;
-    sum += wt_ptr[i] * (yi * std::log(y_clamped / mui) -
-                        y_theta * std::log(y_theta / (mui + theta)));
-  }
-  return 2.0 * sum;
-}
-
-template <typename MuType>
 inline double dev_resids_(const vec &y, const MuType &mu, const double &theta,
                           const vec &wt, const Family family_type) {
+  const uword n = y.n_elem;
+  const double *y_ptr = y.memptr();
+  const double *wt_ptr = wt.memptr();
+  double sum = 0.0;
+
   switch (family_type) {
   case GAUSSIAN:
-    return dev_resids_gaussian(y, mu, wt);
+    for (uword i = 0; i < n; ++i) {
+      double diff = y_ptr[i] - get_mu_i(mu, i);
+      sum += wt_ptr[i] * diff * diff;
+    }
+    return sum;
+
   case POISSON:
-    return dev_resids_poisson(y, mu, wt);
+    for (uword i = 0; i < n; ++i) {
+      double yi = y_ptr[i];
+      double mui = get_mu_i(mu, i);
+      double y_clamped = (yi < 1.0) ? 1.0 : yi;
+      sum += wt_ptr[i] * (yi * std::log(y_clamped / mui) - (yi - mui));
+    }
+    return 2.0 * sum;
+
   case BINOMIAL:
-    return dev_resids_logit(y, mu, wt);
+    for (uword i = 0; i < n; ++i) {
+      double yi = y_ptr[i];
+      double mui = get_mu_i(mu, i);
+      double y_safe = (yi < datum::eps)
+                          ? datum::eps
+                          : ((yi > 1.0 - datum::eps) ? 1.0 - datum::eps : yi);
+      sum += wt_ptr[i] * (yi * std::log(y_safe / mui) +
+                          (1.0 - yi) * std::log((1.0 - y_safe) / (1.0 - mui)));
+    }
+    return 2.0 * sum;
+
   case GAMMA:
-    return dev_resids_gamma(y, mu, wt);
+    for (uword i = 0; i < n; ++i) {
+      double yi = y_ptr[i];
+      double mui = get_mu_i(mu, i);
+      double ratio = yi / mui;
+      double ratio_clamped = (ratio < datum::eps) ? datum::eps : ratio;
+      sum += wt_ptr[i] * (std::log(ratio_clamped) - (yi - mui) / mui);
+    }
+    return -2.0 * sum;
+
   case INV_GAUSSIAN:
-    return dev_resids_invgaussian(y, mu, wt);
+    for (uword i = 0; i < n; ++i) {
+      double yi = y_ptr[i];
+      double mui = get_mu_i(mu, i);
+      double diff = yi - mui;
+      sum += wt_ptr[i] * (diff * diff) / (yi * mui * mui);
+    }
+    return sum;
+
   case NEG_BIN:
-    return dev_resids_negbin(y, mu, theta, wt);
+    for (uword i = 0; i < n; ++i) {
+      double yi = y_ptr[i];
+      double mui = get_mu_i(mu, i);
+      double y_clamped = (yi < 1.0) ? 1.0 : yi;
+      double y_theta = yi + theta;
+      sum += wt_ptr[i] * (yi * std::log(y_clamped / mui) -
+                          y_theta * std::log(y_theta / (mui + theta)));
+    }
+    return 2.0 * sum;
+
   default:
     stop("Unknown family");
   }
@@ -260,22 +207,40 @@ inline double dev_resids(const vec &y, const vec &mu, const double &theta,
 }
 
 inline vec link_inv(const vec &eta, const Family family_type) {
+  const uword n = eta.n_elem;
+  vec mu(n);
+  const double *eta_ptr = eta.memptr();
+  double *mu_ptr = mu.memptr();
+
   switch (family_type) {
   case GAUSSIAN:
-    return eta;
+    std::memcpy(mu_ptr, eta_ptr, n * sizeof(double));
+    break;
   case POISSON:
   case NEG_BIN:
-    return exp(eta);
+    for (uword i = 0; i < n; ++i) {
+      mu_ptr[i] = std::exp(eta_ptr[i]);
+    }
+    break;
   case BINOMIAL:
-    return 1.0 / (1.0 + exp(-eta));
+    for (uword i = 0; i < n; ++i) {
+      mu_ptr[i] = 1.0 / (1.0 + std::exp(-eta_ptr[i]));
+    }
+    break;
   case GAMMA:
-    return 1.0 / eta;
+    for (uword i = 0; i < n; ++i) {
+      mu_ptr[i] = 1.0 / eta_ptr[i];
+    }
+    break;
   case INV_GAUSSIAN:
-    return 1.0 / sqrt(eta);
+    for (uword i = 0; i < n; ++i) {
+      mu_ptr[i] = 1.0 / std::sqrt(eta_ptr[i]);
+    }
+    break;
   default:
     stop("Unknown family");
   }
-  return eta;
+  return mu;
 }
 
 inline bool valid_eta(const vec &eta, const Family family_type) {
