@@ -68,7 +68,8 @@ struct FelmWorkspace {
   void ensure_size(uword N, uword P, bool need_x_original = true) {
     if (N != cached_N || P != cached_P) {
       // Allocate one contiguous block: [y (N doubles) | X (N*P doubles)]
-      center_buf.resize(N * (P + 1));
+      // Use assign() to zero-initialize for determinism on Mac
+      center_buf.assign(N * (P + 1), 0.0);
       double *buf = center_buf.data();
 
       // Non-owning Armadillo views into the buffer
@@ -81,13 +82,14 @@ struct FelmWorkspace {
       cached_P = P;
       x_original_allocated = false;
     }
-    x_beta.set_size(N);
-    pi.set_size(N);
-    y_original.set_size(N);
+    // Use zeros() for deterministic initialization
+    x_beta.zeros(N);
+    pi.zeros(N);
+    y_original.zeros(N);
 
     // Only allocate X_original when needed (standalone felm, not IRLS inner)
     if (need_x_original && !x_original_allocated) {
-      X_original.set_size(N, P);
+      X_original.zeros(N, P);
       x_original_allocated = true;
     }
   }

@@ -19,15 +19,16 @@ struct SeparationReluWorkspace {
 
   void ensure_size(uword n, uword num_boundary) {
     if (xbd.n_elem != n) {
-      xbd.set_size(n);
-      xbd_prev1.set_size(n);
-      xbd_prev2.set_size(n);
-      resid.set_size(n);
-      u.set_size(n);
-      weights.set_size(n);
+      // Use zeros() for deterministic initialization
+      xbd.zeros(n);
+      xbd_prev1.zeros(n);
+      xbd_prev2.zeros(n);
+      resid.zeros(n);
+      u.zeros(n);
+      weights.zeros(n);
     }
     if (boundary_xbd.n_elem != num_boundary) {
-      boundary_xbd.set_size(num_boundary);
+      boundary_xbd.zeros(num_boundary);
     }
   }
 };

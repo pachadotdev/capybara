@@ -172,14 +172,15 @@ struct CenterWarmStart {
       return;
     }
     scratch_mats.resize(7);
-    scratch_mats[0].set_size(n1, p); // GX
-    scratch_mats[1].set_size(n1, p); // G2X
-    scratch_mats[2].set_size(n1, p); // X_it
-    scratch_mats[3].zeros(n1, p);    // grand_Y
-    scratch_mats[4].zeros(n1, p);    // grand_GY
-    scratch_mats[5].zeros(n1, p);    // grand_GGY
-    scratch_mats[6].set_size(n1, p); // G3X
-    scratch_beta.set_size(n2, p);
+    // Use zeros() for deterministic initialization on Mac
+    scratch_mats[0].zeros(n1, p); // GX
+    scratch_mats[1].zeros(n1, p); // G2X
+    scratch_mats[2].zeros(n1, p); // X_it
+    scratch_mats[3].zeros(n1, p); // grand_Y
+    scratch_mats[4].zeros(n1, p); // grand_GY
+    scratch_mats[5].zeros(n1, p); // grand_GGY
+    scratch_mats[6].zeros(n1, p); // G3X
+    scratch_beta.zeros(n2, p);
     scratch_n1 = n1;
     scratch_n2 = n2;
     scratch_valid = true;
@@ -201,10 +202,11 @@ struct CenterWarmStart {
     }
 
     stammann_2fe_scratch.resize(4);
-    stammann_2fe_scratch[0].set_size(n1, p); // X_it
-    stammann_2fe_scratch[1].set_size(n1, p); // GX_it
-    stammann_2fe_scratch[2].set_size(n1, p); // G2X_it
-    stammann_2fe_scratch[3].set_size(n1, p); // G3X_it
+    // Use zeros() for deterministic initialization on Mac
+    stammann_2fe_scratch[0].zeros(n1, p); // X_it
+    stammann_2fe_scratch[1].zeros(n1, p); // GX_it
+    stammann_2fe_scratch[2].zeros(n1, p); // G2X_it
+    stammann_2fe_scratch[3].zeros(n1, p); // G3X_it
     stammann_2fe_grand_Y.zeros(n1, p);
     stammann_2fe_grand_GY.zeros(n1, p);
     stammann_2fe_n1 = n1;
