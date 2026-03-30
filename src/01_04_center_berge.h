@@ -10,7 +10,7 @@ inline void gs_sweep_backward_kfe(std::vector<mat> &alpha_dst,
                                   const std::vector<mat> &in_out,
                                   const FlatFEMap &map,
                                   const double *__restrict__ w_ptr, uword n_obs,
-                                  uword P) {
+                                  uword P, CenterWarmStart &warm) {
   const uword K = map.K;
 
   std::vector<const uword *> fe_ptrs(K);
@@ -18,15 +18,17 @@ inline void gs_sweep_backward_kfe(std::vector<mat> &alpha_dst,
     fe_ptrs[h] = map.fe_map[h].data();
   }
 
+  // Use cached column pointer storage from warm-start to avoid repeated
+  // allocations across calls
+  std::vector<std::vector<const double *>> &col_ptrs_all =
+      warm.ensure_berge_kfe_col_ptrs(P, K);
+
   for (uword q = K; q-- > 0;) {
     const uword n_q = map.n_groups[q];
     const uword *__restrict__ gq = fe_ptrs[q];
     const double *__restrict__ iw = map.inv_weights[q].memptr();
 
-    // Pre-allocate column pointers for this q level
-    // col_ptrs_all[p][h] = pointer to column p for FE h
-    std::vector<std::vector<const double *>> col_ptrs_all(
-        P, std::vector<const double *>(K));
+    // Update column pointers for this q level
     for (uword p = 0; p < P; ++p) {
       for (uword h = 0; h < K; ++h) {
         if (h == q)
@@ -327,7 +329,7 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
   const uword ssr_check_period = (n_obs > 100000) ? 80 : 40;
   double ssr_old = datum::inf;
 
-  gs_sweep_backward_kfe(GX, alpha, in_out, map, w_ptr, n_obs, P);
+  gs_sweep_backward_kfe(GX, alpha, in_out, map, w_ptr, n_obs, P, warm);
 
   {
     bool keep_going = false;
@@ -369,8 +371,8 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
   }
 
   for (uword iter = 0; iter < max_iter; ++iter) {
-    gs_sweep_backward_kfe(G2X, GX, in_out, map, w_ptr, n_obs, P);
-    gs_sweep_backward_kfe(G3X, G2X, in_out, map, w_ptr, n_obs, P);
+    gs_sweep_backward_kfe(G2X, GX, in_out, map, w_ptr, n_obs, P, warm);
+    gs_sweep_backward_kfe(G3X, G2X, in_out, map, w_ptr, n_obs, P, warm);
 
     // RRE-2 acceleration across all K-1 FEs jointly
     // Build the 2x2 Gram matrix and RHS across all elements
@@ -441,12 +443,12 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
       break;
 
     if (iter >= iter_proj_after_acc) {
-      gs_sweep_backward_kfe(GX, alpha, in_out, map, w_ptr, n_obs, P);
+      gs_sweep_backward_kfe(GX, alpha, in_out, map, w_ptr, n_obs, P, warm);
       for (uword k = 0; k < K; ++k)
         alpha[k] = GX[k];
     }
 
-    gs_sweep_backward_kfe(GX, alpha, in_out, map, w_ptr, n_obs, P);
+    gs_sweep_backward_kfe(GX, alpha, in_out, map, w_ptr, n_obs, P, warm);
 
     {
       bool keep_going = false;
@@ -509,7 +511,7 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
           if (is_ok) {
             for (uword k = 0; k < K - 1; ++k)
               alpha[k] = grand_alpha_Y[k];
-            gs_sweep_backward_kfe(GX, alpha, in_out, map, w_ptr, n_obs, P);
+            gs_sweep_backward_kfe(GX, alpha, in_out, map, w_ptr, n_obs, P, warm);
           }
         }
         grand_stage = 0;
@@ -550,7 +552,7 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
     }
   }
 
-  gs_sweep_backward_kfe(GX, alpha, in_out, map, w_ptr, n_obs, P);
+  gs_sweep_backward_kfe(GX, alpha, in_out, map, w_ptr, n_obs, P, warm);
   for (uword k = 0; k < K; ++k)
     alpha[k] = GX[k];
 

@@ -40,7 +40,7 @@ struct CollinearityResult {
 };
 
 // X'X with optional weights (X'WX where W = diag(w))
-// Computes directly without sqrt(w) intermediate matrix
+// Uses BLAS-optimized approach for all matrix sizes
 inline mat crossprod(const mat &X, const vec &w = vec()) {
   if (X.is_empty()) {
     return mat();
@@ -53,43 +53,19 @@ inline mat crossprod(const mat &X, const vec &w = vec()) {
     return symmatu(X.t() * X);
   }
 
-  // Direct X'WX computation: result(i,j) = sum_k w[k] * X[k,i] * X[k,j]
-  // Only compute upper triangle, then symmetrize
-  mat result(p, p, fill::zeros);
-
+  // Compute sqrt(w) * X, then use BLAS for (sqrt(w)*X)' * (sqrt(w)*X)
+  // This avoids creating the full N×N diagmat(w) and lets BLAS handle
+  // memory access patterns and vectorization
+  mat Xw(n, p);
   const double *w_ptr = w.memptr();
-
-  // Process in blocks for better cache utilization
-  constexpr uword block_size = 64;
-
   for (uword j = 0; j < p; ++j) {
-    const double *Xj = X.colptr(j);
-
-    for (uword i = 0; i <= j; ++i) {
-      const double *Xi = X.colptr(i);
-
-      double sum = 0.0;
-      uword k = 0;
-
-      // Process in blocks
-      for (; k + block_size <= n; k += block_size) {
-        double block_sum = 0.0;
-        for (uword b = 0; b < block_size; ++b) {
-          block_sum += w_ptr[k + b] * Xi[k + b] * Xj[k + b];
-        }
-        sum += block_sum;
-      }
-
-      // Remainder
-      for (; k < n; ++k) {
-        sum += w_ptr[k] * Xi[k] * Xj[k];
-      }
-
-      result(i, j) = sum;
+    double *xw_col = Xw.colptr(j);
+    const double *x_col = X.colptr(j);
+    for (uword i = 0; i < n; ++i) {
+      xw_col[i] = std::sqrt(w_ptr[i]) * x_col[i];
     }
   }
-
-  return symmatu(result);
+  return symmatu(Xw.t() * Xw);
 }
 
 // X'Wy (or X'y if w empty)

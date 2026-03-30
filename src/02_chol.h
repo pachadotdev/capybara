@@ -68,32 +68,43 @@ chol_rank(Mat<typename T1::elem_type> &out, Col<uword> &excluded,
   const uword block = std::min<uword>(std::max<uword>(1, env_block), N);
 
   // diag_contrib accumulates sum_k out(k, j)^2 from processed panels for j >
-  // processed columns
-  std::vector<eT> diag_contrib(N, eT(0));
+  // processed columns. Use arma::vec for SIMD-friendly operations.
+  Col<eT> diag_contrib(N, fill::zeros);
+
+  // Pre-allocate BlockUpdate buffer for reuse across panels.
+  // Maximum size: (N x block) for upper, (N x block) for lower.
+  // We resize only when the required size exceeds current capacity.
+  Mat<eT> BlockUpdate;
+  uword block_update_rows = 0;
+  uword block_update_cols = 0;
 
   for (uword p = 0; p < N; p += block) {
     const uword end = std::min<uword>(N - 1, p + block - 1);
 
     // Calculate contribution from previous panels (0 to p-1) to the current
     // active submatrix Matrix update: A(p:N, p:N) -= U(0:p, p:N)' * U(0:p, p:N)
-    Mat<eT> BlockUpdate;
+    // Reuse BlockUpdate buffer, resizing only when needed.
     if (p > 0) {
+      const uword needed_rows = (sig == 'u') ? (end - p + 1) : (N - p);
+      const uword needed_cols = (sig == 'u') ? (N - p) : (end - p + 1);
+
+      // Resize only if current buffer is insufficient
+      if (needed_rows > block_update_rows || needed_cols > block_update_cols) {
+        BlockUpdate.set_size(needed_rows, needed_cols);
+        block_update_rows = needed_rows;
+        block_update_cols = needed_cols;
+      }
+
       if (sig == 'u') {
         const Mat<eT> U_top = out.submat(0, p, p - 1, N - 1);
         const Mat<eT> U_left = out.submat(0, p, p - 1, end);
-        BlockUpdate = U_left.t() * U_top;
+        // Store result in pre-sized portion of BlockUpdate
+        BlockUpdate.submat(0, 0, end - p, N - 1 - p) = U_left.t() * U_top;
       } else {
         // For lower: A(j, trailing) -= sum over k<p of L(j,k)*L(trailing,k)^T
-        // Here we compute updates for columns j=p...end.
-        // BlockUpdate(row_idx, col_idx) corresponds to update for L(row, col).
-        // Update(r, c) = L(r, 0:p-1) * L(c, 0:p-1)^T
-        // We only need this for r >= trailing, c in p...end
-        // Because of the loop structure, we compute full block for simplicity
-        // or sliced.
-
         const Mat<eT> L_left = out.submat(p, 0, N - 1, p - 1);
         const Mat<eT> L_top = out.submat(p, 0, end, p - 1);
-        BlockUpdate = L_left * L_top.t();
+        BlockUpdate.submat(0, 0, N - 1 - p, end - p) = L_left * L_top.t();
       }
     }
 

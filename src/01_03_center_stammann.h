@@ -178,6 +178,12 @@ inline void center_kfe_stammann(mat &V, const vec &w, const FlatFEMap &map,
   const uword n0 = map.n_groups[0];
   const uword total_elem0 = n0 * P;
 
+  // Pre-allocate map pointers for SSR computation (used in loop)
+  std::vector<const uword *> ssr_map_ptrs(K);
+  for (uword k = 0; k < K; ++k) {
+    ssr_map_ptrs[k] = map.fe_map[k].data();
+  }
+
   // Use warm-start scratch buffers to avoid repeated allocations
   warm.ensure_scratch_stammann_kfe(n0, P);
   mat &X_it = warm.stammann_kfe_scratch[0];
@@ -246,30 +252,19 @@ inline void center_kfe_stammann(mat &V, const vec &w, const FlatFEMap &map,
       break;
 
     if (iter > 0 && iter % ssr_check_period == 0) {
+      // Compute SSR without temporary allocations - use pre-allocated
+      // ssr_map_ptrs and inline pointer access
       double ssr = 0.0;
-      std::vector<const uword *> ssr_map_ptrs(K);
-      for (uword k = 0; k < K; ++k) {
-        ssr_map_ptrs[k] = map.fe_map[k].data();
-      }
-
-      // Pre-allocate alpha column pointers
-      std::vector<std::vector<const double *>> ssr_alpha_cols(
-          P, std::vector<const double *>(K));
-      for (uword p = 0; p < P; ++p) {
-        for (uword k = 0; k < K; ++k)
-          ssr_alpha_cols[p][k] = alpha[k].colptr(p);
-      }
 
 #ifdef _OPENMP
 #pragma omp parallel for schedule(static) reduction(+ : ssr) if (P > 1)
 #endif
       for (uword p = 0; p < P; ++p) {
         const double *v_col = V.colptr(p);
-        const double *const *alpha_cols = ssr_alpha_cols[p].data();
         for (uword i = 0; i < n_obs; ++i) {
           double r = v_col[i];
           for (uword k = 0; k < K; ++k) {
-            r -= alpha_cols[k][ssr_map_ptrs[k][i]];
+            r -= alpha[k].at(ssr_map_ptrs[k][i], p);
           }
           ssr += w_ptr[i] * r * r;
         }
@@ -282,29 +277,16 @@ inline void center_kfe_stammann(mat &V, const vec &w, const FlatFEMap &map,
 
   warm.save(alpha, K, P);
 
-  std::vector<const uword *> map_ptrs(K);
-  for (uword k = 0; k < K; ++k) {
-    map_ptrs[k] = map.fe_map[k].data();
-  }
-
-  // Pre-allocate alpha column pointers for final subtraction
-  std::vector<std::vector<const double *>> final_alpha_cols(
-      P, std::vector<const double *>(K));
-  for (uword p = 0; p < P; ++p) {
-    for (uword k = 0; k < K; ++k)
-      final_alpha_cols[p][k] = alpha[k].colptr(p);
-  }
-
+  // Reuse ssr_map_ptrs for final subtraction (already allocated outside loop)
 #ifdef _OPENMP
 #pragma omp parallel for schedule(static) if (P > 1)
 #endif
   for (uword p = 0; p < P; ++p) {
     double *v_col = V.colptr(p);
-    const double *const *alpha_cols = final_alpha_cols[p].data();
     for (uword i = 0; i < n_obs; ++i) {
       double sum_a = 0.0;
       for (uword k = 0; k < K; ++k) {
-        sum_a += alpha_cols[k][map_ptrs[k][i]];
+        sum_a += alpha[k].at(ssr_map_ptrs[k][i], p);
       }
       v_col[i] -= sum_a;
     }
