@@ -2,6 +2,8 @@
 #ifndef CAPYBARA_LM_H
 #define CAPYBARA_LM_H
 
+#include <optional>
+
 namespace capybara {
 
 struct InferenceLM {
@@ -39,7 +41,7 @@ struct FelmWorkspace {
   std::vector<double> center_buf; // owns the memory: N * (P+1) doubles
   vec y_demeaned;                 // non-owning view of center_buf[0..N-1]
   mat X_centered;                 // non-owning view of center_buf[N..N*(P+1)-1]
-  mat yX_view; // non-owning view of entire buffer as N x (P+1)
+  mat yX_view; // non-owning view of entire buffer as N * (P+1)
 
   vec x_beta;
   vec pi;
@@ -52,17 +54,22 @@ struct FelmWorkspace {
   bool fe_map_initialized;    // Has fe_map.build() been called?
 
   // Reusable InferenceLM for IRLS inner calls (avoids re-allocating N-length
-  // vectors + P×P matrices every iteration)
-  std::unique_ptr<InferenceLM> glm_result;
+  // vectors + P*P matrices every iteration)
+  // Embedded directly (no heap allocation) using std::optional for lazy init
+  std::optional<InferenceLM> glm_result;
 
   uword cached_N, cached_P;
+  bool x_original_allocated;
 
-  FelmWorkspace() : fe_map_initialized(false), cached_N(0), cached_P(0) {}
+  FelmWorkspace()
+      : fe_map_initialized(false), cached_N(0), cached_P(0),
+        x_original_allocated(false) {}
 
-  void ensure_size(uword N, uword P) {
+  void ensure_size(uword N, uword P, bool need_x_original = true) {
     if (N != cached_N || P != cached_P) {
       // Allocate one contiguous block: [y (N doubles) | X (N*P doubles)]
-      center_buf.resize(N * (P + 1));
+      // Use assign() to zero-initialize for determinism on Mac
+      center_buf.assign(N * (P + 1), 0.0);
       double *buf = center_buf.data();
 
       // Non-owning Armadillo views into the buffer
@@ -73,11 +80,18 @@ struct FelmWorkspace {
 
       cached_N = N;
       cached_P = P;
+      x_original_allocated = false;
     }
-    x_beta.set_size(N);
-    pi.set_size(N);
-    y_original.set_size(N);
-    X_original.set_size(N, P);
+    // Use zeros() for deterministic initialization
+    x_beta.zeros(N);
+    pi.zeros(N);
+    y_original.zeros(N);
+
+    // Only allocate X_original when needed (standalone felm, not IRLS inner)
+    if (need_x_original && !x_original_allocated) {
+      X_original.zeros(N, P);
+      x_original_allocated = true;
+    }
   }
 
   // Build FE map structure once; only update weights on subsequent calls
@@ -246,19 +260,21 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
 
   FelmWorkspace local_workspace;
   FelmWorkspace *ws = workspace ? workspace : &local_workspace;
-  ws->ensure_size(N, P);
+  // Only allocate X_original for standalone felm calls (not IRLS inner loop)
+  ws->ensure_size(N, P, !run_from_glm);
 
   // Reuse or create result object.
   // In the IRLS path (run_from_glm=true) the workspace keeps a persistent
-  // InferenceLM so we don't re-allocate N-length vectors + P×P matrices
+  // InferenceLM so we don't re-allocate N-length vectors + P*P matrices
   // every iteration.
   InferenceLM *res_ptr;
   if (run_from_glm) {
-    if (!ws->glm_result || ws->glm_result->fitted_values.n_elem != N ||
+    if (!ws->glm_result.has_value() ||
+        ws->glm_result->fitted_values.n_elem != N ||
         ws->glm_result->coef_table.n_rows != P) {
-      ws->glm_result = std::make_unique<InferenceLM>(N, P);
+      ws->glm_result.emplace(N, P);
     }
-    res_ptr = ws->glm_result.get();
+    res_ptr = &*ws->glm_result;
     // Reset only the fields that matter for each iteration
     res_ptr->success = false;
     res_ptr->has_fe = has_fixed_effects;
@@ -382,52 +398,55 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
   auto tsolve0 = std::chrono::high_resolution_clock::now();
 #endif
 
-  mat XtX;
-  vec XtY_vec;
-
-  if (use_weights) {
-    XtX = crossprod(ws->X_centered, w_work);
-    XtY_vec = ws->X_centered.t() * (w_work % ws->y_demeaned);
-  } else {
-    XtX = crossprod(ws->X_centered);
-    XtY_vec = ws->X_centered.t() * ws->y_demeaned;
-  }
-
-  mat R_rank;
-  uvec excl;
-  uword rank;
-
-  if (!chol_rank(R_rank, excl, rank, XtX, "upper", params.collin_tol)) {
-    throw std::runtime_error("chol_rank failed in felm_fit");
-  }
-
-  // Populate collinearity result from excl vector
-  CollinearityResult collin_result(P_final);
-  collin_result.has_collinearity = any(excl);
-  collin_result.non_collinear_cols = find(excl == 0);
-  collin_result.collinear_cols = find(excl != 0);
-  collin_result.coef_status = 1 - excl;
-
   // Solve reduced system for non-excluded columns
   const uword n_coef = P_final;
   vec beta_solved(n_coef, fill::value(datum::nan));
   mat hessian_reduced;
+  CollinearityResult collin_result(P_final);
 
-  if (rank > 0) {
-    const uvec keep_idx = collin_result.non_collinear_cols;
-    const mat R_sub = R_rank.submat(keep_idx, keep_idx);
-    const vec XtY_sub = XtY_vec.elem(keep_idx);
+  // Scope XtX and R_rank so they're deallocated immediately after solving
+  {
+    mat XtX;
+    vec XtY_vec;
 
-    // Solve triangular systems: R'y = XtY, then Rb = y
-    const vec y_sub = solve(trimatl(R_sub.t()), XtY_sub);
-    const vec beta_sub = solve(trimatu(R_sub), y_sub);
+    if (use_weights) {
+      XtX = crossprod(ws->X_centered, w_work);
+      XtY_vec = ws->X_centered.t() * (w_work % ws->y_demeaned);
+    } else {
+      XtX = crossprod(ws->X_centered);
+      XtY_vec = ws->X_centered.t() * ws->y_demeaned;
+    }
 
-    // Scatter into full beta (excluded entries remain NaN)
-    beta_solved.elem(keep_idx) = beta_sub;
+    mat R_rank;
+    uvec excl;
+    uword rank;
 
-    // Hessian from Cholesky factor: X'X = R'R
-    hessian_reduced = R_sub.t() * R_sub;
-  }
+    if (!chol_rank(R_rank, excl, rank, XtX, "upper", params.collin_tol)) {
+      throw std::runtime_error("chol_rank failed in felm_fit");
+    }
+
+    // Populate collinearity result from excl vector
+    collin_result.has_collinearity = any(excl);
+    collin_result.non_collinear_cols = find(excl == 0);
+    collin_result.collinear_cols = find(excl != 0);
+    collin_result.coef_status = 1 - excl;
+
+    if (rank > 0) {
+      const uvec keep_idx = collin_result.non_collinear_cols;
+      const mat R_sub = R_rank.submat(keep_idx, keep_idx);
+      const vec XtY_sub = XtY_vec.elem(keep_idx);
+
+      // Solve triangular systems: R'y = XtY, then Rb = y
+      const vec y_sub = solve(trimatl(R_sub.t()), XtY_sub);
+      const vec beta_sub = solve(trimatu(R_sub), y_sub);
+
+      // Scatter into full beta (excluded entries remain NaN)
+      beta_solved.elem(keep_idx) = beta_sub;
+
+      // Hessian from Cholesky factor: X'X = R'R
+      hessian_reduced = R_sub.t() * R_sub;
+    }
+  } // XtX, R_rank, XtY_vec freed here
 
   if (result.coef_table.n_rows != n_coef) {
     result.coef_table.set_size(n_coef, 4);
@@ -477,25 +496,17 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
                                          *entity1_groups, *entity2_groups);
   } else if (params.vcov_type == "m-estimator-dyadic" &&
              entity1_groups != nullptr && entity2_groups != nullptr) {
-    // Dyadic-robust (Cameron & Miller 2014): does not require cluster_groups
-    // Score_i = (y_i - fitted_i) * X_i  (OLS M-estimator score)
+    // Dyadic-robust: memory-efficient overload computes scores on-the-fly
     const vec resid = ws->y_original - result.fitted_values;
-    mat scores(ws->X_centered.n_rows, ws->X_centered.n_cols);
-    for (uword i = 0; i < ws->X_centered.n_rows; ++i) {
-      scores.row(i) = resid(i) * ws->X_centered.row(i);
-    }
-    vcov_reduced = sandwich_vcov_mestimator_dyadic_(
-        result.hessian, scores, *entity1_groups, *entity2_groups);
+    vcov_reduced =
+        sandwich_vcov_mestimator_dyadic_(result.hessian, ws->X_centered, resid,
+                                         *entity1_groups, *entity2_groups);
   } else if (cluster_groups != nullptr && cluster_groups->n_elem > 0) {
     if (params.vcov_type == "m-estimator") {
-      // For standard M-estimator clustering
+      // Memory-efficient: computes scores on-the-fly
       const vec resid = ws->y_original - result.fitted_values;
-      mat scores(ws->X_centered.n_rows, ws->X_centered.n_cols);
-      for (uword i = 0; i < ws->X_centered.n_rows; ++i) {
-        scores.row(i) = resid(i) * ws->X_centered.row(i);
-      }
-      vcov_reduced =
-          sandwich_vcov_mestimator_(result.hessian, scores, *cluster_groups);
+      vcov_reduced = sandwich_vcov_mestimator_(result.hessian, ws->X_centered,
+                                               resid, *cluster_groups);
     } else {
       vcov_reduced =
           sandwich_vcov_(ws->X_centered, ws->y_original, result.fitted_values,

@@ -152,12 +152,14 @@ NULL
 #'
 #' # One-way cluster sandwich
 #' mod_cl <- feglm(mpg ~ wt | cyl | am, mtcars,
-#'   family = poisson(link = "log"), vcov = "cluster")
+#'   family = poisson(link = "log"), vcov = "cluster"
+#' )
 #' summary(mod_cl)
 #'
 #' # Dyadic-robust (Cameron & Miller) — two entity columns in cluster part
 #' mod_dy <- feglm(mpg ~ wt | cyl | am + vs, mtcars,
-#'   family = poisson(link = "log"), vcov = "dyadic")
+#'   family = poisson(link = "log"), vcov = "dyadic"
+#' )
 #' sqrt(diag(vcov(mod_dy)))
 #'
 #' @export
@@ -235,9 +237,14 @@ feglm <- function(
         call. = FALSE
       )
     }
-    # Name by original rownames (data is still a data.frame here, before model_frame_)
+    # Store original row positions for efficient offset subsetting after filtering
+    # Only name with rownames if they are non-default (custom rownames)
     orig_rn_offset <- rownames(data)
-    if (!is.null(orig_rn_offset)) {
+    n_orig <- nrow(data)
+    default_rn <- as.character(seq_len(n_orig))
+    use_numeric_offset_idx <- is.null(orig_rn_offset) ||
+      (length(orig_rn_offset) == n_orig && all(orig_rn_offset == default_rn))
+    if (!use_numeric_offset_idx) {
       names(offset_vec_original) <- orig_rn_offset
     }
   }
@@ -251,7 +258,7 @@ feglm <- function(
 
   # Ensure that model response is in line with the chosen model ----
   check_response_(data, lhs, family)
-  
+
   # Get names of the fixed effects variables ----
   fe_vars <- check_fe_(formula, data)
 
@@ -285,10 +292,14 @@ feglm <- function(
   if (is.null(offset)) {
     offset_vec <- rep(0.0, nt)
   } else {
-    # data is now a data.table — use .rownames attr to index into offset_vec_original
+    # data is now a data.table — use .rownames attr or numeric indices
     surviving_rn <- attr(data, ".rownames")
     if (!is.null(surviving_rn) && !is.null(names(offset_vec_original))) {
+      # Custom rownames: use name-based subsetting
       offset_vec <- offset_vec_original[surviving_rn]
+    } else if (!is.null(surviving_rn)) {
+      # Default rownames stored as character: convert to numeric indices
+      offset_vec <- offset_vec_original[as.integer(surviving_rn)]
     } else {
       # No rownames: offset must still align with current nrow(data)
       offset_vec <- offset_vec_original[seq_len(nt)]
@@ -305,7 +316,8 @@ feglm <- function(
   start_guesses_(beta_start, eta_start, y, X, beta, nt, wt, p, family)
 
   # Extract raw FE columns as a list of vectors ----
-  fe_cols <- lapply(fe_vars, function(v) data[[v]])
+  # Use .subset2 (primitive) for faster column extraction without method dispatch
+  fe_cols <- lapply(fe_vars, function(v) .subset2(data, v))
   names(fe_cols) <- fe_vars
 
   # Extract cluster variable from formula (third part) ----
@@ -440,12 +452,16 @@ feglm <- function(
   fit[["fe_levels"]] <- fe_levels
   fit[["nms_fe"]] <- nms_fe
   fit[["formula"]] <- formula
-  fit[["data"]] <- data
+  if (control[["keep_data"]]) {
+    fit[["data"]] <- data
+  }
   fit[["family"]] <- family
   fit[["control"]] <- control
   fit[["offset"]] <- offset_vec
   fit[["offset_spec"]] <- offset
-  fit[["vcov_type"]] <- if (!is.null(vcov_label)) vcov_label else {
+  fit[["vcov_type"]] <- if (!is.null(vcov_label)) {
+    vcov_label
+  } else {
     if (!is.null(cl_col) || !is.null(entity1_col)) {
       if (!is.null(control$vcov_type)) control$vcov_type else "cluster"
     } else {

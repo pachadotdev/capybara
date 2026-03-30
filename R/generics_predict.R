@@ -59,10 +59,25 @@ predict.feglm <- function(
     data <- transform_fe_(data, formula, k_vars)
 
     # Create design matrix from predictors only
+    # Use fast path when all predictors are simple numeric columns
     if (length(pred_vars) > 0) {
-      pred_formula <- reformulate(pred_vars, response = NULL)
-      X <- model.matrix(pred_formula, data = data)[, -1, drop = FALSE]
-      nms_sp <- colnames(X)
+      pred_cols_exist <- pred_vars[pred_vars %in% colnames(data)]
+      all_numeric <- length(pred_cols_exist) == length(pred_vars) &&
+        all(vapply(data[pred_cols_exist], is.numeric, logical(1)))
+      has_special <- any(grepl("factor|poly|ns\\(|bs\\(|strata|I\\(", pred_vars))
+      has_interaction <- any(grepl(":", pred_vars, fixed = TRUE))
+
+      if (all_numeric && !has_special && !has_interaction) {
+        # Fast path: extract numeric columns directly via vapply
+        X <- vapply(pred_vars, function(v) data[[v]], FUN.VALUE = numeric(nrow(data)))
+        if (!is.matrix(X)) X <- matrix(X, ncol = 1L)
+        nms_sp <- pred_vars
+      } else {
+        # Slow path: use model.matrix for complex formulas
+        pred_formula <- reformulate(pred_vars, response = NULL)
+        X <- model.matrix(pred_formula, data = data)[, -1, drop = FALSE]
+        nms_sp <- colnames(X)
+      }
     } else {
       X <- matrix(0, nrow = nrow(data), ncol = 0)
       nms_sp <- character(0)
@@ -83,22 +98,22 @@ predict.feglm <- function(
     # Fixed effects are normalized (first level = 0) in get_alpha()
     # C++ fitted values use these normalized FEs via accumulate_fixed_effects()
     # So predictions should also use normalized FEs directly
-    fes2 <- setNames(
-      lapply(fes_names, function(name) {
-        # Match values and handle missing levels
-        matched_values <- fes[[name]][match(data[[name]], names(fes[[name]]))]
-        matched_values[is.na(matched_values)] <- 0 # Set missing levels to 0
-        matched_values
-      }),
-      fes_names
-    )
+    # Compute FE contribution directly without storing intermediate vectors
+    # This avoids K separate N-length allocations for fes2
+    fe_contrib <- numeric(nrow(data))
+    for (name in fes_names) {
+      fe_vec <- fes[[name]]
+      matched_idx <- match(data[[name]], names(fe_vec))
+      # Add contribution in-place: missing levels contribute 0
+      fe_contrib <- fe_contrib + ifelse(is.na(matched_idx), 0, fe_vec[matched_idx])
+    }
 
     # Replace NA coefficients with 0 for prediction
     coef0 <- coef_table[, 1]
     coef0[is.na(coef0)] <- 0
 
     if (length(fes) > 0) {
-      eta <- X %*% coef0 + Reduce("+", fes2)
+      eta <- X %*% coef0 + fe_contrib
     } else {
       eta <- X %*% coef0
     }

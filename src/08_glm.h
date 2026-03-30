@@ -17,17 +17,19 @@ struct GlmWorkspace {
   GlmWorkspace() : cached_n(0), cached_p(0) {}
 
   void ensure_size(uword n, uword p) {
-    // Only reallocate if needed (Armadillo handles this efficiently)
+    // Only reallocate if needed
+    // Use zeros() instead of set_size() to ensure deterministic initialization
+    // (prevents non-determinism on Mac due to uninitialized memory)
     if (n > cached_n) {
-      mu.set_size(n);
-      w_working.set_size(n);
-      nu.set_size(n);
-      z.set_size(n);
-      eta0.set_size(n);
+      mu.zeros(n);
+      w_working.zeros(n);
+      nu.zeros(n);
+      z.zeros(n);
+      eta0.zeros(n);
       cached_n = n;
     }
     if (p > cached_p) {
-      beta0.set_size(p);
+      beta0.zeros(p);
       cached_p = p;
     }
   }
@@ -143,19 +145,14 @@ InferenceGLM feglm_fit(
 #endif
 
   const uword n = y.n_elem;
-  const uword p_original = X.n_cols;
   const bool has_fixed_effects = fe_map.K > 0;
   const bool has_offset =
       (offset != nullptr && offset->n_elem == n && any(*offset != 0.0));
 
-  // Add intercept column if no fixed effects
+  // Add intercept column if no fixed effects (in-place to avoid allocation)
   if (!has_fixed_effects) {
-    mat X_with_intercept(n, p_original + 1);
-    X_with_intercept.col(0).ones();
-    if (p_original > 0) {
-      X_with_intercept.cols(1, p_original) = X;
-    }
-    X = std::move(X_with_intercept);
+    X.insert_cols(0, 1);
+    X.col(0).ones();
     beta = join_cols(vec{0.0}, beta);
   }
 
@@ -164,12 +161,19 @@ InferenceGLM feglm_fit(
   // Store original X in the FelmWorkspace (needed for FE recovery after
   // convergence). Skip when called from negbin outer loop — only the final
   // converged call needs FE recovery (run_from_negbin=false).
-  // This avoids an upfront N×P copy; instead the workspace owns it.
+  // This avoids an upfront N*P copy; instead the workspace owns it.
 
-  InferenceGLM result(n, p);
+  // Use lite constructor for fast path (skips P*P hessian/vcov allocation)
+  InferenceGLM result(n, p, !run_from_negbin);
 
   if (!y.is_finite() || !X.is_finite()) {
     result.conv = false;
+    // Initialize with NaN for R-side diagnostics
+    result.eta.set_size(n);
+    result.eta.fill(datum::nan);
+    result.fitted_values.set_size(n);
+    result.fitted_values.fill(datum::nan);
+    result.weights = w;
     return result;
   }
 
@@ -271,25 +275,36 @@ InferenceGLM feglm_fit(
 #endif
 
   // Collinearity check (once before iterations)
+  // After this check, we know which columns are non-collinear and can use
+  // regular chol() for any subsequent Hessian computations.
   const bool use_weights = any(w != 1.0);
-  const mat XtX = use_weights ? crossprod(X, w) : crossprod(X);
-
-  mat R_rank;
-  uvec excl;
-  uword rank;
-  chol_rank(R_rank, excl, rank, XtX, "upper", params.collin_tol);
 
   CollinearityResult collin_result(X.n_cols);
-  if (any(excl)) {
-    collin_result.has_collinearity = true;
-    collin_result.non_collinear_cols = find(excl == 0);
-    collin_result.collinear_cols = find(excl != 0);
-    collin_result.coef_status = 1 - excl;
+
+  // Scope XtX and R_rank so they're deallocated immediately after use
+  // (avoids holding P² memory through the entire IRLS loop)
+  {
+    const mat XtX = use_weights ? crossprod(X, w) : crossprod(X);
+    mat R_rank;
+    uvec excl;
+    uword rank;
+    chol_rank(R_rank, excl, rank, XtX, "upper", params.collin_tol);
+
+    if (any(excl)) {
+      collin_result.has_collinearity = true;
+      collin_result.non_collinear_cols = find(excl == 0);
+      collin_result.collinear_cols = find(excl != 0);
+      collin_result.coef_status = 1 - excl;
+    } else {
+      collin_result.has_collinearity = false;
+      collin_result.non_collinear_cols = regspace<uvec>(0, X.n_cols - 1);
+      collin_result.coef_status.ones();
+    }
+  } // XtX and R_rank deallocated here
+
+  // Now remove collinear columns from X (after R_rank is freed)
+  if (collin_result.has_collinearity) {
     X.shed_cols(collin_result.collinear_cols);
-  } else {
-    collin_result.has_collinearity = false;
-    collin_result.non_collinear_cols = regspace<uvec>(0, X.n_cols - 1);
-    collin_result.coef_status.ones();
   }
 
 #ifdef CAPYBARA_DEBUG
@@ -315,10 +330,8 @@ InferenceGLM feglm_fit(
   mu_(mu, eta);
 
   // Deviance computations
-  const double y_mean_scalar = mean(y);
-  const vec ymean(n, fill::value(y_mean_scalar));
   double dev = dev_resids(y, mu, theta, w, family_type);
-  const double null_dev = dev_resids(y, ymean, theta, w, family_type);
+  const double null_dev = null_deviance(y, theta, w, family_type);
 
   double dev0;
   bool conv = false;
@@ -341,8 +354,9 @@ InferenceGLM feglm_fit(
   // Persistent felm workspace
   FelmWorkspace felm_workspace;
 
-  // Copy X before shed_cols for FE recovery later
-  const mat X0 = run_from_negbin ? mat() : mat(X);
+  // NOTE: We no longer copy X0 here. After shed_cols, X contains exactly
+  // the non-collinear columns. For FE recovery, we use X directly with
+  // beta.elem(non_collinear_cols) which matches the post-shed column structure.
 
 #ifdef CAPYBARA_DEBUG
   cpp4r::message("/// Begin GLM iterations...\n");
@@ -455,6 +469,12 @@ InferenceGLM feglm_fit(
     // Handle non-convergence in inner loop
     if (!dev_crit || !val_crit) {
       result.conv = false;
+      // Still populate result vectors for R-side diagnostics
+      result.eta = std::move(eta);
+      result.fitted_values = std::move(mu);
+      result.weights = w;
+      result.deviance = dev;
+      result.null_deviance = null_dev;
       return result;
     }
 
@@ -554,9 +574,9 @@ InferenceGLM feglm_fit(
     if (run_from_negbin) {
       result.coef_table.col(0) = beta;
       result.coef_status = std::move(collin_result.coef_status);
-      result.eta = eta;
-      result.fitted_values = mu;
-      result.weights = w;
+      result.eta = std::move(eta);
+      result.fitted_values = std::move(mu);
+      result.weights = w;  // w is const ref, can't move
       result.deviance = dev;
       result.null_deviance = null_dev;
       result.conv = true;
@@ -576,12 +596,13 @@ InferenceGLM feglm_fit(
 
     if (has_fixed_effects) {
       // Compute pi = eta - X*beta - offset for FE recovery
+      // X has been shed of collinear columns, so its columns match the
+      // non-collinear indices. Extract matching beta elements.
       vec x_beta;
       if (collin_result.has_collinearity) {
-        x_beta = X0.cols(collin_result.non_collinear_cols) *
-                 beta.elem(collin_result.non_collinear_cols);
+        x_beta = X * beta.elem(collin_result.non_collinear_cols);
       } else {
-        x_beta = X0 * beta;
+        x_beta = X * beta;
       }
 
       vec pi = eta - x_beta;
@@ -617,24 +638,16 @@ InferenceGLM feglm_fit(
           sandwich_vcov_twoway_(MX, y, mu, H, *entity1_groups, *entity2_groups);
     } else if (params.vcov_type == "m-estimator-dyadic" &&
                entity1_groups != nullptr && entity2_groups != nullptr) {
-      // Dyadic-robust (Cameron & Miller 2014): does not require cluster_groups
-      // Score_i = (y_i - mu_i) * MX_i  (GLM M-estimator score)
+      // Dyadic-robust (Cameron & Miller 2014): uses memory-efficient overload
+      // that computes scores on-the-fly without N*P allocation
       const vec resid = y - mu;
-      mat scores(MX.n_rows, MX.n_cols);
-      for (uword i = 0; i < MX.n_rows; ++i) {
-        scores.row(i) = resid(i) * MX.row(i);
-      }
-      result.vcov = sandwich_vcov_mestimator_dyadic_(H, scores, *entity1_groups,
-                                                     *entity2_groups);
+      result.vcov = sandwich_vcov_mestimator_dyadic_(
+          H, MX, resid, *entity1_groups, *entity2_groups);
     } else if (cluster_groups != nullptr && cluster_groups->n_elem > 0) {
       if (params.vcov_type == "m-estimator") {
-        // For standard M-estimator clustering
+        // Memory-efficient: computes scores on-the-fly
         const vec resid = y - mu;
-        mat scores(MX.n_rows, MX.n_cols);
-        for (uword i = 0; i < MX.n_rows; ++i) {
-          scores.row(i) = resid(i) * MX.row(i);
-        }
-        result.vcov = sandwich_vcov_mestimator_(H, scores, *cluster_groups);
+        result.vcov = sandwich_vcov_mestimator_(H, MX, resid, *cluster_groups);
       } else {
         result.vcov = sandwich_vcov_(MX, y, mu, H, *cluster_groups);
       }
@@ -649,9 +662,9 @@ InferenceGLM feglm_fit(
 
     result.coef_table.col(0) = beta;
     result.coef_status = std::move(collin_result.coef_status);
-    result.eta = eta;
-    result.fitted_values = mu;
-    result.weights = w;
+    result.eta = std::move(eta);
+    result.fitted_values = std::move(mu);
+    result.weights = w;  // w is const ref, can't move
     result.hessian = std::move(H);
     result.deviance = dev;
     result.null_deviance = null_dev;
@@ -700,6 +713,15 @@ InferenceGLM feglm_fit(
       result.TX = MX;
       result.has_tx = true;
     }
+  } else {
+    // Non-convergence: still populate result vectors for R-side diagnostics
+    result.eta = std::move(eta);
+    result.fitted_values = std::move(mu);
+    result.weights = w;
+    result.deviance = dev;
+    result.null_deviance = null_dev;
+    result.coef_table.col(0) = beta;
+    result.coef_status = std::move(collin_result.coef_status);
   }
 
   return result;
@@ -775,8 +797,9 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
   const MuFromEtaFn mu_ = get_mu_fn(family_type);
   const OffsetWwYadjFn ww_yadj_ = get_offset_ww_yadj_fn(family_type);
 
-  // Working buffers
-  vec mu(n), w_working(n), yadj(n), eta0(n);
+  // Working buffers (fill::none for buffers immediately overwritten)
+  vec mu(n, fill::none), w_working(n, fill::none), yadj(n, fill::none),
+      eta0(n, fill::none);
   vec Myadj(n, fill::zeros);
 
   // Initial mu

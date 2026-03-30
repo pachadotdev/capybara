@@ -63,6 +63,12 @@ inline field<vec> get_alpha(const vec &pi, const FlatFEMap &map,
   vec r = pi;
   double *r_ptr_w = r.memptr();
 
+  // Pre-allocate new_alpha buffers for each k (reused across iterations)
+  std::vector<vec> new_alpha_bufs(K);
+  for (uword k = 0; k < K; ++k) {
+    new_alpha_bufs[k].set_size(map.n_groups[k]);
+  }
+
   double crit = 1.0;
   uword iter = 0;
 
@@ -78,8 +84,9 @@ inline field<vec> get_alpha(const vec &pi, const FlatFEMap &map,
 
       sum_sq0 += dot(alpha_k, alpha_k);
 
-      // Compute new alpha using scatter-gather with raw pointers
-      vec new_alpha(J, fill::zeros);
+      // Reuse pre-allocated buffer, zero it for this iteration
+      vec &new_alpha = new_alpha_bufs[k];
+      new_alpha.zeros();
       double *new_ak_ptr = new_alpha.memptr();
 
       // Accumulate: new_alpha[g] += w[i] * (r[i] + alpha_k[g[i]])
@@ -114,8 +121,8 @@ inline field<vec> get_alpha(const vec &pi, const FlatFEMap &map,
         r_ptr_w[i] -= new_ak_ptr[g] - ak_ptr[g];
       }
 
-      // Update coefficients
-      alpha_k = std::move(new_alpha);
+      // Update coefficients (swap to keep buffers valid for reuse)
+      alpha_k.swap(new_alpha);
     }
 
     // Convergence criterion

@@ -28,6 +28,8 @@ fit_control(
   sep_use_simplex = TRUE,
   return_fe = TRUE,
   keep_tx = FALSE,
+  keep_data = TRUE,
+  return_hessian = TRUE,
   check_separation = TRUE,
   init_theta = 0,
   vcov_type = NULL
@@ -103,6 +105,14 @@ equilibrium models where skipping the fixed effects for intermediate steps speed
 \item{keep_tx}{logical indicating if the centered regressor matrix should be stored. The centered regressor matrix is
 required for some covariance estimators, bias corrections, and average partial effects. This option saves
 some computation time at the cost of memory. The default is \code{TRUE}.}
+
+\item{keep_data}{logical indicating if the filtered data should be stored in the result object. Set to \code{FALSE}
+to reduce memory usage for very large datasets. Note: some methods like \code{predict()} and \code{apes()}
+require the data. The default is \code{TRUE}.}
+
+\item{return_hessian}{logical indicating if the Hessian matrix should be returned. The Hessian is a P×P
+matrix used internally to compute the variance-covariance matrix. Set to \code{FALSE} to save memory
+when only \code{vcov} is needed. The default is \code{TRUE}.}
 
 \item{check_separation}{logical indicating whether to perform separation detection for Poisson models. When \code{TRUE}
 (default), observations with perfect prediction are automatically detected and excluded from estimation. Set to

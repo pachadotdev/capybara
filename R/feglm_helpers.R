@@ -357,12 +357,12 @@ model_response_ <- function(data, formula) {
     # Fast path: evaluate LHS and each RHS term directly
     y <- eval(attr(tt, "variables")[[2L]], data)
 
-    n <- length(y)
-    p <- length(rhs_labels)
-    X <- matrix(NA_real_, nrow = n, ncol = p)
-    for (j in seq_len(p)) {
-      X[, j] <- eval(str2lang(rhs_labels[j]), data)
-    }
+    # Use vapply for cache-friendlier column construction
+    X <- vapply(rhs_labels, function(label) {
+      eval(str2lang(label), data)
+    }, FUN.VALUE = numeric(length(y)))
+    # Ensure X is a matrix even for single predictor case
+    if (!is.matrix(X)) X <- matrix(X, ncol = 1L)
     nms_sp <- rhs_labels
   } else {
     # Slow path: fall back to model.frame + model.matrix

@@ -64,6 +64,7 @@ struct CapybaraParameters {
   size_t iter_alpha_max;
   bool return_fe;
   bool keep_tx;
+  bool return_hessian;
 
   // Step-halving parameters
   double step_halving_memory;
@@ -87,9 +88,9 @@ struct CapybaraParameters {
         sep_simplex_max_iter(2000), check_separation(true), sep_use_relu(true),
         sep_use_simplex(true), iter_max(25), iter_center_max(10000),
         iter_inner_max(50), iter_alpha_max(10000), return_fe(true),
-        keep_tx(false), step_halving_memory(0.9), max_step_halving(2),
-        start_inner_tol(1e-06), grand_acc_period(10), centering("stammann"),
-        vcov_type("") {}
+        keep_tx(false), return_hessian(true), step_halving_memory(0.9),
+        max_step_halving(2), start_inner_tol(1e-06), grand_acc_period(10),
+        centering("stammann"), vcov_type("") {}
 
   explicit CapybaraParameters(const cpp4r::list &control) {
     dev_tol = as_cpp<double>(control["dev_tol"]);
@@ -114,6 +115,14 @@ struct CapybaraParameters {
     iter_alpha_max = as_cpp<size_t>(control["iter_alpha_max"]);
     return_fe = as_cpp<bool>(control["return_fe"]);
     keep_tx = as_cpp<bool>(control["keep_tx"]);
+
+    // Optional: skip returning hessian to save memory (vcov is usually enough)
+    SEXP return_hessian_sexp = control["return_hessian"];
+    if (return_hessian_sexp != R_NilValue) {
+      return_hessian = as_cpp<bool>(return_hessian_sexp);
+    } else {
+      return_hessian = true; // default: return hessian for backward compat
+    }
     step_halving_memory = as_cpp<double>(control["step_halving_memory"]);
     max_step_halving = as_cpp<size_t>(control["max_step_halving"]);
     start_inner_tol = as_cpp<double>(control["start_inner_tol"]);
@@ -137,12 +146,25 @@ struct CapybaraParameters {
   }
 };
 
-#include "01_center.h"
+#include "01_01_center_helpers.h"
+#include "01_02_center_acceleration.h"
+#include "01_03_center_stammann.h"
+#include "01_04_center_berge.h"
+#include "01_05_center.h"
+
 #include "02_chol.h"
 #include "03_beta.h"
 #include "04_alpha.h"
-#include "05_separation.h"
-#include "06_fit_helpers.h"
+
+#include "05_01_separation_helpers.h"
+#include "05_02_separation_relu.h"
+#include "05_03_separation_simplex.h"
+#include "05_04_separation.h"
+
+#include "06_01_fit_helpers.h"
+#include "06_02_fit_vcov.h"
+#include "06_03_fit_sums.h"
+
 #include "07_lm.h"
 #include "08_glm.h"
 #include "09_negbin.h"
@@ -166,6 +188,7 @@ inline uvec R_1based_to_Cpp_0based_indices(const integers &r_indices) {
 // fe_codes is a list of K integer vectors, each of length N, with 0-based
 // group codes. This is O(N*K) with zero intermediate allocation — no more
 // field<field<uvec>> of hundreds of small heap-allocated uvecs.
+// Uses direct R INTEGER() pointer access to avoid cpp4r wrapper overhead.
 inline capybara::FlatFEMap R_codes_to_FlatFEMap(const list &fe_codes) {
   capybara::FlatFEMap map;
   const size_t K = fe_codes.size();
@@ -178,8 +201,10 @@ inline capybara::FlatFEMap R_codes_to_FlatFEMap(const list &fe_codes) {
   map.n_obs = 0;
 
   for (size_t k = 0; k < K; ++k) {
-    const integers codes_k = as_cpp<integers>(fe_codes[k]);
-    const size_t N = codes_k.size();
+    // Direct R INTEGER() access - avoids cpp4r integers wrapper allocation
+    SEXP codes_sexp = fe_codes[k];
+    const int *codes_ptr = INTEGER(codes_sexp);
+    const size_t N = static_cast<size_t>(Rf_xlength(codes_sexp));
     if (k == 0)
       map.n_obs = N;
 
@@ -188,7 +213,7 @@ inline capybara::FlatFEMap R_codes_to_FlatFEMap(const list &fe_codes) {
     uword *map_k = map.fe_map[k].data();
     uword max_code = 0;
     for (size_t i = 0; i < N; ++i) {
-      const uword c = static_cast<uword>(codes_k[i]);
+      const uword c = static_cast<uword>(codes_ptr[i]);
       map_k[i] = c;
       if (c > max_code)
         max_code = c;
@@ -780,13 +805,17 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
       {"fitted_values"_nm = as_doubles(result.fitted_values),
        "residuals"_nm = as_doubles(result.residuals),
        "weights"_nm = as_doubles(result.weights),
-       "hessian"_nm = as_doubles_matrix(result.hessian),
        "vcov"_nm = as_doubles_matrix(result.vcov),
        "coef_table"_nm = as_doubles_matrix(result.coef_table),
        "r_squared"_nm = result.r_squared,
        "adj_r_squared"_nm = result.adj_r_squared,
        "coef_status"_nm = as_integers(result.coef_status),
        "success"_nm = result.success, "has_fe"_nm = result.has_fe});
+
+  // Conditionally include hessian (P×P matrix) to save memory
+  if (params.return_hessian) {
+    ret.push_back({"hessian"_nm = as_doubles_matrix(result.hessian)});
+  }
 
   // Add fixed effects information if available
   if (result.has_fe && result.fixed_effects.n_elem > 0) {
@@ -962,12 +991,16 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
        "fitted_values"_nm = as_doubles(result.fitted_values),
        "weights"_nm = as_doubles(result.weights),
        "vcov"_nm = as_doubles_matrix(result.vcov),
-       "hessian"_nm = as_doubles_matrix(result.hessian),
        "coef_table"_nm = as_doubles_matrix(result.coef_table),
        "deviance"_nm = writable::doubles({result.deviance}),
        "null_deviance"_nm = writable::doubles({result.null_deviance}),
        "conv"_nm = writable::logicals({result.conv}),
        "iter"_nm = writable::integers({static_cast<int>(result.iter + 1)})});
+
+  // Conditionally include hessian (P×P matrix) to save memory
+  if (params.return_hessian) {
+    out.push_back({"hessian"_nm = as_doubles_matrix(result.hessian)});
+  }
 
   // Add pseudo R-squared for Poisson models
   if (family_type == capybara::POISSON && result.pseudo_rsq > 0.0) {
@@ -1101,7 +1134,6 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
        "fitted_values"_nm = as_doubles(result.fitted_values),
        "weights"_nm = as_doubles(result.weights),
        "vcov"_nm = as_doubles_matrix(result.vcov),
-       "hessian"_nm = as_doubles_matrix(result.hessian),
        "coef_table"_nm = as_doubles_matrix(result.coef_table),
        "deviance"_nm = writable::doubles({result.deviance}),
        "null_deviance"_nm = writable::doubles({result.null_deviance}),
@@ -1111,6 +1143,11 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
        "iter.outer"_nm =
            writable::integers({static_cast<int>(result.iter_outer)}),
        "conv_outer"_nm = writable::logicals({result.conv_outer})});
+
+  // Conditionally include hessian (P×P matrix) to save memory
+  if (params.return_hessian) {
+    out.push_back({"hessian"_nm = as_doubles_matrix(result.hessian)});
+  }
 
   if (result.has_fe && result.fixed_effects.n_elem > 0) {
     writable::list fe_list(result.fixed_effects.n_elem);
