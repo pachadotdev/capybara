@@ -111,9 +111,9 @@ Family get_family_type(const std::string &fam) {
 // Deviance residuals - templated for both scalar and vector mu
 ///////////////////////////////////////////////////////////////////////////
 
-// Helper to get mu[i] - works for both scalar (returns mu) and vector (returns mu[i])
-template <typename MuType>
-inline double get_mu_i(const MuType &mu, uword i) {
+// Helper to get mu[i] - works for both scalar (returns mu) and vector (returns
+// mu[i])
+template <typename MuType> inline double get_mu_i(const MuType &mu, uword i) {
   if constexpr (std::is_arithmetic_v<MuType>) {
     (void)i; // suppress unused warning
     return mu;

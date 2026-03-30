@@ -52,7 +52,7 @@ struct FelmWorkspace {
   bool fe_map_initialized;    // Has fe_map.build() been called?
 
   // Reusable InferenceLM for IRLS inner calls (avoids re-allocating N-length
-  // vectors + P×P matrices every iteration)
+  // vectors + P*P matrices every iteration)
   std::unique_ptr<InferenceLM> glm_result;
 
   uword cached_N, cached_P;
@@ -260,7 +260,7 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
 
   // Reuse or create result object.
   // In the IRLS path (run_from_glm=true) the workspace keeps a persistent
-  // InferenceLM so we don't re-allocate N-length vectors + P×P matrices
+  // InferenceLM so we don't re-allocate N-length vectors + P*P matrices
   // every iteration.
   InferenceLM *res_ptr;
   if (run_from_glm) {
@@ -489,8 +489,9 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
              entity1_groups != nullptr && entity2_groups != nullptr) {
     // Dyadic-robust: memory-efficient overload computes scores on-the-fly
     const vec resid = ws->y_original - result.fitted_values;
-    vcov_reduced = sandwich_vcov_mestimator_dyadic_(
-        result.hessian, ws->X_centered, resid, *entity1_groups, *entity2_groups);
+    vcov_reduced =
+        sandwich_vcov_mestimator_dyadic_(result.hessian, ws->X_centered, resid,
+                                         *entity1_groups, *entity2_groups);
   } else if (cluster_groups != nullptr && cluster_groups->n_elem > 0) {
     if (params.vcov_type == "m-estimator") {
       // Memory-efficient: computes scores on-the-fly

@@ -159,7 +159,7 @@ InferenceGLM feglm_fit(
   // Store original X in the FelmWorkspace (needed for FE recovery after
   // convergence). Skip when called from negbin outer loop — only the final
   // converged call needs FE recovery (run_from_negbin=false).
-  // This avoids an upfront N×P copy; instead the workspace owns it.
+  // This avoids an upfront N*P copy; instead the workspace owns it.
 
   InferenceGLM result(n, p);
 
@@ -613,11 +613,10 @@ InferenceGLM feglm_fit(
     } else if (params.vcov_type == "m-estimator-dyadic" &&
                entity1_groups != nullptr && entity2_groups != nullptr) {
       // Dyadic-robust (Cameron & Miller 2014): uses memory-efficient overload
-      // that computes scores on-the-fly without N×P allocation
+      // that computes scores on-the-fly without N*P allocation
       const vec resid = y - mu;
-      result.vcov = sandwich_vcov_mestimator_dyadic_(H, MX, resid,
-                                                     *entity1_groups,
-                                                     *entity2_groups);
+      result.vcov = sandwich_vcov_mestimator_dyadic_(
+          H, MX, resid, *entity1_groups, *entity2_groups);
     } else if (cluster_groups != nullptr && cluster_groups->n_elem > 0) {
       if (params.vcov_type == "m-estimator") {
         // Memory-efficient: computes scores on-the-fly

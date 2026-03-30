@@ -137,11 +137,21 @@ struct CapybaraParameters {
   }
 };
 
-#include "01_center.h"
+#include "01_01_center_helpers.h"
+#include "01_02_center_acceleration.h"
+#include "01_03_center_stammann.h"
+#include "01_04_center_berge.h"
+#include "01_05_center.h"
+
 #include "02_chol.h"
 #include "03_beta.h"
 #include "04_alpha.h"
-#include "05_separation.h"
+
+#include "05_01_separation_helpers.h"
+#include "05_02_separation_relu.h"
+#include "05_03_separation_simplex.h"
+#include "05_04_separation.h"
+
 #include "06_fit_helpers.h"
 #include "07_lm.h"
 #include "08_glm.h"
