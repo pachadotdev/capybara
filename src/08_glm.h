@@ -266,25 +266,36 @@ InferenceGLM feglm_fit(
 #endif
 
   // Collinearity check (once before iterations)
+  // After this check, we know which columns are non-collinear and can use
+  // regular chol() for any subsequent Hessian computations.
   const bool use_weights = any(w != 1.0);
-  const mat XtX = use_weights ? crossprod(X, w) : crossprod(X);
-
-  mat R_rank;
-  uvec excl;
-  uword rank;
-  chol_rank(R_rank, excl, rank, XtX, "upper", params.collin_tol);
 
   CollinearityResult collin_result(X.n_cols);
-  if (any(excl)) {
-    collin_result.has_collinearity = true;
-    collin_result.non_collinear_cols = find(excl == 0);
-    collin_result.collinear_cols = find(excl != 0);
-    collin_result.coef_status = 1 - excl;
+
+  // Scope XtX and R_rank so they're deallocated immediately after use
+  // (avoids holding P² memory through the entire IRLS loop)
+  {
+    const mat XtX = use_weights ? crossprod(X, w) : crossprod(X);
+    mat R_rank;
+    uvec excl;
+    uword rank;
+    chol_rank(R_rank, excl, rank, XtX, "upper", params.collin_tol);
+
+    if (any(excl)) {
+      collin_result.has_collinearity = true;
+      collin_result.non_collinear_cols = find(excl == 0);
+      collin_result.collinear_cols = find(excl != 0);
+      collin_result.coef_status = 1 - excl;
+    } else {
+      collin_result.has_collinearity = false;
+      collin_result.non_collinear_cols = regspace<uvec>(0, X.n_cols - 1);
+      collin_result.coef_status.ones();
+    }
+  } // XtX and R_rank deallocated here
+
+  // Now remove collinear columns from X (after R_rank is freed)
+  if (collin_result.has_collinearity) {
     X.shed_cols(collin_result.collinear_cols);
-  } else {
-    collin_result.has_collinearity = false;
-    collin_result.non_collinear_cols = regspace<uvec>(0, X.n_cols - 1);
-    collin_result.coef_status.ones();
   }
 
 #ifdef CAPYBARA_DEBUG

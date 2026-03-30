@@ -2,6 +2,8 @@
 #ifndef CAPYBARA_LM_H
 #define CAPYBARA_LM_H
 
+#include <optional>
+
 namespace capybara {
 
 struct InferenceLM {
@@ -53,7 +55,8 @@ struct FelmWorkspace {
 
   // Reusable InferenceLM for IRLS inner calls (avoids re-allocating N-length
   // vectors + P*P matrices every iteration)
-  std::unique_ptr<InferenceLM> glm_result;
+  // Embedded directly (no heap allocation) using std::optional for lazy init
+  std::optional<InferenceLM> glm_result;
 
   uword cached_N, cached_P;
   bool x_original_allocated;
@@ -264,11 +267,12 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
   // every iteration.
   InferenceLM *res_ptr;
   if (run_from_glm) {
-    if (!ws->glm_result || ws->glm_result->fitted_values.n_elem != N ||
+    if (!ws->glm_result.has_value() ||
+        ws->glm_result->fitted_values.n_elem != N ||
         ws->glm_result->coef_table.n_rows != P) {
-      ws->glm_result = std::make_unique<InferenceLM>(N, P);
+      ws->glm_result.emplace(N, P);
     }
-    res_ptr = ws->glm_result.get();
+    res_ptr = &*ws->glm_result;
     // Reset only the fields that matter for each iteration
     res_ptr->success = false;
     res_ptr->has_fe = has_fixed_effects;
