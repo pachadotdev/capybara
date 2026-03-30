@@ -560,9 +560,9 @@ InferenceGLM feglm_fit(
     if (run_from_negbin) {
       result.coef_table.col(0) = beta;
       result.coef_status = std::move(collin_result.coef_status);
-      result.eta = eta;
-      result.fitted_values = mu;
-      result.weights = w;
+      result.eta = std::move(eta);
+      result.fitted_values = std::move(mu);
+      result.weights = w;  // w is const ref, can't move
       result.deviance = dev;
       result.null_deviance = null_dev;
       result.conv = true;
@@ -648,9 +648,9 @@ InferenceGLM feglm_fit(
 
     result.coef_table.col(0) = beta;
     result.coef_status = std::move(collin_result.coef_status);
-    result.eta = eta;
-    result.fitted_values = mu;
-    result.weights = w;
+    result.eta = std::move(eta);
+    result.fitted_values = std::move(mu);
+    result.weights = w;  // w is const ref, can't move
     result.hessian = std::move(H);
     result.deviance = dev;
     result.null_deviance = null_dev;

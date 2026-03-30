@@ -89,12 +89,14 @@ sqrt(diag(vcov(mod_h)))
 
 # One-way cluster sandwich
 mod_cl <- feglm(mpg ~ wt | cyl | am, mtcars,
-  family = poisson(link = "log"), vcov = "cluster")
+  family = poisson(link = "log"), vcov = "cluster"
+)
 summary(mod_cl)
 
 # Dyadic-robust (Cameron & Miller) — two entity columns in cluster part
 mod_dy <- feglm(mpg ~ wt | cyl | am + vs, mtcars,
-  family = poisson(link = "log"), vcov = "dyadic")
+  family = poisson(link = "log"), vcov = "dyadic"
+)
 sqrt(diag(vcov(mod_dy)))
 
 }
