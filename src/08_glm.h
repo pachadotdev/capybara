@@ -161,7 +161,8 @@ InferenceGLM feglm_fit(
   // converged call needs FE recovery (run_from_negbin=false).
   // This avoids an upfront N*P copy; instead the workspace owns it.
 
-  InferenceGLM result(n, p);
+  // Use lite constructor for fast path (skips P*P hessian/vcov allocation)
+  InferenceGLM result(n, p, !run_from_negbin);
 
   if (!y.is_finite() || !X.is_finite()) {
     result.conv = false;

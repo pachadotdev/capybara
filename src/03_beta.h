@@ -54,7 +54,7 @@ inline mat crossprod(const mat &X, const vec &w = vec()) {
   }
 
   // Compute sqrt(w) * X, then use BLAS for (sqrt(w)*X)' * (sqrt(w)*X)
-  // This avoids creating the full N×N diagmat(w) and lets BLAS handle
+  // This avoids creating the full N*N diagmat(w) and lets BLAS handle
   // memory access patterns and vectorization
   mat Xw(n, p);
   const double *w_ptr = w.memptr();
