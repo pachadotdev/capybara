@@ -106,6 +106,7 @@ bias_corr <- function(
   })
 
   # Compute derivatives and weights
+  # mu and mu_eta are freed immediately after use to reduce peak memory
   mu <- object[["family"]][["linkinv"]](object[["eta"]])
   mu_eta <- object[["family"]][["mu.eta"]](object[["eta"]])
   v <- object[["weights"]] * (y - mu)
@@ -113,11 +114,15 @@ bias_corr <- function(
   z <- object[["weights"]] * partial_mu_eta_(object[["eta"]], object[["family"]], 2L)
   if (object[["family"]][["link"]] != "logit") {
     h <- mu_eta / object[["family"]][["variance"]](mu)
+    rm(mu) # free mu early - no longer needed after h
     v <- h * v
     w <- h * w
     z <- h * z
     rm(h)
+  } else {
+    rm(mu) # free mu early
   }
+  rm(mu_eta) # free mu_eta early
 
   # Center regressor matrix (if required)
   if (object[["control"]][["keep_tx"]]) {
@@ -162,6 +167,7 @@ bias_corr <- function(
   names(beta) <- names(beta_uncorr)
 
   # Update \eta and first- and second-order derivatives
+  # mu and mu_eta freed early to reduce peak memory
   eta <- feglm_offset_(object, X %*% beta)
   mu <- object[["family"]][["linkinv"]](eta)
   mu_eta <- object[["family"]][["mu.eta"]](eta)
@@ -169,10 +175,14 @@ bias_corr <- function(
   w <- object[["weights"]] * mu_eta
   if (object[["family"]][["link"]] != "logit") {
     h <- mu_eta / object[["family"]][["variance"]](mu)
+    rm(mu) # free mu early
     v <- h * v
     w <- h * w
     rm(h)
+  } else {
+    rm(mu) # free mu early
   }
+  rm(mu_eta) # free mu_eta early
 
   # Update centered regressor matrix
   X <- center_variables_(

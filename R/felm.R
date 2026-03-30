@@ -195,7 +195,8 @@ felm <- function(
   check_weights_(w)
 
   # Extract raw FE columns as a list of vectors ----
-  fe_cols <- lapply(fe_vars, function(v) data[[v]])
+  # Use .subset2 (primitive) for faster column extraction without method dispatch
+  fe_cols <- lapply(fe_vars, function(v) .subset2(data, v))
   names(fe_cols) <- fe_vars
 
   # Extract cluster variable from formula (third part) ----
@@ -301,9 +302,13 @@ felm <- function(
   fit[["fe_levels"]] <- fe_levels
   fit[["nms_fe"]] <- nms_fe
   fit[["formula"]] <- formula
-  fit[["data"]] <- data
+  if (control[["keep_data"]]) {
+    fit[["data"]] <- data
+  }
   fit[["control"]] <- control
-  fit[["vcov_type"]] <- if (!is.null(vcov_label)) vcov_label else {
+  fit[["vcov_type"]] <- if (!is.null(vcov_label)) {
+    vcov_label
+  } else {
     # Infer label from what was actually computed
     if (!is.null(cl_col) || !is.null(entity1_col)) {
       if (!is.null(control$vcov_type)) control$vcov_type else "cluster"

@@ -43,7 +43,7 @@ felm_formula_parts_ <- function(formula) {
 update.felm <- function(object, formula. = . ~ ., vcov = NULL, ...) {
   old <- felm_formula_parts_(object[["formula"]])
 
-  new_chr  <- deparse1(formula.)
+  new_chr <- deparse1(formula.)
   new_segs <- trimws(strsplit(new_chr, "\\|")[[1L]])
 
   # --- base (lhs ~ rhs) ------------------------------------------------
@@ -92,7 +92,7 @@ update.felm <- function(object, formula. = . ~ ., vcov = NULL, ...) {
 update.feglm <- function(object, formula. = . ~ ., vcov = NULL, family = NULL, ...) {
   old <- felm_formula_parts_(object[["formula"]])
 
-  new_chr  <- deparse1(formula.)
+  new_chr <- deparse1(formula.)
   new_segs <- trimws(strsplit(new_chr, "\\|")[[1L]])
 
   new_base <- deparse1(
@@ -146,7 +146,7 @@ update.formula <- function(object, formula., ...) {
 
   # Delegate to stats for plain formulas (no | in either side)
   if (!grepl("|", obj_chr, fixed = TRUE) &&
-      !grepl("|", new_chr, fixed = TRUE)) {
+    !grepl("|", new_chr, fixed = TRUE)) {
     return(stats::update.formula(object, formula., ...))
   }
 
@@ -198,7 +198,7 @@ update.formula <- function(object, formula., ...) {
 update.felm_formula <- function(object, formula., ...) {
   old <- felm_formula_parts_(object)
 
-  new_chr  <- deparse1(formula.)
+  new_chr <- deparse1(formula.)
   new_segs <- trimws(strsplit(new_chr, "\\|")[[1L]])
 
   # base (lhs ~ rhs) — safe to delegate to update.formula()

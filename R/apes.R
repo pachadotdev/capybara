@@ -136,21 +136,31 @@ apes <- function(
 
   # Extract model response, regressor matrix, and weights
   y <- data[[1L]]
-  X <- model.matrix(object[["formula"]], data, rhs = 1L)[, -1L, drop = FALSE]
-  nms_sp <- attr(X, "dimnames")[[2L]]
-  attr(X, "dimnames") <- NULL
+
+  # Reuse stored design matrix columns when available to avoid model.matrix() copy
+  if (object[["control"]][["keep_tx"]] && !is.null(object[["tx"]])) {
+    # tx is centered; we need original X for binary computations
+    # Extract column names from stored tx
+    nms_sp <- colnames(object[["tx"]])
+    X <- model.matrix(object[["formula"]], data, rhs = 1L)[, -1L, drop = FALSE]
+    attr(X, "dimnames") <- NULL
+  } else {
+    X <- model.matrix(object[["formula"]], data, rhs = 1L)[, -1L, drop = FALSE]
+    nms_sp <- attr(X, "dimnames")[[2L]]
+    attr(X, "dimnames") <- NULL
+  }
 
   # Determine which of the regressors are binary
   binary <- apply(X, 2L, function(X) all(X %in% c(0.0, 1.0)))
 
-  # Generate flat FE codes for centering + inverted indices for group_sums
+  # Generate flat FE codes for centering
   fe_names_apes <- names(object[["fe_levels"]])
   k_list <- get_index_list_(fe_names_apes, data)
-  # Inverted indices for group_sums_ (only called once, not hot path)
+
+  # Defer k_groups creation until needed (only for bias_corr or covariance adjustment)
+  # This avoids memory fragmentation from many small integer vectors
+  k_groups <- NULL
   n_apes <- nrow(data)
-  k_groups <- lapply(fe_names_apes, function(v) {
-    split(seq_len(n_apes), data[[v]])
-  })
 
   # Compute derivatives and weights
   eta <- object[["eta"]]
@@ -182,32 +192,33 @@ apes <- function(
   }
 
   # Compute average partial effects, derivatives, and Jacobian
-  delta <- matrix(NA_real_, nt, p)
-  delta1 <- matrix(NA_real_, nt, p)
-  j <- matrix(NA_real_, p, p)
-  if (any(!binary)) {
-    delta[, !binary] <- mu_eta
-    delta1[, !binary] <- partial_mu_eta_(eta, object[["family"]], 2L)
-  }
-  invisible(lapply(seq.int(p), function(i) {
+  # Pre-compute non-binary derivatives once to avoid redundant computation
+  delta1_nonbinary <- partial_mu_eta_(eta, object[["family"]], 2L)
+
+  # Allocate matrices - fill directly in loop to avoid double-initialization
+  delta <- matrix(0.0, nt, p)
+  delta1 <- matrix(0.0, nt, p)
+  j <- matrix(0.0, p, p)
+
+  # Fill columns incrementally
+  for (i in seq_len(p)) {
     if (binary[[i]]) {
       eta0 <- eta - X[, i] * beta[[i]]
       eta1 <- eta0 + beta[[i]]
       f1 <- family[["mu.eta"]](eta1)
-      delta[, i] <<- (family[["linkinv"]](eta1) - family[["linkinv"]](eta0))
-      delta1[, i] <<- f1 - family[["mu.eta"]](eta0)
-      j[, i] <<- -colSums((X - tx) * delta1[, i]) / nt_full
-      j[i, i] <<- sum(f1) / nt_full + j[i, i]
-      j[-i, i] <<- colSums(X[, -i, drop = FALSE] * delta1[, i]) /
-        nt_full +
-        j[-i, i]
+      delta[, i] <- family[["linkinv"]](eta1) - family[["linkinv"]](eta0)
+      delta1[, i] <- f1 - family[["mu.eta"]](eta0)
+      j[, i] <- -colSums((X - tx) * delta1[, i]) / nt_full
+      j[i, i] <- sum(f1) / nt_full + j[i, i]
+      j[-i, i] <- colSums(X[, -i, drop = FALSE] * delta1[, i]) / nt_full + j[-i, i]
     } else {
-      delta[, i] <<- beta[[i]] * delta[, i]
-      delta1[, i] <<- beta[[i]] * delta1[, i]
-      j[, i] <<- colSums(tx * delta1[, i]) / nt_full
-      j[i, i] <<- sum(mu_eta) / nt_full + j[i, i]
+      delta[, i] <- beta[[i]] * mu_eta
+      delta1[, i] <- beta[[i]] * delta1_nonbinary
+      j[, i] <- colSums(tx * delta1[, i]) / nt_full
+      j[i, i] <- sum(mu_eta) / nt_full + j[i, i]
     }
-  }))
+  }
+  rm(delta1_nonbinary)
   delta_aux <- colSums(delta) / nt_full
   delta <- t(t(delta) - delta_aux) / nt_full
   rm(mu, mu_eta)
@@ -226,6 +237,12 @@ apes <- function(
 
   # Compute analytical bias correction of average partial effects
   if (bias_corr) {
+    # Create k_groups only when needed for bias correction
+    if (is.null(k_groups)) {
+      k_groups <- lapply(fe_names_apes, function(v) {
+        split(seq_len(n_apes), data[[v]])
+      })
+    }
     b <- apes_bias_correction_(
       eta,
       family,
@@ -251,6 +268,13 @@ apes <- function(
   # Compute covariance matrix
   gamma <- gamma_(tx, object[["hessian"]], j, ppsi, v, nt_full)
   v <- crossprod(gamma)
+
+  # Create k_groups if needed for covariance adjustment and not already created
+  if (is.null(k_groups) && (adj != 0 || sampling_fe != "independence" || weak_exo)) {
+    k_groups <- lapply(fe_names_apes, function(v) {
+      split(seq_len(n_apes), data[[v]])
+    })
+  }
 
   v <- apes_adjust_covariance_(
     v,

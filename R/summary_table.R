@@ -136,18 +136,20 @@ summary_table <- function(
 
   # SE type row (from vcov_type stored on each model)
   vcov_label_map <- c(
-    "iid"              = "IID",
-    "hetero"           = "Heteroskedastic-robust",
-    "cluster"          = "Cluster-robust",
-    "m-estimator"      = "Cluster-robust (M-est.)",
+    "iid" = "IID",
+    "hetero" = "Heteroskedastic-robust",
+    "cluster" = "Cluster-robust",
+    "m-estimator" = "Cluster-robust (M-est.)",
     "m-estimator-dyadic" = "Dyadic-robust",
-    "dyadic"           = "Dyadic-robust"
+    "dyadic" = "Dyadic-robust"
   )
   se_type_row <- c(
     "SE type",
     sapply(models, function(m) {
       vt <- m[["vcov_type"]]
-      if (is.null(vt)) "" else {
+      if (is.null(vt)) {
+        ""
+      } else {
         lbl <- vcov_label_map[vt]
         if (is.na(lbl)) vt else lbl
       }
