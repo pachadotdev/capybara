@@ -166,6 +166,12 @@ InferenceGLM feglm_fit(
 
   if (!y.is_finite() || !X.is_finite()) {
     result.conv = false;
+    // Initialize with NaN for R-side diagnostics
+    result.eta.set_size(n);
+    result.eta.fill(datum::nan);
+    result.fitted_values.set_size(n);
+    result.fitted_values.fill(datum::nan);
+    result.weights = w;
     return result;
   }
 
@@ -461,6 +467,12 @@ InferenceGLM feglm_fit(
     // Handle non-convergence in inner loop
     if (!dev_crit || !val_crit) {
       result.conv = false;
+      // Still populate result vectors for R-side diagnostics
+      result.eta = std::move(eta);
+      result.fitted_values = std::move(mu);
+      result.weights = w;
+      result.deviance = dev;
+      result.null_deviance = null_dev;
       return result;
     }
 
@@ -699,6 +711,15 @@ InferenceGLM feglm_fit(
       result.TX = MX;
       result.has_tx = true;
     }
+  } else {
+    // Non-convergence: still populate result vectors for R-side diagnostics
+    result.eta = std::move(eta);
+    result.fitted_values = std::move(mu);
+    result.weights = w;
+    result.deviance = dev;
+    result.null_deviance = null_dev;
+    result.coef_table.col(0) = beta;
+    result.coef_status = std::move(collin_result.coef_status);
   }
 
   return result;
