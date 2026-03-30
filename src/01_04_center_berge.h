@@ -511,7 +511,8 @@ inline void center_kfe_berge(mat &V, const vec &w, const FlatFEMap &map,
           if (is_ok) {
             for (uword k = 0; k < K - 1; ++k)
               alpha[k] = grand_alpha_Y[k];
-            gs_sweep_backward_kfe(GX, alpha, in_out, map, w_ptr, n_obs, P, warm);
+            gs_sweep_backward_kfe(GX, alpha, in_out, map, w_ptr, n_obs, P,
+                                  warm);
           }
         }
         grand_stage = 0;

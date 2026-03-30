@@ -47,9 +47,9 @@ struct InferenceGLM {
   // (e.g., negbin outer loop iterations where only beta/eta/mu are needed)
   InferenceGLM(uword n, uword p, bool allocate_vcov)
       : coef_table(p, 4, fill::zeros), eta(n, fill::zeros),
-        fitted_values(n, fill::zeros), weights(n, fill::ones),
-        hessian(), vcov(), deviance(0.0), null_deviance(0.0), conv(false),
-        iter(0), coef_status(p, fill::ones), pseudo_rsq(0.0), has_fe(false),
+        fitted_values(n, fill::zeros), weights(n, fill::ones), hessian(),
+        vcov(), deviance(0.0), null_deviance(0.0), conv(false), iter(0),
+        coef_status(p, fill::ones), pseudo_rsq(0.0), has_fe(false),
         has_tx(false), has_separation(false), num_separated(0) {
     if (allocate_vcov) {
       hessian.zeros(p, p);

@@ -33,8 +33,6 @@ chol_rank(Mat<typename T1::elem_type> &out, Col<uword> &excluded,
   const uword N = A.n_rows;
 
   if (A.is_empty()) {
-    out.reset();
-    excluded.reset();
     rank_out = 0;
     return true;
   }
@@ -72,7 +70,7 @@ chol_rank(Mat<typename T1::elem_type> &out, Col<uword> &excluded,
   Col<eT> diag_contrib(N, fill::zeros);
 
   // Pre-allocate BlockUpdate buffer for reuse across panels.
-  // Maximum size: (N x block) for upper, (N x block) for lower.
+  // Maximum size: (N * block) for upper, (N * block) for lower.
   // We resize only when the required size exceeds current capacity.
   Mat<eT> BlockUpdate;
   uword block_update_rows = 0;
@@ -159,7 +157,7 @@ chol_rank(Mat<typename T1::elem_type> &out, Col<uword> &excluded,
 
             if (j > p) {
               // Intra-panel: sum_{k=p}^{j-1} out(k, j) * out(k, trailing)
-              // Vector (size j-p) * Matrix (size j-p x trailing_len)
+              // Vector (size j-p) * Matrix (size j-p * trailing_len)
               tmp -= out.col(j).rows(p, j - 1).t() *
                      out.submat(p, trailing_start, j - 1, N - 1);
             }
@@ -179,7 +177,7 @@ chol_rank(Mat<typename T1::elem_type> &out, Col<uword> &excluded,
         } else // sig == 'l'
         {
           if (p > 0) {
-            // BlockUpdate size (N-p) x (end-p+1).
+            // BlockUpdate size (N-p) * (end-p+1).
             // Col index in BlockUpdate corresponds to j.
             // Row index in BlockUpdate corresponds to global rows p...N-1.
             // We need rows corresponding to trailing_start..N-1.
@@ -190,7 +188,7 @@ chol_rank(Mat<typename T1::elem_type> &out, Col<uword> &excluded,
 
             if (j > p) {
               // Intra-panel: sum_{k=p}^{j-1} out(j, k) * out(trailing, k)
-              // Matrix (size trailing_len x j-p) * Vector (size j-p)
+              // Matrix (size trailing_len * j-p) * Vector (size j-p)
               // out(trailing, p...j-1) * out(j, p...j-1).t()
               tmp -= out.submat(trailing_start, p, N - 1, j - 1) *
                      out.row(j).cols(p, j - 1).t();

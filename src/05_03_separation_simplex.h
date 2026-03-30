@@ -6,8 +6,10 @@
 namespace capybara {
 
 inline void simplex_presolve(mat &X, uvec &basic_vars, uvec &nonbasic_vars,
-                             Col<unsigned char> &keep_mask, uword &k, uword &n) {
-  // First pass: identify and drop empty columns (byte mask for memory efficiency)
+                             Col<unsigned char> &keep_mask, uword &k,
+                             uword &n) {
+  // First pass: identify and drop empty columns (byte mask for memory
+  // efficiency)
   Col<unsigned char> is_dropped(k, fill::zeros);
   uword num_dropped = 0;
   for (uword j = 0; j < k; ++j) {
@@ -31,7 +33,8 @@ inline void simplex_presolve(mat &X, uvec &basic_vars, uvec &nonbasic_vars,
     uvec non_empty(k - num_dropped);
     uword idx = 0;
     for (uword j = 0; j < k; ++j) {
-      if (!is_dropped(j)) non_empty(idx++) = j;
+      if (!is_dropped(j))
+        non_empty(idx++) = j;
     }
     X = X.cols(non_empty);
     k = non_empty.n_elem;
@@ -76,13 +79,15 @@ inline void simplex_presolve(mat &X, uvec &basic_vars, uvec &nonbasic_vars,
   // Count and extract non-dropped columns (from byte mask)
   uword num_kept = 0;
   for (uword j = 0; j < k; ++j) {
-    if (!is_dropped(j)) ++num_kept;
+    if (!is_dropped(j))
+      ++num_kept;
   }
   if (num_kept > 0 && num_kept < k) {
     uvec not_dropped(num_kept);
     uword idx = 0;
     for (uword j = 0; j < k; ++j) {
-      if (!is_dropped(j)) not_dropped(idx++) = j;
+      if (!is_dropped(j))
+        not_dropped(idx++) = j;
     }
     X = X.cols(not_dropped);
     k = not_dropped.n_elem;
@@ -144,15 +149,23 @@ detect_separation_simplex(const mat &residuals,
   // Test 2: Apply simplex on remaining (only if needed)
   // Build indices from byte masks
   uword num_kept_obs = 0, num_kept_vars = 0;
-  for (uword i = 0; i < n; ++i) if (!dropped_obs(i)) ++num_kept_obs;
-  for (uword j = 0; j < k; ++j) if (!dropped_vars(j)) ++num_kept_vars;
+  for (uword i = 0; i < n; ++i)
+    if (!dropped_obs(i))
+      ++num_kept_obs;
+  for (uword j = 0; j < k; ++j)
+    if (!dropped_vars(j))
+      ++num_kept_vars;
 
   uvec kept_obs(num_kept_obs);
   uvec kept_vars(num_kept_vars);
   {
     uword oi = 0, vi = 0;
-    for (uword i = 0; i < n; ++i) if (!dropped_obs(i)) kept_obs(oi++) = i;
-    for (uword j = 0; j < k; ++j) if (!dropped_vars(j)) kept_vars(vi++) = j;
+    for (uword i = 0; i < n; ++i)
+      if (!dropped_obs(i))
+        kept_obs(oi++) = i;
+    for (uword j = 0; j < k; ++j)
+      if (!dropped_vars(j))
+        kept_vars(vi++) = j;
   }
 
   if (kept_vars.n_elem > 1 && kept_obs.n_elem > 0) {

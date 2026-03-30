@@ -41,7 +41,7 @@ struct FelmWorkspace {
   std::vector<double> center_buf; // owns the memory: N * (P+1) doubles
   vec y_demeaned;                 // non-owning view of center_buf[0..N-1]
   mat X_centered;                 // non-owning view of center_buf[N..N*(P+1)-1]
-  mat yX_view; // non-owning view of entire buffer as N x (P+1)
+  mat yX_view; // non-owning view of entire buffer as N * (P+1)
 
   vec x_beta;
   vec pi;
@@ -396,52 +396,55 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
   auto tsolve0 = std::chrono::high_resolution_clock::now();
 #endif
 
-  mat XtX;
-  vec XtY_vec;
-
-  if (use_weights) {
-    XtX = crossprod(ws->X_centered, w_work);
-    XtY_vec = ws->X_centered.t() * (w_work % ws->y_demeaned);
-  } else {
-    XtX = crossprod(ws->X_centered);
-    XtY_vec = ws->X_centered.t() * ws->y_demeaned;
-  }
-
-  mat R_rank;
-  uvec excl;
-  uword rank;
-
-  if (!chol_rank(R_rank, excl, rank, XtX, "upper", params.collin_tol)) {
-    throw std::runtime_error("chol_rank failed in felm_fit");
-  }
-
-  // Populate collinearity result from excl vector
-  CollinearityResult collin_result(P_final);
-  collin_result.has_collinearity = any(excl);
-  collin_result.non_collinear_cols = find(excl == 0);
-  collin_result.collinear_cols = find(excl != 0);
-  collin_result.coef_status = 1 - excl;
-
   // Solve reduced system for non-excluded columns
   const uword n_coef = P_final;
   vec beta_solved(n_coef, fill::value(datum::nan));
   mat hessian_reduced;
+  CollinearityResult collin_result(P_final);
 
-  if (rank > 0) {
-    const uvec keep_idx = collin_result.non_collinear_cols;
-    const mat R_sub = R_rank.submat(keep_idx, keep_idx);
-    const vec XtY_sub = XtY_vec.elem(keep_idx);
+  // Scope XtX and R_rank so they're deallocated immediately after solving
+  {
+    mat XtX;
+    vec XtY_vec;
 
-    // Solve triangular systems: R'y = XtY, then Rb = y
-    const vec y_sub = solve(trimatl(R_sub.t()), XtY_sub);
-    const vec beta_sub = solve(trimatu(R_sub), y_sub);
+    if (use_weights) {
+      XtX = crossprod(ws->X_centered, w_work);
+      XtY_vec = ws->X_centered.t() * (w_work % ws->y_demeaned);
+    } else {
+      XtX = crossprod(ws->X_centered);
+      XtY_vec = ws->X_centered.t() * ws->y_demeaned;
+    }
 
-    // Scatter into full beta (excluded entries remain NaN)
-    beta_solved.elem(keep_idx) = beta_sub;
+    mat R_rank;
+    uvec excl;
+    uword rank;
 
-    // Hessian from Cholesky factor: X'X = R'R
-    hessian_reduced = R_sub.t() * R_sub;
-  }
+    if (!chol_rank(R_rank, excl, rank, XtX, "upper", params.collin_tol)) {
+      throw std::runtime_error("chol_rank failed in felm_fit");
+    }
+
+    // Populate collinearity result from excl vector
+    collin_result.has_collinearity = any(excl);
+    collin_result.non_collinear_cols = find(excl == 0);
+    collin_result.collinear_cols = find(excl != 0);
+    collin_result.coef_status = 1 - excl;
+
+    if (rank > 0) {
+      const uvec keep_idx = collin_result.non_collinear_cols;
+      const mat R_sub = R_rank.submat(keep_idx, keep_idx);
+      const vec XtY_sub = XtY_vec.elem(keep_idx);
+
+      // Solve triangular systems: R'y = XtY, then Rb = y
+      const vec y_sub = solve(trimatl(R_sub.t()), XtY_sub);
+      const vec beta_sub = solve(trimatu(R_sub), y_sub);
+
+      // Scatter into full beta (excluded entries remain NaN)
+      beta_solved.elem(keep_idx) = beta_sub;
+
+      // Hessian from Cholesky factor: X'X = R'R
+      hessian_reduced = R_sub.t() * R_sub;
+    }
+  } // XtX, R_rank, XtY_vec freed here
 
   if (result.coef_table.n_rows != n_coef) {
     result.coef_table.set_size(n_coef, 4);

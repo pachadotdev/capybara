@@ -7,12 +7,12 @@ namespace capybara {
 // Clustered covariance matrix (Sandwich estimator)
 ///////////////////////////////////////////////////////////////////////////
 
-// MX: centered design matrix (n x p)
+// MX: centered design matrix (n * p)
 // y: response vector (n)
 // mu: fitted values (n)
-// H: Hessian matrix (p x p), i.e., MX' W MX
+// H: Hessian matrix (p * p), i.e., MX' W MX
 // cluster_groups: indices for each cluster
-// Returns: sandwich covariance matrix (p x p)
+// Returns: sandwich covariance matrix (p * p)
 
 inline mat sandwich_vcov_(const mat &MX, const vec &y, const vec &mu,
                           const mat &H, const field<uvec> &cluster_groups) {
@@ -67,7 +67,7 @@ inline mat sandwich_vcov_(const mat &MX, const vec &y, const vec &mu,
 
 ///////////////////////////////////////////////////////////////////////////
 // Two-way cluster covariance matrix (Cameron-Gelbach-Miller 2011)
-// V_{2way} = V_{c1} + V_{c2} - V_{c1 x c2}
+// V_{2way} = V_{c1} + V_{c2} - V_{c1 * c2}
 ///////////////////////////////////////////////////////////////////////////
 
 inline mat sandwich_vcov_twoway_(const mat &MX, const vec &y, const vec &mu,
@@ -229,7 +229,7 @@ inline mat sandwich_vcov_mestimator_(const mat &A, const mat &scores,
 
   // Meat: B = sum_g s_g s_g'
   // where s_g = sum_{i in cluster g} scores_i  (cluster-level score)
-  // scores is n x p, each row is the observation-level score m_{gh}(theta_hat)
+  // scores is n * p, each row is the observation-level score m_{gh}(theta_hat)
   mat B(p, p, fill::zeros);
   vec cluster_score(p);
 

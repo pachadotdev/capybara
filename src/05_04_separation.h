@@ -66,10 +66,10 @@ inline SeparationResult check_separation(const vec &y, const mat &X,
             unique(join_vert(result.separated_obs, relu_result.separated_obs));
         result.num_separated = result.separated_obs.n_elem;
       } else {
-        result.separated_obs = relu_result.separated_obs;
-        result.num_separated = relu_result.num_separated;
+        result.separated_obs = std::move(relu_result.separated_obs);
+        result.num_separated = result.separated_obs.n_elem;
       }
-      result.support = relu_result.support;
+      result.support = std::move(relu_result.support);
       result.iterations = relu_result.iterations;
     }
   }

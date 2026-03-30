@@ -48,7 +48,7 @@ inline bool stopping_crit(double a, double b, double diffMax) {
 // Flat FE structure using std::vector for guaranteed contiguous memory
 struct FlatFEMap {
   std::vector<std::vector<uword>>
-      fe_map;                   // K x n_obs: fe_map[k][i] = group of obs i
+      fe_map;                   // K * n_obs: fe_map[k][i] = group of obs i
   std::vector<vec> inv_weights; // K: precomputed 1/sum(w) per group
   std::vector<uword> n_groups;  // K: number of groups per FE
   uword n_obs;
@@ -123,35 +123,11 @@ struct FlatFEMap {
       }
     }
   }
-
-  // Release all memory when transitioning between models with different
-  // dimensions
-  void reset() {
-    for (auto &m : fe_map) {
-      m.clear();
-      m.shrink_to_fit();
-    }
-    fe_map.clear();
-    fe_map.shrink_to_fit();
-
-    for (auto &w : inv_weights) {
-      w.reset();
-    }
-    inv_weights.clear();
-    inv_weights.shrink_to_fit();
-
-    n_groups.clear();
-    n_groups.shrink_to_fit();
-
-    n_obs = 0;
-    K = 0;
-    structure_built = false;
-  }
 };
 
 // Warm-start storage for centering across IRLS iterations
 struct CenterWarmStart {
-  std::vector<mat> alpha; // K coefficient matrices (n_groups[k] x P)
+  std::vector<mat> alpha; // K coefficient matrices (n_groups[k] * P)
   uword K;
   uword P;
   bool valid;
@@ -223,13 +199,6 @@ struct CenterWarmStart {
       stammann_2fe_grand_GY.zeros();
       return;
     }
-    // Dimensions changed: explicitly release old buffers before reallocating
-    // to ensure memory is freed immediately
-    for (auto &m : stammann_2fe_scratch) {
-      m.reset();
-    }
-    stammann_2fe_grand_Y.reset();
-    stammann_2fe_grand_GY.reset();
 
     stammann_2fe_scratch.resize(4);
     stammann_2fe_scratch[0].set_size(n1, p); // X_it
@@ -257,13 +226,6 @@ struct CenterWarmStart {
       stammann_kfe_grand_GY.zeros();
       return;
     }
-    // Dimensions changed: explicitly release old buffers before reallocating
-    // to ensure memory is freed immediately
-    for (auto &m : stammann_kfe_scratch) {
-      m.reset();
-    }
-    stammann_kfe_grand_Y.reset();
-    stammann_kfe_grand_GY.reset();
 
     stammann_kfe_scratch.resize(4);
     stammann_kfe_scratch[0].zeros(n0, p); // X_it
@@ -284,8 +246,8 @@ struct CenterWarmStart {
 
   // For Berge K-FE: reuse col_ptrs_all storage across gs_sweep_backward_kfe
   // calls
-  std::vector<std::vector<const double *>> &
-  ensure_berge_kfe_col_ptrs(uword p, uword k) {
+  std::vector<std::vector<const double *>> &ensure_berge_kfe_col_ptrs(uword p,
+                                                                      uword k) {
     if (berge_kfe_valid && berge_kfe_P == p && berge_kfe_K == k) {
       return berge_kfe_col_ptrs;
     }
@@ -295,50 +257,6 @@ struct CenterWarmStart {
     berge_kfe_K = k;
     berge_kfe_valid = true;
     return berge_kfe_col_ptrs;
-  }
-
-  // Release all scratch buffers to free memory when transitioning between
-  // models with different dimensions or when memory pressure is high
-  void reset() {
-    // Clear coefficient storage
-    alpha.clear();
-    alpha.shrink_to_fit();
-    K = 0;
-    P = 0;
-    valid = false;
-
-    // Clear Berge 2-FE scratch buffers
-    scratch_mats.clear();
-    scratch_mats.shrink_to_fit();
-    scratch_beta.reset();
-    scratch_valid = false;
-    scratch_n1 = 0;
-    scratch_n2 = 0;
-
-    // Clear Stammann 2-FE scratch buffers
-    stammann_2fe_scratch.clear();
-    stammann_2fe_scratch.shrink_to_fit();
-    stammann_2fe_grand_Y.reset();
-    stammann_2fe_grand_GY.reset();
-    stammann_2fe_valid = false;
-    stammann_2fe_n1 = 0;
-    stammann_2fe_p = 0;
-
-    // Clear Stammann K-FE scratch buffers
-    stammann_kfe_scratch.clear();
-    stammann_kfe_scratch.shrink_to_fit();
-    stammann_kfe_grand_Y.reset();
-    stammann_kfe_grand_GY.reset();
-    stammann_kfe_valid = false;
-    stammann_kfe_n0 = 0;
-    stammann_kfe_p = 0;
-
-    // Clear Berge K-FE col_ptrs buffer
-    berge_kfe_col_ptrs.clear();
-    berge_kfe_col_ptrs.shrink_to_fit();
-    berge_kfe_valid = false;
-    berge_kfe_P = 0;
-    berge_kfe_K = 0;
   }
 };
 

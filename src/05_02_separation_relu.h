@@ -15,7 +15,7 @@ struct SeparationReluWorkspace {
   vec resid;
   vec u;
   vec weights;
-  vec boundary_xbd;  // sized to num_boundary
+  vec boundary_xbd; // sized to num_boundary
 
   void ensure_size(uword n, uword num_boundary) {
     if (xbd.n_elem != n) {
@@ -106,7 +106,7 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
       wgt_ptr[int_ptr[i]] = M;
     }
 
-    // Apply acceleration to stuck negative boundary observations (direct access)
+    // Apply acceleration to stuck negative boundary observations
     if (convergence_is_stuck && iter > 3) {
       const double *xbd_p1_ptr = xbd_prev1.memptr();
       const double *xbd_p2_ptr = xbd_prev2.memptr();
@@ -181,7 +181,8 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
     // Check separation - all non-negative means we found it
     bool all_nonneg = true;
     for (uword i = 0; i < num_boundary && all_nonneg; ++i) {
-      if (boundary_xbd(i) < 0) all_nonneg = false;
+      if (boundary_xbd(i) < 0)
+        all_nonneg = false;
     }
     if (all_nonneg) {
       const uvec sep_ind_local = find(boundary_xbd > 0);
@@ -194,13 +195,14 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
     }
 
     resid.clean(params.sep_zero_tol);
-    
+
     // Check boundary residuals (direct access)
     const double *resid_ptr = resid.memptr();
     double min_bnd_resid = datum::inf;
     for (uword i = 0; i < num_boundary; ++i) {
       double r = resid_ptr[bnd_ptr[i]];
-      if (r < min_bnd_resid) min_bnd_resid = r;
+      if (r < min_bnd_resid)
+        min_bnd_resid = r;
     }
 
     if (min_bnd_resid >= 0) {
