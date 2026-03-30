@@ -80,6 +80,9 @@ NULL
 #' @param keep_data logical indicating if the filtered data should be stored in the result object. Set to \code{FALSE}
 #'  to reduce memory usage for very large datasets. Note: some methods like \code{predict()} and \code{apes()}
 #'  require the data. The default is \code{TRUE}.
+#' @param return_hessian logical indicating if the Hessian matrix should be returned. The Hessian is a P×P
+#'  matrix used internally to compute the variance-covariance matrix. Set to \code{FALSE} to save memory
+#'  when only \code{vcov} is needed. The default is \code{TRUE}.
 #' @param check_separation logical indicating whether to perform separation detection for Poisson models. When \code{TRUE}
 #'  (default), observations with perfect prediction are automatically detected and excluded from estimation. Set to
 #'  \code{FALSE} to skip this check and speed up computation when separation is known not to be an issue. The default
@@ -126,6 +129,7 @@ fit_control <- function(
   return_fe = TRUE,
   keep_tx = FALSE,
   keep_data = TRUE,
+  return_hessian = TRUE,
   check_separation = TRUE,
   init_theta = 0.0,
   vcov_type = NULL
@@ -171,11 +175,12 @@ fit_control <- function(
   return_fe <- as.logical(return_fe)
   keep_tx <- as.logical(keep_tx)
   keep_data <- as.logical(keep_data)
+  return_hessian <- as.logical(return_hessian)
   check_separation <- as.logical(check_separation)
   sep_use_relu <- as.logical(sep_use_relu)
   sep_use_simplex <- as.logical(sep_use_simplex)
-  if (is.na(return_fe) || is.na(keep_tx) || is.na(keep_data) || is.na(check_separation) ||
-    is.na(sep_use_relu) || is.na(sep_use_simplex)) {
+  if (is.na(return_fe) || is.na(keep_tx) || is.na(keep_data) || is.na(return_hessian) ||
+    is.na(check_separation) || is.na(sep_use_relu) || is.na(sep_use_simplex)) {
     stop(
       "All logical parameters should be TRUE or FALSE.",
       call. = FALSE
@@ -252,6 +257,7 @@ fit_control <- function(
     return_fe = return_fe,
     keep_tx = keep_tx,
     keep_data = keep_data,
+    return_hessian = return_hessian,
     check_separation = check_separation,
     init_theta = init_theta,
     vcov_type = vcov_type
