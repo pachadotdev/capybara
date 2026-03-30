@@ -152,7 +152,10 @@ struct CapybaraParameters {
 #include "05_03_separation_simplex.h"
 #include "05_04_separation.h"
 
-#include "06_fit_helpers.h"
+#include "06_01_fit_helpers.h"
+#include "06_02_fit_vcov.h"
+#include "06_03_fit_sums.h"
+
 #include "07_lm.h"
 #include "08_glm.h"
 #include "09_negbin.h"
