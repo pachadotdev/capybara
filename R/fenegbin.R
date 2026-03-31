@@ -141,9 +141,72 @@ fenegbin <- function(
   # Check validity of control + Extract control list ----
   control <- check_control_(control)
 
-  # Generate model.frame (column subsetting + weight extraction)
-  X <- eta <- lhs <- nobs_full <- NA
-  model_frame_(data, formula, weights)
+  # Determine needed columns ----
+  formula_vars <- all.vars(formula)
+  weight_col <- NULL
+  if (!is.null(weights)) {
+    if (is.character(weights) && length(weights) == 1L) {
+      weight_col <- weights
+    } else if (inherits(weights, "formula")) {
+      weight_col <- all.vars(weights)
+    }
+  }
+  needed_cols <- if (!is.null(weight_col)) {
+    c(formula_vars, weight_col)
+  } else {
+    formula_vars
+  }
+
+  # Extract offset before subsetting ----
+  offset_vec <- NULL
+  if (!is.null(offset)) {
+    if (inherits(offset, "formula")) {
+      offset_vars <- attr(terms(offset, data = data), "term.labels")
+      if (length(offset_vars) != 1L) {
+        stop("Offset formula must specify exactly one term.", call. = FALSE)
+      }
+      offset_vec <- eval(parse(text = offset_vars), envir = data)
+    } else if (is.numeric(offset)) {
+      offset_vec <- offset
+      if (length(offset_vec) != nrow(data)) {
+        stop("Length of offset must equal number of observations.", call. = FALSE)
+      }
+    } else {
+      stop("Offset must be NULL, a formula, or a numeric vector.", call. = FALSE)
+    }
+  }
+
+  # Preserve rownames before conversion ----
+  orig_rn <- rownames(data)
+
+  # Subset to needed columns ----
+  if (inherits(data, "data.table")) {
+    data <- copy(data[, needed_cols, with = FALSE])
+  } else {
+    data <- as.data.table(data[, needed_cols, drop = FALSE])
+  }
+
+  lhs <- names(data)[[1L]]
+  nobs_full <- nrow(data)
+
+  # Convert "units" columns to numeric ----
+  unit_cols <- names(data)[vapply(data, inherits, what = "units", logical(1))]
+  for (uc in unit_cols) {
+    set(data, j = uc, value = as.numeric(data[[uc]]))
+  }
+
+  # Remove NA rows early (before creating y, X) ----
+  complete_idx <- which(complete.cases(data))
+  if (length(complete_idx) < nobs_full) {
+    data <- data[complete_idx]
+    if (!is.null(orig_rn)) orig_rn <- orig_rn[complete_idx]
+    if (!is.null(offset_vec)) offset_vec <- offset_vec[complete_idx]
+  }
+
+  # Store surviving rownames ----
+  if (!is.null(orig_rn)) {
+    attr(data, ".rownames") <- orig_rn
+  }
 
   # Create a dummy family for response checking
   family <- poisson(link = link)
@@ -151,105 +214,99 @@ fenegbin <- function(
   # Ensure that model response is in line with the chosen model ----
   check_response_(data, lhs, family)
 
-  # Get names of the fixed effects variables ----
-  fe_vars <- check_fe_(formula, data)
+  # Get FE variable names ----
+  fe_vars <- suppressWarnings(attr(terms(formula, rhs = 2L), "term.labels"))
+  if (length(fe_vars) < 1L) fe_vars <- character(0)
 
-  # Get names of the fixed effects variables and sort ----
-  fe_names <- attr(terms(formula, rhs = 2L), "term.labels")
-
-  # Determine the number of dropped observations ----
+  # Current number of observations ----
   nt <- nrow(data)
 
-  # Extract model response and regressor matrix ----
-  nms_sp <- NA
-  model_response_(data, formula)
+  # Extract response ----
+  y <- data[[lhs]]
+  if (is.integer(y)) y <- as.numeric(y)
 
-  # Extract weights if required ----
+  # Extract weights ----
   if (is.null(weights)) {
     w <- rep(1.0, nt)
+  } else if (is.numeric(weights)) {
+    if (length(weights) != nobs_full) {
+      stop("Length of weights vector must equal number of observations.", call. = FALSE)
+    }
+    w <- if (length(complete_idx) < nobs_full) weights[complete_idx] else weights
   } else {
-    w <- data[[weights]]
+    w <- data[[weight_col]]
   }
-
-  # Check validity of weights ----
   check_weights_(w)
 
-  # Extract offset if required ----
-  if (is.null(offset)) {
+  # Extract offset ----
+  if (is.null(offset_vec)) {
     offset_vec <- rep(0.0, nt)
-  } else if (inherits(offset, "formula")) {
-    # Offset provided as formula (e.g., ~ log(variable))
-    offset_vars <- attr(terms(offset, data = data), "term.labels")
-    if (length(offset_vars) != 1L) {
-      stop("Offset formula must specify exactly one term.", call. = FALSE)
-    }
-    # Evaluate the offset expression in the context of the data
-    offset_vec <- eval(parse(text = offset_vars), envir = data)
-    if (length(offset_vec) != nt) {
-      stop(
-        "Length of offset does not match number of observations.",
-        call. = FALSE
-      )
-    }
-  } else if (is.numeric(offset)) {
-    # Offset provided as numeric vector
-    offset_vec <- offset
-    if (length(offset_vec) != nt) {
-      stop("Length of offset must equal number of observations.", call. = FALSE)
-    }
-  } else {
-    stop("Offset must be NULL, a formula, or a numeric vector.", call. = FALSE)
+  } else if (length(offset_vec) != nt) {
+    stop("Length of offset does not match number of observations after filtering.", call. = FALSE)
   }
 
-  # Get starting guesses if provided
-  beta <- if (!is.null(beta_start)) {
-    as.numeric(beta_start)
-  } else {
-    numeric(0)
+  # Build design matrix ----
+  f1 <- formula(formula, lhs = 1L, rhs = 1L)
+  tt <- terms(f1)
+  rhs_labels <- attr(tt, "term.labels")
+
+  # Determine fast vs slow path
+  use_fast <- FALSE
+  if (length(rhs_labels) > 0L) {
+    rhs_vars <- all.vars(parse(text = paste(rhs_labels, collapse = "+")))
+    rhs_vars <- rhs_vars[rhs_vars %in% colnames(data)]
+    all_numeric <- length(rhs_vars) > 0L &&
+      all(vapply(data[, rhs_vars, with = FALSE], is.numeric, logical(1)))
+    has_special <- any(grepl("factor|poly|ns\\(|bs\\(|strata", rhs_labels))
+    has_interaction <- any(grepl(":", rhs_labels, fixed = TRUE))
+    use_fast <- all_numeric && !has_special && !has_interaction
   }
 
-  # Get eta starting guesses if provided
-  eta_vec <- if (!is.null(eta_start)) {
-    as.numeric(eta_start)
+  if (use_fast) {
+    # Fast path: extract columns directly
+    X <- vapply(rhs_labels, function(label) {
+      eval(str2lang(label), data)
+    }, FUN.VALUE = numeric(nt))
+    if (!is.matrix(X)) X <- matrix(X, ncol = 1L)
+    nms_sp <- rhs_labels
   } else {
-    numeric(0)
+    # Slow path: model.frame + model.matrix
+    mm_vars <- all.vars(f1)
+    mf <- model.frame(f1, data[, mm_vars, with = FALSE], na.action = na.pass)
+    X <- model.matrix(tt, mf)[, -1L, drop = FALSE]
+    nms_sp <- colnames(X)
+    attr(X, "dimnames") <- NULL
   }
 
-  # Extract raw FE columns as a list of vectors ----
-  fe_cols <- lapply(fe_vars, function(v) data[[v]])
+  # Extract FE columns ----
+  fe_cols <- lapply(fe_vars, function(v) .subset2(data, v))
   names(fe_cols) <- fe_vars
+
+  # Drop data early if not keeping ----
+  data_for_output <- if (control[["keep_data"]]) data else NULL
+  rn_for_output <- attr(data, ".rownames")
+  data <- NULL  # Allow GC
+
+  # Starting guesses ----
+  beta <- if (!is.null(beta_start)) as.numeric(beta_start) else numeric(0)
+  eta_vec <- if (!is.null(eta_start)) as.numeric(eta_start) else numeric(0)
 
   # Set init_theta to 0 if NULL
   if (is.null(init_theta)) {
     init_theta <- 0.0
   } else {
-    # Validate init_theta
     if (length(init_theta) != 1L || init_theta <= 0) {
       stop("'init_theta' must be a positive scalar.", call. = FALSE)
     }
   }
 
-  if (is.integer(y)) {
-    y <- as.numeric(y)
-  }
-
+  # FIT MODEL ----
   fit <- structure(
-    fenegbin_fit_(
-      X,
-      y,
-      w,
-      fe_cols,
-      link,
-      beta,
-      eta_vec,
-      init_theta,
-      offset_vec,
-      control
-    ),
+    fenegbin_fit_(X, y, w, fe_cols, link, beta, eta_vec, init_theta, offset_vec, control),
     class = c("feglm", "fenegbin")
   )
 
-  # Organize nobs info ----
+  # Post-processing ----
   nobs_na <- nobs_full - fit[["nobs_used"]]
   nobs <- c(
     nobs_full = nobs_full,
@@ -267,52 +324,50 @@ fenegbin <- function(
     cat("Algorithm did not converge.\n")
   }
 
-  # Add names to coef_table, hessian, vcov, and X_dm (if provided) ----
-  dimnames(fit[["coef_table"]]) <- list(
-    nms_sp,
-    c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
-  )
+  # Add names to outputs ----
+  dimnames(fit[["coef_table"]]) <- list(nms_sp, c("Estimate", "Std. Error", "z value", "Pr(>|z|)"))
   if (control[["keep_tx"]]) {
     colnames(fit[["tx"]]) <- nms_sp
   }
   dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
   dimnames(fit[["vcov"]]) <- list(nms_sp, nms_sp)
 
-  # Use the row indices to set fitted_values names
-  # Keep data as data.table to avoid an O(N*K) deep copy via as.data.frame()
-  rn <- attr(data, ".rownames")
+  # Set fitted_values names ----
   if (!is.null(fit[["obs_indices"]])) {
-    if (!is.null(rn)) {
-      names(fit[["fitted_values"]]) <- rn[fit[["obs_indices"]]]
-      rn <- rn[fit[["obs_indices"]]]
+    if (!is.null(rn_for_output)) {
+      names(fit[["fitted_values"]]) <- rn_for_output[fit[["obs_indices"]]]
+      rn_for_output <- rn_for_output[fit[["obs_indices"]]]
     } else {
       names(fit[["fitted_values"]]) <- fit[["obs_indices"]]
     }
-    data <- data[fit[["obs_indices"]]]
-    attr(data, ".rownames") <- rn
+    if (!is.null(data_for_output)) {
+      data_for_output <- data_for_output[fit[["obs_indices"]]]
+      attr(data_for_output, ".rownames") <- rn_for_output
+    }
   } else {
-    if (!is.null(rn)) {
-      names(fit[["fitted_values"]]) <- rn
+    if (!is.null(rn_for_output)) {
+      names(fit[["fitted_values"]]) <- rn_for_output
     } else {
       names(fit[["fitted_values"]]) <- seq_along(fit[["fitted_values"]])
     }
   }
 
-  # Clean up C++ internal fields not needed by user
+  # Clean up C++ internal fields ----
   fit[["obs_indices"]] <- NULL
   fit[["nobs_used"]] <- NULL
 
-  # Add to fit list ----
+  # Build result ----
   fit[["nobs"]] <- nobs
   fit[["fe_levels"]] <- fe_levels
   fit[["nms_fe"]] <- nms_fe
   fit[["formula"]] <- formula
-  fit[["data"]] <- data
+  if (control[["keep_data"]]) {
+    fit[["data"]] <- data_for_output
+  }
   fit[["family"]] <- negative.binomial(theta = fit[["theta"]], link = link)
   fit[["control"]] <- control
   fit[["offset"]] <- offset_vec
 
-  # Return result ----
   fit
 }
 

@@ -136,12 +136,6 @@ felm <- function(
   check_control_(control)
 
   # Process vcov argument ----
-  # Maps friendly vcov names to the C++ vcov_type control parameter.
-  # 'iid'         - inverse Hessian (no cluster needed)
-  # 'hetero'      - HC0 heteroskedastic-robust (computed in C++, no cluster needed)
-  # 'cluster'     - one-way standard sandwich (cluster variable required)
-  # 'm-estimator' - one-way M-estimator sandwich (cluster variable required)
-  # 'dyadic'      - dyadic-robust Cameron-Miller sandbox (two entity cols required)
   vcov_label <- NULL
   if (!is.null(vcov)) {
     vcov <- match.arg(vcov, c("iid", "hetero", "cluster", "m-estimator", "dyadic"))
@@ -159,92 +153,158 @@ felm <- function(
     }
   }
 
-  # Generate model.frame (column subsetting + weight extraction) ----
-  lhs <- NA
-  nobs_full <- NA
-  weights_vec <- NA
-  weights_col <- NA
-  model_frame_(data, formula, weights)
-
-  # Get names of the fixed effects variables ----
-  fe_vars <- check_fe_(formula, data)
-
-  # Extract model response and regressor matrix ----
-  nms_sp <- NA
-  model_response_(data, formula)
-
-  # Extract weights if required ----
-  nt <- nrow(data)
-  if (is.null(weights)) {
-    w <- rep(1.0, nt)
-  } else if (!all(is.na(weights_vec))) {
-    if (length(weights_vec) != nt) {
-      stop(
-        "Length of weights vector must equal number of observations.",
-        call. = FALSE
-      )
+  # Determine needed columns ----
+  formula_vars <- all.vars(formula)
+  weight_col <- NULL
+  if (!is.null(weights)) {
+    if (is.character(weights) && length(weights) == 1L) {
+      weight_col <- weights
+    } else if (inherits(weights, "formula")) {
+      weight_col <- all.vars(weights)
     }
-    w <- weights_vec
-  } else if (!all(is.na(weights_col))) {
-    w <- data[[weights_col]]
+  }
+  needed_cols <- if (!is.null(weight_col)) {
+    c(formula_vars, weight_col)
   } else {
-    w <- data[[weights]]
+    formula_vars
   }
 
-  # Check validity of weights ----
+  # Preserve rownames before conversion ----
+  orig_rn <- rownames(data)
+
+  # Subset to needed columns ----
+  if (inherits(data, "data.table")) {
+    data <- copy(data[, needed_cols, with = FALSE])
+  } else {
+    data <- as.data.table(data[, needed_cols, drop = FALSE])
+  }
+
+  lhs <- names(data)[[1L]]
+  nobs_full <- nrow(data)
+
+  # Convert "units" columns to numeric ----
+  unit_cols <- names(data)[vapply(data, inherits, what = "units", logical(1))]
+  for (uc in unit_cols) {
+    set(data, j = uc, value = as.numeric(data[[uc]]))
+  }
+
+  # Remove NA rows early (before creating y, X) ----
+  complete_idx <- which(complete.cases(data))
+  if (length(complete_idx) < nobs_full) {
+    data <- data[complete_idx]
+    if (!is.null(orig_rn)) orig_rn <- orig_rn[complete_idx]
+  }
+
+  # Store surviving rownames ----
+  if (!is.null(orig_rn)) {
+    attr(data, ".rownames") <- orig_rn
+  }
+
+  # Get FE variable names ----
+  fe_vars <- suppressWarnings(attr(terms(formula, rhs = 2L), "term.labels"))
+  if (length(fe_vars) < 1L) fe_vars <- character(0)
+
+  # Get cluster variable names ----
+  cl_vars <- suppressWarnings(attr(terms(formula, rhs = 3L), "term.labels"))
+
+  # Current number of observations ----
+  nt <- nrow(data)
+
+  # Extract response (evaluate LHS transformation if present) ----
+  f1 <- formula(formula, lhs = 1L, rhs = 1L)
+  tt <- terms(f1)
+  resp_call <- attr(tt, "variables")[[2L]]
+  y <- eval(resp_call, data)
+  if (is.integer(y)) y <- as.numeric(y)
+
+  # Extract weights ----
+  if (is.null(weights)) {
+    w <- rep(1.0, nt)
+  } else if (is.numeric(weights)) {
+    if (length(weights) != nobs_full) {
+      stop("Length of weights vector must equal number of observations.", call. = FALSE)
+    }
+    w <- if (length(complete_idx) < nobs_full) weights[complete_idx] else weights
+  } else {
+    w <- data[[weight_col]]
+  }
   check_weights_(w)
 
-  # Extract raw FE columns as a list of vectors ----
-  # Use .subset2 (primitive) for faster column extraction without method dispatch
+  # Build design matrix ----
+  rhs_labels <- attr(tt, "term.labels")
+  has_fe <- length(fe_vars) > 0L
+
+  # Determine fast vs slow path
+  use_fast <- FALSE
+  if (length(rhs_labels) > 0L) {
+    rhs_vars <- all.vars(parse(text = paste(rhs_labels, collapse = "+")))
+    rhs_vars <- rhs_vars[rhs_vars %in% colnames(data)]
+    all_numeric <- length(rhs_vars) > 0L &&
+      all(vapply(data[, rhs_vars, with = FALSE], is.numeric, logical(1)))
+    has_special <- any(grepl("factor|poly|ns\\(|bs\\(|strata", rhs_labels))
+    has_interaction <- any(grepl(":", rhs_labels, fixed = TRUE))
+    use_fast <- all_numeric && !has_special && !has_interaction
+  }
+
+  if (use_fast) {
+    # Fast path: extract columns directly
+    X <- vapply(rhs_labels, function(label) {
+      eval(str2lang(label), data)
+    }, FUN.VALUE = numeric(nt))
+    if (!is.matrix(X)) X <- matrix(X, ncol = 1L)
+    nms_sp <- rhs_labels
+  } else {
+    # Slow path: model.frame + model.matrix
+    mm_vars <- all.vars(f1)
+    mf <- model.frame(f1, data[, mm_vars, with = FALSE], na.action = na.pass)
+    X <- model.matrix(tt, mf)[, -1L, drop = FALSE]
+    nms_sp <- colnames(X)
+    attr(X, "dimnames") <- NULL
+  }
+
+  # Extract FE columns ----
   fe_cols <- lapply(fe_vars, function(v) .subset2(data, v))
   names(fe_cols) <- fe_vars
 
-  # Extract cluster variable from formula (third part) ----
-  cl_vars_temp <- suppressWarnings(attr(
-    terms(formula, rhs = 3L),
-    "term.labels"
-  ))
-
-  # For dyadic clustering, expect two variables in the third part
-  # Otherwise, use the first variable as the cluster variable
+  # Extract cluster columns ----
   cl_col <- NULL
   entity1_col <- NULL
   entity2_col <- NULL
-
-  # Skip cluster extraction for iid / hetero (ignore any cluster spec in formula)
   skip_cluster <- isTRUE(vcov_label %in% c("iid", "hetero"))
 
-  if (!skip_cluster && length(cl_vars_temp) >= 1L) {
+  if (!skip_cluster && length(cl_vars) >= 1L) {
     if (!is.null(control$vcov_type) && control$vcov_type == "m-estimator-dyadic") {
-      if (length(cl_vars_temp) < 2L) {
+      if (length(cl_vars) < 2L) {
         stop(
           "For dyadic clustering (vcov = 'dyadic'), specify two entity columns ",
           "in the formula like: y ~ x | fe | entity1 + entity2",
           call. = FALSE
         )
       }
-      entity1_col <- data[[cl_vars_temp[1L]]]
-      entity2_col <- data[[cl_vars_temp[2L]]]
+      entity1_col <- data[[cl_vars[1L]]]
+      entity2_col <- data[[cl_vars[2L]]]
     } else {
-      if (length(cl_vars_temp) >= 2L) {
+      if (length(cl_vars) >= 2L) {
         # Two-way: CGM V_c1 + V_c2 - V_{c1 x c2}, fully handled in C++
         control$vcov_type <- "two-way"
-        entity1_col <- data[[cl_vars_temp[1L]]]
-        entity2_col <- data[[cl_vars_temp[2L]]]
+        entity1_col <- data[[cl_vars[1L]]]
+        entity2_col <- data[[cl_vars[2L]]]
       } else {
-        cl_col <- data[[cl_vars_temp[1L]]]
+        cl_col <- data[[cl_vars[1L]]]
       }
     }
   }
+  had_cluster <- !is.null(cl_col) || !is.null(entity1_col)
 
-  # Fit linear model ----
-  if (is.integer(y)) {
-    y <- as.numeric(y)
-  }
+  # Drop data early if not keeping ----
+  data_for_output <- if (control[["keep_data"]]) data else NULL
+  rn_for_output <- attr(data, ".rownames")
+  data <- NULL  # Allow GC
 
+  # FIT MODEL ----
   fit <- felm_fit_(X, y, w, fe_cols, cl_col, entity1_col, entity2_col, control)
 
-  # Organize nobs info ----
+  # Post-processing ----
   nobs_na <- nobs_full - fit[["nobs_used"]]
   nobs <- c(
     nobs_full = nobs_full,
@@ -257,66 +317,59 @@ felm <- function(
   nms_fe <- fit[["nms_fe"]]
   fe_levels <- fit[["fe_levels"]]
 
-  X <- NULL
-
-  # Add names to coef_table, hessian, T(X) (if provided), and fitted values ----
-  if (length(fe_vars) == 0) {
+  # Add names to outputs ----
+  if (length(fe_vars) == 0L) {
     nms_sp <- c("(Intercept)", nms_sp)
   }
-  dimnames(fit[["coef_table"]]) <- list(
-    nms_sp,
-    c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
-  )
+  dimnames(fit[["coef_table"]]) <- list(nms_sp, c("Estimate", "Std. Error", "z value", "Pr(>|z|)"))
   dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
   dimnames(fit[["vcov"]]) <- list(nms_sp, nms_sp)
   if (control[["keep_tx"]]) {
     colnames(fit[["tx"]]) <- nms_sp
   }
 
-  # Use the row indices to set fitted_values names
-  # Keep data as data.table to avoid an O(N*K) deep copy via as.data.frame()
-  rn <- attr(data, ".rownames")
+  # Set fitted_values names ----
   if (!is.null(fit[["obs_indices"]])) {
-    if (!is.null(rn)) {
-      names(fit[["fitted_values"]]) <- rn[fit[["obs_indices"]]]
-      rn <- rn[fit[["obs_indices"]]]
+    if (!is.null(rn_for_output)) {
+      names(fit[["fitted_values"]]) <- rn_for_output[fit[["obs_indices"]]]
+      rn_for_output <- rn_for_output[fit[["obs_indices"]]]
     } else {
       names(fit[["fitted_values"]]) <- fit[["obs_indices"]]
     }
-    data <- data[fit[["obs_indices"]]]
-    attr(data, ".rownames") <- rn
+    if (!is.null(data_for_output)) {
+      data_for_output <- data_for_output[fit[["obs_indices"]]]
+      attr(data_for_output, ".rownames") <- rn_for_output
+    }
   } else {
-    if (!is.null(rn)) {
-      names(fit[["fitted_values"]]) <- rn
+    if (!is.null(rn_for_output)) {
+      names(fit[["fitted_values"]]) <- rn_for_output
     } else {
       names(fit[["fitted_values"]]) <- seq_along(fit[["fitted_values"]])
     }
   }
 
-  # Clean up C++ internal fields not needed by user
+  # Clean up C++ internal fields ----
   fit[["obs_indices"]] <- NULL
   fit[["nobs_used"]] <- NULL
 
-  # Add to fit list ----
+  # Build result ----
   fit[["nobs"]] <- nobs
   fit[["fe_levels"]] <- fe_levels
   fit[["nms_fe"]] <- nms_fe
   fit[["formula"]] <- formula
   if (control[["keep_data"]]) {
-    fit[["data"]] <- data
+    fit[["data"]] <- data_for_output
   }
   fit[["control"]] <- control
   fit[["vcov_type"]] <- if (!is.null(vcov_label)) {
     vcov_label
   } else {
-    # Infer label from what was actually computed
-    if (!is.null(cl_col) || !is.null(entity1_col)) {
+    if (had_cluster) {
       if (!is.null(control$vcov_type)) control$vcov_type else "cluster"
     } else {
       "iid"
     }
   }
 
-  # Return result list ----
   structure(fit, class = "felm")
 }

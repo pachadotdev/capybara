@@ -50,14 +50,135 @@
 #' @noRd
 NULL
 
-
-
 #' NA_standards
 #' @srrstatsNA {G2.14} Missing observations are dropped, otherwise providing
 #'  imputation methods would bias the estimation (i.e., replacing all missing
 #'  values with the median).
 #' @noRd
 NULL
+
+#' @title Check formula
+#' @description Checks formulas for LM/GLM/NegBin models
+#' @param formula Formula object
+#' @noRd
+check_formula_ <- function(formula) {
+  if (is.null(formula)) {
+    stop("'formula' has to be specified.", call. = FALSE)
+  } else if (!inherits(formula, "formula")) {
+    stop("'formula' has to be of class 'formula'.", call. = FALSE)
+  }
+
+  formula <- Formula(formula)
+
+  # Check that formula has a left-hand side (response variable)
+  if (length(formula)[1] == 0) {
+    stop(
+      "'formula' must have a response variable (left-hand side).",
+      call. = FALSE
+    )
+  }
+
+  assign("formula", formula, envir = parent.frame())
+}
+
+#' @title Check data
+#' @description Checks data for GLM/NegBin models
+#' @param data Data frame
+#' @noRd
+check_data_ <- function(data) {
+  if (is.null(data)) {
+    stop("'data' must be specified.", call. = FALSE)
+  }
+  if (!is.data.frame(data)) {
+    stop("'data' must be a data.frame.", call. = FALSE)
+  }
+  if (nrow(data) == 0L) stop("'data' has zero observations.", call. = FALSE)
+}
+
+#' @title Check control
+#' @description Checks control for GLM/NegBin models and merges with defaults
+#' @param control Control list
+#' @noRd
+check_control_ <- function(control) {
+  default_control <- do.call(fit_control, list())
+
+  if (is.null(control)) {
+    assign("control", default_control, envir = parent.frame())
+  } else if (!inherits(control, "list")) {
+    stop("'control' has to be a list.", call. = FALSE)
+  } else {
+    # merge user-provided values with defaults
+    merged_control <- default_control
+
+    invisible(lapply(names(control), function(param_name) {
+      if (param_name %in% names(default_control)) {
+        merged_control[[param_name]] <<- control[[param_name]]
+      } else {
+        warning(
+          sprintf("Unknown control parameter: '%s'", param_name),
+          call. = FALSE
+        )
+      }
+    }))
+
+    # checks
+    # 1. non-negative params
+    non_neg_params <- c(
+      "dev_tol",
+      "center_tol",
+      "collin_tol",
+      "step_halving_factor",
+      "alpha_tol",
+      "sep_tol",
+      "iter_max",
+      "iter_center_max",
+      "iter_inner_max",
+      "iter_interrupt",
+      "sep_max_iter",
+      "iter_alpha_max",
+      "step_halving_memory",
+      "start_inner_tol"
+    )
+    invisible(lapply(non_neg_params, function(param_name) {
+      if (
+        param_name %in%
+          names(merged_control) &&
+          merged_control[[param_name]] <= 0
+      ) {
+        stop(
+          sprintf("'%s' must be greater than zero.", param_name),
+          call. = FALSE
+        )
+      }
+    }))
+    # 2. logical params
+    logical_params <- c("return_fe", "keep_tx", "check_separation")
+    invisible(lapply(logical_params, function(param_name) {
+      if (
+        param_name %in%
+          names(merged_control) &&
+          !is.logical(merged_control[[param_name]])
+      ) {
+        stop(sprintf("'%s' must be logical.", param_name), call. = FALSE)
+      }
+    }))
+
+    assign("control", merged_control, envir = parent.frame())
+  }
+}
+
+#' @title Check weights
+#' @description Checks if weights are valid
+#' @param wt Weights
+#' @noRd
+check_weights_ <- function(wt) {
+  if (!is.numeric(wt) || anyNA(wt)) {
+    stop("Weights must be numeric and non-missing.", call. = FALSE)
+  }
+  if (any(wt < 0)) {
+    stop("Negative weights are not allowed.", call. = FALSE)
+  }
+}
 
 #' @title Get FE codes
 #' @description Returns flat 0-based integer factor codes for each FE variable
