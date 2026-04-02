@@ -26,13 +26,19 @@ fit_control(
   sep_simplex_max_iter = 2000L,
   sep_use_relu = TRUE,
   sep_use_simplex = TRUE,
-  return_fe = TRUE,
+  return_fe = FALSE,
   keep_tx = FALSE,
-  keep_data = TRUE,
-  return_hessian = TRUE,
+  keep_data = FALSE,
+  return_hessian = FALSE,
   check_separation = TRUE,
   init_theta = 0,
-  vcov_type = NULL
+  vcov_type = NULL,
+  compute_apes = FALSE,
+  compute_bias_corr = FALSE,
+  apes_n_pop = NULL,
+  bias_corr_l = 0L,
+  panel_structure = "classic",
+  apes_sampling_fe = "independence"
 )
 }
 \arguments{
@@ -99,20 +105,20 @@ and grand acceleration.}
 \item{sep_use_simplex}{logical indicating whether to use the simplex algorithm for separation detection. The default is \code{TRUE}.}
 
 \item{return_fe}{logical indicating if the fixed effects should be returned. This can be useful when fitting general
-equilibrium models where skipping the fixed effects for intermediate steps speeds up computation. The default is
-\code{TRUE} and only applies to the \code{feglm} class.}
+equilibrium models where skipping the fixed effects for intermediate steps speeds up computation. Note: Set to
+\code{TRUE} if you plan to extract fixed effects later. The default is \code{FALSE} to minimize memory usage.}
 
 \item{keep_tx}{logical indicating if the centered regressor matrix should be stored. The centered regressor matrix is
-required for some covariance estimators, bias corrections, and average partial effects. This option saves
-some computation time at the cost of memory. The default is \code{TRUE}.}
+required for \code{apes()} and \code{bias_corr()} functions. Set to \code{TRUE} when planning to use these
+post-estimation routines. The default is \code{FALSE} to minimize memory usage.}
 
-\item{keep_data}{logical indicating if the filtered data should be stored in the result object. Set to \code{FALSE}
-to reduce memory usage for very large datasets. Note: some methods like \code{predict()} and \code{apes()}
-require the data. The default is \code{TRUE}.}
+\item{keep_data}{logical indicating if the filtered data should be stored in the result object. Required for
+\code{apes()}, \code{bias_corr()}, and \code{predict()} methods. Set to \code{TRUE} when planning to use these
+functions. The default is \code{FALSE} to minimize memory usage for production/benchmark use.}
 
 \item{return_hessian}{logical indicating if the Hessian matrix should be returned. The Hessian is a P×P
-matrix used internally to compute the variance-covariance matrix. Set to \code{FALSE} to save memory
-when only \code{vcov} is needed. The default is \code{TRUE}.}
+matrix used to compute the variance-covariance matrix. Required for \code{bias_corr()}. The default is
+\code{FALSE} to minimize memory usage (vcov is still computed and returned).}
 
 \item{check_separation}{logical indicating whether to perform separation detection for Poisson models. When \code{TRUE}
 (default), observations with perfect prediction are automatically detected and excluded from estimation. Set to
@@ -128,6 +134,32 @@ present, or a clustered sandwich when one is. Other values:
 \code{"m-estimator"} — one-way M-estimator sandwich (cluster variable required);
 \code{"m-estimator-dyadic"} — dyadic-robust Cameron-Miller sandwich (two entity columns required in the
 third part of the formula like \code{z ~ x + y | fe | cl1 + cl2}).}
+
+\item{compute_apes}{logical indicating whether to compute average partial effects (APEs) for binary choice
+models during fitting. When \code{TRUE}, APEs and their variance-covariance matrix are computed in C++ as
+a post-estimation step and stored in the result object. Only supported for \code{binomial} family with
+1-, 2-, or 3-way fixed effects. The default is \code{FALSE}.}
+
+\item{compute_bias_corr}{logical indicating whether to compute analytical bias correction for binary choice
+models during fitting. When \code{TRUE}, the Fernández-Val and Weidner (2016) bias correction is applied
+and bias-corrected coefficients are stored in the result object. Only supported for \code{binomial} family
+with 1-, 2-, or 3-way fixed effects. The default is \code{FALSE}.}
+
+\item{apes_n_pop}{optional unsigned integer for finite population correction in APEs covariance estimation.
+When specified, applies the Cruz-Gonzalez, Fernández-Val, and Weidner (2017) correction factor
+\eqn{(n_{pop} - n) / (n_{pop} - 1)}. The default is \code{NULL} (no correction).}
+
+\item{bias_corr_l}{integer bandwidth for spectral density estimation in bias correction, following
+Hahn and Kuersteiner (2011). Use 0 for strictly exogenous regressors, 1-4 for weakly exogenous
+regressors (e.g., lagged variables). The default is \code{0L}.}
+
+\item{panel_structure}{character string indicating the panel structure for APEs and bias correction:
+\code{"classic"} (default) for panels where cross-sectional units are observed over time (requires
+1- or 2-way FE), or \code{"network"} for bilateral data like trade flows (requires 2- or 3-way FE).}
+
+\item{apes_sampling_fe}{character string for sampling assumptions in APEs covariance:
+\code{"independence"} (default) assumes all unobserved effects are independent sequences;
+\code{"unrestricted"} imposes no sampling assumptions. Only affects finite population correction.}
 }
 \value{
 A named list of control parameters.
@@ -136,8 +168,29 @@ A named list of control parameters.
 Set and change parameters used for fitting \link{feglm}, \link{felm}, and \link{fenegbin}. Termination
 conditions are similar to \link[stats]{glm}.
 }
+\section{Memory-Efficient vs Full Models}{
+
+By default, \code{fit_control()} returns "thin" model objects with minimal memory footprint:
+\itemize{
+\item \code{keep_data = FALSE} - data not stored
+\item \code{return_fe = FALSE} - fixed effects not stored
+\item \code{return_hessian = FALSE} - Hessian not stored
+\item \code{keep_tx = FALSE} - centered matrix not stored
+}
+
+For post-estimation with \code{apes()} or \code{bias_corr()}, use:
+\code{control = fit_control(keep_data = TRUE, keep_tx = TRUE, return_hessian = TRUE)}
+}
+
 \examples{
-fit_control(0.05, 0.05, 10L, 10L, TRUE, TRUE, TRUE)
+# Default: thin model for production/benchmarks
+fit_control()
+
+# Full model for post-estimation (apes, bias_corr)
+fit_control(keep_data = TRUE, keep_tx = TRUE, return_hessian = TRUE)
+
+# Custom tolerances
+fit_control(dev_tol = 1e-10, center_tol = 1e-10)
 
 }
 \seealso{

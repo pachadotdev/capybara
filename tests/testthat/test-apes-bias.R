@@ -10,184 +10,204 @@
 #' @noRd
 NULL
 
-test_that("apes/bias works", {
+# ---- APES tests (C++ implementation via fit_control) ----
+
+test_that("compute_apes works via fit_control", {
   skip_on_cran()
 
   trade_short <- yotov2017[yotov2017$exp_year == "CAN1994", ]
   trade_short <- trade_short[trade_short$trade > 100, ]
   trade_short$trade <- ifelse(trade_short$trade > 200, 1L, 0L)
 
-  mod1 <- feglm(trade ~ lang | exp_year, trade_short, family = binomial())
+  mod <- feglm(trade ~ lang | exp_year, trade_short, family = binomial(),
+               control = fit_control(compute_apes = TRUE))
 
-  expect_s3_class(mod1, "feglm")
-
-  apes1 <- apes(mod1)
-  bias1 <- bias_corr(mod1)
+  expect_s3_class(mod, "feglm")
+  expect_true(isTRUE(mod$has_apes))
+  expect_true(length(mod$apes_delta) == 1)
+  expect_true(is.matrix(mod$apes_vcov))
 
   # the values come from:
   # mod2 <- alpaca::feglm(trade ~ lang | year, trade_short, family = binomial())
   # apes2 <- alpaca::getAPEs(mod2)
-  # bias2 <- alpaca::biasCorr(mod2)
   apes2 <- c("lang" = 0.05)
-  bias2 <- c("lang" = 0.2436)
 
-  expect_output(print(mod1))
-
-  expect_equal(length(coef(apes1)), 1)
-  expect_equal(coef(apes1), apes2, tolerance = 1e-1) # TODO: check the 0.02 difference later
-  expect_equal(length(coef(summary(apes(mod1)))), 4)
-
-  expect_equal(length(coef(bias1)), 1)
-  expect_equal(trunc(coef(bias1), 2), trunc(bias2, 2))
-  expect_equal(length(coef(summary(bias1))), 4)
+  expect_equal(mod$apes_delta, apes2, tolerance = 1e-1)
 })
 
-test_that("apes with mtcars binary response works", {
+test_that("compute_apes works with mtcars binary response", {
   mtcars2 <- mtcars
   mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
 
-  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial())
+  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial(),
+               control = fit_control(compute_apes = TRUE))
 
-  apes_result <- apes(mod)
-
-  expect_s3_class(apes_result, "apes")
-  expect_true(length(coef(apes_result)) == 1)
+  expect_s3_class(mod, "feglm")
+  expect_true(isTRUE(mod$has_apes))
+  expect_true(length(mod$apes_delta) == 1)
+  expect_true(names(mod$apes_delta) == "wt")
 })
 
-test_that("apes summary works", {
+test_that("apes_delta has names", {
   mtcars2 <- mtcars
   mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
 
-  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial())
-  apes_result <- apes(mod)
+  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial(),
+               control = fit_control(compute_apes = TRUE))
 
-  summ <- summary(apes_result)
-
-  expect_s3_class(summ, "summary.apes")
-  expect_output(print(summ))
+  expect_true(!is.null(names(mod$apes_delta)))
+  expect_equal(names(mod$apes_delta), "wt")
 })
 
-test_that("apes coef method works", {
+test_that("apes_vcov has dimnames", {
   mtcars2 <- mtcars
   mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
 
-  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial())
-  apes_result <- apes(mod)
+  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial(),
+               control = fit_control(compute_apes = TRUE))
 
-  coefs <- coef(apes_result)
-
-  expect_true(is.numeric(coefs))
-  expect_equal(length(coefs), 1)
+  expect_true(!is.null(dimnames(mod$apes_vcov)))
+  expect_equal(rownames(mod$apes_vcov), "wt")
+  expect_equal(colnames(mod$apes_vcov), "wt")
 })
 
-test_that("bias_corr works with mtcars", {
-  mtcars2 <- mtcars
-  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
+# ---- Bias correction tests (C++ implementation via fit_control) ----
 
-  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial())
-
-  bc <- bias_corr(mod)
-
-  expect_s3_class(bc, "bias_corr")
-  expect_true(length(coef(bc)) == 1)
-})
-
-test_that("bias_corr summary works", {
-  mtcars2 <- mtcars
-  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
-
-  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial())
-  bc <- bias_corr(mod)
-
-  summ <- summary(bc)
-
-  expect_output(print(summ))
-})
-
-test_that("apes errors on non-binary model", {
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars)
-
-  expect_error(apes(mod))
-})
-
-test_that("bias_corr errors on non-binary model", {
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars)
-
-  expect_error(bias_corr(mod))
-})
-
-test_that("apes works with bias_corr object", {
-  mtcars2 <- mtcars
-  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
-
-  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial())
-  bc <- bias_corr(mod)
-
-  apes_bc <- apes(bc)
-
-  expect_s3_class(apes_bc, "apes")
-})
-
-# Stammann centering ----
-
-test_that("apes/bias works (stammann centering)", {
+test_that("compute_bias_corr works via fit_control", {
   skip_on_cran()
-  ctrl <- list(centering = "stammann")
 
   trade_short <- yotov2017[yotov2017$exp_year == "CAN1994", ]
   trade_short <- trade_short[trade_short$trade > 100, ]
   trade_short$trade <- ifelse(trade_short$trade > 200, 1L, 0L)
 
-  mod1 <- feglm(trade ~ lang | exp_year, trade_short, family = binomial(), control = ctrl)
+  mod <- feglm(trade ~ lang | exp_year, trade_short, family = binomial(),
+               control = fit_control(compute_bias_corr = TRUE))
 
-  expect_s3_class(mod1, "feglm")
+  expect_s3_class(mod, "feglm")
+  expect_true(isTRUE(mod$has_bias_corr))
+  expect_true(length(mod$beta_uncorrected) == 1)
+  expect_true(length(mod$bias_corr_term) == 1)
 
-  apes1 <- apes(mod1)
-  bias1 <- bias_corr(mod1)
-
-  apes2 <- c("lang" = 0.05)
+  # the values come from:
+  # mod2 <- alpaca::feglm(trade ~ lang | year, trade_short, family = binomial())
+  # bias2 <- alpaca::biasCorr(mod2)
   bias2 <- c("lang" = 0.2436)
 
-  expect_equal(length(coef(apes1)), 1)
-  expect_equal(coef(apes1), apes2, tolerance = 1e-1)
-  expect_equal(length(coef(bias1)), 1)
-  expect_equal(trunc(coef(bias1), 2), trunc(bias2, 2))
+  # The corrected coefficient should be in coef_table
+  expect_equal(trunc(coef(mod), 2), trunc(bias2, 2))
 })
 
-test_that("apes with mtcars binary response works (stammann centering)", {
-  ctrl <- list(centering = "stammann")
+test_that("compute_bias_corr works with mtcars", {
+  mtcars2 <- mtcars
+  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
+
+  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial(),
+               control = fit_control(compute_bias_corr = TRUE))
+
+  expect_s3_class(mod, "feglm")
+  expect_true(isTRUE(mod$has_bias_corr))
+  expect_true(length(coef(mod)) == 1)
+  expect_true(length(mod$beta_uncorrected) == 1)
+})
+
+test_that("bias_corr preserves uncorrected coefficients", {
+  mtcars2 <- mtcars
+  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
+
+  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial(),
+               control = fit_control(compute_bias_corr = TRUE))
+
+  # beta_uncorrected should be stored
+  expect_true(!is.null(mod$beta_uncorrected))
+  expect_true(names(mod$beta_uncorrected) == "wt")
+})
+
+# ---- Combined APES and bias correction ----
+
+test_that("compute_apes and compute_bias_corr work together", {
+  mtcars2 <- mtcars
+  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
+
+  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial(),
+               control = fit_control(compute_apes = TRUE, compute_bias_corr = TRUE))
+
+  expect_s3_class(mod, "feglm")
+  expect_true(isTRUE(mod$has_apes))
+  expect_true(isTRUE(mod$has_bias_corr))
+  expect_true(length(mod$apes_delta) == 1)
+  expect_true(length(mod$beta_uncorrected) == 1)
+})
+
+# ---- APES/bias_corr not computed for non-binomial ----
+
+test_that("compute_apes is ignored for non-binary models", {
+  mod <- fepoisson(mpg ~ wt | cyl, mtcars,
+                   control = fit_control(compute_apes = TRUE))
+
+  # APES should not be computed for Poisson
+
+  expect_false(isTRUE(mod$has_apes))
+})
+
+test_that("compute_bias_corr is ignored for non-binary models", {
+  mod <- fepoisson(mpg ~ wt | cyl, mtcars,
+                   control = fit_control(compute_bias_corr = TRUE))
+
+  # Bias correction should not be computed for Poisson
+  expect_false(isTRUE(mod$has_bias_corr))
+})
+
+# ---- Stammann centering ----
+
+test_that("compute_apes works with stammann centering", {
+  skip_on_cran()
+  ctrl <- fit_control(centering = "stammann", compute_apes = TRUE)
+
+  trade_short <- yotov2017[yotov2017$exp_year == "CAN1994", ]
+  trade_short <- trade_short[trade_short$trade > 100, ]
+  trade_short$trade <- ifelse(trade_short$trade > 200, 1L, 0L)
+
+  mod <- feglm(trade ~ lang | exp_year, trade_short, family = binomial(), control = ctrl)
+
+  expect_s3_class(mod, "feglm")
+  expect_true(isTRUE(mod$has_apes))
+  
+  apes2 <- c("lang" = 0.05)
+  expect_equal(mod$apes_delta, apes2, tolerance = 1e-1)
+})
+
+test_that("compute_apes with mtcars works (stammann centering)", {
+  ctrl <- fit_control(centering = "stammann", compute_apes = TRUE)
   mtcars2 <- mtcars
   mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
 
   mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial(), control = ctrl)
 
-  apes_result <- apes(mod)
-
-  expect_s3_class(apes_result, "apes")
-  expect_true(length(coef(apes_result)) == 1)
+  expect_s3_class(mod, "feglm")
+  expect_true(isTRUE(mod$has_apes))
+  expect_true(length(mod$apes_delta) == 1)
 })
 
-test_that("bias_corr works with mtcars (stammann centering)", {
-  ctrl <- list(centering = "stammann")
+test_that("compute_bias_corr works with mtcars (stammann centering)", {
+  ctrl <- fit_control(centering = "stammann", compute_bias_corr = TRUE)
   mtcars2 <- mtcars
   mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
 
   mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial(), control = ctrl)
-  bc <- bias_corr(mod)
 
-  expect_s3_class(bc, "bias_corr")
-  expect_true(length(coef(bc)) == 1)
+  expect_s3_class(mod, "feglm")
+  expect_true(isTRUE(mod$has_bias_corr))
+  expect_true(length(coef(mod)) == 1)
 })
 
-test_that("apes works with bias_corr object (stammann centering)", {
-  ctrl <- list(centering = "stammann")
+test_that("compute_apes and compute_bias_corr work together (stammann centering)", {
+  ctrl <- fit_control(centering = "stammann", compute_apes = TRUE, compute_bias_corr = TRUE)
   mtcars2 <- mtcars
   mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
 
   mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial(), control = ctrl)
-  bc <- bias_corr(mod)
 
-  apes_bc <- apes(bc)
-
-  expect_s3_class(apes_bc, "apes")
+  expect_s3_class(mod, "feglm")
+  expect_true(isTRUE(mod$has_apes))
+  expect_true(isTRUE(mod$has_bias_corr))
 })

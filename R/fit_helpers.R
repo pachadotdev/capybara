@@ -299,6 +299,62 @@ model_frame_ <- function(data, formula, weights) {
   assign("nobs_full", nobs_full, envir = parent.frame())
 }
 
+#' @title Model response
+#' @description Computes the model response and design matrix.
+#'  Fast path: when all RHS variables are numeric and no special operators
+#'  (factor, poly, ns, bs) are present, evaluates terms directly with eval()
+#'  to avoid the overhead of model.frame() + model.matrix().
+#'  Slow path: falls back to model.frame() + model.matrix() when factors or
+#'  special operators are detected.
+#' @param data Data frame
+#' @param formula Formula object
+#' @noRd
+model_response_ <- function(data, formula) {
+  # Use only LHS + RHS1 sub-formula to avoid processing FE/cluster columns
+  f1 <- formula(formula, lhs = 1L, rhs = 1L)
+  tt <- terms(f1)
+  rhs_labels <- attr(tt, "term.labels")
+  resp_var <- as.character(attr(tt, "variables")[[2L]])
+
+  # Determine if we can take the fast path
+  use_fast <- FALSE
+  if (length(rhs_labels) > 0L) {
+    # Fast path only when all rhs terms are plain column names (no transformations)
+    all_are_columns <- all(rhs_labels %in% colnames(data))
+    if (all_are_columns) {
+      all_numeric <- all(vapply(data[, rhs_labels, with = FALSE], is.numeric, logical(1)))
+      has_interaction <- any(grepl(":", rhs_labels, fixed = TRUE))
+      use_fast <- all_numeric && !has_interaction
+    }
+  }
+
+  if (use_fast) {
+    # Fast path: evaluate LHS and extract RHS columns directly as matrix
+    y <- eval(attr(tt, "variables")[[2L]], data)
+
+    # Extract columns as matrix (more efficient than vapply)
+    if (length(rhs_labels) == 1L) {
+      X <- matrix(data[[rhs_labels]], ncol = 1L)
+    } else {
+      X <- as.matrix(data[, rhs_labels, with = FALSE])
+    }
+    nms_sp <- rhs_labels
+  } else {
+    # Slow path: fall back to model.frame + model.matrix
+    mm_vars <- all.vars(f1)
+    mf <- model.frame(f1, data[, mm_vars, with = FALSE], na.action = na.pass)
+    y <- model.response(mf)
+    X <- model.matrix(tt, mf)[, -1L, drop = FALSE]
+    nms_sp <- colnames(X)
+    attr(X, "dimnames") <- NULL
+  }
+
+  assign("y", y, envir = parent.frame())
+  assign("X", X, envir = parent.frame())
+  assign("nms_sp", nms_sp, envir = parent.frame())
+  assign("p", ncol(X), envir = parent.frame())
+}
+
 #' @title Transform fixed effects
 #' @description Drops unused factor levels for FE/cluster columns that are
 #'  already factors. Non-factor columns (character, numeric) are left as-is

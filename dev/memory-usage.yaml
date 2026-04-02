@@ -1,0 +1,84 @@
+/////////////////////////////////
+// Entering feglm_fit function //
+/////////////////////////////////
+Initial memory: 296.059 MB
+
+/////////////////////////////////
+// Entering feglm_fit function //
+/////////////////////////////////
+Initial memory: 296.746 MB
+
+Separation detection time: 2.54e-07 seconds. Memory: 296.746 MB
+
+Collinearity check time: 6.4956e-05 seconds. Memory: 296.746 MB
+
+/// Begin GLM iterations...
+
+Working weights and nu time: 0.000167272 seconds. Memory: 296.746 MB
+
+Centering time: 0.00290008 seconds.
+
+Working weights and nu time: 0.000135712 seconds. Memory: 297.066 MB
+
+Centering time: 0.00835661 seconds.
+
+Working weights and nu time: 0.00028784 seconds. Memory: 297.066 MB
+
+Centering time: 0.00638522 seconds.
+
+Working weights and nu time: 0.000204152 seconds. Memory: 297.066 MB
+
+Centering time: 0.00669769 seconds.
+
+Working weights and nu time: 0.000235475 seconds. Memory: 297.066 MB
+
+Centering time: 0.00510976 seconds.
+
+Working weights and nu time: 0.000152333 seconds. Memory: 297.066 MB
+
+Centering time: 0.00496575 seconds.
+
+Working weights and nu time: 0.000266345 seconds. Memory: 297.066 MB
+
+Centering time: 0.00574991 seconds.
+
+Working weights and nu time: 0.000191688 seconds. Memory: 297.066 MB
+
+Centering time: 0.00396994 seconds.
+
+Working weights and nu time: 0.000245196 seconds. Memory: 297.066 MB
+
+Centering time: 0.0034093 seconds.
+
+Working weights and nu time: 0.000322034 seconds. Memory: 297.066 MB
+
+Centering time: 0.00377212 seconds.
+
+Working weights and nu time: 0.000255575 seconds. Memory: 297.066 MB
+
+Centering time: 0.00328263 seconds.
+
+/// End GLM iterations...
+
+GLM iteration time: 0.0714579 seconds. Memory: 297.066 MB
+
+Fixed effects recovery time: 0.00140503 seconds. Memory: 297.066 MB
+
+Separation detected: 1 observation(s) with perfect prediction were excluded from estimation.
+Formula: exports ~ euro | etfe + itfe + pair | pair
+
+Family: Poisson
+
+Estimates:
+
+|      | Estimate | Std. Error | z value | Pr(>|z|) |
+|------|----------|------------|---------|----------|
+| euro |  -0.0701 |     0.0334 | -2.0992 | 0.0358 * |
+
+Significance codes: ** p < 0.01; * p < 0.05; + p < 0.10
+
+Pseudo R-squared: 0.9912 
+
+Number of observations: Full 6006; Separated 1; Perfect classification 0 
+
+Number of Fisher Scoring iterations: 11 

@@ -161,8 +161,12 @@ predict.feglm <- function(
   if (!is.null(newdata)) {
     rn <- rownames(newdata) # Use original newdata rownames, not filtered data
   } else {
-    rn <- attr(object$data, ".rownames")
-    if (is.null(rn)) rn <- rownames(object$data)
+    # Use stored rownames (works even when keep_data = FALSE)
+    rn <- object[[".rownames"]]
+    if (is.null(rn) && !is.null(object$data)) {
+      rn <- attr(object$data, ".rownames")
+      if (is.null(rn)) rn <- rownames(object$data)
+    }
   }
   if (!is.null(rn)) {
     names(eta) <- rn

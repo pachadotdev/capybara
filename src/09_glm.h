@@ -37,8 +37,8 @@ struct GlmWorkspace {
 
 // Function pointer types for family-specific operations
 // Avoids repeated switch statements in hot loops
-using MuFromEtaFn = void (*)(vec &mu, const vec &eta);
-using WorkingWtsNuFn = void (*)(vec &w_working, vec &nu, const vec &w,
+using MuFromEta = void (*)(vec &mu, const vec &eta);
+using WorkingWtsNu = void (*)(vec &w_working, vec &nu, const vec &w,
                                 const vec &mu, const vec &y, double theta);
 
 // Link inverse functions (mu from eta)
@@ -91,7 +91,7 @@ inline void ww_nu_negbin(vec &w_working, vec &nu, const vec &w, const vec &mu,
 }
 
 // Get function pointers for a family (called once, not in loop)
-inline MuFromEtaFn get_mu_fn(Family family_type) {
+inline MuFromEta get_mu_fn(Family family_type) {
   switch (family_type) {
   case GAUSSIAN:
     return mu_gaussian;
@@ -109,7 +109,7 @@ inline MuFromEtaFn get_mu_fn(Family family_type) {
   }
 }
 
-inline WorkingWtsNuFn get_ww_nu_fn(Family family_type) {
+inline WorkingWtsNu get_ww_nu_fn(Family family_type) {
   switch (family_type) {
   case GAUSSIAN:
     return ww_nu_gaussian;
@@ -137,10 +137,12 @@ InferenceGLM feglm_fit(
     const field<uvec> *entity1_groups = nullptr,
     const field<uvec> *entity2_groups = nullptr, bool run_from_negbin = false) {
 #ifdef CAPYBARA_DEBUG
+  double mem_start = get_memory_usage_mb();
   std::ostringstream feglm_msg;
   feglm_msg << "/////////////////////////////////\n"
                "// Entering feglm_fit function //\n"
-               "/////////////////////////////////\n";
+               "/////////////////////////////////\n"
+               "Initial memory: " << mem_start << " MB\n";
   cpp4r::message(feglm_msg.str());
 #endif
 
@@ -183,8 +185,8 @@ InferenceGLM feglm_fit(
   ws.ensure_size(n, p);
 
   // Get function pointers once (avoid switch in loop)
-  const MuFromEtaFn mu_ = get_mu_fn(family_type);
-  const WorkingWtsNuFn ww_nu_ = get_ww_nu_fn(family_type);
+  const MuFromEta mu_ = get_mu_fn(family_type);
+  const WorkingWtsNu ww_nu_ = get_ww_nu_fn(family_type);
 
   // Offset handling
   const vec offset_vec = has_offset ? *offset : vec();
@@ -267,9 +269,10 @@ InferenceGLM feglm_fit(
 #ifdef CAPYBARA_DEBUG
   auto tsep1 = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> sep_duration = tsep1 - tsep0;
+  double mem_after_sep = get_memory_usage_mb();
   std::ostringstream sep_msg;
   sep_msg << "Separation detection time: " << sep_duration.count()
-          << " seconds.\n";
+          << " seconds. Memory: " << mem_after_sep << " MB\n";
   cpp4r::message(sep_msg.str());
   auto tcoll0 = std::chrono::high_resolution_clock::now();
 #endif
@@ -310,9 +313,10 @@ InferenceGLM feglm_fit(
 #ifdef CAPYBARA_DEBUG
   auto tcoll1 = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> collin_duration = tcoll1 - tcoll0;
+  double mem_after_collin = get_memory_usage_mb();
   std::ostringstream collin_msg;
   collin_msg << "Collinearity check time: " << collin_duration.count()
-             << " seconds.\n";
+             << " seconds. Memory: " << mem_after_collin << " MB\n";
   cpp4r::message(collin_msg.str());
 #endif
 
@@ -402,9 +406,10 @@ InferenceGLM feglm_fit(
 #ifdef CAPYBARA_DEBUG
     auto twwnu1 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> wwnu_duration = twwnu1 - twwnu0;
+    double mem_ww = get_memory_usage_mb();
     std::ostringstream wwnu_msg;
     wwnu_msg << "Working weights and nu time: " << wwnu_duration.count()
-             << " seconds.\n";
+             << " seconds. Memory: " << mem_ww << " MB\n";
     cpp4r::message(wwnu_msg.str());
 #endif
 
@@ -550,9 +555,10 @@ InferenceGLM feglm_fit(
   cpp4r::message("/// End GLM iterations...\n");
   auto tglmiter1 = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> glmiter_duration = tglmiter1 - tglmiter0;
+  double mem_after_glm = get_memory_usage_mb();
   std::ostringstream glmiter_msg;
   glmiter_msg << "GLM iteration time: " << glmiter_duration.count()
-              << " seconds.\n";
+              << " seconds. Memory: " << mem_after_glm << " MB\n";
   cpp4r::message(glmiter_msg.str());
 #endif
 
@@ -620,9 +626,10 @@ InferenceGLM feglm_fit(
 #ifdef CAPYBARA_DEBUG
     auto tfe1 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> tfe_duration = tfe1 - tfe0;
+    double mem_after_fe = get_memory_usage_mb();
     std::ostringstream msg_tfe;
     msg_tfe << "Fixed effects recovery time: " << tfe_duration.count()
-            << " seconds.\n";
+            << " seconds. Memory: " << mem_after_fe << " MB\n";
     cpp4r::message(msg_tfe.str());
 #endif
 
@@ -713,6 +720,92 @@ InferenceGLM feglm_fit(
       result.TX = MX;
       result.has_tx = true;
     }
+
+    // APES and bias correction for binomial models
+    if (family_type == BINOMIAL && has_fixed_effects && 
+        (params.compute_bias_corr || params.compute_apes)) {
+      
+      const uword K = fe_map.K;
+      const bool valid_classic = (params.panel_structure == "classic" && (K == 1 || K == 2));
+      const bool valid_network = (params.panel_structure == "network" && (K == 2 || K == 3));
+      
+      if (valid_classic || valid_network) {
+        // Compute finite population adjustment
+        double adj = 0.0;
+        if (params.apes_n_pop > 0 && params.apes_n_pop > n) {
+          adj = static_cast<double>(params.apes_n_pop - n) / 
+                static_cast<double>(params.apes_n_pop - 1);
+        }
+        
+        // Get original X matrix for APES (need non-centered version)
+        // MX is the centered version; for binary variable detection we need X
+        // But X has been modified (intercept added, cols shed), so we use MX
+        // and note that binary detection works on MX too
+        
+        bool weak_exo = (params.bias_corr_l > 0);
+        
+        // Bias correction first (if requested)
+        if (params.compute_bias_corr) {
+          BiasResult bias_res = compute_bias_corr(
+              y, MX, MX, result.eta, w, H,
+              "logit", fe_map, params.panel_structure, params.bias_corr_l,
+              params.center_tol, params.iter_center_max, params.grand_acc_period);
+          
+          if (bias_res.success) {
+            // Store uncorrected coefficients
+            result.beta_uncorrected = beta;
+            
+            // Apply bias correction: beta_corr = beta - H^{-1} * bias_term
+            vec beta_correction;
+            if (solve(beta_correction, H / static_cast<double>(n), bias_res.bias_term)) {
+              vec beta_corrected = beta - beta_correction;
+              
+              // Update coefficient table with corrected values
+              result.coef_table.col(0) = beta_corrected;
+              
+              // Recompute eta with corrected beta
+              vec eta_corrected = MX * beta_corrected;
+              if (has_offset) {
+                eta_corrected += offset_vec;
+              }
+              result.eta = std::move(eta_corrected);
+              
+              // Update fitted values
+              mu_(result.fitted_values, result.eta);
+              
+              result.bias_corr_term = bias_res.bias_term;
+              result.has_bias_corr = true;
+              result.bias_corr_panel_structure = params.panel_structure;
+              result.bias_corr_bandwidth = params.bias_corr_l;
+            }
+          }
+        }
+        
+        // APES computation
+        if (params.compute_apes) {
+          // Use potentially bias-corrected coefficients
+          vec beta_for_apes = result.coef_table.col(0);
+          
+          APESResult apes_res = compute_apes(
+              y, MX, MX, result.eta, w, beta_for_apes, H,
+              "logit", fe_map, n,  // n_full = n (after separation)
+              params.panel_structure, params.apes_sampling_fe, weak_exo, adj,
+              params.bias_corr_l, params.compute_bias_corr,
+              params.center_tol, params.iter_center_max, params.grand_acc_period);
+          
+          if (apes_res.success) {
+            result.apes_delta = apes_res.delta;
+            result.apes_vcov = apes_res.vcov;
+            result.apes_bias_term = apes_res.bias_term;
+            result.apes_panel_structure = apes_res.panel_structure;
+            result.apes_sampling_fe = apes_res.sampling_fe;
+            result.apes_weak_exo = apes_res.weak_exo;
+            result.apes_bandwidth = apes_res.bandwidth;
+            result.has_apes = true;
+          }
+        }
+      }
+    }
   } else {
     // Non-convergence: still populate result vectors for R-side diagnostics
     result.eta = std::move(eta);
@@ -728,7 +821,7 @@ InferenceGLM feglm_fit(
 }
 
 // Working weights and adjusted response for offset-only fitting
-using OffsetWwYadjFn = void (*)(vec &w_working, vec &yadj, const vec &w,
+using OffsetWwYadj = void (*)(vec &w_working, vec &yadj, const vec &w,
                                 const vec &mu, const vec &y, const vec &eta,
                                 const vec &offset);
 
@@ -770,7 +863,7 @@ inline void offset_ww_yadj_invgaussian(vec &w_working, vec &yadj, const vec &w,
   yadj = -2.0 * (y - mu) / m3 + eta - offset;
 }
 
-inline OffsetWwYadjFn get_offset_ww_yadj_fn(Family family_type) {
+inline OffsetWwYadj get_offset_ww_yadj_fn(Family family_type) {
   switch (family_type) {
   case GAUSSIAN:
     return offset_ww_yadj_gaussian;
@@ -794,8 +887,8 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
   const uword n = y.n_elem;
 
   // Get function pointers once
-  const MuFromEtaFn mu_ = get_mu_fn(family_type);
-  const OffsetWwYadjFn ww_yadj_ = get_offset_ww_yadj_fn(family_type);
+  const MuFromEta mu_ = get_mu_fn(family_type);
+  const OffsetWwYadj ww_yadj_ = get_offset_ww_yadj_fn(family_type);
 
   // Working buffers (fill::none for buffers immediately overwritten)
   vec mu(n, fill::none), w_working(n, fill::none), yadj(n, fill::none),

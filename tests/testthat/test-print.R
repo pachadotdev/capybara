@@ -116,48 +116,30 @@ test_that("print works for binomial model", {
   expect_output(print(summary(mod)))
 })
 
-# ---- print.apes tests ----
+# ---- print for models with APES ----
 
-test_that("print.apes produces output", {
+test_that("print works for model with compute_apes", {
   mtcars2 <- mtcars
   mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
 
-  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial())
-  apes_result <- apes(mod)
+  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial(),
+               control = fit_control(compute_apes = TRUE))
 
-  expect_output(print(apes_result))
+  expect_output(print(mod))
+  expect_output(print(summary(mod)))
 })
 
-test_that("print.summary.apes produces output", {
+# ---- print for models with bias correction ----
+
+test_that("print works for model with compute_bias_corr", {
   mtcars2 <- mtcars
   mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
 
-  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial())
-  apes_result <- apes(mod)
+  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial(),
+               control = fit_control(compute_bias_corr = TRUE))
 
-  expect_output(print(summary(apes_result)))
-})
-
-# ---- print.bias_corr tests ----
-
-test_that("print.bias_corr produces output", {
-  mtcars2 <- mtcars
-  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
-
-  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial())
-  bc <- bias_corr(mod)
-
-  expect_output(print(bc))
-})
-
-test_that("print.summary.bias_corr produces output", {
-  mtcars2 <- mtcars
-  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
-
-  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial())
-  bc <- bias_corr(mod)
-
-  expect_output(print(summary(bc)))
+  expect_output(print(mod))
+  expect_output(print(summary(mod)))
 })
 
 # ---- print for models without FE ----

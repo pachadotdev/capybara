@@ -9,6 +9,16 @@
 
 #ifdef CAPYBARA_DEBUG
 #include <chrono>
+#include <sstream>
+#include <fstream>
+#if defined(__unix__) || defined(__unix) || defined(__APPLE__)
+#include <sys/resource.h>
+#include <unistd.h>
+#endif
+#ifdef _WIN32
+#include <windows.h>
+#include <psapi.h>
+#endif
 #endif
 
 using cpp4r::doubles;
@@ -37,6 +47,47 @@ inline void set_omp_threads_from_config() {
   }
 }
 #endif
+
+#ifdef CAPYBARA_DEBUG
+// Get current memory usage in MB
+inline double get_memory_usage_mb() {
+#if defined(__linux__)
+  // Linux: read from /proc/self/status for RSS (Resident Set Size)
+  std::ifstream status_file("/proc/self/status");
+  std::string line;
+  while (std::getline(status_file, line)) {
+    if (line.substr(0, 6) == "VmRSS:") {
+      std::istringstream iss(line);
+      std::string label;
+      long mem_kb;
+      std::string unit;
+      iss >> label >> mem_kb >> unit;
+      return mem_kb / 1024.0; // Convert KB to MB
+    }
+  }
+  return -1.0; // Could not read
+#elif defined(__APPLE__)
+  // macOS: use getrusage
+  struct rusage usage;
+  if (getrusage(RUSAGE_SELF, &usage) == 0) {
+    // ru_maxrss is in bytes on macOS
+    return usage.ru_maxrss / (1024.0 * 1024.0); // Convert bytes to MB
+  }
+  return -1.0;
+#elif defined(_WIN32)
+  // Windows: use GetProcessMemoryInfo
+  PROCESS_MEMORY_COUNTERS_EX pmc;
+  if (GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc))) {
+    return pmc.WorkingSetSize / (1024.0 * 1024.0); // Convert bytes to MB
+  }
+  return -1.0;
+#else
+  // Unsupported platform
+  return -1.0;
+#endif
+}
+#endif
+
 } // namespace capybara
 
 // Passing parameters from R to C++ functions
@@ -81,6 +132,14 @@ struct CapybaraParameters {
   // Variance-covariance estimator type
   std::string vcov_type;
 
+  // APES and bias correction parameters
+  bool compute_apes;
+  bool compute_bias_corr;
+  size_t apes_n_pop;        // 0 means NULL (no finite pop correction)
+  size_t bias_corr_l;       // Bandwidth for spectral density
+  std::string panel_structure;
+  std::string apes_sampling_fe;
+
   CapybaraParameters()
       : dev_tol(1.0e-08), center_tol(1.0e-08), center_tol_loose(1.0e-04),
         collin_tol(1.0e-10), step_halving_factor(0.5), alpha_tol(1.0e-08),
@@ -90,7 +149,9 @@ struct CapybaraParameters {
         iter_inner_max(50), iter_alpha_max(10000), return_fe(true),
         keep_tx(false), return_hessian(true), step_halving_memory(0.9),
         max_step_halving(2), start_inner_tol(1e-06), grand_acc_period(10),
-        centering("stammann"), vcov_type("") {}
+        centering("stammann"), vcov_type(""), compute_apes(false),
+        compute_bias_corr(false), apes_n_pop(0), bias_corr_l(0),
+        panel_structure("classic"), apes_sampling_fe("independence") {}
 
   explicit CapybaraParameters(const cpp4r::list &control) {
     dev_tol = as_cpp<double>(control["dev_tol"]);
@@ -143,6 +204,49 @@ struct CapybaraParameters {
     } else {
       vcov_type = "";
     }
+
+    // APES and bias correction parameters
+    SEXP compute_apes_sexp = control["compute_apes"];
+    if (compute_apes_sexp != R_NilValue) {
+      compute_apes = as_cpp<bool>(compute_apes_sexp);
+    } else {
+      compute_apes = false;
+    }
+
+    SEXP compute_bias_corr_sexp = control["compute_bias_corr"];
+    if (compute_bias_corr_sexp != R_NilValue) {
+      compute_bias_corr = as_cpp<bool>(compute_bias_corr_sexp);
+    } else {
+      compute_bias_corr = false;
+    }
+
+    SEXP apes_n_pop_sexp = control["apes_n_pop"];
+    if (apes_n_pop_sexp != R_NilValue && !Rf_isNull(apes_n_pop_sexp)) {
+      apes_n_pop = as_cpp<size_t>(apes_n_pop_sexp);
+    } else {
+      apes_n_pop = 0;  // 0 means NULL (no finite pop correction)
+    }
+
+    SEXP bias_corr_l_sexp = control["bias_corr_l"];
+    if (bias_corr_l_sexp != R_NilValue) {
+      bias_corr_l = as_cpp<size_t>(bias_corr_l_sexp);
+    } else {
+      bias_corr_l = 0;
+    }
+
+    SEXP panel_structure_sexp = control["panel_structure"];
+    if (panel_structure_sexp != R_NilValue) {
+      panel_structure = as_cpp<std::string>(panel_structure_sexp);
+    } else {
+      panel_structure = "classic";
+    }
+
+    SEXP apes_sampling_fe_sexp = control["apes_sampling_fe"];
+    if (apes_sampling_fe_sexp != R_NilValue) {
+      apes_sampling_fe = as_cpp<std::string>(apes_sampling_fe_sexp);
+    } else {
+      apes_sampling_fe = "independence";
+    }
   }
 };
 
@@ -165,9 +269,11 @@ struct CapybaraParameters {
 #include "06_02_fit_vcov.h"
 #include "06_03_fit_sums.h"
 
-#include "07_lm.h"
-#include "08_glm.h"
-#include "09_negbin.h"
+#include "07_apes_bias.h"
+
+#include "08_lm.h"
+#include "09_glm.h"
+#include "10_negbin.h"
 
 using LMResult = capybara::InferenceLM;
 using GLMResult = capybara::InferenceGLM;
@@ -856,7 +962,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   }
 
   if (params.keep_tx && result.has_tx) {
-    ret.push_back({"TX"_nm = as_doubles_matrix(result.TX)});
+    ret.push_back({"tx"_nm = as_doubles_matrix(result.TX)});
   }
 
   // Add metadata for R-side post-processing
@@ -1057,7 +1163,36 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
   }
 
   if (params.keep_tx && result.has_tx) {
-    out.push_back({"TX"_nm = as_doubles_matrix(result.TX)});
+    out.push_back({"tx"_nm = as_doubles_matrix(result.TX)});
+  }
+
+  // Add APES results if computed
+  if (result.has_apes) {
+    out.push_back({"apes_delta"_nm = as_doubles(result.apes_delta)});
+    out.push_back({"apes_vcov"_nm = as_doubles_matrix(result.apes_vcov)});
+    if (result.apes_bias_term.n_elem > 0) {
+      out.push_back({"apes_bias_term"_nm = as_doubles(result.apes_bias_term)});
+    }
+    out.push_back({"apes_panel_structure"_nm = 
+                   writable::strings({result.apes_panel_structure})});
+    out.push_back({"apes_sampling_fe"_nm = 
+                   writable::strings({result.apes_sampling_fe})});
+    out.push_back({"apes_weak_exo"_nm = 
+                   writable::logicals({result.apes_weak_exo})});
+    out.push_back({"apes_bandwidth"_nm = 
+                   writable::integers({static_cast<int>(result.apes_bandwidth)})});
+    out.push_back({"has_apes"_nm = writable::logicals({true})});
+  }
+
+  // Add bias correction results if computed
+  if (result.has_bias_corr) {
+    out.push_back({"beta_uncorrected"_nm = as_doubles(result.beta_uncorrected)});
+    out.push_back({"bias_corr_term"_nm = as_doubles(result.bias_corr_term)});
+    out.push_back({"bias_corr_panel_structure"_nm = 
+                   writable::strings({result.bias_corr_panel_structure})});
+    out.push_back({"bias_corr_bandwidth"_nm = 
+                   writable::integers({static_cast<int>(result.bias_corr_bandwidth)})});
+    out.push_back({"has_bias_corr"_nm = writable::logicals({true})});
   }
 
   // Add metadata for R-side post-processing

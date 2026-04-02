@@ -16,7 +16,7 @@ test_that("fepoisson is similar to base", {
 
   # K = 1
 
-  mod <- fepoisson(mpg ~ wt | cyl | am, mtcars)
+  mod <- fepoisson(mpg ~ wt | cyl | am, mtcars, control = fit_control(return_fe = TRUE))
 
   mod_base <- glm(
     mpg ~ wt + as.factor(cyl),
@@ -59,7 +59,7 @@ test_that("fepoisson is similar to base", {
 
   # K = 2
 
-  mod <- fepoisson(mpg ~ wt | cyl + am, mtcars)
+  mod <- fepoisson(mpg ~ wt | cyl + am, mtcars, control = fit_control(return_fe = TRUE))
 
   mod_base <- glm(
     mpg ~ wt + as.factor(cyl) + as.factor(am),
@@ -78,7 +78,7 @@ test_that("fepoisson is similar to base", {
 
   # K = 3
 
-  mod <- fepoisson(mpg ~ wt | cyl + am + carb, mtcars)
+  mod <- fepoisson(mpg ~ wt | cyl + am + carb, mtcars, control = fit_control(return_fe = TRUE))
 
   mod_base <- glm(
     mpg ~ wt + as.factor(cyl) + as.factor(am) + as.factor(carb),
@@ -112,8 +112,8 @@ test_that("fepoisson is similar to base", {
   pred_mod_link <- predict(mod, type = "link", newdata = mtcars[1:10, ])
   pred_mod_base_link <- predict(mod_base, type = "link", newdata = mtcars[1:10, ])
 
-  expect_equal(pred_mod, pred_mod_base, tolerance = 1e-2)
-  expect_equal(pred_mod_link, pred_mod_base_link, tolerance = 1e-2)
+  expect_equal(unname(pred_mod), unname(pred_mod_base), tolerance = 1e-2)
+  expect_equal(unname(pred_mod_link), unname(pred_mod_base_link), tolerance = 1e-2)
 })
 
 test_that("fepoisson estimation is the same adding noise to the data", {
@@ -150,7 +150,7 @@ test_that("proportional regressors return NA coefficients", {
 
 test_that("fepoisson is similar to base (stammann centering)", {
   skip_on_cran()
-  ctrl <- list(centering = "stammann")
+  ctrl <- fit_control(centering = "stammann", return_fe = TRUE)
 
   # K = 1
 
@@ -209,7 +209,7 @@ test_that("fepoisson is similar to base (stammann centering)", {
 
   pred_mod <- predict(mod, type = "response", newdata = mtcars[1:10, ])
   pred_mod_base <- predict(mod_base, type = "response", newdata = mtcars[1:10, ])
-  expect_equal(pred_mod, pred_mod_base, tolerance = 1e-2)
+  expect_equal(unname(pred_mod), unname(pred_mod_base), tolerance = 1e-2)
 })
 
 test_that("fepoisson estimation is the same adding noise to the data (stammann centering)", {

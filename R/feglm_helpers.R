@@ -213,63 +213,6 @@ drop_by_link_type_ <- function(data, lhs, family, tmp_var, k_vars, control) {
   data
 }
 
-#' @title Model response
-#' @description Computes the model response and design matrix.
-#'  Fast path: when all RHS variables are numeric and no special operators
-#'  (factor, poly, ns, bs) are present, evaluates terms directly with eval()
-#'  to avoid the overhead of model.frame() + model.matrix().
-#'  Slow path: falls back to model.frame() + model.matrix() when factors or
-#'  special operators are detected.
-#' @param data Data frame
-#' @param formula Formula object
-#' @noRd
-model_response_ <- function(data, formula) {
-  # Use only LHS + RHS1 sub-formula to avoid processing FE/cluster columns
-  f1 <- formula(formula, lhs = 1L, rhs = 1L)
-  tt <- terms(f1)
-  rhs_labels <- attr(tt, "term.labels")
-  resp_var <- as.character(attr(tt, "variables")[[2L]])
-
-  # Determine if we can take the fast path
-  use_fast <- FALSE
-  if (length(rhs_labels) > 0L) {
-    # Get all variable names referenced in the RHS terms
-    rhs_vars <- all.vars(parse(text = paste(rhs_labels, collapse = "+")))
-    rhs_vars <- rhs_vars[rhs_vars %in% colnames(data)]
-    all_numeric <- length(rhs_vars) > 0L &&
-      all(vapply(data[, rhs_vars, with = FALSE], is.numeric, logical(1)))
-    has_special <- any(grepl("factor|poly|ns\\(|bs\\(|strata", rhs_labels))
-    has_interaction <- any(grepl(":", rhs_labels, fixed = TRUE))
-    use_fast <- all_numeric && !has_special && !has_interaction
-  }
-
-  if (use_fast) {
-    # Fast path: evaluate LHS and each RHS term directly
-    y <- eval(attr(tt, "variables")[[2L]], data)
-
-    # Use vapply for cache-friendlier column construction
-    X <- vapply(rhs_labels, function(label) {
-      eval(str2lang(label), data)
-    }, FUN.VALUE = numeric(length(y)))
-    # Ensure X is a matrix even for single predictor case
-    if (!is.matrix(X)) X <- matrix(X, ncol = 1L)
-    nms_sp <- rhs_labels
-  } else {
-    # Slow path: fall back to model.frame + model.matrix
-    mm_vars <- all.vars(f1)
-    mf <- model.frame(f1, data[, mm_vars, with = FALSE], na.action = na.pass)
-    y <- model.response(mf)
-    X <- model.matrix(tt, mf)[, -1L, drop = FALSE]
-    nms_sp <- colnames(X)
-    attr(X, "dimnames") <- NULL
-  }
-
-  assign("y", y, envir = parent.frame())
-  assign("X", X, envir = parent.frame())
-  assign("nms_sp", nms_sp, envir = parent.frame())
-  assign("p", ncol(X), envir = parent.frame())
-}
-
 #' @title Check starting guesses
 #' @description Checks if starting guesses are valid
 #' @param beta_start Starting values for beta

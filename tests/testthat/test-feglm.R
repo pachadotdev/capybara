@@ -101,7 +101,7 @@ test_that("predicted values increase the error outside the inter-quartile range 
   ]
 
   # Poisson ----
-  m1_pois <- fepoisson(mpg ~ wt + disp | cyl, mtcars)
+  m1_pois <- fepoisson(mpg ~ wt + disp | cyl, mtcars, control = fit_control(return_fe = TRUE))
   m2_pois <- glm(
     mpg ~ wt + disp + as.factor(cyl),
     mtcars,
@@ -131,7 +131,7 @@ test_that("predicted values increase the error outside the inter-quartile range 
   # expect_equal(unname(pred2_fixest_pois), pred2_pois, tolerance = 1e-2)
 
   # Binomial ----
-  m1_binom <- feglm(am ~ wt + disp | cyl, mtcars, family = binomial())
+  m1_binom <- feglm(am ~ wt + disp | cyl, mtcars, family = binomial(), control = fit_control(return_fe = TRUE))
   m2_binom <- glm(am ~ wt + disp + as.factor(cyl), mtcars, family = binomial())
 
   pred1_binom <- predict(m1_binom, newdata = d1, type = "response")
@@ -171,7 +171,7 @@ test_that("predicted values increase the error outside the inter-quartile range 
 
   # Binomial GLM ----
 
-  m1_binom <- feglm(am ~ wt + disp | cyl, mtcars, family = binomial())
+  m1_binom <- feglm(am ~ wt + disp | cyl, mtcars, family = binomial(), control = fit_control(return_fe = TRUE))
   # m2_binom <- fixest::feglm(am ~ wt + disp | cyl, mtcars, family = binomial())
   m2_binom <- glm(am ~ wt + disp + as.factor(cyl), mtcars, family = binomial())
 

@@ -72,17 +72,17 @@ NULL
 #'  Irons and Tuck (1969) acceleration is then applied to the composed iteration. Both methods use warm-starting
 #'  and grand acceleration.
 #' @param return_fe logical indicating if the fixed effects should be returned. This can be useful when fitting general
-#'  equilibrium models where skipping the fixed effects for intermediate steps speeds up computation. The default is
-#'  \code{TRUE} and only applies to the \code{feglm} class.
+#'  equilibrium models where skipping the fixed effects for intermediate steps speeds up computation. Note: Set to
+#'  \code{TRUE} if you plan to extract fixed effects later. The default is \code{FALSE} to minimize memory usage.
 #' @param keep_tx logical indicating if the centered regressor matrix should be stored. The centered regressor matrix is
-#'  required for some covariance estimators, bias corrections, and average partial effects. This option saves
-#'  some computation time at the cost of memory. The default is \code{TRUE}.
-#' @param keep_data logical indicating if the filtered data should be stored in the result object. Set to \code{FALSE}
-#'  to reduce memory usage for very large datasets. Note: some methods like \code{predict()} and \code{apes()}
-#'  require the data. The default is \code{TRUE}.
+#'  required for \code{apes()} and \code{bias_corr()} functions. Set to \code{TRUE} when planning to use these
+#'  post-estimation routines. The default is \code{FALSE} to minimize memory usage.
+#' @param keep_data logical indicating if the filtered data should be stored in the result object. Required for
+#'  \code{apes()}, \code{bias_corr()}, and \code{predict()} methods. Set to \code{TRUE} when planning to use these
+#'  functions. The default is \code{FALSE} to minimize memory usage for production/benchmark use.
 #' @param return_hessian logical indicating if the Hessian matrix should be returned. The Hessian is a P×P
-#'  matrix used internally to compute the variance-covariance matrix. Set to \code{FALSE} to save memory
-#'  when only \code{vcov} is needed. The default is \code{TRUE}.
+#'  matrix used to compute the variance-covariance matrix. Required for \code{bias_corr()}. The default is
+#'  \code{FALSE} to minimize memory usage (vcov is still computed and returned).
 #' @param check_separation logical indicating whether to perform separation detection for Poisson models. When \code{TRUE}
 #'  (default), observations with perfect prediction are automatically detected and excluded from estimation. Set to
 #'  \code{FALSE} to skip this check and speed up computation when separation is known not to be an issue. The default
@@ -95,11 +95,50 @@ NULL
 #'  \code{"m-estimator"} — one-way M-estimator sandwich (cluster variable required);
 #'  \code{"m-estimator-dyadic"} — dyadic-robust Cameron-Miller sandwich (two entity columns required in the
 #'  third part of the formula like \code{z ~ x + y | fe | cl1 + cl2}).
+#' @param compute_apes logical indicating whether to compute average partial effects (APEs) for binary choice
+#'  models during fitting. When \code{TRUE}, APEs and their variance-covariance matrix are computed in C++ as
+#'  a post-estimation step and stored in the result object. Only supported for \code{binomial} family with
+#'  1-, 2-, or 3-way fixed effects. The default is \code{FALSE}.
+#' @param compute_bias_corr logical indicating whether to compute analytical bias correction for binary choice
+#'  models during fitting. When \code{TRUE}, the Fernández-Val and Weidner (2016) bias correction is applied
+#'  and bias-corrected coefficients are stored in the result object. Only supported for \code{binomial} family
+#'  with 1-, 2-, or 3-way fixed effects. The default is \code{FALSE}.
+#' @param apes_n_pop optional unsigned integer for finite population correction in APEs covariance estimation.
+#'  When specified, applies the Cruz-Gonzalez, Fernández-Val, and Weidner (2017) correction factor
+#'  \eqn{(n_{pop} - n) / (n_{pop} - 1)}. The default is \code{NULL} (no correction).
+#' @param bias_corr_l integer bandwidth for spectral density estimation in bias correction, following
+#'  Hahn and Kuersteiner (2011). Use 0 for strictly exogenous regressors, 1-4 for weakly exogenous
+#'  regressors (e.g., lagged variables). The default is \code{0L}.
+#' @param panel_structure character string indicating the panel structure for APEs and bias correction:
+#'  \code{"classic"} (default) for panels where cross-sectional units are observed over time (requires
+#'  1- or 2-way FE), or \code{"network"} for bilateral data like trade flows (requires 2- or 3-way FE).
+#' @param apes_sampling_fe character string for sampling assumptions in APEs covariance:
+#'  \code{"independence"} (default) assumes all unobserved effects are independent sequences;
+#'  \code{"unrestricted"} imposes no sampling assumptions. Only affects finite population correction.
 #'
 #' @return A named list of control parameters.
 #'
+#' @section Memory-Efficient vs Full Models:
+#' By default, \code{fit_control()} returns "thin" model objects with minimal memory footprint:
+#' \itemize{
+#'   \item \code{keep_data = FALSE} - data not stored
+#'   \item \code{return_fe = FALSE} - fixed effects not stored
+#'   \item \code{return_hessian = FALSE} - Hessian not stored
+#'   \item \code{keep_tx = FALSE} - centered matrix not stored
+#' }
+#' 
+#' For post-estimation with \code{apes()} or \code{bias_corr()}, use:
+#' \code{control = fit_control(keep_data = TRUE, keep_tx = TRUE, return_hessian = TRUE)}
+#'
 #' @examples
-#' fit_control(0.05, 0.05, 10L, 10L, TRUE, TRUE, TRUE)
+#' # Default: thin model for production/benchmarks
+#' fit_control()
+#' 
+#' # Full model for post-estimation (apes, bias_corr)
+#' fit_control(keep_data = TRUE, keep_tx = TRUE, return_hessian = TRUE)
+#' 
+#' # Custom tolerances
+#' fit_control(dev_tol = 1e-10, center_tol = 1e-10)
 #'
 #' @seealso \link{feglm}, \link{felm}, and \link{fenegbin}
 #'
@@ -126,13 +165,19 @@ fit_control <- function(
   sep_simplex_max_iter = 2000L,
   sep_use_relu = TRUE,
   sep_use_simplex = TRUE,
-  return_fe = TRUE,
+  return_fe = FALSE,
   keep_tx = FALSE,
-  keep_data = TRUE,
-  return_hessian = TRUE,
+  keep_data = FALSE,
+  return_hessian = FALSE,
   check_separation = TRUE,
   init_theta = 0.0,
-  vcov_type = NULL
+  vcov_type = NULL,
+  compute_apes = FALSE,
+  compute_bias_corr = FALSE,
+  apes_n_pop = NULL,
+  bias_corr_l = 0L,
+  panel_structure = "classic",
+  apes_sampling_fe = "independence"
 ) {
   # Check validity of tolerance parameters
   if (
@@ -232,6 +277,46 @@ fit_control <- function(
     )
   }
 
+  # Check validity of APES/bias correction parameters
+  compute_apes <- as.logical(compute_apes)
+  compute_bias_corr <- as.logical(compute_bias_corr)
+  if (is.na(compute_apes) || is.na(compute_bias_corr)) {
+    stop(
+      "compute_apes and compute_bias_corr should be TRUE or FALSE.",
+      call. = FALSE
+    )
+  }
+
+  # Validate apes_n_pop
+  if (!is.null(apes_n_pop)) {
+    apes_n_pop <- as.integer(apes_n_pop)
+    if (apes_n_pop < 1L) {
+      stop("apes_n_pop should be a positive integer.", call. = FALSE)
+    }
+  }
+
+  # Validate bias_corr_l
+  bias_corr_l <- as.integer(bias_corr_l)
+  if (bias_corr_l < 0L) {
+    stop("bias_corr_l should be a non-negative integer.", call. = FALSE)
+  }
+
+  # Validate panel_structure
+  panel_structure <- match.arg(panel_structure, c("classic", "network"))
+
+  # Validate apes_sampling_fe
+  apes_sampling_fe <- match.arg(apes_sampling_fe, c("independence", "unrestricted"))
+
+  # If compute_apes or compute_bias_corr, ensure keep_tx is TRUE
+  if (compute_apes || compute_bias_corr) {
+    if (!keep_tx) {
+      keep_tx <- TRUE
+    }
+    if (!keep_data) {
+      keep_data <- TRUE
+    }
+  }
+
   list(
     dev_tol = dev_tol,
     center_tol = center_tol,
@@ -260,6 +345,12 @@ fit_control <- function(
     return_hessian = return_hessian,
     check_separation = check_separation,
     init_theta = init_theta,
-    vcov_type = vcov_type
+    vcov_type = vcov_type,
+    compute_apes = compute_apes,
+    compute_bias_corr = compute_bias_corr,
+    apes_n_pop = apes_n_pop,
+    bias_corr_l = bias_corr_l,
+    panel_structure = panel_structure,
+    apes_sampling_fe = apes_sampling_fe
   )
 }
