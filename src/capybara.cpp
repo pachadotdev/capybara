@@ -9,15 +9,15 @@
 
 #ifdef CAPYBARA_DEBUG
 #include <chrono>
-#include <sstream>
 #include <fstream>
+#include <sstream>
 #if defined(__unix__) || defined(__unix) || defined(__APPLE__)
 #include <sys/resource.h>
 #include <unistd.h>
 #endif
 #ifdef _WIN32
-#include <windows.h>
 #include <psapi.h>
+#include <windows.h>
 #endif
 #endif
 
@@ -77,7 +77,8 @@ inline double get_memory_usage_mb() {
 #elif defined(_WIN32)
   // Windows: use GetProcessMemoryInfo
   PROCESS_MEMORY_COUNTERS_EX pmc;
-  if (GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc))) {
+  if (GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS *)&pmc,
+                           sizeof(pmc))) {
     return pmc.WorkingSetSize / (1024.0 * 1024.0); // Convert bytes to MB
   }
   return -1.0;
@@ -135,8 +136,8 @@ struct CapybaraParameters {
   // APES and bias correction parameters
   bool compute_apes;
   bool compute_bias_corr;
-  size_t apes_n_pop;        // 0 means NULL (no finite pop correction)
-  size_t bias_corr_l;       // Bandwidth for spectral density
+  size_t apes_n_pop;  // 0 means NULL (no finite pop correction)
+  size_t bias_corr_l; // Bandwidth for spectral density
   std::string panel_structure;
   std::string apes_sampling_fe;
 
@@ -224,7 +225,7 @@ struct CapybaraParameters {
     if (apes_n_pop_sexp != R_NilValue && !Rf_isNull(apes_n_pop_sexp)) {
       apes_n_pop = as_cpp<size_t>(apes_n_pop_sexp);
     } else {
-      apes_n_pop = 0;  // 0 means NULL (no finite pop correction)
+      apes_n_pop = 0; // 0 means NULL (no finite pop correction)
     }
 
     SEXP bias_corr_l_sexp = control["bias_corr_l"];
@@ -1173,25 +1174,26 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
     if (result.apes_bias_term.n_elem > 0) {
       out.push_back({"apes_bias_term"_nm = as_doubles(result.apes_bias_term)});
     }
-    out.push_back({"apes_panel_structure"_nm = 
-                   writable::strings({result.apes_panel_structure})});
-    out.push_back({"apes_sampling_fe"_nm = 
-                   writable::strings({result.apes_sampling_fe})});
-    out.push_back({"apes_weak_exo"_nm = 
-                   writable::logicals({result.apes_weak_exo})});
-    out.push_back({"apes_bandwidth"_nm = 
-                   writable::integers({static_cast<int>(result.apes_bandwidth)})});
+    out.push_back({"apes_panel_structure"_nm =
+                       writable::strings({result.apes_panel_structure})});
+    out.push_back(
+        {"apes_sampling_fe"_nm = writable::strings({result.apes_sampling_fe})});
+    out.push_back(
+        {"apes_weak_exo"_nm = writable::logicals({result.apes_weak_exo})});
+    out.push_back({"apes_bandwidth"_nm = writable::integers(
+                       {static_cast<int>(result.apes_bandwidth)})});
     out.push_back({"has_apes"_nm = writable::logicals({true})});
   }
 
   // Add bias correction results if computed
   if (result.has_bias_corr) {
-    out.push_back({"beta_uncorrected"_nm = as_doubles(result.beta_uncorrected)});
+    out.push_back(
+        {"beta_uncorrected"_nm = as_doubles(result.beta_uncorrected)});
     out.push_back({"bias_corr_term"_nm = as_doubles(result.bias_corr_term)});
-    out.push_back({"bias_corr_panel_structure"_nm = 
-                   writable::strings({result.bias_corr_panel_structure})});
-    out.push_back({"bias_corr_bandwidth"_nm = 
-                   writable::integers({static_cast<int>(result.bias_corr_bandwidth)})});
+    out.push_back({"bias_corr_panel_structure"_nm =
+                       writable::strings({result.bias_corr_panel_structure})});
+    out.push_back({"bias_corr_bandwidth"_nm = writable::integers(
+                       {static_cast<int>(result.bias_corr_bandwidth)})});
     out.push_back({"has_bias_corr"_nm = writable::logicals({true})});
   }
 

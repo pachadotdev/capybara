@@ -39,7 +39,7 @@ struct GlmWorkspace {
 // Avoids repeated switch statements in hot loops
 using MuFromEta = void (*)(vec &mu, const vec &eta);
 using WorkingWtsNu = void (*)(vec &w_working, vec &nu, const vec &w,
-                                const vec &mu, const vec &y, double theta);
+                              const vec &mu, const vec &y, double theta);
 
 // Link inverse functions (mu from eta)
 inline void mu_gaussian(vec &mu, const vec &eta) { mu = eta; }
@@ -142,7 +142,8 @@ InferenceGLM feglm_fit(
   feglm_msg << "/////////////////////////////////\n"
                "// Entering feglm_fit function //\n"
                "/////////////////////////////////\n"
-               "Initial memory: " << mem_start << " MB\n";
+               "Initial memory: "
+            << mem_start << " MB\n";
   cpp4r::message(feglm_msg.str());
 #endif
 
@@ -582,7 +583,7 @@ InferenceGLM feglm_fit(
       result.coef_status = std::move(collin_result.coef_status);
       result.eta = std::move(eta);
       result.fitted_values = std::move(mu);
-      result.weights = w;  // w is const ref, can't move
+      result.weights = w; // w is const ref, can't move
       result.deviance = dev;
       result.null_deviance = null_dev;
       result.conv = true;
@@ -671,7 +672,7 @@ InferenceGLM feglm_fit(
     result.coef_status = std::move(collin_result.coef_status);
     result.eta = std::move(eta);
     result.fitted_values = std::move(mu);
-    result.weights = w;  // w is const ref, can't move
+    result.weights = w; // w is const ref, can't move
     result.hessian = std::move(H);
     result.deviance = dev;
     result.null_deviance = null_dev;
@@ -722,57 +723,60 @@ InferenceGLM feglm_fit(
     }
 
     // APES and bias correction for binomial models
-    if (family_type == BINOMIAL && has_fixed_effects && 
+    if (family_type == BINOMIAL && has_fixed_effects &&
         (params.compute_bias_corr || params.compute_apes)) {
-      
+
       const uword K = fe_map.K;
-      const bool valid_classic = (params.panel_structure == "classic" && (K == 1 || K == 2));
-      const bool valid_network = (params.panel_structure == "network" && (K == 2 || K == 3));
-      
+      const bool valid_classic =
+          (params.panel_structure == "classic" && (K == 1 || K == 2));
+      const bool valid_network =
+          (params.panel_structure == "network" && (K == 2 || K == 3));
+
       if (valid_classic || valid_network) {
         // Compute finite population adjustment
         double adj = 0.0;
         if (params.apes_n_pop > 0 && params.apes_n_pop > n) {
-          adj = static_cast<double>(params.apes_n_pop - n) / 
+          adj = static_cast<double>(params.apes_n_pop - n) /
                 static_cast<double>(params.apes_n_pop - 1);
         }
-        
+
         // Get original X matrix for APES (need non-centered version)
         // MX is the centered version; for binary variable detection we need X
         // But X has been modified (intercept added, cols shed), so we use MX
         // and note that binary detection works on MX too
-        
+
         bool weak_exo = (params.bias_corr_l > 0);
-        
+
         // Bias correction first (if requested)
         if (params.compute_bias_corr) {
           BiasResult bias_res = compute_bias_corr(
-              y, MX, MX, result.eta, w, H,
-              "logit", fe_map, params.panel_structure, params.bias_corr_l,
-              params.center_tol, params.iter_center_max, params.grand_acc_period);
-          
+              y, MX, MX, result.eta, w, H, "logit", fe_map,
+              params.panel_structure, params.bias_corr_l, params.center_tol,
+              params.iter_center_max, params.grand_acc_period);
+
           if (bias_res.success) {
             // Store uncorrected coefficients
             result.beta_uncorrected = beta;
-            
+
             // Apply bias correction: beta_corr = beta - H^{-1} * bias_term
             vec beta_correction;
-            if (solve(beta_correction, H / static_cast<double>(n), bias_res.bias_term)) {
+            if (solve(beta_correction, H / static_cast<double>(n),
+                      bias_res.bias_term)) {
               vec beta_corrected = beta - beta_correction;
-              
+
               // Update coefficient table with corrected values
               result.coef_table.col(0) = beta_corrected;
-              
+
               // Recompute eta with corrected beta
               vec eta_corrected = MX * beta_corrected;
               if (has_offset) {
                 eta_corrected += offset_vec;
               }
               result.eta = std::move(eta_corrected);
-              
+
               // Update fitted values
               mu_(result.fitted_values, result.eta);
-              
+
               result.bias_corr_term = bias_res.bias_term;
               result.has_bias_corr = true;
               result.bias_corr_panel_structure = params.panel_structure;
@@ -780,19 +784,19 @@ InferenceGLM feglm_fit(
             }
           }
         }
-        
+
         // APES computation
         if (params.compute_apes) {
           // Use potentially bias-corrected coefficients
           vec beta_for_apes = result.coef_table.col(0);
-          
+
           APESResult apes_res = compute_apes(
-              y, MX, MX, result.eta, w, beta_for_apes, H,
-              "logit", fe_map, n,  // n_full = n (after separation)
+              y, MX, MX, result.eta, w, beta_for_apes, H, "logit", fe_map,
+              n, // n_full = n (after separation)
               params.panel_structure, params.apes_sampling_fe, weak_exo, adj,
-              params.bias_corr_l, params.compute_bias_corr,
-              params.center_tol, params.iter_center_max, params.grand_acc_period);
-          
+              params.bias_corr_l, params.compute_bias_corr, params.center_tol,
+              params.iter_center_max, params.grand_acc_period);
+
           if (apes_res.success) {
             result.apes_delta = apes_res.delta;
             result.apes_vcov = apes_res.vcov;
@@ -822,8 +826,8 @@ InferenceGLM feglm_fit(
 
 // Working weights and adjusted response for offset-only fitting
 using OffsetWwYadj = void (*)(vec &w_working, vec &yadj, const vec &w,
-                                const vec &mu, const vec &y, const vec &eta,
-                                const vec &offset);
+                              const vec &mu, const vec &y, const vec &eta,
+                              const vec &offset);
 
 inline void offset_ww_yadj_gaussian(vec &w_working, vec &yadj, const vec &w,
                                     const vec &mu, const vec &y, const vec &eta,
