@@ -17,19 +17,16 @@ struct GlmWorkspace {
   GlmWorkspace() : cached_n(0), cached_p(0) {}
 
   void ensure_size(uword n, uword p) {
-    // Only reallocate if needed
-    // Use zeros() instead of set_size() to ensure deterministic initialization
-    // (prevents non-determinism on Mac due to uninitialized memory)
     if (n > cached_n) {
-      mu.zeros(n);
-      w_working.zeros(n);
-      nu.zeros(n);
-      z.zeros(n);
-      eta0.zeros(n);
+      mu.set_size(n);
+      w_working.set_size(n);
+      nu.set_size(n);
+      z.set_size(n);
+      eta0.set_size(n);
       cached_n = n;
     }
     if (p > cached_p) {
-      beta0.zeros(p);
+      beta0.set_size(p);
       cached_p = p;
     }
   }

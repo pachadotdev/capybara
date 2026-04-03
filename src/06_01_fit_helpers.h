@@ -36,8 +36,8 @@ struct InferenceGLM {
 
   // Full constructor - allocates all fields including P*P hessian/vcov
   InferenceGLM(uword n, uword p)
-      : coef_table(p, 4, fill::zeros), eta(n, fill::zeros),
-        fitted_values(n, fill::zeros), weights(n, fill::ones),
+      : coef_table(p, 4, fill::none), eta(n, fill::none),
+        fitted_values(n, fill::none), weights(n, fill::ones),
         hessian(p, p, fill::zeros), vcov(p, p, fill::zeros), deviance(0.0),
         null_deviance(0.0), conv(false), iter(0), coef_status(p, fill::ones),
         pseudo_rsq(0.0), has_fe(false), has_tx(false), has_separation(false),
@@ -46,7 +46,7 @@ struct InferenceGLM {
   // Lite constructor - skips hessian/vcov allocation for fast paths
   // (e.g., negbin outer loop iterations where only beta/eta/mu are needed)
   InferenceGLM(uword n, uword p, bool allocate_vcov)
-      : coef_table(p, 4, fill::zeros), eta(), fitted_values(), weights(),
+      : coef_table(p, 4, fill::none), eta(), fitted_values(), weights(),
         hessian(), vcov(), deviance(0.0), null_deviance(0.0), conv(false),
         iter(0), coef_status(p, fill::ones), pseudo_rsq(0.0), has_fe(false),
         has_tx(false), has_separation(false), num_separated(0) {
