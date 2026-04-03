@@ -563,16 +563,6 @@ InferenceGLM feglm_fit(
   cpp4r::message(glmiter_msg.str());
 #endif
 
-  // Post-loop safety net: if the loop exhausted iter_max but conv_change is
-  // within 10 * dev_tol (i.e. < 1e-7 with default settings), treat as
-  // converged. This covers platforms where FMA-based BLAS (e.g. macOS
-  // Accelerate) rounds conv_change to just above dev_tol on borderline cases.
-  // Factor of 10 is intentionally tight: genuine non-convergence produces
-  // conv_change orders of magnitude larger.
-  if (!conv && conv_change < params.dev_tol * 10.0) {
-    conv = true;
-  }
-
   if (conv) {
     // Fast path for negbin outer loop: only return beta, eta, mu, and
     // convergence status.  Skip Hessian, FE recovery, vcov, SE/z/p.

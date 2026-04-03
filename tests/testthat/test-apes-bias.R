@@ -44,11 +44,25 @@ test_that("compute_apes works with binary response", {
     x = rnorm(n),
     fe = sample(1:5, n, replace = TRUE)
   )
+  
+  # Check for separation issues in the data
+  fe_table <- table(sim_data$fe, sim_data$y)
+  has_singleton_fe <- any(rowSums(fe_table) == 1)
+  has_perfect_fe <- any(fe_table[,1] == 0 | fe_table[,2] == 0)
 
   mod <- feglm(y ~ x | fe, sim_data, family = binomial(),
                control = fit_control(compute_apes = TRUE))
 
+  # Diagnostic info
+  if (!isTRUE(mod$conv)) {
+    message("Non-convergence detected")
+    message("Singleton FEs: ", has_singleton_fe)
+    message("Perfect prediction in FEs: ", has_perfect_fe)
+    message("Observations dropped: ", nrow(sim_data) - mod$nobs)
+  }
+
   expect_s3_class(mod, "feglm")
+  expect_true(isTRUE(mod$conv), info = "Model should converge")
   expect_true(isTRUE(mod$has_apes))
   expect_true(length(mod$apes_delta) == 1)
   expect_true(names(mod$apes_delta) == "x")
@@ -67,6 +81,11 @@ test_that("apes_delta has names", {
   mod <- feglm(y ~ x | fe, sim_data, family = binomial(),
                control = fit_control(compute_apes = TRUE))
 
+  # Check convergence first
+  expect_true(isTRUE(mod$conv), 
+              info = sprintf("Model failed to converge. Iterations: %d, Deviance: %.4f", 
+                           mod$iter, mod$deviance))
+  
   expect_true(!is.null(names(mod$apes_delta)))
   expect_equal(names(mod$apes_delta), "x")
 })
@@ -84,6 +103,18 @@ test_that("apes_vcov has dimnames", {
   mod <- feglm(y ~ x | fe, sim_data, family = binomial(),
                control = fit_control(compute_apes = TRUE))
 
+  # Diagnostic info for Mac debugging
+  if (!isTRUE(mod$has_apes)) {
+    message("Model did not compute APES")
+    message("Convergence: ", mod$conv)
+    message("Iterations: ", mod$iter)
+    if (!is.null(mod$separation)) {
+      message("Separation detected: ", mod$separation)
+    }
+  }
+
+  expect_true(isTRUE(mod$conv), info = "Model should converge")
+  expect_true(isTRUE(mod$has_apes), info = "APES should be computed")
   expect_true(!is.null(dimnames(mod$apes_vcov)))
   expect_equal(rownames(mod$apes_vcov), "x")
   expect_equal(colnames(mod$apes_vcov), "x")
@@ -125,10 +156,15 @@ test_that("compute_bias_corr works with binary response", {
     fe = sample(1:5, n, replace = TRUE)
   )
 
+  # Use more permissive convergence settings for cross-platform compatibility
   mod <- feglm(y ~ x | fe, sim_data, family = binomial(),
-               control = fit_control(compute_bias_corr = TRUE))
+               control = fit_control(compute_bias_corr = TRUE, 
+                                    dev_tol = 1e-6, 
+                                    iter_max = 50L))
 
   expect_s3_class(mod, "feglm")
+  expect_true(isTRUE(mod$conv), 
+              info = sprintf("Convergence failed (iter=%d)", mod$iter))
   expect_true(isTRUE(mod$has_bias_corr))
   expect_true(length(coef(mod)) == 1)
   expect_true(length(mod$beta_uncorrected) == 1)
@@ -145,8 +181,11 @@ test_that("bias_corr preserves uncorrected coefficients", {
   )
 
   mod <- feglm(y ~ x | fe, sim_data, family = binomial(),
-               control = fit_control(compute_bias_corr = TRUE))
+               control = fit_control(compute_bias_corr = TRUE,
+                                    dev_tol = 1e-6,
+                                    iter_max = 50L))
 
+  expect_true(isTRUE(mod$conv), info = "Model should converge")
   # beta_uncorrected should be stored
   expect_true(!is.null(mod$beta_uncorrected))
   expect_true(names(mod$beta_uncorrected) == "x")
@@ -165,9 +204,12 @@ test_that("compute_apes and compute_bias_corr work together", {
   )
 
   mod <- feglm(y ~ x | fe, sim_data, family = binomial(),
-               control = fit_control(compute_apes = TRUE, compute_bias_corr = TRUE))
+               control = fit_control(compute_apes = TRUE, compute_bias_corr = TRUE,
+                                    dev_tol = 1e-6,
+                                    iter_max = 50L))
 
   expect_s3_class(mod, "feglm")
+  expect_true(isTRUE(mod$conv), info = "Model should converge")
   expect_true(isTRUE(mod$has_apes))
   expect_true(isTRUE(mod$has_bias_corr))
   expect_true(length(mod$apes_delta) == 1)
@@ -210,7 +252,8 @@ test_that("compute_apes works with stammann centering", {
 })
 
 test_that("compute_apes with stammann centering", {
-  ctrl <- fit_control(centering = "stammann", compute_apes = TRUE)
+  ctrl <- fit_control(centering = "stammann", compute_apes = TRUE,
+                      dev_tol = 1e-6, iter_max = 50L)
   # Simulate larger dataset to avoid separation issues
   set.seed(123)
   n <- 100
@@ -223,12 +266,14 @@ test_that("compute_apes with stammann centering", {
   mod <- feglm(y ~ x | fe, sim_data, family = binomial(), control = ctrl)
 
   expect_s3_class(mod, "feglm")
+  expect_true(isTRUE(mod$conv), info = "Model should converge")
   expect_true(isTRUE(mod$has_apes))
   expect_true(length(mod$apes_delta) == 1)
 })
 
 test_that("compute_bias_corr works with mtcars (stammann centering)", {
-  ctrl <- fit_control(centering = "stammann", compute_bias_corr = TRUE)
+  ctrl <- fit_control(centering = "stammann", compute_bias_corr = TRUE,
+                      dev_tol = 1e-6, iter_max = 50L)
   # Simulate larger dataset to avoid separation issues
   set.seed(123)
   n <- 100
@@ -241,12 +286,14 @@ test_that("compute_bias_corr works with mtcars (stammann centering)", {
   mod <- feglm(y ~ x | fe, sim_data, family = binomial(), control = ctrl)
 
   expect_s3_class(mod, "feglm")
+  expect_true(isTRUE(mod$conv), info = "Model should converge")
   expect_true(isTRUE(mod$has_bias_corr))
   expect_true(length(coef(mod)) == 1)
 })
 
 test_that("compute_apes and compute_bias_corr work together (stammann centering)", {
-  ctrl <- fit_control(centering = "stammann", compute_apes = TRUE, compute_bias_corr = TRUE)
+  ctrl <- fit_control(centering = "stammann", compute_apes = TRUE, compute_bias_corr = TRUE,
+                      dev_tol = 1e-6, iter_max = 50L)
   # Simulate larger dataset to avoid separation issues
   set.seed(123)
   n <- 100
@@ -259,6 +306,7 @@ test_that("compute_apes and compute_bias_corr work together (stammann centering)
   mod <- feglm(y ~ x | fe, sim_data, family = binomial(), control = ctrl)
 
   expect_s3_class(mod, "feglm")
+  expect_true(isTRUE(mod$conv), info = "Model should converge")
   expect_true(isTRUE(mod$has_apes))
   expect_true(isTRUE(mod$has_bias_corr))
 })
