@@ -34,23 +34,6 @@ struct InferenceGLM {
   uvec separated_obs;
   vec separation_support;
 
-  // APES results
-  bool has_apes = false;
-  vec apes_delta;     // Average partial effects
-  mat apes_vcov;      // APEs variance-covariance
-  vec apes_bias_term; // Bias term (if bias_corr applied)
-  std::string apes_panel_structure;
-  std::string apes_sampling_fe;
-  bool apes_weak_exo = false;
-  uword apes_bandwidth = 0;
-
-  // Bias correction results
-  bool has_bias_corr = false;
-  vec beta_uncorrected; // Original (uncorrected) coefficients
-  vec bias_corr_term;   // The bias term B
-  std::string bias_corr_panel_structure;
-  uword bias_corr_bandwidth = 0;
-
   // Full constructor - allocates all fields including P*P hessian/vcov
   InferenceGLM(uword n, uword p)
       : coef_table(p, 4, fill::zeros), eta(n, fill::zeros),
@@ -58,8 +41,7 @@ struct InferenceGLM {
         hessian(p, p, fill::zeros), vcov(p, p, fill::zeros), deviance(0.0),
         null_deviance(0.0), conv(false), iter(0), coef_status(p, fill::ones),
         pseudo_rsq(0.0), has_fe(false), has_tx(false), has_separation(false),
-        num_separated(0), has_apes(false), apes_weak_exo(false),
-        apes_bandwidth(0), has_bias_corr(false), bias_corr_bandwidth(0) {}
+        num_separated(0) {}
 
   // Lite constructor - skips hessian/vcov allocation for fast paths
   // (e.g., negbin outer loop iterations where only beta/eta/mu are needed)
@@ -67,9 +49,7 @@ struct InferenceGLM {
       : coef_table(p, 4, fill::zeros), eta(), fitted_values(), weights(),
         hessian(), vcov(), deviance(0.0), null_deviance(0.0), conv(false),
         iter(0), coef_status(p, fill::ones), pseudo_rsq(0.0), has_fe(false),
-        has_tx(false), has_separation(false), num_separated(0), has_apes(false),
-        apes_weak_exo(false), apes_bandwidth(0), has_bias_corr(false),
-        bias_corr_bandwidth(0) {
+        has_tx(false), has_separation(false), num_separated(0) {
     // Defer N-length vector allocation until results are assigned
     // This avoids allocating 3N doubles that would be immediately overwritten
     if (allocate_vcov) {

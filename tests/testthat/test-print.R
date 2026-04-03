@@ -116,32 +116,6 @@ test_that("print works for binomial model", {
   expect_output(print(summary(mod)))
 })
 
-# ---- print for models with APES ----
-
-test_that("print works for model with compute_apes", {
-  mtcars2 <- mtcars
-  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
-
-  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial(),
-               control = fit_control(compute_apes = TRUE))
-
-  expect_output(print(mod))
-  expect_output(print(summary(mod)))
-})
-
-# ---- print for models with bias correction ----
-
-test_that("print works for model with compute_bias_corr", {
-  mtcars2 <- mtcars
-  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
-
-  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial(),
-               control = fit_control(compute_bias_corr = TRUE))
-
-  expect_output(print(mod))
-  expect_output(print(summary(mod)))
-})
-
 # ---- print for models without FE ----
 
 test_that("print works for model without fixed effects", {
