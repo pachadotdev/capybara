@@ -35,40 +35,58 @@ test_that("compute_apes works via fit_control", {
   expect_equal(mod$apes_delta, apes2, tolerance = 1e-1)
 })
 
-test_that("compute_apes works with mtcars binary response", {
-  mtcars2 <- mtcars
-  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
+test_that("compute_apes works with binary response", {
+  # Simulate larger dataset to avoid separation issues
+  set.seed(123)
+  n <- 100
+  sim_data <- data.frame(
+    y = rbinom(n, 1, 0.5),
+    x = rnorm(n),
+    fe = sample(1:5, n, replace = TRUE)
+  )
 
-  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial(),
+  mod <- feglm(y ~ x | fe, sim_data, family = binomial(),
                control = fit_control(compute_apes = TRUE))
 
   expect_s3_class(mod, "feglm")
   expect_true(isTRUE(mod$has_apes))
   expect_true(length(mod$apes_delta) == 1)
-  expect_true(names(mod$apes_delta) == "wt")
+  expect_true(names(mod$apes_delta) == "x")
 })
 
 test_that("apes_delta has names", {
-  mtcars2 <- mtcars
-  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
+  # Simulate larger dataset to avoid separation issues
+  set.seed(123)
+  n <- 100
+  sim_data <- data.frame(
+    y = rbinom(n, 1, 0.5),
+    x = rnorm(n),
+    fe = sample(1:5, n, replace = TRUE)
+  )
 
-  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial(),
+  mod <- feglm(y ~ x | fe, sim_data, family = binomial(),
                control = fit_control(compute_apes = TRUE))
 
   expect_true(!is.null(names(mod$apes_delta)))
-  expect_equal(names(mod$apes_delta), "wt")
+  expect_equal(names(mod$apes_delta), "x")
 })
 
 test_that("apes_vcov has dimnames", {
-  mtcars2 <- mtcars
-  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
+  # Simulate larger dataset to avoid separation issues
+  set.seed(123)
+  n <- 100
+  sim_data <- data.frame(
+    y = rbinom(n, 1, 0.5),
+    x = rnorm(n),
+    fe = sample(1:5, n, replace = TRUE)
+  )
 
-  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial(),
+  mod <- feglm(y ~ x | fe, sim_data, family = binomial(),
                control = fit_control(compute_apes = TRUE))
 
   expect_true(!is.null(dimnames(mod$apes_vcov)))
-  expect_equal(rownames(mod$apes_vcov), "wt")
-  expect_equal(colnames(mod$apes_vcov), "wt")
+  expect_equal(rownames(mod$apes_vcov), "x")
+  expect_equal(colnames(mod$apes_vcov), "x")
 })
 
 # ---- Bias correction tests (C++ implementation via fit_control) ----
@@ -97,11 +115,17 @@ test_that("compute_bias_corr works via fit_control", {
   expect_equal(trunc(coef(mod), 2), trunc(bias2, 2))
 })
 
-test_that("compute_bias_corr works with mtcars", {
-  mtcars2 <- mtcars
-  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
+test_that("compute_bias_corr works with binary response", {
+  # Simulate larger dataset to avoid separation issues
+  set.seed(123)
+  n <- 100
+  sim_data <- data.frame(
+    y = rbinom(n, 1, 0.5),
+    x = rnorm(n),
+    fe = sample(1:5, n, replace = TRUE)
+  )
 
-  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial(),
+  mod <- feglm(y ~ x | fe, sim_data, family = binomial(),
                control = fit_control(compute_bias_corr = TRUE))
 
   expect_s3_class(mod, "feglm")
@@ -111,24 +135,36 @@ test_that("compute_bias_corr works with mtcars", {
 })
 
 test_that("bias_corr preserves uncorrected coefficients", {
-  mtcars2 <- mtcars
-  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
+  # Simulate larger dataset to avoid separation issues
+  set.seed(123)
+  n <- 100
+  sim_data <- data.frame(
+    y = rbinom(n, 1, 0.5),
+    x = rnorm(n),
+    fe = sample(1:5, n, replace = TRUE)
+  )
 
-  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial(),
+  mod <- feglm(y ~ x | fe, sim_data, family = binomial(),
                control = fit_control(compute_bias_corr = TRUE))
 
   # beta_uncorrected should be stored
   expect_true(!is.null(mod$beta_uncorrected))
-  expect_true(names(mod$beta_uncorrected) == "wt")
+  expect_true(names(mod$beta_uncorrected) == "x")
 })
 
 # ---- Combined APES and bias correction ----
 
 test_that("compute_apes and compute_bias_corr work together", {
-  mtcars2 <- mtcars
-  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
+  # Simulate larger dataset to avoid separation issues
+  set.seed(123)
+  n <- 100
+  sim_data <- data.frame(
+    y = rbinom(n, 1, 0.5),
+    x = rnorm(n),
+    fe = sample(1:5, n, replace = TRUE)
+  )
 
-  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial(),
+  mod <- feglm(y ~ x | fe, sim_data, family = binomial(),
                control = fit_control(compute_apes = TRUE, compute_bias_corr = TRUE))
 
   expect_s3_class(mod, "feglm")
@@ -144,8 +180,6 @@ test_that("compute_apes is ignored for non-binary models", {
   mod <- fepoisson(mpg ~ wt | cyl, mtcars,
                    control = fit_control(compute_apes = TRUE))
 
-  # APES should not be computed for Poisson
-
   expect_false(isTRUE(mod$has_apes))
 })
 
@@ -153,7 +187,6 @@ test_that("compute_bias_corr is ignored for non-binary models", {
   mod <- fepoisson(mpg ~ wt | cyl, mtcars,
                    control = fit_control(compute_bias_corr = TRUE))
 
-  # Bias correction should not be computed for Poisson
   expect_false(isTRUE(mod$has_bias_corr))
 })
 
@@ -176,12 +209,18 @@ test_that("compute_apes works with stammann centering", {
   expect_equal(mod$apes_delta, apes2, tolerance = 1e-1)
 })
 
-test_that("compute_apes with mtcars works (stammann centering)", {
+test_that("compute_apes with stammann centering", {
   ctrl <- fit_control(centering = "stammann", compute_apes = TRUE)
-  mtcars2 <- mtcars
-  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
+  # Simulate larger dataset to avoid separation issues
+  set.seed(123)
+  n <- 100
+  sim_data <- data.frame(
+    y = rbinom(n, 1, 0.5),
+    x = rnorm(n),
+    fe = sample(1:5, n, replace = TRUE)
+  )
 
-  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial(), control = ctrl)
+  mod <- feglm(y ~ x | fe, sim_data, family = binomial(), control = ctrl)
 
   expect_s3_class(mod, "feglm")
   expect_true(isTRUE(mod$has_apes))
@@ -190,10 +229,16 @@ test_that("compute_apes with mtcars works (stammann centering)", {
 
 test_that("compute_bias_corr works with mtcars (stammann centering)", {
   ctrl <- fit_control(centering = "stammann", compute_bias_corr = TRUE)
-  mtcars2 <- mtcars
-  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
+  # Simulate larger dataset to avoid separation issues
+  set.seed(123)
+  n <- 100
+  sim_data <- data.frame(
+    y = rbinom(n, 1, 0.5),
+    x = rnorm(n),
+    fe = sample(1:5, n, replace = TRUE)
+  )
 
-  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial(), control = ctrl)
+  mod <- feglm(y ~ x | fe, sim_data, family = binomial(), control = ctrl)
 
   expect_s3_class(mod, "feglm")
   expect_true(isTRUE(mod$has_bias_corr))
@@ -202,10 +247,16 @@ test_that("compute_bias_corr works with mtcars (stammann centering)", {
 
 test_that("compute_apes and compute_bias_corr work together (stammann centering)", {
   ctrl <- fit_control(centering = "stammann", compute_apes = TRUE, compute_bias_corr = TRUE)
-  mtcars2 <- mtcars
-  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
+  # Simulate larger dataset to avoid separation issues
+  set.seed(123)
+  n <- 100
+  sim_data <- data.frame(
+    y = rbinom(n, 1, 0.5),
+    x = rnorm(n),
+    fe = sample(1:5, n, replace = TRUE)
+  )
 
-  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial(), control = ctrl)
+  mod <- feglm(y ~ x | fe, sim_data, family = binomial(), control = ctrl)
 
   expect_s3_class(mod, "feglm")
   expect_true(isTRUE(mod$has_apes))
