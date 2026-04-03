@@ -32,7 +32,12 @@ fit_control(
   return_hessian = FALSE,
   check_separation = TRUE,
   init_theta = 0,
-  vcov_type = NULL
+  vcov_type = NULL,
+  compute_apes = FALSE,
+  ape_n_pop = NULL,
+  ape_panel_structure = "classic",
+  ape_sampling_fe = "independence",
+  ape_weak_exo = FALSE
 )
 }
 \arguments{
@@ -127,6 +132,35 @@ present, or a clustered sandwich when one is. Other values:
 \code{"m-estimator"} — one-way M-estimator sandwich (cluster variable required);
 \code{"m-estimator-dyadic"} — dyadic-robust Cameron-Miller sandwich (two entity columns required in the
 third part of the formula like \code{z ~ x + y | fe | cl1 + cl2}).}
+
+\item{compute_apes}{logical indicating whether to compute Average Partial Effects (APEs) for binomial models.
+When \code{TRUE}, the model returns APE estimates and their covariance matrix alongside the standard output.
+APEs represent the average marginal effect of each regressor on the probability of the outcome.
+For continuous regressors, this is \code{avg(beta * mu * (1-mu))} for logit link.
+For binary regressors, this is \code{avg(F(eta+beta) - F(eta-X*beta))} where \code{F} is the link inverse.
+The default is \code{FALSE}.}
+
+\item{ape_n_pop}{unsigned integer indicating a finite population correction for the estimation of the
+covariance matrix of the average partial effects, proposed by Cruz-Gonzalez, Fernández-Val, and
+Weidner (2017). The correction factor is computed as: \code{(n_pop - n) / (n_pop - 1)}, where
+\code{n_pop} is the population size and \code{n} is the sample size. Default is \code{NULL} (no correction,
+covariance obtained by delta method only).}
+
+\item{ape_panel_structure}{character string equal to \code{"classic"} or \code{"network"} which
+determines the structure of the panel used for APE variance computation. \code{"classic"} denotes
+panel structures where the same cross-sectional units are observed several times (includes pseudo panels).
+\code{"network"} denotes panel structures where bilateral flows are observed for several time periods
+(e.g., trade data). Default is \code{"classic"}.}
+
+\item{ape_sampling_fe}{character string equal to \code{"independence"} or \code{"unrestricted"} which
+imposes sampling assumptions about the unobserved effects for APE variance computation.
+\code{"independence"} imposes that all unobserved effects are independent sequences.
+\code{"unrestricted"} does not impose any sampling assumptions. This option only affects the
+optional finite population correction. Default is \code{"independence"}.}
+
+\item{ape_weak_exo}{logical indicating if some of the regressors are assumed to be weakly exogenous
+(e.g., predetermined) for APE variance computation. When \code{TRUE}, additional covariance terms
+are included in the variance calculation. Default is \code{FALSE} (all regressors strictly exogenous).}
 }
 \value{
 A named list of control parameters.

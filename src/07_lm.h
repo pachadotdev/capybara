@@ -86,7 +86,7 @@ struct FelmWorkspace {
       cached_P = P;
       x_original_allocated = false;
     }
-    
+
     x_beta.set_size(N);
     pi.set_size(N);
     y_original.set_size(N);

@@ -133,6 +133,13 @@ struct CapybaraParameters {
   // Variance-covariance estimator type
   std::string vcov_type;
 
+  // Average Partial Effects computation
+  bool compute_apes;
+  size_t ape_n_pop;                // 0 = no finite population correction
+  std::string ape_panel_structure; // "classic" or "network"
+  std::string ape_sampling_fe;     // "independence" or "unrestricted"
+  bool ape_weak_exo;
+
   CapybaraParameters()
       : dev_tol(1.0e-08), center_tol(1.0e-08), center_tol_loose(1.0e-04),
         collin_tol(1.0e-10), step_halving_factor(0.5), alpha_tol(1.0e-08),
@@ -142,7 +149,9 @@ struct CapybaraParameters {
         iter_inner_max(50), iter_alpha_max(10000), return_fe(true),
         keep_tx(false), return_hessian(true), step_halving_memory(0.9),
         max_step_halving(2), start_inner_tol(1e-06), grand_acc_period(10),
-        centering("stammann"), vcov_type("") {}
+        centering("stammann"), vcov_type(""), compute_apes(false), ape_n_pop(0),
+        ape_panel_structure("classic"), ape_sampling_fe("independence"),
+        ape_weak_exo(false) {}
 
   explicit CapybaraParameters(const cpp4r::list &control) {
     dev_tol = as_cpp<double>(control["dev_tol"]);
@@ -194,6 +203,43 @@ struct CapybaraParameters {
       vcov_type = as_cpp<std::string>(vcov_type_sexp);
     } else {
       vcov_type = "";
+    }
+
+    // Extract compute_apes (optional, default false)
+    SEXP compute_apes_sexp = control["compute_apes"];
+    if (compute_apes_sexp != R_NilValue) {
+      compute_apes = as_cpp<bool>(compute_apes_sexp);
+    } else {
+      compute_apes = false;
+    }
+
+    // Extract APE variance parameters
+    SEXP ape_n_pop_sexp = control["ape_n_pop"];
+    if (ape_n_pop_sexp != R_NilValue && !Rf_isNull(ape_n_pop_sexp)) {
+      ape_n_pop = as_cpp<size_t>(ape_n_pop_sexp);
+    } else {
+      ape_n_pop = 0; // no finite population correction
+    }
+
+    SEXP ape_panel_sexp = control["ape_panel_structure"];
+    if (ape_panel_sexp != R_NilValue) {
+      ape_panel_structure = as_cpp<std::string>(ape_panel_sexp);
+    } else {
+      ape_panel_structure = "classic";
+    }
+
+    SEXP ape_sampling_sexp = control["ape_sampling_fe"];
+    if (ape_sampling_sexp != R_NilValue) {
+      ape_sampling_fe = as_cpp<std::string>(ape_sampling_sexp);
+    } else {
+      ape_sampling_fe = "independence";
+    }
+
+    SEXP ape_weak_sexp = control["ape_weak_exo"];
+    if (ape_weak_sexp != R_NilValue) {
+      ape_weak_exo = as_cpp<bool>(ape_weak_sexp);
+    } else {
+      ape_weak_exo = false;
     }
   }
 };
@@ -1110,6 +1156,14 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
 
   if (params.keep_tx && result.has_tx) {
     out.push_back({"tx"_nm = as_doubles_matrix(result.TX)});
+  }
+
+  // Add APE results if computed (binomial models with compute_apes=TRUE)
+  if (result.has_apes && result.ape_delta.n_elem > 0) {
+    out.push_back({"ape_delta"_nm = as_doubles(result.ape_delta)});
+    out.push_back({"ape_vcov"_nm = as_doubles_matrix(result.ape_vcov)});
+    out.push_back({"ape_binary"_nm = as_integers(result.ape_binary)});
+    out.push_back({"has_apes"_nm = writable::logicals({true})});
   }
 
   // Add metadata for R-side post-processing

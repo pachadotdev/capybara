@@ -34,6 +34,12 @@ struct InferenceGLM {
   uvec separated_obs;
   vec separation_support;
 
+  // Average Partial Effects (APE) fields for binomial models
+  vec ape_delta;   // APE estimates for each coefficient
+  mat ape_vcov;    // Covariance matrix of APE estimates
+  uvec ape_binary; // 1 = binary regressor, 0 = continuous
+  bool has_apes = false;
+
   // Full constructor - allocates all fields including P*P hessian/vcov
   InferenceGLM(uword n, uword p)
       : coef_table(p, 4, fill::none), eta(n, fill::none),

@@ -94,6 +94,30 @@ NULL
 #'  \code{"m-estimator"} — one-way M-estimator sandwich (cluster variable required);
 #'  \code{"m-estimator-dyadic"} — dyadic-robust Cameron-Miller sandwich (two entity columns required in the
 #'  third part of the formula like \code{z ~ x + y | fe | cl1 + cl2}).
+#' @param compute_apes logical indicating whether to compute Average Partial Effects (APEs) for binomial models.
+#'  When \code{TRUE}, the model returns APE estimates and their covariance matrix alongside the standard output.
+#'  APEs represent the average marginal effect of each regressor on the probability of the outcome.
+#'  For continuous regressors, this is \code{avg(beta * mu * (1-mu))} for logit link.
+#'  For binary regressors, this is \code{avg(F(eta+beta) - F(eta-X*beta))} where \code{F} is the link inverse.
+#'  The default is \code{FALSE}.
+#' @param ape_n_pop unsigned integer indicating a finite population correction for the estimation of the 
+#'  covariance matrix of the average partial effects, proposed by Cruz-Gonzalez, Fernández-Val, and 
+#'  Weidner (2017). The correction factor is computed as: \code{(n_pop - n) / (n_pop - 1)}, where 
+#'  \code{n_pop} is the population size and \code{n} is the sample size. Default is \code{NULL} (no correction,
+#'  covariance obtained by delta method only).
+#' @param ape_panel_structure character string equal to \code{"classic"} or \code{"network"} which 
+#'  determines the structure of the panel used for APE variance computation. \code{"classic"} denotes 
+#'  panel structures where the same cross-sectional units are observed several times (includes pseudo panels).
+#'  \code{"network"} denotes panel structures where bilateral flows are observed for several time periods 
+#'  (e.g., trade data). Default is \code{"classic"}.
+#' @param ape_sampling_fe character string equal to \code{"independence"} or \code{"unrestricted"} which 
+#'  imposes sampling assumptions about the unobserved effects for APE variance computation. 
+#'  \code{"independence"} imposes that all unobserved effects are independent sequences. 
+#'  \code{"unrestricted"} does not impose any sampling assumptions. This option only affects the 
+#'  optional finite population correction. Default is \code{"independence"}.
+#' @param ape_weak_exo logical indicating if some of the regressors are assumed to be weakly exogenous 
+#'  (e.g., predetermined) for APE variance computation. When \code{TRUE}, additional covariance terms 
+#'  are included in the variance calculation. Default is \code{FALSE} (all regressors strictly exogenous).
 #'
 #' @return A named list of control parameters.
 #'
@@ -144,7 +168,12 @@ fit_control <- function(
   return_hessian = FALSE,
   check_separation = TRUE,
   init_theta = 0.0,
-  vcov_type = NULL
+  vcov_type = NULL,
+  compute_apes = FALSE,
+  ape_n_pop = NULL,
+  ape_panel_structure = "classic",
+  ape_sampling_fe = "independence",
+  ape_weak_exo = FALSE
 ) {
   # Check validity of tolerance parameters
   if (
@@ -191,13 +220,26 @@ fit_control <- function(
   check_separation <- as.logical(check_separation)
   sep_use_relu <- as.logical(sep_use_relu)
   sep_use_simplex <- as.logical(sep_use_simplex)
+  compute_apes <- as.logical(compute_apes)
+  ape_weak_exo <- as.logical(ape_weak_exo)
   if (is.na(return_fe) || is.na(keep_tx) || is.na(keep_data) || is.na(return_hessian) ||
-    is.na(check_separation) || is.na(sep_use_relu) || is.na(sep_use_simplex)) {
+    is.na(check_separation) || is.na(sep_use_relu) || is.na(sep_use_simplex) || 
+    is.na(compute_apes) || is.na(ape_weak_exo)) {
     stop(
       "All logical parameters should be TRUE or FALSE.",
       call. = FALSE
     )
   }
+
+  # Check validity of APE parameters
+  if (!is.null(ape_n_pop)) {
+    ape_n_pop <- as.integer(ape_n_pop)
+    if (ape_n_pop < 1L) {
+      stop("ape_n_pop should be a positive integer or NULL.", call. = FALSE)
+    }
+  }
+  ape_panel_structure <- match.arg(ape_panel_structure, c("classic", "network"))
+  ape_sampling_fe <- match.arg(ape_sampling_fe, c("independence", "unrestricted"))
 
   # Check validity of integer parameters for acceleration
   max_step_halving <- as.integer(max_step_halving)
@@ -272,6 +314,11 @@ fit_control <- function(
     return_hessian = return_hessian,
     check_separation = check_separation,
     init_theta = init_theta,
-    vcov_type = vcov_type
+    vcov_type = vcov_type,
+    compute_apes = compute_apes,
+    ape_n_pop = ape_n_pop,
+    ape_panel_structure = ape_panel_structure,
+    ape_sampling_fe = ape_sampling_fe,
+    ape_weak_exo = ape_weak_exo
   )
 }
