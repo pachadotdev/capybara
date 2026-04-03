@@ -495,17 +495,17 @@ feglm <- function(
 
   # Add names to APES results if present ----
   if (isTRUE(fit[["has_apes"]])) {
-    names(fit[["apes_delta"]]) <- nms_sp
-    dimnames(fit[["apes_vcov"]]) <- list(nms_sp, nms_sp)
+    names(fit[["apes_delta"]]) <- non_na_nms_sp
+    dimnames(fit[["apes_vcov"]]) <- list(non_na_nms_sp, non_na_nms_sp)
     if (!is.null(fit[["apes_bias_term"]])) {
-      names(fit[["apes_bias_term"]]) <- nms_sp
+      names(fit[["apes_bias_term"]]) <- non_na_nms_sp
     }
   }
 
   # Add names to bias correction results if present ----
   if (isTRUE(fit[["has_bias_corr"]])) {
-    names(fit[["beta_uncorrected"]]) <- nms_sp
-    names(fit[["bias_corr_term"]]) <- nms_sp
+    names(fit[["beta_uncorrected"]]) <- non_na_nms_sp
+    names(fit[["bias_corr_term"]]) <- non_na_nms_sp
   }
 
   # Build result ----

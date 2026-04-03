@@ -108,14 +108,25 @@ test_that("apes_vcov has dimnames", {
     message("Model did not compute APES")
     message("Convergence: ", mod$conv)
     message("Iterations: ", mod$iter)
-    if (!is.null(mod$separation)) {
-      message("Separation detected: ", mod$separation)
+  } else {
+    # APES computed, check vcov matrix
+    message("has_apes: TRUE")
+    message("apes_vcov is NULL: ", is.null(mod$apes_vcov))
+    message("apes_vcov is matrix: ", is.matrix(mod$apes_vcov))
+    if (!is.null(mod$apes_vcov)) {
+      message("apes_vcov dim: ", paste(dim(mod$apes_vcov), collapse = "x"))
+      message("apes_vcov has dimnames: ", !is.null(dimnames(mod$apes_vcov)))
     }
+    message("apes_delta: ", paste(names(mod$apes_delta), collapse = ", "))
   }
 
   expect_true(isTRUE(mod$conv), info = "Model should converge")
   expect_true(isTRUE(mod$has_apes), info = "APES should be computed")
-  expect_true(!is.null(dimnames(mod$apes_vcov)))
+  expect_true(!is.null(mod$apes_vcov), info = "apes_vcov should not be NULL")
+  expect_true(is.matrix(mod$apes_vcov), info = "apes_vcov should be a matrix")
+  expect_true(!is.null(dimnames(mod$apes_vcov)), 
+              info = sprintf("apes_vcov dimnames should be set (dim=%s)", 
+                           paste(dim(mod$apes_vcov), collapse="x")))
   expect_equal(rownames(mod$apes_vcov), "x")
   expect_equal(colnames(mod$apes_vcov), "x")
 })
