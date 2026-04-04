@@ -32,7 +32,7 @@ NULL
 #'
 #' @param dev_tol tolerance level for the first stopping condition of the maximization routine. The stopping condition
 #'  is based on the relative change of the deviance in iteration \eqn{r} and can be expressed as follows: \eqn{|dev_{r}
-#'  - dev_{r - 1}| / (0.1 + |dev_{r}|) < tol}{|dev - devold| / (0.1 + |dev|) < tol}. The default is \code{1.0e-05}.
+#'  - dev_{r - 1}| / (0.1 + |dev_{r}|) < tol}{|dev - devold| / (0.1 + |dev|) < tol}. The default is \code{1.0e-04}.
 #' @param center_tol tolerance level for the stopping condition of the centering algorithm. The stopping condition is
 #'  based on the relative change of the centered variable similar to the \code{'lfe'} package. The default is
 #'  \code{1.0e-05}.
@@ -154,7 +154,7 @@ NULL
 #'
 #' @export
 fit_control <- function(
-  dev_tol = 1.0e-05,
+  dev_tol = 1.0e-04,
   center_tol = 1.0e-05,
   collin_tol = 1.0e-08,
   step_halving_factor = 0.5,
