@@ -801,9 +801,10 @@ InferenceGLM feglm_fit(
       conv_change = eta_change;
     }
 
-    // Convergence check with small epsilon buffer for cross-platform floating-point stability
-    // Mac's sqrt() and dot() can produce slightly different rounding, so we add a tiny
-    // buffer (1e-10 relative tolerance) to prevent false non-convergence
+    // Convergence check with small epsilon buffer for cross-platform
+    // floating-point stability Mac's sqrt() and dot() can produce slightly
+    // different rounding, so we add a tiny buffer (1e-10 relative tolerance) to
+    // prevent false non-convergence
     const double eps_buffer = 1.0 + 1e-10;
     if (conv_change < params.dev_tol * eps_buffer) {
       conv = true;
