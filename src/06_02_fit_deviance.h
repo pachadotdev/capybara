@@ -177,7 +177,6 @@ inline bool valid_mu(const vec &mu, const Family family_type) {
   return false;
 }
 
-
 } // namespace capybara
 
 #endif // CAPYBARA_GLM_DEVIANCE_H

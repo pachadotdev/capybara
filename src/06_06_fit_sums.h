@@ -35,7 +35,8 @@ inline vec group_sums(const mat &M, const vec &w, const FlatFEMap &fe_map,
   return b;
 }
 
-// Group variance: V = sum_g (M_g * M_g') where M_g = sum_i M_i for obs in group g
+// Group variance: V = sum_g (M_g * M_g') where M_g = sum_i M_i for obs in group
+// g
 inline mat group_sums_var(const mat &M, const FlatFEMap &fe_map, uword k) {
   const uword n = M.n_rows;
   const uword P = M.n_cols;
