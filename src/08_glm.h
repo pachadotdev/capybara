@@ -1162,7 +1162,8 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
       adaptive_tol = params.center_tol;
     }
 
-    // Convergence check with epsilon buffer for cross-platform floating-point stability
+    // Convergence check with epsilon buffer for cross-platform floating-point
+    // stability
     if (eta_change < params.dev_tol * (1.0 + 1e-12)) {
       break;
     }
