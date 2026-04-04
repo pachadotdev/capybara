@@ -19,19 +19,3 @@ feglm_offset_fit_ <- function(eta_r, y_r, offset_r, wt_r, family, control, fe_co
 fenegbin_fit_ <- function(X_r, y_r, w_r, fe_cols_r, link, beta_r, eta_r, init_theta, offset_r, control) {
 	.Call(`_capybara_fenegbin_fit_`, X_r, y_r, w_r, fe_cols_r, link, beta_r, eta_r, init_theta, offset_r, control)
 }
-
-group_sums_ <- function(M_r, w_r, jlist) {
-	.Call(`_capybara_group_sums_`, M_r, w_r, jlist)
-}
-
-group_sums_spectral_ <- function(M_r, v_r, w_r, K, jlist) {
-	.Call(`_capybara_group_sums_spectral_`, M_r, v_r, w_r, K, jlist)
-}
-
-group_sums_var_ <- function(M_r, jlist) {
-	.Call(`_capybara_group_sums_var_`, M_r, jlist)
-}
-
-group_sums_cov_ <- function(M_r, N_r, jlist) {
-	.Call(`_capybara_group_sums_cov_`, M_r, N_r, jlist)
-}

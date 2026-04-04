@@ -32,7 +32,7 @@ NULL
 #'
 #' @param dev_tol tolerance level for the first stopping condition of the maximization routine. The stopping condition
 #'  is based on the relative change of the deviance in iteration \eqn{r} and can be expressed as follows: \eqn{|dev_{r}
-#'  - dev_{r - 1}| / (0.1 + |dev_{r}|) < tol}{|dev - devold| / (0.1 + |dev|) < tol}. The default is \code{1.0e-08}.
+#'  - dev_{r - 1}| / (0.1 + |dev_{r}|) < tol}{|dev - devold| / (0.1 + |dev|) < tol}. The default is \code{1.0e-06}.
 #' @param center_tol tolerance level for the stopping condition of the centering algorithm. The stopping condition is
 #'  based on the relative change of the centered variable similar to the \code{'lfe'} package. The default is
 #'  \code{1.0e-06}.
@@ -45,7 +45,7 @@ NULL
 #' @param step_halving_factor numeric indicating the factor by which the step size is halved to iterate towards
 #'  convergence. This is used to control the step size during optimization. The default is \code{0.5}.
 #' @param iter_max integer indicating the maximum number of iterations in the maximization routine. The default is
-#'  \code{25L}.
+#'  \code{50L}.
 #' @param iter_center_max integer indicating the maximum number of iterations in the centering algorithm. The default is
 #'  \code{10000L}.
 #' @param iter_inner_max integer indicating the maximum number of iterations in the inner loop of the centering
@@ -157,13 +157,13 @@ NULL
 #'
 #' @export
 fit_control <- function(
-  dev_tol = 1.0e-08,
+  dev_tol = 1.0e-06,
   center_tol = 1.0e-06,
   center_tol_loose = 1.0e-04,
   collin_tol = 1.0e-10,
   step_halving_factor = 0.5,
   alpha_tol = 1.0e-08,
-  iter_max = 25L,
+  iter_max = 50L,
   iter_center_max = 10000L,
   iter_inner_max = 50L,
   iter_alpha_max = 10000L,

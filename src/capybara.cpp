@@ -288,8 +288,11 @@ struct CapybaraParameters {
 #include "05_04_separation.h"
 
 #include "06_01_fit_helpers.h"
-#include "06_02_fit_vcov.h"
-#include "06_03_fit_sums.h"
+#include "06_02_fit_deviance.h"
+#include "06_03_fit_links.h"
+#include "06_04_fit_separation.h"
+#include "06_05_fit_vcov.h"
+#include "06_06_fit_sums.h"
 
 #include "07_lm.h"
 #include "08_glm.h"
@@ -1057,9 +1060,9 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
   }
 
   // Safety net: if eta contains non-finite values (e.g. because
-  // start_guesses_ computed log(NA) when y had NA values that
-  // prepare_raw_data subsequently removed), replace with a reasonable
-  // starting value derived from the clean y
+  // R-side computed log(NA) when y had NA values that prepare_raw_data
+  // subsequently removed), replace with a reasonable starting value
+  // derived from the clean y
   if (eta.n_elem > 0) {
     uvec bad_eta = find_nonfinite(eta);
     if (bad_eta.n_elem > 0) {
@@ -1333,73 +1336,4 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
                             data.obs_indices, all_valid);
 
   return out;
-}
-
-[[cpp4r::register]] doubles_matrix<> group_sums_(const doubles_matrix<> &M_r,
-                                                 const doubles_matrix<> &w_r,
-                                                 const list &jlist) {
-  const mat M = as_mat(M_r);
-  const vec w = vectorise(as_mat(w_r));
-
-  const size_t J = jlist.size();
-  field<uvec> group_indices(J);
-
-  for (size_t j = 0; j < J; ++j) {
-    group_indices(j) =
-        R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
-  }
-
-  return as_doubles_matrix(capybara::group_sums(M, w, group_indices));
-}
-
-[[cpp4r::register]] doubles_matrix<>
-group_sums_spectral_(const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
-                     const doubles_matrix<> &w_r, const size_t K,
-                     const list &jlist) {
-  const mat M = as_mat(M_r);
-  const vec v = vectorise(as_mat(v_r));
-  const vec w = vectorise(as_mat(w_r));
-
-  const size_t J = jlist.size();
-  field<uvec> group_indices(J);
-
-  for (size_t j = 0; j < J; ++j) {
-    group_indices(j) =
-        R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
-  }
-
-  return as_doubles_matrix(
-      capybara::group_sums_spectral(M, v, w, K, group_indices));
-}
-
-[[cpp4r::register]] doubles_matrix<>
-group_sums_var_(const doubles_matrix<> &M_r, const list &jlist) {
-  const mat M = as_mat(M_r);
-
-  const size_t J = jlist.size();
-  field<uvec> group_indices(J);
-
-  for (size_t j = 0; j < J; ++j) {
-    group_indices(j) =
-        R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
-  }
-
-  return as_doubles_matrix(capybara::group_sums_var(M, group_indices));
-}
-
-[[cpp4r::register]] doubles_matrix<>
-group_sums_cov_(const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
-                const list &jlist) {
-  const mat M = as_mat(M_r);
-  const mat N = as_mat(N_r);
-
-  const size_t J = jlist.size();
-  field<uvec> group_indices(J);
-
-  for (size_t j = 0; j < J; ++j) {
-    group_indices(j) =
-        R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
-  }
-
-  return as_doubles_matrix(capybara::group_sums_cov(M, N, group_indices));
 }
