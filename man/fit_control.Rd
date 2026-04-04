@@ -37,7 +37,10 @@ fit_control(
   ape_n_pop = NULL,
   ape_panel_structure = "classic",
   ape_sampling_fe = "independence",
-  ape_weak_exo = FALSE
+  ape_weak_exo = FALSE,
+  compute_bias_corr = FALSE,
+  bias_corr_bandwidth = 0L,
+  bias_corr_panel_structure = "classic"
 )
 }
 \arguments{
@@ -161,6 +164,25 @@ optional finite population correction. Default is \code{"independence"}.}
 \item{ape_weak_exo}{logical indicating if some of the regressors are assumed to be weakly exogenous
 (e.g., predetermined) for APE variance computation. When \code{TRUE}, additional covariance terms
 are included in the variance calculation. Default is \code{FALSE} (all regressors strictly exogenous).}
+
+\item{compute_bias_corr}{logical indicating whether to compute analytical bias correction for binomial
+models. When \code{TRUE}, the model returns bias-corrected coefficient estimates alongside the
+standard (uncorrected) coefficients. The bias correction follows Fernández-Val and Weidner (2016)
+and Hinz, Stammann, and Wanner (2020). Currently restricted to binomial family with 1-3 way fixed
+effects. Default is \code{FALSE}.}
+
+\item{bias_corr_bandwidth}{unsigned integer indicating a bandwidth for the estimation of spectral
+densities proposed by Hahn and Kuersteiner (2011). Default is \code{0L}, which should be used if
+all regressors are assumed to be strictly exogenous with respect to the idiosyncratic error term.
+In the presence of weakly exogenous regressors (e.g., lagged outcome variables), Fernández-Val and
+Weidner (2016, 2018) suggest choosing a bandwidth between one and four. Note that the order of
+factors to be partialed out is important for bandwidths larger than zero.}
+
+\item{bias_corr_panel_structure}{character string equal to \code{"classic"} or \code{"network"} which
+determines the structure of the panel used for bias correction. \code{"classic"} denotes panel
+structures where the same cross-sectional units are observed several times (requires 1-2 way FE).
+\code{"network"} denotes panel structures where bilateral flows are observed for several time
+periods, e.g., trade data (requires 2-3 way FE). Default is \code{"classic"}.}
 }
 \value{
 A named list of control parameters.

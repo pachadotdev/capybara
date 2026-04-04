@@ -40,6 +40,11 @@ struct InferenceGLM {
   uvec ape_binary; // 1 = binary regressor, 0 = continuous
   bool has_apes = false;
 
+  // Bias correction fields for binomial models (Fernández-Val & Weidner 2016)
+  vec beta_corrected; // Bias-corrected coefficient estimates
+  vec bias_term;      // Estimated bias term
+  bool has_bias_corr = false;
+
   // Full constructor - allocates all fields including P*P hessian/vcov
   InferenceGLM(uword n, uword p)
       : coef_table(p, 4, fill::none), eta(n, fill::none),

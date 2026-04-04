@@ -140,6 +140,11 @@ struct CapybaraParameters {
   std::string ape_sampling_fe;     // "independence" or "unrestricted"
   bool ape_weak_exo;
 
+  // Bias correction (Fernández-Val & Weidner 2016)
+  bool compute_bias_corr;
+  size_t bias_corr_bandwidth;            // L parameter (0 = strict exogeneity)
+  std::string bias_corr_panel_structure; // "classic" or "network"
+
   CapybaraParameters()
       : dev_tol(1.0e-08), center_tol(1.0e-08), center_tol_loose(1.0e-04),
         collin_tol(1.0e-10), step_halving_factor(0.5), alpha_tol(1.0e-08),
@@ -151,7 +156,8 @@ struct CapybaraParameters {
         max_step_halving(2), start_inner_tol(1e-06), grand_acc_period(10),
         centering("stammann"), vcov_type(""), compute_apes(false), ape_n_pop(0),
         ape_panel_structure("classic"), ape_sampling_fe("independence"),
-        ape_weak_exo(false) {}
+        ape_weak_exo(false), compute_bias_corr(false), bias_corr_bandwidth(0),
+        bias_corr_panel_structure("classic") {}
 
   explicit CapybaraParameters(const cpp4r::list &control) {
     dev_tol = as_cpp<double>(control["dev_tol"]);
@@ -240,6 +246,28 @@ struct CapybaraParameters {
       ape_weak_exo = as_cpp<bool>(ape_weak_sexp);
     } else {
       ape_weak_exo = false;
+    }
+
+    // Extract bias correction parameters
+    SEXP compute_bias_corr_sexp = control["compute_bias_corr"];
+    if (compute_bias_corr_sexp != R_NilValue) {
+      compute_bias_corr = as_cpp<bool>(compute_bias_corr_sexp);
+    } else {
+      compute_bias_corr = false;
+    }
+
+    SEXP bias_corr_bw_sexp = control["bias_corr_bandwidth"];
+    if (bias_corr_bw_sexp != R_NilValue) {
+      bias_corr_bandwidth = as_cpp<size_t>(bias_corr_bw_sexp);
+    } else {
+      bias_corr_bandwidth = 0;
+    }
+
+    SEXP bias_corr_panel_sexp = control["bias_corr_panel_structure"];
+    if (bias_corr_panel_sexp != R_NilValue) {
+      bias_corr_panel_structure = as_cpp<std::string>(bias_corr_panel_sexp);
+    } else {
+      bias_corr_panel_structure = "classic";
     }
   }
 };
@@ -1164,6 +1192,15 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
     out.push_back({"ape_vcov"_nm = as_doubles_matrix(result.ape_vcov)});
     out.push_back({"ape_binary"_nm = as_integers(result.ape_binary)});
     out.push_back({"has_apes"_nm = writable::logicals({true})});
+  }
+
+  // Add bias correction results if computed (binomial models with
+  // compute_bias_corr=TRUE)
+  if (result.has_bias_corr && result.beta_corrected.n_elem > 0) {
+    out.push_back(
+        {"beta_corrected"_nm = as_doubles(result.beta_corrected)});
+    out.push_back({"bias_term"_nm = as_doubles(result.bias_term)});
+    out.push_back({"has_bias_corr"_nm = writable::logicals({true})});
   }
 
   // Add metadata for R-side post-processing

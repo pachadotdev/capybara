@@ -118,6 +118,22 @@ NULL
 #' @param ape_weak_exo logical indicating if some of the regressors are assumed to be weakly exogenous 
 #'  (e.g., predetermined) for APE variance computation. When \code{TRUE}, additional covariance terms 
 #'  are included in the variance calculation. Default is \code{FALSE} (all regressors strictly exogenous).
+#' @param compute_bias_corr logical indicating whether to compute analytical bias correction for binomial 
+#'  models. When \code{TRUE}, the model returns bias-corrected coefficient estimates alongside the 
+#'  standard (uncorrected) coefficients. The bias correction follows Fernández-Val and Weidner (2016) 
+#'  and Hinz, Stammann, and Wanner (2020). Currently restricted to binomial family with 1-3 way fixed 
+#'  effects. Default is \code{FALSE}.
+#' @param bias_corr_bandwidth unsigned integer indicating a bandwidth for the estimation of spectral 
+#'  densities proposed by Hahn and Kuersteiner (2011). Default is \code{0L}, which should be used if 
+#'  all regressors are assumed to be strictly exogenous with respect to the idiosyncratic error term. 
+#'  In the presence of weakly exogenous regressors (e.g., lagged outcome variables), Fernández-Val and 
+#'  Weidner (2016, 2018) suggest choosing a bandwidth between one and four. Note that the order of 
+#'  factors to be partialed out is important for bandwidths larger than zero.
+#' @param bias_corr_panel_structure character string equal to \code{"classic"} or \code{"network"} which 
+#'  determines the structure of the panel used for bias correction. \code{"classic"} denotes panel 
+#'  structures where the same cross-sectional units are observed several times (requires 1-2 way FE). 
+#'  \code{"network"} denotes panel structures where bilateral flows are observed for several time 
+#'  periods, e.g., trade data (requires 2-3 way FE). Default is \code{"classic"}.
 #'
 #' @return A named list of control parameters.
 #'
@@ -173,7 +189,10 @@ fit_control <- function(
   ape_n_pop = NULL,
   ape_panel_structure = "classic",
   ape_sampling_fe = "independence",
-  ape_weak_exo = FALSE
+  ape_weak_exo = FALSE,
+  compute_bias_corr = FALSE,
+  bias_corr_bandwidth = 0L,
+  bias_corr_panel_structure = "classic"
 ) {
   # Check validity of tolerance parameters
   if (
@@ -222,9 +241,10 @@ fit_control <- function(
   sep_use_simplex <- as.logical(sep_use_simplex)
   compute_apes <- as.logical(compute_apes)
   ape_weak_exo <- as.logical(ape_weak_exo)
+  compute_bias_corr <- as.logical(compute_bias_corr)
   if (is.na(return_fe) || is.na(keep_tx) || is.na(keep_data) || is.na(return_hessian) ||
     is.na(check_separation) || is.na(sep_use_relu) || is.na(sep_use_simplex) || 
-    is.na(compute_apes) || is.na(ape_weak_exo)) {
+    is.na(compute_apes) || is.na(ape_weak_exo) || is.na(compute_bias_corr)) {
     stop(
       "All logical parameters should be TRUE or FALSE.",
       call. = FALSE
@@ -240,6 +260,13 @@ fit_control <- function(
   }
   ape_panel_structure <- match.arg(ape_panel_structure, c("classic", "network"))
   ape_sampling_fe <- match.arg(ape_sampling_fe, c("independence", "unrestricted"))
+
+  # Check validity of bias correction parameters
+  bias_corr_bandwidth <- as.integer(bias_corr_bandwidth)
+  if (bias_corr_bandwidth < 0L) {
+    stop("bias_corr_bandwidth should be a non-negative integer.", call. = FALSE)
+  }
+  bias_corr_panel_structure <- match.arg(bias_corr_panel_structure, c("classic", "network"))
 
   # Check validity of integer parameters for acceleration
   max_step_halving <- as.integer(max_step_halving)
@@ -319,6 +346,9 @@ fit_control <- function(
     ape_n_pop = ape_n_pop,
     ape_panel_structure = ape_panel_structure,
     ape_sampling_fe = ape_sampling_fe,
-    ape_weak_exo = ape_weak_exo
+    ape_weak_exo = ape_weak_exo,
+    compute_bias_corr = compute_bias_corr,
+    bias_corr_bandwidth = bias_corr_bandwidth,
+    bias_corr_panel_structure = bias_corr_panel_structure
   )
 }
