@@ -801,8 +801,11 @@ InferenceGLM feglm_fit(
       conv_change = eta_change;
     }
 
-    // Convergence check
-    if (conv_change < params.dev_tol) {
+    // Convergence check with small epsilon buffer for cross-platform floating-point stability
+    // Mac's sqrt() and dot() can produce slightly different rounding, so we add a tiny
+    // buffer (1e-10 relative tolerance) to prevent false non-convergence
+    const double eps_buffer = 1.0 + 1e-10;
+    if (conv_change < params.dev_tol * eps_buffer) {
       conv = true;
       break;
     }
@@ -1163,8 +1166,9 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
     }
 
     // Convergence check with epsilon buffer for cross-platform floating-point
-    // stability
-    if (eta_change < params.dev_tol * (1.0 + 1e-12)) {
+    // stability (Mac's sqrt() can produce slightly different rounding)
+    const double eps_buffer = 1.0 + 1e-10;
+    if (eta_change < params.dev_tol * eps_buffer) {
       break;
     }
 

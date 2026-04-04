@@ -5,8 +5,8 @@
 \title{Set \code{feglm} Control Parameters}
 \usage{
 fit_control(
-  dev_tol = 1e-05,
-  center_tol = 1e-05,
+  dev_tol = 1e-06,
+  center_tol = 1e-06,
   collin_tol = 1e-08,
   step_halving_factor = 0.5,
   alpha_tol = 1e-05,
@@ -45,7 +45,7 @@ fit_control(
 \arguments{
 \item{dev_tol}{tolerance level for the first stopping condition of the maximization routine. The stopping condition
 is based on the relative change of the deviance in iteration \eqn{r} and can be expressed as follows: \eqn{|dev_{r}
- - dev_{r - 1}| / (0.1 + |dev_{r}|) < tol}{|dev - devold| / (0.1 + |dev|) < tol}. The default is \code{1.0e-05}.}
+ - dev_{r - 1}| / (0.1 + |dev_{r}|) < tol}{|dev - devold| / (0.1 + |dev|) < tol}. The default is \code{1.0e-06}.}
 
 \item{center_tol}{tolerance level for the stopping condition of the centering algorithm. The stopping condition is
 based on the relative change of the centered variable similar to the \code{'lfe'} package. The default is
