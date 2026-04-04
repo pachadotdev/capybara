@@ -573,12 +573,17 @@ test_that("APE with weak_exo parameter works", {
 
 test_that("bias correction works for one-way FE binomial", {
   set.seed(789)
+  n <- 200
+  n_f <- 10
   d <- data.frame(
-    y = rbinom(200, 1, 0.5),
-    x1 = rnorm(200),
-    x2 = rnorm(200),
-    f = factor(sample(1:10, 200, replace = TRUE))
+    x1 = rnorm(n),
+    x2 = rnorm(n),
+    f = factor(sample(1:n_f, n, replace = TRUE))
   )
+  # Generate y with actual signal for reliable convergence
+  alpha_f <- rnorm(n_f, sd = 0.3)[d$f]
+  prob <- plogis(0.5 * d$x1 + 0.3 * d$x2 + alpha_f)
+  d$y <- rbinom(n, 1, prob)
 
   # Fit without bias correction
   mod_uncorr <- feglm(
@@ -649,9 +654,10 @@ test_that("bias correction works for two-way FE binomial (classic panel)", {
 test_that("bias correction with network panel structure", {
   set.seed(202)
   # Simulate bilateral trade data (exporter-importer-time)
-  n_exp <- 5
-  n_imp <- 5
-  n_t <- 4
+  # Use larger dimensions for reliable convergence across platforms
+  n_exp <- 8
+  n_imp <- 8
+  n_t <- 5
   d <- expand.grid(exp = 1:n_exp, imp = 1:n_imp, t = 1:n_t)
   d <- d[d$exp != d$imp, ]  # No self-trade
   d$x <- rnorm(nrow(d))
