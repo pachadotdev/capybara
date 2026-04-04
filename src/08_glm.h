@@ -446,8 +446,7 @@ inline vec group_sums_spectral_bias(const mat &MXw, const vec &v, const vec &w,
     vec v_shifted(I, fill::zeros);
     for (uword i = 1; i < I; ++i) {
       const uword start = (i > max_k) ? i - max_k : 0;
-      v_shifted(i) =
-          v_cumsum(i - 1) - (start > 0 ? v_cumsum(start - 1) : 0.0);
+      v_shifted(i) = v_cumsum(i - 1) - (start > 0 ? v_cumsum(start - 1) : 0.0);
     }
 
     const double scale = static_cast<double>(I) / ((I - 1.0) * denom);
@@ -551,15 +550,40 @@ inline void compute_bias_corr_binomial(InferenceGLM &result, const mat &X,
   mat H_scaled = H / static_cast<double>(n);
   vec bias_term;
 
-  if (!solve(bias_term, H_scaled, -b)) {
-    // Fallback to pseudoinverse if singular
+  // Check input validity (can have NaN/Inf on some platforms due to
+  // numerical precision differences, especially on Mac with Accelerate)
+  if (!H_scaled.is_finite() || !b.is_finite()) {
+    result.has_bias_corr = false;
+    return;
+  }
+
+  // Try solve with allow_ugly to handle near-singular matrices more robustly
+  // across different BLAS implementations (especially Apple Accelerate)
+  bool solve_ok = solve(bias_term, H_scaled, -b, solve_opts::allow_ugly);
+
+  if (!solve_ok) {
+    // Fallback to pseudoinverse with explicit tolerance for robustness
     mat H_inv;
-    if (pinv(H_inv, H_scaled)) {
+    // Use a slightly relaxed tolerance for pinv to handle
+    // platform-specific numerical precision differences
+    if (pinv(H_inv, H_scaled, datum::eps * 100)) {
       bias_term = H_inv * (-b);
     } else {
-      result.has_bias_corr = false;
-      return;
+      // Last resort: try inv_sympd since H should be symmetric positive
+      // semi-definite (it's X'WX scaled)
+      if (inv_sympd(H_inv, H_scaled)) {
+        bias_term = H_inv * (-b);
+      } else {
+        result.has_bias_corr = false;
+        return;
+      }
     }
+  }
+
+  // Validate the computed bias term is finite
+  if (!bias_term.is_finite()) {
+    result.has_bias_corr = false;
+    return;
   }
 
   // Compute corrected coefficients

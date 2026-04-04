@@ -1197,8 +1197,7 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
   // Add bias correction results if computed (binomial models with
   // compute_bias_corr=TRUE)
   if (result.has_bias_corr && result.beta_corrected.n_elem > 0) {
-    out.push_back(
-        {"beta_corrected"_nm = as_doubles(result.beta_corrected)});
+    out.push_back({"beta_corrected"_nm = as_doubles(result.beta_corrected)});
     out.push_back({"bias_term"_nm = as_doubles(result.bias_term)});
     out.push_back({"has_bias_corr"_nm = writable::logicals({true})});
   }
