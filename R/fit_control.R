@@ -32,15 +32,12 @@ NULL
 #'
 #' @param dev_tol tolerance level for the first stopping condition of the maximization routine. The stopping condition
 #'  is based on the relative change of the deviance in iteration \eqn{r} and can be expressed as follows: \eqn{|dev_{r}
-#'  - dev_{r - 1}| / (0.1 + |dev_{r}|) < tol}{|dev - devold| / (0.1 + |dev|) < tol}. The default is \code{1.0e-06}.
+#'  - dev_{r - 1}| / (0.1 + |dev_{r}|) < tol}{|dev - devold| / (0.1 + |dev|) < tol}. The default is \code{1.0e-05}.
 #' @param center_tol tolerance level for the stopping condition of the centering algorithm. The stopping condition is
 #'  based on the relative change of the centered variable similar to the \code{'lfe'} package. The default is
-#'  \code{1.0e-06}.
-#' @param center_tol_loose initial (loose) tolerance for adaptive centering in GLM iterations. During early IRLS
-#'  iterations when deviance is changing rapidly, this looser tolerance is used to save computation. As the GLM
-#'  converges, the tolerance is tightened towards \code{center_tol}. The default is \code{1.0e-04}.
-#' @param collin_tol tolerance level for detecting collinearity. The default is \code{1.0e-07}.
-#' @param alpha_tol tolerance for fixed effects (alpha) convergence. The default is \code{1.0e-06}.
+#'  \code{1.0e-05}.
+#' @param collin_tol tolerance level for detecting collinearity. The default is \code{1.0e-08}.
+#' @param alpha_tol tolerance for fixed effects (alpha) convergence. The default is \code{1.0e-05}.
 #' @param sep_tol tolerance for separation detection. The default is \code{1.0e-08}.
 #' @param step_halving_factor numeric indicating the factor by which the step size is halved to iterate towards
 #'  convergence. This is used to control the step size during optimization. The default is \code{0.5}.
@@ -53,13 +50,13 @@ NULL
 #' @param iter_alpha_max maximum iterations for fixed effects computation. The default is \code{10000L}.
 #' @param sep_max_iter maximum iterations for ReLU separation detection algorithm. The default is \code{200L}.
 #' @param sep_simplex_max_iter maximum iterations for simplex separation detection algorithm. The default is \code{2000L}.
-#' @param sep_zero_tol tolerance for treating values as zero in separation detection. The default is \code{1.0e-12}.
+#' @param sep_zero_tol tolerance for treating values as zero in separation detection. The default is \code{1.0e-08}.
 #' @param sep_use_relu logical indicating whether to use the ReLU algorithm for separation detection. The default is \code{TRUE}.
 #' @param sep_use_simplex logical indicating whether to use the simplex algorithm for separation detection. The default is \code{TRUE}.
 #' @param step_halving_memory numeric memory factor for step-halving algorithm. Controls how much of the previous
 #'  iteration is retained. The default is \code{0.9}.
 #' @param max_step_halving maximum number of post-convergence step-halving attempts. The default is \code{2}.
-#' @param start_inner_tol starting tolerance for inner solver iterations. The default is \code{1.0e-04}.
+#' @param start_inner_tol starting tolerance for inner solver iterations. The default is \code{1.0e-05}.
 #' @param grand_acc_period integer indicating the period (in iterations) for grand acceleration in the centering
 #'  algorithm. Grand acceleration applies a second-level Irons-Tuck extrapolation on the overall convergence
 #'  trajectory. Lower values (e.g., 4-10) may speed up convergence for difficult problems. Set to a very large
@@ -147,7 +144,7 @@ NULL
 #' }
 #'
 #' @examples
-#' # Default: thin model for production/benchmarks
+#' # Default
 #' fit_control()
 #' 
 #' # Custom tolerances
@@ -157,23 +154,22 @@ NULL
 #'
 #' @export
 fit_control <- function(
-  dev_tol = 1.0e-06,
-  center_tol = 1.0e-06,
-  center_tol_loose = 1.0e-04,
-  collin_tol = 1.0e-10,
+  dev_tol = 1.0e-05,
+  center_tol = 1.0e-05,
+  collin_tol = 1.0e-08,
   step_halving_factor = 0.5,
-  alpha_tol = 1.0e-08,
+  alpha_tol = 1.0e-05,
   iter_max = 50L,
   iter_center_max = 10000L,
   iter_inner_max = 50L,
   iter_alpha_max = 10000L,
   step_halving_memory = 0.9,
   max_step_halving = 2L,
-  start_inner_tol = 1.0e-06,
+  start_inner_tol = 1.0e-05,
   grand_acc_period = 4L,
   centering = "berge",
   sep_tol = 1.0e-08,
-  sep_zero_tol = 1.0e-12,
+  sep_zero_tol = 1.0e-08,
   sep_max_iter = 200L,
   sep_simplex_max_iter = 2000L,
   sep_use_relu = TRUE,
@@ -198,7 +194,6 @@ fit_control <- function(
   if (
     dev_tol <= 0.0 ||
       center_tol <= 0.0 ||
-      center_tol_loose <= 0.0 ||
       collin_tol <= 0.0 ||
       step_halving_factor <= 0.0 ||
       alpha_tol <= 0.0 ||
@@ -316,7 +311,6 @@ fit_control <- function(
   list(
     dev_tol = dev_tol,
     center_tol = center_tol,
-    center_tol_loose = center_tol_loose,
     collin_tol = collin_tol,
     step_halving_factor = step_halving_factor,
     alpha_tol = alpha_tol,

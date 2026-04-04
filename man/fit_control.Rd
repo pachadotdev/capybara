@@ -5,23 +5,22 @@
 \title{Set \code{feglm} Control Parameters}
 \usage{
 fit_control(
-  dev_tol = 1e-06,
-  center_tol = 1e-06,
-  center_tol_loose = 1e-04,
-  collin_tol = 1e-10,
+  dev_tol = 1e-05,
+  center_tol = 1e-05,
+  collin_tol = 1e-08,
   step_halving_factor = 0.5,
-  alpha_tol = 1e-08,
+  alpha_tol = 1e-05,
   iter_max = 50L,
   iter_center_max = 10000L,
   iter_inner_max = 50L,
   iter_alpha_max = 10000L,
   step_halving_memory = 0.9,
   max_step_halving = 2L,
-  start_inner_tol = 1e-06,
+  start_inner_tol = 1e-05,
   grand_acc_period = 4L,
   centering = "berge",
   sep_tol = 1e-08,
-  sep_zero_tol = 1e-12,
+  sep_zero_tol = 1e-08,
   sep_max_iter = 200L,
   sep_simplex_max_iter = 2000L,
   sep_use_relu = TRUE,
@@ -46,22 +45,18 @@ fit_control(
 \arguments{
 \item{dev_tol}{tolerance level for the first stopping condition of the maximization routine. The stopping condition
 is based on the relative change of the deviance in iteration \eqn{r} and can be expressed as follows: \eqn{|dev_{r}
- - dev_{r - 1}| / (0.1 + |dev_{r}|) < tol}{|dev - devold| / (0.1 + |dev|) < tol}. The default is \code{1.0e-06}.}
+ - dev_{r - 1}| / (0.1 + |dev_{r}|) < tol}{|dev - devold| / (0.1 + |dev|) < tol}. The default is \code{1.0e-05}.}
 
 \item{center_tol}{tolerance level for the stopping condition of the centering algorithm. The stopping condition is
 based on the relative change of the centered variable similar to the \code{'lfe'} package. The default is
-\code{1.0e-06}.}
+\code{1.0e-05}.}
 
-\item{center_tol_loose}{initial (loose) tolerance for adaptive centering in GLM iterations. During early IRLS
-iterations when deviance is changing rapidly, this looser tolerance is used to save computation. As the GLM
-converges, the tolerance is tightened towards \code{center_tol}. The default is \code{1.0e-04}.}
-
-\item{collin_tol}{tolerance level for detecting collinearity. The default is \code{1.0e-07}.}
+\item{collin_tol}{tolerance level for detecting collinearity. The default is \code{1.0e-08}.}
 
 \item{step_halving_factor}{numeric indicating the factor by which the step size is halved to iterate towards
 convergence. This is used to control the step size during optimization. The default is \code{0.5}.}
 
-\item{alpha_tol}{tolerance for fixed effects (alpha) convergence. The default is \code{1.0e-06}.}
+\item{alpha_tol}{tolerance for fixed effects (alpha) convergence. The default is \code{1.0e-05}.}
 
 \item{iter_max}{integer indicating the maximum number of iterations in the maximization routine. The default is
 \code{50L}.}
@@ -79,7 +74,7 @@ iteration is retained. The default is \code{0.9}.}
 
 \item{max_step_halving}{maximum number of post-convergence step-halving attempts. The default is \code{2}.}
 
-\item{start_inner_tol}{starting tolerance for inner solver iterations. The default is \code{1.0e-04}.}
+\item{start_inner_tol}{starting tolerance for inner solver iterations. The default is \code{1.0e-05}.}
 
 \item{grand_acc_period}{integer indicating the period (in iterations) for grand acceleration in the centering
 algorithm. Grand acceleration applies a second-level Irons-Tuck extrapolation on the overall convergence
@@ -96,7 +91,7 @@ and grand acceleration.}
 
 \item{sep_tol}{tolerance for separation detection. The default is \code{1.0e-08}.}
 
-\item{sep_zero_tol}{tolerance for treating values as zero in separation detection. The default is \code{1.0e-12}.}
+\item{sep_zero_tol}{tolerance for treating values as zero in separation detection. The default is \code{1.0e-08}.}
 
 \item{sep_max_iter}{maximum iterations for ReLU separation detection algorithm. The default is \code{200L}.}
 
@@ -203,7 +198,7 @@ By default, \code{fit_control()} returns "thin" model objects with minimal memor
 }
 
 \examples{
-# Default: thin model for production/benchmarks
+# Default
 fit_control()
 
 # Custom tolerances

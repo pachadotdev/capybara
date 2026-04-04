@@ -619,8 +619,7 @@ InferenceGLM feglm_fit(
 
   // Adaptive centering tolerance parameters
   // Start with loose tolerance, tighten as GLM converges
-  const double center_tol_loose = params.center_tol_loose;
-  const double center_tol_tight = params.center_tol;
+  const double center_tol_loose = params.center_tol * 10.0;
   double adaptive_center_tol = center_tol_loose;
 
   double last_beta_change = datum::inf;
@@ -774,7 +773,7 @@ InferenceGLM feglm_fit(
     if (eta_change < 0.1) {
       const double t = std::max(0.0, std::min(1.0, (0.1 - eta_change) / 0.1));
       adaptive_center_tol =
-          center_tol_loose * std::pow(center_tol_tight / center_tol_loose, t);
+          center_tol_loose * std::pow(params.center_tol / center_tol_loose, t);
     }
 
     // Early convergence detection: eta-driven, since eta reflects the overall
@@ -802,8 +801,8 @@ InferenceGLM feglm_fit(
       conv_change = eta_change;
     }
 
-    if (conv_change < params.dev_tol ||
-        (convergence_count >= 2 && conv_change < params.dev_tol * 10)) {
+    // Convergence check
+    if (conv_change < params.dev_tol) {
       conv = true;
       break;
     }
@@ -1163,7 +1162,8 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
       adaptive_tol = params.center_tol;
     }
 
-    if (eta_change < params.dev_tol) {
+    // Convergence check with epsilon buffer for cross-platform floating-point stability
+    if (eta_change < params.dev_tol * (1.0 + 1e-12)) {
       break;
     }
 
