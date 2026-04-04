@@ -623,7 +623,11 @@ test_that("bias correction works for two-way FE binomial (classic panel)", {
   n_t <- 10
   d <- expand.grid(i = 1:n_i, t = 1:n_t)
   d$x <- rnorm(nrow(d))
-  d$y <- rbinom(nrow(d), 1, 0.5)
+  # Generate y with actual signal for reliable convergence
+  alpha_i <- rnorm(n_i, sd = 0.3)[d$i]
+  alpha_t <- rnorm(n_t, sd = 0.3)[d$t]
+  prob <- plogis(0.5 * d$x + alpha_i + alpha_t)
+  d$y <- rbinom(nrow(d), 1, prob)
   d$i <- factor(d$i)
   d$t <- factor(d$t)
 
@@ -651,7 +655,12 @@ test_that("bias correction with network panel structure", {
   d <- expand.grid(exp = 1:n_exp, imp = 1:n_imp, t = 1:n_t)
   d <- d[d$exp != d$imp, ]  # No self-trade
   d$x <- rnorm(nrow(d))
-  d$y <- rbinom(nrow(d), 1, 0.5)
+  # Generate y with actual signal for reliable convergence
+  alpha_exp <- rnorm(n_exp, sd = 0.3)[d$exp]
+  alpha_imp <- rnorm(n_imp, sd = 0.3)[d$imp]
+  alpha_t <- rnorm(n_t, sd = 0.3)[d$t]
+  prob <- plogis(0.5 * d$x + alpha_exp + alpha_imp + alpha_t)
+  d$y <- rbinom(nrow(d), 1, prob)
   d$exp <- factor(d$exp)
   d$imp <- factor(d$imp)
   d$t <- factor(d$t)
