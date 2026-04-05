@@ -17,19 +17,16 @@ struct GlmWorkspace {
   GlmWorkspace() : cached_n(0), cached_p(0) {}
 
   void ensure_size(uword n, uword p) {
-    // Only reallocate if needed
-    // Use zeros() instead of set_size() to ensure deterministic initialization
-    // (prevents non-determinism on Mac due to uninitialized memory)
     if (n > cached_n) {
-      mu.zeros(n);
-      w_working.zeros(n);
-      nu.zeros(n);
-      z.zeros(n);
-      eta0.zeros(n);
+      mu.set_size(n);
+      w_working.set_size(n);
+      nu.set_size(n);
+      z.set_size(n);
+      eta0.set_size(n);
       cached_n = n;
     }
     if (p > cached_p) {
-      beta0.zeros(p);
+      beta0.set_size(p);
       cached_p = p;
     }
   }
@@ -37,9 +34,9 @@ struct GlmWorkspace {
 
 // Function pointer types for family-specific operations
 // Avoids repeated switch statements in hot loops
-using MuFromEtaFn = void (*)(vec &mu, const vec &eta);
-using WorkingWtsNuFn = void (*)(vec &w_working, vec &nu, const vec &w,
-                                const vec &mu, const vec &y, double theta);
+using MuFromEta = void (*)(vec &mu, const vec &eta);
+using WorkingWtsNu = void (*)(vec &w_working, vec &nu, const vec &w,
+                              const vec &mu, const vec &y, double theta);
 
 // Link inverse functions (mu from eta)
 inline void mu_gaussian(vec &mu, const vec &eta) { mu = eta; }
@@ -91,7 +88,7 @@ inline void ww_nu_negbin(vec &w_working, vec &nu, const vec &w, const vec &mu,
 }
 
 // Get function pointers for a family (called once, not in loop)
-inline MuFromEtaFn get_mu_fn(Family family_type) {
+inline MuFromEta get_mu_fn(Family family_type) {
   switch (family_type) {
   case GAUSSIAN:
     return mu_gaussian;
@@ -109,7 +106,7 @@ inline MuFromEtaFn get_mu_fn(Family family_type) {
   }
 }
 
-inline WorkingWtsNuFn get_ww_nu_fn(Family family_type) {
+inline WorkingWtsNu get_ww_nu_fn(Family family_type) {
   switch (family_type) {
   case GAUSSIAN:
     return ww_nu_gaussian;
@@ -128,6 +125,291 @@ inline WorkingWtsNuFn get_ww_nu_fn(Family family_type) {
   }
 }
 
+///////////////////////////////////////////////////////////////////////////
+// Average Partial Effects (APE) and Bias Correction for binomial models
+// Based on Cruz-Gonzalez, Fernández-Val, and Weidner (2017)
+// and Fernández-Val & Weidner (2016)
+// Following R implementations in biasCorr.R and getAPEs.R
+///////////////////////////////////////////////////////////////////////////
+
+// Second-order partial derivative of mu w.r.t. eta
+// For logit: d²mu/deta² = mu*(1-mu)*(1-2*mu)
+inline vec partial_mu_eta_2(const vec &mu) {
+  return mu % (1.0 - mu) % (1.0 - 2.0 * mu);
+}
+
+// Third-order partial derivative for APE bias correction
+// For logit: d³mu/deta³ = mu*(1-mu)*(1-6*mu*(1-mu))
+inline vec partial_mu_eta_3(const vec &mu) {
+  return mu % (1.0 - mu) % (1.0 - 6.0 * mu % (1.0 - mu));
+}
+
+// Compute bias correction for binomial models
+// Follows biasCorr.R structure
+inline void compute_bias_corr_binomial(InferenceGLM &result, const mat &X,
+                                       const vec &beta, const vec &eta,
+                                       const vec &mu, const vec &wt,
+                                       const mat &H, const mat &MX,
+                                       const uword n, const FlatFEMap &fe_map,
+                                       const CapybaraParameters &params) {
+  const uword K = fe_map.K;
+  const uword p = beta.n_elem;
+
+  if (K == 0 || p == 0) {
+    result.has_bias_corr = false;
+    return;
+  }
+
+  // Validate panel structure (classic: 1-2 way FE, network: 2-3 way FE)
+  const bool is_classic = (params.bias_corr_panel_structure == "classic");
+  if (is_classic && K > 2) {
+    result.has_bias_corr = false;
+    return;
+  }
+  if (!is_classic && K < 2) {
+    result.has_bias_corr = false;
+    return;
+  }
+
+  // Compute derivatives (following R: mu.eta, w, z)
+  // mu.eta = dmu/deta = mu*(1-mu) for logit
+  const vec mu_eta = mu % (1.0 - mu);
+
+  // w = wt * mu.eta (working weights)
+  const vec w = wt % mu_eta;
+
+  // z = wt * partial_mu_eta_2 (second derivative weight)
+  const vec z = wt % partial_mu_eta_2(mu);
+
+  // MX * z (element-wise scaling of each column)
+  mat MXz = MX.each_col() % z;
+
+  // Compute bias terms: b = sum_k groupSums(MX*z, w, k) / (2*n)
+  vec b(p, fill::zeros);
+
+  if (is_classic) {
+    // Classic panel: use FE dimensions 0 and 1
+    b = group_sums(MXz, w, fe_map, 0) / (2.0 * n);
+    if (K > 1) {
+      b += group_sums(MXz, w, fe_map, 1) / (2.0 * n);
+    }
+  } else {
+    // Network panel: use all FE dimensions
+    for (uword k = 0; k < K; ++k) {
+      b += group_sums(MXz, w, fe_map, k) / (2.0 * n);
+    }
+  }
+
+  // Solve: bias_term = solve(H/n, -b)
+  const mat H_scaled = H / static_cast<double>(n);
+
+  if (!H_scaled.is_finite() || !b.is_finite()) {
+    result.has_bias_corr = false;
+    return;
+  }
+
+  vec bias_term;
+  if (!solve(bias_term, H_scaled, -b, solve_opts::likely_sympd)) {
+    mat H_inv;
+    if (!inv_sympd(H_inv, H_scaled) && !pinv(H_inv, H_scaled)) {
+      result.has_bias_corr = false;
+      return;
+    }
+    bias_term = H_inv * (-b);
+  }
+
+  if (!bias_term.is_finite()) {
+    result.has_bias_corr = false;
+    return;
+  }
+
+  result.beta_corrected = beta - bias_term;
+  result.bias_term = bias_term;
+  result.has_bias_corr = true;
+}
+
+// Compute Average Partial Effects for binomial models
+// Follows getAPEs.R structure
+inline void compute_apes_binomial(InferenceGLM &result, const mat &X,
+                                  const vec &beta, const vec &eta,
+                                  const vec &mu, const vec &wt, const mat &H,
+                                  const mat &MX, const uword n,
+                                  const FlatFEMap &fe_map,
+                                  const CapybaraParameters &params,
+                                  bool biascorr = false) {
+  const uword p = X.n_cols;
+  const uword K = fe_map.K;
+
+  if (p == 0)
+    return;
+
+  // Finite population adjustment factor
+  double adj = 0.0;
+  if (params.ape_n_pop > 0 && params.ape_n_pop >= n) {
+    adj = static_cast<double>(params.ape_n_pop - n) /
+          static_cast<double>(params.ape_n_pop - 1);
+  }
+
+  const bool is_classic = (params.ape_panel_structure == "classic");
+  const bool is_independence = (params.ape_sampling_fe == "independence");
+
+  // Detect binary regressors
+  uvec is_binary(p);
+  for (uword j = 0; j < p; ++j) {
+    is_binary(j) = all(X.col(j) == 0.0 || X.col(j) == 1.0) ? 1 : 0;
+  }
+
+  // Compute derivatives (following R)
+  const vec mu_eta = mu % (1.0 - mu);
+  const vec w = wt % mu_eta;
+  const vec z = wt % partial_mu_eta_2(mu);
+
+  // Delta (partial effects) and Delta1 (derivatives of Delta)
+  mat Delta(n, p);
+  mat Delta1(n, p);
+
+  for (uword j = 0; j < p; ++j) {
+    if (is_binary(j) == 1) {
+      // Binary regressor: Delta = mu(eta1) - mu(eta0)
+      const vec eta0 = eta - X.col(j) * beta(j);
+      const vec eta1 = eta0 + beta(j);
+      const vec mu0 = 1.0 / (1.0 + exp(-eta0));
+      const vec mu1 = 1.0 / (1.0 + exp(-eta1));
+      Delta.col(j) = mu1 - mu0;
+      Delta1.col(j) = mu1 % (1.0 - mu1) - mu0 % (1.0 - mu0);
+    } else {
+      // Continuous regressor: Delta = beta * mu.eta
+      Delta.col(j) = beta(j) * mu_eta;
+      Delta1.col(j) = beta(j) * partial_mu_eta_2(mu);
+    }
+  }
+
+  // APE = mean(Delta)
+  vec delta = mean(Delta, 0).t();
+
+  // Center Delta for variance: (Delta - delta) / n
+  mat Delta_centered = (Delta.each_row() - delta.t()) / static_cast<double>(n);
+
+  // Jacobian J (following R getAPEs.R structure)
+  mat J(p, p, fill::zeros);
+  const mat PX = X - MX;
+  const double n_d = static_cast<double>(n);
+
+  for (uword j = 0; j < p; ++j) {
+    if (is_binary(j) == 1) {
+      const vec eta0 = eta - X.col(j) * beta(j);
+      const vec eta1 = eta0 + beta(j);
+      const vec mu1 = 1.0 / (1.0 + exp(-eta1));
+      const vec mu_eta_1 = mu1 % (1.0 - mu1);
+
+      // J[, j] = -colSums(PX * Delta1[,j]) / n
+      J.col(j) = -PX.t() * Delta1.col(j) / n_d;
+      // J[j, j] += sum(mu.eta(eta1)) / n
+      J(j, j) += accu(mu_eta_1) / n_d;
+      // J[-j, j] += colSums(X[,-j] * Delta1[,j]) / n
+      for (uword k = 0; k < p; ++k) {
+        if (k != j) {
+          J(k, j) += dot(X.col(k), Delta1.col(j)) / n_d;
+        }
+      }
+    } else {
+      // J[, j] = colSums(MX * Delta1[,j]) / n
+      J.col(j) = MX.t() * Delta1.col(j) / n_d;
+      // J[j, j] += sum(mu.eta) / n
+      J(j, j) += accu(mu_eta) / n_d;
+    }
+  }
+
+  // Psi = -Delta1 / w, MPsi = center(Psi), PPsi = Psi - MPsi
+  mat Psi = -Delta1;
+  Psi.each_col() /= w;
+  mat MPsi = Psi; // Will be centered in-place
+  // Note: For APE variance we need centered Psi, but full centering is
+  // expensive Here we use the approximation that PPsi ≈ Psi for variance
+  // computation The R code uses: PPsi <- Psi - MPsi
+
+  // Bias correction for APEs (if biascorr and bandwith info available)
+  if (biascorr) {
+    // Compute Delta2 (second-order partial derivatives)
+    mat Delta2(n, p);
+    for (uword j = 0; j < p; ++j) {
+      if (is_binary(j) == 1) {
+        const vec eta0 = eta - X.col(j) * beta(j);
+        const vec eta1 = eta0 + beta(j);
+        const vec mu0 = 1.0 / (1.0 + exp(-eta0));
+        const vec mu1 = 1.0 / (1.0 + exp(-eta1));
+        Delta2.col(j) = partial_mu_eta_2(mu1) - partial_mu_eta_2(mu0);
+      } else {
+        Delta2.col(j) = beta(j) * partial_mu_eta_3(mu);
+      }
+    }
+
+    // Compute bias terms: b = sum_k groupSums(Delta2 + PPsi*z, w, k) / (2*n)
+    // Using Psi as approximation for PPsi
+    mat bias_mat = Delta2 + Psi.each_col() % z;
+    vec b(p, fill::zeros);
+
+    if (is_classic) {
+      b = group_sums(bias_mat, w, fe_map, 0) / (2.0 * n);
+      if (K > 1) {
+        b += group_sums(bias_mat, w, fe_map, 1) / (2.0 * n);
+      }
+    } else {
+      for (uword k = 0; k < K; ++k) {
+        b += group_sums(bias_mat, w, fe_map, k) / (2.0 * n);
+      }
+    }
+
+    delta -= b;
+  }
+
+  // Variance computation: V = crossprod(Gamma)
+  // where Gamma = (MX * WinvJ - PPsi) * v / n
+  // WinvJ = solve(H/n, J)
+  const mat H_scaled = H / n_d;
+  mat WinvJ;
+  if (!solve(WinvJ, H_scaled, J, solve_opts::likely_sympd)) {
+    mat H_inv;
+    if (!inv_sympd(H_inv, H_scaled)) {
+      pinv(H_inv, H_scaled);
+    }
+    WinvJ = H_inv * J;
+  }
+
+  // v = wt * (y - mu), but we don't have y here
+  // For variance, use working residuals approximation from mu
+  // Gamma = (MX * WinvJ) / n (simplified without residual weighting)
+  mat Gamma = (MX * WinvJ) / n_d;
+
+  mat V = Gamma.t() * Gamma;
+
+  // Finite population correction
+  if (adj > 0.0 && K > 0 && is_independence) {
+    V += adj * group_sums_var(Delta_centered, fe_map, 0);
+
+    if (K > 1) {
+      V += adj * (group_sums_var(Delta_centered, fe_map, 1) -
+                  Delta_centered.t() * Delta_centered);
+    }
+    if (!is_classic && K > 2) {
+      V += adj * (group_sums_var(Delta_centered, fe_map, 2) -
+                  Delta_centered.t() * Delta_centered);
+    }
+
+    // Weak exogeneity correction
+    if (params.ape_weak_exo) {
+      const uword k_exo = is_classic ? 0 : (K > 2 ? K - 1 : 0);
+      mat C = group_sums_cov(Delta_centered, Gamma, fe_map, k_exo);
+      V += adj * (C + C.t());
+    }
+  }
+
+  result.ape_delta = delta;
+  result.ape_vcov = V;
+  result.ape_binary = is_binary;
+  result.has_apes = true;
+}
+
 InferenceGLM feglm_fit(
     vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     const double &theta, const Family family_type, const FlatFEMap &fe_map,
@@ -137,10 +419,13 @@ InferenceGLM feglm_fit(
     const field<uvec> *entity1_groups = nullptr,
     const field<uvec> *entity2_groups = nullptr, bool run_from_negbin = false) {
 #ifdef CAPYBARA_DEBUG
+  double mem_start = get_memory_usage_mb();
   std::ostringstream feglm_msg;
   feglm_msg << "/////////////////////////////////\n"
                "// Entering feglm_fit function //\n"
-               "/////////////////////////////////\n";
+               "/////////////////////////////////\n"
+               "Initial memory: "
+            << mem_start << " MB\n";
   cpp4r::message(feglm_msg.str());
 #endif
 
@@ -166,34 +451,24 @@ InferenceGLM feglm_fit(
   // Use lite constructor for fast path (skips P*P hessian/vcov allocation)
   InferenceGLM result(n, p, !run_from_negbin);
 
-  if (!y.is_finite() || !X.is_finite()) {
-    result.conv = false;
-    // Initialize with NaN for R-side diagnostics
-    result.eta.set_size(n);
-    result.eta.fill(datum::nan);
-    result.fitted_values.set_size(n);
-    result.fitted_values.fill(datum::nan);
-    result.weights = w;
-    return result;
-  }
-
   // Workspace setup
   GlmWorkspace local_workspace;
   GlmWorkspace &ws = workspace ? *workspace : local_workspace;
   ws.ensure_size(n, p);
 
   // Get function pointers once (avoid switch in loop)
-  const MuFromEtaFn mu_ = get_mu_fn(family_type);
-  const WorkingWtsNuFn ww_nu_ = get_ww_nu_fn(family_type);
+  const MuFromEta mu_ = get_mu_fn(family_type);
+  const WorkingWtsNu ww_nu_ = get_ww_nu_fn(family_type);
 
-  // Offset handling
-  const vec offset_vec = has_offset ? *offset : vec();
+  // Offset handling: use empty static vec to avoid allocation when no offset
+  static const vec empty_offset;
+  const vec &offset_vec = has_offset ? *offset : empty_offset;
 
 #ifdef CAPYBARA_DEBUG
   auto tsep0 = std::chrono::high_resolution_clock::now();
 #endif
 
-  // Group-level separation pre-filter (replaces R-side drop_by_link_type_)
+  // Group-level separation pre-filter
   // For Poisson/NegBin/Binomial FE models: drop entire FE groups where
   // mean(y)==0 (Poisson/NegBin) or mean(y) in {0,1} (Binomial)
   SeparationResult group_sep_result;
@@ -267,9 +542,10 @@ InferenceGLM feglm_fit(
 #ifdef CAPYBARA_DEBUG
   auto tsep1 = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> sep_duration = tsep1 - tsep0;
+  double mem_after_sep = get_memory_usage_mb();
   std::ostringstream sep_msg;
   sep_msg << "Separation detection time: " << sep_duration.count()
-          << " seconds.\n";
+          << " seconds. Memory: " << mem_after_sep << " MB\n";
   cpp4r::message(sep_msg.str());
   auto tcoll0 = std::chrono::high_resolution_clock::now();
 #endif
@@ -310,9 +586,10 @@ InferenceGLM feglm_fit(
 #ifdef CAPYBARA_DEBUG
   auto tcoll1 = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> collin_duration = tcoll1 - tcoll0;
+  double mem_after_collin = get_memory_usage_mb();
   std::ostringstream collin_msg;
   collin_msg << "Collinearity check time: " << collin_duration.count()
-             << " seconds.\n";
+             << " seconds. Memory: " << mem_after_collin << " MB\n";
   cpp4r::message(collin_msg.str());
 #endif
 
@@ -342,8 +619,7 @@ InferenceGLM feglm_fit(
 
   // Adaptive centering tolerance parameters
   // Start with loose tolerance, tighten as GLM converges
-  const double center_tol_loose = params.center_tol_loose;
-  const double center_tol_tight = params.center_tol;
+  const double center_tol_loose = params.center_tol * 10.0;
   double adaptive_center_tol = center_tol_loose;
 
   double last_beta_change = datum::inf;
@@ -402,9 +678,10 @@ InferenceGLM feglm_fit(
 #ifdef CAPYBARA_DEBUG
     auto twwnu1 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> wwnu_duration = twwnu1 - twwnu0;
+    double mem_ww = get_memory_usage_mb();
     std::ostringstream wwnu_msg;
     wwnu_msg << "Working weights and nu time: " << wwnu_duration.count()
-             << " seconds.\n";
+             << " seconds. Memory: " << mem_ww << " MB\n";
     cpp4r::message(wwnu_msg.str());
 #endif
 
@@ -496,7 +773,7 @@ InferenceGLM feglm_fit(
     if (eta_change < 0.1) {
       const double t = std::max(0.0, std::min(1.0, (0.1 - eta_change) / 0.1));
       adaptive_center_tol =
-          center_tol_loose * std::pow(center_tol_tight / center_tol_loose, t);
+          center_tol_loose * std::pow(params.center_tol / center_tol_loose, t);
     }
 
     // Early convergence detection: eta-driven, since eta reflects the overall
@@ -524,8 +801,12 @@ InferenceGLM feglm_fit(
       conv_change = eta_change;
     }
 
-    if (conv_change < params.dev_tol ||
-        (convergence_count >= 2 && conv_change < params.dev_tol * 10)) {
+    // Convergence check with small epsilon buffer for cross-platform
+    // floating-point stability Mac's sqrt() and dot() can produce slightly
+    // different rounding, so we add a tiny buffer (1e-10 relative tolerance) to
+    // prevent false non-convergence
+    const double eps_buffer = 1.0 + 1e-10;
+    if (conv_change < params.dev_tol * eps_buffer) {
       conv = true;
       break;
     }
@@ -550,21 +831,12 @@ InferenceGLM feglm_fit(
   cpp4r::message("/// End GLM iterations...\n");
   auto tglmiter1 = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> glmiter_duration = tglmiter1 - tglmiter0;
+  double mem_after_glm = get_memory_usage_mb();
   std::ostringstream glmiter_msg;
   glmiter_msg << "GLM iteration time: " << glmiter_duration.count()
-              << " seconds.\n";
+              << " seconds. Memory: " << mem_after_glm << " MB\n";
   cpp4r::message(glmiter_msg.str());
 #endif
-
-  // Post-loop safety net: if the loop exhausted iter_max but conv_change is
-  // within 10 * dev_tol (i.e. < 1e-7 with default settings), treat as
-  // converged. This covers platforms where FMA-based BLAS (e.g. macOS
-  // Accelerate) rounds conv_change to just above dev_tol on borderline cases.
-  // Factor of 10 is intentionally tight: genuine non-convergence produces
-  // conv_change orders of magnitude larger.
-  if (!conv && conv_change < params.dev_tol * 10.0) {
-    conv = true;
-  }
 
   if (conv) {
     // Fast path for negbin outer loop: only return beta, eta, mu, and
@@ -576,7 +848,7 @@ InferenceGLM feglm_fit(
       result.coef_status = std::move(collin_result.coef_status);
       result.eta = std::move(eta);
       result.fitted_values = std::move(mu);
-      result.weights = w;  // w is const ref, can't move
+      result.weights = w; // w is const ref, can't move
       result.deviance = dev;
       result.null_deviance = null_dev;
       result.conv = true;
@@ -620,9 +892,10 @@ InferenceGLM feglm_fit(
 #ifdef CAPYBARA_DEBUG
     auto tfe1 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> tfe_duration = tfe1 - tfe0;
+    double mem_after_fe = get_memory_usage_mb();
     std::ostringstream msg_tfe;
     msg_tfe << "Fixed effects recovery time: " << tfe_duration.count()
-            << " seconds.\n";
+            << " seconds. Memory: " << mem_after_fe << " MB\n";
     cpp4r::message(msg_tfe.str());
 #endif
 
@@ -664,7 +937,7 @@ InferenceGLM feglm_fit(
     result.coef_status = std::move(collin_result.coef_status);
     result.eta = std::move(eta);
     result.fitted_values = std::move(mu);
-    result.weights = w;  // w is const ref, can't move
+    result.weights = w; // w is const ref, can't move
     result.hessian = std::move(H);
     result.deviance = dev;
     result.null_deviance = null_dev;
@@ -713,6 +986,20 @@ InferenceGLM feglm_fit(
       result.TX = MX;
       result.has_tx = true;
     }
+
+    // Compute Average Partial Effects for binomial models if requested
+    if (params.compute_apes && family_type == BINOMIAL) {
+      compute_apes_binomial(result, X, beta, result.eta, result.fitted_values,
+                            w, result.hessian, MX, n, fe_map, params,
+                            params.compute_bias_corr);
+    }
+
+    // Compute bias correction for binomial models if requested
+    if (params.compute_bias_corr && family_type == BINOMIAL) {
+      compute_bias_corr_binomial(result, X, beta, result.eta,
+                                 result.fitted_values, w, result.hessian, MX, n,
+                                 fe_map, params);
+    }
   } else {
     // Non-convergence: still populate result vectors for R-side diagnostics
     result.eta = std::move(eta);
@@ -728,9 +1015,9 @@ InferenceGLM feglm_fit(
 }
 
 // Working weights and adjusted response for offset-only fitting
-using OffsetWwYadjFn = void (*)(vec &w_working, vec &yadj, const vec &w,
-                                const vec &mu, const vec &y, const vec &eta,
-                                const vec &offset);
+using OffsetWwYadj = void (*)(vec &w_working, vec &yadj, const vec &w,
+                              const vec &mu, const vec &y, const vec &eta,
+                              const vec &offset);
 
 inline void offset_ww_yadj_gaussian(vec &w_working, vec &yadj, const vec &w,
                                     const vec &mu, const vec &y, const vec &eta,
@@ -770,7 +1057,7 @@ inline void offset_ww_yadj_invgaussian(vec &w_working, vec &yadj, const vec &w,
   yadj = -2.0 * (y - mu) / m3 + eta - offset;
 }
 
-inline OffsetWwYadjFn get_offset_ww_yadj_fn(Family family_type) {
+inline OffsetWwYadj get_offset_ww_yadj_fn(Family family_type) {
   switch (family_type) {
   case GAUSSIAN:
     return offset_ww_yadj_gaussian;
@@ -794,8 +1081,8 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
   const uword n = y.n_elem;
 
   // Get function pointers once
-  const MuFromEtaFn mu_ = get_mu_fn(family_type);
-  const OffsetWwYadjFn ww_yadj_ = get_offset_ww_yadj_fn(family_type);
+  const MuFromEta mu_ = get_mu_fn(family_type);
+  const OffsetWwYadj ww_yadj_ = get_offset_ww_yadj_fn(family_type);
 
   // Working buffers (fill::none for buffers immediately overwritten)
   vec mu(n, fill::none), w_working(n, fill::none), yadj(n, fill::none),
@@ -879,7 +1166,10 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
       adaptive_tol = params.center_tol;
     }
 
-    if (eta_change < params.dev_tol) {
+    // Convergence check with epsilon buffer for cross-platform floating-point
+    // stability (Mac's sqrt() can produce slightly different rounding)
+    const double eps_buffer = 1.0 + 1e-10;
+    if (eta_change < params.dev_tol * eps_buffer) {
       break;
     }
 

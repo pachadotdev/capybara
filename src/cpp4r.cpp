@@ -40,46 +40,14 @@ extern "C" SEXP _capybara_fenegbin_fit_(SEXP X_r, SEXP y_r, SEXP w_r, SEXP fe_co
     return cpp4r::as_sexp(fenegbin_fit_(cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(X_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(y_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(w_r), cpp4r::as_cpp<cpp4r::decay_t<const list &>>(fe_cols_r), cpp4r::as_cpp<cpp4r::decay_t<const std::string &>>(link), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(beta_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(eta_r), cpp4r::as_cpp<cpp4r::decay_t<const double &>>(init_theta), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(offset_r), cpp4r::as_cpp<cpp4r::decay_t<const list &>>(control)));
   END_CPP4R
 }
-// capybara.cpp
-doubles_matrix<> group_sums_(const doubles_matrix<> & M_r, const doubles_matrix<> & w_r, const list & jlist);
-extern "C" SEXP _capybara_group_sums_(SEXP M_r, SEXP w_r, SEXP jlist) {
-  BEGIN_CPP4R
-    return cpp4r::as_sexp(group_sums_(cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(M_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(w_r), cpp4r::as_cpp<cpp4r::decay_t<const list &>>(jlist)));
-  END_CPP4R
-}
-// capybara.cpp
-doubles_matrix<> group_sums_spectral_(const doubles_matrix<> & M_r, const doubles_matrix<> & v_r, const doubles_matrix<> & w_r, const size_t K, const list & jlist);
-extern "C" SEXP _capybara_group_sums_spectral_(SEXP M_r, SEXP v_r, SEXP w_r, SEXP K, SEXP jlist) {
-  BEGIN_CPP4R
-    return cpp4r::as_sexp(group_sums_spectral_(cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(M_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(v_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(w_r), cpp4r::as_cpp<cpp4r::decay_t<const size_t>>(K), cpp4r::as_cpp<cpp4r::decay_t<const list &>>(jlist)));
-  END_CPP4R
-}
-// capybara.cpp
-doubles_matrix<> group_sums_var_(const doubles_matrix<> & M_r, const list & jlist);
-extern "C" SEXP _capybara_group_sums_var_(SEXP M_r, SEXP jlist) {
-  BEGIN_CPP4R
-    return cpp4r::as_sexp(group_sums_var_(cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(M_r), cpp4r::as_cpp<cpp4r::decay_t<const list &>>(jlist)));
-  END_CPP4R
-}
-// capybara.cpp
-doubles_matrix<> group_sums_cov_(const doubles_matrix<> & M_r, const doubles_matrix<> & N_r, const list & jlist);
-extern "C" SEXP _capybara_group_sums_cov_(SEXP M_r, SEXP N_r, SEXP jlist) {
-  BEGIN_CPP4R
-    return cpp4r::as_sexp(group_sums_cov_(cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(M_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(N_r), cpp4r::as_cpp<cpp4r::decay_t<const list &>>(jlist)));
-  END_CPP4R
-}
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
-    {"_capybara_center_variables_",    (DL_FUNC) &_capybara_center_variables_,     6},
-    {"_capybara_feglm_fit_",           (DL_FUNC) &_capybara_feglm_fit_,           13},
-    {"_capybara_feglm_offset_fit_",    (DL_FUNC) &_capybara_feglm_offset_fit_,     7},
-    {"_capybara_felm_fit_",            (DL_FUNC) &_capybara_felm_fit_,             8},
-    {"_capybara_fenegbin_fit_",        (DL_FUNC) &_capybara_fenegbin_fit_,        10},
-    {"_capybara_group_sums_",          (DL_FUNC) &_capybara_group_sums_,           3},
-    {"_capybara_group_sums_cov_",      (DL_FUNC) &_capybara_group_sums_cov_,       3},
-    {"_capybara_group_sums_spectral_", (DL_FUNC) &_capybara_group_sums_spectral_,  5},
-    {"_capybara_group_sums_var_",      (DL_FUNC) &_capybara_group_sums_var_,       2},
+    {"_capybara_center_variables_", (DL_FUNC) &_capybara_center_variables_,  6},
+    {"_capybara_feglm_fit_",        (DL_FUNC) &_capybara_feglm_fit_,        13},
+    {"_capybara_feglm_offset_fit_", (DL_FUNC) &_capybara_feglm_offset_fit_,  7},
+    {"_capybara_felm_fit_",         (DL_FUNC) &_capybara_felm_fit_,          8},
+    {"_capybara_fenegbin_fit_",     (DL_FUNC) &_capybara_fenegbin_fit_,     10},
     {NULL, NULL, 0}
 };
 }

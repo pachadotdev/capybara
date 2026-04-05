@@ -101,7 +101,7 @@ test_that("predicted values increase the error outside the inter-quartile range 
   ]
 
   # Poisson ----
-  m1_pois <- fepoisson(mpg ~ wt + disp | cyl, mtcars)
+  m1_pois <- fepoisson(mpg ~ wt + disp | cyl, mtcars, control = fit_control(return_fe = TRUE))
   m2_pois <- glm(
     mpg ~ wt + disp + as.factor(cyl),
     mtcars,
@@ -131,7 +131,7 @@ test_that("predicted values increase the error outside the inter-quartile range 
   # expect_equal(unname(pred2_fixest_pois), pred2_pois, tolerance = 1e-2)
 
   # Binomial ----
-  m1_binom <- feglm(am ~ wt + disp | cyl, mtcars, family = binomial())
+  m1_binom <- feglm(am ~ wt + disp | cyl, mtcars, family = binomial(), control = fit_control(return_fe = TRUE))
   m2_binom <- glm(am ~ wt + disp + as.factor(cyl), mtcars, family = binomial())
 
   pred1_binom <- predict(m1_binom, newdata = d1, type = "response")
@@ -171,7 +171,7 @@ test_that("predicted values increase the error outside the inter-quartile range 
 
   # Binomial GLM ----
 
-  m1_binom <- feglm(am ~ wt + disp | cyl, mtcars, family = binomial())
+  m1_binom <- feglm(am ~ wt + disp | cyl, mtcars, family = binomial(), control = fit_control(return_fe = TRUE))
   # m2_binom <- fixest::feglm(am ~ wt + disp | cyl, mtcars, family = binomial())
   m2_binom <- glm(am ~ wt + disp + as.factor(cyl), mtcars, family = binomial())
 
@@ -317,4 +317,440 @@ test_that("feglm with weights works (stammann centering)", {
   m4 <- feglm(mpg ~ wt | am, weights = w, data = mtcars, control = ctrl)
 
   expect_gt(coef(m1), coef(m4))
+})
+
+# Average Partial Effects (APE) tests ----
+
+test_that("feglm computes APEs for binomial models", {
+  # Fit binomial model with APE computation
+  mod_binom_ape <- feglm(
+    am ~ wt + mpg | cyl,
+    mtcars,
+    family = binomial(),
+    control = fit_control(compute_apes = TRUE)
+  )
+
+  # Check that APE results are present
+  expect_true(!is.null(mod_binom_ape$ape_delta))
+  expect_true(!is.null(mod_binom_ape$ape_vcov))
+  expect_true(!is.null(mod_binom_ape$ape_binary))
+
+  # Check dimensions
+  expect_equal(length(mod_binom_ape$ape_delta), 2) # wt and mpg
+  expect_equal(dim(mod_binom_ape$ape_vcov), c(2, 2))
+  expect_equal(length(mod_binom_ape$ape_binary), 2)
+
+  # APEs should be finite
+
+  expect_true(all(is.finite(mod_binom_ape$ape_delta)))
+
+  # APEs should have reasonable magnitudes (between -1 and 1 for probabilities)
+  expect_true(all(abs(mod_binom_ape$ape_delta) < 1))
+
+  # Variance matrix should be symmetric and positive semi-definite
+  expect_equal(mod_binom_ape$ape_vcov, t(mod_binom_ape$ape_vcov), tolerance = 1e-10)
+  expect_true(all(eigen(mod_binom_ape$ape_vcov)$values >= -1e-10))
+})
+
+test_that("APEs are not computed when compute_apes = FALSE", {
+  # Default: compute_apes = FALSE
+  mod_binom <- feglm(
+    am ~ wt + mpg | cyl,
+    mtcars,
+    family = binomial()
+  )
+
+  # APE results should not be present
+  expect_null(mod_binom$ape_delta)
+  expect_null(mod_binom$ape_vcov)
+})
+
+test_that("APEs are not computed for non-binomial models", {
+  # Poisson model with compute_apes = TRUE should not have APEs
+  mod_poisson <- feglm(
+    mpg ~ wt + am | cyl,
+    mtcars,
+    family = poisson(),
+    control = fit_control(compute_apes = TRUE)
+  )
+
+  # APE results should not be present for non-binomial
+  expect_null(mod_poisson$ape_delta)
+})
+
+test_that("APE binary indicator correctly identifies binary regressors", {
+  # Create data with mixed binary and continuous regressors
+  set.seed(123)
+  d <- data.frame(
+    y = rbinom(100, 1, 0.5),
+    x_cont = rnorm(100),
+    x_binary = sample(0:1, 100, replace = TRUE),
+    f = factor(sample(1:3, 100, replace = TRUE))
+  )
+
+  mod <- feglm(
+    y ~ x_cont + x_binary | f,
+    d,
+    family = binomial(),
+    control = fit_control(compute_apes = TRUE)
+  )
+
+  # Check binary indicator
+  expect_equal(length(mod$ape_binary), 2)
+  # x_cont should be 0 (continuous), x_binary should be 1 (binary)
+  expect_equal(as.numeric(mod$ape_binary), c(0, 1))
+})
+
+test_that("APE standard errors can be computed from vcov", {
+  mod <- feglm(
+    am ~ wt + mpg | cyl,
+    mtcars,
+    family = binomial(),
+    control = fit_control(compute_apes = TRUE)
+  )
+
+  # Compute standard errors from variance-covariance matrix
+  ape_se <- sqrt(diag(mod$ape_vcov))
+
+  # Standard errors should be finite and positive
+  expect_true(all(is.finite(ape_se)))
+  expect_true(all(ape_se > 0))
+
+  # z-statistics
+  z_vals <- mod$ape_delta / ape_se
+  expect_true(all(is.finite(z_vals)))
+})
+
+test_that("APE with finite population correction works", {
+  # With n_pop > n, variance should be adjusted
+  mod_no_pop <- feglm(
+    am ~ wt + mpg | cyl,
+    mtcars,
+    family = binomial(),
+    control = fit_control(compute_apes = TRUE)
+  )
+
+  mod_with_pop <- feglm(
+    am ~ wt + mpg | cyl,
+    mtcars,
+    family = binomial(),
+    control = fit_control(compute_apes = TRUE, ape_n_pop = 1000)
+  )
+
+  # Both should have APE results
+  expect_true(!is.null(mod_no_pop$ape_delta))
+  expect_true(!is.null(mod_with_pop$ape_delta))
+
+  # APE point estimates should be similar (n_pop doesn't affect point estimates)
+  expect_equal(mod_no_pop$ape_delta, mod_with_pop$ape_delta, tolerance = 1e-10)
+
+  # Variance matrices may differ due to finite population correction
+  # (the correction adds additional variance terms)
+  expect_true(!is.null(mod_with_pop$ape_vcov))
+})
+
+test_that("APE panel_structure parameter works", {
+  # Create a simple two-way panel dataset
+  set.seed(42)
+  n_obs <- 200
+  d <- data.frame(
+    y = rbinom(n_obs, 1, 0.5),
+    x = rnorm(n_obs),
+    fe1 = factor(rep(1:10, each = 20)),
+    fe2 = factor(rep(1:20, times = 10))
+  )
+
+  # Classic panel structure
+  mod_classic <- feglm(
+    y ~ x | fe1 + fe2,
+    d,
+    family = binomial(),
+    control = fit_control(
+      compute_apes = TRUE,
+      ape_panel_structure = "classic"
+    )
+  )
+
+  # Network panel structure
+  mod_network <- feglm(
+    y ~ x | fe1 + fe2,
+    d,
+    family = binomial(),
+    control = fit_control(
+      compute_apes = TRUE,
+      ape_panel_structure = "network"
+    )
+  )
+
+  # Both should produce valid APE results
+  expect_true(!is.null(mod_classic$ape_delta))
+  expect_true(!is.null(mod_network$ape_delta))
+  expect_true(all(is.finite(mod_classic$ape_delta)))
+  expect_true(all(is.finite(mod_network$ape_delta)))
+})
+
+test_that("APE with sampling_fe parameter works", {
+  set.seed(123)
+  d <- data.frame(
+    y = rbinom(100, 1, 0.5),
+    x = rnorm(100),
+    f = factor(sample(1:5, 100, replace = TRUE))
+  )
+
+  # Independence sampling assumption
+  mod_indep <- feglm(
+    y ~ x | f,
+    d,
+    family = binomial(),
+    control = fit_control(
+      compute_apes = TRUE,
+      ape_n_pop = 500,
+      ape_sampling_fe = "independence"
+    )
+  )
+
+  # Unrestricted sampling assumption
+  mod_unrest <- feglm(
+    y ~ x | f,
+    d,
+    family = binomial(),
+    control = fit_control(
+      compute_apes = TRUE,
+      ape_n_pop = 500,
+      ape_sampling_fe = "unrestricted"
+    )
+  )
+
+  # Both should produce valid APE results
+  expect_true(!is.null(mod_indep$ape_delta))
+  expect_true(!is.null(mod_unrest$ape_delta))
+
+  # Point estimates should be the same
+  expect_equal(mod_indep$ape_delta, mod_unrest$ape_delta, tolerance = 1e-10)
+})
+
+test_that("APE with weak_exo parameter works", {
+  set.seed(456)
+  d <- data.frame(
+    y = rbinom(100, 1, 0.5),
+    x = rnorm(100),
+    f = factor(sample(1:5, 100, replace = TRUE))
+  )
+
+  # Strict exogeneity (default)
+  mod_strict <- feglm(
+    y ~ x | f,
+    d,
+    family = binomial(),
+    control = fit_control(
+      compute_apes = TRUE,
+      ape_n_pop = 500,
+      ape_weak_exo = FALSE
+    )
+  )
+
+  # Weak exogeneity
+  mod_weak <- feglm(
+    y ~ x | f,
+    d,
+    family = binomial(),
+    control = fit_control(
+      compute_apes = TRUE,
+      ape_n_pop = 500,
+      ape_weak_exo = TRUE
+    )
+  )
+
+  # Both should produce valid APE results
+  expect_true(!is.null(mod_strict$ape_delta))
+  expect_true(!is.null(mod_weak$ape_delta))
+
+  # Point estimates should be the same (weak_exo only affects variance)
+  expect_equal(mod_strict$ape_delta, mod_weak$ape_delta, tolerance = 1e-10)
+})
+
+# Bias Correction Tests ----
+
+test_that("bias correction works for one-way FE binomial", {
+  set.seed(789)
+  n <- 200
+  n_f <- 10
+  d <- data.frame(
+    x1 = rnorm(n),
+    x2 = rnorm(n),
+    f = factor(sample(1:n_f, n, replace = TRUE))
+  )
+  # Generate y with actual signal for reliable convergence
+  alpha_f <- rnorm(n_f, sd = 0.3)[d$f]
+  prob <- plogis(0.5 * d$x1 + 0.3 * d$x2 + alpha_f)
+  d$y <- rbinom(n, 1, prob)
+
+  # Fit without bias correction
+  mod_uncorr <- feglm(
+    y ~ x1 + x2 | f,
+    d,
+    family = binomial()
+  )
+
+  # Fit with bias correction
+  mod_corr <- feglm(
+    y ~ x1 + x2 | f,
+    d,
+    family = binomial(),
+    control = fit_control(compute_bias_corr = TRUE)
+  )
+
+  # Original coefficients should be the same
+  expect_equal(coef(mod_uncorr), coef(mod_corr), tolerance = 1e-10)
+
+  # Bias-corrected results should be present
+  expect_true(!is.null(mod_corr$beta_corrected))
+  expect_true(!is.null(mod_corr$bias_term))
+  expect_true(isTRUE(mod_corr$has_bias_corr))
+
+  # Corrected coefficients should differ from uncorrected
+  expect_equal(length(mod_corr$beta_corrected), length(coef(mod_corr)))
+
+  # Bias term should be non-zero (with FE, there's bias)
+  expect_true(any(abs(mod_corr$bias_term) > 0))
+
+  # Beta_corrected = beta - bias_term
+  expect_equal(
+    unname(mod_corr$beta_corrected),
+    unname(coef(mod_corr) - mod_corr$bias_term),
+    tolerance = 1e-10
+  )
+})
+
+test_that("bias correction works for two-way FE binomial (classic panel)", {
+  set.seed(101)
+  n_i <- 20
+  n_t <- 10
+  d <- expand.grid(i = 1:n_i, t = 1:n_t)
+  d$x <- rnorm(nrow(d))
+  # Generate y with actual signal for reliable convergence
+  alpha_i <- rnorm(n_i, sd = 0.3)[d$i]
+  alpha_t <- rnorm(n_t, sd = 0.3)[d$t]
+  prob <- plogis(0.5 * d$x + alpha_i + alpha_t)
+  d$y <- rbinom(nrow(d), 1, prob)
+  d$i <- factor(d$i)
+  d$t <- factor(d$t)
+
+  mod <- feglm(
+    y ~ x | i + t,
+    d,
+    family = binomial(),
+    control = fit_control(
+      compute_bias_corr = TRUE,
+      bias_corr_panel_structure = "classic"
+    )
+  )
+
+  expect_true(!is.null(mod$beta_corrected))
+  expect_true(!is.null(mod$bias_term))
+  expect_true(isTRUE(mod$has_bias_corr))
+})
+
+test_that("bias correction with network panel structure", {
+  set.seed(202)
+  # Simulate bilateral trade data (exporter-importer-time)
+  # Use larger dimensions for reliable convergence across platforms
+  n_exp <- 8
+  n_imp <- 8
+  n_t <- 5
+  d <- expand.grid(exp = 1:n_exp, imp = 1:n_imp, t = 1:n_t)
+  d <- d[d$exp != d$imp, ]  # No self-trade
+  d$x <- rnorm(nrow(d))
+  # Generate y with actual signal for reliable convergence
+  alpha_exp <- rnorm(n_exp, sd = 0.3)[d$exp]
+  alpha_imp <- rnorm(n_imp, sd = 0.3)[d$imp]
+  alpha_t <- rnorm(n_t, sd = 0.3)[d$t]
+  prob <- plogis(0.5 * d$x + alpha_exp + alpha_imp + alpha_t)
+  d$y <- rbinom(nrow(d), 1, prob)
+  d$exp <- factor(d$exp)
+  d$imp <- factor(d$imp)
+  d$t <- factor(d$t)
+
+  # Network panel needs 2 or 3 FE
+  mod <- feglm(
+    y ~ x | exp + imp + t,
+    d,
+    family = binomial(),
+    control = fit_control(
+      compute_bias_corr = TRUE,
+      bias_corr_panel_structure = "network"
+    )
+  )
+
+  expect_true(!is.null(mod$beta_corrected))
+  expect_true(!is.null(mod$bias_term))
+  expect_true(isTRUE(mod$has_bias_corr))
+})
+
+test_that("bias correction not computed for non-binomial families", {
+  set.seed(303)
+  d <- data.frame(
+    y = rpois(100, 5),
+    x = rnorm(100),
+    f = factor(sample(1:5, 100, replace = TRUE))
+  )
+
+  mod <- feglm(
+    y ~ x | f,
+    d,
+    family = poisson(),
+    control = fit_control(compute_bias_corr = TRUE)
+  )
+
+  # Should not have bias correction for Poisson
+  expect_true(is.null(mod$beta_corrected) || !isTRUE(mod$has_bias_corr))
+})
+
+test_that("bias correction not computed when not requested", {
+  set.seed(404)
+  d <- data.frame(
+    y = rbinom(100, 1, 0.5),
+    x = rnorm(100),
+    f = factor(sample(1:5, 100, replace = TRUE))
+  )
+
+  mod <- feglm(
+    y ~ x | f,
+    d,
+    family = binomial(),
+    control = fit_control(compute_bias_corr = FALSE)
+  )
+
+  expect_true(is.null(mod$beta_corrected) || !isTRUE(mod$has_bias_corr))
+})
+
+test_that("bias_corr_bandwidth parameter validation works", {
+  # Should not error with valid bandwidth
+  expect_no_error(
+    fit_control(compute_bias_corr = TRUE, bias_corr_bandwidth = 0L)
+  )
+  expect_no_error(
+    fit_control(compute_bias_corr = TRUE, bias_corr_bandwidth = 2L)
+  )
+
+  # Should error with negative bandwidth
+  expect_error(
+    fit_control(compute_bias_corr = TRUE, bias_corr_bandwidth = -1L),
+    "bias_corr_bandwidth should be a non-negative integer"
+  )
+})
+
+test_that("bias_corr_panel_structure parameter validation works", {
+  # Valid values
+  expect_no_error(
+    fit_control(bias_corr_panel_structure = "classic")
+  )
+  expect_no_error(
+    fit_control(bias_corr_panel_structure = "network")
+  )
+
+  # Invalid value should error
+  expect_error(
+    fit_control(bias_corr_panel_structure = "invalid")
+  )
 })

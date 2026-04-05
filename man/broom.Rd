@@ -45,7 +45,7 @@ The provided \code{broom} methods do the following:
 }
 }
 \examples{
-mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+mod <- fepoisson(mpg ~ wt | cyl, mtcars, control = fit_control(keep_data = TRUE))
 broom::augment(mod)
 broom::glance(mod)
 broom::tidy(mod)

@@ -116,50 +116,6 @@ test_that("print works for binomial model", {
   expect_output(print(summary(mod)))
 })
 
-# ---- print.apes tests ----
-
-test_that("print.apes produces output", {
-  mtcars2 <- mtcars
-  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
-
-  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial())
-  apes_result <- apes(mod)
-
-  expect_output(print(apes_result))
-})
-
-test_that("print.summary.apes produces output", {
-  mtcars2 <- mtcars
-  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
-
-  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial())
-  apes_result <- apes(mod)
-
-  expect_output(print(summary(apes_result)))
-})
-
-# ---- print.bias_corr tests ----
-
-test_that("print.bias_corr produces output", {
-  mtcars2 <- mtcars
-  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
-
-  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial())
-  bc <- bias_corr(mod)
-
-  expect_output(print(bc))
-})
-
-test_that("print.summary.bias_corr produces output", {
-  mtcars2 <- mtcars
-  mtcars2$mpg01 <- ifelse(mtcars2$mpg > mean(mtcars2$mpg), 1L, 0L)
-
-  mod <- feglm(mpg01 ~ wt | cyl, mtcars2, family = binomial())
-  bc <- bias_corr(mod)
-
-  expect_output(print(summary(bc)))
-})
-
 # ---- print for models without FE ----
 
 test_that("print works for model without fixed effects", {

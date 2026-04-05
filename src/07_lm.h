@@ -25,9 +25,13 @@ struct InferenceLM {
   double adj_r_squared;
   bool has_tx = false;
 
+  // Constructor uses fill::none for N-length vectors that are computed via
+  // matrix operations (fitted_values, residuals). Keeps fill::ones for fields
+  // needing default value 1 (weights, coef_status). Keeps fill::zeros for
+  // P*P matrices that may be partially filled (NaN for collinear entries).
   InferenceLM(uword n, uword p)
-      : coef_table(p, 4, fill::zeros), fitted_values(n, fill::zeros),
-        residuals(n, fill::zeros), weights(n, fill::ones),
+      : coef_table(p, 4, fill::none), fitted_values(n, fill::none),
+        residuals(n, fill::none), weights(n, fill::ones),
         hessian(p, p, fill::zeros), vcov(p, p, fill::zeros),
         coef_status(p, fill::ones), success(false), has_fe(false),
         r_squared(0.0), adj_r_squared(0.0), has_tx(false) {}
@@ -82,14 +86,14 @@ struct FelmWorkspace {
       cached_P = P;
       x_original_allocated = false;
     }
-    // Use zeros() for deterministic initialization
-    x_beta.zeros(N);
-    pi.zeros(N);
-    y_original.zeros(N);
+
+    x_beta.set_size(N);
+    pi.set_size(N);
+    y_original.set_size(N);
 
     // Only allocate X_original when needed (standalone felm, not IRLS inner)
     if (need_x_original && !x_original_allocated) {
-      X_original.zeros(N, P);
+      X_original.set_size(N, P);
       x_original_allocated = true;
     }
   }

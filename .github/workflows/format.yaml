@@ -1,24 +1,25 @@
-name: Clang-Format
+name: Auto-format Code
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   pull_request:
-    branches: [main]
+    branches: [ main ]
 
 jobs:
-  R-CMD-check:
+  format:
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: write
     steps:
-      # Format C++ code first
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.head_ref }}  # Important for pull requests
       
       - uses: pachadotdev/clang-format@v1.1
         with:
           version: '21'
           files: 'src/*.cpp src/*.h inst/include/*.h'
           auto-commit: true
-          commit-message: 'style: format C++ code in R package'
+          commit-message: 'style: auto-format C++ code'

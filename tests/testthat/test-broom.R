@@ -118,7 +118,7 @@ test_that("tidy works with multiple predictors", {
 # ---- augment tests ----
 
 test_that("augment.feglm returns correct structure", {
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+  mod <- fepoisson(mpg ~ wt | cyl, mtcars, control = fit_control(keep_data = TRUE))
 
   result <- augment(mod)
 
@@ -129,7 +129,7 @@ test_that("augment.feglm returns correct structure", {
 })
 
 test_that("augment.feglm preserves original columns", {
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+  mod <- fepoisson(mpg ~ wt | cyl, mtcars, control = fit_control(keep_data = TRUE))
 
   result <- augment(mod)
 
@@ -139,7 +139,7 @@ test_that("augment.feglm preserves original columns", {
 })
 
 test_that("augment.felm returns correct structure", {
-  mod <- felm(mpg ~ wt | cyl, mtcars)
+  mod <- felm(mpg ~ wt | cyl, mtcars, control = fit_control(keep_data = TRUE))
 
   result <- augment(mod)
 
@@ -149,7 +149,7 @@ test_that("augment.felm returns correct structure", {
 })
 
 test_that("augment.felm fitted values are reasonable", {
-  mod <- felm(mpg ~ wt | cyl, mtcars)
+  mod <- felm(mpg ~ wt | cyl, mtcars, control = fit_control(keep_data = TRUE))
 
   result <- augment(mod)
 
@@ -159,7 +159,7 @@ test_that("augment.felm fitted values are reasonable", {
 })
 
 test_that("augment works with binomial model", {
-  mod <- feglm(am ~ wt | cyl, mtcars, family = binomial())
+  mod <- feglm(am ~ wt | cyl, mtcars, family = binomial(), control = fit_control(keep_data = TRUE))
 
   result <- augment(mod)
 

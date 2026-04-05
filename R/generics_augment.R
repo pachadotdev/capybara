@@ -36,7 +36,7 @@ NULL
 #' @rdname broom
 #'
 #' @examples
-#' mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+#' mod <- fepoisson(mpg ~ wt | cyl, mtcars, control = fit_control(keep_data = TRUE))
 #' broom::augment(mod)
 #' broom::glance(mod)
 #' broom::tidy(mod)
@@ -44,14 +44,26 @@ NULL
 #' @export
 augment.feglm <- function(x, newdata = NULL, ...) {
   if (is.null(newdata)) {
+    if (is.null(x$data)) {
+      stop(
+        "augment() requires `keep_data = TRUE` in fit_control() ",
+        "or a newdata argument.",
+        call. = FALSE
+      )
+    }
     # copy() for data.table to avoid mutating x$data via reference semantics
     res <- if (inherits(x$data, "data.table")) copy(x$data) else x$data
+    resp_name <- names(x$data)[1L]
   } else {
     res <- newdata
+    # Get response name from formula
+    resp_name <- all.vars(x$formula)[1L]
   }
 
-  res[[".fitted"]] <- predict(x, type = "response")
-  res[[".residuals"]] <- res[[names(x$data)[1]]] - res[[".fitted"]]
+  res[[".fitted"]] <- predict(x, newdata = newdata, type = "response")
+  if (resp_name %in% names(res)) {
+    res[[".residuals"]] <- res[[resp_name]] - res[[".fitted"]]
+  }
 
   class(res) <- c("tbl_df", "tbl", "data.frame")
   res

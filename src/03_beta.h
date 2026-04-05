@@ -18,8 +18,8 @@ struct InferenceBeta {
   InferenceBeta() : scale(0.0), rank(0.0), success(false) {}
 
   InferenceBeta(uword n, uword p)
-      : coefficients(p, fill::zeros), fitted_values(n, fill::zeros),
-        residuals(n, fill::zeros), weights(n, fill::ones),
+      : coefficients(p, fill::none), fitted_values(n, fill::none),
+        residuals(n, fill::none), weights(n, fill::ones),
         hessian(p, p, fill::zeros), coef_status(p, fill::ones), scale(0.0),
         rank(0.0), success(false) {}
 };

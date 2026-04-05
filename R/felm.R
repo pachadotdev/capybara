@@ -237,21 +237,22 @@ felm <- function(
   # Determine fast vs slow path
   use_fast <- FALSE
   if (length(rhs_labels) > 0L) {
-    rhs_vars <- all.vars(parse(text = paste(rhs_labels, collapse = "+")))
-    rhs_vars <- rhs_vars[rhs_vars %in% colnames(data)]
-    all_numeric <- length(rhs_vars) > 0L &&
-      all(vapply(data[, rhs_vars, with = FALSE], is.numeric, logical(1)))
-    has_special <- any(grepl("factor|poly|ns\\(|bs\\(|strata", rhs_labels))
-    has_interaction <- any(grepl(":", rhs_labels, fixed = TRUE))
-    use_fast <- all_numeric && !has_special && !has_interaction
+    # Fast path only when all rhs terms are plain column names (no transformations)
+    all_are_columns <- all(rhs_labels %in% colnames(data))
+    if (all_are_columns) {
+      all_numeric <- all(vapply(data[, rhs_labels, with = FALSE], is.numeric, logical(1)))
+      has_interaction <- any(grepl(":", rhs_labels, fixed = TRUE))
+      use_fast <- all_numeric && !has_interaction
+    }
   }
 
   if (use_fast) {
-    # Fast path: extract columns directly
-    X <- vapply(rhs_labels, function(label) {
-      eval(str2lang(label), data)
-    }, FUN.VALUE = numeric(nt))
-    if (!is.matrix(X)) X <- matrix(X, ncol = 1L)
+    # Fast path: extract columns directly as matrix (more efficient than vapply)
+    if (length(rhs_labels) == 1L) {
+      X <- matrix(data[[rhs_labels]], ncol = 1L)
+    } else {
+      X <- as.matrix(data[, rhs_labels, with = FALSE])
+    }
     nms_sp <- rhs_labels
   } else {
     # Slow path: model.frame + model.matrix
@@ -296,13 +297,22 @@ felm <- function(
   }
   had_cluster <- !is.null(cl_col) || !is.null(entity1_col)
 
-  # Drop data early if not keeping ----
+  # Store data for output ----
   data_for_output <- if (control[["keep_data"]]) data else NULL
   rn_for_output <- attr(data, ".rownames")
   data <- NULL  # Allow GC
 
   # FIT MODEL ----
   fit <- felm_fit_(X, y, w, fe_cols, cl_col, entity1_col, entity2_col, control)
+  
+  # Free large input objects immediately after C++ call
+  X <- NULL
+  y <- NULL
+  w <- NULL
+  fe_cols <- NULL
+  cl_col <- NULL
+  entity1_col <- NULL
+  entity2_col <- NULL
 
   # Post-processing ----
   nobs_na <- nobs_full - fit[["nobs_used"]]
@@ -322,9 +332,13 @@ felm <- function(
     nms_sp <- c("(Intercept)", nms_sp)
   }
   dimnames(fit[["coef_table"]]) <- list(nms_sp, c("Estimate", "Std. Error", "z value", "Pr(>|z|)"))
-  dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
-  dimnames(fit[["vcov"]]) <- list(nms_sp, nms_sp)
-  if (control[["keep_tx"]]) {
+  if (!is.null(fit[["hessian"]])) {
+    dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
+  }
+  if (!is.null(fit[["vcov"]])) {
+    dimnames(fit[["vcov"]]) <- list(nms_sp, nms_sp)
+  }
+  if (control[["keep_tx"]] && !is.null(fit[["tx"]]) && is.matrix(fit[["tx"]])) {
     colnames(fit[["tx"]]) <- nms_sp
   }
 

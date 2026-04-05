@@ -9,6 +9,16 @@
 
 #ifdef CAPYBARA_DEBUG
 #include <chrono>
+#include <fstream>
+#include <sstream>
+#if defined(__unix__) || defined(__unix) || defined(__APPLE__)
+#include <sys/resource.h>
+#include <unistd.h>
+#endif
+#ifdef _WIN32
+#include <psapi.h>
+#include <windows.h>
+#endif
 #endif
 
 using cpp4r::doubles;
@@ -37,6 +47,48 @@ inline void set_omp_threads_from_config() {
   }
 }
 #endif
+
+#ifdef CAPYBARA_DEBUG
+// Get current memory usage in MB
+inline double get_memory_usage_mb() {
+#if defined(__linux__)
+  // Linux: read from /proc/self/status for RSS (Resident Set Size)
+  std::ifstream status_file("/proc/self/status");
+  std::string line;
+  while (std::getline(status_file, line)) {
+    if (line.substr(0, 6) == "VmRSS:") {
+      std::istringstream iss(line);
+      std::string label;
+      long mem_kb;
+      std::string unit;
+      iss >> label >> mem_kb >> unit;
+      return mem_kb / 1024.0; // Convert KB to MB
+    }
+  }
+  return -1.0; // Could not read
+#elif defined(__APPLE__)
+  // macOS: use getrusage
+  struct rusage usage;
+  if (getrusage(RUSAGE_SELF, &usage) == 0) {
+    // ru_maxrss is in bytes on macOS
+    return usage.ru_maxrss / (1024.0 * 1024.0); // Convert bytes to MB
+  }
+  return -1.0;
+#elif defined(_WIN32)
+  // Windows: use GetProcessMemoryInfo
+  PROCESS_MEMORY_COUNTERS_EX pmc;
+  if (GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS *)&pmc,
+                           sizeof(pmc))) {
+    return pmc.WorkingSetSize / (1024.0 * 1024.0); // Convert bytes to MB
+  }
+  return -1.0;
+#else
+  // Unsupported platform
+  return -1.0;
+#endif
+}
+#endif
+
 } // namespace capybara
 
 // Passing parameters from R to C++ functions
@@ -44,7 +96,6 @@ inline void set_omp_threads_from_config() {
 struct CapybaraParameters {
   double dev_tol;
   double center_tol;
-  double center_tol_loose;
   double collin_tol;
   double step_halving_factor;
   double alpha_tol;
@@ -81,21 +132,21 @@ struct CapybaraParameters {
   // Variance-covariance estimator type
   std::string vcov_type;
 
-  CapybaraParameters()
-      : dev_tol(1.0e-08), center_tol(1.0e-08), center_tol_loose(1.0e-04),
-        collin_tol(1.0e-10), step_halving_factor(0.5), alpha_tol(1.0e-08),
-        sep_tol(1.0e-08), sep_zero_tol(1.0e-12), sep_max_iter(200),
-        sep_simplex_max_iter(2000), check_separation(true), sep_use_relu(true),
-        sep_use_simplex(true), iter_max(25), iter_center_max(10000),
-        iter_inner_max(50), iter_alpha_max(10000), return_fe(true),
-        keep_tx(false), return_hessian(true), step_halving_memory(0.9),
-        max_step_halving(2), start_inner_tol(1e-06), grand_acc_period(10),
-        centering("stammann"), vcov_type("") {}
+  // Average Partial Effects computation
+  bool compute_apes;
+  size_t ape_n_pop;                // 0 = no finite population correction
+  std::string ape_panel_structure; // "classic" or "network"
+  std::string ape_sampling_fe;     // "independence" or "unrestricted"
+  bool ape_weak_exo;
+
+  // Bias correction (Fernández-Val & Weidner 2016)
+  bool compute_bias_corr;
+  size_t bias_corr_bandwidth;            // L parameter (0 = strict exogeneity)
+  std::string bias_corr_panel_structure; // "classic" or "network"
 
   explicit CapybaraParameters(const cpp4r::list &control) {
     dev_tol = as_cpp<double>(control["dev_tol"]);
     center_tol = as_cpp<double>(control["center_tol"]);
-    center_tol_loose = as_cpp<double>(control["center_tol_loose"]);
     collin_tol = as_cpp<double>(control["collin_tol"]);
     step_halving_factor = as_cpp<double>(control["step_halving_factor"]);
     alpha_tol = as_cpp<double>(control["alpha_tol"]);
@@ -133,7 +184,7 @@ struct CapybaraParameters {
     if (centering_sexp != R_NilValue) {
       centering = as_cpp<std::string>(centering_sexp);
     } else {
-      centering = "stammann";
+      centering = "berge";
     }
 
     // Extract vcov_type (optional string parameter)
@@ -142,6 +193,65 @@ struct CapybaraParameters {
       vcov_type = as_cpp<std::string>(vcov_type_sexp);
     } else {
       vcov_type = "";
+    }
+
+    // Extract compute_apes (optional, default false)
+    SEXP compute_apes_sexp = control["compute_apes"];
+    if (compute_apes_sexp != R_NilValue) {
+      compute_apes = as_cpp<bool>(compute_apes_sexp);
+    } else {
+      compute_apes = false;
+    }
+
+    // Extract APE variance parameters
+    SEXP ape_n_pop_sexp = control["ape_n_pop"];
+    if (ape_n_pop_sexp != R_NilValue && !Rf_isNull(ape_n_pop_sexp)) {
+      ape_n_pop = as_cpp<size_t>(ape_n_pop_sexp);
+    } else {
+      ape_n_pop = 0; // no finite population correction
+    }
+
+    SEXP ape_panel_sexp = control["ape_panel_structure"];
+    if (ape_panel_sexp != R_NilValue) {
+      ape_panel_structure = as_cpp<std::string>(ape_panel_sexp);
+    } else {
+      ape_panel_structure = "classic";
+    }
+
+    SEXP ape_sampling_sexp = control["ape_sampling_fe"];
+    if (ape_sampling_sexp != R_NilValue) {
+      ape_sampling_fe = as_cpp<std::string>(ape_sampling_sexp);
+    } else {
+      ape_sampling_fe = "independence";
+    }
+
+    SEXP ape_weak_sexp = control["ape_weak_exo"];
+    if (ape_weak_sexp != R_NilValue) {
+      ape_weak_exo = as_cpp<bool>(ape_weak_sexp);
+    } else {
+      ape_weak_exo = false;
+    }
+
+    // Extract bias correction parameters
+    SEXP compute_bias_corr_sexp = control["compute_bias_corr"];
+    if (compute_bias_corr_sexp != R_NilValue) {
+      compute_bias_corr = as_cpp<bool>(compute_bias_corr_sexp);
+    } else {
+      compute_bias_corr = false;
+    }
+
+    SEXP bias_corr_bw_sexp = control["bias_corr_bandwidth"];
+    if (bias_corr_bw_sexp != R_NilValue) {
+      bias_corr_bandwidth = as_cpp<size_t>(bias_corr_bw_sexp);
+    } else {
+      bias_corr_bandwidth = 0;
+    }
+
+    SEXP bias_corr_panel_sexp = control["bias_corr_panel_structure"];
+    if (bias_corr_panel_sexp != R_NilValue) {
+      bias_corr_panel_structure = as_cpp<std::string>(bias_corr_panel_sexp);
+    } else {
+      bias_corr_panel_structure = "classic";
     }
   }
 };
@@ -162,8 +272,11 @@ struct CapybaraParameters {
 #include "05_04_separation.h"
 
 #include "06_01_fit_helpers.h"
-#include "06_02_fit_vcov.h"
-#include "06_03_fit_sums.h"
+#include "06_02_fit_deviance.h"
+#include "06_03_fit_links.h"
+#include "06_04_fit_separation.h"
+#include "06_05_fit_vcov.h"
+#include "06_06_fit_sums.h"
 
 #include "07_lm.h"
 #include "08_glm.h"
@@ -856,7 +969,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   }
 
   if (params.keep_tx && result.has_tx) {
-    ret.push_back({"TX"_nm = as_doubles_matrix(result.TX)});
+    ret.push_back({"tx"_nm = as_doubles_matrix(result.TX)});
   }
 
   // Add metadata for R-side post-processing
@@ -931,9 +1044,9 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
   }
 
   // Safety net: if eta contains non-finite values (e.g. because
-  // start_guesses_ computed log(NA) when y had NA values that
-  // prepare_raw_data subsequently removed), replace with a reasonable
-  // starting value derived from the clean y
+  // R-side computed log(NA) when y had NA values that prepare_raw_data
+  // subsequently removed), replace with a reasonable starting value
+  // derived from the clean y
   if (eta.n_elem > 0) {
     uvec bad_eta = find_nonfinite(eta);
     if (bad_eta.n_elem > 0) {
@@ -1057,7 +1170,23 @@ feglm_fit_(const doubles &beta_r, const doubles &eta_r, const doubles &y_r,
   }
 
   if (params.keep_tx && result.has_tx) {
-    out.push_back({"TX"_nm = as_doubles_matrix(result.TX)});
+    out.push_back({"tx"_nm = as_doubles_matrix(result.TX)});
+  }
+
+  // Add APE results if computed (binomial models with compute_apes=TRUE)
+  if (result.has_apes && result.ape_delta.n_elem > 0) {
+    out.push_back({"ape_delta"_nm = as_doubles(result.ape_delta)});
+    out.push_back({"ape_vcov"_nm = as_doubles_matrix(result.ape_vcov)});
+    out.push_back({"ape_binary"_nm = as_integers(result.ape_binary)});
+    out.push_back({"has_apes"_nm = writable::logicals({true})});
+  }
+
+  // Add bias correction results if computed (binomial models with
+  // compute_bias_corr=TRUE)
+  if (result.has_bias_corr && result.beta_corrected.n_elem > 0) {
+    out.push_back({"beta_corrected"_nm = as_doubles(result.beta_corrected)});
+    out.push_back({"bias_term"_nm = as_doubles(result.bias_term)});
+    out.push_back({"has_bias_corr"_nm = writable::logicals({true})});
   }
 
   // Add metadata for R-side post-processing
@@ -1191,73 +1320,4 @@ fenegbin_fit_(const doubles_matrix<> &X_r, const doubles &y_r,
                             data.obs_indices, all_valid);
 
   return out;
-}
-
-[[cpp4r::register]] doubles_matrix<> group_sums_(const doubles_matrix<> &M_r,
-                                                 const doubles_matrix<> &w_r,
-                                                 const list &jlist) {
-  const mat M = as_mat(M_r);
-  const vec w = vectorise(as_mat(w_r));
-
-  const size_t J = jlist.size();
-  field<uvec> group_indices(J);
-
-  for (size_t j = 0; j < J; ++j) {
-    group_indices(j) =
-        R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
-  }
-
-  return as_doubles_matrix(capybara::group_sums(M, w, group_indices));
-}
-
-[[cpp4r::register]] doubles_matrix<>
-group_sums_spectral_(const doubles_matrix<> &M_r, const doubles_matrix<> &v_r,
-                     const doubles_matrix<> &w_r, const size_t K,
-                     const list &jlist) {
-  const mat M = as_mat(M_r);
-  const vec v = vectorise(as_mat(v_r));
-  const vec w = vectorise(as_mat(w_r));
-
-  const size_t J = jlist.size();
-  field<uvec> group_indices(J);
-
-  for (size_t j = 0; j < J; ++j) {
-    group_indices(j) =
-        R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
-  }
-
-  return as_doubles_matrix(
-      capybara::group_sums_spectral(M, v, w, K, group_indices));
-}
-
-[[cpp4r::register]] doubles_matrix<>
-group_sums_var_(const doubles_matrix<> &M_r, const list &jlist) {
-  const mat M = as_mat(M_r);
-
-  const size_t J = jlist.size();
-  field<uvec> group_indices(J);
-
-  for (size_t j = 0; j < J; ++j) {
-    group_indices(j) =
-        R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
-  }
-
-  return as_doubles_matrix(capybara::group_sums_var(M, group_indices));
-}
-
-[[cpp4r::register]] doubles_matrix<>
-group_sums_cov_(const doubles_matrix<> &M_r, const doubles_matrix<> &N_r,
-                const list &jlist) {
-  const mat M = as_mat(M_r);
-  const mat N = as_mat(N_r);
-
-  const size_t J = jlist.size();
-  field<uvec> group_indices(J);
-
-  for (size_t j = 0; j < J; ++j) {
-    group_indices(j) =
-        R_1based_to_Cpp_0based_indices(as_cpp<integers>(jlist[j]));
-  }
-
-  return as_doubles_matrix(capybara::group_sums_cov(M, N, group_indices));
 }

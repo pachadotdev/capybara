@@ -93,15 +93,15 @@ test_that("model works with different numbers of fixed effects", {
   skip_on_cran()
 
   # Single FE
-  mod1 <- fepoisson(mpg ~ wt | cyl, mtcars)
+  mod1 <- fepoisson(mpg ~ wt | cyl, mtcars, control = fit_control(return_fe = TRUE))
   expect_equal(length(mod1$fixed_effects), 1)
 
   # Multiple FEs
-  mod2 <- fepoisson(mpg ~ wt | cyl + am, mtcars)
+  mod2 <- fepoisson(mpg ~ wt | cyl + am, mtcars, control = fit_control(return_fe = TRUE))
   expect_equal(length(mod2$fixed_effects), 2)
 
   # Three FEs
-  mod3 <- fepoisson(mpg ~ wt | cyl + am + gear, mtcars)
+  mod3 <- fepoisson(mpg ~ wt | cyl + am + gear, mtcars, control = fit_control(return_fe = TRUE))
   expect_equal(length(mod3$fixed_effects), 3)
 })
 
@@ -137,7 +137,7 @@ test_that("model handles factor variables correctly", {
   mtcars2$cyl <- factor(mtcars2$cyl)
   mtcars2$am <- factor(mtcars2$am)
 
-  mod <- fepoisson(mpg ~ wt | cyl + am, mtcars2)
+  mod <- fepoisson(mpg ~ wt | cyl + am, mtcars2, control = fit_control(return_fe = TRUE))
 
   expect_s3_class(mod, "feglm")
   expect_equal(length(mod$fixed_effects), 2)
