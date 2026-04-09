@@ -200,60 +200,61 @@ feglm <- function(
     formula_vars
   }
 
-  # Extract offset before subsetting ----
-  offset_vec <- extract_offset_(offset, data, nrow(data))
+  # Convert to data.table for check_response_ ----
+  lhs <- formula_vars[1L]
+  
+  # Preserve original row names before conversion ----
+  orig_rownames <- rownames(data)
+  if (is.null(orig_rownames)) {
+    orig_rownames <- as.character(seq_len(nrow(data)))
+  }
+  
+  if (!inherits(data, "data.table")) {
+    data <- as.data.table(data)
+  }
 
-  # Prepare data (subset, convert, handle units, remove NAs) ----
-  weights_vec <- if (is.numeric(weights)) weights else NULL
-  prep <- prepare_data_(data, needed_cols, offset_vec, weights_vec)
-  data <- prep$data
-  lhs <- prep$lhs
-  nobs_full <- prep$nobs_full
-  complete_idx <- prep$complete_idx
-  offset_vec <- prep$offset_vec
-
-  # Check response validity ----
+  # Validate response for the given family ----
   check_response_(data, lhs, family)
 
-  # Get FE and cluster variable names ----
+  # Convert formula to string for C++ ----
+  formula_str <- Reduce(paste, deparse(formula))
+
+  # Extract offset before fitting ----
+  offset_vec <- extract_offset_(offset, data, nrow(data))
+  if (is.null(offset_vec)) offset_vec <- numeric(0)
+
+  # Extract weights vector ----
+  wt <- if (is.null(weights)) {
+    numeric(0)
+  } else if (is.numeric(weights)) {
+    weights
+  } else if (is.character(weights) && length(weights) == 1L) {
+    data[[weights]]
+  } else if (inherits(weights, "formula")) {
+    data[[all.vars(weights)]]
+  } else {
+    stop("'weights' must be NULL, a numeric vector, a column name, or a formula", call. = FALSE)
+  }
+  if (length(wt) > 0L) check_weights_(wt)
+
+  # Store original row count for later ----
+  nobs_full <- nrow(data)
+
+  # Get FE and cluster variable names from formula ----
   vars <- get_fe_cl_vars_(formula)
   fe_vars <- vars$fe_vars
   cl_vars <- vars$cl_vars
 
-  # Current number of observations ----
-  nt <- nrow(data)
+  # Number of columns in design matrix (for beta initialization)
+  # This is a rough estimate from formula
+  f1 <- formula(formula, lhs = 1L, rhs = 1L)
+  tt <- terms(f1)
+  rhs_labels <- attr(tt, "term.labels")
+  p <- length(rhs_labels)
+  if (p == 0L) p <- 1L  # intercept only
 
-  # Extract response ----
-  y <- extract_response_(data, formula)
-
-  # Extract weights ----
-  wt <- extract_weights_(weights, weight_col, data, nt, nobs_full, complete_idx)
-  check_weights_(wt)
-
-  # Finalize offset ----
-  offset_vec <- finalize_offset_(offset_vec, nt)
-
-  # Build design matrix ----
-  dm <- build_design_matrix_(data, formula)
-  X <- dm$X
-  nms_sp <- dm$nms_sp
-  p <- dm$p
-
-  # Extract FE columns ----
-  fe_cols <- extract_fe_cols_(data, fe_vars)
-
-  # Extract cluster columns ----
-  cl_result <- extract_cluster_cols_(data, cl_vars, vcov_label, control)
-  cl_col <- cl_result$cl_col
-  entity1_col <- cl_result$entity1_col
-  entity2_col <- cl_result$entity2_col
-  had_cluster <- cl_result$had_cluster
-  control <- cl_result$control
-
-  # Store data for output ----
-  data_for_output <- if (control[["keep_data"]]) data else NULL
-  rn_for_output <- attr(data, ".rownames")
-  data <- NULL  # Allow GC
+  # nt for eta initialization
+  nt <- nobs_full
 
   # Starting guesses ----
   if (!is.null(beta_start) && !is.null(eta_start)) {
@@ -265,7 +266,7 @@ feglm <- function(
       stop("Length of 'beta_start' has to be equal to the number of structural parameters.", call. = FALSE)
     }
     beta <- beta_start
-    eta <- X %*% beta
+    eta <- numeric(0)  # Will be computed in C++
   } else if (!is.null(eta_start)) {
     if (length(eta_start) != nt) {
       stop("Length of 'eta_start' has to be equal to the number of observations.", call. = FALSE)
@@ -274,36 +275,38 @@ feglm <- function(
     eta <- eta_start
   } else {
     beta <- numeric(p)
+    # Initialize eta with link of mean y
+    # Convert to numeric to handle units columns
+    y_temp <- as.numeric(data[[all.vars(formula)[1]]])
+    wt_temp <- if (length(wt) > 0L) wt else rep(1.0, nt)
+    
     if (family[["family"]] == "binomial") {
-      eta <- rep(family[["linkfun"]](sum(wt * (y + 0.5) / 2.0, na.rm = TRUE) / sum(wt[is.finite(y)])), nt)
+      # For binomial, y should be in [0, 1]
+      y_mean <- pmin(pmax(mean(y_temp, na.rm = TRUE), 0.01), 0.99)
+      eta <- rep(family[["linkfun"]](y_mean), nt)
     } else if (family[["family"]] %in% c("Gamma", "inverse.gaussian")) {
-      eta <- rep(family[["linkfun"]](sum(wt * y, na.rm = TRUE) / sum(wt[is.finite(y)])), nt)
+      eta <- rep(family[["linkfun"]](sum(wt_temp * y_temp, na.rm = TRUE) / sum(wt_temp[is.finite(y_temp)])), nt)
     } else {
-      eta <- rep(family[["linkfun"]](sum(wt * (y + 0.1), na.rm = TRUE) / sum(wt[is.finite(y)])), nt)
+      eta <- rep(family[["linkfun"]](sum(wt_temp * (y_temp + 0.1), na.rm = TRUE) / sum(wt_temp[is.finite(y_temp)])), nt)
     }
   }
 
+  # Store data for output ----
+  data_for_output <- if (control[["keep_data"]]) data else NULL
+
   # FIT MODEL ----
-  
   fit <- feglm_fit_(
-    beta, eta, y, X, wt, offset_vec, 0.0,
-    family[["family"]], control, fe_cols,
-    cl_col, entity1_col, entity2_col
+    formula_str, data, beta, eta, wt, offset_vec,
+    0.0, family[["family"]], control
   )
-  
+
   # Free large input objects immediately after C++ call
-  X <- NULL
-  y <- NULL
+  data <- NULL
   wt <- NULL
   eta <- NULL
   beta <- NULL
-  fe_cols <- NULL
-  cl_col <- NULL
-  entity1_col <- NULL
-  entity2_col <- NULL
-  
+
   # Post-processing ----
-  
   nobs_na <- nobs_full - fit[["nobs_used"]]
   num_separated <- if (isTRUE(fit$has_separation) && !is.null(fit$separated_obs)) {
     length(fit$separated_obs)
@@ -321,6 +324,13 @@ feglm <- function(
 
   nms_fe <- fit[["nms_fe"]]
   fe_levels <- fit[["fe_levels"]]
+
+  # Get term names from C++ result ----
+  nms_sp <- if (!is.null(fit[["term_names"]])) {
+    fit[["term_names"]]
+  } else {
+    paste0("V", seq_len(nrow(fit[["coef_table"]])))
+  }
 
   # Add names to outputs ----
   if (length(fe_vars) == 0L) {
@@ -340,22 +350,16 @@ feglm <- function(
 
   # Set fitted_values names ----
   if (!is.null(fit[["obs_indices"]])) {
-    if (!is.null(rn_for_output)) {
-      names(fit[["fitted_values"]]) <- rn_for_output[fit[["obs_indices"]]]
-      rn_for_output <- rn_for_output[fit[["obs_indices"]]]
-    } else {
-      names(fit[["fitted_values"]]) <- fit[["obs_indices"]]
-    }
+    # Use original row names at the kept indices
+    used_rownames <- orig_rownames[fit[["obs_indices"]]]
+    names(fit[["fitted_values"]]) <- used_rownames
+    fit[[".rownames"]] <- used_rownames
     if (!is.null(data_for_output)) {
-      data_for_output <- data_for_output[fit[["obs_indices"]]]
-      attr(data_for_output, ".rownames") <- rn_for_output
+      data_for_output <- data_for_output[fit[["obs_indices"]], ]
     }
   } else {
-    if (!is.null(rn_for_output)) {
-      names(fit[["fitted_values"]]) <- rn_for_output
-    } else {
-      names(fit[["fitted_values"]]) <- seq_along(fit[["fitted_values"]])
-    }
+    names(fit[["fitted_values"]]) <- orig_rownames
+    fit[[".rownames"]] <- orig_rownames
   }
 
   # Add separation info if present ----
@@ -369,13 +373,13 @@ feglm <- function(
   # Clean up C++ internal fields ----
   fit[["obs_indices"]] <- NULL
   fit[["nobs_used"]] <- NULL
+  fit[["term_names"]] <- NULL
 
   # Build result ----
   fit[["nobs"]] <- nobs
   fit[["fe_levels"]] <- fe_levels
   fit[["nms_fe"]] <- nms_fe
   fit[["formula"]] <- formula
-  fit[[".rownames"]] <- rn_for_output
   if (control[["keep_data"]]) {
     fit[["data"]] <- data_for_output
   }
@@ -386,7 +390,7 @@ feglm <- function(
   fit[["vcov_type"]] <- if (!is.null(vcov_label)) {
     vcov_label
   } else {
-    if (had_cluster) {
+    if (length(cl_vars) > 0L) {
       if (!is.null(control$vcov_type)) control$vcov_type else "cluster"
     } else {
       "iid"

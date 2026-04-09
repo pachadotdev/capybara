@@ -149,62 +149,47 @@ felm <- function(
     formula_vars
   }
 
-  # Prepare data (subset, convert, handle units, remove NAs) ----
-  weights_vec <- if (is.numeric(weights)) weights else NULL
-  prep <- prepare_data_(data, needed_cols, weights_vec = weights_vec)
-  data <- prep$data
-  lhs <- prep$lhs
-  nobs_full <- prep$nobs_full
-  complete_idx <- prep$complete_idx
-  rn_for_output <- attr(data, ".rownames")
+  # Preserve original row names ----
+  orig_rownames <- rownames(data)
+  if (is.null(orig_rownames)) {
+    orig_rownames <- as.character(seq_len(nrow(data)))
+  }
 
-  # Get FE and cluster variable names ----
+  # Convert formula to string for C++ ----
+  formula_str <- Reduce(paste, deparse(formula))
+
+  # Extract weights vector ----
+  w <- if (is.null(weights)) {
+    numeric(0)
+  } else if (is.numeric(weights)) {
+    weights
+  } else if (is.character(weights) && length(weights) == 1L) {
+    data[[weights]]
+  } else if (inherits(weights, "formula")) {
+    data[[all.vars(weights)]]
+  } else {
+    stop("'weights' must be NULL, a numeric vector, a column name, or a formula", call. = FALSE)
+  }
+  if (length(w) > 0L) check_weights_(w)
+
+  # Store original row count for later ----
+  nobs_full <- nrow(data)
+
+  # Store data for output if needed ----
+  data_for_output <- if (control[["keep_data"]]) data else NULL
+
+  # FIT MODEL ----
+  fit <- felm_fit_(formula_str, data, w, control)
+
+  # Free data for GC
+  data <- NULL
+  w <- NULL
+
+  # Get FE and cluster variable names from formula ----
   vars <- get_fe_cl_vars_(formula)
   fe_vars <- vars$fe_vars
   cl_vars <- vars$cl_vars
-
-  # Current number of observations ----
-  nt <- nrow(data)
-
-  # Extract response ----
-  y <- extract_response_(data, formula)
-
-  # Extract weights ----
-  w <- extract_weights_(weights, weight_col, data, nt, nobs_full, complete_idx)
-  check_weights_(w)
-
-  # Build design matrix ----
-  dm <- build_design_matrix_(data, formula)
-  X <- dm$X
-  nms_sp <- dm$nms_sp
-
-  # Extract FE columns ----
-  fe_cols <- extract_fe_cols_(data, fe_vars)
-
-  # Extract cluster columns (felm supports two-way clustering) ----
-  cl_result <- extract_cluster_cols_(data, cl_vars, vcov_label, control,
-                                      allow_two_way = TRUE)
-  cl_col <- cl_result$cl_col
-  entity1_col <- cl_result$entity1_col
-  entity2_col <- cl_result$entity2_col
-  had_cluster <- cl_result$had_cluster
-  control <- cl_result$control
-
-  # Store data for output ----
-  data_for_output <- if (control[["keep_data"]]) data else NULL
-  data <- NULL  # Allow GC
-
-  # FIT MODEL ----
-  fit <- felm_fit_(X, y, w, fe_cols, cl_col, entity1_col, entity2_col, control)
-  
-  # Free large input objects immediately after C++ call
-  X <- NULL
-  y <- NULL
-  w <- NULL
-  fe_cols <- NULL
-  cl_col <- NULL
-  entity1_col <- NULL
-  entity2_col <- NULL
+  vcov_label <- vcov_result$vcov_label
 
   # Post-processing ----
   nobs_na <- nobs_full - fit[["nobs_used"]]
@@ -218,6 +203,13 @@ felm <- function(
 
   nms_fe <- fit[["nms_fe"]]
   fe_levels <- fit[["fe_levels"]]
+
+  # Get term names from C++ result ----
+  nms_sp <- if (!is.null(fit[["term_names"]])) {
+    fit[["term_names"]]
+  } else {
+    paste0("V", seq_len(ncol(fit[["coef_table"]])))
+  }
 
   # Add names to outputs ----
   if (length(fe_vars) == 0L) {
@@ -236,27 +228,21 @@ felm <- function(
 
   # Set fitted_values names ----
   if (!is.null(fit[["obs_indices"]])) {
-    if (!is.null(rn_for_output)) {
-      names(fit[["fitted_values"]]) <- rn_for_output[fit[["obs_indices"]]]
-      rn_for_output <- rn_for_output[fit[["obs_indices"]]]
-    } else {
-      names(fit[["fitted_values"]]) <- fit[["obs_indices"]]
-    }
+    used_rownames <- orig_rownames[fit[["obs_indices"]]]
+    names(fit[["fitted_values"]]) <- used_rownames
+    fit[[".rownames"]] <- used_rownames
     if (!is.null(data_for_output)) {
-      data_for_output <- data_for_output[fit[["obs_indices"]]]
-      attr(data_for_output, ".rownames") <- rn_for_output
+      data_for_output <- data_for_output[fit[["obs_indices"]], ]
     }
   } else {
-    if (!is.null(rn_for_output)) {
-      names(fit[["fitted_values"]]) <- rn_for_output
-    } else {
-      names(fit[["fitted_values"]]) <- seq_along(fit[["fitted_values"]])
-    }
+    names(fit[["fitted_values"]]) <- orig_rownames
+    fit[[".rownames"]] <- orig_rownames
   }
 
   # Clean up C++ internal fields ----
   fit[["obs_indices"]] <- NULL
   fit[["nobs_used"]] <- NULL
+  fit[["term_names"]] <- NULL
 
   # Build result ----
   fit[["nobs"]] <- nobs
@@ -270,7 +256,7 @@ felm <- function(
   fit[["vcov_type"]] <- if (!is.null(vcov_label)) {
     vcov_label
   } else {
-    if (had_cluster) {
+    if (length(cl_vars) > 0L) {
       if (!is.null(control$vcov_type)) control$vcov_type else "cluster"
     } else {
       "iid"

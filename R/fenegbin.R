@@ -141,62 +141,38 @@ fenegbin <- function(
   # Check validity of control + Extract control list ----
   control <- check_control_(control)
 
-  # Determine needed columns ----
-  formula_vars <- all.vars(formula)
-  weight_col <- extract_weight_col_(weights)
-  needed_cols <- if (!is.null(weight_col)) {
-    c(formula_vars, weight_col)
-  } else {
-    formula_vars
+  # Preserve original row names ----
+  orig_rownames <- rownames(data)
+  if (is.null(orig_rownames)) {
+    orig_rownames <- as.character(seq_len(nrow(data)))
   }
 
-  # Extract offset before subsetting ----
+  # Convert formula to string for C++ ----
+  formula_str <- Reduce(paste, deparse(formula))
+
+  # Extract offset before fitting ----
   offset_vec <- extract_offset_(offset, data, nrow(data))
+  if (is.null(offset_vec)) offset_vec <- numeric(0)
 
-  # Prepare data (subset, convert, handle units, remove NAs) ----
-  weights_vec <- if (is.numeric(weights)) weights else NULL
-  prep <- prepare_data_(data, needed_cols, offset_vec, weights_vec)
-  data <- prep$data
-  lhs <- prep$lhs
-  nobs_full <- prep$nobs_full
-  complete_idx <- prep$complete_idx
-  offset_vec <- prep$offset_vec
-  rn_for_output <- attr(data, ".rownames")
+  # Extract weights vector ----
+  w <- if (is.null(weights)) {
+    numeric(0)
+  } else if (is.numeric(weights)) {
+    weights
+  } else if (is.character(weights) && length(weights) == 1L) {
+    data[[weights]]
+  } else if (inherits(weights, "formula")) {
+    data[[all.vars(weights)]]
+  } else {
+    stop("'weights' must be NULL, a numeric vector, a column name, or a formula", call. = FALSE)
+  }
+  if (length(w) > 0L) check_weights_(w)
 
-  # Create a dummy family for response checking
-  family <- poisson(link = link)
-
-  # Ensure that model response is in line with the chosen model ----
-  check_response_(data, lhs, family)
+  # Store original row count for later ----
+  nobs_full <- nrow(data)
 
   # Get FE variable names ----
   fe_vars <- check_fe_(formula, data)
-
-  # Current number of observations ----
-  nt <- nrow(data)
-
-  # Extract response ----
-  y <- data[[lhs]]
-  if (is.integer(y)) y <- as.numeric(y)
-
-  # Extract weights ----
-  w <- extract_weights_(weights, weight_col, data, nt, nobs_full, complete_idx)
-  check_weights_(w)
-
-  # Finalize offset ----
-  offset_vec <- finalize_offset_(offset_vec, nt)
-
-  # Build design matrix ----
-  dm <- build_design_matrix_(data, formula)
-  X <- dm$X
-  nms_sp <- dm$nms_sp
-
-  # Extract FE columns ----
-  fe_cols <- extract_fe_cols_(data, fe_vars)
-
-  # Store data for output ----
-  data_for_output <- if (control[["keep_data"]]) data else NULL
-  data <- NULL  # Allow GC
 
   # Starting guesses ----
   beta <- if (!is.null(beta_start)) as.numeric(beta_start) else numeric(0)
@@ -211,17 +187,18 @@ fenegbin <- function(
     }
   }
 
+  # Store data for output ----
+  data_for_output <- if (control[["keep_data"]]) data else NULL
+
   # FIT MODEL ----
   fit <- structure(
-    fenegbin_fit_(X, y, w, fe_cols, link, beta, eta_vec, init_theta, offset_vec, control),
+    fenegbin_fit_(formula_str, data, w, link, beta, eta_vec, init_theta, offset_vec, control),
     class = c("feglm", "fenegbin")
   )
-  
+
   # Free large input objects immediately after C++ call
-  X <- NULL
-  y <- NULL
+  data <- NULL
   w <- NULL
-  fe_cols <- NULL
   beta <- NULL
   eta_vec <- NULL
 
@@ -243,6 +220,13 @@ fenegbin <- function(
     cat("Algorithm did not converge.\n")
   }
 
+  # Get term names from C++ result ----
+  nms_sp <- if (!is.null(fit[["term_names"]])) {
+    fit[["term_names"]]
+  } else {
+    paste0("V", seq_len(nrow(fit[["coef_table"]])))
+  }
+
   # Add names to outputs ----
   dimnames(fit[["coef_table"]]) <- list(nms_sp, c("Estimate", "Std. Error", "z value", "Pr(>|z|)"))
   if (control[["keep_tx"]] && !is.null(fit[["tx"]]) && is.matrix(fit[["tx"]])) {
@@ -257,27 +241,21 @@ fenegbin <- function(
 
   # Set fitted_values names ----
   if (!is.null(fit[["obs_indices"]])) {
-    if (!is.null(rn_for_output)) {
-      names(fit[["fitted_values"]]) <- rn_for_output[fit[["obs_indices"]]]
-      rn_for_output <- rn_for_output[fit[["obs_indices"]]]
-    } else {
-      names(fit[["fitted_values"]]) <- fit[["obs_indices"]]
-    }
+    used_rownames <- orig_rownames[fit[["obs_indices"]]]
+    names(fit[["fitted_values"]]) <- used_rownames
+    fit[[".rownames"]] <- used_rownames
     if (!is.null(data_for_output)) {
-      data_for_output <- data_for_output[fit[["obs_indices"]]]
-      attr(data_for_output, ".rownames") <- rn_for_output
+      data_for_output <- data_for_output[fit[["obs_indices"]], ]
     }
   } else {
-    if (!is.null(rn_for_output)) {
-      names(fit[["fitted_values"]]) <- rn_for_output
-    } else {
-      names(fit[["fitted_values"]]) <- seq_along(fit[["fitted_values"]])
-    }
+    names(fit[["fitted_values"]]) <- orig_rownames
+    fit[[".rownames"]] <- orig_rownames
   }
 
   # Clean up C++ internal fields ----
   fit[["obs_indices"]] <- NULL
   fit[["nobs_used"]] <- NULL
+  fit[["term_names"]] <- NULL
 
   # Build result ----
   fit[["nobs"]] <- nobs
