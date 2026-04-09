@@ -143,14 +143,7 @@ fenegbin <- function(
 
   # Determine needed columns ----
   formula_vars <- all.vars(formula)
-  weight_col <- NULL
-  if (!is.null(weights)) {
-    if (is.character(weights) && length(weights) == 1L) {
-      weight_col <- weights
-    } else if (inherits(weights, "formula")) {
-      weight_col <- all.vars(weights)
-    }
-  }
+  weight_col <- extract_weight_col_(weights)
   needed_cols <- if (!is.null(weight_col)) {
     c(formula_vars, weight_col)
   } else {
@@ -158,55 +151,17 @@ fenegbin <- function(
   }
 
   # Extract offset before subsetting ----
-  offset_vec <- NULL
-  if (!is.null(offset)) {
-    if (inherits(offset, "formula")) {
-      offset_vars <- attr(terms(offset, data = data), "term.labels")
-      if (length(offset_vars) != 1L) {
-        stop("Offset formula must specify exactly one term.", call. = FALSE)
-      }
-      offset_vec <- eval(parse(text = offset_vars), envir = data)
-    } else if (is.numeric(offset)) {
-      offset_vec <- offset
-      if (length(offset_vec) != nrow(data)) {
-        stop("Length of offset must equal number of observations.", call. = FALSE)
-      }
-    } else {
-      stop("Offset must be NULL, a formula, or a numeric vector.", call. = FALSE)
-    }
-  }
+  offset_vec <- extract_offset_(offset, data, nrow(data))
 
-  # Preserve rownames before conversion ----
-  orig_rn <- rownames(data)
-
-  # Subset to needed columns ----
-  if (inherits(data, "data.table")) {
-    data <- copy(data[, needed_cols, with = FALSE])
-  } else {
-    data <- as.data.table(data[, needed_cols, drop = FALSE])
-  }
-
-  lhs <- names(data)[[1L]]
-  nobs_full <- nrow(data)
-
-  # Convert "units" columns to numeric ----
-  unit_cols <- names(data)[vapply(data, inherits, what = "units", logical(1))]
-  for (uc in unit_cols) {
-    set(data, j = uc, value = as.numeric(data[[uc]]))
-  }
-
-  # Remove NA rows early (before creating y, X) ----
-  complete_idx <- which(complete.cases(data))
-  if (length(complete_idx) < nobs_full) {
-    data <- data[complete_idx]
-    if (!is.null(orig_rn)) orig_rn <- orig_rn[complete_idx]
-    if (!is.null(offset_vec)) offset_vec <- offset_vec[complete_idx]
-  }
-
-  # Store surviving rownames ----
-  if (!is.null(orig_rn)) {
-    attr(data, ".rownames") <- orig_rn
-  }
+  # Prepare data (subset, convert, handle units, remove NAs) ----
+  weights_vec <- if (is.numeric(weights)) weights else NULL
+  prep <- prepare_data_(data, needed_cols, offset_vec, weights_vec)
+  data <- prep$data
+  lhs <- prep$lhs
+  nobs_full <- prep$nobs_full
+  complete_idx <- prep$complete_idx
+  offset_vec <- prep$offset_vec
+  rn_for_output <- attr(data, ".rownames")
 
   # Create a dummy family for response checking
   family <- poisson(link = link)
@@ -215,8 +170,7 @@ fenegbin <- function(
   check_response_(data, lhs, family)
 
   # Get FE variable names ----
-  fe_vars <- suppressWarnings(attr(terms(formula, rhs = 2L), "term.labels"))
-  if (length(fe_vars) < 1L) fe_vars <- character(0)
+  fe_vars <- check_fe_(formula, data)
 
   # Current number of observations ----
   nt <- nrow(data)
@@ -226,66 +180,22 @@ fenegbin <- function(
   if (is.integer(y)) y <- as.numeric(y)
 
   # Extract weights ----
-  if (is.null(weights)) {
-    w <- rep(1.0, nt)
-  } else if (is.numeric(weights)) {
-    if (length(weights) != nobs_full) {
-      stop("Length of weights vector must equal number of observations.", call. = FALSE)
-    }
-    w <- if (length(complete_idx) < nobs_full) weights[complete_idx] else weights
-  } else {
-    w <- data[[weight_col]]
-  }
+  w <- extract_weights_(weights, weight_col, data, nt, nobs_full, complete_idx)
   check_weights_(w)
 
-  # Extract offset ----
-  if (is.null(offset_vec)) {
-    offset_vec <- rep(0.0, nt)
-  } else if (length(offset_vec) != nt) {
-    stop("Length of offset does not match number of observations after filtering.", call. = FALSE)
-  }
+  # Finalize offset ----
+  offset_vec <- finalize_offset_(offset_vec, nt)
 
   # Build design matrix ----
-  f1 <- formula(formula, lhs = 1L, rhs = 1L)
-  tt <- terms(f1)
-  rhs_labels <- attr(tt, "term.labels")
-
-  # Determine fast vs slow path
-  use_fast <- FALSE
-  if (length(rhs_labels) > 0L) {
-    # Fast path only when all rhs terms are plain column names (no transformations)
-    all_are_columns <- all(rhs_labels %in% colnames(data))
-    if (all_are_columns) {
-      all_numeric <- all(vapply(data[, rhs_labels, with = FALSE], is.numeric, logical(1)))
-      has_interaction <- any(grepl(":", rhs_labels, fixed = TRUE))
-      use_fast <- all_numeric && !has_interaction
-    }
-  }
-
-  if (use_fast) {
-    # Fast path: extract columns directly as matrix (more efficient than vapply)
-    if (length(rhs_labels) == 1L) {
-      X <- matrix(data[[rhs_labels]], ncol = 1L)
-    } else {
-      X <- as.matrix(data[, rhs_labels, with = FALSE])
-    }
-    nms_sp <- rhs_labels
-  } else {
-    # Slow path: model.frame + model.matrix
-    mm_vars <- all.vars(f1)
-    mf <- model.frame(f1, data[, mm_vars, with = FALSE], na.action = na.pass)
-    X <- model.matrix(tt, mf)[, -1L, drop = FALSE]
-    nms_sp <- colnames(X)
-    attr(X, "dimnames") <- NULL
-  }
+  dm <- build_design_matrix_(data, formula)
+  X <- dm$X
+  nms_sp <- dm$nms_sp
 
   # Extract FE columns ----
-  fe_cols <- lapply(fe_vars, function(v) .subset2(data, v))
-  names(fe_cols) <- fe_vars
+  fe_cols <- extract_fe_cols_(data, fe_vars)
 
   # Store data for output ----
   data_for_output <- if (control[["keep_data"]]) data else NULL
-  rn_for_output <- attr(data, ".rownames")
   data <- NULL  # Allow GC
 
   # Starting guesses ----

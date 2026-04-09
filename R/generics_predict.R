@@ -43,7 +43,11 @@ predict.feglm <- function(
     all_vars <- c(pred_vars, k_vars)
 
     # Extract and prepare data
-    data <- newdata[, all_vars, drop = FALSE]
+    if (inherits(newdata, "data.table")) {
+      data <- newdata[, .SD, .SDcols = all_vars]
+    } else {
+      data <- newdata[, all_vars, drop = FALSE]
+    }
 
     # Keep track of original row indices for NA handling
     original_rows <- seq_len(nrow(data))
@@ -62,8 +66,17 @@ predict.feglm <- function(
     # Use fast path when all predictors are simple numeric columns
     if (length(pred_vars) > 0) {
       pred_cols_exist <- pred_vars[pred_vars %in% colnames(data)]
-      all_numeric <- length(pred_cols_exist) == length(pred_vars) &&
-        all(vapply(data[pred_cols_exist], is.numeric, logical(1)))
+      
+      # Get columns for numeric check - handle data.table properly
+      if (inherits(data, "data.table")) {
+        pred_data <- data[, .SD, .SDcols = pred_cols_exist]
+        all_numeric <- length(pred_cols_exist) == length(pred_vars) &&
+          all(vapply(pred_data, is.numeric, logical(1)))
+      } else {
+        all_numeric <- length(pred_cols_exist) == length(pred_vars) &&
+          all(vapply(data[pred_cols_exist], is.numeric, logical(1)))
+      }
+      
       has_special <- any(grepl("factor|poly|ns\\(|bs\\(|strata|I\\(", pred_vars))
       has_interaction <- any(grepl(":", pred_vars, fixed = TRUE))
 
@@ -210,7 +223,11 @@ predict.felm <- function(
     all_vars <- c(pred_vars, fe_names)
 
     # Extract and prepare data
-    data <- newdata[, all_vars, drop = FALSE]
+    if (inherits(newdata, "data.table")) {
+      data <- newdata[, .SD, .SDcols = all_vars]
+    } else {
+      data <- newdata[, all_vars, drop = FALSE]
+    }
 
     # Keep track of original row indices for NA handling
     original_rows <- seq_len(nrow(data))

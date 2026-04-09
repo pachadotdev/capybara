@@ -402,3 +402,301 @@ check_fe_ <- function(formula, data) {
   }
   fe_vars
 }
+
+#' @title Process vcov argument
+#' @description Validates and processes the vcov argument, updating control
+#' @param vcov Character string specifying vcov type
+#' @param control Control list to update
+#' @return Named list with vcov_label and updated control
+#' @noRd
+process_vcov_ <- function(vcov, control) {
+  vcov_label <- NULL
+  if (!is.null(vcov)) {
+    vcov <- match.arg(vcov, c("iid", "hetero", "cluster", "m-estimator", "dyadic"))
+    vcov_label <- vcov
+    if (vcov == "iid") {
+      control$vcov_type <- NULL
+    } else if (vcov == "hetero") {
+      control$vcov_type <- "hetero"
+    } else if (vcov == "cluster") {
+      control$vcov_type <- NULL
+    } else if (vcov == "m-estimator") {
+      control$vcov_type <- "m-estimator"
+    } else if (vcov == "dyadic") {
+      control$vcov_type <- "m-estimator-dyadic"
+    }
+  }
+  list(vcov_label = vcov_label, control = control)
+}
+
+#' @title Extract weight column name
+#' @description Extracts the weight column name from weights argument
+#' @param weights Weights specification (NULL, character, formula, or numeric)
+#' @return Character string or NULL
+#' @noRd
+extract_weight_col_ <- function(weights) {
+  if (is.null(weights)) {
+    NULL
+  } else if (is.character(weights) && length(weights) == 1L) {
+    weights
+  } else if (inherits(weights, "formula")) {
+    all.vars(weights)
+  } else {
+    NULL
+  }
+}
+
+#' @title Extract offset vector
+#' @description Extracts offset from formula or numeric specification
+#' @param offset Offset specification (NULL, formula, or numeric)
+#' @param data Data frame
+#' @param nobs Number of observations in data
+#' @return Numeric vector or NULL
+#' @noRd
+extract_offset_ <- function(offset, data, nobs) {
+  if (is.null(offset)) {
+    return(NULL)
+  }
+  if (inherits(offset, "formula")) {
+    offset_vars <- attr(terms(offset, data = data), "term.labels")
+    if (length(offset_vars) != 1L) {
+      stop("Offset formula must specify exactly one term.", call. = FALSE)
+    }
+    eval(parse(text = offset_vars), envir = data)
+  } else if (is.numeric(offset)) {
+    if (length(offset) != nobs) {
+      stop("Length of offset must equal number of observations.", call. = FALSE)
+    }
+    offset
+  } else {
+    stop("Offset must be NULL, a formula, or a numeric vector.", call. = FALSE)
+  }
+}
+
+#' @title Prepare data for fitting
+#' @description Subsets columns, converts to data.table, handles units, removes NAs
+#' @param data Data frame
+#' @param needed_cols Character vector of column names to keep
+#' @param offset_vec Optional offset vector to subset in parallel
+#' @param weights_vec Optional weights vector to subset in parallel
+#' @return Named list with data, lhs, nobs_full, complete_idx, offset_vec, weights_vec
+#' @noRd
+prepare_data_ <- function(data, needed_cols, offset_vec = NULL, weights_vec = NULL) {
+  # Validate all needed columns exist
+  missing_cols <- setdiff(needed_cols, names(data))
+  if (length(missing_cols) > 0L) {
+    stop("undefined columns: ", paste(missing_cols, collapse = ", "), call. = FALSE)
+  }
+
+  # Preserve rownames before conversion
+  orig_rn <- rownames(data)
+
+  # Subset to needed columns
+  if (inherits(data, "data.table")) {
+    data <- copy(data[, needed_cols, with = FALSE])
+  } else {
+    data <- as.data.table(data[, needed_cols, drop = FALSE])
+  }
+
+  lhs <- names(data)[[1L]]
+  nobs_full <- nrow(data)
+
+  # Convert "units" columns to numeric
+  unit_cols <- names(data)[vapply(data, inherits, what = "units", logical(1))]
+  for (uc in unit_cols) {
+    set(data, j = uc, value = as.numeric(data[[uc]]))
+  }
+
+  # Remove NA rows early (before creating y, X)
+  complete_idx <- which(complete.cases(data))
+  if (length(complete_idx) < nobs_full) {
+    data <- data[complete_idx]
+    if (!is.null(orig_rn)) orig_rn <- orig_rn[complete_idx]
+    if (!is.null(offset_vec)) offset_vec <- offset_vec[complete_idx]
+    if (!is.null(weights_vec)) weights_vec <- weights_vec[complete_idx]
+  }
+
+  # Store surviving rownames
+  if (!is.null(orig_rn)) {
+    attr(data, ".rownames") <- orig_rn
+  }
+
+  list(
+    data = data,
+    lhs = lhs,
+    nobs_full = nobs_full,
+    complete_idx = complete_idx,
+    offset_vec = offset_vec,
+    weights_vec = weights_vec
+  )
+}
+
+#' @title Extract weights vector
+#' @description Extracts weights from data or uses provided vector
+#' @param weights Weights specification
+#' @param weight_col Column name (or NULL)
+#' @param data Data frame
+#' @param nt Number of observations (after NA removal)
+#' @param nobs_full Original number of observations
+#' @param complete_idx Indices of complete cases
+#' @return Numeric vector of weights
+#' @noRd
+extract_weights_ <- function(weights, weight_col, data, nt, nobs_full, complete_idx) {
+  if (is.null(weights)) {
+    rep(1.0, nt)
+  } else if (is.numeric(weights)) {
+    if (length(weights) != nobs_full) {
+      stop("Length of weights vector must equal number of observations.", call. = FALSE)
+    }
+    if (length(complete_idx) < nobs_full) weights[complete_idx] else weights
+  } else {
+    data[[weight_col]]
+  }
+}
+
+#' @title Build design matrix
+#' @description Builds design matrix using fast or slow path
+#' @param data Data frame
+#' @param formula Formula object
+#' @return Named list with X (matrix), nms_sp (column names), p (ncol)
+#' @noRd
+build_design_matrix_ <- function(data, formula) {
+  f1 <- formula(formula, lhs = 1L, rhs = 1L)
+  tt <- terms(f1)
+  rhs_labels <- attr(tt, "term.labels")
+
+  # Determine fast vs slow path
+  use_fast <- FALSE
+  if (length(rhs_labels) > 0L) {
+    # Fast path only when all rhs terms are plain column names (no transformations)
+    all_are_columns <- all(rhs_labels %in% colnames(data))
+    if (all_are_columns) {
+      all_numeric <- all(vapply(data[, rhs_labels, with = FALSE], is.numeric, logical(1)))
+      has_interaction <- any(grepl(":", rhs_labels, fixed = TRUE))
+      use_fast <- all_numeric && !has_interaction
+    }
+  }
+
+  if (use_fast) {
+    # Fast path: extract columns directly as matrix
+    if (length(rhs_labels) == 1L) {
+      X <- matrix(data[[rhs_labels]], ncol = 1L)
+    } else {
+      X <- as.matrix(data[, rhs_labels, with = FALSE])
+    }
+    nms_sp <- rhs_labels
+  } else {
+    # Slow path: model.frame + model.matrix
+    mm_vars <- all.vars(f1)
+    mf <- model.frame(f1, data[, mm_vars, with = FALSE], na.action = na.pass)
+    X <- model.matrix(tt, mf)[, -1L, drop = FALSE]
+    nms_sp <- colnames(X)
+    attr(X, "dimnames") <- NULL
+  }
+
+  list(X = X, nms_sp = nms_sp, p = ncol(X), terms = tt)
+}
+
+#' @title Extract response variable
+#' @description Extracts and converts response from data
+#' @param data Data frame
+#' @param formula Formula object
+#' @return Numeric response vector
+#' @noRd
+extract_response_ <- function(data, formula) {
+  f1 <- formula(formula, lhs = 1L, rhs = 1L)
+  tt <- terms(f1)
+  resp_call <- attr(tt, "variables")[[2L]]
+  y <- eval(resp_call, data)
+  if (is.integer(y)) y <- as.numeric(y)
+  y
+}
+
+#' @title Extract FE columns
+#' @description Extracts fixed effects columns as named list
+#' @param data Data frame
+#' @param fe_vars Character vector of FE variable names
+#' @return Named list of FE columns
+#' @noRd
+extract_fe_cols_ <- function(data, fe_vars) {
+  fe_cols <- lapply(fe_vars, function(v) .subset2(data, v))
+  names(fe_cols) <- fe_vars
+  fe_cols
+}
+
+#' @title Extract cluster columns
+#' @description Extracts cluster columns based on vcov type
+#' @param data Data frame
+#' @param cl_vars Character vector of cluster variable names
+#' @param vcov_label Vcov label (e.g., "iid", "hetero", "dyadic")
+#' @param control Control list
+#' @param allow_two_way Logical, whether to allow two-way clustering (felm only)
+#' @return Named list with cl_col, entity1_col, entity2_col, had_cluster, control
+#' @noRd
+extract_cluster_cols_ <- function(data, cl_vars, vcov_label, control,
+                                   allow_two_way = FALSE) {
+  cl_col <- NULL
+  entity1_col <- NULL
+  entity2_col <- NULL
+  skip_cluster <- isTRUE(vcov_label %in% c("iid", "hetero"))
+
+  if (!skip_cluster && length(cl_vars) >= 1L) {
+    if (!is.null(control$vcov_type) && control$vcov_type == "m-estimator-dyadic") {
+      if (length(cl_vars) < 2L) {
+        stop(
+          "For dyadic clustering (vcov = 'dyadic'), specify two entity columns ",
+          "in the formula like: y ~ x | fe | entity1 + entity2",
+          call. = FALSE
+        )
+      }
+      entity1_col <- data[[cl_vars[1L]]]
+      entity2_col <- data[[cl_vars[2L]]]
+    } else if (allow_two_way && length(cl_vars) >= 2L) {
+      # Two-way: CGM V_c1 + V_c2 - V_{c1 x c2}, fully handled in C++
+      control$vcov_type <- "two-way"
+      entity1_col <- data[[cl_vars[1L]]]
+      entity2_col <- data[[cl_vars[2L]]]
+    } else {
+      cl_col <- data[[cl_vars[1L]]]
+    }
+  }
+
+  list(
+    cl_col = cl_col,
+    entity1_col = entity1_col,
+    entity2_col = entity2_col,
+    had_cluster = !is.null(cl_col) || !is.null(entity1_col),
+    control = control
+  )
+}
+
+#' @title Get FE and cluster variable names
+#' @description Extracts FE and cluster variable names from formula
+#' @param formula Formula object
+#' @return Named list with fe_vars and cl_vars
+#' @noRd
+get_fe_cl_vars_ <- function(formula) {
+  fe_vars <- suppressWarnings(attr(terms(formula, rhs = 2L), "term.labels"))
+  if (length(fe_vars) < 1L) fe_vars <- character(0)
+
+  cl_vars <- suppressWarnings(attr(terms(formula, rhs = 3L), "term.labels"))
+  if (length(cl_vars) < 1L) cl_vars <- character(0)
+
+  list(fe_vars = fe_vars, cl_vars = cl_vars)
+}
+
+#' @title Finalize offset vector
+#' @description Ensures offset is proper length, defaults to zeros
+#' @param offset_vec Offset vector (possibly NULL)
+#' @param nt Number of observations
+#' @return Numeric offset vector
+#' @noRd
+finalize_offset_ <- function(offset_vec, nt) {
+  if (is.null(offset_vec)) {
+    rep(0.0, nt)
+  } else if (length(offset_vec) != nt) {
+    stop("Length of offset does not match number of observations after filtering.", call. = FALSE)
+  } else {
+    offset_vec
+  }
+}
