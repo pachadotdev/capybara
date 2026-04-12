@@ -147,8 +147,12 @@ fenegbin <- function(
     orig_rownames <- as.character(seq_len(nrow(data)))
   }
 
-  # Convert formula to string for C++ ----
-  formula_str <- Reduce(paste, deparse(formula))
+  # Convert formula to normalized string for C++ ----
+  # Use normalize_formula_ to expand *, ^, -, /, %in%, . using R's terms()
+  formula_str <- normalize_formula_(formula, data)
+  
+  # Detect if intercept is suppressed (e.g., ~ wt - 1)
+  has_intercept <- !grepl("__NO_INTERCEPT__", formula_str, fixed = TRUE)
 
   # Extract offset before fitting ----
   offset_vec <- extract_offset_(offset, data, nrow(data))

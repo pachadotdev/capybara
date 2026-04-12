@@ -417,7 +417,8 @@ InferenceGLM feglm_fit(
     const field<uvec> *cluster_groups = nullptr, const vec *offset = nullptr,
     bool skip_separation_check = false,
     const field<uvec> *entity1_groups = nullptr,
-    const field<uvec> *entity2_groups = nullptr, bool run_from_negbin = false) {
+    const field<uvec> *entity2_groups = nullptr, bool run_from_negbin = false,
+    bool suppress_intercept = false) {
 #ifdef CAPYBARA_DEBUG
   double mem_start = get_memory_usage_mb();
   std::ostringstream feglm_msg;
@@ -434,11 +435,23 @@ InferenceGLM feglm_fit(
   const bool has_offset =
       (offset != nullptr && offset->n_elem == n && any(*offset != 0.0));
 
-  // Add intercept column if no fixed effects (in-place to avoid allocation)
-  if (!has_fixed_effects) {
+  // Add intercept column if no fixed effects and intercept not suppressed
+  if (!has_fixed_effects && !suppress_intercept) {
     X.insert_cols(0, 1);
     X.col(0).ones();
+    // Ensure beta matches X.n_cols after intercept insertion
+    // R may have passed beta with different size due to poly(), factor(), etc.
+    if (beta.n_elem != X.n_cols - 1) {
+      beta.set_size(X.n_cols - 1);
+      beta.zeros();
+    }
     beta = join_cols(vec{0.0}, beta);
+  } else {
+    // For models with FE or suppressed intercept: ensure beta matches X.n_cols
+    if (beta.n_elem != X.n_cols) {
+      beta.set_size(X.n_cols);
+      beta.zeros();
+    }
   }
 
   const uword p = X.n_cols;

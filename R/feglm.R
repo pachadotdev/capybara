@@ -216,8 +216,12 @@ feglm <- function(
   # Validate response for the given family ----
   check_response_(data, lhs, family)
 
-  # Convert formula to string for C++ ----
-  formula_str <- Reduce(paste, deparse(formula))
+  # Convert formula to normalized string for C++ ----
+  # Use normalize_formula_ to expand *, ^, -, /, %in%, . using R's terms()
+  formula_str <- normalize_formula_(formula, data)
+  
+  # Detect if intercept is suppressed (e.g., ~ wt - 1)
+  has_intercept <- !grepl("__NO_INTERCEPT__", formula_str, fixed = TRUE)
 
   # Extract offset before fitting ----
   offset_vec <- extract_offset_(offset, data, nrow(data))
@@ -248,7 +252,7 @@ feglm <- function(
   # Number of columns in design matrix (for beta initialization)
   # This is a rough estimate from formula
   f1 <- formula(formula, lhs = 1L, rhs = 1L)
-  tt <- terms(f1)
+  tt <- terms(f1, data = data)
   rhs_labels <- attr(tt, "term.labels")
   p <- length(rhs_labels)
   if (p == 0L) p <- 1L  # intercept only
@@ -333,7 +337,8 @@ feglm <- function(
   }
 
   # Add names to outputs ----
-  if (length(fe_vars) == 0L) {
+  # Add intercept name only if: no FE, and intercept is not suppressed (- 1)
+  if (length(fe_vars) == 0L && has_intercept) {
     nms_sp <- c("(Intercept)", nms_sp)
   }
   dimnames(fit[["coef_table"]]) <- list(nms_sp, c("Estimate", "Std. Error", "z value", "Pr(>|z|)"))

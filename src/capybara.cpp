@@ -1197,7 +1197,8 @@ feglm_fit_(const std::string &formula_str, SEXP df, const doubles &beta_r,
 
   capybara::InferenceGLM result = capybara::feglm_fit(
       beta, eta, fm.y, fm.X, w, theta, family_type, fm.fe_map, params, nullptr,
-      cluster_ptr, offset_ptr, entity1_ptr, entity2_ptr);
+      cluster_ptr, offset_ptr, false, entity1_ptr, entity2_ptr, false,
+      fm.suppress_intercept);
 
   // Replace collinear coefficients with NA
   uvec collinear_mask = (result.coef_status == 0);
@@ -1328,6 +1329,419 @@ feglm_fit_(const std::string &formula_str, SEXP df, const doubles &beta_r,
   writable::integers fe_lvl_counts(K);
   for (size_t k = 0; k < K; ++k) {
     fe_lvl_counts[k] = static_cast<int>(fm.fe_levels(k).n_elem);
+  }
+  fe_lvl_counts.attr("names") = nms_fe_names;
+  out.push_back({"fe_levels"_nm = fe_lvl_counts});
+
+  return out;
+}
+
+// New function that accepts pre-built design matrix from R
+// This handles all complex formula operations (poly, cut, as.factor, etc.)
+// in R's model.matrix() and passes the result to C++
+[[cpp4r::register]] list
+feglm_fit_matrix_(const doubles_matrix<> &X_r, const doubles &y_r,
+                  const doubles &beta_r, const doubles &eta_r,
+                  const doubles &wt_r, const doubles &offset_r,
+                  const double &theta, const std::string &family,
+                  const strings &term_names_r, const strings &fe_vars_r,
+                  const strings &cluster_vars_r, SEXP df,
+                  const bool &has_intercept, const list &control) {
+  CapybaraParameters params(control);
+
+  // Convert inputs to Armadillo types
+  mat X = as_mat(X_r);
+  vec y = as_col(y_r);
+  size_t n = y.n_elem;
+  size_t p = X.n_cols;
+
+  // Find complete cases (no NA in y or X)
+  std::vector<bool> valid(n, true);
+  for (size_t i = 0; i < n; ++i) {
+    if (!R_finite(y(i)))
+      valid[i] = false;
+    for (size_t j = 0; j < p && valid[i]; ++j) {
+      if (!R_finite(X(i, j)))
+        valid[i] = false;
+    }
+  }
+
+  // Check weights for NA
+  const double *weights_ptr = (wt_r.size() > 0) ? REAL(wt_r) : nullptr;
+  if (weights_ptr != nullptr) {
+    for (size_t i = 0; i < n && i < static_cast<size_t>(wt_r.size()); ++i) {
+      if (!R_finite(weights_ptr[i]))
+        valid[i] = false;
+    }
+  }
+
+  // Build keep index
+  size_t n_valid = 0;
+  for (size_t i = 0; i < n; ++i) {
+    if (valid[i])
+      n_valid++;
+  }
+
+  if (n_valid == 0) {
+    Rf_error("No complete cases");
+  }
+
+  uvec keep_idx(n_valid);
+  size_t j = 0;
+  for (size_t i = 0; i < n; ++i) {
+    if (valid[i])
+      keep_idx[j++] = i;
+  }
+
+  bool all_valid = (n_valid == n);
+
+  // Subset y and X if needed
+  vec y_clean;
+  mat X_clean;
+  if (all_valid) {
+    y_clean = y;
+    X_clean = X;
+  } else {
+    y_clean.set_size(n_valid);
+    X_clean.set_size(n_valid, p);
+    for (size_t i = 0; i < n_valid; ++i) {
+      y_clean(i) = y(keep_idx(i));
+      X_clean.row(i) = X.row(keep_idx(i));
+    }
+  }
+
+  // Build weights vector
+  vec w;
+  if (weights_ptr != nullptr) {
+    w.set_size(n_valid);
+    for (size_t i = 0; i < n_valid; ++i) {
+      w[i] = weights_ptr[keep_idx[i]];
+    }
+  } else {
+    w.ones(n_valid);
+  }
+
+  // Copy term names
+  std::vector<std::string> term_names;
+  for (R_xlen_t i = 0; i < term_names_r.size(); ++i) {
+    term_names.push_back(std::string(term_names_r[i]));
+  }
+
+  // Build FE map from fe_vars
+  capybara::FlatFEMap fe_map;
+  field<std::string> fe_names;
+  field<field<std::string>> fe_levels;
+
+  size_t K = fe_vars_r.size();
+  if (K > 0) {
+    fe_names.set_size(K);
+    fe_levels.set_size(K);
+    fe_map.K = K;
+    fe_map.n_obs = n_valid;
+    fe_map.n_groups.resize(K);
+    fe_map.fe_map.resize(K);
+
+    SEXP names = Rf_getAttrib(df, R_NamesSymbol);
+    std::unordered_map<std::string, int> col_idx;
+    for (int i = 0; i < Rf_length(names); ++i) {
+      col_idx[CHAR(STRING_ELT(names, i))] = i;
+    }
+
+    for (size_t k = 0; k < K; ++k) {
+      std::string fe_var(fe_vars_r[k]);
+      fe_names(k) = fe_var;
+
+      auto it = col_idx.find(fe_var);
+      if (it == col_idx.end()) {
+        Rf_error("FE variable not found: %s", fe_var.c_str());
+      }
+      SEXP col = VECTOR_ELT(df, it->second);
+
+      // Code the column
+      std::unordered_map<std::string, uword> level_map;
+      std::vector<std::string> levels;
+
+      auto val_to_string = [](SEXP col, R_xlen_t i) -> std::string {
+        switch (TYPEOF(col)) {
+        case INTSXP: {
+          int v = INTEGER(col)[i];
+          SEXP lvls = Rf_getAttrib(col, R_LevelsSymbol);
+          if (lvls != R_NilValue) {
+            return CHAR(STRING_ELT(lvls, v - 1));
+          }
+          return std::to_string(v);
+        }
+        case REALSXP: {
+          char buf[64];
+          snprintf(buf, sizeof(buf), "%.15g", REAL(col)[i]);
+          return std::string(buf);
+        }
+        case STRSXP:
+          return CHAR(STRING_ELT(col, i));
+        default:
+          return "";
+        }
+      };
+
+      fe_map.fe_map[k].resize(n_valid);
+      for (size_t i = 0; i < n_valid; ++i) {
+        R_xlen_t orig_i = keep_idx[i];
+        std::string val = val_to_string(col, orig_i);
+        auto it2 = level_map.find(val);
+        if (it2 == level_map.end()) {
+          uword code = static_cast<uword>(levels.size());
+          level_map[val] = code;
+          levels.push_back(val);
+          fe_map.fe_map[k][i] = code;
+        } else {
+          fe_map.fe_map[k][i] = it2->second;
+        }
+      }
+
+      fe_map.n_groups[k] = levels.size();
+      fe_levels(k).set_size(levels.size());
+      for (size_t l = 0; l < levels.size(); ++l) {
+        fe_levels(k)(l) = levels[l];
+      }
+    }
+    fe_map.structure_built = true;
+    fe_map.update_weights(w);
+  }
+
+  std::string fam = capybara::tidy_family(family);
+  capybara::Family family_type = capybara::get_family_type(fam);
+
+  // Handle beta/eta
+  vec beta = as_col(beta_r);
+  vec eta;
+  if (eta_r.size() > 0) {
+    if (all_valid) {
+      eta = as_col(eta_r);
+    } else {
+      eta.set_size(n_valid);
+      for (size_t i = 0; i < n_valid; ++i) {
+        eta(i) = static_cast<double>(eta_r[static_cast<R_xlen_t>(keep_idx[i])]);
+      }
+    }
+  } else {
+    eta.set_size(0);
+  }
+
+  // Handle offset
+  vec offset;
+  if (offset_r.size() == 0) {
+    offset.zeros(n_valid);
+  } else if (all_valid) {
+    offset = as_col(offset_r);
+    uvec bad_offset = find_nonfinite(offset);
+    if (bad_offset.n_elem > 0) {
+      offset.elem(bad_offset).zeros();
+    }
+  } else {
+    offset.set_size(n_valid);
+    for (size_t i = 0; i < n_valid; ++i) {
+      offset(i) =
+          static_cast<double>(offset_r[static_cast<R_xlen_t>(keep_idx[i])]);
+    }
+    uvec bad_offset = find_nonfinite(offset);
+    if (bad_offset.n_elem > 0) {
+      offset.elem(bad_offset).zeros();
+    }
+  }
+
+  if (eta.n_elem > 0) {
+    eta += offset;
+  }
+
+  if (eta.n_elem > 0) {
+    uvec bad_eta = find_nonfinite(eta);
+    if (bad_eta.n_elem > 0) {
+      double y_mean = mean(y_clean);
+      double safe_eta = std::log(y_mean + 0.1);
+      if (!std::isfinite(safe_eta))
+        safe_eta = 0.0;
+      eta.elem(bad_eta).fill(safe_eta);
+    }
+  }
+
+  const vec *offset_ptr = (any(offset != 0.0)) ? &offset : nullptr;
+
+  // Build cluster groups
+  const field<uvec> *cluster_ptr = nullptr;
+  field<uvec> cluster_groups;
+  field<uvec> entity1_groups, entity2_groups;
+  const field<uvec> *entity1_ptr = nullptr;
+  const field<uvec> *entity2_ptr = nullptr;
+
+  size_t n_cluster_vars = cluster_vars_r.size();
+  if (n_cluster_vars >= 2 &&
+      (params.vcov_type == "m-estimator-dyadic" ||
+       params.vcov_type == "two-way")) {
+    SEXP names = Rf_getAttrib(df, R_NamesSymbol);
+    std::unordered_map<std::string, int> col_idx;
+    for (int i = 0; i < Rf_length(names); ++i) {
+      col_idx[CHAR(STRING_ELT(names, i))] = i;
+    }
+
+    SEXP col1 = VECTOR_ELT(df, col_idx[std::string(cluster_vars_r[0])]);
+    SEXP col2 = VECTOR_ELT(df, col_idx[std::string(cluster_vars_r[1])]);
+    build_aligned_entity_groups(col1, col2, keep_idx, entity1_groups,
+                                entity2_groups);
+    entity1_ptr = &entity1_groups;
+    entity2_ptr = &entity2_groups;
+  } else if (n_cluster_vars >= 1) {
+    SEXP names = Rf_getAttrib(df, R_NamesSymbol);
+    int cl_idx = -1;
+    for (int i = 0; i < Rf_length(names); ++i) {
+      if (CHAR(STRING_ELT(names, i)) == std::string(cluster_vars_r[0])) {
+        cl_idx = i;
+        break;
+      }
+    }
+    if (cl_idx >= 0) {
+      cluster_groups = build_cluster_groups(VECTOR_ELT(df, cl_idx), keep_idx);
+      cluster_ptr = &cluster_groups;
+    }
+  }
+
+  // Determine if intercept should be suppressed
+  bool suppress_intercept = !has_intercept;
+
+  capybara::InferenceGLM result = capybara::feglm_fit(
+      beta, eta, y_clean, X_clean, w, theta, family_type, fe_map, params,
+      nullptr, cluster_ptr, offset_ptr, false, entity1_ptr, entity2_ptr, false,
+      suppress_intercept);
+
+  // Replace collinear coefficients with NA
+  uvec collinear_mask = (result.coef_status == 0);
+  if (any(collinear_mask)) {
+    for (uword i = 0; i < result.coef_table.n_rows; ++i) {
+      if (collinear_mask(i)) {
+        for (uword kk = 0; kk < result.coef_table.n_cols; ++kk) {
+          result.coef_table(i, kk) = NA_REAL;
+        }
+      }
+    }
+  }
+
+  auto out = writable::list(
+      {"eta"_nm = as_doubles(result.eta),
+       "fitted_values"_nm = as_doubles(result.fitted_values),
+       "weights"_nm = as_doubles(result.weights),
+       "vcov"_nm = as_doubles_matrix(result.vcov),
+       "coef_table"_nm = as_doubles_matrix(result.coef_table),
+       "deviance"_nm = writable::doubles({result.deviance}),
+       "null_deviance"_nm = writable::doubles({result.null_deviance}),
+       "conv"_nm = writable::logicals({result.conv}),
+       "iter"_nm = writable::integers({static_cast<int>(result.iter + 1)})});
+
+  if (params.return_hessian) {
+    out.push_back({"hessian"_nm = as_doubles_matrix(result.hessian)});
+  }
+
+  if (family_type == capybara::POISSON && result.pseudo_rsq > 0.0) {
+    out.push_back({"pseudo.rsq"_nm = result.pseudo_rsq});
+  }
+
+  if (result.has_separation) {
+    out.push_back({"has_separation"_nm = writable::logicals({true})});
+    vec separated_obs_r2(result.separated_obs.n_elem);
+    for (size_t i = 0; i < result.separated_obs.n_elem; ++i) {
+      separated_obs_r2(i) = static_cast<double>(result.separated_obs(i) + 1);
+    }
+    out.push_back({"separated_obs"_nm = as_doubles(separated_obs_r2)});
+    if (result.separation_support.n_elem > 0) {
+      out.push_back(
+          {"separation_support"_nm = as_doubles(result.separation_support)});
+    }
+  }
+
+  if (result.has_fe && result.fixed_effects.n_elem > 0) {
+    writable::list fe_list(K);
+    writable::strings fe_list_names(K);
+
+    for (size_t k = 0; k < K; ++k) {
+      writable::doubles fe_values = as_doubles(result.fixed_effects(k));
+
+      if (k < fe_levels.n_elem && fe_levels(k).n_elem > 0) {
+        writable::strings level_names(fe_levels(k).n_elem);
+        for (size_t l = 0; l < fe_levels(k).n_elem; ++l) {
+          if (!fe_levels(k)(l).empty()) {
+            level_names[l] = fe_levels(k)(l);
+          } else {
+            level_names[l] = std::to_string(l + 1);
+          }
+        }
+        fe_values.attr("names") = level_names;
+      }
+
+      fe_list[k] = fe_values;
+
+      if (k < fe_names.n_elem && !fe_names(k).empty()) {
+        fe_list_names[k] = fe_names(k);
+      } else {
+        fe_list_names[k] = std::to_string(k + 1);
+      }
+    }
+
+    fe_list.names() = fe_list_names;
+    out.push_back({"fixed_effects"_nm = fe_list});
+  }
+
+  if (params.keep_tx && result.has_tx) {
+    out.push_back({"tx"_nm = as_doubles_matrix(result.TX)});
+  }
+
+  if (result.has_apes && result.ape_delta.n_elem > 0) {
+    out.push_back({"ape_delta"_nm = as_doubles(result.ape_delta)});
+    out.push_back({"ape_vcov"_nm = as_doubles_matrix(result.ape_vcov)});
+    out.push_back({"ape_binary"_nm = as_integers(result.ape_binary)});
+    out.push_back({"has_apes"_nm = writable::logicals({true})});
+  }
+
+  if (result.has_bias_corr && result.beta_corrected.n_elem > 0) {
+    out.push_back({"beta_corrected"_nm = as_doubles(result.beta_corrected)});
+    out.push_back({"bias_term"_nm = as_doubles(result.bias_term)});
+    out.push_back({"has_bias_corr"_nm = writable::logicals({true})});
+  }
+
+  // Add term names
+  writable::strings term_names_out(p);
+  for (size_t i = 0; i < p; ++i) {
+    if (i < term_names.size()) {
+      term_names_out[i] = term_names[i];
+    } else {
+      term_names_out[i] = "V" + std::to_string(i + 1);
+    }
+  }
+  out.push_back({"term_names"_nm = term_names_out});
+
+  // Add observation indices and metadata
+  writable::integers obs_idx_r2(n_valid);
+  for (size_t i = 0; i < n_valid; ++i) {
+    obs_idx_r2[i] = static_cast<int>(keep_idx[i] + 1);
+  }
+  out.push_back({"obs_indices"_nm = obs_idx_r2});
+  out.push_back(
+      {"nobs_used"_nm = writable::integers({static_cast<int>(n_valid)})});
+
+  // Add FE metadata
+  writable::list nms_fe_list(K);
+  writable::strings nms_fe_names(K);
+  for (size_t k = 0; k < K; ++k) {
+    writable::strings lvls(fe_levels(k).n_elem);
+    for (size_t l = 0; l < fe_levels(k).n_elem; ++l) {
+      lvls[l] = fe_levels(k)(l);
+    }
+    nms_fe_list[k] = lvls;
+    nms_fe_names[k] = fe_names(k);
+  }
+  nms_fe_list.names() = nms_fe_names;
+  out.push_back({"nms_fe"_nm = nms_fe_list});
+
+  writable::integers fe_lvl_counts(K);
+  for (size_t k = 0; k < K; ++k) {
+    fe_lvl_counts[k] = static_cast<int>(fe_levels(k).n_elem);
   }
   fe_lvl_counts.attr("names") = nms_fe_names;
   out.push_back({"fe_levels"_nm = fe_lvl_counts});

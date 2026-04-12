@@ -155,8 +155,12 @@ felm <- function(
     orig_rownames <- as.character(seq_len(nrow(data)))
   }
 
-  # Convert formula to string for C++ ----
-  formula_str <- Reduce(paste, deparse(formula))
+  # Convert formula to normalized string for C++ ----
+  # Use normalize_formula_ to expand *, ^, -, /, %in%, . using R's terms()
+  formula_str <- normalize_formula_(formula, data)
+  
+  # Detect if intercept is suppressed (e.g., ~ wt - 1)
+  has_intercept <- !grepl("__NO_INTERCEPT__", formula_str, fixed = TRUE)
 
   # Extract weights vector ----
   w <- if (is.null(weights)) {
@@ -212,7 +216,8 @@ felm <- function(
   }
 
   # Add names to outputs ----
-  if (length(fe_vars) == 0L) {
+  # Add intercept name only if: no FE, and intercept is not suppressed (- 1)
+  if (length(fe_vars) == 0L && has_intercept) {
     nms_sp <- c("(Intercept)", nms_sp)
   }
   dimnames(fit[["coef_table"]]) <- list(nms_sp, c("Estimate", "Std. Error", "z value", "Pr(>|z|)"))

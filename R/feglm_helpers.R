@@ -52,6 +52,76 @@
 #' @noRd
 NULL
 
+#' @title Normalize multi-part formula for C++
+#' @description Expands formula operators (*, ^, -, /, %in%, .) using R's
+#'   terms() machinery, then rebuilds a simplified formula string that
+#'   uses only + and : operators that the C++ parser can handle.
+#' @param formula Original formula (possibly with |)
+#' @param data Data frame (needed for . expansion)
+#' @return A character string of the normalized formula
+#' @noRd
+normalize_formula_ <- function(formula, data) {
+  # Split formula on | for fixed effects and clusters
+  fml_chr <- deparse1(formula)
+  parts <- trimws(strsplit(fml_chr, "\\|")[[1L]])
+
+  base_part <- parts[[1L]]
+  fe_part <- if (length(parts) >= 2L) parts[[2L]] else NULL
+  cl_part <- if (length(parts) >= 3L) parts[[3L]] else NULL
+
+  # Parse the base formula
+  base_fml <- as.formula(base_part, env = environment(formula))
+
+  # Use terms() to expand the formula (handles *, ^, -, /, %in%, .)
+  tt <- terms(base_fml, data = data)
+
+  # Get LHS (response)
+  response_idx <- attr(tt, "response")
+  all_vars <- attr(tt, "variables")
+  lhs_expr <- if (response_idx > 0L) {
+    deparse1(all_vars[[response_idx + 1L]])
+  } else {
+    "y"
+  }
+
+  # Get expanded term labels (RHS)
+  term_labels <- attr(tt, "term.labels")
+
+  # Check if intercept is included
+  has_intercept <- attr(tt, "intercept") == 1L
+
+  # Build RHS string
+  # Note: C++ adds intercept by default when no FEs, so we use
+  # __NO_INTERCEPT__ as a special marker for intercept suppression
+  if (length(term_labels) == 0L) {
+    if (has_intercept) {
+      rhs_str <- "1"
+    } else {
+      # No terms and no intercept - edge case
+      rhs_str <- "__NO_INTERCEPT__"
+    }
+  } else {
+    rhs_str <- paste(term_labels, collapse = " + ")
+    if (!has_intercept) {
+      # Prepend marker that C++ will recognize
+      rhs_str <- paste0("__NO_INTERCEPT__ + ", rhs_str)
+    }
+  }
+
+  # Rebuild the formula string
+  new_fml <- paste(lhs_expr, "~", rhs_str)
+
+  # Add FE and cluster parts back
+  if (!is.null(fe_part)) {
+    new_fml <- paste(new_fml, "|", fe_part)
+  }
+  if (!is.null(cl_part)) {
+    new_fml <- paste(new_fml, "|", cl_part)
+  }
+
+  new_fml
+}
+
 #' @title Transform factor
 #' @description Checks if variable is a factor and transforms if necessary
 #' @param X Variable to be checked
