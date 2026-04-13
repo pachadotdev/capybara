@@ -51,8 +51,8 @@ augment.feglm <- function(x, newdata = NULL, ...) {
         call. = FALSE
       )
     }
-    # copy() for data.table to avoid mutating x$data via reference semantics
-    res <- if (inherits(x$data, "data.table")) copy(x$data) else x$data
+    # Create a copy to avoid mutating x$data
+    res <- x$data
     resp_name <- names(x$data)[1L]
   } else {
     res <- newdata

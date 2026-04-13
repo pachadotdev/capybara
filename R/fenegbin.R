@@ -141,11 +141,12 @@ fenegbin <- function(
   # Check validity of control + Extract control list ----
   control <- check_control_(control)
 
+  # Determine needed columns (validates they exist) ----
+  cols_info <- get_needed_cols_(formula, data, weights, offset)
+
   # Preserve original row names ----
   orig_rownames <- rownames(data)
-  if (is.null(orig_rownames)) {
-    orig_rownames <- as.character(seq_len(nrow(data)))
-  }
+  needs_rowname_conversion <- is.null(orig_rownames)
 
   # Convert formula to normalized string for C++ ----
   # Use normalize_formula_ to expand *, ^, -, /, %in%, . using R's terms()
@@ -245,6 +246,9 @@ fenegbin <- function(
 
   # Set fitted_values names ----
   if (!is.null(fit[["obs_indices"]])) {
+    if (needs_rowname_conversion) {
+      orig_rownames <- as.character(seq_len(nobs_full))
+    }
     used_rownames <- orig_rownames[fit[["obs_indices"]]]
     names(fit[["fitted_values"]]) <- used_rownames
     fit[[".rownames"]] <- used_rownames
@@ -252,6 +256,9 @@ fenegbin <- function(
       data_for_output <- data_for_output[fit[["obs_indices"]], ]
     }
   } else {
+    if (needs_rowname_conversion) {
+      orig_rownames <- as.character(seq_len(nobs_full))
+    }
     names(fit[["fitted_values"]]) <- orig_rownames
     fit[[".rownames"]] <- orig_rownames
   }

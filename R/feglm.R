@@ -191,27 +191,14 @@ feglm <- function(
   vcov_label <- vcov_result$vcov_label
   control <- vcov_result$control
 
-  # Determine needed columns ----
-  formula_vars <- all.vars(formula)
-  weight_col <- extract_weight_col_(weights)
-  needed_cols <- if (!is.null(weight_col)) {
-    c(formula_vars, weight_col)
-  } else {
-    formula_vars
-  }
-
-  # Convert to data.table for check_response_ ----
+  # Determine needed columns (validates they exist) ----
+  cols_info <- get_needed_cols_(formula, data, weights, offset)
+  formula_vars <- cols_info$formula_vars
   lhs <- formula_vars[1L]
   
-  # Preserve original row names before conversion ----
+  # Preserve original row names ----
   orig_rownames <- rownames(data)
-  if (is.null(orig_rownames)) {
-    orig_rownames <- as.character(seq_len(nrow(data)))
-  }
-  
-  if (!inherits(data, "data.table")) {
-    data <- as.data.table(data)
-  }
+  needs_rowname_conversion <- is.null(orig_rownames)
 
   # Validate response for the given family ----
   check_response_(data, lhs, family)
@@ -281,17 +268,31 @@ feglm <- function(
     beta <- numeric(p)
     # Initialize eta with link of mean y
     # Convert to numeric to handle units columns
-    y_temp <- as.numeric(data[[all.vars(formula)[1]]])
-    wt_temp <- if (length(wt) > 0L) wt else rep(1.0, nt)
+    y_temp <- as.numeric(data[[lhs]])  # Use cached lhs instead of all.vars(formula)
     
+    # Avoid creating unnecessary weight vector - compute mean directly
     if (family[["family"]] == "binomial") {
       # For binomial, y should be in [0, 1]
-      y_mean <- pmin(pmax(mean(y_temp, na.rm = TRUE), 0.01), 0.99)
+      if (length(wt) > 0L) {
+        y_mean <- pmin(pmax(sum(wt * y_temp, na.rm = TRUE) / sum(wt[is.finite(y_temp)]), 0.01), 0.99)
+      } else {
+        y_mean <- pmin(pmax(mean(y_temp, na.rm = TRUE), 0.01), 0.99)
+      }
       eta <- rep(family[["linkfun"]](y_mean), nt)
     } else if (family[["family"]] %in% c("Gamma", "inverse.gaussian")) {
-      eta <- rep(family[["linkfun"]](sum(wt_temp * y_temp, na.rm = TRUE) / sum(wt_temp[is.finite(y_temp)])), nt)
+      if (length(wt) > 0L) {
+        y_mean <- sum(wt * y_temp, na.rm = TRUE) / sum(wt[is.finite(y_temp)])
+      } else {
+        y_mean <- mean(y_temp, na.rm = TRUE)
+      }
+      eta <- rep(family[["linkfun"]](y_mean), nt)
     } else {
-      eta <- rep(family[["linkfun"]](sum(wt_temp * (y_temp + 0.1), na.rm = TRUE) / sum(wt_temp[is.finite(y_temp)])), nt)
+      if (length(wt) > 0L) {
+        y_mean <- sum(wt * (y_temp + 0.1), na.rm = TRUE) / sum(wt[is.finite(y_temp)])
+      } else {
+        y_mean <- mean(y_temp + 0.1, na.rm = TRUE)
+      }
+      eta <- rep(family[["linkfun"]](y_mean), nt)
     }
   }
 
@@ -355,6 +356,10 @@ feglm <- function(
 
   # Set fitted_values names ----
   if (!is.null(fit[["obs_indices"]])) {
+    # Lazy rowname creation - only convert if we didn't have rownames originally
+    if (needs_rowname_conversion) {
+      orig_rownames <- as.character(seq_len(nobs_full))
+    }
     # Use original row names at the kept indices
     used_rownames <- orig_rownames[fit[["obs_indices"]]]
     names(fit[["fitted_values"]]) <- used_rownames
@@ -363,6 +368,9 @@ feglm <- function(
       data_for_output <- data_for_output[fit[["obs_indices"]], ]
     }
   } else {
+    if (needs_rowname_conversion) {
+      orig_rownames <- as.character(seq_len(nobs_full))
+    }
     names(fit[["fitted_values"]]) <- orig_rownames
     fit[[".rownames"]] <- orig_rownames
   }

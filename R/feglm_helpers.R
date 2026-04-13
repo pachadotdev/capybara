@@ -69,10 +69,17 @@ normalize_formula_ <- function(formula, data) {
   fe_part <- if (length(parts) >= 2L) parts[[2L]] else NULL
   cl_part <- if (length(parts) >= 3L) parts[[3L]] else NULL
 
-  # Parse the base formula
-  base_fml <- as.formula(base_part, env = environment(formula))
+  # Handle "0" meaning no fixed effects - convert to empty string
+  # but preserve structure when cluster is present
+  if (!is.null(fe_part) && fe_part == "0") {
+    fe_part <- ""
+  }
+  if (!is.null(cl_part) && cl_part == "0") {
+    cl_part <- ""
+  }
 
-  # Use terms() to expand the formula (handles *, ^, -, /, %in%, .)
+  # Compute terms for base formula
+  base_fml <- as.formula(base_part, env = environment(formula))
   tt <- terms(base_fml, data = data)
 
   # Get LHS (response)
@@ -112,6 +119,7 @@ normalize_formula_ <- function(formula, data) {
   new_fml <- paste(lhs_expr, "~", rhs_str)
 
   # Add FE and cluster parts back
+  # Use empty string for "0" to preserve | positions (e.g., | | cluster)
   if (!is.null(fe_part)) {
     new_fml <- paste(new_fml, "|", fe_part)
   }
@@ -234,33 +242,32 @@ temp_var_ <- function(data) {
 }
 
 #' @title Check response
-#' @description Checks response for GLM/NegBin models
-#' @param data Data frame (data.table internally)
+#' @description Checks response for GLM/NegBin models (validation only, no mutation)
+#' @param data Data frame
 #' @param lhs Left-hand side of the formula
 #' @param family Family object
 #' @noRd
 check_response_ <- function(data, lhs, family) {
+  y <- data[[lhs]]
+  
   if (family[["family"]] == "binomial") {
-    # Check if 'y' is numeric
-    if (data[, is.numeric(get(lhs))]) {
-      if (data[, any(get(lhs) < 0.0 | get(lhs) > 1.0, na.rm = TRUE)]) {
+    if (is.numeric(y)) {
+      if (any(y < 0.0 | y > 1.0, na.rm = TRUE)) {
         stop("Model response must be within [0,1].")
       }
     } else {
-      # Coerce factor/character to factor and validate two levels
-      data[, (lhs) := check_factor_(get(lhs))]
-      if (data[, length(levels(get(lhs)))] != 2L) {
+      # Factor/character: validate two levels
+      y_fac <- check_factor_(y)
+      if (length(levels(y_fac)) != 2L) {
         stop("Model response has to be binary.")
       }
-      # Encode as 0/1 in-place
-      data[, (lhs) := as.numeric(get(lhs)) - 1.0]
     }
   } else if (family[["family"]] %in% c("Gamma", "inverse.gaussian")) {
-    if (data[, any(get(lhs) <= 0.0, na.rm = TRUE)]) {
+    if (any(y <= 0.0, na.rm = TRUE)) {
       stop("Model response has to be positive.", call. = FALSE)
     }
   } else if (family[["family"]] != "gaussian") {
-    if (data[, any(get(lhs) < 0.0, na.rm = TRUE)]) {
+    if (any(y < 0.0, na.rm = TRUE)) {
       stop("Model response has to be strictly positive.", call. = FALSE)
     }
   }
