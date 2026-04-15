@@ -7,6 +7,13 @@
 
 #include <armadillo4r.hpp>
 
+#include <regex>
+#include <set>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <optional>
+
 #ifdef CAPYBARA_DEBUG
 #include <chrono>
 #include <fstream>
@@ -942,7 +949,8 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   // Fit the model
   capybara::InferenceLM result =
       capybara::felm_fit(fm.X, fm.y, w, fm.fe_map, params, nullptr, cluster_ptr,
-                         false, 0.0, entity1_ptr, entity2_ptr);
+                         false, 0.0, entity1_ptr, entity2_ptr,
+                         fm.has_intercept_column, fm.suppress_intercept);
 
   // Replace collinear coefficients with NA
   uvec collinear_mask = (result.coef_status == 0);
@@ -1198,7 +1206,7 @@ feglm_fit_(const std::string &formula_str, SEXP df, const doubles &beta_r,
   capybara::InferenceGLM result = capybara::feglm_fit(
       beta, eta, fm.y, fm.X, w, theta, family_type, fm.fe_map, params, nullptr,
       cluster_ptr, offset_ptr, false, entity1_ptr, entity2_ptr, false,
-      fm.suppress_intercept);
+      fm.suppress_intercept, fm.has_intercept_column);
 
   // Replace collinear coefficients with NA
   uvec collinear_mask = (result.coef_status == 0);
@@ -1610,7 +1618,7 @@ feglm_fit_matrix_(const doubles_matrix<> &X_r, const doubles &y_r,
   capybara::InferenceGLM result = capybara::feglm_fit(
       beta, eta, y_clean, X_clean, w, theta, family_type, fe_map, params,
       nullptr, cluster_ptr, offset_ptr, false, entity1_ptr, entity2_ptr, false,
-      suppress_intercept);
+      suppress_intercept, has_intercept);
 
   // Replace collinear coefficients with NA
   uvec collinear_mask = (result.coef_status == 0);
@@ -1823,7 +1831,8 @@ fenegbin_fit_(const std::string &formula_str, SEXP df, const doubles &w_r,
   }
 
   capybara::InferenceNegBin result = capybara::fenegbin_fit(
-      fm.X, fm.y, w, fm.fe_map, params, offset_vec, init_theta);
+      fm.X, fm.y, w, fm.fe_map, params, offset_vec, init_theta, nullptr,
+      fm.suppress_intercept, fm.has_intercept_column);
 
   // Replace collinear coefficients with NA
   uvec collinear_mask = (result.coef_status == 0);

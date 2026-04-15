@@ -266,34 +266,9 @@ feglm <- function(
     eta <- eta_start
   } else {
     beta <- numeric(p)
-    # Initialize eta with link of mean y
-    # Convert to numeric to handle units columns
-    y_temp <- as.numeric(data[[lhs]])  # Use cached lhs instead of all.vars(formula)
-    
-    # Avoid creating unnecessary weight vector - compute mean directly
-    if (family[["family"]] == "binomial") {
-      # For binomial, y should be in [0, 1]
-      if (length(wt) > 0L) {
-        y_mean <- pmin(pmax(sum(wt * y_temp, na.rm = TRUE) / sum(wt[is.finite(y_temp)]), 0.01), 0.99)
-      } else {
-        y_mean <- pmin(pmax(mean(y_temp, na.rm = TRUE), 0.01), 0.99)
-      }
-      eta <- rep(family[["linkfun"]](y_mean), nt)
-    } else if (family[["family"]] %in% c("Gamma", "inverse.gaussian")) {
-      if (length(wt) > 0L) {
-        y_mean <- sum(wt * y_temp, na.rm = TRUE) / sum(wt[is.finite(y_temp)])
-      } else {
-        y_mean <- mean(y_temp, na.rm = TRUE)
-      }
-      eta <- rep(family[["linkfun"]](y_mean), nt)
-    } else {
-      if (length(wt) > 0L) {
-        y_mean <- sum(wt * (y_temp + 0.1), na.rm = TRUE) / sum(wt[is.finite(y_temp)])
-      } else {
-        y_mean <- mean(y_temp + 0.1, na.rm = TRUE)
-      }
-      eta <- rep(family[["linkfun"]](y_mean), nt)
-    }
+    # Let C++ initialize eta based on actual y values after NA removal
+    # This avoids creating a temporary vector in R
+    eta <- numeric(0)
   }
 
   # Store data for output ----

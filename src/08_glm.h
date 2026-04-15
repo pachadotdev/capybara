@@ -418,7 +418,7 @@ InferenceGLM feglm_fit(
     bool skip_separation_check = false,
     const field<uvec> *entity1_groups = nullptr,
     const field<uvec> *entity2_groups = nullptr, bool run_from_negbin = false,
-    bool suppress_intercept = false) {
+    bool suppress_intercept = false, bool has_intercept_column = false) {
 #ifdef CAPYBARA_DEBUG
   double mem_start = get_memory_usage_mb();
   std::ostringstream feglm_msg;
@@ -435,10 +435,15 @@ InferenceGLM feglm_fit(
   const bool has_offset =
       (offset != nullptr && offset->n_elem == n && any(*offset != 0.0));
 
+  // Track whether intercept is now in X (for recursive calls)
+  bool intercept_in_X = has_intercept_column;
+
   // Add intercept column if no fixed effects and intercept not suppressed
-  if (!has_fixed_effects && !suppress_intercept) {
+  // Skip if intercept was already pre-allocated in X (has_intercept_column=true)
+  if (!has_fixed_effects && !suppress_intercept && !has_intercept_column) {
     X.insert_cols(0, 1);
     X.col(0).ones();
+    intercept_in_X = true;
     // Ensure beta matches X.n_cols after intercept insertion
     // R may have passed beta with different size due to poly(), factor(), etc.
     if (beta.n_elem != X.n_cols - 1) {
@@ -447,7 +452,8 @@ InferenceGLM feglm_fit(
     }
     beta = join_cols(vec{0.0}, beta);
   } else {
-    // For models with FE or suppressed intercept: ensure beta matches X.n_cols
+    // For models with FE, suppressed intercept, or pre-allocated intercept:
+    // ensure beta matches X.n_cols
     if (beta.n_elem != X.n_cols) {
       beta.set_size(X.n_cols);
       beta.zeros();
@@ -520,7 +526,9 @@ InferenceGLM feglm_fit(
 
       InferenceGLM result_with_sep =
           feglm_fit(beta, eta, y, X, w_work, theta, family_type, fe_map, params,
-                    &ws, cluster_groups, offset, true);
+                    &ws, cluster_groups, offset, true, entity1_groups,
+                    entity2_groups, run_from_negbin, suppress_intercept,
+                    intercept_in_X);
 
       result_with_sep.eta.elem(all_separated).fill(datum::nan);
       result_with_sep.fitted_values.elem(all_separated).fill(datum::nan);
@@ -540,7 +548,9 @@ InferenceGLM feglm_fit(
 
     InferenceGLM result_with_sep =
         feglm_fit(beta, eta, y, X, w_work, theta, family_type, fe_map, params,
-                  &ws, cluster_groups, offset, true);
+                  &ws, cluster_groups, offset, true, entity1_groups,
+                  entity2_groups, run_from_negbin, suppress_intercept,
+                  intercept_in_X);
 
     result_with_sep.eta.elem(group_sep_result.separated_obs).fill(datum::nan);
     result_with_sep.fitted_values.elem(group_sep_result.separated_obs)
@@ -607,6 +617,43 @@ InferenceGLM feglm_fit(
 #endif
 
   const uword p_working = X.n_cols;
+
+  // Initialize eta from y if empty (when no eta_start was provided)
+  if (eta.n_elem == 0) {
+    eta.set_size(n);
+    // Use family-appropriate initialization based on y
+    switch (family_type) {
+    case BINOMIAL: {
+      // For binomial, use logit of clipped mean
+      double y_mean = std::clamp(mean(y), 0.01, 0.99);
+      eta.fill(std::log(y_mean / (1.0 - y_mean)));  // logit link
+      break;
+    }
+    case GAMMA:
+    case INV_GAUSSIAN: {
+      // For Gamma/inverse.gaussian, use log of mean(y)
+      double y_mean = std::max(mean(y), datum::eps);
+      eta.fill(std::log(y_mean));
+      break;
+    }
+    case POISSON:
+    case NEG_BIN: {
+      // For Poisson/NegBin, use log(mean(y) + 0.1) to handle zeros
+      double y_mean = mean(y) + 0.1;
+      eta.fill(std::log(y_mean));
+      break;
+    }
+    case GAUSSIAN:
+    default:
+      // For gaussian, eta = y mean
+      eta.fill(mean(y));
+      break;
+    }
+    // Add offset if present
+    if (has_offset) {
+      eta += offset_vec;
+    }
+  }
 
   // Workspace references
   vec &mu = ws.mu;
@@ -748,7 +795,12 @@ InferenceGLM feglm_fit(
 
       dev_crit = std::isfinite(dev);
       val_crit = valid_eta(eta, family_type) && valid_mu(mu, family_type);
-      imp_crit = (dev_ratio_inner <= -params.dev_tol);
+      // For Gaussian with identity link, IRLS is exactly OLS and converges in
+      // one step. Don't require deviance improvement because:
+      // 1. Starting from mu=mean(y), moving to mu=X*beta may increase deviance
+      //    (e.g., for no-intercept models)
+      // 2. The OLS solution is correct regardless of deviance decrease
+      imp_crit = (family_type == GAUSSIAN) || (dev_ratio_inner <= -params.dev_tol);
 
       if (dev_crit && val_crit && imp_crit) {
         break;

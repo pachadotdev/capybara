@@ -14,16 +14,6 @@
 #ifndef CAPYBARA_FORMULA_PARSER_H
 #define CAPYBARA_FORMULA_PARSER_H
 
-#include <cmath>
-#include <regex>
-#include <set>
-#include <string>
-#include <unordered_map>
-#include <unordered_set>
-#include <vector>
-
-using namespace arma;
-
 namespace capybara {
 
 // ============================================================
@@ -957,6 +947,7 @@ struct FormulaMatrixResult {
   bool valid = true;
   std::string error;
   bool suppress_intercept = false;  // True when formula has -1 or 0+
+  bool has_intercept_column = false;  // True when intercept was pre-allocated in X
 };
 
 inline FormulaMatrixResult build_matrix_from_formula(
@@ -1102,54 +1093,32 @@ inline FormulaMatrixResult build_matrix_from_formula(
 
   // ============================================================
   // Pass 3: Count total columns needed for X
+  // Cache factor/cut expansions to avoid recomputing in Pass 4
   // ============================================================
 
   size_t total_cols = 0;
   std::vector<size_t> term_col_counts;
 
-  // Helper to count columns for an interaction term
-  auto count_interact_cols = [&](const ParsedTerm &term) -> size_t {
-    // Count how many factor components and their levels
-    size_t n_factors = 0;
-    size_t total_factor_levels = 1;
-    
-    for (const auto &c : term.columns) {
-      ParsedTerm sub = parse_term(c);
-      std::string col_name = sub.column.empty() ? c : sub.column;
-      auto it = col_idx.find(col_name);
-      if (it != col_idx.end()) {
-        SEXP col = VECTOR_ELT(df, it->second);
-        if (is_factor_column(col)) {
-          n_factors++;
-          size_t n_levels = get_factor_levels_count(col, result.keep_idx);
-          total_factor_levels *= n_levels;
-        }
-      }
-    }
-    
-    if (n_factors == 0) {
-      // Pure numeric interaction - 1 column
-      return 1;
-    } else if (n_factors == 1) {
-      // numeric:factor - (levels - 1) columns
-      return total_factor_levels - 1;
-    } else {
-      // factor:factor - all level combinations 
-      return total_factor_levels;
-    }
-  };
+  // Cache for factor dummies - keyed by term index
+  // Avoids recomputing n x (K-1) matrices in Pass 4
+  std::unordered_map<size_t, FactorInfo> factor_cache;
+  std::unordered_map<size_t, CutInfo> cut_cache;
+  // Cache for plain factor columns (Transform::NONE but is_factor_column)
+  std::unordered_map<std::string, FactorInfo> column_factor_cache;
 
-  for (const auto &term : pf.terms) {
+  for (size_t t = 0; t < pf.terms.size(); ++t) {
+    const auto &term = pf.terms[t];
     if (term.transform == Transform::POLY || term.transform == Transform::POLY_RAW) {
       term_col_counts.push_back(term.poly_degree);
       total_cols += term.poly_degree;
     } else if (term.transform == Transform::FACTOR || 
                term.transform == Transform::AS_FACTOR) {
-      // Need to scan column to count levels
+      // Need to scan column to count levels - cache result for Pass 4
       int idx = col_idx[term.column];
       SEXP col = VECTOR_ELT(df, idx);
       FactorInfo fi = factor_dummies(col, result.keep_idx);
       size_t ncols = fi.dummies.n_cols;
+      factor_cache[t] = std::move(fi);  // Cache for Pass 4
       term_col_counts.push_back(ncols);
       total_cols += ncols;
     } else if (term.transform == Transform::CUT) {
@@ -1213,8 +1182,10 @@ inline FormulaMatrixResult build_matrix_from_formula(
       if (it != col_idx.end()) {
         SEXP col = VECTOR_ELT(df, it->second);
         if (is_factor_column(col)) {
+          // Cache factor dummies for Pass 4 reuse
           FactorInfo fi = factor_dummies(col, result.keep_idx);
           size_t ncols = fi.dummies.n_cols;
+          column_factor_cache[term.column] = std::move(fi);
           term_col_counts.push_back(ncols);
           total_cols += ncols;
         } else {
@@ -1230,24 +1201,37 @@ inline FormulaMatrixResult build_matrix_from_formula(
 
   // ============================================================
   // Pass 4: Build design matrix X
+  // Pre-allocate intercept column if no FE and intercept not suppressed
+  // This avoids expensive X.insert_cols() copy in feglm_fit
   // ============================================================
 
-  result.X.set_size(n_valid, total_cols);
-  result.term_names.reserve(total_cols);
+  // Determine if we need to add intercept column
+  bool needs_intercept = (pf.fe_vars.size() == 0) && !pf.suppress_intercept;
+  size_t intercept_cols = needs_intercept ? 1 : 0;
+  
+  result.X.set_size(n_valid, total_cols + intercept_cols);
+  result.term_names.reserve(total_cols + intercept_cols);
 
   size_t col_offset = 0;
+  
+  // Fill intercept column first (if needed)
+  if (needs_intercept) {
+    result.X.col(0).ones();
+    // Note: "(Intercept)" name is added in R code, not here
+    result.has_intercept_column = true;
+    col_offset = 1;
+  }
+
   for (size_t t = 0; t < pf.terms.size(); ++t) {
     const auto &term = pf.terms[t];
     (void)term_col_counts[t]; // Columns tracked via col_offset
 
     if (term.transform == Transform::NONE) {
-      // Plain column - check if it's actually a factor
-      int idx = col_idx[term.column];
-      SEXP col = VECTOR_ELT(df, idx);
-      
-      if (is_factor_column(col)) {
-        // Convert factor to dummies (k-1 columns, first level = reference)
-        FactorInfo fi = factor_dummies(col, result.keep_idx);
+      // Plain column - check if it's actually a factor (use cache from Pass 3)
+      auto cache_it = column_factor_cache.find(term.column);
+      if (cache_it != column_factor_cache.end()) {
+        // Use cached factor dummies instead of recomputing
+        const FactorInfo &fi = cache_it->second;
         for (size_t d = 0; d < fi.dummies.n_cols; ++d) {
           result.X.col(col_offset + d) = fi.dummies.col(d);
           // Use column name + level name (e.g., "cyl_factor6")
@@ -1256,6 +1240,8 @@ inline FormulaMatrixResult build_matrix_from_formula(
         col_offset += fi.dummies.n_cols;
       } else {
         // Numeric column
+        int idx = col_idx[term.column];
+        SEXP col = VECTOR_ELT(df, idx);
         double *dst = result.X.colptr(col_offset);
         copy_numeric_column(col, result.keep_idx, dst);
         result.term_names.push_back(term.column);
@@ -1312,16 +1298,16 @@ inline FormulaMatrixResult build_matrix_from_formula(
 
     } else if (term.transform == Transform::FACTOR ||
                term.transform == Transform::AS_FACTOR) {
-      // Factor dummies
-      int idx = col_idx[term.column];
-      SEXP col = VECTOR_ELT(df, idx);
-      FactorInfo fi = factor_dummies(col, result.keep_idx);
-
-      for (size_t d = 0; d < fi.dummies.n_cols; ++d) {
-        result.X.col(col_offset + d) = fi.dummies.col(d);
-        result.term_names.push_back(term.raw + fi.level_names[d + 1]);
+      // Use cached factor dummies from Pass 3
+      auto cache_it = factor_cache.find(t);
+      if (cache_it != factor_cache.end()) {
+        const FactorInfo &fi = cache_it->second;
+        for (size_t d = 0; d < fi.dummies.n_cols; ++d) {
+          result.X.col(col_offset + d) = fi.dummies.col(d);
+          result.term_names.push_back(term.raw + fi.level_names[d + 1]);
+        }
+        col_offset += fi.dummies.n_cols;
       }
-      col_offset += fi.dummies.n_cols;
 
     } else if (term.transform == Transform::CUT) {
       // Cut into bins
@@ -1412,7 +1398,15 @@ inline FormulaMatrixResult build_matrix_from_formula(
           
           if (is_factor_column(col)) {
             exp.is_factor = true;
-            FactorInfo fi = factor_dummies(col, result.keep_idx);
+            // Check cache first to avoid recomputing factor dummies
+            FactorInfo fi;
+            auto cache_it = column_factor_cache.find(col_name);
+            if (cache_it != column_factor_cache.end()) {
+              fi = cache_it->second;  // Copy from cache
+            } else {
+              fi = factor_dummies(col, result.keep_idx);
+              column_factor_cache[col_name] = fi;  // Cache for potential reuse
+            }
             
             if (use_full_factors) {
               // Factor:factor interaction - use ALL K levels
