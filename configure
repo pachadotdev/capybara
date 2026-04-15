@@ -161,6 +161,16 @@ ARMA_FLAGS="-DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP 
 # Add 64-bit word size for better SIMD alignment
 ARMA_FLAGS="$ARMA_FLAGS -DARMA_64BIT_WORD"
 
+# If BLAS is available, link directly without Armadillo wrapper library
+if [ -n "$BLAS_LIBS" ]; then
+  ARMA_FLAGS="$ARMA_FLAGS -DARMA_DONT_USE_WRAPPER"
+fi
+
+# Disable sparse matrix wrappers if requested
+if [ "${CAPYBARA_NO_SPARSE:-}" = "yes" ]; then
+  ARMA_FLAGS="$ARMA_FLAGS -DARMADILLO4R_NO_SPARSE"
+fi
+
 # Debug flags: if CAPYBARA_DEBUG=yes, define C preprocessor macro for debug-only code
 DEBUG_FLAGS=""
 if [ "${CAPYBARA_DEBUG:-}" = "yes" ]; then
@@ -188,6 +198,11 @@ sed -e "s|@CXX_STD@|${CXX_STD}|g" \
   src/Makevars.in > src/Makevars
 
 # Print summary
+WRAPPER_STATUS="no"
+if [ -n "$BLAS_LIBS" ]; then
+  WRAPPER_STATUS="yes (direct BLAS/LAPACK)"
+fi
+
 cat <<EOF
 ==========================================================================
 Capybara configuration summary
@@ -199,6 +214,8 @@ Capybara configuration summary
   SIMD Support:           ${SIMD_SUPPORT:-None}
   BLAS:                   $BLAS_LIBS
   LAPACK:                 $LAPACK_LIBS
+  No Armadillo Wrapper:   $WRAPPER_STATUS
+  No Sparse Matrices:     ${CAPYBARA_NO_SPARSE:-no}
   High-Performance Mode:  ${CAPYBARA_OPTIMIZATIONS:-no}
   Optimization Flags:     $OPTFLAGS
   Debug Flags:            $DEBUG_FLAGS
@@ -214,6 +231,11 @@ fi
 echo " Change thread count:"
 echo " export CAPYBARA_NCORES=<number>"
 echo " "
+if [ "${CAPYBARA_NO_SPARSE:-no}" != "yes" ]; then
+  echo " Disable sparse matrix support (faster compile):"
+  echo " export CAPYBARA_NO_SPARSE=yes"
+  echo " "
+fi
 echo " Then reinstall the package"
 cat <<EOF
 ==========================================================================
