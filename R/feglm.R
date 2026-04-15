@@ -102,7 +102,7 @@ NULL
 #'  Default is \eqn{\boldsymbol{\beta} = \mathbf{0}}{\beta = 0}.
 #' @param eta_start an optional vector of starting values for the linear predictor.
 #' @param offset an optional formula or numeric vector specifying an a priori known component to be included in the
-#'  linear predictor. If a formula, it should be of the form \code{~ log(variable)}.
+#'  linear predictor. If a formula, it should be of the form \code{~ variable}.
 #' @param control a named list of parameters for controlling the fitting process. See \link{fit_control} for details.
 #'
 #' @details If \link{feglm} does not converge this is often a sign of linear dependence between one or more

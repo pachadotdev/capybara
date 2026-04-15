@@ -88,7 +88,7 @@ NULL
 #' @param init_theta an optional initial value for the theta parameter (see \link[MASS]{glm.nb}).
 #' @param link the link function. Must be one of \code{"log"}, \code{"sqrt"}, or \code{"identity"}.
 #' @param offset an optional formula or numeric vector specifying an a priori known component to be included in the
-#'  linear predictor. If a formula, it should be of the form \code{~ log(variable)}.
+#'  linear predictor. If a formula, it should be of the form \code{~ variable}.
 #'
 #' @examples
 #' # check the feglm examples for the details about clustered standard errors

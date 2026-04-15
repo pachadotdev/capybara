@@ -1,15 +1,14 @@
 // Formula parsing and direct Armadillo matrix building from R data.frame
-// No R fallback - everything handled in C++
 //
-// Supported formula syntax:
-//   y ~ a + b + c                    - plain columns
-//   log(y) ~ log(a) + sqrt(b)        - transforms
-//   y ~ I(a*b) + I(a/b + c)          - arithmetic expressions
-//   y ~ poly(x, 3)                   - polynomial expansion
-//   y ~ a:b                          - interaction
-//   y ~ a*b                          - expands to a + b + a:b
-//   y ~ factor(x)                    - dummy coding
-//   y ~ x | fe1 + fe2 | cluster      - fixed effects and clusters
+// capybara only supports simple formulas:
+//   y ~ x1 + x2 + x3                  - plain columns
+//   y ~ x1 + x2 | fe1 + fe2           - with fixed effects
+//   y ~ x1 + x2 | fe1 + fe2 | cl      - with fixed effects and clusters
+//   y ~ x1:x2                         - interaction (element-wise product)
+//   y ~ x1*x2                         - expands to x1 + x2 + x1:x2
+//
+// Functions like log(), sqrt(), poly(), I(), factor() are NOT supported.
+// Use dplyr/data.table to transform data before fitting.
 
 #ifndef CAPYBARA_FORMULA_PARSER_H
 #define CAPYBARA_FORMULA_PARSER_H
@@ -17,49 +16,14 @@
 namespace capybara {
 
 // ============================================================
-// Transform types
-// ============================================================
-
-enum class Transform {
-  NONE,       // plain column
-  LOG,        // log(x)
-  LOG1P,      // log1p(x) = log(1+x)
-  SQRT,       // sqrt(x)
-  EXP,        // exp(x)
-  ABS,        // abs(x)
-  SQUARE,     // x^2
-  CUBE,       // x^3
-  POLY,       // poly(x, degree) - orthogonal
-  POLY_RAW,   // poly(x, degree, raw = TRUE) - raw powers
-  IDENTITY,   // I(expr)
-  INTERACT,   // a:b
-  FACTOR,     // factor(x)
-  AS_FACTOR,  // as.factor(x)
-  CUT         // cut(x, breaks = n)
-};
-
-// ============================================================
 // Parsed term structure
 // ============================================================
 
 struct ParsedTerm {
-  std::string raw;                   // Original: "log(x)"
-  std::string column;                // Primary column: "x"
-  std::vector<std::string> columns;  // For interactions/I(): ["a", "b"]
-  Transform transform = Transform::NONE;
-  int poly_degree = 1;
-  int cut_breaks = 3;                // For cut(): number of breaks
-  bool poly_raw = false;             // For poly(): raw = TRUE
-  std::string identity_expr;         // For I(): "a*b + c"
-
-  size_t base_cols() const {
-    if (transform == Transform::POLY || transform == Transform::POLY_RAW)
-      return static_cast<size_t>(poly_degree);
-    if (transform == Transform::FACTOR || transform == Transform::AS_FACTOR ||
-        transform == Transform::CUT)
-      return 0;  // determined at runtime
-    return 1;
-  }
+  std::string raw;                   // Original term string
+  std::string column;                // Column name (for simple terms)
+  std::vector<std::string> columns;  // For interactions: ["a", "b"]
+  bool is_interaction = false;
 };
 
 // ============================================================
@@ -115,11 +79,35 @@ inline bool str_starts_with(const std::string &s, const std::string &prefix) {
 }
 
 // ============================================================
+// Detect if term contains a function call
+// Returns the function name if found, empty string otherwise
+// ============================================================
+
+inline std::string detect_function_call(const std::string &term) {
+  std::string s = str_trim(term);
+  
+  // Look for pattern: identifier followed by (
+  // This catches: log(x), sqrt(x), poly(x, 2), I(x*y), factor(x), etc.
+  std::regex func_re("([a-zA-Z_][a-zA-Z0-9_\\.]*)\\s*\\(");
+  std::smatch match;
+  if (std::regex_search(s, match, func_re)) {
+    return match[1].str();
+  }
+  
+  return "";
+}
+
+// Helper to build the "unsupported function" error message
+inline std::string unsupported_function_error(const std::string &func_name) {
+  return "capybara does not support functions in formulas (found '" + 
+         func_name + "'). Use dplyr/data.table to transform your data before fitting. " +
+         "Supported syntax: y ~ x1 + x2 + x3 | fe1 + fe2 | cl";
+}
+
+// ============================================================
 // Safe numeric column access (handles REALSXP and INTSXP)
 // ============================================================
 
-// Get numeric values from column, converting integers if needed
-// Copies into dst, applying keep_idx filter
 inline void copy_numeric_column(SEXP col, const uvec &keep_idx, double *dst) {
   size_t n = keep_idx.n_elem;
   if (TYPEOF(col) == REALSXP) {
@@ -134,43 +122,12 @@ inline void copy_numeric_column(SEXP col, const uvec &keep_idx, double *dst) {
       dst[i] = (val == NA_INTEGER) ? NA_REAL : static_cast<double>(val);
     }
   } else {
-    // Fill with NA for unsupported types
     for (size_t i = 0; i < n; ++i) {
       dst[i] = NA_REAL;
     }
   }
 }
 
-// Get pointer to raw REALSXP data, or nullptr if not REALSXP
-// For use with expression evaluator (which converts ints separately)
-inline const double *get_real_ptr_or_null(SEXP col) {
-  return (TYPEOF(col) == REALSXP) ? REAL(col) : nullptr;
-}
-
-// Get integer pointer or nullptr
-inline const int *get_int_ptr_or_null(SEXP col) {
-  return (TYPEOF(col) == INTSXP) ? INTEGER(col) : nullptr;
-}
-
-// Copy numeric column without index (for full column access)
-inline void copy_numeric_column_full(SEXP col, size_t n, double *dst) {
-  if (TYPEOF(col) == REALSXP) {
-    const double *src = REAL(col);
-    std::memcpy(dst, src, n * sizeof(double));
-  } else if (TYPEOF(col) == INTSXP) {
-    const int *src = INTEGER(col);
-    for (size_t i = 0; i < n; ++i) {
-      int val = src[i];
-      dst[i] = (val == NA_INTEGER) ? NA_REAL : static_cast<double>(val);
-    }
-  } else {
-    for (size_t i = 0; i < n; ++i) {
-      dst[i] = NA_REAL;
-    }
-  }
-}
-
-// Get a single numeric value from a column at index i
 inline double get_numeric_value(SEXP col, size_t i) {
   if (TYPEOF(col) == REALSXP) {
     return REAL(col)[i];
@@ -179,32 +136,6 @@ inline double get_numeric_value(SEXP col, size_t i) {
     return (val == NA_INTEGER) ? NA_REAL : static_cast<double>(val);
   }
   return NA_REAL;
-}
-
-// Extract variable names from expression (for I() and interactions)
-inline std::vector<std::string> extract_var_names(const std::string &expr) {
-  std::vector<std::string> vars;
-  std::unordered_set<std::string> seen;
-
-  // Match valid C/R identifiers
-  std::regex var_re("[a-zA-Z_][a-zA-Z0-9_\\.]*");
-  std::sregex_iterator it(expr.begin(), expr.end(), var_re);
-  std::sregex_iterator end;
-
-  // Reserved words to skip
-  static const std::unordered_set<std::string> reserved = {
-      "log", "log1p", "sqrt", "exp", "abs", "poly", "factor", "I", "TRUE",
-      "FALSE", "NA", "NaN", "Inf"};
-
-  while (it != end) {
-    std::string var = it->str();
-    if (reserved.find(var) == reserved.end() && seen.find(var) == seen.end()) {
-      vars.push_back(var);
-      seen.insert(var);
-    }
-    ++it;
-  }
-  return vars;
 }
 
 // ============================================================
@@ -216,123 +147,16 @@ inline ParsedTerm parse_term(const std::string &raw) {
   t.raw = raw;
   std::string s = str_trim(raw);
 
-  // Check for interaction: a:b (but not inside I())
-  if (s.find(':') != std::string::npos && !str_starts_with(s, "I(")) {
-    t.transform = Transform::INTERACT;
+  // Check for interaction: a:b
+  if (s.find(':') != std::string::npos) {
+    t.is_interaction = true;
     t.columns = str_split_top_level(s, ':');
-    return t;
-  }
-
-  // Check for I(...) - identity/arithmetic
-  if (str_starts_with(s, "I(") && s.back() == ')') {
-    t.transform = Transform::IDENTITY;
-    t.identity_expr = s.substr(2, s.size() - 3);
-    t.columns = extract_var_names(t.identity_expr);
-    return t;
-  }
-
-  // Check for poly() with possible raw = TRUE argument
-  if (str_starts_with(s, "poly(") && s.back() == ')') {
-    std::string inner = s.substr(5, s.size() - 6);
-    auto args = str_split_top_level(inner, ',');
-    t.column = str_trim(args[0]);
-    t.poly_degree = 1;
-    t.poly_raw = false;
-    
-    for (size_t i = 1; i < args.size(); ++i) {
-      std::string arg = str_trim(args[i]);
-      // Check for raw = TRUE or raw=TRUE
-      if (arg.find("raw") != std::string::npos && 
-          (arg.find("TRUE") != std::string::npos || arg.find("T") != std::string::npos)) {
-        t.poly_raw = true;
-      } else {
-        // Try to parse as degree
-        try {
-          // Remove any "degree =" prefix
-          size_t eq = arg.find('=');
-          std::string val = (eq != std::string::npos) ? str_trim(arg.substr(eq + 1)) : arg;
-          t.poly_degree = std::stoi(val);
-        } catch (...) {}
-      }
-    }
-    t.transform = t.poly_raw ? Transform::POLY_RAW : Transform::POLY;
-    return t;
-  }
-
-  // Check for cut() function
-  if (str_starts_with(s, "cut(") && s.back() == ')') {
-    std::string inner = s.substr(4, s.size() - 5);
-    auto args = str_split_top_level(inner, ',');
-    t.column = str_trim(args[0]);
-    t.cut_breaks = 3;  // default
-    
-    for (size_t i = 1; i < args.size(); ++i) {
-      std::string arg = str_trim(args[i]);
-      // Check for breaks = N
-      if (arg.find("breaks") != std::string::npos) {
-        size_t eq = arg.find('=');
-        if (eq != std::string::npos) {
-          try {
-            t.cut_breaks = std::stoi(str_trim(arg.substr(eq + 1)));
-          } catch (...) {}
-        }
-      } else {
-        // Just a number - assume it's breaks
-        try {
-          t.cut_breaks = std::stoi(arg);
-        } catch (...) {}
-      }
-    }
-    t.transform = Transform::CUT;
-    return t;
-  }
-
-  // Check for function transforms: func(col) or func(col, arg)
-  auto try_parse_func = [&](const std::string &prefix, Transform tf) -> bool {
-    if (str_starts_with(s, prefix) && s.back() == ')') {
-      std::string inner = s.substr(prefix.size(), s.size() - prefix.size() - 1);
-      auto args = str_split_top_level(inner, ',');
-      t.column = str_trim(args[0]);
-      t.transform = tf;
-      return true;
-    }
-    return false;
-  };
-
-  if (try_parse_func("log1p(", Transform::LOG1P))
-    return t;
-  if (try_parse_func("log(", Transform::LOG))
-    return t;
-  if (try_parse_func("sqrt(", Transform::SQRT))
-    return t;
-  if (try_parse_func("exp(", Transform::EXP))
-    return t;
-  if (try_parse_func("abs(", Transform::ABS))
-    return t;
-  if (try_parse_func("factor(", Transform::FACTOR))
-    return t;
-  if (try_parse_func("as.factor(", Transform::AS_FACTOR))
-    return t;
-
-  // Check for power: x^2, x^3
-  size_t caret = s.find('^');
-  if (caret != std::string::npos) {
-    t.column = str_trim(s.substr(0, caret));
-    int power = std::stoi(str_trim(s.substr(caret + 1)));
-    if (power == 2) {
-      t.transform = Transform::SQUARE;
-    } else if (power == 3) {
-      t.transform = Transform::CUBE;
-    } else {
-      t.transform = Transform::POLY;
-      t.poly_degree = power;
-    }
     return t;
   }
 
   // Plain column name
   t.column = s;
-  t.transform = Transform::NONE;
+  t.is_interaction = false;
   return t;
 }
 
@@ -362,6 +186,14 @@ inline ParsedFormula parse_formula(const std::string &formula) {
   std::string lhs = str_trim(formula.substr(0, tilde));
   std::string rhs = str_trim(formula.substr(tilde + 1));
 
+  // Check for functions in response
+  std::string func = detect_function_call(lhs);
+  if (!func.empty()) {
+    pf.valid = false;
+    pf.error = unsupported_function_error(func);
+    return pf;
+  }
+
   // Parse response
   pf.response = parse_term(lhs);
   if (!pf.response.column.empty())
@@ -384,39 +216,25 @@ inline ParsedFormula parse_formula(const std::string &formula) {
       continue;
     }
 
-    // Helper to extract actual column names from a term
-    // (handles transforms like log(x) -> x)
-    auto add_cols_from_term = [&](const ParsedTerm &pt) {
-      if (pt.transform == Transform::INTERACT) {
-        // For interactions, recursively extract columns from each component
-        for (const auto &c : pt.columns) {
-          ParsedTerm sub = parse_term(c);
-          if (!sub.column.empty()) {
-            add_col(sub.column);
-          }
-          for (const auto &sc : sub.columns) {
-            add_col(sc);
-          }
-        }
-      } else {
-        if (!pt.column.empty()) {
-          add_col(pt.column);
-        }
-        for (const auto &c : pt.columns) {
-          add_col(c);
-        }
-      }
-    };
+    // Check for functions in this term
+    func = detect_function_call(term_str);
+    if (!func.empty()) {
+      pf.valid = false;
+      pf.error = unsupported_function_error(func);
+      return pf;
+    }
 
     // Handle * expansion: a*b -> a + b + a:b
-    if (term_str.find('*') != std::string::npos &&
-        !str_starts_with(term_str, "I(")) {
+    if (term_str.find('*') != std::string::npos) {
       auto vars = str_split_top_level(term_str, '*');
       // Add main effects
       for (const auto &v : vars) {
         ParsedTerm pt = parse_term(v);
         pf.terms.push_back(pt);
-        add_cols_from_term(pt);
+        if (!pt.column.empty())
+          add_col(pt.column);
+        for (const auto &c : pt.columns)
+          add_col(c);
       }
       // Add interaction
       std::string interact = vars[0];
@@ -425,11 +243,15 @@ inline ParsedFormula parse_formula(const std::string &formula) {
       }
       ParsedTerm pt = parse_term(interact);
       pf.terms.push_back(pt);
-      add_cols_from_term(pt);
+      for (const auto &c : pt.columns)
+        add_col(c);
     } else {
       ParsedTerm pt = parse_term(term_str);
       pf.terms.push_back(pt);
-      add_cols_from_term(pt);
+      if (!pt.column.empty())
+        add_col(pt.column);
+      for (const auto &c : pt.columns)
+        add_col(c);
     }
   }
 
@@ -438,6 +260,13 @@ inline ParsedFormula parse_formula(const std::string &formula) {
     auto fe = str_split_top_level(parts[1], '+');
     for (const auto &f : fe) {
       if (!f.empty()) {
+        // Check for functions in FE vars
+        func = detect_function_call(f);
+        if (!func.empty()) {
+          pf.valid = false;
+          pf.error = unsupported_function_error(func);
+          return pf;
+        }
         pf.fe_vars.push_back(f);
         add_col(f);
       }
@@ -449,6 +278,13 @@ inline ParsedFormula parse_formula(const std::string &formula) {
     auto cl = str_split_top_level(parts[2], '+');
     for (const auto &c : cl) {
       if (!c.empty()) {
+        // Check for functions in cluster vars
+        func = detect_function_call(c);
+        if (!func.empty()) {
+          pf.valid = false;
+          pf.error = unsupported_function_error(func);
+          return pf;
+        }
         pf.cluster_vars.push_back(c);
         add_col(c);
       }
@@ -456,203 +292,6 @@ inline ParsedFormula parse_formula(const std::string &formula) {
   }
 
   return pf;
-}
-
-// ============================================================
-// Apply element-wise transforms
-// ============================================================
-
-inline void apply_transform_inplace(double *data, size_t n, Transform tf) {
-  switch (tf) {
-  case Transform::LOG:
-    for (size_t i = 0; i < n; ++i)
-      data[i] = std::log(data[i]);
-    break;
-  case Transform::LOG1P:
-    for (size_t i = 0; i < n; ++i)
-      data[i] = std::log1p(data[i]);
-    break;
-  case Transform::SQRT:
-    for (size_t i = 0; i < n; ++i)
-      data[i] = std::sqrt(data[i]);
-    break;
-  case Transform::EXP:
-    for (size_t i = 0; i < n; ++i)
-      data[i] = std::exp(data[i]);
-    break;
-  case Transform::ABS:
-    for (size_t i = 0; i < n; ++i)
-      data[i] = std::abs(data[i]);
-    break;
-  case Transform::SQUARE:
-    for (size_t i = 0; i < n; ++i)
-      data[i] = data[i] * data[i];
-    break;
-  case Transform::CUBE:
-    for (size_t i = 0; i < n; ++i)
-      data[i] = data[i] * data[i] * data[i];
-    break;
-  default:
-    break;
-  }
-}
-
-// ============================================================
-// Orthogonal polynomial expansion (matches R's poly() exactly)
-// Uses QR decomposition like R's make.poly()
-// ============================================================
-
-inline mat orthogonal_poly(const vec &x, int degree) {
-  size_t n = x.n_elem;
-  mat result(n, degree);
-  
-  if (degree < 1 || n == 0) {
-    return result;
-  }
-
-  // R's poly() algorithm:
-  // 1. Center x by subtracting mean
-  // 2. Build raw polynomial matrix [1, xc, xc^2, ..., xc^degree]
-  // 3. QR decomposition
-  // 4. Ensure diagonal of R is positive (flip Q column signs if needed)
-  // 5. Drop first column (constant)
-  // 6. Normalize each column so sum(col^2) = 1
-  
-  double mean_x = arma::mean(x);
-  vec xc = x - mean_x;
-  
-  // Build raw polynomial matrix (Vandermonde-like)
-  mat X(n, degree + 1);
-  X.col(0).ones();  // x^0 = 1
-  for (int d = 1; d <= degree; ++d) {
-    X.col(d) = arma::pow(xc, d);
-  }
-  
-  // QR decomposition
-  mat Q, R;
-  arma::qr_econ(Q, R, X);
-  
-  // Ensure diagonal of R is positive (R's sign convention)
-  // This makes the result deterministic and matches R's output
-  for (int j = 0; j <= degree; ++j) {
-    if (R(j, j) < 0) {
-      Q.col(j) = -Q.col(j);
-    }
-  }
-  
-  // Drop first column (constant) and normalize
-  for (int d = 0; d < degree; ++d) {
-    vec col = Q.col(d + 1);  // Skip first column
-    double norm = std::sqrt(arma::dot(col, col));
-    if (norm > 1e-10) {
-      result.col(d) = col / norm;
-    } else {
-      result.col(d) = col;
-    }
-  }
-  
-  return result;
-}
-
-// ============================================================
-// Raw polynomial expansion (like R's poly(x, raw = TRUE))
-// ============================================================
-
-inline mat raw_poly(const vec &x, int degree) {
-  size_t n = x.n_elem;
-  mat result(n, degree);
-  
-  for (int d = 0; d < degree; ++d) {
-    result.col(d) = arma::pow(x, d + 1);
-  }
-  
-  return result;
-}
-
-// ============================================================
-// Cut function (like R's cut())
-// Bins continuous variable into equal-width intervals
-// ============================================================
-
-struct CutInfo {
-  mat dummies;
-  std::vector<std::string> level_names;
-};
-
-inline CutInfo cut_dummies(SEXP col, const uvec &keep_idx, int n_breaks) {
-  CutInfo info;
-  size_t n = keep_idx.n_elem;
-  
-  // Extract numeric values
-  vec values(n);
-  if (TYPEOF(col) == REALSXP) {
-    const double *src = REAL(col);
-    for (size_t i = 0; i < n; ++i) {
-      values[i] = src[keep_idx[i]];
-    }
-  } else if (TYPEOF(col) == INTSXP) {
-    const int *src = INTEGER(col);
-    for (size_t i = 0; i < n; ++i) {
-      int val = src[keep_idx[i]];
-      values[i] = (val == NA_INTEGER) ? NA_REAL : static_cast<double>(val);
-    }
-  }
-  
-  // Get range - R extends by 0.1% on each end
-  double min_val = values.min();
-  double max_val = values.max();
-  double range = max_val - min_val;
-  double ext = 0.001 * range;  // 0.1% extension
-  
-  // Create break points matching R's behavior
-  std::vector<double> breaks(n_breaks + 1);
-  double ext_min = min_val - ext;
-  double ext_max = max_val + ext;
-  double width = (ext_max - ext_min) / n_breaks;
-  for (int i = 0; i <= n_breaks; ++i) {
-    breaks[i] = ext_min + i * width;
-  }
-  
-  // Create level names like R does: "(a,b]" with 2 decimal places
-  info.level_names.resize(n_breaks);
-  for (int i = 0; i < n_breaks; ++i) {
-    char buf[128];
-    snprintf(buf, sizeof(buf), "(%.2f,%.2f]", breaks[i], breaks[i + 1]);
-    info.level_names[i] = buf;
-  }
-  
-  // Assign each value to a bin
-  std::vector<int> bin_idx(n);
-  for (size_t i = 0; i < n; ++i) {
-    double v = values[i];
-    int bin = 0;
-    for (int b = 0; b < n_breaks; ++b) {
-      if (v > breaks[b] && v <= breaks[b + 1]) {
-        bin = b;
-        break;
-      }
-    }
-    // First bin includes left boundary
-    if (v == min_val) bin = 0;
-    bin_idx[i] = bin;
-  }
-  
-  // Create K-1 dummies (first level is reference)
-  if (n_breaks <= 1) {
-    return info;
-  }
-  
-  info.dummies.set_size(n, n_breaks - 1);
-  info.dummies.zeros();
-  
-  for (size_t i = 0; i < n; ++i) {
-    int bin = bin_idx[i];
-    if (bin > 0) {
-      info.dummies(i, bin - 1) = 1.0;
-    }
-  }
-  
-  return info;
 }
 
 // ============================================================
@@ -772,7 +411,6 @@ inline FactorInfo factor_dummies(SEXP col, const uvec &keep_idx) {
   }
   
   // Sort levels the way R does: alphabetically/lexicographically
-  // (set is already sorted)
   for (const auto &lvl : unique_levels) {
     level_map[lvl] = levels.size();
     levels.push_back(lvl);
@@ -802,136 +440,6 @@ inline FactorInfo factor_dummies(SEXP col, const uvec &keep_idx) {
 }
 
 // ============================================================
-// Expression evaluator for I()
-// Supports: +, -, *, /, ^, numeric literals
-// ============================================================
-
-inline vec evaluate_identity_expr(
-    const std::string &expr,
-    const std::unordered_map<std::string, const double *> &col_data,
-    size_t n,
-    const uvec &keep_idx) {
-  vec result(n);
-
-  // Tokenize: find the lowest-precedence operator outside parentheses
-  auto find_binary_op = [](const std::string &s) -> std::pair<char, size_t> {
-    int paren = 0;
-    // Scan for + or - (lowest precedence) right to left
-    for (size_t i = s.size(); i > 0; --i) {
-      char c = s[i - 1];
-      if (c == ')')
-        paren++;
-      else if (c == '(')
-        paren--;
-      else if (paren == 0 && (c == '+' || c == '-')) {
-        return {c, i - 1};
-      }
-    }
-    // Then * or /
-    paren = 0;
-    for (size_t i = s.size(); i > 0; --i) {
-      char c = s[i - 1];
-      if (c == ')')
-        paren++;
-      else if (c == '(')
-        paren--;
-      else if (paren == 0 && (c == '*' || c == '/')) {
-        return {c, i - 1};
-      }
-    }
-    // Then ^
-    paren = 0;
-    for (size_t i = s.size(); i > 0; --i) {
-      char c = s[i - 1];
-      if (c == ')')
-        paren++;
-      else if (c == '(')
-        paren--;
-      else if (paren == 0 && c == '^') {
-        return {c, i - 1};
-      }
-    }
-    return {0, std::string::npos};
-  };
-
-  std::function<vec(const std::string &)> eval_rec =
-      [&](const std::string &s) -> vec {
-    std::string trimmed = str_trim(s);
-
-    // Remove outer parentheses
-    while (trimmed.size() >= 2 && trimmed.front() == '(' &&
-           trimmed.back() == ')') {
-      // Check if they match
-      int paren = 0;
-      bool matched = true;
-      for (size_t i = 0; i < trimmed.size() - 1; ++i) {
-        if (trimmed[i] == '(')
-          paren++;
-        else if (trimmed[i] == ')')
-          paren--;
-        if (paren == 0) {
-          matched = false;
-          break;
-        }
-      }
-      if (matched)
-        trimmed = str_trim(trimmed.substr(1, trimmed.size() - 2));
-      else
-        break;
-    }
-
-    auto [op, pos] = find_binary_op(trimmed);
-
-    if (op != 0 && pos != std::string::npos) {
-      std::string left = str_trim(trimmed.substr(0, pos));
-      std::string right = str_trim(trimmed.substr(pos + 1));
-      vec l = eval_rec(left);
-      vec r = eval_rec(right);
-
-      switch (op) {
-      case '+':
-        return l + r;
-      case '-':
-        return l - r;
-      case '*':
-        return l % r;
-      case '/':
-        return l / r;
-      case '^':
-        return arma::pow(l, r);
-      }
-    }
-
-    // Try as column name
-    auto it = col_data.find(trimmed);
-    if (it != col_data.end()) {
-      vec v(n);
-      const double *src = it->second;
-      for (size_t i = 0; i < n; ++i) {
-        v[i] = src[keep_idx[i]];
-      }
-      return v;
-    }
-
-    // Try as number
-    try {
-      double val = std::stod(trimmed);
-      vec v(n);
-      v.fill(val);
-      return v;
-    } catch (...) {
-    }
-
-    // Unknown - return zeros with warning
-    vec v(n);
-    v.zeros();
-    return v;
-  };
-
-  return eval_rec(expr);
-}
-
-// ============================================================
 // Main: Build y and X directly from R data.frame
 // ============================================================
 
@@ -946,14 +454,14 @@ struct FormulaMatrixResult {
   std::vector<std::string> cluster_vars;
   bool valid = true;
   std::string error;
-  bool suppress_intercept = false;  // True when formula has -1 or 0+
-  bool has_intercept_column = false;  // True when intercept was pre-allocated in X
+  bool suppress_intercept = false;
+  bool has_intercept_column = false;
 };
 
 inline FormulaMatrixResult build_matrix_from_formula(
     const std::string &formula_str,
     SEXP df,
-    const double *weights_ptr,  // NULL for unit weights
+    const double *weights_ptr,
     size_t weights_len) {
   FormulaMatrixResult result;
 
@@ -1058,92 +566,31 @@ inline FormulaMatrixResult build_matrix_from_formula(
   // ============================================================
 
   result.y.set_size(n_valid);
-
-  if (pf.response.transform == Transform::IDENTITY) {
-    // Build column data map for expression evaluation
-    // Need to convert integer columns to temporary storage
-    std::unordered_map<std::string, const double *> col_data;
-    std::unordered_map<std::string, std::vector<double>> int_storage;
-    for (const auto &c : pf.response.columns) {
-      int idx = col_idx[c];
-      SEXP col = VECTOR_ELT(df, idx);
-      if (TYPEOF(col) == REALSXP) {
-        col_data[c] = REAL(col);
-      } else if (TYPEOF(col) == INTSXP) {
-        // Convert to double storage
-        const int *src = INTEGER(col);
-        size_t N = static_cast<size_t>(Rf_xlength(col));
-        int_storage[c].resize(N);
-        for (size_t i = 0; i < N; ++i) {
-          int_storage[c][i] = (src[i] == NA_INTEGER) ? NA_REAL : static_cast<double>(src[i]);
-        }
-        col_data[c] = int_storage[c].data();
-      }
-    }
-    result.y = evaluate_identity_expr(pf.response.identity_expr, col_data,
-                                      n_valid, result.keep_idx);
-  } else {
-    // Simple column with optional transform
-    int y_idx = col_idx[pf.response.column];
-    SEXP y_col = VECTOR_ELT(df, y_idx);
-    copy_numeric_column(y_col, result.keep_idx, result.y.memptr());
-
-    apply_transform_inplace(result.y.memptr(), n_valid, pf.response.transform);
-  }
+  int y_idx = col_idx[pf.response.column];
+  SEXP y_col = VECTOR_ELT(df, y_idx);
+  copy_numeric_column(y_col, result.keep_idx, result.y.memptr());
 
   // ============================================================
   // Pass 3: Count total columns needed for X
-  // Cache factor/cut expansions to avoid recomputing in Pass 4
+  // Cache factor expansions to avoid recomputing
   // ============================================================
 
   size_t total_cols = 0;
   std::vector<size_t> term_col_counts;
-
-  // Cache for factor dummies - keyed by term index
-  // Avoids recomputing n x (K-1) matrices in Pass 4
-  std::unordered_map<size_t, FactorInfo> factor_cache;
-  std::unordered_map<size_t, CutInfo> cut_cache;
-  // Cache for plain factor columns (Transform::NONE but is_factor_column)
-  std::unordered_map<std::string, FactorInfo> column_factor_cache;
+  std::unordered_map<std::string, FactorInfo> factor_cache;
 
   for (size_t t = 0; t < pf.terms.size(); ++t) {
     const auto &term = pf.terms[t];
-    if (term.transform == Transform::POLY || term.transform == Transform::POLY_RAW) {
-      term_col_counts.push_back(term.poly_degree);
-      total_cols += term.poly_degree;
-    } else if (term.transform == Transform::FACTOR || 
-               term.transform == Transform::AS_FACTOR) {
-      // Need to scan column to count levels - cache result for Pass 4
-      int idx = col_idx[term.column];
-      SEXP col = VECTOR_ELT(df, idx);
-      FactorInfo fi = factor_dummies(col, result.keep_idx);
-      size_t ncols = fi.dummies.n_cols;
-      factor_cache[t] = std::move(fi);  // Cache for Pass 4
-      term_col_counts.push_back(ncols);
-      total_cols += ncols;
-    } else if (term.transform == Transform::CUT) {
-      // cut() produces n_breaks - 1 dummies
-      size_t ncols = (term.cut_breaks > 1) ? term.cut_breaks - 1 : 0;
-      term_col_counts.push_back(ncols);
-      total_cols += ncols;
-    } else if (term.transform == Transform::INTERACT) {
-      // Count columns for interactions - need to handle:
-      // - factors: K-1 levels for factor:numeric, K levels for factor:factor
-      // - poly() terms (degree columns)
-      // - plain numeric (1 column)
-      
-      // First count how many factors
+    
+    if (term.is_interaction) {
+      // Interaction: count columns for each component
       size_t num_factors = 0;
       for (const auto &c : term.columns) {
-        ParsedTerm sub = parse_term(c);
-        std::string col_name = sub.column.empty() ? c : sub.column;
-        if (sub.transform != Transform::POLY && sub.transform != Transform::POLY_RAW) {
-          auto it = col_idx.find(col_name);
-          if (it != col_idx.end()) {
-            SEXP col = VECTOR_ELT(df, it->second);
-            if (is_factor_column(col)) {
-              num_factors++;
-            }
+        auto it = col_idx.find(c);
+        if (it != col_idx.end()) {
+          SEXP col = VECTOR_ELT(df, it->second);
+          if (is_factor_column(col)) {
+            num_factors++;
           }
         }
       }
@@ -1151,25 +598,15 @@ inline FormulaMatrixResult build_matrix_from_formula(
       
       size_t ncols = 1;
       for (const auto &c : term.columns) {
-        ParsedTerm sub = parse_term(c);
-        std::string col_name = sub.column.empty() ? c : sub.column;
-        
-        // Check for poly terms first
-        if (sub.transform == Transform::POLY || sub.transform == Transform::POLY_RAW) {
-          ncols *= sub.poly_degree;
-        } else {
-          auto it = col_idx.find(col_name);
-          if (it != col_idx.end()) {
-            SEXP col = VECTOR_ELT(df, it->second);
-            if (is_factor_column(col)) {
-              size_t n_levels = get_factor_levels_count(col, result.keep_idx);
-              if (use_full_factors) {
-                // factor:factor uses all K levels
-                ncols *= n_levels;
-              } else {
-                // factor:numeric uses K-1 levels
-                ncols *= (n_levels - 1);
-              }
+        auto it = col_idx.find(c);
+        if (it != col_idx.end()) {
+          SEXP col = VECTOR_ELT(df, it->second);
+          if (is_factor_column(col)) {
+            size_t n_levels = get_factor_levels_count(col, result.keep_idx);
+            if (use_full_factors) {
+              ncols *= n_levels;
+            } else {
+              ncols *= (n_levels - 1);
             }
           }
         }
@@ -1177,15 +614,14 @@ inline FormulaMatrixResult build_matrix_from_formula(
       term_col_counts.push_back(ncols);
       total_cols += ncols;
     } else {
-      // Transform::NONE - check if it's actually a factor column
+      // Simple column - check if it's a factor
       auto it = col_idx.find(term.column);
       if (it != col_idx.end()) {
         SEXP col = VECTOR_ELT(df, it->second);
         if (is_factor_column(col)) {
-          // Cache factor dummies for Pass 4 reuse
           FactorInfo fi = factor_dummies(col, result.keep_idx);
           size_t ncols = fi.dummies.n_cols;
-          column_factor_cache[term.column] = std::move(fi);
+          factor_cache[term.column] = std::move(fi);
           term_col_counts.push_back(ncols);
           total_cols += ncols;
         } else {
@@ -1201,11 +637,8 @@ inline FormulaMatrixResult build_matrix_from_formula(
 
   // ============================================================
   // Pass 4: Build design matrix X
-  // Pre-allocate intercept column if no FE and intercept not suppressed
-  // This avoids expensive X.insert_cols() copy in feglm_fit
   // ============================================================
 
-  // Determine if we need to add intercept column
   bool needs_intercept = (pf.fe_vars.size() == 0) && !pf.suppress_intercept;
   size_t intercept_cols = needs_intercept ? 1 : 0;
   
@@ -1217,259 +650,110 @@ inline FormulaMatrixResult build_matrix_from_formula(
   // Fill intercept column first (if needed)
   if (needs_intercept) {
     result.X.col(0).ones();
-    // Note: "(Intercept)" name is added in R code, not here
     result.has_intercept_column = true;
     col_offset = 1;
   }
 
   for (size_t t = 0; t < pf.terms.size(); ++t) {
     const auto &term = pf.terms[t];
-    (void)term_col_counts[t]; // Columns tracked via col_offset
 
-    if (term.transform == Transform::NONE) {
-      // Plain column - check if it's actually a factor (use cache from Pass 3)
-      auto cache_it = column_factor_cache.find(term.column);
-      if (cache_it != column_factor_cache.end()) {
-        // Use cached factor dummies instead of recomputing
-        const FactorInfo &fi = cache_it->second;
-        for (size_t d = 0; d < fi.dummies.n_cols; ++d) {
-          result.X.col(col_offset + d) = fi.dummies.col(d);
-          // Use column name + level name (e.g., "cyl_factor6")
-          result.term_names.push_back(term.column + fi.level_names[d + 1]);
-        }
-        col_offset += fi.dummies.n_cols;
-      } else {
-        // Numeric column
-        int idx = col_idx[term.column];
-        SEXP col = VECTOR_ELT(df, idx);
-        double *dst = result.X.colptr(col_offset);
-        copy_numeric_column(col, result.keep_idx, dst);
-        result.term_names.push_back(term.column);
-        col_offset++;
-      }
-
-    } else if (term.transform == Transform::LOG ||
-               term.transform == Transform::LOG1P ||
-               term.transform == Transform::SQRT ||
-               term.transform == Transform::EXP ||
-               term.transform == Transform::ABS ||
-               term.transform == Transform::SQUARE ||
-               term.transform == Transform::CUBE) {
-      // Simple transform
-      int idx = col_idx[term.column];
-      SEXP col = VECTOR_ELT(df, idx);
-      double *dst = result.X.colptr(col_offset);
-      copy_numeric_column(col, result.keep_idx, dst);
-      apply_transform_inplace(dst, n_valid, term.transform);
-      result.term_names.push_back(term.raw);
-      col_offset++;
-
-    } else if (term.transform == Transform::POLY) {
-      // Orthogonal polynomial expansion
-      int idx = col_idx[term.column];
-      SEXP col = VECTOR_ELT(df, idx);
-
-      vec x(n_valid);
-      copy_numeric_column(col, result.keep_idx, x.memptr());
-      mat poly_mat = orthogonal_poly(x, term.poly_degree);
-
-      for (int d = 0; d < term.poly_degree; ++d) {
-        result.X.col(col_offset + d) = poly_mat.col(d);
-        result.term_names.push_back("poly(" + term.column + ", " +
-                                    std::to_string(term.poly_degree) + ")" +
-                                    std::to_string(d + 1));
-      }
-      col_offset += term.poly_degree;
-
-    } else if (term.transform == Transform::POLY_RAW) {
-      // Raw polynomial expansion
-      int idx = col_idx[term.column];
-      SEXP col = VECTOR_ELT(df, idx);
-
-      vec x(n_valid);
-      copy_numeric_column(col, result.keep_idx, x.memptr());
-      mat poly_mat = raw_poly(x, term.poly_degree);
-
-      for (int d = 0; d < term.poly_degree; ++d) {
-        result.X.col(col_offset + d) = poly_mat.col(d);
-        result.term_names.push_back(term.raw + std::to_string(d + 1));
-      }
-      col_offset += term.poly_degree;
-
-    } else if (term.transform == Transform::FACTOR ||
-               term.transform == Transform::AS_FACTOR) {
-      // Use cached factor dummies from Pass 3
-      auto cache_it = factor_cache.find(t);
-      if (cache_it != factor_cache.end()) {
-        const FactorInfo &fi = cache_it->second;
-        for (size_t d = 0; d < fi.dummies.n_cols; ++d) {
-          result.X.col(col_offset + d) = fi.dummies.col(d);
-          result.term_names.push_back(term.raw + fi.level_names[d + 1]);
-        }
-        col_offset += fi.dummies.n_cols;
-      }
-
-    } else if (term.transform == Transform::CUT) {
-      // Cut into bins
-      int idx = col_idx[term.column];
-      SEXP col = VECTOR_ELT(df, idx);
-      CutInfo ci = cut_dummies(col, result.keep_idx, term.cut_breaks);
-
-      for (size_t d = 0; d < ci.dummies.n_cols; ++d) {
-        result.X.col(col_offset + d) = ci.dummies.col(d);
-        result.term_names.push_back(term.raw + ci.level_names[d + 1]);
-      }
-      col_offset += ci.dummies.n_cols;
-
-    } else if (term.transform == Transform::INTERACT) {
-      // Handle interactions between any combination of:
-      // - factors (K-1 columns for factor:numeric, K columns for factor:factor)
-      // - poly() terms (degree columns)
-      // - plain numeric (1 column)
-      
-      // First, determine how many factors we have (for deciding K vs K-1)
+    if (term.is_interaction) {
+      // Handle interactions
       size_t num_factors = 0;
       for (const auto &c : term.columns) {
-        ParsedTerm sub_term = parse_term(c);
-        std::string col_name = sub_term.column.empty() ? c : sub_term.column;
-        if (sub_term.transform != Transform::POLY && sub_term.transform != Transform::POLY_RAW) {
-          auto it = col_idx.find(col_name);
-          if (it != col_idx.end()) {
-            SEXP col = VECTOR_ELT(df, it->second);
-            if (is_factor_column(col)) {
-              num_factors++;
-            }
+        auto it = col_idx.find(c);
+        if (it != col_idx.end()) {
+          SEXP col = VECTOR_ELT(df, it->second);
+          if (is_factor_column(col)) {
+            num_factors++;
           }
         }
       }
-      bool use_full_factors = (num_factors >= 2);  // factor:factor uses all levels
+      bool use_full_factors = (num_factors >= 2);
       
-      // For each component, store its expansion info
+      // Build component expansions
       struct ComponentExpansion {
-        std::string base_name;      // e.g., "hp" or "poly(wt, 2)"
-        mat columns;                // The actual data columns
-        std::vector<std::string> suffixes;  // e.g., ["1", "2"] for poly, ["6", "8"] for factor
+        std::string base_name;
+        mat columns;
+        std::vector<std::string> suffixes;
         bool is_factor;
       };
       
       std::vector<ComponentExpansion> expansions;
       
       for (const auto &c : term.columns) {
-        ParsedTerm sub_term = parse_term(c);
-        std::string col_name = sub_term.column.empty() ? c : sub_term.column;
-        
         ComponentExpansion exp;
-        exp.base_name = c;  // Use full term string as base name
+        exp.base_name = c;
         exp.is_factor = false;
         
-        if (sub_term.transform == Transform::POLY || sub_term.transform == Transform::POLY_RAW) {
-          // Poly term - expand to degree columns
-          auto it = col_idx.find(col_name);
-          if (it == col_idx.end()) {
-            result.valid = false;
-            result.error = "undefined columns: " + col_name;
-            return result;
-          }
-          
-          SEXP col = VECTOR_ELT(df, it->second);
-          vec x(n_valid);
-          copy_numeric_column(col, result.keep_idx, x.memptr());
-          
-          if (sub_term.transform == Transform::POLY) {
-            exp.columns = orthogonal_poly(x, sub_term.poly_degree);
+        auto it = col_idx.find(c);
+        if (it == col_idx.end()) {
+          result.valid = false;
+          result.error = "undefined columns: " + c;
+          return result;
+        }
+        
+        SEXP col = VECTOR_ELT(df, it->second);
+        
+        if (is_factor_column(col)) {
+          exp.is_factor = true;
+          FactorInfo fi;
+          auto cache_it = factor_cache.find(c);
+          if (cache_it != factor_cache.end()) {
+            fi = cache_it->second;
           } else {
-            exp.columns = raw_poly(x, sub_term.poly_degree);
+            fi = factor_dummies(col, result.keep_idx);
+            factor_cache[c] = fi;
           }
           
-          for (int d = 0; d < sub_term.poly_degree; ++d) {
-            exp.suffixes.push_back(std::to_string(d + 1));
-          }
-          
-        } else {
-          // Check if it's a factor
-          auto it = col_idx.find(col_name);
-          if (it == col_idx.end()) {
-            result.valid = false;
-            result.error = "undefined columns: " + col_name;
-            return result;
-          }
-          
-          SEXP col = VECTOR_ELT(df, it->second);
-          
-          if (is_factor_column(col)) {
-            exp.is_factor = true;
-            // Check cache first to avoid recomputing factor dummies
-            FactorInfo fi;
-            auto cache_it = column_factor_cache.find(col_name);
-            if (cache_it != column_factor_cache.end()) {
-              fi = cache_it->second;  // Copy from cache
-            } else {
-              fi = factor_dummies(col, result.keep_idx);
-              column_factor_cache[col_name] = fi;  // Cache for potential reuse
+          if (use_full_factors) {
+            // Factor:factor - use ALL K levels
+            size_t k = fi.level_names.size();
+            exp.columns.set_size(n_valid, k);
+            
+            // First column: reference level indicator
+            vec ref_indicator(n_valid);
+            for (size_t i = 0; i < n_valid; ++i) {
+              bool is_ref = true;
+              for (size_t d = 0; d < fi.dummies.n_cols; ++d) {
+                if (fi.dummies(i, d) == 1.0) {
+                  is_ref = false;
+                  break;
+                }
+              }
+              ref_indicator[i] = is_ref ? 1.0 : 0.0;
+            }
+            exp.columns.col(0) = ref_indicator;
+            
+            for (size_t d = 0; d < fi.dummies.n_cols; ++d) {
+              exp.columns.col(d + 1) = fi.dummies.col(d);
             }
             
-            if (use_full_factors) {
-              // Factor:factor interaction - use ALL K levels
-              // Create full indicator matrix including reference level
-              size_t k = fi.level_names.size();
-              exp.columns.set_size(n_valid, k);
-              
-              // First column: indicator for reference level (all zeros in dummies)
-              vec ref_indicator(n_valid);
-              for (size_t i = 0; i < n_valid; ++i) {
-                bool is_ref = true;
-                for (size_t d = 0; d < fi.dummies.n_cols; ++d) {
-                  if (fi.dummies(i, d) == 1.0) {
-                    is_ref = false;
-                    break;
-                  }
-                }
-                ref_indicator[i] = is_ref ? 1.0 : 0.0;
-              }
-              exp.columns.col(0) = ref_indicator;
-              
-              // Remaining columns: the K-1 dummies
-              for (size_t d = 0; d < fi.dummies.n_cols; ++d) {
-                exp.columns.col(d + 1) = fi.dummies.col(d);
-              }
-              
-              // All level names
-              for (size_t d = 0; d < fi.level_names.size(); ++d) {
-                exp.suffixes.push_back(fi.level_names[d]);
-              }
-            } else {
-              // Factor:numeric interaction - use K-1 dummies
-              exp.columns = fi.dummies;
-              for (size_t d = 1; d < fi.level_names.size(); ++d) {
-                exp.suffixes.push_back(fi.level_names[d]);
-              }
+            for (size_t d = 0; d < fi.level_names.size(); ++d) {
+              exp.suffixes.push_back(fi.level_names[d]);
             }
           } else {
-            // Plain numeric - single column
-            exp.columns.set_size(n_valid, 1);
-            copy_numeric_column(col, result.keep_idx, exp.columns.colptr(0));
-            if (sub_term.transform != Transform::NONE && 
-                sub_term.transform != Transform::POLY && 
-                sub_term.transform != Transform::POLY_RAW) {
-              apply_transform_inplace(exp.columns.colptr(0), n_valid, sub_term.transform);
+            // Factor:numeric - use K-1 dummies
+            exp.columns = fi.dummies;
+            for (size_t d = 1; d < fi.level_names.size(); ++d) {
+              exp.suffixes.push_back(fi.level_names[d]);
             }
-            exp.suffixes.push_back("");  // No suffix for plain numeric
           }
+        } else {
+          // Plain numeric
+          exp.columns.set_size(n_valid, 1);
+          copy_numeric_column(col, result.keep_idx, exp.columns.colptr(0));
+          exp.suffixes.push_back("");
         }
         
         expansions.push_back(exp);
       }
       
-      // Generate all combinations of columns
-      // For poly(wt, 2):hp, this gives: poly(wt,2)1:hp, poly(wt,2)2:hp
+      // Generate all combinations
       if (expansions.size() == 2) {
-        // Two-component interaction
-        // For factor:factor, R iterates second factor in outer loop
-        // For other cases, use natural order
         bool both_factors = expansions[0].is_factor && expansions[1].is_factor;
         
         if (both_factors) {
-          // factor:factor - second factor outer, first factor inner
           for (size_t j = 0; j < expansions[1].columns.n_cols; ++j) {
             for (size_t i = 0; i < expansions[0].columns.n_cols; ++i) {
               vec product = expansions[0].columns.col(i) % expansions[1].columns.col(j);
@@ -1482,7 +766,6 @@ inline FormulaMatrixResult build_matrix_from_formula(
             }
           }
         } else {
-          // Other cases - first component outer
           for (size_t i = 0; i < expansions[0].columns.n_cols; ++i) {
             for (size_t j = 0; j < expansions[1].columns.n_cols; ++j) {
               vec product = expansions[0].columns.col(i) % expansions[1].columns.col(j);
@@ -1506,14 +789,13 @@ inline FormulaMatrixResult build_matrix_from_formula(
           }
         }
       } else if (expansions.size() == 1) {
-        // Single component (shouldn't happen for interactions, but handle it)
         for (size_t i = 0; i < expansions[0].columns.n_cols; ++i) {
           result.X.col(col_offset) = expansions[0].columns.col(i);
           result.term_names.push_back(expansions[0].base_name + expansions[0].suffixes[i]);
           col_offset++;
         }
       } else {
-        // Fallback for 3+ components: multiply all together as single column
+        // 3+ components: multiply all together
         vec product(n_valid);
         product.ones();
         for (const auto &exp : expansions) {
@@ -1525,32 +807,27 @@ inline FormulaMatrixResult build_matrix_from_formula(
         result.term_names.push_back(term.raw);
         col_offset++;
       }
-
-    } else if (term.transform == Transform::IDENTITY) {
-      // I() expression - need to convert integer columns to temporary storage
-      std::unordered_map<std::string, const double *> col_data;
-      std::unordered_map<std::string, std::vector<double>> int_storage;
-      for (const auto &c : term.columns) {
-        int idx = col_idx[c];
-        SEXP col = VECTOR_ELT(df, idx);
-        if (TYPEOF(col) == REALSXP) {
-          col_data[c] = REAL(col);
-        } else if (TYPEOF(col) == INTSXP) {
-          // Convert to double storage
-          const int *src = INTEGER(col);
-          size_t N = static_cast<size_t>(Rf_xlength(col));
-          int_storage[c].resize(N);
-          for (size_t ii = 0; ii < N; ++ii) {
-            int_storage[c][ii] = (src[ii] == NA_INTEGER) ? NA_REAL : static_cast<double>(src[ii]);
-          }
-          col_data[c] = int_storage[c].data();
+      
+    } else {
+      // Simple column
+      auto cache_it = factor_cache.find(term.column);
+      if (cache_it != factor_cache.end()) {
+        // Use cached factor dummies
+        const FactorInfo &fi = cache_it->second;
+        for (size_t d = 0; d < fi.dummies.n_cols; ++d) {
+          result.X.col(col_offset + d) = fi.dummies.col(d);
+          result.term_names.push_back(term.column + fi.level_names[d + 1]);
         }
+        col_offset += fi.dummies.n_cols;
+      } else {
+        // Numeric column
+        int idx = col_idx[term.column];
+        SEXP col = VECTOR_ELT(df, idx);
+        double *dst = result.X.colptr(col_offset);
+        copy_numeric_column(col, result.keep_idx, dst);
+        result.term_names.push_back(term.column);
+        col_offset++;
       }
-
-      result.X.col(col_offset) = evaluate_identity_expr(
-          term.identity_expr, col_data, n_valid, result.keep_idx);
-      result.term_names.push_back(term.raw);
-      col_offset++;
     }
   }
 
@@ -1575,7 +852,6 @@ inline FormulaMatrixResult build_matrix_from_formula(
       int idx = col_idx[fe_var];
       SEXP col = VECTOR_ELT(df, idx);
 
-      // Code the column
       std::unordered_map<std::string, uword> level_map;
       std::vector<std::string> levels;
 
