@@ -102,7 +102,7 @@ NULL
 #'  Default is \eqn{\boldsymbol{\beta} = \mathbf{0}}{\beta = 0}.
 #' @param eta_start an optional vector of starting values for the linear predictor.
 #' @param offset an optional formula or numeric vector specifying an a priori known component to be included in the
-#'  linear predictor. If a formula, it should be of the form \code{~ log(variable)}.
+#'  linear predictor. If a formula, it should be of the form \code{~ variable}.
 #' @param control a named list of parameters for controlling the fitting process. See \link{fit_control} for details.
 #'
 #' @details If \link{feglm} does not converge this is often a sign of linear dependence between one or more
@@ -187,196 +187,65 @@ feglm <- function(
   check_control_(control)
 
   # Process vcov argument ----
-  vcov_label <- NULL
-  if (!is.null(vcov)) {
-    vcov <- match.arg(vcov, c("iid", "hetero", "cluster", "m-estimator", "dyadic"))
-    vcov_label <- vcov
-    if (vcov == "iid") {
-      control$vcov_type <- NULL
-    } else if (vcov == "hetero") {
-      control$vcov_type <- "hetero"
-    } else if (vcov == "cluster") {
-      control$vcov_type <- NULL
-    } else if (vcov == "m-estimator") {
-      control$vcov_type <- "m-estimator"
-    } else if (vcov == "dyadic") {
-      control$vcov_type <- "m-estimator-dyadic"
-    }
-  }
+  vcov_result <- process_vcov_(vcov, control)
+  vcov_label <- vcov_result$vcov_label
+  control <- vcov_result$control
 
-  # Determine needed columns ----
-  formula_vars <- all.vars(formula)
-  weight_col <- NULL
-  if (!is.null(weights)) {
-    if (is.character(weights) && length(weights) == 1L) {
-      weight_col <- weights
-    } else if (inherits(weights, "formula")) {
-      weight_col <- all.vars(weights)
-    }
-  }
-  needed_cols <- if (!is.null(weight_col)) {
-    c(formula_vars, weight_col)
-  } else {
-    formula_vars
-  }
+  # Determine needed columns (validates they exist) ----
+  cols_info <- get_needed_cols_(formula, data, weights, offset)
+  formula_vars <- cols_info$formula_vars
+  lhs <- formula_vars[1L]
+  
+  # Preserve original row names ----
+  orig_rownames <- rownames(data)
+  needs_rowname_conversion <- is.null(orig_rownames)
 
-  # Extract offset before subsetting ----
-  offset_vec <- NULL
-  if (!is.null(offset)) {
-    if (inherits(offset, "formula")) {
-      offset_vars <- attr(terms(offset, data = data), "term.labels")
-      if (length(offset_vars) != 1L) {
-        stop("Offset formula must specify exactly one term.", call. = FALSE)
-      }
-      offset_vec <- eval(parse(text = offset_vars), envir = data)
-    } else if (is.numeric(offset)) {
-      offset_vec <- offset
-      if (length(offset_vec) != nrow(data)) {
-        stop("Length of offset must equal number of observations.", call. = FALSE)
-      }
-    } else {
-      stop("Offset must be NULL, a formula, or a numeric vector.", call. = FALSE)
-    }
-  }
-
-  # Preserve rownames before conversion ----
-  orig_rn <- rownames(data)
-
-  # Subset to needed columns ----
-  if (inherits(data, "data.table")) {
-    data <- copy(data[, needed_cols, with = FALSE])
-  } else {
-    data <- as.data.table(data[, needed_cols, drop = FALSE])
-  }
-
-  lhs <- names(data)[[1L]]
-  nobs_full <- nrow(data)
-
-  # Convert "units" columns to numeric ----
-  unit_cols <- names(data)[vapply(data, inherits, what = "units", logical(1))]
-  for (uc in unit_cols) {
-    set(data, j = uc, value = as.numeric(data[[uc]]))
-  }
-
-  # Remove NA rows early (before creating y, X) ----
-  complete_idx <- which(complete.cases(data))
-  if (length(complete_idx) < nobs_full) {
-    data <- data[complete_idx]
-    if (!is.null(orig_rn)) orig_rn <- orig_rn[complete_idx]
-    if (!is.null(offset_vec)) offset_vec <- offset_vec[complete_idx]
-  }
-
-  # Store surviving rownames ----
-  if (!is.null(orig_rn)) {
-    attr(data, ".rownames") <- orig_rn
-  }
-
-  # Check response validity ----
+  # Validate response for the given family ----
   check_response_(data, lhs, family)
 
-  # Get FE variable names ----
-  fe_vars <- suppressWarnings(attr(terms(formula, rhs = 2L), "term.labels"))
-  if (length(fe_vars) < 1L) fe_vars <- character(0)
+  # Convert formula to normalized string for C++ ----
+  # Use normalize_formula_ to expand *, ^, -, /, %in%, . using R's terms()
+  formula_str <- normalize_formula_(formula, data)
+  
+  # Detect if intercept is suppressed (e.g., ~ wt - 1)
+  has_intercept <- !grepl("__NO_INTERCEPT__", formula_str, fixed = TRUE)
 
-  # Get cluster variable names ----
-  cl_vars <- suppressWarnings(attr(terms(formula, rhs = 3L), "term.labels"))
+  # Extract offset before fitting ----
+  offset_vec <- extract_offset_(offset, data, nrow(data))
+  if (is.null(offset_vec)) offset_vec <- numeric(0)
 
-  # Current number of observations ----
-  nt <- nrow(data)
-
-  # Extract response (evaluate LHS transformation if present) ----
-  f1 <- formula(formula, lhs = 1L, rhs = 1L)
-  tt <- terms(f1)
-  resp_call <- attr(tt, "variables")[[2L]]
-  y <- eval(resp_call, data)
-  if (is.integer(y)) y <- as.numeric(y)
-
-  # Extract weights ----
-  if (is.null(weights)) {
-    wt <- rep(1.0, nt)
+  # Extract weights vector ----
+  wt <- if (is.null(weights)) {
+    numeric(0)
   } else if (is.numeric(weights)) {
-    if (length(weights) != nobs_full) {
-      stop("Length of weights vector must equal number of observations.", call. = FALSE)
-    }
-    wt <- if (length(complete_idx) < nobs_full) weights[complete_idx] else weights
+    weights
+  } else if (is.character(weights) && length(weights) == 1L) {
+    data[[weights]]
+  } else if (inherits(weights, "formula")) {
+    data[[all.vars(weights)]]
   } else {
-    wt <- data[[weight_col]]
+    stop("'weights' must be NULL, a numeric vector, a column name, or a formula", call. = FALSE)
   }
-  check_weights_(wt)
+  if (length(wt) > 0L) check_weights_(wt)
 
-  # Extract offset ----
-  if (is.null(offset_vec)) {
-    offset_vec <- rep(0.0, nt)
-  } else if (length(offset_vec) != nt) {
-    stop("Length of offset does not match number of observations after filtering.", call. = FALSE)
-  }
+  # Store original row count for later ----
+  nobs_full <- nrow(data)
 
-  # Build design matrix ----
+  # Get FE and cluster variable names from formula ----
+  vars <- get_fe_cl_vars_(formula)
+  fe_vars <- vars$fe_vars
+  cl_vars <- vars$cl_vars
+
+  # Number of columns in design matrix (for beta initialization)
+  # This is a rough estimate from formula
+  f1 <- formula(formula, lhs = 1L, rhs = 1L)
+  tt <- terms(f1, data = data)
   rhs_labels <- attr(tt, "term.labels")
-  has_fe <- length(fe_vars) > 0L
+  p <- length(rhs_labels)
+  if (p == 0L) p <- 1L  # intercept only
 
-  # Determine fast vs slow path
-  use_fast <- FALSE
-  if (length(rhs_labels) > 0L) {
-    # Fast path only when all rhs terms are plain column names (no transformations)
-    all_are_columns <- all(rhs_labels %in% colnames(data))
-    if (all_are_columns) {
-      all_numeric <- all(vapply(data[, rhs_labels, with = FALSE], is.numeric, logical(1)))
-      has_interaction <- any(grepl(":", rhs_labels, fixed = TRUE))
-      use_fast <- all_numeric && !has_interaction
-    }
-  }
-
-  if (use_fast) {
-    # Fast path: extract columns directly as matrix (more efficient than vapply)
-    if (length(rhs_labels) == 1L) {
-      X <- matrix(data[[rhs_labels]], ncol = 1L)
-    } else {
-      X <- as.matrix(data[, rhs_labels, with = FALSE])
-    }
-    nms_sp <- rhs_labels
-  } else {
-    # Slow path: model.frame + model.matrix
-    # Always drop intercept - C++ handles it internally
-    mm_vars <- all.vars(f1)
-    mf <- model.frame(f1, data[, mm_vars, with = FALSE], na.action = na.pass)
-    X <- model.matrix(tt, mf)[, -1L, drop = FALSE]
-    nms_sp <- colnames(X)
-    attr(X, "dimnames") <- NULL
-  }
-  p <- ncol(X)
-
-  # Extract FE columns ----
-  fe_cols <- lapply(fe_vars, function(v) .subset2(data, v))
-  names(fe_cols) <- fe_vars
-
-  # Extract cluster columns ----
-  cl_col <- NULL
-  entity1_col <- NULL
-  entity2_col <- NULL
-  skip_cluster <- isTRUE(vcov_label %in% c("iid", "hetero"))
-
-  if (!skip_cluster && length(cl_vars) >= 1L) {
-    if (!is.null(control$vcov_type) && control$vcov_type == "m-estimator-dyadic") {
-      if (length(cl_vars) < 2L) {
-        stop(
-          "For dyadic clustering (vcov = 'dyadic'), specify two entity columns ",
-          "in the formula like: y ~ x | fe | entity1 + entity2",
-          call. = FALSE
-        )
-      }
-      entity1_col <- data[[cl_vars[1L]]]
-      entity2_col <- data[[cl_vars[2L]]]
-    } else {
-      cl_col <- data[[cl_vars[1L]]]
-    }
-  }
-  had_cluster <- !is.null(cl_col) || !is.null(entity1_col)
-
-  # Store data for output ----
-  data_for_output <- if (control[["keep_data"]]) data else NULL
-  rn_for_output <- attr(data, ".rownames")
-  data <- NULL  # Allow GC
+  # nt for eta initialization
+  nt <- nobs_full
 
   # Starting guesses ----
   if (!is.null(beta_start) && !is.null(eta_start)) {
@@ -388,7 +257,7 @@ feglm <- function(
       stop("Length of 'beta_start' has to be equal to the number of structural parameters.", call. = FALSE)
     }
     beta <- beta_start
-    eta <- X %*% beta
+    eta <- numeric(0)  # Will be computed in C++
   } else if (!is.null(eta_start)) {
     if (length(eta_start) != nt) {
       stop("Length of 'eta_start' has to be equal to the number of observations.", call. = FALSE)
@@ -397,36 +266,27 @@ feglm <- function(
     eta <- eta_start
   } else {
     beta <- numeric(p)
-    if (family[["family"]] == "binomial") {
-      eta <- rep(family[["linkfun"]](sum(wt * (y + 0.5) / 2.0, na.rm = TRUE) / sum(wt[is.finite(y)])), nt)
-    } else if (family[["family"]] %in% c("Gamma", "inverse.gaussian")) {
-      eta <- rep(family[["linkfun"]](sum(wt * y, na.rm = TRUE) / sum(wt[is.finite(y)])), nt)
-    } else {
-      eta <- rep(family[["linkfun"]](sum(wt * (y + 0.1), na.rm = TRUE) / sum(wt[is.finite(y)])), nt)
-    }
+    # Let C++ initialize eta based on actual y values after NA removal
+    # This avoids creating a temporary vector in R
+    eta <- numeric(0)
   }
 
+  # Store data for output ----
+  data_for_output <- if (control[["keep_data"]]) data else NULL
+
   # FIT MODEL ----
-  
   fit <- feglm_fit_(
-    beta, eta, y, X, wt, offset_vec, 0.0,
-    family[["family"]], control, fe_cols,
-    cl_col, entity1_col, entity2_col
+    formula_str, data, beta, eta, wt, offset_vec,
+    0.0, family[["family"]], control
   )
-  
+
   # Free large input objects immediately after C++ call
-  X <- NULL
-  y <- NULL
+  data <- NULL
   wt <- NULL
   eta <- NULL
   beta <- NULL
-  fe_cols <- NULL
-  cl_col <- NULL
-  entity1_col <- NULL
-  entity2_col <- NULL
-  
+
   # Post-processing ----
-  
   nobs_na <- nobs_full - fit[["nobs_used"]]
   num_separated <- if (isTRUE(fit$has_separation) && !is.null(fit$separated_obs)) {
     length(fit$separated_obs)
@@ -445,8 +305,16 @@ feglm <- function(
   nms_fe <- fit[["nms_fe"]]
   fe_levels <- fit[["fe_levels"]]
 
+  # Get term names from C++ result ----
+  nms_sp <- if (!is.null(fit[["term_names"]])) {
+    fit[["term_names"]]
+  } else {
+    paste0("V", seq_len(nrow(fit[["coef_table"]])))
+  }
+
   # Add names to outputs ----
-  if (length(fe_vars) == 0L) {
+  # Add intercept name only if: no FE, and intercept is not suppressed (- 1)
+  if (length(fe_vars) == 0L && has_intercept) {
     nms_sp <- c("(Intercept)", nms_sp)
   }
   dimnames(fit[["coef_table"]]) <- list(nms_sp, c("Estimate", "Std. Error", "z value", "Pr(>|z|)"))
@@ -463,22 +331,23 @@ feglm <- function(
 
   # Set fitted_values names ----
   if (!is.null(fit[["obs_indices"]])) {
-    if (!is.null(rn_for_output)) {
-      names(fit[["fitted_values"]]) <- rn_for_output[fit[["obs_indices"]]]
-      rn_for_output <- rn_for_output[fit[["obs_indices"]]]
-    } else {
-      names(fit[["fitted_values"]]) <- fit[["obs_indices"]]
+    # Lazy rowname creation - only convert if we didn't have rownames originally
+    if (needs_rowname_conversion) {
+      orig_rownames <- as.character(seq_len(nobs_full))
     }
+    # Use original row names at the kept indices
+    used_rownames <- orig_rownames[fit[["obs_indices"]]]
+    names(fit[["fitted_values"]]) <- used_rownames
+    fit[[".rownames"]] <- used_rownames
     if (!is.null(data_for_output)) {
-      data_for_output <- data_for_output[fit[["obs_indices"]]]
-      attr(data_for_output, ".rownames") <- rn_for_output
+      data_for_output <- data_for_output[fit[["obs_indices"]], ]
     }
   } else {
-    if (!is.null(rn_for_output)) {
-      names(fit[["fitted_values"]]) <- rn_for_output
-    } else {
-      names(fit[["fitted_values"]]) <- seq_along(fit[["fitted_values"]])
+    if (needs_rowname_conversion) {
+      orig_rownames <- as.character(seq_len(nobs_full))
     }
+    names(fit[["fitted_values"]]) <- orig_rownames
+    fit[[".rownames"]] <- orig_rownames
   }
 
   # Add separation info if present ----
@@ -492,6 +361,7 @@ feglm <- function(
   # Clean up C++ internal fields ----
   fit[["obs_indices"]] <- NULL
   fit[["nobs_used"]] <- NULL
+  fit[["term_names"]] <- NULL
 
   # Build result ----
   fit[["nobs"]] <- nobs
@@ -505,11 +375,10 @@ feglm <- function(
   fit[["control"]] <- control
   fit[["offset"]] <- offset_vec
   fit[["offset_spec"]] <- offset
-  fit[[".rownames"]] <- rn_for_output
   fit[["vcov_type"]] <- if (!is.null(vcov_label)) {
     vcov_label
   } else {
-    if (had_cluster) {
+    if (length(cl_vars) > 0L) {
       if (!is.null(control$vcov_type)) control$vcov_type else "cluster"
     } else {
       "iid"

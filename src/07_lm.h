@@ -2,8 +2,6 @@
 #ifndef CAPYBARA_LM_H
 #define CAPYBARA_LM_H
 
-#include <optional>
-
 namespace capybara {
 
 struct InferenceLM {
@@ -247,20 +245,25 @@ inline void expand_vcov(mat &vcov_full, const mat &vcov_reduced,
   }
 }
 
-InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
-                     const FlatFEMap &fe_map, const CapybaraParameters &params,
-                     FelmWorkspace *workspace = nullptr,
-                     const field<uvec> *cluster_groups = nullptr,
-                     bool run_from_glm = false,
-                     double adaptive_center_tol = 0.0,
-                     const field<uvec> *entity1_groups = nullptr,
-                     const field<uvec> *entity2_groups = nullptr) {
+InferenceLM
+felm_fit(const mat &X, const vec &y, const vec &w, const FlatFEMap &fe_map,
+         const CapybaraParameters &params, FelmWorkspace *workspace = nullptr,
+         const field<uvec> *cluster_groups = nullptr, bool run_from_glm = false,
+         double adaptive_center_tol = 0.0,
+         const field<uvec> *entity1_groups = nullptr,
+         const field<uvec> *entity2_groups = nullptr,
+         bool has_intercept_column = false, bool suppress_intercept = false) {
   const uword N = y.n_elem;
   const uword P_input = X.n_cols;
   const bool has_fixed_effects = fe_map.K > 0;
 
   // Determine final P (with or without intercept)
-  const uword P = (!has_fixed_effects && !run_from_glm) ? P_input + 1 : P_input;
+  // Skip adding intercept if:
+  // - already pre-allocated (has_intercept_column=true)
+  // - explicitly suppressed (suppress_intercept=true, e.g., y ~ x - 1)
+  const bool needs_intercept = !has_fixed_effects && !run_from_glm &&
+                               !has_intercept_column && !suppress_intercept;
+  const uword P = needs_intercept ? P_input + 1 : P_input;
 
   FelmWorkspace local_workspace;
   FelmWorkspace *ws = workspace ? workspace : &local_workspace;
@@ -366,8 +369,8 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
                      &ws->warm_start, centering_from_string(params.centering));
   } else {
     // Copy X to workspace buffers
-    if (!run_from_glm) {
-      // Standalone felm: add intercept column
+    if (needs_intercept) {
+      // Standalone felm without pre-allocated intercept: add intercept column
       ws->X_original.col(0).ones();
       if (P_input > 0) {
         ws->X_original.cols(1, P - 1) = X;

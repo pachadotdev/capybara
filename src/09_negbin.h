@@ -46,7 +46,9 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
                              const FlatFEMap &fe_map,
                              const CapybaraParameters &params,
                              const vec &offset = vec(), double init_theta = 0.0,
-                             GlmWorkspace *workspace = nullptr) {
+                             GlmWorkspace *workspace = nullptr,
+                             bool suppress_intercept = false,
+                             bool has_intercept_column = false) {
   const uword n = y.n_elem;
   const uword p = X.n_cols;
   const bool has_offset = (offset.n_elem == n);
@@ -66,7 +68,8 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
   // Initial Poisson fit to get good starting values
   InferenceGLM poisson_fit =
       feglm_fit(beta_coef, eta, y, X, w, 0.0, POISSON, fe_map, params, &ws,
-                nullptr, nullptr, false, nullptr, nullptr, true);
+                nullptr, nullptr, false, nullptr, nullptr, true,
+                suppress_intercept, has_intercept_column);
 
   if (!poisson_fit.conv) {
     static_cast<InferenceGLM &>(result) = std::move(poisson_fit);
@@ -94,7 +97,8 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
     // Fit negative binomial GLM with current theta
     InferenceGLM glm_fit =
         feglm_fit(beta_coef, eta, y, X, w, theta, NEG_BIN, fe_map, params, &ws,
-                  nullptr, nullptr, false, nullptr, nullptr, true);
+                  nullptr, nullptr, false, nullptr, nullptr, true,
+                  suppress_intercept, has_intercept_column);
 
     if (!glm_fit.conv) {
       static_cast<InferenceGLM &>(result) = std::move(glm_fit);
@@ -127,8 +131,10 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
       // compute Hessian, vcov, FE recovery, SE/z/p, pseudo R-sq, etc.
       beta_coef = glm_fit.coef_table.col(0);
       eta = glm_fit.eta;
-      InferenceGLM final_fit = feglm_fit(beta_coef, eta, y, X, w, theta_new,
-                                         NEG_BIN, fe_map, params, &ws);
+      InferenceGLM final_fit =
+          feglm_fit(beta_coef, eta, y, X, w, theta_new, NEG_BIN, fe_map, params,
+                    &ws, nullptr, nullptr, false, nullptr, nullptr, false,
+                    suppress_intercept, has_intercept_column);
       static_cast<InferenceGLM &>(result) = std::move(final_fit);
       result.theta = theta_new;
       result.conv_outer = true;
@@ -147,7 +153,9 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
   // Do a final full fit to populate Hessian, vcov, FE, SE/z/p
   {
     InferenceGLM final_fit =
-        feglm_fit(beta_coef, eta, y, X, w, theta, NEG_BIN, fe_map, params, &ws);
+        feglm_fit(beta_coef, eta, y, X, w, theta, NEG_BIN, fe_map, params, &ws,
+                  nullptr, nullptr, false, nullptr, nullptr, false,
+                  suppress_intercept, has_intercept_column);
     static_cast<InferenceGLM &>(result) = std::move(final_fit);
   }
   result.theta = theta;

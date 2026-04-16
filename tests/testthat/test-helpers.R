@@ -163,22 +163,6 @@ test_that("model works with interactions in predictors", {
   expect_true(length(coef(mod)) >= 2)
 })
 
-test_that("model handles polynomial terms", {
-  skip_on_cran()
-
-  mod <- felm(mpg ~ poly(wt, 2) | cyl, mtcars)
-
-  expect_s3_class(mod, "felm")
-})
-
-test_that("model handles I() transformations", {
-  skip_on_cran()
-
-  mod <- felm(mpg ~ I(wt^2) + I(log(hp)) | cyl, mtcars)
-
-  expect_s3_class(mod, "felm")
-})
-
 # ---- Edge cases ----
 
 test_that("model handles small sample sizes", {

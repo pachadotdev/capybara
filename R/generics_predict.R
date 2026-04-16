@@ -62,8 +62,11 @@ predict.feglm <- function(
     # Use fast path when all predictors are simple numeric columns
     if (length(pred_vars) > 0) {
       pred_cols_exist <- pred_vars[pred_vars %in% colnames(data)]
+      
+      # Get columns for numeric check
       all_numeric <- length(pred_cols_exist) == length(pred_vars) &&
         all(vapply(data[pred_cols_exist], is.numeric, logical(1)))
+      
       has_special <- any(grepl("factor|poly|ns\\(|bs\\(|strata|I\\(", pred_vars))
       has_interaction <- any(grepl(":", pred_vars, fixed = TRUE))
 

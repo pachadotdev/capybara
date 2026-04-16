@@ -39,7 +39,7 @@ Default is \eqn{\boldsymbol{\beta} = \mathbf{0}}{\beta = 0}.}
 \item{eta_start}{an optional vector of starting values for the linear predictor.}
 
 \item{offset}{an optional formula or numeric vector specifying an a priori known component to be included in the
-linear predictor. If a formula, it should be of the form \code{~ log(variable)}.}
+linear predictor. If a formula, it should be of the form \code{~ variable}.}
 
 \item{control}{a named list of parameters for controlling the fitting process. See \link{fit_control} for details.}
 }

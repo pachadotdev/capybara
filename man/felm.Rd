@@ -49,12 +49,12 @@ approach.
 }
 \examples{
 # Model with fixed effects
-mod <- felm(log(mpg) ~ log(wt) | cyl, mtcars)
+mod <- felm(mpg ~ wt | cyl, mtcars)
 summary(mod)
 
 # Model without fixed effects but with clustered standard errors
 # Note: Use 0 to indicate no fixed effects when specifying clusters
-mod <- felm(log(mpg) ~ log(wt) | 0 | cyl, mtcars)
+mod <- felm(mpg ~ wt | 0 | cyl, mtcars)
 summary(mod)
 
 }

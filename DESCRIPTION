@@ -16,8 +16,7 @@ Imports:
     ggplot2,
     rlang,
     MASS,
-    stats,
-    data.table
+    stats
 Suggests: 
     broom,
     knitr,

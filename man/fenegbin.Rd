@@ -37,7 +37,7 @@ Default is \eqn{\boldsymbol{\beta} = \mathbf{0}}{\beta = 0}.}
 \item{link}{the link function. Must be one of \code{"log"}, \code{"sqrt"}, or \code{"identity"}.}
 
 \item{offset}{an optional formula or numeric vector specifying an a priori known component to be included in the
-linear predictor. If a formula, it should be of the form \code{~ log(variable)}.}
+linear predictor. If a formula, it should be of the form \code{~ variable}.}
 
 \item{control}{a named list of parameters for controlling the fitting process. See \link{fit_control} for details.}
 }

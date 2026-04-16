@@ -21,11 +21,11 @@ cluster variables are specified in the formula.
 }
 \examples{
 # Model without clustering - returns inverse Hessian covariance
-mod <- felm(log(mpg) ~ log(wt) | cyl, mtcars)
+mod <- felm(mpg ~ wt | cyl, mtcars)
 round(vcov(mod), 5)
 
 # Model with clustering - returns sandwich covariance
-mod_cl <- felm(log(mpg) ~ log(wt) | cyl | am, mtcars)
+mod_cl <- felm(mpg ~ wt | cyl | am, mtcars)
 round(vcov(mod_cl), 5)
 
 }

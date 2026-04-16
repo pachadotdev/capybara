@@ -4,18 +4,18 @@ center_variables_ <- function(V_r, w_r, fe_codes, tol, max_iter, grand_acc_perio
 	.Call(`_capybara_center_variables_`, V_r, w_r, fe_codes, tol, max_iter, grand_acc_period)
 }
 
-felm_fit_ <- function(X_r, y_r, w_r, fe_cols_r, cl_col_r, entity1_col_r, entity2_col_r, control) {
-	.Call(`_capybara_felm_fit_`, X_r, y_r, w_r, fe_cols_r, cl_col_r, entity1_col_r, entity2_col_r, control)
+felm_fit_ <- function(formula_str, df, w_r, control) {
+	.Call(`_capybara_felm_fit_`, formula_str, df, w_r, control)
 }
 
-feglm_fit_ <- function(beta_r, eta_r, y_r, x_r, wt_r, offset_r, theta, family, control, fe_cols_r, cl_col_r, entity1_col_r, entity2_col_r) {
-	.Call(`_capybara_feglm_fit_`, beta_r, eta_r, y_r, x_r, wt_r, offset_r, theta, family, control, fe_cols_r, cl_col_r, entity1_col_r, entity2_col_r)
+feglm_fit_ <- function(formula_str, df, beta_r, eta_r, wt_r, offset_r, theta, family, control) {
+	.Call(`_capybara_feglm_fit_`, formula_str, df, beta_r, eta_r, wt_r, offset_r, theta, family, control)
 }
 
 feglm_offset_fit_ <- function(eta_r, y_r, offset_r, wt_r, family, control, fe_codes) {
 	.Call(`_capybara_feglm_offset_fit_`, eta_r, y_r, offset_r, wt_r, family, control, fe_codes)
 }
 
-fenegbin_fit_ <- function(X_r, y_r, w_r, fe_cols_r, link, beta_r, eta_r, init_theta, offset_r, control) {
-	.Call(`_capybara_fenegbin_fit_`, X_r, y_r, w_r, fe_cols_r, link, beta_r, eta_r, init_theta, offset_r, control)
+fenegbin_fit_ <- function(formula_str, df, w_r, link, beta_r, eta_r, init_theta, offset_r, control) {
+	.Call(`_capybara_fenegbin_fit_`, formula_str, df, w_r, link, beta_r, eta_r, init_theta, offset_r, control)
 }

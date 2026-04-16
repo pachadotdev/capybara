@@ -76,8 +76,11 @@ test_that("feglm is similar to glm", {
 })
 
 test_that("feglm works without fixed effects", {
-  m1 <- feglm(log(mpg) ~ log(wt), data = mtcars)
-  m2 <- glm(log(mpg) ~ log(wt), data = mtcars)
+  mtcars$log_mpg <- log(mtcars$mpg)
+  mtcars$log_wt <- log(mtcars$wt)
+
+  m1 <- feglm(log_mpg ~ log_wt, data = mtcars)
+  m2 <- glm(log_mpg ~ log_wt, data = mtcars)
 
   expect_equal(coef(m1), coef(m2), tolerance = 1e-6)
 })
@@ -277,8 +280,12 @@ test_that("feglm is similar to glm (stammann centering)", {
 test_that("feglm works without fixed effects (stammann centering)", {
   # centering is unused without FEs, but control must be accepted
   ctrl <- list(centering = "stammann")
-  m1 <- feglm(log(mpg) ~ log(wt), data = mtcars, control = ctrl)
-  m2 <- glm(log(mpg) ~ log(wt), data = mtcars)
+  
+  mtcars$log_mpg <- log(mtcars$mpg)
+  mtcars$log_wt <- log(mtcars$wt)
+
+  m1 <- feglm(log_mpg ~ log_wt, data = mtcars, control = ctrl)
+  m2 <- glm(log_mpg ~ log_wt, data = mtcars)
 
   expect_equal(coef(m1), coef(m2), tolerance = 1e-6)
 })
