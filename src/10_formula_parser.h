@@ -20,9 +20,9 @@ namespace capybara {
 // ============================================================
 
 struct ParsedTerm {
-  std::string raw;                   // Original term string
-  std::string column;                // Column name (for simple terms)
-  std::vector<std::string> columns;  // For interactions: ["a", "b"]
+  std::string raw;                  // Original term string
+  std::string column;               // Column name (for simple terms)
+  std::vector<std::string> columns; // For interactions: ["a", "b"]
   bool is_interaction = false;
 };
 
@@ -35,10 +35,10 @@ struct ParsedFormula {
   std::vector<ParsedTerm> terms;
   std::vector<std::string> fe_vars;
   std::vector<std::string> cluster_vars;
-  std::vector<std::string> all_columns;  // All referenced column names
+  std::vector<std::string> all_columns; // All referenced column names
   bool valid = true;
   std::string error;
-  bool suppress_intercept = false;  // True when __NO_INTERCEPT__ marker present
+  bool suppress_intercept = false; // True when __NO_INTERCEPT__ marker present
 };
 
 // ============================================================
@@ -85,7 +85,7 @@ inline bool str_starts_with(const std::string &s, const std::string &prefix) {
 
 inline std::string detect_function_call(const std::string &term) {
   std::string s = str_trim(term);
-  
+
   // Look for pattern: identifier followed by (
   // This catches: log(x), sqrt(x), poly(x, 2), I(x*y), factor(x), etc.
   std::regex func_re("([a-zA-Z_][a-zA-Z0-9_\\.]*)\\s*\\(");
@@ -93,14 +93,15 @@ inline std::string detect_function_call(const std::string &term) {
   if (std::regex_search(s, match, func_re)) {
     return match[1].str();
   }
-  
+
   return "";
 }
 
 // Helper to build the "unsupported function" error message
 inline std::string unsupported_function_error(const std::string &func_name) {
-  return "capybara does not support functions in formulas (found '" + 
-         func_name + "'). Use dplyr/data.table to transform your data before fitting. " +
+  return "capybara does not support functions in formulas (found '" +
+         func_name +
+         "'). Use dplyr/data.table to transform your data before fitting. " +
          "Supported syntax: y ~ x1 + x2 + x3 | fe1 + fe2 | cl";
 }
 
@@ -301,11 +302,13 @@ inline ParsedFormula parse_formula(const std::string &formula) {
 inline bool is_factor_column(SEXP col) {
   // Check for R factor (has levels attribute)
   SEXP lvls = Rf_getAttrib(col, R_LevelsSymbol);
-  if (lvls != R_NilValue) return true;
-  
+  if (lvls != R_NilValue)
+    return true;
+
   // Check for string column (treat as factor)
-  if (TYPEOF(col) == STRSXP) return true;
-  
+  if (TYPEOF(col) == STRSXP)
+    return true;
+
   return false;
 }
 
@@ -316,12 +319,13 @@ inline bool is_factor_column(SEXP col) {
 inline size_t get_factor_levels_count(SEXP col, const uvec &keep_idx) {
   std::unordered_set<std::string> levels;
   size_t n = keep_idx.n_elem;
-  
+
   auto val_to_string = [](SEXP col, R_xlen_t i) -> std::string {
     switch (TYPEOF(col)) {
     case INTSXP: {
       int v = INTEGER(col)[i];
-      if (v == NA_INTEGER) return "__NA__";
+      if (v == NA_INTEGER)
+        return "__NA__";
       SEXP lvls = Rf_getAttrib(col, R_LevelsSymbol);
       if (lvls != R_NilValue) {
         return CHAR(STRING_ELT(lvls, v - 1));
@@ -330,26 +334,28 @@ inline size_t get_factor_levels_count(SEXP col, const uvec &keep_idx) {
     }
     case REALSXP: {
       double v = REAL(col)[i];
-      if (!R_finite(v)) return "__NA__";
+      if (!R_finite(v))
+        return "__NA__";
       char buf[64];
       snprintf(buf, sizeof(buf), "%.15g", v);
       return std::string(buf);
     }
     case STRSXP: {
       SEXP s = STRING_ELT(col, i);
-      if (s == NA_STRING) return "__NA__";
+      if (s == NA_STRING)
+        return "__NA__";
       return CHAR(s);
     }
     default:
       return "";
     }
   };
-  
+
   for (size_t i = 0; i < n; ++i) {
     R_xlen_t orig_i = keep_idx[i];
     levels.insert(val_to_string(col, orig_i));
   }
-  
+
   return levels.size();
 }
 
@@ -409,7 +415,7 @@ inline FactorInfo factor_dummies(SEXP col, const uvec &keep_idx) {
     std::string val = val_to_string(col, orig_i);
     unique_levels.insert(val);
   }
-  
+
   // Sort levels the way R does: alphabetically/lexicographically
   for (const auto &lvl : unique_levels) {
     level_map[lvl] = levels.size();
@@ -446,8 +452,8 @@ inline FactorInfo factor_dummies(SEXP col, const uvec &keep_idx) {
 struct FormulaMatrixResult {
   vec y;
   mat X;
-  uvec keep_idx;                        // 0-based indices of kept rows
-  std::vector<std::string> term_names;  // Column names for X
+  uvec keep_idx;                       // 0-based indices of kept rows
+  std::vector<std::string> term_names; // Column names for X
   FlatFEMap fe_map;
   field<std::string> fe_names;
   field<field<std::string>> fe_levels;
@@ -458,11 +464,9 @@ struct FormulaMatrixResult {
   bool has_intercept_column = false;
 };
 
-inline FormulaMatrixResult build_matrix_from_formula(
-    const std::string &formula_str,
-    SEXP df,
-    const double *weights_ptr,
-    size_t weights_len) {
+inline FormulaMatrixResult
+build_matrix_from_formula(const std::string &formula_str, SEXP df,
+                          const double *weights_ptr, size_t weights_len) {
   FormulaMatrixResult result;
 
   // Parse formula
@@ -581,7 +585,7 @@ inline FormulaMatrixResult build_matrix_from_formula(
 
   for (size_t t = 0; t < pf.terms.size(); ++t) {
     const auto &term = pf.terms[t];
-    
+
     if (term.is_interaction) {
       // Interaction: count columns for each component
       size_t num_factors = 0;
@@ -595,7 +599,7 @@ inline FormulaMatrixResult build_matrix_from_formula(
         }
       }
       bool use_full_factors = (num_factors >= 2);
-      
+
       size_t ncols = 1;
       for (const auto &c : term.columns) {
         auto it = col_idx.find(c);
@@ -641,12 +645,12 @@ inline FormulaMatrixResult build_matrix_from_formula(
 
   bool needs_intercept = (pf.fe_vars.size() == 0) && !pf.suppress_intercept;
   size_t intercept_cols = needs_intercept ? 1 : 0;
-  
+
   result.X.set_size(n_valid, total_cols + intercept_cols);
   result.term_names.reserve(total_cols + intercept_cols);
 
   size_t col_offset = 0;
-  
+
   // Fill intercept column first (if needed)
   if (needs_intercept) {
     result.X.col(0).ones();
@@ -670,7 +674,7 @@ inline FormulaMatrixResult build_matrix_from_formula(
         }
       }
       bool use_full_factors = (num_factors >= 2);
-      
+
       // Build component expansions
       struct ComponentExpansion {
         std::string base_name;
@@ -678,23 +682,23 @@ inline FormulaMatrixResult build_matrix_from_formula(
         std::vector<std::string> suffixes;
         bool is_factor;
       };
-      
+
       std::vector<ComponentExpansion> expansions;
-      
+
       for (const auto &c : term.columns) {
         ComponentExpansion exp;
         exp.base_name = c;
         exp.is_factor = false;
-        
+
         auto it = col_idx.find(c);
         if (it == col_idx.end()) {
           result.valid = false;
           result.error = "undefined columns: " + c;
           return result;
         }
-        
+
         SEXP col = VECTOR_ELT(df, it->second);
-        
+
         if (is_factor_column(col)) {
           exp.is_factor = true;
           FactorInfo fi;
@@ -705,12 +709,12 @@ inline FormulaMatrixResult build_matrix_from_formula(
             fi = factor_dummies(col, result.keep_idx);
             factor_cache[c] = fi;
           }
-          
+
           if (use_full_factors) {
             // Factor:factor - use ALL K levels
             size_t k = fi.level_names.size();
             exp.columns.set_size(n_valid, k);
-            
+
             // First column: reference level indicator
             vec ref_indicator(n_valid);
             for (size_t i = 0; i < n_valid; ++i) {
@@ -724,11 +728,11 @@ inline FormulaMatrixResult build_matrix_from_formula(
               ref_indicator[i] = is_ref ? 1.0 : 0.0;
             }
             exp.columns.col(0) = ref_indicator;
-            
+
             for (size_t d = 0; d < fi.dummies.n_cols; ++d) {
               exp.columns.col(d + 1) = fi.dummies.col(d);
             }
-            
+
             for (size_t d = 0; d < fi.level_names.size(); ++d) {
               exp.suffixes.push_back(fi.level_names[d]);
             }
@@ -745,22 +749,24 @@ inline FormulaMatrixResult build_matrix_from_formula(
           copy_numeric_column(col, result.keep_idx, exp.columns.colptr(0));
           exp.suffixes.push_back("");
         }
-        
+
         expansions.push_back(exp);
       }
-      
+
       // Generate all combinations
       if (expansions.size() == 2) {
         bool both_factors = expansions[0].is_factor && expansions[1].is_factor;
-        
+
         if (both_factors) {
           for (size_t j = 0; j < expansions[1].columns.n_cols; ++j) {
             for (size_t i = 0; i < expansions[0].columns.n_cols; ++i) {
-              vec product = expansions[0].columns.col(i) % expansions[1].columns.col(j);
+              vec product =
+                  expansions[0].columns.col(i) % expansions[1].columns.col(j);
               result.X.col(col_offset) = product;
-              
-              std::string name = expansions[0].base_name + expansions[0].suffixes[i] + 
-                                ":" + expansions[1].base_name + expansions[1].suffixes[j];
+
+              std::string name =
+                  expansions[0].base_name + expansions[0].suffixes[i] + ":" +
+                  expansions[1].base_name + expansions[1].suffixes[j];
               result.term_names.push_back(name);
               col_offset++;
             }
@@ -768,9 +774,10 @@ inline FormulaMatrixResult build_matrix_from_formula(
         } else {
           for (size_t i = 0; i < expansions[0].columns.n_cols; ++i) {
             for (size_t j = 0; j < expansions[1].columns.n_cols; ++j) {
-              vec product = expansions[0].columns.col(i) % expansions[1].columns.col(j);
+              vec product =
+                  expansions[0].columns.col(i) % expansions[1].columns.col(j);
               result.X.col(col_offset) = product;
-              
+
               std::string name;
               if (expansions[0].suffixes[i].empty()) {
                 name = expansions[0].base_name;
@@ -791,7 +798,8 @@ inline FormulaMatrixResult build_matrix_from_formula(
       } else if (expansions.size() == 1) {
         for (size_t i = 0; i < expansions[0].columns.n_cols; ++i) {
           result.X.col(col_offset) = expansions[0].columns.col(i);
-          result.term_names.push_back(expansions[0].base_name + expansions[0].suffixes[i]);
+          result.term_names.push_back(expansions[0].base_name +
+                                      expansions[0].suffixes[i]);
           col_offset++;
         }
       } else {
@@ -807,7 +815,7 @@ inline FormulaMatrixResult build_matrix_from_formula(
         result.term_names.push_back(term.raw);
         col_offset++;
       }
-      
+
     } else {
       // Simple column
       auto cache_it = factor_cache.find(term.column);
@@ -907,6 +915,6 @@ inline FormulaMatrixResult build_matrix_from_formula(
   return result;
 }
 
-}  // namespace capybara
+} // namespace capybara
 
-#endif  // CAPYBARA_FORMULA_PARSER_H
+#endif // CAPYBARA_FORMULA_PARSER_H

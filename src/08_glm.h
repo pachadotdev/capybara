@@ -439,7 +439,8 @@ InferenceGLM feglm_fit(
   bool intercept_in_X = has_intercept_column;
 
   // Add intercept column if no fixed effects and intercept not suppressed
-  // Skip if intercept was already pre-allocated in X (has_intercept_column=true)
+  // Skip if intercept was already pre-allocated in X
+  // (has_intercept_column=true)
   if (!has_fixed_effects && !suppress_intercept && !has_intercept_column) {
     X.insert_cols(0, 1);
     X.col(0).ones();
@@ -524,11 +525,10 @@ InferenceGLM feglm_fit(
       vec w_work = w;
       w_work.elem(all_separated).zeros();
 
-      InferenceGLM result_with_sep =
-          feglm_fit(beta, eta, y, X, w_work, theta, family_type, fe_map, params,
-                    &ws, cluster_groups, offset, true, entity1_groups,
-                    entity2_groups, run_from_negbin, suppress_intercept,
-                    intercept_in_X);
+      InferenceGLM result_with_sep = feglm_fit(
+          beta, eta, y, X, w_work, theta, family_type, fe_map, params, &ws,
+          cluster_groups, offset, true, entity1_groups, entity2_groups,
+          run_from_negbin, suppress_intercept, intercept_in_X);
 
       result_with_sep.eta.elem(all_separated).fill(datum::nan);
       result_with_sep.fitted_values.elem(all_separated).fill(datum::nan);
@@ -546,11 +546,10 @@ InferenceGLM feglm_fit(
     vec w_work = w;
     w_work.elem(group_sep_result.separated_obs).zeros();
 
-    InferenceGLM result_with_sep =
-        feglm_fit(beta, eta, y, X, w_work, theta, family_type, fe_map, params,
-                  &ws, cluster_groups, offset, true, entity1_groups,
-                  entity2_groups, run_from_negbin, suppress_intercept,
-                  intercept_in_X);
+    InferenceGLM result_with_sep = feglm_fit(
+        beta, eta, y, X, w_work, theta, family_type, fe_map, params, &ws,
+        cluster_groups, offset, true, entity1_groups, entity2_groups,
+        run_from_negbin, suppress_intercept, intercept_in_X);
 
     result_with_sep.eta.elem(group_sep_result.separated_obs).fill(datum::nan);
     result_with_sep.fitted_values.elem(group_sep_result.separated_obs)
@@ -626,7 +625,7 @@ InferenceGLM feglm_fit(
     case BINOMIAL: {
       // For binomial, use logit of clipped mean
       double y_mean = std::clamp(mean(y), 0.01, 0.99);
-      eta.fill(std::log(y_mean / (1.0 - y_mean)));  // logit link
+      eta.fill(std::log(y_mean / (1.0 - y_mean))); // logit link
       break;
     }
     case GAMMA:
@@ -800,7 +799,8 @@ InferenceGLM feglm_fit(
       // 1. Starting from mu=mean(y), moving to mu=X*beta may increase deviance
       //    (e.g., for no-intercept models)
       // 2. The OLS solution is correct regardless of deviance decrease
-      imp_crit = (family_type == GAUSSIAN) || (dev_ratio_inner <= -params.dev_tol);
+      imp_crit =
+          (family_type == GAUSSIAN) || (dev_ratio_inner <= -params.dev_tol);
 
       if (dev_crit && val_crit && imp_crit) {
         break;
@@ -866,9 +866,10 @@ InferenceGLM feglm_fit(
       conv_change = eta_change;
     }
 
-    // Convergence check with small epsilon buffer for cross-platform floating-point stability
-    // Mac's sqrt() and dot() can produce slightly different rounding, so we add a tiny
-    // buffer (1e-10 relative tolerance) to prevent false non-convergence
+    // Convergence check with small epsilon buffer for cross-platform
+    // floating-point stability Mac's sqrt() and dot() can produce slightly
+    // different rounding, so we add a tiny buffer (1e-10 relative tolerance) to
+    // prevent false non-convergence
     const double eps_buffer = 1.0 + 1e-10;
     if (conv_change < params.dev_tol * eps_buffer) {
       conv = true;
