@@ -105,7 +105,7 @@ fepoisson <- function(
     formula = formula,
     data = data,
     weights = weights,
-    family = poisson(),
+    family = "poisson",
     vcov = vcov,
     beta_start = beta_start,
     eta_start = eta_start,

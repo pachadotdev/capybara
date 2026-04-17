@@ -112,6 +112,7 @@ inline void ww_nu_negbin(vec &w_working, vec &nu, const vec &w, const vec &mu,
 inline MuFromEta get_mu_fn(Family family_type) {
   switch (family_type) {
   case GAUSSIAN:
+  case TOBIT:
     return mu_gaussian;
   case POISSON:
   case NEG_BIN:
@@ -132,6 +133,7 @@ inline MuFromEta get_mu_fn(Family family_type) {
 inline WorkingWtsNu get_ww_nu_fn(Family family_type) {
   switch (family_type) {
   case GAUSSIAN:
+  case TOBIT:
     return ww_nu_gaussian;
   case POISSON:
     return ww_nu_poisson;

@@ -9,6 +9,7 @@ namespace capybara {
 inline vec inverse_link_derivative(const vec &eta, const Family family_type) {
   switch (family_type) {
   case GAUSSIAN:
+  case TOBIT:
     return vec(eta.n_elem, fill::ones);
   case POISSON:
   case NEG_BIN:
@@ -35,6 +36,7 @@ inline vec variance(const vec &mu, const double &theta,
                     const Family family_type) {
   switch (family_type) {
   case GAUSSIAN:
+  case TOBIT:
     return vec(mu.n_elem, fill::ones);
   case POISSON:
     return mu;

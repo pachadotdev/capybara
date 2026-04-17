@@ -39,7 +39,9 @@ fit_control(
   ape_weak_exo = FALSE,
   compute_bias_corr = FALSE,
   bias_corr_bandwidth = 0L,
-  bias_corr_panel_structure = "classic"
+  bias_corr_panel_structure = "classic",
+  tobit_lower = -Inf,
+  tobit_upper = Inf
 )
 }
 \arguments{
@@ -178,6 +180,12 @@ determines the structure of the panel used for bias correction. \code{"classic"}
 structures where the same cross-sectional units are observed several times (requires 1-2 way FE).
 \code{"network"} denotes panel structures where bilateral flows are observed for several time
 periods, e.g., trade data (requires 2-3 way FE). Default is \code{"classic"}.}
+
+\item{tobit_lower}{numeric indicating the lower censoring bound for Tobit models. Observations with
+\code{y <= tobit_lower} are treated as left-censored. Default is \code{-Inf} (no left censoring).}
+
+\item{tobit_upper}{numeric indicating the upper censoring bound for Tobit models. Observations with
+\code{y >= tobit_upper} are treated as right-censored. Default is \code{Inf} (no right censoring).}
 }
 \value{
 A named list of control parameters.

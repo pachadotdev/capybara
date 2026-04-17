@@ -131,6 +131,10 @@ NULL
 #'  structures where the same cross-sectional units are observed several times (requires 1-2 way FE). 
 #'  \code{"network"} denotes panel structures where bilateral flows are observed for several time 
 #'  periods, e.g., trade data (requires 2-3 way FE). Default is \code{"classic"}.
+#' @param tobit_lower numeric indicating the lower censoring bound for Tobit models. Observations with 
+#'  \code{y <= tobit_lower} are treated as left-censored. Default is \code{-Inf} (no left censoring).
+#' @param tobit_upper numeric indicating the upper censoring bound for Tobit models. Observations with 
+#'  \code{y >= tobit_upper} are treated as right-censored. Default is \code{Inf} (no right censoring).
 #'
 #' @return A named list of control parameters.
 #'
@@ -188,7 +192,9 @@ fit_control <- function(
   ape_weak_exo = FALSE,
   compute_bias_corr = FALSE,
   bias_corr_bandwidth = 0L,
-  bias_corr_panel_structure = "classic"
+  bias_corr_panel_structure = "classic",
+  tobit_lower = -Inf,
+  tobit_upper = Inf
 ) {
   # Check validity of tolerance parameters
   if (
@@ -262,6 +268,17 @@ fit_control <- function(
     stop("bias_corr_bandwidth should be a non-negative integer.", call. = FALSE)
   }
   bias_corr_panel_structure <- match.arg(bias_corr_panel_structure, c("classic", "network"))
+
+  # Check validity of tobit parameters
+  if (!is.numeric(tobit_lower) || length(tobit_lower) != 1L) {
+    stop("tobit_lower should be a single numeric value.", call. = FALSE)
+  }
+  if (!is.numeric(tobit_upper) || length(tobit_upper) != 1L) {
+    stop("tobit_upper should be a single numeric value.", call. = FALSE)
+  }
+  if (is.finite(tobit_lower) && is.finite(tobit_upper) && tobit_lower >= tobit_upper) {
+    stop("tobit_lower must be less than tobit_upper.", call. = FALSE)
+  }
 
   # Check validity of integer parameters for acceleration
   max_step_halving <- as.integer(max_step_halving)
@@ -343,6 +360,8 @@ fit_control <- function(
     ape_weak_exo = ape_weak_exo,
     compute_bias_corr = compute_bias_corr,
     bias_corr_bandwidth = bias_corr_bandwidth,
-    bias_corr_panel_structure = bias_corr_panel_structure
+    bias_corr_panel_structure = bias_corr_panel_structure,
+    tobit_lower = tobit_lower,
+    tobit_upper = tobit_upper
   )
 }

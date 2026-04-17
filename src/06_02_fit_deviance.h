@@ -26,6 +26,7 @@ inline double dev_resids_(const vec &y, const MuType &mu, const double &theta,
 
   switch (family_type) {
   case GAUSSIAN:
+  case TOBIT:
     for (uword i = 0; i < n; ++i) {
       double diff = y_ptr[i] - get_mu_i(mu, i);
       sum += wt_ptr[i] * diff * diff;
@@ -109,6 +110,7 @@ inline vec link_inv(const vec &eta, const Family family_type) {
 
   switch (family_type) {
   case GAUSSIAN:
+  case TOBIT:
     std::memcpy(mu_ptr, eta_ptr, n * sizeof(double));
     break;
   case POISSON:
@@ -150,6 +152,7 @@ inline bool valid_eta(const vec &eta, const Family family_type) {
 
   switch (family_type) {
   case GAUSSIAN:
+  case TOBIT:
   case POISSON:
   case BINOMIAL:
   case PROBIT:
@@ -171,6 +174,7 @@ inline bool valid_mu(const vec &mu, const Family family_type) {
 
   switch (family_type) {
   case GAUSSIAN:
+  case TOBIT:
   case INV_GAUSSIAN:
     return true;
   case POISSON:

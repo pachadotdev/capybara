@@ -153,11 +153,9 @@ test_that("proportional regressors return NA coefficients", {
 test_that("feprobit and feglm with probit() give the same results", {
   d <- make_probit_data(n = 200, seed = 789)
 
-  ctrl <- fit_control(check_separation = FALSE)
-
-  mod1 <- feprobit(y ~ x1 | f1, d, control = ctrl)
-  mod2 <- feglm(y ~ x1 | f1, d, family = probit(), control = ctrl)
-  mod3 <- feglm(y ~ x1 | f1, d, family = binomial(link = "probit"), control = ctrl)
+  mod1 <- feprobit(y ~ x1 | f1, d)
+  mod2 <- feglm(y ~ x1 | f1, d, family = "probit")
+  mod3 <- feglm(y ~ x1 | f1, d, family = binomial(link = "probit"))
 
   expect_equal(coef(mod1), coef(mod2))
   expect_equal(coef(mod1), coef(mod3))
