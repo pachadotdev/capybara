@@ -1,9 +1,9 @@
 #' srr_stats
-#' @srrstats {G1.0} Implements Poisson regression with high-dimensional fixed effects via `feglm`.
+#' @srrstats {G1.0} Implements Probit regression with high-dimensional fixed effects via `feglm`.
 #' @srrstats {G2.1a} Validates input `formula` to ensure correct specification of fixed effects.
 #' @srrstats {G2.1b} Ensures `data` is appropriately formatted and contains sufficient observations.
 #' @srrstats {G2.3a} Uses internally validated arguments (`control` and starting guesses) for consistency.
-#' @srrstats {G3.1a} Supports canonical log link function for Poisson family.
+#' @srrstats {G3.1a} Supports probit link function for binary outcomes (normal CDF).
 #' @srrstats {G3.1b} Provides detailed outputs including coefficients, deviance, and convergence diagnostics.
 #' @srrstats {G5.0} Ensures that identical input data and parameter settings consistently produce the same outputs,
 #'  supporting reproducible workflows.
@@ -76,22 +76,23 @@
 #' @noRd
 NULL
 
-#' @title Poisson model fitting high-dimensional with k-way fixed effects
+#' @title Probit model fitting with high-dimensional k-way fixed effects
 #'
 #' @description A wrapper for \link{feglm} with
-#'  \code{family = poisson()}.
+#'  \code{family = probit()}. This fits a binary response model using
+#'  the probit link function (standard normal CDF).
 #'
 #' @inheritParams feglm
 #'
 #' @examples
-#' # check the feglm examples for the details about clustered standard errors
-#' mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+#' # check the feglm examples for details about clustered standard errors
+#' mod <- feprobit(am ~ wt | cyl, mtcars)
 #' summary(mod)
 #'
 #' @return A named list of class \code{"feglm"}.
 #'
 #' @export
-fepoisson <- function(
+feprobit <- function(
   formula = NULL,
   data = NULL,
   weights = NULL,
@@ -105,7 +106,7 @@ fepoisson <- function(
     formula = formula,
     data = data,
     weights = weights,
-    family = "poisson",
+    family = "probit",
     vcov = vcov,
     beta_start = beta_start,
     eta_start = eta_start,

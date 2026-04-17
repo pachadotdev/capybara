@@ -75,6 +75,8 @@ enum Family {
   GAUSSIAN,
   POISSON,
   BINOMIAL,
+  PROBIT,
+  TOBIT,
   GAMMA,
   INV_GAUSSIAN,
   NEG_BIN
@@ -127,6 +129,8 @@ Family get_family_type(const std::string &fam) {
       {"gaussian", GAUSSIAN},
       {"poisson", POISSON},
       {"binomial", BINOMIAL},
+      {"probit", PROBIT},
+      {"tobit", TOBIT},
       {"gamma", GAMMA},
       {"inverse_gaussian", INV_GAUSSIAN},
       {"negative_binomial", NEG_BIN}};

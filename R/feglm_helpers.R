@@ -142,91 +142,66 @@ check_factor_ <- function(X) {
   }
 }
 
-#' @title Second order derivative
-#' @description Helper for the partial_mu_eta function
-#' @param eta Eta value
-#' @param mu_eta Mu.eta value
-#' @param family Family object
-#' @noRd
-second_order_derivative_ <- function(eta, mu_eta, family) {
-  if (family[["link"]] == "logit") {
-    return(mu_eta * (1.0 - 2.0 * family[["linkinv"]](eta)))
-  } else if (family[["link"]] == "probit") {
-    return(-eta * mu_eta)
-  } else if (family[["link"]] == "cloglog") {
-    return(mu_eta * (1.0 - exp(eta)))
-  } else {
-    return(-2.0 * eta / (1.0 + eta^2) * mu_eta)
-  }
-}
-
-#' @title Third order derivative
-#' @description Helper for the partial_mu_eta function
-#' @param eta Eta value
-#' @param mu_eta Mu.eta value
-#' @param family Family object
-#' @noRd
-third_order_derivative_ <- function(eta, mu_eta, family) {
-  if (family[["link"]] == "logit") {
-    linkinv_eta <- family[["linkinv"]](eta)
-    return(mu_eta * ((1.0 - 2.0 * linkinv_eta)^2 - 2.0 * mu_eta))
-  } else if (family[["link"]] == "probit") {
-    return((eta^2 - 1.0) * mu_eta)
-  } else if (family[["link"]] == "cloglog") {
-    return(mu_eta * (1.0 - exp(eta)) * (2.0 - exp(eta)) - mu_eta)
-  } else {
-    return((6.0 * eta^2 - 2.0) / (1.0 + eta^2)^2 * mu_eta)
-  }
-}
-
-#' @title Second or third order derivative
-#' @description Computes the second or third order derivative of the link
-#'  function
-#' @param eta Linear predictor
-#' @param family Family object
-#' @param order Order of the derivative (2 or 3)
-#' @noRd
-partial_mu_eta_ <- function(eta, family, order) {
-  # Safeguard eta if necessary
-  if (family[["link"]] != "logit") {
-    eta <- family[["linkfun"]](family[["linkinv"]](eta))
-  }
-
-  mu_eta <- family[["mu.eta"]](eta)
-
-  if (order == 2L) {
-    return(second_order_derivative_(eta, mu_eta, family))
-  } else {
-    return(third_order_derivative_(eta, mu_eta, family))
-  }
-}
-
 #' @title Check family
-#' @description Checks family for GLM/NegBin models
-#' @param family Family object
+#' @description Validates and normalizes family specification to a string.
+#'  Accepts family objects (e.g., poisson(), binomial()) or strings.
+#' @param family Family object or character string
+#' @return Character string with normalized family name
 #' @noRd
 check_family_ <- function(family) {
-  if (startsWith(family[["family"]], "Negative Binomial")) {
+  # Extract family name from object or use string directly
+  if (is.character(family)) {
+    fam_name <- family
+  } else if (is.list(family) && !is.null(family[["family"]])) {
+    fam_name <- family[["family"]]
+    # Handle binomial(link = "probit") -> probit
+    if (fam_name == "binomial" && !is.null(family[["link"]]) &&
+        family[["link"]] == "probit") {
+      fam_name <- "probit"
+    }
+    # Validate binomial uses logit link
+    if (fam_name == "binomial" && !is.null(family[["link"]]) &&
+        family[["link"]] != "logit") {
+      stop(
+        "The binomial family only supports 'logit' link. For probit link, use ",
+        "probit() or binomial(link = 'probit').",
+        call. = FALSE
+      )
+    }
+  } else {
+    stop("'family' must be a family object or character string.", call. = FALSE)
+  }
+
+  if (startsWith(fam_name, "Negative Binomial")) {
     stop("use 'fenegbin' instead.", call. = FALSE)
   }
 
   allowed_families <- c(
-    "gaussian",
-    "binomial",
-    "poisson",
-    "Gamma",
-    "inverse.gaussian"
+    "gaussian", "binomial", "probit", "tobit",
+    "poisson", "Gamma", "inverse.gaussian"
   )
-  family[["family"]] <- match.arg(family[["family"]], allowed_families)
 
-  if (family[["family"]] == "binomial" && family[["link"]] != "logit") {
-    stop(
-      "The current version only supports logit in the binomial family.
-       This is because I had to rewrite the links in C++ to use those with
-       Armadillo. Send me a Pull Request or open an issue if you need Probit.",
-      call. = FALSE
-    )
-  }
+  fam_name <- match.arg(fam_name, allowed_families)
+  fam_name
+}
+
+#' @title Make family object from string
+#' @description Creates a family object for post-fit operations
+#'  (linkinv, linkfun, mu.eta, variance) from a family name string.
+#' @param family Character string with family name
+#' @return A list with family methods
+#' @noRd
+make_family_object_ <- function(family) {
+  switch(family,
+    "gaussian" = gaussian(),
+    "binomial" = binomial(),
+    "probit" = binomial(link = "probit"),
+    "tobit" = gaussian(),  # Same identity link as gaussian
+    "poisson" = poisson(),
+    "Gamma" = Gamma(),
+    "inverse.gaussian" = inverse.gaussian(),
+    stop("Unknown family: ", family, call. = FALSE)
+  )
 }
 
 #' @title Temporary variable
@@ -245,12 +220,12 @@ temp_var_ <- function(data) {
 #' @description Checks response for GLM/NegBin models (validation only, no mutation)
 #' @param data Data frame
 #' @param lhs Left-hand side of the formula
-#' @param family Family object
+#' @param family Character string with family name
 #' @noRd
 check_response_ <- function(data, lhs, family) {
   y <- data[[lhs]]
   
-  if (family[["family"]] == "binomial") {
+  if (family %in% c("binomial", "probit")) {
     if (is.numeric(y)) {
       if (any(y < 0.0 | y > 1.0, na.rm = TRUE)) {
         stop("Model response must be within [0,1].")
@@ -262,11 +237,11 @@ check_response_ <- function(data, lhs, family) {
         stop("Model response has to be binary.")
       }
     }
-  } else if (family[["family"]] %in% c("Gamma", "inverse.gaussian")) {
+  } else if (family %in% c("Gamma", "inverse.gaussian")) {
     if (any(y <= 0.0, na.rm = TRUE)) {
       stop("Model response has to be positive.", call. = FALSE)
     }
-  } else if (family[["family"]] != "gaussian") {
+  } else if (family != "gaussian" && family != "tobit") {
     if (any(y < 0.0, na.rm = TRUE)) {
       stop("Model response has to be strictly positive.", call. = FALSE)
     }

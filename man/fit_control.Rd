@@ -32,6 +32,8 @@ fit_control(
   check_separation = TRUE,
   init_theta = 0,
   vcov_type = NULL,
+  tobit_lb = -Inf,
+  tobit_ub = Inf,
   compute_apes = FALSE,
   ape_n_pop = NULL,
   ape_panel_structure = "classic",
@@ -130,6 +132,12 @@ present, or a clustered sandwich when one is. Other values:
 \code{"m-estimator"} — one-way M-estimator sandwich (cluster variable required);
 \code{"m-estimator-dyadic"} — dyadic-robust Cameron-Miller sandwich (two entity columns required in the
 third part of the formula like \code{z ~ x + y | fe | cl1 + cl2}).}
+
+\item{tobit_lb}{numeric indicating the lower censoring bound for Tobit models. Observations with
+\code{y <= tobit_lb} are treated as left-censored. Default is \code{-Inf} (no left censoring).}
+
+\item{tobit_ub}{numeric indicating the upper censoring bound for Tobit models. Observations with
+\code{y >= tobit_ub} are treated as right-censored. Default is \code{Inf} (no right censoring).}
 
 \item{compute_apes}{logical indicating whether to compute Average Partial Effects (APEs) for binomial models.
 When \code{TRUE}, the model returns APE estimates and their covariance matrix alongside the standard output.

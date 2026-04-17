@@ -18,15 +18,16 @@
 * Allows formulas without fixed effects, such as `y ~ x1 + x2` and `y ~ x1 + x2 | 0 | cluster` and 
   formulas without slopes such as `y ~ 0 | fe1 + fe2`.
 * Allows offsets in GLMs.
+* All the computation is done on C++ side, and now model formulas explicitly fail if there are functions
+  inside them.
 * The default is now `predict(glm_object, type = "response")`, unlike base R behavior.
 * Most of the R and C++ code was refactored to use memory efficiently.
 * Follows fixest-based normalization for fixed effects to match Stata results.
 * Provides the option to use `control = list(centering = "berge")` or `list(centering = "stammann")`. Both
   methods are equivalent but use different internal logics. Berge's fixed point problem approach is usually
   faster.
+* Supports Probit and Logit regression.
 * Adds parallelization over columns for an efficient centering regardless of the method used.
-* Most of the data processing was moved to C++ port to ease portability (e.g., Python version in the future)
-
 
 # capybara 1.8.1
 

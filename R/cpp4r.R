@@ -12,6 +12,10 @@ feglm_fit_ <- function(formula_str, df, beta_r, eta_r, wt_r, offset_r, theta, fa
 	.Call(`_capybara_feglm_fit_`, formula_str, df, beta_r, eta_r, wt_r, offset_r, theta, family, control)
 }
 
+feglm_fit_matrix_ <- function(X_r, y_r, beta_r, eta_r, wt_r, offset_r, theta, family, term_names_r, fe_vars_r, cluster_vars_r, df, has_intercept, control) {
+	.Call(`_capybara_feglm_fit_matrix_`, X_r, y_r, beta_r, eta_r, wt_r, offset_r, theta, family, term_names_r, fe_vars_r, cluster_vars_r, df, has_intercept, control)
+}
+
 feglm_offset_fit_ <- function(eta_r, y_r, offset_r, wt_r, family, control, fe_codes) {
 	.Call(`_capybara_feglm_offset_fit_`, eta_r, y_r, offset_r, wt_r, family, control, fe_codes)
 }

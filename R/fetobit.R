@@ -1,9 +1,9 @@
 #' srr_stats
-#' @srrstats {G1.0} Implements Poisson regression with high-dimensional fixed effects via `feglm`.
+#' @srrstats {G1.0} Implements Tobit censored regression with high-dimensional fixed effects via `feglm`.
 #' @srrstats {G2.1a} Validates input `formula` to ensure correct specification of fixed effects.
 #' @srrstats {G2.1b} Ensures `data` is appropriately formatted and contains sufficient observations.
 #' @srrstats {G2.3a} Uses internally validated arguments (`control` and starting guesses) for consistency.
-#' @srrstats {G3.1a} Supports canonical log link function for Poisson family.
+#' @srrstats {G3.1a} Supports identity link function for censored normal outcomes.
 #' @srrstats {G3.1b} Provides detailed outputs including coefficients, deviance, and convergence diagnostics.
 #' @srrstats {G5.0} Ensures that identical input data and parameter settings consistently produce the same outputs,
 #'  supporting reproducible workflows.
@@ -76,22 +76,44 @@
 #' @noRd
 NULL
 
-#' @title Poisson model fitting high-dimensional with k-way fixed effects
+#' @title Tobit model fitting with high-dimensional k-way fixed effects
 #'
-#' @description A wrapper for \link{feglm} with
-#'  \code{family = poisson()}.
+#' @description A wrapper for \link{feglm} with \code{family = "tobit"}.
+#'  This fits a censored regression model where outcomes below \code{tobit_lb}
+#'  or above \code{tobit_ub} are treated as censored. The censoring bounds
+#'  are specified via the \code{control} argument.
 #'
 #' @inheritParams feglm
+#' @param tobit_lb numeric indicating the lower censoring bound. Observations with
+#'  \code{y <= tobit_lb} are treated as left-censored. Default is \code{-Inf} (no left censoring).
+#' @param tobit_ub numeric indicating the upper censoring bound. Observations with
+#'  \code{y >= tobit_ub} are treated as right-censored. Default is \code{Inf} (no right censoring).
 #'
 #' @examples
-#' # check the feglm examples for the details about clustered standard errors
-#' mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+#' # Left-censored at 0 (Type I Tobit)
+#' d <- data.frame(
+#'   y = pmax(0, rnorm(100, 2, 1)),
+#'   x = rnorm(100),
+#'   g = factor(rep(1:5, 20))
+#' )
+#' mod <- fetobit(y ~ x | g, d, tobit_lb = 0)
 #' summary(mod)
+#'
+#' # Two-sided censoring
+#' d2 <- data.frame(
+#'   y = pmin(pmax(rnorm(100, 5, 2), 0), 10),
+#'   x = rnorm(100),
+#'   g = factor(rep(1:5, 20))
+#' )
+#' mod2 <- fetobit(y ~ x | g, d2, tobit_lb = 0, tobit_ub = 10)
+#' summary(mod2)
 #'
 #' @return A named list of class \code{"feglm"}.
 #'
+#' @seealso \code{\link{fit_control}} for additional control parameters
+#'
 #' @export
-fepoisson <- function(
+fetobit <- function(
   formula = NULL,
   data = NULL,
   weights = NULL,
@@ -99,13 +121,23 @@ fepoisson <- function(
   beta_start = NULL,
   eta_start = NULL,
   offset = NULL,
+  tobit_lb = -Inf,
+  tobit_ub = Inf,
   control = NULL
 ) {
+  # Merge tobit bounds into control
+  if (is.null(control)) {
+    control <- fit_control(tobit_lb = tobit_lb, tobit_ub = tobit_ub)
+  } else if (is.list(control)) {
+    control$tobit_lb <- tobit_lb
+    control$tobit_ub <- tobit_ub
+  }
+
   feglm(
     formula = formula,
     data = data,
     weights = weights,
-    family = "poisson",
+    family = "tobit",
     vcov = vcov,
     beta_start = beta_start,
     eta_start = eta_start,

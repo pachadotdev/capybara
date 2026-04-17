@@ -111,17 +111,6 @@ test_that("error conditions in helpers", {
     "'control' has to be a list"
   )
 
-  # incorrect family
-
-  expect_error(
-    feglm(
-      trade ~ log_dist | rta,
-      data = trade_short,
-      family = "poisson"
-    ),
-    "subscript out of bounds"
-  )
-
   # we have the cluster estimator to do the same as quasi-Poisson
 
   expect_error(

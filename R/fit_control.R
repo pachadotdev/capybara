@@ -91,6 +91,10 @@ NULL
 #'  \code{"m-estimator"} — one-way M-estimator sandwich (cluster variable required);
 #'  \code{"m-estimator-dyadic"} — dyadic-robust Cameron-Miller sandwich (two entity columns required in the
 #'  third part of the formula like \code{z ~ x + y | fe | cl1 + cl2}).
+#' @param tobit_lb numeric indicating the lower censoring bound for Tobit models. Observations with 
+#'  \code{y <= tobit_lb} are treated as left-censored. Default is \code{-Inf} (no left censoring).
+#' @param tobit_ub numeric indicating the upper censoring bound for Tobit models. Observations with 
+#'  \code{y >= tobit_ub} are treated as right-censored. Default is \code{Inf} (no right censoring).
 #' @param compute_apes logical indicating whether to compute Average Partial Effects (APEs) for binomial models.
 #'  When \code{TRUE}, the model returns APE estimates and their covariance matrix alongside the standard output.
 #'  APEs represent the average marginal effect of each regressor on the probability of the outcome.
@@ -181,6 +185,8 @@ fit_control <- function(
   check_separation = TRUE,
   init_theta = 0.0,
   vcov_type = NULL,
+  tobit_lb = -Inf,
+  tobit_ub = Inf,
   compute_apes = FALSE,
   ape_n_pop = NULL,
   ape_panel_structure = "classic",
@@ -263,6 +269,17 @@ fit_control <- function(
   }
   bias_corr_panel_structure <- match.arg(bias_corr_panel_structure, c("classic", "network"))
 
+  # Check validity of tobit parameters
+  if (!is.numeric(tobit_lb) || length(tobit_lb) != 1L) {
+    stop("tobit_lb should be a single numeric value.", call. = FALSE)
+  }
+  if (!is.numeric(tobit_ub) || length(tobit_ub) != 1L) {
+    stop("tobit_ub should be a single numeric value.", call. = FALSE)
+  }
+  if (is.finite(tobit_lb) && is.finite(tobit_ub) && tobit_lb >= tobit_ub) {
+    stop("tobit_lb must be less than tobit_ub.", call. = FALSE)
+  }
+
   # Check validity of integer parameters for acceleration
   max_step_halving <- as.integer(max_step_halving)
   if (max_step_halving < 0L) {
@@ -343,6 +360,8 @@ fit_control <- function(
     ape_weak_exo = ape_weak_exo,
     compute_bias_corr = compute_bias_corr,
     bias_corr_bandwidth = bias_corr_bandwidth,
-    bias_corr_panel_structure = bias_corr_panel_structure
+    bias_corr_panel_structure = bias_corr_panel_structure,
+    tobit_lb = tobit_lb,
+    tobit_ub = tobit_ub
   )
 }

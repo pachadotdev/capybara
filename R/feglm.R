@@ -180,8 +180,8 @@ feglm <- function(
   # Check validity of data ----
   check_data_(data)
 
-  # Check validity of family ----
-  check_family_(family)
+  # Check validity of family (returns normalized string) ----
+  family_str <- check_family_(family)
 
   # Check validity of control + Extract control list ----
   check_control_(control)
@@ -201,7 +201,7 @@ feglm <- function(
   needs_rowname_conversion <- is.null(orig_rownames)
 
   # Validate response for the given family ----
-  check_response_(data, lhs, family)
+  check_response_(data, lhs, family_str)
 
   # Convert formula to normalized string for C++ ----
   # Use normalize_formula_ to expand *, ^, -, /, %in%, . using R's terms()
@@ -277,7 +277,7 @@ feglm <- function(
   # FIT MODEL ----
   fit <- feglm_fit_(
     formula_str, data, beta, eta, wt, offset_vec,
-    0.0, family[["family"]], control
+    0.0, family_str, control
   )
 
   # Free large input objects immediately after C++ call
@@ -371,7 +371,7 @@ feglm <- function(
   if (control[["keep_data"]]) {
     fit[["data"]] <- data_for_output
   }
-  fit[["family"]] <- family
+  fit[["family"]] <- make_family_object_(family_str)
   fit[["control"]] <- control
   fit[["offset"]] <- offset_vec
   fit[["offset_spec"]] <- offset
