@@ -131,11 +131,10 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
       // compute Hessian, vcov, FE recovery, SE/z/p, pseudo R-sq, etc.
       beta_coef = glm_fit.coef_table.col(0);
       eta = glm_fit.eta;
-      InferenceGLM final_fit = feglm_fit(beta_coef, eta, y, X, w, theta_new,
-                                         NEG_BIN, fe_map, params, &ws,
-                                         nullptr, nullptr, false, nullptr,
-                                         nullptr, false, suppress_intercept,
-                                         has_intercept_column);
+      InferenceGLM final_fit =
+          feglm_fit(beta_coef, eta, y, X, w, theta_new, NEG_BIN, fe_map, params,
+                    &ws, nullptr, nullptr, false, nullptr, nullptr, false,
+                    suppress_intercept, has_intercept_column);
       static_cast<InferenceGLM &>(result) = std::move(final_fit);
       result.theta = theta_new;
       result.conv_outer = true;

@@ -34,7 +34,7 @@ feglm_offset_ <- function(object, offset) {
 
   # Compute starting guess for eta
   nt <- object[["nobs"]][["nobs"]]
-  if (object[["family"]][["family"]] == "binomial") {
+  if (object[["family"]][["family"]] %in% c("binomial", "probit")) {
     eta <- rep(
       object[["family"]][["linkfun"]](
         sum(object[["weights"]] * (y + 0.5) / 2.0) / sum(object[["weights"]])

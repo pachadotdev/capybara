@@ -36,7 +36,8 @@ struct GlmWorkspace {
 // Avoids repeated switch statements in hot loops
 using MuFromEta = void (*)(vec &mu, const vec &eta);
 using WorkingWtsNu = void (*)(vec &w_working, vec &nu, const vec &w,
-                              const vec &mu, const vec &y, double theta);
+                              const vec &mu, const vec &y, const vec &eta,
+                              double theta);
 
 // Link inverse functions (mu from eta)
 inline void mu_gaussian(vec &mu, const vec &eta) { mu = eta; }
@@ -44,45 +45,65 @@ inline void mu_poisson(vec &mu, const vec &eta) { mu = exp(eta); }
 inline void mu_binomial(vec &mu, const vec &eta) {
   mu = 1.0 / (1.0 + exp(-eta));
 }
+inline void mu_probit(vec &mu, const vec &eta) {
+  // mu = Phi(eta) = standard normal CDF
+  mu = normcdf(eta);
+}
 inline void mu_gamma(vec &mu, const vec &eta) { mu = 1.0 / eta; }
 inline void mu_invgaussian(vec &mu, const vec &eta) { mu = 1.0 / sqrt(eta); }
 
 // Working weights and working residuals (nu) - vectorized
 inline void ww_nu_gaussian(vec &w_working, vec &nu, const vec &w, const vec &mu,
-                           const vec &y, double) {
+                           const vec &y, const vec &, double) {
   w_working = w;
   nu = y - mu;
 }
 
 inline void ww_nu_poisson(vec &w_working, vec &nu, const vec &w, const vec &mu,
-                          const vec &y, double) {
+                          const vec &y, const vec &, double) {
   w_working = w % mu;
   nu = (y - mu) / mu;
 }
 
 inline void ww_nu_binomial(vec &w_working, vec &nu, const vec &w, const vec &mu,
-                           const vec &y, double) {
+                           const vec &y, const vec &, double) {
   const vec var = mu % (1.0 - mu);
   w_working = w % var;
   nu = (y - mu) / var;
 }
 
+inline void ww_nu_probit(vec &w_working, vec &nu, const vec &w, const vec &mu,
+                         const vec &y, const vec &eta, double) {
+  // For probit: mu = Phi(eta), d(mu)/d(eta) = phi(eta)
+  // Variance = mu * (1 - mu)
+  // Working weight = w * [phi(eta)]^2 / [mu * (1 - mu)]
+  // Working residual = (y - mu) / phi(eta)
+  const vec phi_eta = normpdf(eta);
+  const vec var = mu % (1.0 - mu);
+  // Clamp to avoid division by zero at extremes
+  const vec phi_safe = clamp(phi_eta, datum::eps, datum::inf);
+  const vec var_safe = clamp(var, datum::eps, datum::inf);
+  w_working = w % square(phi_safe) / var_safe;
+  nu = (y - mu) / phi_safe;
+}
+
 inline void ww_nu_gamma(vec &w_working, vec &nu, const vec &w, const vec &mu,
-                        const vec &y, double) {
+                        const vec &y, const vec &, double) {
   const vec m2 = square(mu);
   w_working = w % m2;
   nu = -(y - mu) / m2;
 }
 
 inline void ww_nu_invgaussian(vec &w_working, vec &nu, const vec &w,
-                              const vec &mu, const vec &y, double) {
+                              const vec &mu, const vec &y, const vec &,
+                              double) {
   const vec m3 = pow(mu, 3);
   w_working = 0.25 * (w % m3);
   nu = -2.0 * (y - mu) / m3;
 }
 
 inline void ww_nu_negbin(vec &w_working, vec &nu, const vec &w, const vec &mu,
-                         const vec &y, double theta) {
+                         const vec &y, const vec &, double theta) {
   w_working = (w % mu) / (1.0 + mu / theta);
   nu = (y - mu) / mu;
 }
@@ -97,6 +118,8 @@ inline MuFromEta get_mu_fn(Family family_type) {
     return mu_poisson;
   case BINOMIAL:
     return mu_binomial;
+  case PROBIT:
+    return mu_probit;
   case GAMMA:
     return mu_gamma;
   case INV_GAUSSIAN:
@@ -114,6 +137,8 @@ inline WorkingWtsNu get_ww_nu_fn(Family family_type) {
     return ww_nu_poisson;
   case BINOMIAL:
     return ww_nu_binomial;
+  case PROBIT:
+    return ww_nu_probit;
   case GAMMA:
     return ww_nu_gamma;
   case INV_GAUSSIAN:
@@ -439,7 +464,8 @@ InferenceGLM feglm_fit(
   bool intercept_in_X = has_intercept_column;
 
   // Add intercept column if no fixed effects and intercept not suppressed
-  // Skip if intercept was already pre-allocated in X (has_intercept_column=true)
+  // Skip if intercept was already pre-allocated in X
+  // (has_intercept_column=true)
   if (!has_fixed_effects && !suppress_intercept && !has_intercept_column) {
     X.insert_cols(0, 1);
     X.col(0).ones();
@@ -488,12 +514,12 @@ InferenceGLM feglm_fit(
 #endif
 
   // Group-level separation pre-filter
-  // For Poisson/NegBin/Binomial FE models: drop entire FE groups where
-  // mean(y)==0 (Poisson/NegBin) or mean(y) in {0,1} (Binomial)
+  // For Poisson/NegBin/Binomial/Probit FE models: drop entire FE groups where
+  // mean(y)==0 (Poisson/NegBin) or mean(y) in {0,1} (Binomial/Probit)
   SeparationResult group_sep_result;
   if (!skip_separation_check && has_fixed_effects && params.check_separation &&
       (family_type == POISSON || family_type == NEG_BIN ||
-       family_type == BINOMIAL)) {
+       family_type == BINOMIAL || family_type == PROBIT)) {
     group_sep_result = check_group_separation(y, w, fe_map, family_type);
   }
 
@@ -524,11 +550,10 @@ InferenceGLM feglm_fit(
       vec w_work = w;
       w_work.elem(all_separated).zeros();
 
-      InferenceGLM result_with_sep =
-          feglm_fit(beta, eta, y, X, w_work, theta, family_type, fe_map, params,
-                    &ws, cluster_groups, offset, true, entity1_groups,
-                    entity2_groups, run_from_negbin, suppress_intercept,
-                    intercept_in_X);
+      InferenceGLM result_with_sep = feglm_fit(
+          beta, eta, y, X, w_work, theta, family_type, fe_map, params, &ws,
+          cluster_groups, offset, true, entity1_groups, entity2_groups,
+          run_from_negbin, suppress_intercept, intercept_in_X);
 
       result_with_sep.eta.elem(all_separated).fill(datum::nan);
       result_with_sep.fitted_values.elem(all_separated).fill(datum::nan);
@@ -546,11 +571,10 @@ InferenceGLM feglm_fit(
     vec w_work = w;
     w_work.elem(group_sep_result.separated_obs).zeros();
 
-    InferenceGLM result_with_sep =
-        feglm_fit(beta, eta, y, X, w_work, theta, family_type, fe_map, params,
-                  &ws, cluster_groups, offset, true, entity1_groups,
-                  entity2_groups, run_from_negbin, suppress_intercept,
-                  intercept_in_X);
+    InferenceGLM result_with_sep = feglm_fit(
+        beta, eta, y, X, w_work, theta, family_type, fe_map, params, &ws,
+        cluster_groups, offset, true, entity1_groups, entity2_groups,
+        run_from_negbin, suppress_intercept, intercept_in_X);
 
     result_with_sep.eta.elem(group_sep_result.separated_obs).fill(datum::nan);
     result_with_sep.fitted_values.elem(group_sep_result.separated_obs)
@@ -626,7 +650,7 @@ InferenceGLM feglm_fit(
     case BINOMIAL: {
       // For binomial, use logit of clipped mean
       double y_mean = std::clamp(mean(y), 0.01, 0.99);
-      eta.fill(std::log(y_mean / (1.0 - y_mean)));  // logit link
+      eta.fill(std::log(y_mean / (1.0 - y_mean))); // logit link
       break;
     }
     case GAMMA:
@@ -711,7 +735,7 @@ InferenceGLM feglm_fit(
     auto twwnu0 = std::chrono::high_resolution_clock::now();
 #endif
 
-    ww_nu_(w_working, nu, w, mu, y, theta);
+    ww_nu_(w_working, nu, w, mu, y, eta, theta);
 
     // Working response z = eta + nu - offset (reuses workspace buffer)
     z = eta + nu;
@@ -800,7 +824,8 @@ InferenceGLM feglm_fit(
       // 1. Starting from mu=mean(y), moving to mu=X*beta may increase deviance
       //    (e.g., for no-intercept models)
       // 2. The OLS solution is correct regardless of deviance decrease
-      imp_crit = (family_type == GAUSSIAN) || (dev_ratio_inner <= -params.dev_tol);
+      imp_crit =
+          (family_type == GAUSSIAN) || (dev_ratio_inner <= -params.dev_tol);
 
       if (dev_crit && val_crit && imp_crit) {
         break;
@@ -866,9 +891,10 @@ InferenceGLM feglm_fit(
       conv_change = eta_change;
     }
 
-    // Convergence check with small epsilon buffer for cross-platform floating-point stability
-    // Mac's sqrt() and dot() can produce slightly different rounding, so we add a tiny
-    // buffer (1e-10 relative tolerance) to prevent false non-convergence
+    // Convergence check with small epsilon buffer for cross-platform
+    // floating-point stability Mac's sqrt() and dot() can produce slightly
+    // different rounding, so we add a tiny buffer (1e-10 relative tolerance) to
+    // prevent false non-convergence
     const double eps_buffer = 1.0 + 1e-10;
     if (conv_change < params.dev_tol * eps_buffer) {
       conv = true;

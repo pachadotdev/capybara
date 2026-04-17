@@ -7,12 +7,12 @@
 
 #include <armadillo4r.hpp>
 
+#include <optional>
 #include <regex>
 #include <set>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
-#include <optional>
 
 #ifdef CAPYBARA_DEBUG
 #include <chrono>
@@ -883,9 +883,8 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
   const double *weights_ptr = (w_r.size() > 0) ? REAL(w_r) : nullptr;
   size_t weights_len = w_r.size();
 
-  capybara::FormulaMatrixResult fm =
-      capybara::build_matrix_from_formula(formula_str, df, weights_ptr,
-                                          weights_len);
+  capybara::FormulaMatrixResult fm = capybara::build_matrix_from_formula(
+      formula_str, df, weights_ptr, weights_len);
 
   if (!fm.valid) {
     Rf_error("Formula error: %s", fm.error.c_str());
@@ -916,7 +915,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
 
   size_t n_cluster_vars = fm.cluster_vars.size();
   if (n_cluster_vars >= 2 && (params.vcov_type == "m-estimator-dyadic" ||
-                               params.vcov_type == "two-way")) {
+                              params.vcov_type == "two-way")) {
     // Dyadic or two-way clustering: use first two cluster vars as entities
     SEXP names = Rf_getAttrib(df, R_NamesSymbol);
     std::unordered_map<std::string, int> col_idx;
@@ -941,16 +940,16 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
       }
     }
     if (cl_idx >= 0) {
-      cluster_groups = build_cluster_groups(VECTOR_ELT(df, cl_idx), fm.keep_idx);
+      cluster_groups =
+          build_cluster_groups(VECTOR_ELT(df, cl_idx), fm.keep_idx);
       cluster_ptr = &cluster_groups;
     }
   }
 
   // Fit the model
-  capybara::InferenceLM result =
-      capybara::felm_fit(fm.X, fm.y, w, fm.fe_map, params, nullptr, cluster_ptr,
-                         false, 0.0, entity1_ptr, entity2_ptr,
-                         fm.has_intercept_column, fm.suppress_intercept);
+  capybara::InferenceLM result = capybara::felm_fit(
+      fm.X, fm.y, w, fm.fe_map, params, nullptr, cluster_ptr, false, 0.0,
+      entity1_ptr, entity2_ptr, fm.has_intercept_column, fm.suppress_intercept);
 
   // Replace collinear coefficients with NA
   uvec collinear_mask = (result.coef_status == 0);
@@ -974,8 +973,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
        "r_squared"_nm = result.r_squared,
        "adj_r_squared"_nm = result.adj_r_squared,
        "coef_status"_nm = as_integers(result.coef_status),
-       "success"_nm = result.success,
-       "has_fe"_nm = result.has_fe});
+       "success"_nm = result.success, "has_fe"_nm = result.has_fe});
 
   // Conditionally include hessian
   if (params.return_hessian) {
@@ -1038,9 +1036,8 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
     obs_idx_r[i] = static_cast<int>(fm.keep_idx[i] + 1);
   }
   ret.push_back({"obs_indices"_nm = obs_idx_r});
-  ret.push_back(
-      {"nobs_used"_nm =
-           writable::integers({static_cast<int>(fm.keep_idx.n_elem)})});
+  ret.push_back({"nobs_used"_nm = writable::integers(
+                     {static_cast<int>(fm.keep_idx.n_elem)})});
 
   // Add FE metadata
   size_t K = fm.fe_names.n_elem;
@@ -1078,9 +1075,8 @@ feglm_fit_(const std::string &formula_str, SEXP df, const doubles &beta_r,
   const double *weights_ptr = (wt_r.size() > 0) ? REAL(wt_r) : nullptr;
   size_t weights_len = wt_r.size();
 
-  capybara::FormulaMatrixResult fm =
-      capybara::build_matrix_from_formula(formula_str, df, weights_ptr,
-                                          weights_len);
+  capybara::FormulaMatrixResult fm = capybara::build_matrix_from_formula(
+      formula_str, df, weights_ptr, weights_len);
 
   if (!fm.valid) {
     Rf_error("Formula error: %s", fm.error.c_str());
@@ -1119,7 +1115,8 @@ feglm_fit_(const std::string &formula_str, SEXP df, const doubles &beta_r,
     } else {
       eta.set_size(n_valid);
       for (size_t i = 0; i < n_valid; ++i) {
-        eta(i) = static_cast<double>(eta_r[static_cast<R_xlen_t>(fm.keep_idx[i])]);
+        eta(i) =
+            static_cast<double>(eta_r[static_cast<R_xlen_t>(fm.keep_idx[i])]);
       }
     }
   } else {
@@ -1139,7 +1136,8 @@ feglm_fit_(const std::string &formula_str, SEXP df, const doubles &beta_r,
   } else {
     offset.set_size(n_valid);
     for (size_t i = 0; i < n_valid; ++i) {
-      offset(i) = static_cast<double>(offset_r[static_cast<R_xlen_t>(fm.keep_idx[i])]);
+      offset(i) =
+          static_cast<double>(offset_r[static_cast<R_xlen_t>(fm.keep_idx[i])]);
     }
     uvec bad_offset = find_nonfinite(offset);
     if (bad_offset.n_elem > 0) {
@@ -1175,7 +1173,7 @@ feglm_fit_(const std::string &formula_str, SEXP df, const doubles &beta_r,
 
   size_t n_cluster_vars = fm.cluster_vars.size();
   if (n_cluster_vars >= 2 && (params.vcov_type == "m-estimator-dyadic" ||
-                               params.vcov_type == "two-way")) {
+                              params.vcov_type == "two-way")) {
     SEXP names = Rf_getAttrib(df, R_NamesSymbol);
     std::unordered_map<std::string, int> col_idx;
     for (int i = 0; i < Rf_length(names); ++i) {
@@ -1198,7 +1196,8 @@ feglm_fit_(const std::string &formula_str, SEXP df, const doubles &beta_r,
       }
     }
     if (cl_idx >= 0) {
-      cluster_groups = build_cluster_groups(VECTOR_ELT(df, cl_idx), fm.keep_idx);
+      cluster_groups =
+          build_cluster_groups(VECTOR_ELT(df, cl_idx), fm.keep_idx);
       cluster_ptr = &cluster_groups;
     }
   }
@@ -1347,14 +1346,12 @@ feglm_fit_(const std::string &formula_str, SEXP df, const doubles &beta_r,
 // New function that accepts pre-built design matrix from R
 // This handles all complex formula operations (poly, cut, as.factor, etc.)
 // in R's model.matrix() and passes the result to C++
-[[cpp4r::register]] list
-feglm_fit_matrix_(const doubles_matrix<> &X_r, const doubles &y_r,
-                  const doubles &beta_r, const doubles &eta_r,
-                  const doubles &wt_r, const doubles &offset_r,
-                  const double &theta, const std::string &family,
-                  const strings &term_names_r, const strings &fe_vars_r,
-                  const strings &cluster_vars_r, SEXP df,
-                  const bool &has_intercept, const list &control) {
+[[cpp4r::register]] list feglm_fit_matrix_(
+    const doubles_matrix<> &X_r, const doubles &y_r, const doubles &beta_r,
+    const doubles &eta_r, const doubles &wt_r, const doubles &offset_r,
+    const double &theta, const std::string &family, const strings &term_names_r,
+    const strings &fe_vars_r, const strings &cluster_vars_r, SEXP df,
+    const bool &has_intercept, const list &control) {
   CapybaraParameters params(control);
 
   // Convert inputs to Armadillo types
@@ -1582,9 +1579,8 @@ feglm_fit_matrix_(const doubles_matrix<> &X_r, const doubles &y_r,
   const field<uvec> *entity2_ptr = nullptr;
 
   size_t n_cluster_vars = cluster_vars_r.size();
-  if (n_cluster_vars >= 2 &&
-      (params.vcov_type == "m-estimator-dyadic" ||
-       params.vcov_type == "two-way")) {
+  if (n_cluster_vars >= 2 && (params.vcov_type == "m-estimator-dyadic" ||
+                              params.vcov_type == "two-way")) {
     SEXP names = Rf_getAttrib(df, R_NamesSymbol);
     std::unordered_map<std::string, int> col_idx;
     for (int i = 0; i < Rf_length(names); ++i) {
@@ -1789,9 +1785,8 @@ fenegbin_fit_(const std::string &formula_str, SEXP df, const doubles &w_r,
   const double *weights_ptr = (w_r.size() > 0) ? REAL(w_r) : nullptr;
   size_t weights_len = w_r.size();
 
-  capybara::FormulaMatrixResult fm =
-      capybara::build_matrix_from_formula(formula_str, df, weights_ptr,
-                                          weights_len);
+  capybara::FormulaMatrixResult fm = capybara::build_matrix_from_formula(
+      formula_str, df, weights_ptr, weights_len);
 
   if (!fm.valid) {
     Rf_error("Formula error: %s", fm.error.c_str());
@@ -1826,7 +1821,8 @@ fenegbin_fit_(const std::string &formula_str, SEXP df, const doubles &w_r,
   } else {
     offset_vec.set_size(n_valid);
     for (size_t i = 0; i < n_valid; ++i) {
-      offset_vec(i) = static_cast<double>(offset_r[static_cast<R_xlen_t>(fm.keep_idx[i])]);
+      offset_vec(i) =
+          static_cast<double>(offset_r[static_cast<R_xlen_t>(fm.keep_idx[i])]);
     }
   }
 

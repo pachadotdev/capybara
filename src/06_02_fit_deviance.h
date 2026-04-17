@@ -42,6 +42,7 @@ inline double dev_resids_(const vec &y, const MuType &mu, const double &theta,
     return 2.0 * sum;
 
   case BINOMIAL:
+  case PROBIT:
     for (uword i = 0; i < n; ++i) {
       double yi = y_ptr[i];
       double mui = get_mu_i(mu, i);
@@ -121,6 +122,12 @@ inline vec link_inv(const vec &eta, const Family family_type) {
       mu_ptr[i] = 1.0 / (1.0 + std::exp(-eta_ptr[i]));
     }
     break;
+  case PROBIT:
+    for (uword i = 0; i < n; ++i) {
+      // Phi(eta) using erfc for numerical stability
+      mu_ptr[i] = 0.5 * std::erfc(-eta_ptr[i] * M_SQRT1_2);
+    }
+    break;
   case GAMMA:
     for (uword i = 0; i < n; ++i) {
       mu_ptr[i] = 1.0 / eta_ptr[i];
@@ -145,6 +152,7 @@ inline bool valid_eta(const vec &eta, const Family family_type) {
   case GAUSSIAN:
   case POISSON:
   case BINOMIAL:
+  case PROBIT:
   case NEG_BIN:
     return true;
   case GAMMA:
@@ -170,6 +178,7 @@ inline bool valid_mu(const vec &mu, const Family family_type) {
   case GAMMA:
     return mu.min() > 0.0;
   case BINOMIAL:
+  case PROBIT:
     return mu.min() > 0.0 && mu.max() < 1.0;
   default:
     stop("Unknown family");

@@ -245,16 +245,14 @@ inline void expand_vcov(mat &vcov_full, const mat &vcov_reduced,
   }
 }
 
-InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
-                     const FlatFEMap &fe_map, const CapybaraParameters &params,
-                     FelmWorkspace *workspace = nullptr,
-                     const field<uvec> *cluster_groups = nullptr,
-                     bool run_from_glm = false,
-                     double adaptive_center_tol = 0.0,
-                     const field<uvec> *entity1_groups = nullptr,
-                     const field<uvec> *entity2_groups = nullptr,
-                     bool has_intercept_column = false,
-                     bool suppress_intercept = false) {
+InferenceLM
+felm_fit(const mat &X, const vec &y, const vec &w, const FlatFEMap &fe_map,
+         const CapybaraParameters &params, FelmWorkspace *workspace = nullptr,
+         const field<uvec> *cluster_groups = nullptr, bool run_from_glm = false,
+         double adaptive_center_tol = 0.0,
+         const field<uvec> *entity1_groups = nullptr,
+         const field<uvec> *entity2_groups = nullptr,
+         bool has_intercept_column = false, bool suppress_intercept = false) {
   const uword N = y.n_elem;
   const uword P_input = X.n_cols;
   const bool has_fixed_effects = fe_map.K > 0;
@@ -263,7 +261,7 @@ InferenceLM felm_fit(const mat &X, const vec &y, const vec &w,
   // Skip adding intercept if:
   // - already pre-allocated (has_intercept_column=true)
   // - explicitly suppressed (suppress_intercept=true, e.g., y ~ x - 1)
-  const bool needs_intercept = !has_fixed_effects && !run_from_glm && 
+  const bool needs_intercept = !has_fixed_effects && !run_from_glm &&
                                !has_intercept_column && !suppress_intercept;
   const uword P = needs_intercept ? P_input + 1 : P_input;
 

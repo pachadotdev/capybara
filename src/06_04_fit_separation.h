@@ -15,12 +15,13 @@ inline SeparationResult check_group_separation(const vec &y, const vec &w,
   result.num_separated = 0;
   result.converged = true;
 
-  // Only applicable for Poisson, NegBin, and Binomial with fixed effects
+  // Only applicable for Poisson, NegBin, Binomial, and Probit with fixed
+  // effects
   if (fe_map.K == 0) {
     return result;
   }
-  const bool is_binomial = (family_type == BINOMIAL);
-  if (!is_binomial && family_type != POISSON && family_type != NEG_BIN) {
+  const bool is_binary = (family_type == BINOMIAL || family_type == PROBIT);
+  if (!is_binary && family_type != POISSON && family_type != NEG_BIN) {
     return result;
   }
 
@@ -62,7 +63,7 @@ inline SeparationResult check_group_separation(const vec &y, const vec &w,
         const double grp_mean = grp_sum(g) / grp_wt(g);
 
         bool is_separated = false;
-        if (is_binomial) {
+        if (is_binary) {
           // Groups where mean(y) <= 0 or mean(y) >= 1 => perfect prediction
           is_separated = (grp_mean <= 0.0 || grp_mean >= 1.0);
         } else {

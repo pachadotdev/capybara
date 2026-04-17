@@ -27,6 +27,13 @@ extern "C" SEXP _capybara_feglm_fit_(SEXP formula_str, SEXP df, SEXP beta_r, SEX
   END_CPP4R
 }
 // capybara.cpp
+list feglm_fit_matrix_(const doubles_matrix<> & X_r, const doubles & y_r, const doubles & beta_r, const doubles & eta_r, const doubles & wt_r, const doubles & offset_r, const double & theta, const std::string & family, const strings & term_names_r, const strings & fe_vars_r, const strings & cluster_vars_r, SEXP df, const bool & has_intercept, const list & control);
+extern "C" SEXP _capybara_feglm_fit_matrix_(SEXP X_r, SEXP y_r, SEXP beta_r, SEXP eta_r, SEXP wt_r, SEXP offset_r, SEXP theta, SEXP family, SEXP term_names_r, SEXP fe_vars_r, SEXP cluster_vars_r, SEXP df, SEXP has_intercept, SEXP control) {
+  BEGIN_CPP4R
+    return cpp4r::as_sexp(feglm_fit_matrix_(cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(X_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(y_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(beta_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(eta_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(wt_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(offset_r), cpp4r::as_cpp<cpp4r::decay_t<const double &>>(theta), cpp4r::as_cpp<cpp4r::decay_t<const std::string &>>(family), cpp4r::as_cpp<cpp4r::decay_t<const strings &>>(term_names_r), cpp4r::as_cpp<cpp4r::decay_t<const strings &>>(fe_vars_r), cpp4r::as_cpp<cpp4r::decay_t<const strings &>>(cluster_vars_r), cpp4r::as_cpp<cpp4r::decay_t<SEXP>>(df), cpp4r::as_cpp<cpp4r::decay_t<const bool &>>(has_intercept), cpp4r::as_cpp<cpp4r::decay_t<const list &>>(control)));
+  END_CPP4R
+}
+// capybara.cpp
 doubles feglm_offset_fit_(const doubles & eta_r, const doubles & y_r, const doubles & offset_r, const doubles & wt_r, const std::string & family, const list & control, const list & fe_codes);
 extern "C" SEXP _capybara_feglm_offset_fit_(SEXP eta_r, SEXP y_r, SEXP offset_r, SEXP wt_r, SEXP family, SEXP control, SEXP fe_codes) {
   BEGIN_CPP4R
@@ -43,11 +50,12 @@ extern "C" SEXP _capybara_fenegbin_fit_(SEXP formula_str, SEXP df, SEXP w_r, SEX
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
-    {"_capybara_center_variables_", (DL_FUNC) &_capybara_center_variables_, 6},
-    {"_capybara_feglm_fit_",        (DL_FUNC) &_capybara_feglm_fit_,        9},
-    {"_capybara_feglm_offset_fit_", (DL_FUNC) &_capybara_feglm_offset_fit_, 7},
-    {"_capybara_felm_fit_",         (DL_FUNC) &_capybara_felm_fit_,         4},
-    {"_capybara_fenegbin_fit_",     (DL_FUNC) &_capybara_fenegbin_fit_,     9},
+    {"_capybara_center_variables_", (DL_FUNC) &_capybara_center_variables_,  6},
+    {"_capybara_feglm_fit_",        (DL_FUNC) &_capybara_feglm_fit_,         9},
+    {"_capybara_feglm_fit_matrix_", (DL_FUNC) &_capybara_feglm_fit_matrix_, 14},
+    {"_capybara_feglm_offset_fit_", (DL_FUNC) &_capybara_feglm_offset_fit_,  7},
+    {"_capybara_felm_fit_",         (DL_FUNC) &_capybara_felm_fit_,          4},
+    {"_capybara_fenegbin_fit_",     (DL_FUNC) &_capybara_fenegbin_fit_,      9},
     {NULL, NULL, 0}
 };
 }

@@ -18,6 +18,9 @@ inline vec inverse_link_derivative(const vec &eta, const Family family_type) {
     const vec exp_eta = exp(eta);
     return exp_eta / square(1.0 + exp_eta);
   }
+  case PROBIT:
+    // d/d(eta) [Phi(eta)] = phi(eta) = standard normal PDF
+    return normpdf(eta);
   case GAMMA:
     return -1.0 / square(eta);
   case INV_GAUSSIAN:
@@ -36,6 +39,7 @@ inline vec variance(const vec &mu, const double &theta,
   case POISSON:
     return mu;
   case BINOMIAL:
+  case PROBIT:
     return mu % (1.0 - mu);
   case GAMMA:
     return square(mu);

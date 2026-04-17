@@ -52,6 +52,41 @@
 #' @noRd
 NULL
 
+#' @title Probit regression family
+#'
+#' @description Creates a family object for probit regression (binomial with probit link).
+#'  This is a binary response model using the standard normal CDF as the link function.
+#'
+#' @return A list with class \code{"family"} containing:
+#'  \item{family}{The family name ("probit")}
+#'  \item{link}{The link function name ("probit")}
+#'  \item{linkinv}{Inverse link function (standard normal CDF)}
+#'  \item{mu.eta}{Derivative of inverse link (standard normal PDF)}
+#'  \item{variance}{Variance function (mu * (1 - mu))}
+#'  \item{validmu}{Function to validate mu values}
+#'  \item{valideta}{Function to validate eta values}
+#'
+#' @examples
+#' # Probit regression with fixed effects
+#' mod <- feglm(am ~ wt | cyl, mtcars, family = probit())
+#' summary(mod)
+#'
+#' @export
+probit <- function() {
+  structure(
+    list(
+      family = "probit",
+      link = "probit",
+      linkinv = function(eta) pnorm(eta),
+      mu.eta = function(eta) dnorm(eta),
+      variance = function(mu) mu * (1 - mu),
+      validmu = function(mu) all(mu > 0 & mu < 1),
+      valideta = function(eta) TRUE
+    ),
+    class = "family"
+  )
+}
+
 #' @title Normalize multi-part formula for C++
 #' @description Expands formula operators (*, ^, -, /, %in%, .) using R's
 #'   terms() machinery, then rebuilds a simplified formula string that
@@ -213,17 +248,24 @@ check_family_ <- function(family) {
   allowed_families <- c(
     "gaussian",
     "binomial",
+    "probit",
     "poisson",
     "Gamma",
     "inverse.gaussian"
   )
+
+  # Handle binomial(link = "probit") - convert to probit family
+  if (family[["family"]] == "binomial" && !is.null(family[["link"]]) &&
+    family[["link"]] == "probit") {
+    family[["family"]] <- "probit"
+  }
+
   family[["family"]] <- match.arg(family[["family"]], allowed_families)
 
   if (family[["family"]] == "binomial" && family[["link"]] != "logit") {
     stop(
-      "The current version only supports logit in the binomial family.
-       This is because I had to rewrite the links in C++ to use those with
-       Armadillo. Send me a Pull Request or open an issue if you need Probit.",
+      "The binomial family only supports 'logit' link. For probit link, use ",
+      "probit() or binomial(link = 'probit').",
       call. = FALSE
     )
   }
@@ -250,7 +292,7 @@ temp_var_ <- function(data) {
 check_response_ <- function(data, lhs, family) {
   y <- data[[lhs]]
   
-  if (family[["family"]] == "binomial") {
+  if (family[["family"]] %in% c("binomial", "probit")) {
     if (is.numeric(y)) {
       if (any(y < 0.0 | y > 1.0, na.rm = TRUE)) {
         stop("Model response must be within [0,1].")
