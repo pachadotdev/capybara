@@ -152,8 +152,8 @@ struct CapybaraParameters {
   std::string bias_corr_panel_structure; // "classic" or "network"
 
   // Tobit censoring bounds
-  double tobit_lower;  // Left censoring bound (-Inf for none)
-  double tobit_upper;  // Right censoring bound (Inf for none)
+  double tobit_lower; // Left censoring bound (-Inf for none)
+  double tobit_upper; // Right censoring bound (Inf for none)
 
   explicit CapybaraParameters(const cpp4r::list &control) {
     dev_tol = as_cpp<double>(control["dev_tol"]);
@@ -265,15 +265,15 @@ struct CapybaraParameters {
       bias_corr_panel_structure = "classic";
     }
 
-    // Extract tobit parameters
-    SEXP tobit_lower_sexp = control["tobit_lower"];
+    // Extract tobit parameters (R sends tobit_lb/tobit_ub)
+    SEXP tobit_lower_sexp = control["tobit_lb"];
     if (tobit_lower_sexp != R_NilValue) {
       tobit_lower = as_cpp<double>(tobit_lower_sexp);
     } else {
       tobit_lower = -std::numeric_limits<double>::infinity();
     }
 
-    SEXP tobit_upper_sexp = control["tobit_upper"];
+    SEXP tobit_upper_sexp = control["tobit_ub"];
     if (tobit_upper_sexp != R_NilValue) {
       tobit_upper = as_cpp<double>(tobit_upper_sexp);
     } else {

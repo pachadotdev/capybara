@@ -12,9 +12,9 @@ fetobit(
   beta_start = NULL,
   eta_start = NULL,
   offset = NULL,
-  control = NULL,
-  tobit_lower = -Inf,
-  tobit_upper = Inf
+  tobit_lb = -Inf,
+  tobit_ub = Inf,
+  control = NULL
 )
 }
 \arguments{
@@ -43,21 +43,21 @@ Default is \eqn{\boldsymbol{\beta} = \mathbf{0}}{\beta = 0}.}
 \item{offset}{an optional formula or numeric vector specifying an a priori known component to be included in the
 linear predictor. If a formula, it should be of the form \code{~ variable}.}
 
+\item{tobit_lb}{numeric indicating the lower censoring bound. Observations with
+\code{y <= tobit_lb} are treated as left-censored. Default is \code{-Inf} (no left censoring).}
+
+\item{tobit_ub}{numeric indicating the upper censoring bound. Observations with
+\code{y >= tobit_ub} are treated as right-censored. Default is \code{Inf} (no right censoring).}
+
 \item{control}{a named list of parameters for controlling the fitting process. See \link{fit_control} for details.}
-
-\item{tobit_lower}{numeric indicating the lower censoring bound. Observations with
-\code{y <= tobit_lower} are treated as left-censored. Default is \code{-Inf} (no left censoring).}
-
-\item{tobit_upper}{numeric indicating the upper censoring bound. Observations with
-\code{y >= tobit_upper} are treated as right-censored. Default is \code{Inf} (no right censoring).}
 }
 \value{
 A named list of class \code{"feglm"}.
 }
 \description{
 A wrapper for \link{feglm} with \code{family = "tobit"}.
-This fits a censored regression model where outcomes below \code{tobit_lower}
-or above \code{tobit_upper} are treated as censored. The censoring bounds
+This fits a censored regression model where outcomes below \code{tobit_lb}
+or above \code{tobit_ub} are treated as censored. The censoring bounds
 are specified via the \code{control} argument.
 }
 \examples{
@@ -67,7 +67,7 @@ d <- data.frame(
   x = rnorm(100),
   g = factor(rep(1:5, 20))
 )
-mod <- fetobit(y ~ x | g, d, tobit_lower = 0)
+mod <- fetobit(y ~ x | g, d, tobit_lb = 0)
 summary(mod)
 
 # Two-sided censoring
@@ -76,7 +76,7 @@ d2 <- data.frame(
   x = rnorm(100),
   g = factor(rep(1:5, 20))
 )
-mod2 <- fetobit(y ~ x | g, d2, tobit_lower = 0, tobit_upper = 10)
+mod2 <- fetobit(y ~ x | g, d2, tobit_lb = 0, tobit_ub = 10)
 summary(mod2)
 
 }

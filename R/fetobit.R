@@ -79,15 +79,15 @@ NULL
 #' @title Tobit model fitting with high-dimensional k-way fixed effects
 #'
 #' @description A wrapper for \link{feglm} with \code{family = "tobit"}.
-#'  This fits a censored regression model where outcomes below \code{tobit_lower}
-#'  or above \code{tobit_upper} are treated as censored. The censoring bounds
+#'  This fits a censored regression model where outcomes below \code{tobit_lb}
+#'  or above \code{tobit_ub} are treated as censored. The censoring bounds
 #'  are specified via the \code{control} argument.
 #'
 #' @inheritParams feglm
-#' @param tobit_lower numeric indicating the lower censoring bound. Observations with
-#'  \code{y <= tobit_lower} are treated as left-censored. Default is \code{-Inf} (no left censoring).
-#' @param tobit_upper numeric indicating the upper censoring bound. Observations with
-#'  \code{y >= tobit_upper} are treated as right-censored. Default is \code{Inf} (no right censoring).
+#' @param tobit_lb numeric indicating the lower censoring bound. Observations with
+#'  \code{y <= tobit_lb} are treated as left-censored. Default is \code{-Inf} (no left censoring).
+#' @param tobit_ub numeric indicating the upper censoring bound. Observations with
+#'  \code{y >= tobit_ub} are treated as right-censored. Default is \code{Inf} (no right censoring).
 #'
 #' @examples
 #' # Left-censored at 0 (Type I Tobit)
@@ -96,7 +96,7 @@ NULL
 #'   x = rnorm(100),
 #'   g = factor(rep(1:5, 20))
 #' )
-#' mod <- fetobit(y ~ x | g, d, tobit_lower = 0)
+#' mod <- fetobit(y ~ x | g, d, tobit_lb = 0)
 #' summary(mod)
 #'
 #' # Two-sided censoring
@@ -105,7 +105,7 @@ NULL
 #'   x = rnorm(100),
 #'   g = factor(rep(1:5, 20))
 #' )
-#' mod2 <- fetobit(y ~ x | g, d2, tobit_lower = 0, tobit_upper = 10)
+#' mod2 <- fetobit(y ~ x | g, d2, tobit_lb = 0, tobit_ub = 10)
 #' summary(mod2)
 #'
 #' @return A named list of class \code{"feglm"}.
@@ -121,16 +121,16 @@ fetobit <- function(
   beta_start = NULL,
   eta_start = NULL,
   offset = NULL,
-  control = NULL,
-  tobit_lower = -Inf,
-  tobit_upper = Inf
+  tobit_lb = -Inf,
+  tobit_ub = Inf,
+  control = NULL
 ) {
   # Merge tobit bounds into control
   if (is.null(control)) {
-    control <- fit_control(tobit_lower = tobit_lower, tobit_upper = tobit_upper)
+    control <- fit_control(tobit_lb = tobit_lb, tobit_ub = tobit_ub)
   } else if (is.list(control)) {
-    control$tobit_lower <- tobit_lower
-    control$tobit_upper <- tobit_upper
+    control$tobit_lb <- tobit_lb
+    control$tobit_ub <- tobit_ub
   }
 
   feglm(

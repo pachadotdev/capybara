@@ -150,17 +150,16 @@ test_that("proportional regressors return NA coefficients", {
   expect_equal(predict(fit2), predict(fit1, type = "response"), tolerance = 1e-2)
 })
 
-test_that("feprobit and feglm with probit() give the same results", {
+test_that("feprobit without FE matches base glm", {
   d <- make_probit_data(n = 200, seed = 789)
 
-  mod1 <- feprobit(y ~ x1 | f1, d)
-  mod2 <- feglm(y ~ x1 | f1, d, family = "probit")
-  mod3 <- feglm(y ~ x1 | f1, d, family = binomial(link = "probit"))
+  # Without FE, should match base R glm exactly
+  mod_cap <- feprobit(y ~ x1 + x2, d)
+  mod_base <- glm(y ~ x1 + x2, d, family = binomial(link = "probit"))
 
-  expect_equal(coef(mod1), coef(mod2))
-  expect_equal(coef(mod1), coef(mod3))
-  expect_equal(fitted(mod1), fitted(mod2))
-  expect_equal(fitted(mod1), fitted(mod3))
+  # Compare coefficients (excluding intercept)
+  expect_equal(coef(mod_cap), coef(mod_base), tolerance = 1e-3)
+  expect_equal(unname(fitted(mod_cap)), unname(fitted(mod_base)), tolerance = 1e-3)
 })
 
 test_that("feprobit handles cluster standard errors", {

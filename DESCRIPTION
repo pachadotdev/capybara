@@ -18,6 +18,7 @@ Imports:
     MASS,
     stats
 Suggests: 
+    AER,
     broom,
     knitr,
     rmarkdown,

@@ -32,6 +32,8 @@ fit_control(
   check_separation = TRUE,
   init_theta = 0,
   vcov_type = NULL,
+  tobit_lb = -Inf,
+  tobit_ub = Inf,
   compute_apes = FALSE,
   ape_n_pop = NULL,
   ape_panel_structure = "classic",
@@ -39,9 +41,7 @@ fit_control(
   ape_weak_exo = FALSE,
   compute_bias_corr = FALSE,
   bias_corr_bandwidth = 0L,
-  bias_corr_panel_structure = "classic",
-  tobit_lower = -Inf,
-  tobit_upper = Inf
+  bias_corr_panel_structure = "classic"
 )
 }
 \arguments{
@@ -133,6 +133,12 @@ present, or a clustered sandwich when one is. Other values:
 \code{"m-estimator-dyadic"} — dyadic-robust Cameron-Miller sandwich (two entity columns required in the
 third part of the formula like \code{z ~ x + y | fe | cl1 + cl2}).}
 
+\item{tobit_lb}{numeric indicating the lower censoring bound for Tobit models. Observations with
+\code{y <= tobit_lb} are treated as left-censored. Default is \code{-Inf} (no left censoring).}
+
+\item{tobit_ub}{numeric indicating the upper censoring bound for Tobit models. Observations with
+\code{y >= tobit_ub} are treated as right-censored. Default is \code{Inf} (no right censoring).}
+
 \item{compute_apes}{logical indicating whether to compute Average Partial Effects (APEs) for binomial models.
 When \code{TRUE}, the model returns APE estimates and their covariance matrix alongside the standard output.
 APEs represent the average marginal effect of each regressor on the probability of the outcome.
@@ -180,12 +186,6 @@ determines the structure of the panel used for bias correction. \code{"classic"}
 structures where the same cross-sectional units are observed several times (requires 1-2 way FE).
 \code{"network"} denotes panel structures where bilateral flows are observed for several time
 periods, e.g., trade data (requires 2-3 way FE). Default is \code{"classic"}.}
-
-\item{tobit_lower}{numeric indicating the lower censoring bound for Tobit models. Observations with
-\code{y <= tobit_lower} are treated as left-censored. Default is \code{-Inf} (no left censoring).}
-
-\item{tobit_upper}{numeric indicating the upper censoring bound for Tobit models. Observations with
-\code{y >= tobit_upper} are treated as right-censored. Default is \code{Inf} (no right censoring).}
 }
 \value{
 A named list of control parameters.

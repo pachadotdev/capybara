@@ -27,7 +27,7 @@ test_that("fetobit basic functionality works", {
   d <- make_tobit_data(n = 200, lower = 0, seed = 42)
 
   # Should run without error
-  mod <- fetobit(y ~ x1 | f1, d, tobit_lower = 0)
+  mod <- fetobit(y ~ x1 | f1, d, tobit_lb = 0)
 
   expect_s3_class(mod, "feglm")
   expect_equal(length(coef(mod)), 1)
@@ -40,22 +40,32 @@ test_that("fetobit basic functionality works", {
   expect_equal(length(predict(mod)), n_obs)
 })
 
-test_that("fetobit and feglm with tobit() give the same results", {
-  d <- make_tobit_data(n = 200, lower = 0, seed = 789)
+test_that("fetobit without FE is similar to AER::tobit", {
+  skip_if_not_installed("AER")
+  skip_on_cran()
 
-  ctrl <- fit_control(tobit_lower = 0, check_separation = FALSE)
+  # Create data without FE for comparison (AER::tobit doesn't support FE)
+  set.seed(123)
+  d <- data.frame(
+    x1 = rnorm(300),
+    x2 = rnorm(300)
+  )
+  y_star <- 2 + 1.5 * d$x1 - 0.8 * d$x2 + rnorm(300)
+  d$y <- pmax(y_star, 0)
 
-  mod1 <- fetobit(y ~ x1 | f1, d, tobit_lower = 0, control = fit_control(check_separation = FALSE))
-  mod2 <- feglm(y ~ x1 | f1, d, family = "tobit", control = ctrl)
+  # Fit with AER
+  mod_aer <- AER::tobit(y ~ 1 + x1 + x2, data = d, left = 0)
 
-  expect_equal(coef(mod1), coef(mod2))
-  expect_equal(fitted(mod1), fitted(mod2))
+  # Fit with fetobit (no FE)
+  mod_cap <- fetobit(y ~ x1 + x2, d, tobit_lb = 0)
+
+  expect_equal(unname(coef(mod_aer)), unname(coef(mod_cap)), tolerance = 0.05)
 })
 
 test_that("fetobit handles two-sided censoring", {
   d <- make_tobit_data(n = 200, lower = 0, upper = 5, seed = 456)
 
-  mod <- fetobit(y ~ x1 | f1, d, tobit_lower = 0, tobit_upper = 5)
+  mod <- fetobit(y ~ x1 | f1, d, tobit_lb = 0, tobit_ub = 5)
 
   expect_s3_class(mod, "feglm")
   expect_equal(length(coef(mod)), 1)
@@ -68,7 +78,7 @@ test_that("fetobit with multiple fixed effects", {
   d <- make_tobit_data(n = 300, lower = 0, seed = 222)
 
   # K = 2
-  mod <- fetobit(y ~ x1 | f1 + f2, d, tobit_lower = 0)
+  mod <- fetobit(y ~ x1 | f1 + f2, d, tobit_lb = 0)
 
   expect_s3_class(mod, "feglm")
   expect_equal(length(coef(mod)), 1)
@@ -78,7 +88,7 @@ test_that("fetobit handles cluster standard errors", {
   d <- make_tobit_data(n = 200, lower = 0, seed = 111)
   d$cl <- factor(sample(1:10, nrow(d), replace = TRUE))
 
-  mod <- fetobit(y ~ x1 | f1 | cl, d, tobit_lower = 0, vcov = "cluster")
+  mod <- fetobit(y ~ x1 | f1 | cl, d, tobit_lb = 0, vcov = "cluster")
   smod <- summary(mod)
 
   expect_equal(mod$vcov_type, "cluster")
@@ -90,8 +100,25 @@ test_that("fetobit estimation is stable with noise", {
   d <- make_tobit_data(n = 200, lower = 0, seed = 456)
   d$x1_noisy <- d$x1 + pmax(rnorm(nrow(d)), 0) * .Machine$double.eps
 
-  m1 <- fetobit(y ~ x1 | f1, d, tobit_lower = 0)
-  m2 <- fetobit(y ~ x1_noisy | f1, d, tobit_lower = 0)
+  m1 <- fetobit(y ~ x1 | f1, d, tobit_lb = 0)
+  m2 <- fetobit(y ~ x1_noisy | f1, d, tobit_lb = 0)
 
   expect_equal(unname(coef(m1)), unname(coef(m2)))
+})
+
+test_that("fetobit with FE is similar to AER::tobit with dummies", {
+  skip_if_not_installed("AER")
+  skip_on_cran()
+
+  d <- make_tobit_data(n = 300, lower = 0, seed = 555)
+  d$f1 <- factor(sample(1:5, nrow(d), replace = TRUE))
+
+  # Fit with AER (include FE as dummies)
+  mod_aer <- AER::tobit(y ~ 0 + x1 + as.factor(f1), data = d, left = 0)
+
+  # Fit with fetobit
+  mod_cap <- fetobit(y ~ x1 | f1, d, tobit_lb = 0, control = fit_control(return_fe = TRUE))
+
+  # Compare x1 coefficient
+  expect_equal(coef(mod_aer)["x1"], coef(mod_cap)["x1"], tolerance = 0.05)
 })

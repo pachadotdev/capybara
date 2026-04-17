@@ -108,6 +108,117 @@ inline void ww_nu_negbin(vec &w_working, vec &nu, const vec &w, const vec &mu,
   nu = (y - mu) / mu;
 }
 
+// Tobit working weights with censoring and scale parameter
+// Uses the Inverse Mills Ratio for censored observations
+// lower/upper: censoring bounds (-Inf/Inf for no censoring)
+// sigma: scale parameter (estimated in IRLS loop)
+inline void ww_nu_tobit(vec &w_working, vec &nu, const vec &w, const vec &mu,
+                        const vec &y, double sigma, double lower,
+                        double upper) {
+  const uword n = y.n_elem;
+  const double eps = datum::eps;
+  const double sigma_safe = std::max(sigma, eps);
+  const double sigma2_inv = 1.0 / (sigma_safe * sigma_safe);
+
+  w_working.set_size(n);
+  nu.set_size(n);
+
+  for (uword i = 0; i < n; ++i) {
+    const double yi = y(i);
+    const double mui = mu(i);
+    const double wi = w(i);
+    const double resid = yi - mui;
+
+    // Check censoring status
+    const bool is_left_censored =
+        std::isfinite(lower) && std::fabs(yi - lower) < eps;
+    const bool is_right_censored =
+        std::isfinite(upper) && std::fabs(yi - upper) < eps;
+
+    if (is_left_censored) {
+      // Left-censored: y = lower
+      // a = (lower - mu) / sigma (typically negative when mu > lower)
+      const double a = (lower - mui) / sigma_safe;
+      // Φ(a) = P(Z < a)
+      const double Phi_a = 0.5 * std::erfc(-a * M_SQRT1_2);
+      const double phi_a =
+          std::exp(-0.5 * a * a) * M_2_SQRTPI * 0.5 * M_SQRT1_2;
+      // Inverse Mills Ratio: lambda = phi(a) / Phi(a)
+      const double Phi_safe = std::max(Phi_a, eps);
+      const double lambda = phi_a / Phi_safe;
+      // Working weight: w * lambda * (lambda + a) / sigma^2
+      // This is the information contribution from censored observations
+      const double delta = lambda * (lambda + a);
+      const double delta_safe = std::max(delta, eps);
+      w_working(i) = wi * delta_safe * sigma2_inv;
+      // Working residual: score / weight = (-lambda/sigma) / (delta/sigma^2)
+      //                 = -lambda * sigma / delta
+      nu(i) = -lambda * sigma_safe / delta_safe;
+    } else if (is_right_censored) {
+      // Right-censored: y = upper
+      // b = (upper - mu) / sigma
+      const double b = (upper - mui) / sigma_safe;
+      // 1 - Phi(b) = P(Z > b)
+      const double Phi_neg_b = 0.5 * std::erfc(b * M_SQRT1_2);
+      const double phi_b =
+          std::exp(-0.5 * b * b) * M_2_SQRTPI * 0.5 * M_SQRT1_2;
+      // IMR for right censoring: lambda = phi(b) / (1 - Phi(b))
+      const double Phi_safe = std::max(Phi_neg_b, eps);
+      const double lambda = phi_b / Phi_safe;
+      // Working weight: w * lambda * (lambda - b) / sigma^2
+      const double delta = lambda * (lambda - b);
+      const double delta_safe = std::max(delta, eps);
+      w_working(i) = wi * delta_safe * sigma2_inv;
+      // Working residual: score / weight = (lambda/sigma) / (delta/sigma^2)
+      //                 = lambda * sigma / delta
+      nu(i) = lambda * sigma_safe / delta_safe;
+    } else {
+      // Uncensored observation
+      // Standard Gaussian working weight: w / sigma^2
+      w_working(i) = wi * sigma2_inv;
+      // Working residual: (y - mu)
+      nu(i) = resid;
+    }
+  }
+}
+
+// Estimate sigma for Tobit model
+// Uses uncensored observations only (consistent but not fully efficient)
+// This is a robust approach that avoids numerical issues with the full MLE
+inline double estimate_tobit_sigma(const vec &y, const vec &mu, double lower,
+                                   double upper, double current_sigma) {
+  const uword n = y.n_elem;
+  const double eps = datum::eps;
+  double sum_sq = 0.0;
+  uword n_uncensored = 0;
+
+  for (uword i = 0; i < n; ++i) {
+    const double yi = y(i);
+    const double mui = mu(i);
+    const double resid = yi - mui;
+
+    const bool is_left_censored =
+        std::isfinite(lower) && std::fabs(yi - lower) < eps;
+    const bool is_right_censored =
+        std::isfinite(upper) && std::fabs(yi - upper) < eps;
+
+    if (!is_left_censored && !is_right_censored) {
+      // Uncensored: contributes (y - mu)^2
+      sum_sq += resid * resid;
+      n_uncensored++;
+    }
+  }
+
+  // If no uncensored observations, return current sigma
+  if (n_uncensored == 0) {
+    return current_sigma;
+  }
+
+  // sigma^2 = sum_sq / n_uncensored
+  const double sigma_sq = sum_sq / static_cast<double>(n_uncensored);
+  return std::sqrt(std::max(sigma_sq, eps));
+}
+
 // Get function pointers for a family (called once, not in loop)
 inline MuFromEta get_mu_fn(Family family_type) {
   switch (family_type) {
@@ -669,6 +780,12 @@ InferenceGLM feglm_fit(
       eta.fill(std::log(y_mean));
       break;
     }
+    case TOBIT: {
+      // For Tobit, use mean of uncensored observations if available
+      double y_mean = mean(y);
+      eta.fill(y_mean);
+      break;
+    }
     case GAUSSIAN:
     default:
       // For gaussian, eta = y mean
@@ -691,6 +808,16 @@ InferenceGLM feglm_fit(
 
   // Initial mu from eta
   mu_(mu, eta);
+
+  // Tobit-specific: initialize scale parameter (sigma)
+  // Initial estimate: standard deviation of y (rough approximation)
+  double tobit_sigma = 1.0;
+  if (family_type == TOBIT) {
+    tobit_sigma = stddev(y);
+    if (tobit_sigma < datum::eps) {
+      tobit_sigma = 1.0;
+    }
+  }
 
   // Deviance computations
   double dev = dev_resids(y, mu, theta, w, family_type);
@@ -737,7 +864,16 @@ InferenceGLM feglm_fit(
     auto twwnu0 = std::chrono::high_resolution_clock::now();
 #endif
 
-    ww_nu_(w_working, nu, w, mu, y, eta, theta);
+    // Tobit uses special working weights with censoring and sigma estimation
+    if (family_type == TOBIT) {
+      // Update sigma estimate before computing working weights
+      tobit_sigma = estimate_tobit_sigma(y, mu, params.tobit_lower,
+                                         params.tobit_upper, tobit_sigma);
+      ww_nu_tobit(w_working, nu, w, mu, y, tobit_sigma, params.tobit_lower,
+                  params.tobit_upper);
+    } else {
+      ww_nu_(w_working, nu, w, mu, y, eta, theta);
+    }
 
     // Working response z = eta + nu - offset (reuses workspace buffer)
     z = eta + nu;
