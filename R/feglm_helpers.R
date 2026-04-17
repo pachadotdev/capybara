@@ -269,6 +269,9 @@ check_family_ <- function(family) {
       call. = FALSE
     )
   }
+
+  # Return the (possibly modified) family
+  invisible(family)
 }
 
 #' @title Temporary variable

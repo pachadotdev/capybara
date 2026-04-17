@@ -181,7 +181,7 @@ feglm <- function(
   check_data_(data)
 
   # Check validity of family ----
-  check_family_(family)
+  family <- check_family_(family)
 
   # Check validity of control + Extract control list ----
   check_control_(control)
