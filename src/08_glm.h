@@ -957,13 +957,7 @@ InferenceGLM feglm_fit(
 
       dev_crit = std::isfinite(dev);
       val_crit = valid_eta(eta, family_type) && valid_mu(mu, family_type);
-      // For Gaussian with identity link, IRLS is exactly OLS and converges in
-      // one step. Don't require deviance improvement because:
-      // 1. Starting from mu=mean(y), moving to mu=X*beta may increase deviance
-      //    (e.g., for no-intercept models)
-      // 2. The OLS solution is correct regardless of deviance decrease
-      imp_crit =
-          (family_type == GAUSSIAN) || (dev_ratio_inner <= -params.dev_tol);
+      imp_crit = (dev_ratio_inner <= -params.dev_tol);
 
       if (dev_crit && val_crit && imp_crit) {
         break;
