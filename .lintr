@@ -1,5 +1,0 @@
-exclusions: list(
-    "R/cpp11.R",
-    "R/srr-stats-standards.R",
-    "tests/"
-  )
