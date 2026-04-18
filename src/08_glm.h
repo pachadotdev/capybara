@@ -271,13 +271,13 @@ inline WorkingWtsNu get_ww_nu_fn(Family family_type) {
 ///////////////////////////////////////////////////////////////////////////
 
 // Second-order partial derivative of mu w.r.t. eta
-// For logit: d²mu/deta² = mu*(1-mu)*(1-2*mu)
+// For logit: d^2mu/deta^2 = mu*(1-mu)*(1-2*mu)
 inline vec partial_mu_eta_2(const vec &mu) {
   return mu % (1.0 - mu) % (1.0 - 2.0 * mu);
 }
 
 // Third-order partial derivative for APE bias correction
-// For logit: d³mu/deta³ = mu*(1-mu)*(1-6*mu*(1-mu))
+// For logit: d^3mu/deta^3 = mu*(1-mu)*(1-6*mu*(1-mu))
 inline vec partial_mu_eta_3(const vec &mu) {
   return mu % (1.0 - mu) % (1.0 - 6.0 * mu % (1.0 - mu));
 }
@@ -346,10 +346,17 @@ inline void compute_bias_corr_binomial(InferenceGLM &result, const mat &X,
     return;
   }
 
+  // Add small ridge regularization for numerical stability on ARM
+  // The regularization is proportional to the matrix scale to handle
+  // varying magnitudes across different datasets
+  const double ridge = std::max(H_scaled.max() * 1e-10, datum::eps * 100);
+  mat H_reg = H_scaled;
+  H_reg.diag() += ridge;
+
   vec bias_term;
-  if (!solve(bias_term, H_scaled, -b, solve_opts::likely_sympd)) {
+  if (!solve(bias_term, H_reg, -b, solve_opts::likely_sympd)) {
     mat H_inv;
-    if (!inv_sympd(H_inv, H_scaled) && !pinv(H_inv, H_scaled)) {
+    if (!inv_sympd(H_inv, H_reg) && !pinv(H_inv, H_reg)) {
       result.has_bias_corr = false;
       return;
     }
@@ -505,11 +512,17 @@ inline void compute_apes_binomial(InferenceGLM &result, const mat &X,
   // where Gamma = (MX * WinvJ - PPsi) * v / n
   // WinvJ = solve(H/n, J)
   const mat H_scaled = H / n_d;
+
+  // Add small ridge regularization for numerical stability on ARM
+  const double ridge = std::max(H_scaled.max() * 1e-10, datum::eps * 100);
+  mat H_reg = H_scaled;
+  H_reg.diag() += ridge;
+
   mat WinvJ;
-  if (!solve(WinvJ, H_scaled, J, solve_opts::likely_sympd)) {
+  if (!solve(WinvJ, H_reg, J, solve_opts::likely_sympd)) {
     mat H_inv;
-    if (!inv_sympd(H_inv, H_scaled)) {
-      pinv(H_inv, H_scaled);
+    if (!inv_sympd(H_inv, H_reg)) {
+      pinv(H_inv, H_reg);
     }
     WinvJ = H_inv * J;
   }
@@ -957,13 +970,7 @@ InferenceGLM feglm_fit(
 
       dev_crit = std::isfinite(dev);
       val_crit = valid_eta(eta, family_type) && valid_mu(mu, family_type);
-      // For Gaussian with identity link, IRLS is exactly OLS and converges in
-      // one step. Don't require deviance improvement because:
-      // 1. Starting from mu=mean(y), moving to mu=X*beta may increase deviance
-      //    (e.g., for no-intercept models)
-      // 2. The OLS solution is correct regardless of deviance decrease
-      imp_crit =
-          (family_type == GAUSSIAN) || (dev_ratio_inner <= -params.dev_tol);
+      imp_crit = (dev_ratio_inner <= -params.dev_tol);
 
       if (dev_crit && val_crit && imp_crit) {
         break;
