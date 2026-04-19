@@ -135,6 +135,21 @@ NULL
 #'  structures where the same cross-sectional units are observed several times (requires 1-2 way FE).
 #'  \code{"network"} denotes panel structures where bilateral flows are observed for several time
 #'  periods, e.g., trade data (requires 2-3 way FE). Default is \code{"classic"}.
+#' @param expectile numeric value between 0 and 1 (exclusive) specifying the expectile for asymmetric
+#'  Poisson pseudo-maximum likelihood (APPML) estimation. When \code{NULL} (default), standard symmetric
+#'  estimation is performed. Values below 0.5 give more weight to negative residuals (lower quantiles),
+#'  while values above 0.5 give more weight to positive residuals (upper quantiles). For example,
+#'  \code{expectile = 0.1} estimates the 10th expectile, \code{expectile = 0.5} is equivalent to
+#'  standard Poisson PML, and \code{expectile = 0.9} estimates the 90th expectile.
+#' @param expectile_tol tolerance level for the stopping condition of the expectile iteration algorithm.
+#'
+#'  The convergence criterion is based on the quadratic form \eqn{(b - b_{old})' V^{-1} (b - b_{old})},
+#'  where \eqn{b} are the current coefficients and \eqn{V} is the variance-covariance matrix.
+#'  The default is \code{1.0e-12}.
+#' @param expectile_iter_max integer indicating the maximum number of iterations for the expectile
+#'  reweighting algorithm. The default is \code{50L}.
+#' @param expectile_trace logical indicating whether to print iteration information during expectile
+#'  estimation. The default is \code{FALSE}.
 #'
 #' @return A named list of control parameters.
 #'
@@ -194,7 +209,11 @@ fit_control <- function(
   ape_weak_exo = FALSE,
   compute_bias_corr = FALSE,
   bias_corr_bandwidth = 0L,
-  bias_corr_panel_structure = "classic"
+  bias_corr_panel_structure = "classic",
+  expectile = NULL,
+  expectile_tol = 1.0e-12,
+  expectile_iter_max = 50L,
+  expectile_trace = FALSE
 ) {
   # Check validity of tolerance parameters
   if (
@@ -325,6 +344,27 @@ fit_control <- function(
     )
   }
 
+  # Check validity of expectile parameters
+  if (!is.null(expectile)) {
+    if (!is.numeric(expectile) || length(expectile) != 1L) {
+      stop("expectile should be a single numeric value or NULL.", call. = FALSE)
+    }
+    if (expectile <= 0 || expectile >= 1) {
+      stop("expectile should be between 0 and 1 (exclusive).", call. = FALSE)
+    }
+  }
+  if (expectile_tol <= 0) {
+    stop("expectile_tol should be greater than zero.", call. = FALSE)
+  }
+  expectile_iter_max <- as.integer(expectile_iter_max)
+  if (expectile_iter_max < 1L) {
+    stop("expectile_iter_max should be greater than or equal to one.", call. = FALSE)
+  }
+  expectile_trace <- as.logical(expectile_trace)
+  if (is.na(expectile_trace)) {
+    stop("expectile_trace should be TRUE or FALSE.", call. = FALSE)
+  }
+
   list(
     dev_tol = dev_tol,
     center_tol = center_tol,
@@ -362,6 +402,10 @@ fit_control <- function(
     bias_corr_bandwidth = bias_corr_bandwidth,
     bias_corr_panel_structure = bias_corr_panel_structure,
     tobit_lb = tobit_lb,
-    tobit_ub = tobit_ub
+    tobit_ub = tobit_ub,
+    expectile = expectile,
+    expectile_tol = expectile_tol,
+    expectile_iter_max = expectile_iter_max,
+    expectile_trace = expectile_trace
   )
 }
