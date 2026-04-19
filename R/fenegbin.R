@@ -151,7 +151,7 @@ fenegbin <- function(
   # Convert formula to normalized string for C++ ----
   # Use normalize_formula_ to expand *, ^, -, /, %in%, . using R's terms()
   formula_str <- normalize_formula_(formula, data)
-  
+
   # Detect if intercept is suppressed (e.g., ~ wt - 1)
   has_intercept <- !grepl("__NO_INTERCEPT__", formula_str, fixed = TRUE)
 

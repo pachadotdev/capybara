@@ -195,7 +195,7 @@ feglm <- function(
   cols_info <- get_needed_cols_(formula, data, weights, offset)
   formula_vars <- cols_info$formula_vars
   lhs <- formula_vars[1L]
-  
+
   # Preserve original row names ----
   orig_rownames <- rownames(data)
   needs_rowname_conversion <- is.null(orig_rownames)
@@ -206,7 +206,7 @@ feglm <- function(
   # Convert formula to normalized string for C++ ----
   # Use normalize_formula_ to expand *, ^, -, /, %in%, . using R's terms()
   formula_str <- normalize_formula_(formula, data)
-  
+
   # Detect if intercept is suppressed (e.g., ~ wt - 1)
   has_intercept <- !grepl("__NO_INTERCEPT__", formula_str, fixed = TRUE)
 
@@ -242,7 +242,7 @@ feglm <- function(
   tt <- terms(f1, data = data)
   rhs_labels <- attr(tt, "term.labels")
   p <- length(rhs_labels)
-  if (p == 0L) p <- 1L  # intercept only
+  if (p == 0L) p <- 1L # intercept only
 
   # nt for eta initialization
   nt <- nobs_full
@@ -257,7 +257,7 @@ feglm <- function(
       stop("Length of 'beta_start' has to be equal to the number of structural parameters.", call. = FALSE)
     }
     beta <- beta_start
-    eta <- numeric(0)  # Will be computed in C++
+    eta <- numeric(0) # Will be computed in C++
   } else if (!is.null(eta_start)) {
     if (length(eta_start) != nt) {
       stop("Length of 'eta_start' has to be equal to the number of observations.", call. = FALSE)
@@ -352,8 +352,10 @@ feglm <- function(
 
   # Add separation info if present ----
   if (isTRUE(fit$has_separation)) {
-    message("Separation detected: ", num_separated, " observation(s) ",
-            "with perfect prediction were excluded from estimation.")
+    message(
+      "Separation detected: ", num_separated, " observation(s) ",
+      "with perfect prediction were excluded from estimation."
+    )
     fit[["separated_obs"]] <- fit$separated_obs
     fit[["separation_support"]] <- fit$separation_support
   }

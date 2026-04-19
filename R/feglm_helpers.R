@@ -156,12 +156,12 @@ check_family_ <- function(family) {
     fam_name <- family[["family"]]
     # Handle binomial(link = "probit") -> probit
     if (fam_name == "binomial" && !is.null(family[["link"]]) &&
-        family[["link"]] == "probit") {
+      family[["link"]] == "probit") {
       fam_name <- "probit"
     }
     # Validate binomial uses logit link
     if (fam_name == "binomial" && !is.null(family[["link"]]) &&
-        family[["link"]] != "logit") {
+      family[["link"]] != "logit") {
       stop(
         "The binomial family only supports 'logit' link. For probit link, use ",
         "probit() or binomial(link = 'probit').",
@@ -196,7 +196,7 @@ make_family_object_ <- function(family) {
     "gaussian" = gaussian(),
     "binomial" = binomial(),
     "probit" = binomial(link = "probit"),
-    "tobit" = gaussian(),  # Same identity link as gaussian
+    "tobit" = gaussian(), # Same identity link as gaussian
     "poisson" = poisson(),
     "Gamma" = Gamma(),
     "inverse.gaussian" = inverse.gaussian(),
@@ -224,7 +224,7 @@ temp_var_ <- function(data) {
 #' @noRd
 check_response_ <- function(data, lhs, family) {
   y <- data[[lhs]]
-  
+
   if (family %in% c("binomial", "probit")) {
     if (is.numeric(y)) {
       if (any(y < 0.0 | y > 1.0, na.rm = TRUE)) {

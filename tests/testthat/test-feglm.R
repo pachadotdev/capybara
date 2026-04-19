@@ -280,7 +280,7 @@ test_that("feglm is similar to glm (stammann centering)", {
 test_that("feglm works without fixed effects (stammann centering)", {
   # centering is unused without FEs, but control must be accepted
   ctrl <- list(centering = "stammann")
-  
+
   mtcars$log_mpg <- log(mtcars$mpg)
   mtcars$log_wt <- log(mtcars$wt)
 
@@ -666,7 +666,7 @@ test_that("bias correction with network panel structure", {
   n_imp <- 8
   n_t <- 5
   d <- expand.grid(exp = 1:n_exp, imp = 1:n_imp, t = 1:n_t)
-  d <- d[d$exp != d$imp, ]  # No self-trade
+  d <- d[d$exp != d$imp, ] # No self-trade
   d$x <- rnorm(nrow(d))
   # Generate y with actual signal for reliable convergence
   alpha_exp <- rnorm(n_exp, sd = 0.3)[d$exp]

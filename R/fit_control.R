@@ -71,13 +71,13 @@ NULL
 #' @param return_fe logical indicating if the fixed effects should be returned. This can be useful when fitting general
 #'  equilibrium models where skipping the fixed effects for intermediate steps speeds up computation. Note: Set to
 #'  \code{TRUE} if you plan to extract fixed effects later. The default is \code{FALSE} to minimize memory usage.
-#' @param keep_tx logical indicating if the centered regressor matrix should be stored. The default is \code{FALSE} 
+#' @param keep_tx logical indicating if the centered regressor matrix should be stored. The default is \code{FALSE}
 #'  to minimize memory usage.
 #' @param keep_data logical indicating if the filtered data should be stored in the result object. Required for
-#'  \code{predict()} methods. Set to \code{TRUE} when planning to use prediction functions. The default is 
+#'  \code{predict()} methods. Set to \code{TRUE} when planning to use prediction functions. The default is
 #'  \code{FALSE} to minimize memory usage for production/benchmark use.
 #' @param return_hessian logical indicating if the Hessian matrix should be returned. The Hessian is a P×P
-#'  matrix used to compute the variance-covariance matrix. The default is \code{FALSE} to minimize memory usage 
+#'  matrix used to compute the variance-covariance matrix. The default is \code{FALSE} to minimize memory usage
 #'  (vcov is still computed and returned).
 #' @param check_separation logical indicating whether to perform separation detection for Poisson models. When \code{TRUE}
 #'  (default), observations with perfect prediction are automatically detected and excluded from estimation. Set to
@@ -91,9 +91,9 @@ NULL
 #'  \code{"m-estimator"} — one-way M-estimator sandwich (cluster variable required);
 #'  \code{"m-estimator-dyadic"} — dyadic-robust Cameron-Miller sandwich (two entity columns required in the
 #'  third part of the formula like \code{z ~ x + y | fe | cl1 + cl2}).
-#' @param tobit_lb numeric indicating the lower censoring bound for Tobit models. Observations with 
+#' @param tobit_lb numeric indicating the lower censoring bound for Tobit models. Observations with
 #'  \code{y <= tobit_lb} are treated as left-censored. Default is \code{-Inf} (no left censoring).
-#' @param tobit_ub numeric indicating the upper censoring bound for Tobit models. Observations with 
+#' @param tobit_ub numeric indicating the upper censoring bound for Tobit models. Observations with
 #'  \code{y >= tobit_ub} are treated as right-censored. Default is \code{Inf} (no right censoring).
 #' @param compute_apes logical indicating whether to compute Average Partial Effects (APEs) for binomial models.
 #'  When \code{TRUE}, the model returns APE estimates and their covariance matrix alongside the standard output.
@@ -101,39 +101,39 @@ NULL
 #'  For continuous regressors, this is \code{avg(beta * mu * (1-mu))} for logit link.
 #'  For binary regressors, this is \code{avg(F(eta+beta) - F(eta-X*beta))} where \code{F} is the link inverse.
 #'  The default is \code{FALSE}.
-#' @param ape_n_pop unsigned integer indicating a finite population correction for the estimation of the 
-#'  covariance matrix of the average partial effects, proposed by Cruz-Gonzalez, Fernández-Val, and 
-#'  Weidner (2017). The correction factor is computed as: \code{(n_pop - n) / (n_pop - 1)}, where 
+#' @param ape_n_pop unsigned integer indicating a finite population correction for the estimation of the
+#'  covariance matrix of the average partial effects, proposed by Cruz-Gonzalez, Fernández-Val, and
+#'  Weidner (2017). The correction factor is computed as: \code{(n_pop - n) / (n_pop - 1)}, where
 #'  \code{n_pop} is the population size and \code{n} is the sample size. Default is \code{NULL} (no correction,
 #'  covariance obtained by delta method only).
-#' @param ape_panel_structure character string equal to \code{"classic"} or \code{"network"} which 
-#'  determines the structure of the panel used for APE variance computation. \code{"classic"} denotes 
+#' @param ape_panel_structure character string equal to \code{"classic"} or \code{"network"} which
+#'  determines the structure of the panel used for APE variance computation. \code{"classic"} denotes
 #'  panel structures where the same cross-sectional units are observed several times (includes pseudo panels).
-#'  \code{"network"} denotes panel structures where bilateral flows are observed for several time periods 
+#'  \code{"network"} denotes panel structures where bilateral flows are observed for several time periods
 #'  (e.g., trade data). Default is \code{"classic"}.
-#' @param ape_sampling_fe character string equal to \code{"independence"} or \code{"unrestricted"} which 
-#'  imposes sampling assumptions about the unobserved effects for APE variance computation. 
-#'  \code{"independence"} imposes that all unobserved effects are independent sequences. 
-#'  \code{"unrestricted"} does not impose any sampling assumptions. This option only affects the 
+#' @param ape_sampling_fe character string equal to \code{"independence"} or \code{"unrestricted"} which
+#'  imposes sampling assumptions about the unobserved effects for APE variance computation.
+#'  \code{"independence"} imposes that all unobserved effects are independent sequences.
+#'  \code{"unrestricted"} does not impose any sampling assumptions. This option only affects the
 #'  optional finite population correction. Default is \code{"independence"}.
-#' @param ape_weak_exo logical indicating if some of the regressors are assumed to be weakly exogenous 
-#'  (e.g., predetermined) for APE variance computation. When \code{TRUE}, additional covariance terms 
+#' @param ape_weak_exo logical indicating if some of the regressors are assumed to be weakly exogenous
+#'  (e.g., predetermined) for APE variance computation. When \code{TRUE}, additional covariance terms
 #'  are included in the variance calculation. Default is \code{FALSE} (all regressors strictly exogenous).
-#' @param compute_bias_corr logical indicating whether to compute analytical bias correction for binomial 
-#'  models. When \code{TRUE}, the model returns bias-corrected coefficient estimates alongside the 
-#'  standard (uncorrected) coefficients. The bias correction follows Fernández-Val and Weidner (2016) 
-#'  and Hinz, Stammann, and Wanner (2020). Currently restricted to binomial family with 1-3 way fixed 
+#' @param compute_bias_corr logical indicating whether to compute analytical bias correction for binomial
+#'  models. When \code{TRUE}, the model returns bias-corrected coefficient estimates alongside the
+#'  standard (uncorrected) coefficients. The bias correction follows Fernández-Val and Weidner (2016)
+#'  and Hinz, Stammann, and Wanner (2020). Currently restricted to binomial family with 1-3 way fixed
 #'  effects. Default is \code{FALSE}.
-#' @param bias_corr_bandwidth unsigned integer indicating a bandwidth for the estimation of spectral 
-#'  densities proposed by Hahn and Kuersteiner (2011). Default is \code{0L}, which should be used if 
-#'  all regressors are assumed to be strictly exogenous with respect to the idiosyncratic error term. 
-#'  In the presence of weakly exogenous regressors (e.g., lagged outcome variables), Fernández-Val and 
-#'  Weidner (2016, 2018) suggest choosing a bandwidth between one and four. Note that the order of 
+#' @param bias_corr_bandwidth unsigned integer indicating a bandwidth for the estimation of spectral
+#'  densities proposed by Hahn and Kuersteiner (2011). Default is \code{0L}, which should be used if
+#'  all regressors are assumed to be strictly exogenous with respect to the idiosyncratic error term.
+#'  In the presence of weakly exogenous regressors (e.g., lagged outcome variables), Fernández-Val and
+#'  Weidner (2016, 2018) suggest choosing a bandwidth between one and four. Note that the order of
 #'  factors to be partialed out is important for bandwidths larger than zero.
-#' @param bias_corr_panel_structure character string equal to \code{"classic"} or \code{"network"} which 
-#'  determines the structure of the panel used for bias correction. \code{"classic"} denotes panel 
-#'  structures where the same cross-sectional units are observed several times (requires 1-2 way FE). 
-#'  \code{"network"} denotes panel structures where bilateral flows are observed for several time 
+#' @param bias_corr_panel_structure character string equal to \code{"classic"} or \code{"network"} which
+#'  determines the structure of the panel used for bias correction. \code{"classic"} denotes panel
+#'  structures where the same cross-sectional units are observed several times (requires 1-2 way FE).
+#'  \code{"network"} denotes panel structures where bilateral flows are observed for several time
 #'  periods, e.g., trade data (requires 2-3 way FE). Default is \code{"classic"}.
 #'
 #' @return A named list of control parameters.
@@ -150,7 +150,7 @@ NULL
 #' @examples
 #' # Default
 #' fit_control()
-#' 
+#'
 #' # Custom tolerances
 #' fit_control(dev_tol = 1e-10, center_tol = 1e-10)
 #'
@@ -244,7 +244,7 @@ fit_control <- function(
   ape_weak_exo <- as.logical(ape_weak_exo)
   compute_bias_corr <- as.logical(compute_bias_corr)
   if (is.na(return_fe) || is.na(keep_tx) || is.na(keep_data) || is.na(return_hessian) ||
-    is.na(check_separation) || is.na(sep_use_relu) || is.na(sep_use_simplex) || 
+    is.na(check_separation) || is.na(sep_use_relu) || is.na(sep_use_simplex) ||
     is.na(compute_apes) || is.na(ape_weak_exo) || is.na(compute_bias_corr)) {
     stop(
       "All logical parameters should be TRUE or FALSE.",
