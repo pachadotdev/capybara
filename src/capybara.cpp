@@ -155,6 +155,12 @@ struct CapybaraParameters {
   double tobit_lower; // Left censoring bound (-Inf for none)
   double tobit_upper; // Right censoring bound (Inf for none)
 
+  // Expectile (APPML) parameters
+  double expectile;          // Expectile value (0 < tau < 1), 0 = not used
+  double expectile_tol;      // Convergence tolerance for expectile iteration
+  size_t expectile_iter_max; // Max iterations for expectile reweighting
+  bool expectile_trace;      // Print iteration info
+
   explicit CapybaraParameters(const cpp4r::list &control) {
     dev_tol = as_cpp<double>(control["dev_tol"]);
     center_tol = as_cpp<double>(control["center_tol"]);
@@ -279,6 +285,35 @@ struct CapybaraParameters {
     } else {
       tobit_upper = std::numeric_limits<double>::infinity();
     }
+
+    // Extract expectile parameters
+    SEXP expectile_sexp = control["expectile"];
+    if (expectile_sexp != R_NilValue && !Rf_isNull(expectile_sexp)) {
+      expectile = as_cpp<double>(expectile_sexp);
+    } else {
+      expectile = 0.0; // 0 = not used (standard symmetric estimation)
+    }
+
+    SEXP expectile_tol_sexp = control["expectile_tol"];
+    if (expectile_tol_sexp != R_NilValue) {
+      expectile_tol = as_cpp<double>(expectile_tol_sexp);
+    } else {
+      expectile_tol = 1.0e-12;
+    }
+
+    SEXP expectile_iter_max_sexp = control["expectile_iter_max"];
+    if (expectile_iter_max_sexp != R_NilValue) {
+      expectile_iter_max = as_cpp<size_t>(expectile_iter_max_sexp);
+    } else {
+      expectile_iter_max = 50;
+    }
+
+    SEXP expectile_trace_sexp = control["expectile_trace"];
+    if (expectile_trace_sexp != R_NilValue) {
+      expectile_trace = as_cpp<bool>(expectile_trace_sexp);
+    } else {
+      expectile_trace = false;
+    }
   }
 };
 
@@ -306,9 +341,11 @@ struct CapybaraParameters {
 
 #include "07_lm.h"
 #include "08_glm.h"
-#include "09_negbin.h"
 
-#include "10_formula_parser.h"
+#include "09_negbin.h"
+#include "10_fepoisson_asymmetric.h"
+
+#include "11_formula_parser.h"
 
 using LMResult = capybara::InferenceLM;
 using GLMResult = capybara::InferenceGLM;
@@ -1952,6 +1989,183 @@ fenegbin_fit_(const std::string &formula_str, SEXP df, const doubles &w_r,
 
   writable::integers fe_lvl_counts(K);
   for (size_t k = 0; k < K; ++k) {
+    fe_lvl_counts[k] = static_cast<int>(fm.fe_levels(k).n_elem);
+  }
+  fe_lvl_counts.attr("names") = nms_fe_names;
+  out.push_back({"fe_levels"_nm = fe_lvl_counts});
+
+  return out;
+}
+
+[[cpp4r::register]] list
+fepoisson_asymmetric_fit_(const std::string &formula_str, SEXP df,
+                          const doubles &w_r, const doubles &beta_r,
+                          const doubles &eta_r, const doubles &offset_r,
+                          const list &control) {
+  CapybaraParameters params(control);
+
+  // Validate expectile is specified
+  if (params.expectile <= 0.0 || params.expectile >= 1.0) {
+    Rf_error("expectile must be specified and between 0 and 1 (exclusive)");
+  }
+
+  // Build matrices directly from formula + data.frame
+  const double *weights_ptr = (w_r.size() > 0) ? REAL(w_r) : nullptr;
+  size_t weights_len = w_r.size();
+
+  capybara::FormulaMatrixResult fm = capybara::build_matrix_from_formula(
+      formula_str, df, weights_ptr, weights_len);
+
+  if (!fm.valid) {
+    Rf_error("Formula error: %s", fm.error.c_str());
+  }
+
+  size_t n_valid = fm.keep_idx.n_elem;
+  size_t N_orig = static_cast<size_t>(Rf_xlength(VECTOR_ELT(df, 0)));
+  bool all_valid = (n_valid == N_orig);
+
+  // Build weights vector
+  vec w;
+  if (weights_ptr != nullptr) {
+    w.set_size(n_valid);
+    for (size_t i = 0; i < n_valid; ++i) {
+      w[i] = weights_ptr[fm.keep_idx[i]];
+    }
+  } else {
+    w.ones(n_valid);
+  }
+
+  // Update FE map weights
+  if (fm.fe_map.structure_built) {
+    fm.fe_map.update_weights(w);
+  }
+
+  // Handle offset
+  vec offset_vec;
+  if (offset_r.size() == 0) {
+    offset_vec.zeros(n_valid);
+  } else if (all_valid) {
+    offset_vec = as_col(offset_r);
+  } else {
+    offset_vec.set_size(n_valid);
+    for (size_t i = 0; i < n_valid; ++i) {
+      offset_vec(i) =
+          static_cast<double>(offset_r[static_cast<R_xlen_t>(fm.keep_idx[i])]);
+    }
+  }
+
+  capybara::InferenceAPPML result = capybara::fepoisson_asymmetric_fit(
+      fm.X, fm.y, w, fm.fe_map, params, offset_vec, nullptr,
+      fm.suppress_intercept, fm.has_intercept_column);
+
+  // Replace collinear coefficients with NA
+  uvec collinear_mask = (result.coef_status == 0);
+  if (any(collinear_mask)) {
+    for (uword i = 0; i < result.coef_table.n_rows; ++i) {
+      if (collinear_mask(i)) {
+        for (uword j = 0; j < result.coef_table.n_cols; ++j) {
+          result.coef_table(i, j) = NA_REAL;
+        }
+      }
+    }
+  }
+
+  auto out = writable::list(
+      {"eta"_nm = as_doubles(result.eta),
+       "fitted_values"_nm = as_doubles(result.fitted_values),
+       "weights"_nm = as_doubles(result.weights),
+       "vcov"_nm = as_doubles_matrix(result.vcov),
+       "coef_table"_nm = as_doubles_matrix(result.coef_table),
+       "deviance"_nm = writable::doubles({result.deviance}),
+       "null_deviance"_nm = writable::doubles({result.null_deviance}),
+       "conv"_nm = writable::logicals({result.conv}),
+       "iter"_nm = writable::integers({static_cast<int>(result.iter + 1)}),
+       "expectile"_nm = writable::doubles({result.expectile}),
+       "iter_outer"_nm =
+           writable::integers({static_cast<int>(result.iter_outer)}),
+       "conv_outer"_nm = writable::logicals({result.conv_outer}),
+       "objective_function"_nm = writable::doubles({result.objective_function}),
+       "negative_residuals_share"_nm =
+           writable::doubles({result.negative_residuals_share}),
+       "residuals"_nm = as_doubles(result.residuals),
+       "appml_weights"_nm = as_doubles(result.appml_weights)});
+
+  if (params.return_hessian) {
+    out.push_back({"hessian"_nm = as_doubles_matrix(result.hessian)});
+  }
+
+  if (result.has_fe && result.fixed_effects.n_elem > 0) {
+    size_t K = fm.fe_map.K;
+    writable::list fe_list(K);
+    writable::strings fe_list_names(K);
+
+    for (size_t k = 0; k < K; ++k) {
+      writable::doubles fe_values = as_doubles(result.fixed_effects(k));
+
+      if (k < fm.fe_levels.n_elem && fm.fe_levels(k).n_elem > 0) {
+        writable::strings level_names(fm.fe_levels(k).n_elem);
+        for (size_t j = 0; j < fm.fe_levels(k).n_elem; ++j) {
+          if (!fm.fe_levels(k)(j).empty()) {
+            level_names[j] = fm.fe_levels(k)(j);
+          } else {
+            level_names[j] = std::to_string(j + 1);
+          }
+        }
+        fe_values.attr("names") = level_names;
+      }
+
+      fe_list[k] = fe_values;
+
+      if (k < fm.fe_names.n_elem && !fm.fe_names(k).empty()) {
+        fe_list_names[k] = fm.fe_names(k);
+      } else {
+        fe_list_names[k] = std::to_string(k + 1);
+      }
+    }
+
+    fe_list.names() = fe_list_names;
+    out.push_back({"fixed_effects"_nm = fe_list});
+    out.push_back({"has_fe"_nm = result.has_fe});
+  }
+
+  if (result.has_tx) {
+    out.push_back({"TX"_nm = as_doubles_matrix(result.TX)});
+  }
+
+  // Add term names
+  size_t p_appml = fm.term_names.size();
+  writable::strings term_names_r(p_appml);
+  for (size_t i = 0; i < p_appml; ++i) {
+    term_names_r[i] = fm.term_names[i];
+  }
+  out.push_back({"term_names"_nm = term_names_r});
+
+  // Add observation indices and metadata
+  writable::integers obs_idx_r(n_valid);
+  for (size_t i = 0; i < n_valid; ++i) {
+    obs_idx_r[i] = static_cast<int>(fm.keep_idx[i] + 1);
+  }
+  out.push_back({"obs_indices"_nm = obs_idx_r});
+  out.push_back(
+      {"nobs_used"_nm = writable::integers({static_cast<int>(n_valid)})});
+
+  // Add FE metadata
+  size_t K_appml = fm.fe_names.n_elem;
+  writable::list nms_fe_list(K_appml);
+  writable::strings nms_fe_names(K_appml);
+  for (size_t k = 0; k < K_appml; ++k) {
+    writable::strings lvls(fm.fe_levels(k).n_elem);
+    for (size_t j = 0; j < fm.fe_levels(k).n_elem; ++j) {
+      lvls[j] = fm.fe_levels(k)(j);
+    }
+    nms_fe_list[k] = lvls;
+    nms_fe_names[k] = fm.fe_names(k);
+  }
+  nms_fe_list.names() = nms_fe_names;
+  out.push_back({"nms_fe"_nm = nms_fe_list});
+
+  writable::integers fe_lvl_counts(K_appml);
+  for (size_t k = 0; k < K_appml; ++k) {
     fe_lvl_counts[k] = static_cast<int>(fm.fe_levels(k).n_elem);
   }
   fe_lvl_counts.attr("names") = nms_fe_names;

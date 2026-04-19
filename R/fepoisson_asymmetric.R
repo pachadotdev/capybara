@@ -83,8 +83,6 @@ NULL
 #'  and negative residuals, enabling estimation of conditional expectiles rather than the conditional mean.
 #'
 #' @inheritParams feglm
-#' @param residuals_start an optional vector of starting residuals for the iterative algorithm. If \code{NULL},
-#'  residuals from an initial unweighted fit are used.
 #'
 #' @details
 #' The APPML estimator minimizes an asymmetric loss function based on expectiles. For a given expectile \eqn{\tau},
@@ -102,19 +100,29 @@ NULL
 #' lower conditional expectiles (more sensitive to small values), while values above 0.5 estimate
 #' upper conditional expectiles (more sensitive to large values).
 #'
-#' @return A named list of class \code{"feglm_asymmetric"} containing:
+#' @return A named list of class \code{"feglm"} containing:
 #'  \item{coefficients}{named vector of estimated coefficients}
 #'  \item{vcov}{variance-covariance matrix of coefficients}
+#'  \item{eta}{linear predictor}
 #'  \item{fitted_values}{fitted values from the final iteration}
 #'  \item{residuals}{residuals from the final fit}
-#'  \item{weights}{final observation weights}
-#'  \item{converged}{logical indicating whether the algorithm converged}
-#'  \item{iterations}{number of iterations performed}
+#'  \item{weights}{observation weights used in final fit}
+#'  \item{appml_weights}{asymmetric weights used in APPML algorithm}
+#'  \item{deviance}{the deviance of the model}
+#'  \item{null_deviance}{the null deviance of the model}
+#'  \item{conv}{logical indicating whether inner GLM converged}
+#'  \item{conv_outer}{logical indicating whether APPML outer loop converged}
+#'  \item{iter}{number of inner iterations}
+#'  \item{iter_outer}{number of outer APPML iterations}
 #'  \item{expectile}{the expectile value used}
 #'  \item{objective_function}{final value of the convergence criterion}
 #'  \item{negative_residuals_share}{proportion of negative residuals in final fit}
-#'  \item{fit}{the final \code{feglm} fit object}
-#'  \item{nobs}{number of observations used}
+#'  \item{nobs}{a named vector with the number of observations}
+#'  \item{fe_levels}{a named vector with the number of levels in each fixed effect}
+#'  \item{nms_fe}{a list with the names of the fixed effects variables}
+#'  \item{formula}{the formula used in the model}
+#'  \item{family}{the family used in the model (Poisson)}
+#'  \item{control}{the control list used in the model}
 #'
 #' @references
 #' Newey, W. K., & Powell, J. L. (1987). Asymmetric least squares estimation and testing.
@@ -153,201 +161,166 @@ NULL
 fepoisson_asymmetric <- function(
   formula = NULL,
   data = NULL,
-  vcov = NULL,
+  weights = NULL,
   beta_start = NULL,
   eta_start = NULL,
   offset = NULL,
-  control = NULL,
-  residuals_start = NULL
+  control = NULL
 ) {
-  # Initialize control if NULL
-  if (is.null(control)) {
-    control <- fit_control()
-  }
+  # Check validity of formula ----
+  check_formula_(formula)
 
-  # Extract expectile parameters from control
+  # Check validity of data ----
+  check_data_(data)
 
-  expectile <- control[["expectile"]]
-  expectile_tol <- control[["expectile_tol"]]
-  expectile_iter_max <- control[["expectile_iter_max"]]
-  expectile_trace <- control[["expectile_trace"]]
+  # Check validity of control + Extract control list ----
+  control <- check_control_(control)
 
   # Validate expectile is specified
-  if (is.null(expectile)) {
+  if (is.null(control[["expectile"]]) || control[["expectile"]] <= 0 || control[["expectile"]] >= 1) {
     stop(
-      "expectile must be specified in control. Use: control = fit_control(expectile = 0.5)",
+      "expectile must be specified in control and between 0 and 1 (exclusive). ",
+      "Use: control = fit_control(expectile = 0.5)",
       call. = FALSE
     )
   }
 
-  # Get response variable name from formula
-  y_var <- as.character(formula[[2L]])
+  # Determine needed columns (validates they exist) ----
+  cols_info <- get_needed_cols_(formula, data, weights, offset)
 
-  # Ensure data is a data.frame
-  if (!is.data.frame(data)) {
-    stop("'data' must be a data.frame.", call. = FALSE)
-  }
+  # Preserve original row names ----
+  orig_rownames <- rownames(data)
+  needs_rowname_conversion <- is.null(orig_rownames)
 
-  # Make a copy to avoid modifying the original
-  data_internal <- as.data.frame(data)
+  # Convert formula to normalized string for C++ ----
+  formula_str <- normalize_formula_(formula, data)
 
-  # Initial fit without asymmetric weights
-  if (is.null(residuals_start)) {
-    initial_fit <- feglm(
-      formula = formula,
-      data = data_internal,
-      family = "poisson",
-      vcov = vcov,
-      beta_start = beta_start,
-      eta_start = eta_start,
-      offset = offset,
-      control = control
-    )
-    fitted_vals <- fitted(initial_fit)
-    residuals_current <- data_internal[[y_var]][as.integer(names(fitted_vals))] - fitted_vals
+  # Detect if intercept is suppressed (e.g., ~ wt - 1)
+  has_intercept <- !grepl("__NO_INTERCEPT__", formula_str, fixed = TRUE)
+
+  # Extract offset before fitting ----
+  offset_vec <- extract_offset_(offset, data, nrow(data))
+  if (is.null(offset_vec)) offset_vec <- numeric(0)
+
+  # Extract weights vector ----
+  w <- if (is.null(weights)) {
+    numeric(0)
+  } else if (is.numeric(weights)) {
+    weights
+  } else if (is.character(weights) && length(weights) == 1L) {
+    data[[weights]]
+  } else if (inherits(weights, "formula")) {
+    data[[all.vars(weights)]]
   } else {
-    residuals_current <- residuals_start
+    stop("'weights' must be NULL, a numeric vector, a column name, or a formula", call. = FALSE)
   }
+  if (length(w) > 0L) check_weights_(w)
 
-  # Initialize weights based on expectile
-  weights_current <- abs(expectile - (residuals_current < 0))
+  # Store original row count for later ----
+  nobs_full <- nrow(data)
 
-  # Store weights in data for fitting
-  data_internal[[".appml_weights"]] <- NA_real_
-  obs_indices <- as.integer(names(residuals_current))
-  data_internal[[".appml_weights"]][obs_indices] <- weights_current
+  # Get FE variable names ----
+  fe_vars <- check_fe_(formula, data)
 
-  # Initialize convergence tracking
-  cv <- Inf
-  count <- 0L
-  bold <- NULL
-  fit <- NULL
+  # Starting guesses ----
+  beta <- if (!is.null(beta_start)) as.numeric(beta_start) else numeric(0)
+  eta_vec <- if (!is.null(eta_start)) as.numeric(eta_start) else numeric(0)
 
-  # Iterative reweighting
-  while (cv > expectile_tol && count < expectile_iter_max) {
-    count <- count + 1L
+  # Store data for output ----
+  data_for_output <- if (control[["keep_data"]]) data else NULL
 
-    # Fit weighted Poisson model
-    fit <- tryCatch(
-      {
-        feglm(
-          formula = formula,
-          data = data_internal,
-          family = "poisson",
-          weights = ".appml_weights",
-          vcov = vcov,
-          beta_start = if (count == 1L) beta_start else coef(fit),
-          eta_start = NULL,
-          offset = offset,
-          control = control
-        )
-      },
-      error = function(e) {
-        if (expectile_trace) {
-          message("Error during fitting at iteration ", count, ": ", e$message)
-        }
-        NULL
-      }
-    )
-
-    if (is.null(fit)) {
-      warning("Fitting failed at iteration ", count, ". Returning last successful fit.", call. = FALSE)
-      break
-    }
-
-    # Compute new residuals
-    fitted_vals <- fitted(fit)
-    obs_indices <- as.integer(names(fitted_vals))
-    residuals_new <- data_internal[[y_var]][obs_indices] - fitted_vals
-
-    # Extract coefficients
-    b <- coef(fit)
-
-    # Initialize bold on first iteration
-    if (count == 1L) {
-      bold <- rep(0, length(b))
-    }
-
-    # Compute convergence criterion: (b - bold)' * inv(V) * (b - bold)
-    current_vcov <- vcov(fit)
-
-    invV <- tryCatch(
-      {
-        solve(current_vcov)
-      },
-      error = function(e) {
-        if (expectile_trace) {
-          message("Error inverting vcov at iteration ", count, ": ", e$message)
-        }
-        NULL
-      }
-    )
-
-    if (is.null(invV)) {
-      warning("Could not invert variance-covariance matrix at iteration ", count, ".", call. = FALSE)
-      break
-    }
-
-    diff_b <- b - bold
-    cv <- as.numeric(t(diff_b) %*% invV %*% diff_b)
-
-    # Update residuals and weights
-    residuals_current <- residuals_new
-    weights_current <- abs(expectile - (residuals_current < 0))
-    data_internal[[".appml_weights"]][obs_indices] <- weights_current
-
-    # Print iteration info if requested
-    if (expectile_trace) {
-      message("Iteration ", count, ": objective function = ", format(cv, scientific = TRUE))
-    }
-
-    # Update bold for next iteration
-    bold <- b
-  }
-
-  # Check convergence
-  converged <- cv <= expectile_tol
-
-  if (!converged && count >= expectile_iter_max) {
-    warning(
-      "Algorithm did not converge after ", expectile_iter_max, " iterations. ",
-      "Final objective function value: ", format(cv, scientific = TRUE),
-      call. = FALSE
-    )
-  }
-
-  # Compute share of negative residuals
-  negative_share <- mean(residuals_current < 0)
-
-  # Print summary if tracing
-  if (expectile_trace) {
-    message("\n")
-    message("Number of obs = ", length(residuals_current))
-    message("Iterations = ", count)
-    message("Tolerance = ", expectile_tol)
-    message("Objective function = ", format(cv, scientific = TRUE))
-    message("% negative residuals = ", round(100 * negative_share, 3), "%")
-    message("Expectile = ", expectile, " expectile regression")
-  }
-
-  # Build result object
-  result <- list(
-    coefficients = coef(fit),
-    vcov = vcov(fit),
-    fitted_values = fitted(fit),
-    residuals = residuals_current,
-    weights = weights_current,
-    converged = converged,
-    iterations = count,
-    expectile = expectile,
-    objective_function = cv,
-    negative_residuals_share = negative_share,
-    fit = fit,
-    nobs = length(residuals_current),
-    formula = formula,
-    family = fit[["family"]],
-    control = control
+  # FIT MODEL ----
+  fit <- structure(
+    fepoisson_asymmetric_fit_(formula_str, data, w, beta, eta_vec, offset_vec, control),
+    class = c("feglm", "fepoisson_asymmetric")
   )
 
-  structure(result, class = c("feglm_asymmetric", "feglm"))
+  # Free large input objects immediately after C++ call
+  data <- NULL
+  w <- NULL
+  beta <- NULL
+  eta_vec <- NULL
+
+  # Post-processing ----
+  nobs_na <- nobs_full - fit[["nobs_used"]]
+  nobs <- c(
+    nobs_full = nobs_full,
+    nobs_na = nobs_na,
+    nobs_separated = 0L,
+    nobs_pc = 0L,
+    nobs = fit[["nobs_used"]]
+  )
+
+  nms_fe <- fit[["nms_fe"]]
+  fe_levels <- fit[["fe_levels"]]
+
+  # Information if convergence failed ----
+  if (!isTRUE(fit[["conv_outer"]])) {
+    warning(
+      "APPML algorithm did not converge after ", fit[["iter_outer"]], " iterations. ",
+      "Final objective function: ", format(fit[["objective_function"]], scientific = TRUE),
+      call. = FALSE
+    )
+  }
+
+  # Get term names from C++ result ----
+  nms_sp <- if (!is.null(fit[["term_names"]])) {
+    fit[["term_names"]]
+  } else {
+    paste0("V", seq_len(nrow(fit[["coef_table"]])))
+  }
+
+  # Add names to outputs ----
+  dimnames(fit[["coef_table"]]) <- list(nms_sp, c("Estimate", "Std. Error", "z value", "Pr(>|z|)"))
+  if (control[["keep_tx"]] && !is.null(fit[["tx"]]) && is.matrix(fit[["tx"]])) {
+    colnames(fit[["tx"]]) <- nms_sp
+  }
+  if (!is.null(fit[["hessian"]])) {
+    dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
+  }
+  if (!is.null(fit[["vcov"]])) {
+    dimnames(fit[["vcov"]]) <- list(nms_sp, nms_sp)
+  }
+
+  # Set fitted_values names ----
+  if (!is.null(fit[["obs_indices"]])) {
+    if (needs_rowname_conversion) {
+      orig_rownames <- as.character(seq_len(nobs_full))
+    }
+    used_rownames <- orig_rownames[fit[["obs_indices"]]]
+    names(fit[["fitted_values"]]) <- used_rownames
+    names(fit[["residuals"]]) <- used_rownames
+    names(fit[["appml_weights"]]) <- used_rownames
+    fit[[".rownames"]] <- used_rownames
+    if (!is.null(data_for_output)) {
+      data_for_output <- data_for_output[fit[["obs_indices"]], ]
+    }
+  } else {
+    if (needs_rowname_conversion) {
+      orig_rownames <- as.character(seq_len(nobs_full))
+    }
+    names(fit[["fitted_values"]]) <- orig_rownames
+    names(fit[["residuals"]]) <- orig_rownames
+    names(fit[["appml_weights"]]) <- orig_rownames
+    fit[[".rownames"]] <- orig_rownames
+  }
+
+  # Clean up C++ internal fields ----
+  fit[["obs_indices"]] <- NULL
+  fit[["nobs_used"]] <- NULL
+  fit[["term_names"]] <- NULL
+
+  # Build result ----
+  fit[["nobs"]] <- nobs
+  fit[["fe_levels"]] <- fe_levels
+  fit[["nms_fe"]] <- nms_fe
+  fit[["formula"]] <- formula
+  if (control[["keep_data"]]) {
+    fit[["data"]] <- data_for_output
+  }
+  fit[["family"]] <- poisson()
+  fit[["control"]] <- control
+  fit[["offset"]] <- offset_vec
+
+  fit
 }
