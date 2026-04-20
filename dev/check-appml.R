@@ -65,5 +65,86 @@ tails[, INTER_YEAR := interaction(INTER, year, sep = "_")]
 fepoisson_asymmetric(trade_all ~ EIAp | INTER_YEAR + expyear2 + impyear2 + pairid, data = tails,
   control = fit_control(expectile = 0.5, expectile_trace = T))
 
+# Separation detected: 268578 observation(s) excluded
+# APPML: expectile = 0.5, using standard Poisson (no iteration)
+# % negative residuals = 77.924%
+# Formula: trade_all ~ EIAp | INTER_YEAR + expyear2 + impyear2 + pairid
+
+# Family: Poisson
+
+# Estimates:
+
+# |      | Estimate | Std. Error | z value  | Pr(>|z|)  |
+# |------|----------|------------|----------|-----------|
+# | EIAp |   0.1975 |     0.0003 | 664.3335 | 0.0000 ** |
+
+# Significance codes: ** p < 0.01; * p < 0.05; + p < 0.10
+
+# Number of observations: Full 1501343; Separated 268578; Perfect classification 0 
+
+# Number of Fisher Scoring iterations: 16 
+
 fepoisson_asymmetric(trade_all ~ EIAp | INTER_YEAR + expyear2 + impyear2 + pairid, data = tails,
-  control = fit_control(expectile = 0.1, expectile_trace = T))
+  control = fit_control(expectile = 0.1, expectile_trace = T, check_separation = T))
+
+# > fepoisson_asymmetric(trade_all ~ EIAp | INTER_YEAR + expyear2 + impyear2 + pairid, data = tails,
+# +   control = fit_control(expectile = 0.1, expectile_trace = T, check_separation = T))
+# Separation detected: 268578 observation(s) excluded
+
+# Iteration 1: objective function = 7.243773e-03
+# Iteration 2: objective function = 8.270714e-04
+# Iteration 3: objective function = 6.484599e-06
+# Iteration 4: objective function = 4.471886e-09
+# Iteration 5: objective function = 0.000000e+00
+
+# APPML converged after 5 iterations
+# Tolerance = 1.00e-12, Objective = 0.000000e+00
+# % negative residuals = 64.475%
+# Expectile = 0.100
+# Formula: trade_all ~ EIAp | INTER_YEAR + expyear2 + impyear2 + pairid
+
+# Family: Poisson
+
+# Estimates:
+
+# |      | Estimate | Std. Error | z value  | Pr(>|z|)  |
+# |------|----------|------------|----------|-----------|
+# | EIAp |   0.3140 |     0.0007 | 424.0580 | 0.0000 ** |
+
+# Significance codes: ** p < 0.01; * p < 0.05; + p < 0.10
+
+# Number of observations: Full 1501343; Separated 268578; Perfect classification 0 
+
+# Number of Fisher Scoring iterations: 1
+
+fepoisson_asymmetric(trade_all ~ EIAp | INTER_YEAR + expyear2 + impyear2 + pairid, data = tails,
+  control = fit_control(expectile = 0.1, expectile_trace = T, check_separation = F))
+
+# > fepoisson_asymmetric(trade_all ~ EIAp | INTER_YEAR + expyear2 + impyear2 + pairid, data = tails,
+# +   control = fit_control(expectile = 0.1, expectile_trace = T, check_separation = F))
+
+# Iteration 1: objective function = 7.242208e-03
+# Iteration 2: objective function = 8.276116e-04
+# Iteration 3: objective function = 6.474723e-06
+# Iteration 4: objective function = 4.721983e-09
+# Iteration 5: objective function = 0.000000e+00
+
+# APPML converged after 5 iterations
+# Tolerance = 1.00e-12, Objective = 0.000000e+00
+# % negative residuals = 69.866%
+# Expectile = 0.100
+# Formula: trade_all ~ EIAp | INTER_YEAR + expyear2 + impyear2 + pairid
+
+# Family: Poisson
+
+# Estimates:
+
+# |      | Estimate | Std. Error | z value  | Pr(>|z|)  |
+# |------|----------|------------|----------|-----------|
+# | EIAp |   0.3140 |     0.0007 | 424.0579 | 0.0000 ** |
+
+# Significance codes: ** p < 0.01; * p < 0.05; + p < 0.10
+
+# Number of observations: Full 1769921; Missing 0; Perfect classification 0 
+
+# Number of Fisher Scoring iterations: 1 

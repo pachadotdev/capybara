@@ -2148,16 +2148,19 @@ fepoisson_asymmetric_fit_(const std::string &formula_str, SEXP df,
   out.push_back({"term_names"_nm = term_names_r});
 
   // Add observation indices and metadata
-  // Since we no longer subset data, obs_indices = fm.keep_idx (all observations after NA removal)
-  // Note: separated observations have weight=0 but are still included in the data
-  size_t n_used = fm.keep_idx.n_elem;
-  writable::integers obs_idx_r(n_used);
-  for (size_t i = 0; i < n_used; ++i) {
-    obs_idx_r[i] = static_cast<int>(fm.keep_idx[i] + 1);  // Convert to 1-based R indexing
+  // working_obs_idx contains 0-based indices into the formula matrix data (after NA removal)
+  // We need to map these back to original data row indices via fm.keep_idx
+  size_t n_work = result.working_obs_idx.n_elem;
+  writable::integers obs_idx_r(n_work);
+  for (size_t i = 0; i < n_work; ++i) {
+    // working_obs_idx[i] is index into fm.keep_idx
+    size_t fm_idx = result.working_obs_idx[i];
+    // fm.keep_idx[fm_idx] + 1 gives 1-based original row index
+    obs_idx_r[i] = static_cast<int>(fm.keep_idx[fm_idx] + 1);
   }
   out.push_back({"obs_indices"_nm = obs_idx_r});
   out.push_back(
-      {"nobs_used"_nm = writable::integers({static_cast<int>(n_used)})});
+      {"nobs_used"_nm = writable::integers({static_cast<int>(n_work)})}); 
 
   // Add FE metadata
   size_t K_appml = fm.fe_names.n_elem;

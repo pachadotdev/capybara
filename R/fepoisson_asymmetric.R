@@ -242,13 +242,21 @@ fepoisson_asymmetric <- function(
   eta_vec <- NULL
 
   # Post-processing ----
-  # APPML does not use separation detection (following reference implementation)
-  # nobs_na = observations removed due to NA/missing values
-  nobs_na <- nobs_full - fit[["nobs_used"]]
+  # APPML uses separation detection like fepoisson
+  num_separated <- if (isTRUE(fit[["has_separation"]])) {
+    fit[["num_separated"]]
+  } else {
+    0L
+  }
+  # nobs_used = working sample size (after NA removal AND separation exclusion)
+  # nobs_na = observations removed due to NA/missing values only
+  # We compute: nobs_full - nobs_na - num_separated = nobs_used
+  # So: nobs_na = nobs_full - nobs_used - num_separated
+  nobs_na <- nobs_full - fit[["nobs_used"]] - num_separated
   nobs <- c(
     nobs_full = nobs_full,
     nobs_na = nobs_na,
-    nobs_separated = 0L,
+    nobs_separated = num_separated,
     nobs_pc = 0L,
     nobs = fit[["nobs_used"]]
   )
