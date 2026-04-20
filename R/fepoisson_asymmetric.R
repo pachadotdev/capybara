@@ -242,6 +242,8 @@ fepoisson_asymmetric <- function(
   eta_vec <- NULL
 
   # Post-processing ----
+  # APPML does not use separation detection (following reference implementation)
+  # nobs_na = observations removed due to NA/missing values
   nobs_na <- nobs_full - fit[["nobs_used"]]
   nobs <- c(
     nobs_full = nobs_full,
@@ -309,6 +311,8 @@ fepoisson_asymmetric <- function(
   fit[["obs_indices"]] <- NULL
   fit[["nobs_used"]] <- NULL
   fit[["term_names"]] <- NULL
+  fit[["has_separation"]] <- NULL
+  fit[["num_separated"]] <- NULL
 
   # Build result ----
   fit[["nobs"]] <- nobs

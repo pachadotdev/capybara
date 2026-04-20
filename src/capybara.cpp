@@ -2094,6 +2094,13 @@ fepoisson_asymmetric_fit_(const std::string &formula_str, SEXP df,
     out.push_back({"hessian"_nm = as_doubles_matrix(result.hessian)});
   }
 
+  // Add separation info
+  if (result.has_separation) {
+    out.push_back({"has_separation"_nm = writable::logicals({true})});
+    out.push_back({"num_separated"_nm =
+                       writable::integers({static_cast<int>(result.num_separated)})});
+  }
+
   if (result.has_fe && result.fixed_effects.n_elem > 0) {
     size_t K = fm.fe_map.K;
     writable::list fe_list(K);
@@ -2141,13 +2148,16 @@ fepoisson_asymmetric_fit_(const std::string &formula_str, SEXP df,
   out.push_back({"term_names"_nm = term_names_r});
 
   // Add observation indices and metadata
-  writable::integers obs_idx_r(n_valid);
-  for (size_t i = 0; i < n_valid; ++i) {
-    obs_idx_r[i] = static_cast<int>(fm.keep_idx[i] + 1);
+  // Since we no longer subset data, obs_indices = fm.keep_idx (all observations after NA removal)
+  // Note: separated observations have weight=0 but are still included in the data
+  size_t n_used = fm.keep_idx.n_elem;
+  writable::integers obs_idx_r(n_used);
+  for (size_t i = 0; i < n_used; ++i) {
+    obs_idx_r[i] = static_cast<int>(fm.keep_idx[i] + 1);  // Convert to 1-based R indexing
   }
   out.push_back({"obs_indices"_nm = obs_idx_r});
   out.push_back(
-      {"nobs_used"_nm = writable::integers({static_cast<int>(n_valid)})});
+      {"nobs_used"_nm = writable::integers({static_cast<int>(n_used)})});
 
   // Add FE metadata
   size_t K_appml = fm.fe_names.n_elem;
