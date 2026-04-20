@@ -26,6 +26,22 @@ inline SeparationResult check_group_separation(const vec &y, const vec &w,
   }
 
   const uword n = y.n_elem;
+  
+  // Validate input dimensions match FE map structure
+  if (n != fe_map.n_obs || w.n_elem != fe_map.n_obs) {
+    cpp4r::stop(
+        "check_group_separation: dimension mismatch (y: %u, w: %u, fe_map: %u)",
+        (unsigned)n, (unsigned)w.n_elem, (unsigned)fe_map.n_obs);
+  }
+  
+  // Validate FE map structure
+  for (uword k = 0; k < fe_map.K; ++k) {
+    if (fe_map.fe_map[k].size() != n) {
+      cpp4r::stop("check_group_separation: fe_map[%u].size() != n (%u != %u)",
+                  (unsigned)k, (unsigned)fe_map.fe_map[k].size(), (unsigned)n);
+    }
+  }
+  
   uvec drop_mask(n, fill::zeros); // 1 = separated, 0 = keep
 
   // Iterate until no new observations are dropped
@@ -47,6 +63,15 @@ inline SeparationResult check_group_separation(const vec &y, const vec &w,
         if (drop_mask(i))
           continue;
         const uword g = map_k[i];
+        
+        // Validate group index is in bounds
+        if (g >= n_grp) {
+          cpp4r::stop(
+              "check_group_separation: group index out of bounds (g=%u >= "
+              "n_groups[%u]=%u for obs %u)",
+              (unsigned)g, (unsigned)k, (unsigned)n_grp, (unsigned)i);
+        }
+        
         const double wi = w(i);
         grp_sum(g) += wi * y(i);
         grp_wt(g) += wi;
@@ -57,6 +82,15 @@ inline SeparationResult check_group_separation(const vec &y, const vec &w,
         if (drop_mask(i))
           continue;
         const uword g = map_k[i];
+        
+        // Validate group index (redundant safety check)
+        if (g >= n_grp) {
+          cpp4r::stop(
+              "check_group_separation: group index out of bounds in second loop "
+              "(g=%u >= n_groups[%u]=%u for obs %u)",
+              (unsigned)g, (unsigned)k, (unsigned)n_grp, (unsigned)i);
+        }
+        
         if (grp_wt(g) <= 0.0)
           continue;
 

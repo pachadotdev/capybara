@@ -82,7 +82,7 @@ inline InferenceAPPML appml_iterate(
   double cv = std::numeric_limits<double>::infinity();
 
   if (trace) {
-    Rprintf("\n");
+    cpp4r::message("\n");
   }
 
   // Outer iteration: iterative reweighting
@@ -103,7 +103,7 @@ inline InferenceAPPML appml_iterate(
 
     if (!glm_fit.conv) {
       if (trace) {
-        Rprintf("APPML: Inner fit failed at iteration %lu\n",
+        cpp4r::message("APPML: Inner fit failed at iteration %lu\n",
                 static_cast<unsigned long>(iter + 1));
       }
       if (iter > 0) {
@@ -121,7 +121,7 @@ inline InferenceAPPML appml_iterate(
     cv = dot(diff_b, diff_b);
 
     if (trace) {
-      Rprintf("Iteration %lu: objective function = %.6e\n",
+      cpp4r::message("Iteration %lu: objective function = %.6e\n",
               static_cast<unsigned long>(iter + 1), cv);
     }
 
@@ -153,11 +153,11 @@ inline InferenceAPPML appml_iterate(
       result.negative_residuals_share = static_cast<double>(neg_count) / static_cast<double>(n);
 
       if (trace) {
-        Rprintf("\nAPPML converged after %lu iterations\n",
+        cpp4r::message("\nAPPML converged after %lu iterations\n",
                 static_cast<unsigned long>(iter + 1));
-        Rprintf("Tolerance = %.2e, Objective = %.6e\n", tol, cv);
-        Rprintf("%% negative residuals = %.3f%%\n", 100.0 * result.negative_residuals_share);
-        Rprintf("Expectile = %.3f\n", tau);
+        cpp4r::message("Tolerance = %.2e, Objective = %.6e\n", tol, cv);
+        cpp4r::message("%% negative residuals = %.3f%%\n", 100.0 * result.negative_residuals_share);
+        cpp4r::message("Expectile = %.3f\n", tau);
       }
 
       return result;
@@ -178,9 +178,9 @@ inline InferenceAPPML appml_iterate(
 
   // Max iterations reached
   if (trace) {
-    Rprintf("\nAPPML: Max iterations (%lu) reached without convergence\n",
+    cpp4r::message("\nAPPML: Max iterations (%lu) reached without convergence\n",
             static_cast<unsigned long>(max_iter));
-    Rprintf("Final objective function = %.6e\n", cv);
+    cpp4r::message("Final objective function = %.6e\n", cv);
   }
 
   GlmWorkspace final_ws;
@@ -257,7 +257,7 @@ InferenceAPPML fepoisson_asymmetric_fit(
   const bool has_sep = initial_fit.has_separation && initial_fit.separated_obs.n_elem > 0;
 
   if (has_sep && trace) {
-    Rprintf("Separation detected: %lu observation(s) excluded\n",
+    cpp4r::message("Separation detected: %lu observation(s) excluded\n",
             static_cast<unsigned long>(initial_fit.num_separated));
   }
 
@@ -281,8 +281,8 @@ InferenceAPPML fepoisson_asymmetric_fit(
         valid_count > 0 ? static_cast<double>(neg_count) / static_cast<double>(valid_count) : 0.0;
 
     if (trace) {
-      Rprintf("APPML: expectile = 0.5, using standard Poisson (no iteration)\n");
-      Rprintf("%% negative residuals = %.3f%%\n", 100.0 * result.negative_residuals_share);
+      cpp4r::message("APPML: expectile = 0.5, using standard Poisson (no iteration)\n");
+      cpp4r::message("%% negative residuals = %.3f%%\n", 100.0 * result.negative_residuals_share);
     }
 
     // Working sample: all non-separated observations

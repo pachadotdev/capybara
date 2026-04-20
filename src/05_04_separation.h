@@ -6,7 +6,7 @@
 namespace capybara {
 
 inline SeparationResult check_separation(const vec &y, const mat &X,
-                                         const vec &w,
+                                         const vec &w, FlatFEMap &fe_map,
                                          const CapybaraParameters &params) {
   SeparationResult result;
   result.num_separated = 0;
@@ -19,31 +19,62 @@ inline SeparationResult check_separation(const vec &y, const mat &X,
     return result;
   }
 
-  // Compute centering vector (weighted mean of X on interior samples)
+  // Following ppmlhdfe: partial out X on the interior (y > 0) sample
+  // For FE models: use full AP demeaning through FE structure
+  // For non-FE models: just subtract weighted mean
   mat X_centered;
-  bool needs_centering = false;
+  const bool has_fe = (fe_map.K > 0 && fe_map.structure_built);
+
   if (X.n_cols > 0 && interior_sample.n_elem > 0) {
+    // Create weight vector that zeros out boundary observations
     vec w_interior = w;
     w_interior.elem(boundary_sample).zeros();
     const double sum_w = accu(w_interior);
 
     if (sum_w > 0) {
-      const vec center_vec = (X.t() * w_interior) / sum_w;
-      X_centered = X;
-      X_centered.each_row() -= center_vec.t();
-      needs_centering = true;
-    }
-  }
+      if (has_fe) {
+        // FE case: use centering algorithm to partial out FE
+        // This matches ppmlhdfe's HDFE._partial_out()
+        X_centered = X;
 
-  const mat &X_for_sep = needs_centering ? X_centered : X;
+        // Update FE map with interior-only weights
+        fe_map.update_weights(w_interior);
+
+        // Center X through the FE structure
+        center_variables(X_centered, w_interior, fe_map, params.center_tol,
+                         params.iter_center_max, params.grand_acc_period);
+
+        // Restore original weights
+        fe_map.update_weights(w);
+      } else {
+        // Non-FE case: simple mean centering
+        const vec center_vec = (X.t() * w_interior) / sum_w;
+        X_centered = X;
+        X_centered.each_row() -= center_vec.t();
+      }
+    } else {
+      X_centered = X;
+    }
+  } else {
+    X_centered = X;
+  }
 
   // Simplex algorithm with collinearity-aware residual computation
   // (matches ppmlhdfe logic)
   if (params.sep_use_simplex && X.n_cols > 0) {
     SeparationResult simplex_result = detect_separation_simplex(
-        X_for_sep, boundary_sample, interior_sample, w, params);
+        X_centered, boundary_sample, interior_sample, w, params);
 
     if (simplex_result.num_separated > 0) {
+      // Validate indices before conversion
+      if (simplex_result.separated_obs.n_elem > 0) {
+        const uword max_idx = simplex_result.separated_obs.max();
+        if (max_idx >= boundary_sample.n_elem) {
+          cpp4r::stop("Internal error in simplex separation: max index %u >= "
+                      "boundary_sample size %u",
+                      (unsigned)max_idx, (unsigned)boundary_sample.n_elem);
+        }
+      }
       // Convert boundary-relative indices to absolute indices
       result.separated_obs = boundary_sample.elem(simplex_result.separated_obs);
       result.num_separated = result.separated_obs.n_elem;
@@ -56,7 +87,7 @@ inline SeparationResult check_separation(const vec &y, const mat &X,
   // ReLU: only run if simplex didn't find separation (or was disabled)
   if (params.sep_use_relu) {
     SeparationResult relu_result =
-        detect_separation_relu(y, X_for_sep, w, params);
+        detect_separation_relu(y, X_centered, w, params);
 
     if (relu_result.num_separated > 0) {
       result.separated_obs = std::move(relu_result.separated_obs);
@@ -68,6 +99,14 @@ inline SeparationResult check_separation(const vec &y, const mat &X,
   }
 
   return result;
+}
+
+// Overload for non-FE case (backward compatibility)
+inline SeparationResult check_separation(const vec &y, const mat &X,
+                                         const vec &w,
+                                         const CapybaraParameters &params) {
+  FlatFEMap empty_fe_map;
+  return check_separation(y, X, w, empty_fe_map, params);
 }
 
 } // namespace capybara
