@@ -1,9 +1,30 @@
 // Simplex Separation Detection
+// Ported from ppmlhdfe (Correia, Guimaraes, Zylkin 2019)
+// Key insight: Test 1 checks RESIDUALS of collinear variables, not raw values
 
 #ifndef CAPYBARA_SEPARATION_SIMPLEX_H
 #define CAPYBARA_SEPARATION_SIMPLEX_H
 
 namespace capybara {
+
+// Find indices of columns that are NOT collinear (full rank subset)
+// Uses rank-revealing Cholesky on X'X
+// Returns indices of non-collinear columns
+inline uvec find_noncollinear_cols(const mat &X, const vec &w,
+                                   double tol = 1e-10) {
+  if (X.n_cols == 0)
+    return uvec();
+
+  const mat Xw = X.each_col() % sqrt(w);
+  const mat XtX = Xw.t() * Xw;
+
+  mat R;
+  uvec excluded;
+  uword rank;
+  chol_rank(R, excluded, rank, XtX, "upper", tol);
+
+  return find(excluded == 0);
+}
 
 inline void simplex_presolve(mat &X, uvec &basic_vars, uvec &nonbasic_vars,
                              Col<unsigned char> &keep_mask, uword &k,
@@ -98,78 +119,147 @@ inline void simplex_presolve(mat &X, uvec &basic_vars, uvec &nonbasic_vars,
   n = basic_vars.n_elem;
 }
 
-// Main simplex algorithm - optimized with early exit
+// Main simplex algorithm following ppmlhdfe logic:
+// 1. Check collinearity on interior (y>0) sample
+// 2. Compute residuals of collinear vars by regressing on non-collinear vars
+// 3. Test 1: Check if residuals have uniform sign
+// 4. Test 2: Full simplex on residuals
 inline SeparationResult
-detect_separation_simplex(const mat &residuals,
+detect_separation_simplex(const mat &X_centered, const uvec &boundary_sample,
+                          const uvec &interior_sample, const vec &w,
                           const CapybaraParameters &params) {
   SeparationResult result;
   result.converged = false;
   result.num_separated = 0;
 
-  if (residuals.n_elem == 0) {
+  if (boundary_sample.n_elem == 0 || X_centered.n_cols == 0) {
     result.converged = true;
     return result;
   }
 
-  mat X = residuals;
-  uword n = X.n_rows;
-  uword k = X.n_cols;
+  const uword n_boundary = boundary_sample.n_elem;
+  const uword k = X_centered.n_cols;
 
-  // Test 1: Check column bounds (vectorized)
-  rowvec col_min = min(X, 0);
-  rowvec col_max = max(X, 0);
-  col_min.clean(params.sep_tol);
-  col_max.clean(params.sep_tol);
+  // Use byte masks for memory efficiency
+  Col<unsigned char> dropped_obs(n_boundary, fill::zeros);
 
-  // Use byte masks instead of uvec (8x memory reduction)
-  Col<unsigned char> dropped_obs(n, fill::zeros);
-  Col<unsigned char> dropped_vars(k, fill::zeros);
+  // Extract interior data for collinearity check
+  const mat X_interior = X_centered.rows(interior_sample);
+  const vec w_interior = w.elem(interior_sample);
 
-  // Find and mark special columns
-  for (uword j = 0; j < k; ++j) {
-    if (col_min(j) == 0 && col_max(j) == 0) {
-      dropped_vars(j) = 1; // all zero
-    } else if (col_min(j) >= 0) {
-      dropped_vars(j) = 1; // all positive
-      // Mark obs with positive values as separated
-      for (uword i = 0; i < n; ++i) {
-        if (X(i, j) > params.sep_tol)
+  // Step 1: Find collinear columns on interior sample
+  const uvec ok_cols = find_noncollinear_cols(X_interior, w_interior,
+                                              params.collin_tol);
+  const uword n_ok = ok_cols.n_elem;
+
+  if (n_ok == k) {
+    // All variables are non-collinear on interior - no separation via this test
+    result.converged = true;
+    return result;
+  }
+
+  // Build mask of collinear (flagged) variables
+  Col<unsigned char> flagged_var_mask(k, fill::ones);
+  flagged_var_mask.elem(ok_cols).zeros();
+  const uvec flagged_vars = find(flagged_var_mask);
+  const uword n_flagged = flagged_vars.n_elem;
+
+  if (n_flagged == 0) {
+    result.converged = true;
+    return result;
+  }
+
+  // Extract boundary data
+  const mat X_boundary = X_centered.rows(boundary_sample);
+
+  // Step 2: Compute residuals of flagged (collinear) variables on boundary
+  // By regressing them on non-flagged vars using interior data,
+  // then predicting for boundary data
+  mat residuals;
+  if (n_ok == 0) {
+    // All variables are collinear - use the data directly (no regression)
+    residuals = X_boundary.cols(flagged_vars);
+  } else {
+    // Regress flagged vars on ok vars using interior data
+    // Then compute residuals on boundary data
+    const mat X_ok_int = X_interior.cols(ok_cols);
+    const mat X_flag_int = X_interior.cols(flagged_vars);
+    const mat X_ok_bnd = X_boundary.cols(ok_cols);
+    const mat X_flag_bnd = X_boundary.cols(flagged_vars);
+
+    // Weighted least squares: b = (X_ok' W X_ok)^-1 X_ok' W X_flag
+    // Using interior sample only
+    const mat X_ok_w = X_ok_int.each_col() % sqrt(w_interior);
+    const mat X_flag_w = X_flag_int.each_col() % sqrt(w_interior);
+    const mat XtX = X_ok_w.t() * X_ok_w;
+
+    mat b;
+    if (!solve(b, XtX, X_ok_w.t() * X_flag_w, solve_opts::likely_sympd)) {
+      // Singular - fallback to pinv
+      b = pinv(XtX) * (X_ok_w.t() * X_flag_w);
+    }
+
+    // Residuals on boundary: X_flag_bnd - X_ok_bnd * b
+    residuals = X_flag_bnd - X_ok_bnd * b;
+  }
+
+  // Clean up tiny values
+  residuals.clean(params.sep_tol);
+
+  // Step 3: Test 1 - Check for uniform signs in each residual column
+  // Following ppmlhdfe: if residual column is all >= 0 (or all <= 0),
+  // then observations with non-zero values are separated
+  Col<unsigned char> dropped_vars(n_flagged, fill::zeros);
+
+  for (uword j = 0; j < n_flagged; ++j) {
+    const vec col = residuals.col(j);
+    const double col_min = col.min();
+    const double col_max = col.max();
+
+    if (col_min >= 0 && col_max > params.sep_tol) {
+      // Uniformly non-negative with some positive values
+      // Mark observations with positive values as separated
+      for (uword i = 0; i < n_boundary; ++i) {
+        if (col(i) > params.sep_tol) {
           dropped_obs(i) = 1;
+        }
       }
-    } else if (col_max(j) <= 0) {
-      dropped_vars(j) = 1; // all negative
-      // Mark obs with negative values as separated
-      for (uword i = 0; i < n; ++i) {
-        if (X(i, j) < -params.sep_tol)
+      dropped_vars(j) = 1;
+    } else if (col_max <= 0 && col_min < -params.sep_tol) {
+      // Uniformly non-positive with some negative values
+      // Mark observations with negative values as separated
+      for (uword i = 0; i < n_boundary; ++i) {
+        if (col(i) < -params.sep_tol) {
           dropped_obs(i) = 1;
+        }
       }
+      dropped_vars(j) = 1;
+    } else if (col_min >= -params.sep_tol && col_max <= params.sep_tol) {
+      // All zeros - drop variable but not observations
+      dropped_vars(j) = 1;
     }
   }
 
-  // Test 2: Apply simplex on remaining (only if needed)
-  // Build indices from byte masks
-  uword num_kept_obs = 0, num_kept_vars = 0;
-  for (uword i = 0; i < n; ++i)
-    if (!dropped_obs(i))
-      ++num_kept_obs;
-  for (uword j = 0; j < k; ++j)
+  // Step 4: Test 2 - Full simplex on remaining observations and variables
+  // (only if there are remaining flagged variables with mixed signs)
+  uvec remaining_vars_idx;
+  for (uword j = 0; j < n_flagged; ++j) {
     if (!dropped_vars(j))
-      ++num_kept_vars;
-
-  uvec kept_obs(num_kept_obs);
-  uvec kept_vars(num_kept_vars);
-  {
-    uword oi = 0, vi = 0;
-    for (uword i = 0; i < n; ++i)
-      if (!dropped_obs(i))
-        kept_obs(oi++) = i;
-    for (uword j = 0; j < k; ++j)
-      if (!dropped_vars(j))
-        kept_vars(vi++) = j;
+      remaining_vars_idx.resize(remaining_vars_idx.n_elem + 1);
+    if (!dropped_vars(j))
+      remaining_vars_idx(remaining_vars_idx.n_elem - 1) = j;
   }
 
-  if (kept_vars.n_elem > 1 && kept_obs.n_elem > 0) {
-    mat X_simplex = X.submat(kept_obs, kept_vars);
+  uvec remaining_obs_idx;
+  for (uword i = 0; i < n_boundary; ++i) {
+    if (!dropped_obs(i))
+      remaining_obs_idx.resize(remaining_obs_idx.n_elem + 1);
+    if (!dropped_obs(i))
+      remaining_obs_idx(remaining_obs_idx.n_elem - 1) = i;
+  }
+
+  if (remaining_vars_idx.n_elem > 1 && remaining_obs_idx.n_elem > 0) {
+    mat X_simplex = residuals.submat(remaining_obs_idx, remaining_vars_idx);
     uword n_simp = X_simplex.n_rows;
     uword k_simp = X_simplex.n_cols;
 
@@ -183,7 +273,6 @@ detect_separation_simplex(const mat &residuals,
         vec c_basic(basic_vars.n_elem, fill::ones);
         vec c_nonbasic(nonbasic_vars.n_elem, fill::ones);
 
-        // Reduced iteration limit for speed
         const uword effective_max_iter =
             std::min(params.sep_simplex_max_iter, (size_t)(100 * k_simp));
 
@@ -216,7 +305,7 @@ detect_separation_simplex(const mat &residuals,
           if (std::abs(pivot) < 1e-14)
             continue;
 
-          // Pivot operations (in-place)
+          // Pivot operations
           X_simplex.row(pivot_row) /= pivot;
 
           for (uword i = 0; i < X_simplex.n_rows; ++i) {
@@ -229,15 +318,76 @@ detect_separation_simplex(const mat &residuals,
           std::swap(c_basic(pivot_row), c_nonbasic(pivot_col));
         }
 
-        // Identify separated observations
+        // Identify separated observations from simplex
         const uvec all_vars = join_vert(basic_vars, nonbasic_vars);
         const vec all_costs = join_vert(c_basic, c_nonbasic);
 
         const uvec zero_cost_idx = find(all_costs == 0);
         if (zero_cost_idx.n_elem > 0) {
-          dropped_obs.elem(kept_obs.elem(all_vars.elem(zero_cost_idx))).ones();
+          for (uword i = 0; i < zero_cost_idx.n_elem; ++i) {
+            uword var_idx = all_vars(zero_cost_idx(i));
+            if (var_idx < remaining_obs_idx.n_elem) {
+              dropped_obs(remaining_obs_idx(var_idx)) = 1;
+            }
+          }
         }
       }
+    }
+  }
+
+  // Convert dropped_obs mask to separated_obs indices (in boundary_sample)
+  result.separated_obs = find(dropped_obs);
+  result.num_separated = result.separated_obs.n_elem;
+  result.converged = true;
+
+  return result;
+}
+
+// Legacy interface for backward compatibility (without collinearity check)
+// This should NOT be used - kept only for reference
+inline SeparationResult
+detect_separation_simplex(const mat &residuals,
+                          const CapybaraParameters &params) {
+  SeparationResult result;
+  result.converged = false;
+  result.num_separated = 0;
+
+  if (residuals.n_elem == 0) {
+    result.converged = true;
+    return result;
+  }
+
+  mat X = residuals;
+  uword n = X.n_rows;
+  uword k = X.n_cols;
+
+  // Use byte masks instead of uvec (8x memory reduction)
+  Col<unsigned char> dropped_obs(n, fill::zeros);
+  Col<unsigned char> dropped_vars(k, fill::zeros);
+
+  // Test 1: Inspect each column and check if all values have the same sign
+  rowvec col_min = min(X, 0);
+  rowvec col_max = max(X, 0);
+  col_min.clean(params.sep_tol);
+  col_max.clean(params.sep_tol);
+
+  for (uword j = 0; j < k; ++j) {
+    if (col_min(j) == 0 && col_max(j) == 0) {
+      dropped_vars(j) = 1;
+    } else if (col_min(j) >= 0) {
+      for (uword i = 0; i < n; ++i) {
+        if (X(i, j) > params.sep_tol) {
+          dropped_obs(i) = 1;
+        }
+      }
+      dropped_vars(j) = 1;
+    } else if (col_max(j) <= 0) {
+      for (uword i = 0; i < n; ++i) {
+        if (X(i, j) < -params.sep_tol) {
+          dropped_obs(i) = 1;
+        }
+      }
+      dropped_vars(j) = 1;
     }
   }
 

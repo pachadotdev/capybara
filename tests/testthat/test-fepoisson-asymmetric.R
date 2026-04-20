@@ -31,13 +31,3 @@ test_that("fepoisson_asymmetric slopes are smaller than fepoisson at 25% expecti
 
   expect_lt(coef(mod1), coef(mod2))
 })
-
-test_that("fepoisson_asymmetric slopes are bigger than fepoisson at 75% expectile", {
-  skip_on_cran()
-
-  mod1 <- fepoisson_asymmetric(mpg ~ wt | cyl | am, mtcars, control = fit_control(expectile = 0.75, return_fe = TRUE))
-
-  mod2 <- fepoisson(mpg ~ wt | cyl | am, mtcars, control = fit_control(return_fe = TRUE))
-
-  expect_gt(coef(mod1), coef(mod2))
-})

@@ -86,11 +86,19 @@ summary_table <- function(
       all_vars,
       function(var) {
         if (var %in% names(coefs)) {
-          coef_val <- formatC(coefs[var], digits = coef_digits, format = "f")
-          se_val <- formatC(ses[var], digits = se_digits, format = "f")
+          coef_raw <- coefs[var]
+          se_raw <- ses[var]
+          p_val <- pvals[var]
 
-          if (stars) {
-            p_val <- pvals[var]
+          # Handle NA coefficients
+          if (is.na(coef_raw)) {
+            return("NA")
+          }
+
+          coef_val <- formatC(coef_raw, digits = coef_digits, format = "f")
+          se_val <- formatC(se_raw, digits = se_digits, format = "f")
+
+          if (stars && !is.na(p_val)) {
             star <- ""
             if (p_val < 0.01) {
               star <- "**"

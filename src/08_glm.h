@@ -639,7 +639,7 @@ InferenceGLM feglm_fit(
   auto tsep0 = std::chrono::high_resolution_clock::now();
 #endif
 
-  // Group-level separation pre-filter
+  // Group-level separation pre-filter (requires fixed effects)
   // For Poisson/NegBin/Binomial/Probit FE models: drop entire FE groups where
   // mean(y)==0 (Poisson/NegBin) or mean(y) in {0,1} (Binomial/Probit)
   SeparationResult group_sep_result;
@@ -649,9 +649,10 @@ InferenceGLM feglm_fit(
     group_sep_result = check_group_separation(y, w, fe_map, family_type);
   }
 
-  // Observation-level separation detection (ReLU + Simplex) for Poisson FE
+  // Observation-level separation detection (ReLU + Simplex) for Poisson
+  // Works with or without fixed effects
   if (family_type == Family::POISSON && !skip_separation_check &&
-      has_fixed_effects && params.check_separation) {
+      params.check_separation) {
     // Use weights with group-separated obs already zeroed
     vec w_for_sep = w;
     if (group_sep_result.num_separated > 0) {

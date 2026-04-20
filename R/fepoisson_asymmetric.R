@@ -274,10 +274,19 @@ fepoisson_asymmetric <- function(
   }
 
   # Get term names from C++ result ----
-  nms_sp <- if (!is.null(fit[["term_names"]])) {
+  # C++ now includes "(Intercept)" when applicable, so use term_names directly
+  n_coef <- nrow(fit[["coef_table"]])
+  nms_sp <- if (!is.null(fit[["term_names"]]) && 
+                length(fit[["term_names"]]) == n_coef) {
     fit[["term_names"]]
   } else {
-    paste0("V", seq_len(nrow(fit[["coef_table"]])))
+    # Fallback for edge cases - check if model has FE
+    has_fe <- !is.null(nms_fe) && length(nms_fe) > 0
+    if (!has_fe && n_coef > 0) {
+      c("(Intercept)", paste0("V", seq_len(n_coef - 1)))
+    } else {
+      paste0("V", seq_len(n_coef))
+    }
   }
 
   # Add names to outputs ----
@@ -285,10 +294,10 @@ fepoisson_asymmetric <- function(
   if (control[["keep_tx"]] && !is.null(fit[["tx"]]) && is.matrix(fit[["tx"]])) {
     colnames(fit[["tx"]]) <- nms_sp
   }
-  if (!is.null(fit[["hessian"]])) {
+  if (!is.null(fit[["hessian"]]) && nrow(fit[["hessian"]]) == length(nms_sp)) {
     dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
   }
-  if (!is.null(fit[["vcov"]])) {
+  if (!is.null(fit[["vcov"]]) && nrow(fit[["vcov"]]) == length(nms_sp)) {
     dimnames(fit[["vcov"]]) <- list(nms_sp, nms_sp)
   }
 
