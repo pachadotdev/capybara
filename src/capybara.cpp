@@ -2097,8 +2097,8 @@ fepoisson_asymmetric_fit_(const std::string &formula_str, SEXP df,
   // Add separation info
   if (result.has_separation) {
     out.push_back({"has_separation"_nm = writable::logicals({true})});
-    out.push_back({"num_separated"_nm =
-                       writable::integers({static_cast<int>(result.num_separated)})});
+    out.push_back({"num_separated"_nm = writable::integers(
+                       {static_cast<int>(result.num_separated)})});
   }
 
   if (result.has_fe && result.fixed_effects.n_elem > 0) {
@@ -2148,8 +2148,9 @@ fepoisson_asymmetric_fit_(const std::string &formula_str, SEXP df,
   out.push_back({"term_names"_nm = term_names_r});
 
   // Add observation indices and metadata
-  // working_obs_idx contains 0-based indices into the formula matrix data (after NA removal)
-  // We need to map these back to original data row indices via fm.keep_idx
+  // working_obs_idx contains 0-based indices into the formula matrix data
+  // (after NA removal) We need to map these back to original data row indices
+  // via fm.keep_idx
   size_t n_work = result.working_obs_idx.n_elem;
   writable::integers obs_idx_r(n_work);
   for (size_t i = 0; i < n_work; ++i) {
@@ -2160,7 +2161,7 @@ fepoisson_asymmetric_fit_(const std::string &formula_str, SEXP df,
   }
   out.push_back({"obs_indices"_nm = obs_idx_r});
   out.push_back(
-      {"nobs_used"_nm = writable::integers({static_cast<int>(n_work)})}); 
+      {"nobs_used"_nm = writable::integers({static_cast<int>(n_work)})});
 
   // Add FE metadata
   size_t K_appml = fm.fe_names.n_elem;

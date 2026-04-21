@@ -13,7 +13,8 @@ struct InferenceAPPML : public InferenceGLM {
   double negative_residuals_share;
   vec residuals;
   vec appml_weights;
-  uvec working_obs_idx;  // Indices of observations used in working sample (0-based into input data)
+  uvec working_obs_idx; // Indices of observations used in working sample
+                        // (0-based into input data)
 
   InferenceAPPML(uword n, uword p)
       : InferenceGLM(n, p), expectile(0.5), iter_outer(0), conv_outer(false),
@@ -23,11 +24,11 @@ struct InferenceAPPML : public InferenceGLM {
 
 // Helper function: Run APPML iteration on given data
 // Returns the result after convergence or max iterations
-inline InferenceAPPML appml_iterate(
-    const mat &X, const vec &y, const vec &w, const FlatFEMap &fe_map,
-    const CapybaraParameters &params, const vec &offset,
-    const vec &beta_start, const vec &eta_start, const vec &mu_start,
-    bool suppress_intercept, bool has_intercept_column) {
+inline InferenceAPPML
+appml_iterate(const mat &X, const vec &y, const vec &w, const FlatFEMap &fe_map,
+              const CapybaraParameters &params, const vec &offset,
+              const vec &beta_start, const vec &eta_start, const vec &mu_start,
+              bool suppress_intercept, bool has_intercept_column) {
 
   const uword n = y.n_elem;
   const uword p = X.n_cols;
@@ -81,6 +82,9 @@ inline InferenceAPPML appml_iterate(
 
   double cv = std::numeric_limits<double>::infinity();
 
+  // Track cumulative Fisher Scoring iterations across all feglm_fit calls
+  uword total_fs_iter = 0;
+
   if (trace) {
     cpp4r::message("\n");
   }
@@ -95,24 +99,27 @@ inline InferenceAPPML appml_iterate(
     fe_map_iter.update_weights(combined_w);
 
     // Fit weighted Poisson
-    InferenceGLM glm_fit =
-        feglm_fit(beta_coef, eta_work, y, X_iter, combined_w, 0.0, POISSON,
-                  fe_map_iter, iter_params, &iter_ws, nullptr, offset_ptr,
-                  true, nullptr, nullptr, true, suppress_intercept,
-                  has_intercept_column);
+    InferenceGLM glm_fit = feglm_fit(
+        beta_coef, eta_work, y, X_iter, combined_w, 0.0, POISSON, fe_map_iter,
+        iter_params, &iter_ws, nullptr, offset_ptr, true, nullptr, nullptr,
+        true, suppress_intercept, has_intercept_column);
+
+    total_fs_iter += glm_fit.iter;
 
     if (!glm_fit.conv) {
       if (trace) {
         cpp4r::message("APPML: Inner fit failed at iteration %lu\n",
-                static_cast<unsigned long>(iter + 1));
+                       static_cast<unsigned long>(iter + 1));
       }
       if (iter > 0) {
         result.conv_outer = false;
+        result.iter = total_fs_iter;
         return result;
       }
       static_cast<InferenceGLM &>(result) = std::move(glm_fit);
       result.conv = false;
       result.conv_outer = false;
+      result.iter = total_fs_iter;
       return result;
     }
 
@@ -122,7 +129,7 @@ inline InferenceAPPML appml_iterate(
 
     if (trace) {
       cpp4r::message("Iteration %lu: objective function = %.6e\n",
-              static_cast<unsigned long>(iter + 1), cv);
+                     static_cast<unsigned long>(iter + 1), cv);
     }
 
     if (cv <= tol) {
@@ -133,13 +140,15 @@ inline InferenceAPPML appml_iterate(
       vec eta_final = glm_fit.eta;
       fe_map_iter.update_weights(combined_w);
 
-      InferenceGLM final_fit =
-          feglm_fit(beta_new, eta_final, y, X_final, combined_w, 0.0,
-                    POISSON, fe_map_iter, iter_params, &final_ws, nullptr,
-                    offset_ptr, true, nullptr, nullptr, false,
-                    suppress_intercept, has_intercept_column);
+      InferenceGLM final_fit = feglm_fit(
+          beta_new, eta_final, y, X_final, combined_w, 0.0, POISSON,
+          fe_map_iter, iter_params, &final_ws, nullptr, offset_ptr, true,
+          nullptr, nullptr, false, suppress_intercept, has_intercept_column);
+
+      total_fs_iter += final_fit.iter;
 
       static_cast<InferenceGLM &>(result) = std::move(final_fit);
+      result.iter = total_fs_iter; // Set cumulative iterations
       result.conv_outer = true;
       result.objective_function = cv;
 
@@ -147,16 +156,19 @@ inline InferenceAPPML appml_iterate(
       result.residuals = y - result.fitted_values;
       uword neg_count = 0;
       for (uword i = 0; i < n; ++i) {
-        if (result.residuals(i) < 0.0) neg_count++;
+        if (result.residuals(i) < 0.0)
+          neg_count++;
       }
       result.appml_weights = appml_w;
-      result.negative_residuals_share = static_cast<double>(neg_count) / static_cast<double>(n);
+      result.negative_residuals_share =
+          static_cast<double>(neg_count) / static_cast<double>(n);
 
       if (trace) {
         cpp4r::message("\nAPPML converged after %lu iterations\n",
-                static_cast<unsigned long>(iter + 1));
+                       static_cast<unsigned long>(iter + 1));
         cpp4r::message("Tolerance = %.2e, Objective = %.6e\n", tol, cv);
-        cpp4r::message("%% negative residuals = %.3f%%\n", 100.0 * result.negative_residuals_share);
+        cpp4r::message("%% negative residuals = %.3f%%\n",
+                       100.0 * result.negative_residuals_share);
         cpp4r::message("Expectile = %.3f\n", tau);
       }
 
@@ -178,8 +190,9 @@ inline InferenceAPPML appml_iterate(
 
   // Max iterations reached
   if (trace) {
-    cpp4r::message("\nAPPML: Max iterations (%lu) reached without convergence\n",
-            static_cast<unsigned long>(max_iter));
+    cpp4r::message(
+        "\nAPPML: Max iterations (%lu) reached without convergence\n",
+        static_cast<unsigned long>(max_iter));
     cpp4r::message("Final objective function = %.6e\n", cv);
   }
 
@@ -189,33 +202,39 @@ inline InferenceAPPML appml_iterate(
   vec eta_final = eta_work;
   fe_map_iter.update_weights(combined_w);
 
-  InferenceGLM final_fit =
-      feglm_fit(beta_coef, eta_final, y, X_final, combined_w, 0.0, POISSON,
-                fe_map_iter, iter_params, &final_ws, nullptr, offset_ptr,
-                true, nullptr, nullptr, false, suppress_intercept,
-                has_intercept_column);
+  InferenceGLM final_fit = feglm_fit(
+      beta_coef, eta_final, y, X_final, combined_w, 0.0, POISSON, fe_map_iter,
+      iter_params, &final_ws, nullptr, offset_ptr, true, nullptr, nullptr,
+      false, suppress_intercept, has_intercept_column);
+
+  total_fs_iter += final_fit.iter;
 
   static_cast<InferenceGLM &>(result) = std::move(final_fit);
+  result.iter = total_fs_iter; // Set cumulative iterations
   result.conv_outer = false;
   result.objective_function = cv;
 
   result.residuals = y - result.fitted_values;
   uword neg_count = 0;
   for (uword i = 0; i < n; ++i) {
-    if (result.residuals(i) < 0.0) neg_count++;
+    if (result.residuals(i) < 0.0)
+      neg_count++;
   }
   result.appml_weights = appml_w;
-  result.negative_residuals_share = static_cast<double>(neg_count) / static_cast<double>(n);
+  result.negative_residuals_share =
+      static_cast<double>(neg_count) / static_cast<double>(n);
 
   return result;
 }
 
 // Main APPML fit function
-InferenceAPPML fepoisson_asymmetric_fit(
-    mat &X, const vec &y, const vec &w, const FlatFEMap &fe_map,
-    const CapybaraParameters &params, const vec &offset = vec(),
-    GlmWorkspace *workspace = nullptr, bool suppress_intercept = false,
-    bool has_intercept_column = false) {
+InferenceAPPML fepoisson_asymmetric_fit(mat &X, const vec &y, const vec &w,
+                                        const FlatFEMap &fe_map,
+                                        const CapybaraParameters &params,
+                                        const vec &offset = vec(),
+                                        GlmWorkspace *workspace = nullptr,
+                                        bool suppress_intercept = false,
+                                        bool has_intercept_column = false) {
 
   const uword n = y.n_elem;
   const uword p = X.n_cols;
@@ -240,9 +259,9 @@ InferenceAPPML fepoisson_asymmetric_fit(
   mat X_init = X;
 
   InferenceGLM initial_fit =
-      feglm_fit(beta_coef, eta_empty, y, X_init, w, 0.0, POISSON, fe_map, params,
-                &init_workspace, nullptr, offset_ptr, false, nullptr, nullptr,
-                false, suppress_intercept, has_intercept_column);
+      feglm_fit(beta_coef, eta_empty, y, X_init, w, 0.0, POISSON, fe_map,
+                params, &init_workspace, nullptr, offset_ptr, false, nullptr,
+                nullptr, false, suppress_intercept, has_intercept_column);
 
   if (!initial_fit.conv) {
     static_cast<InferenceGLM &>(result) = std::move(initial_fit);
@@ -254,11 +273,12 @@ InferenceAPPML fepoisson_asymmetric_fit(
   // =========================================================================
   // Step 2: Check for separation and branch accordingly
   // =========================================================================
-  const bool has_sep = initial_fit.has_separation && initial_fit.separated_obs.n_elem > 0;
+  const bool has_sep =
+      initial_fit.has_separation && initial_fit.separated_obs.n_elem > 0;
 
   if (has_sep && trace) {
     cpp4r::message("Separation detected: %lu observation(s) excluded\n",
-            static_cast<unsigned long>(initial_fit.num_separated));
+                   static_cast<unsigned long>(initial_fit.num_separated));
   }
 
   // For expectile == 0.5, just return standard Poisson result
@@ -278,11 +298,15 @@ InferenceAPPML fepoisson_asymmetric_fit(
       }
     }
     result.negative_residuals_share =
-        valid_count > 0 ? static_cast<double>(neg_count) / static_cast<double>(valid_count) : 0.0;
+        valid_count > 0
+            ? static_cast<double>(neg_count) / static_cast<double>(valid_count)
+            : 0.0;
 
     if (trace) {
-      cpp4r::message("APPML: expectile = 0.5, using standard Poisson (no iteration)\n");
-      cpp4r::message("%% negative residuals = %.3f%%\n", 100.0 * result.negative_residuals_share);
+      cpp4r::message(
+          "APPML: expectile = 0.5, using standard Poisson (no iteration)\n");
+      cpp4r::message("%% negative residuals = %.3f%%\n",
+                     100.0 * result.negative_residuals_share);
     }
 
     // Working sample: all non-separated observations
@@ -339,8 +363,11 @@ InferenceAPPML fepoisson_asymmetric_fit(
 
     // Run APPML on subsetted data
     InferenceAPPML iter_result = appml_iterate(
-        X_work, y_work, w_work, fe_map_work, params, offset_work,
-        beta_start, eta_start, mu_start, suppress_intercept, has_intercept_column);
+        X_work, y_work, w_work, fe_map_work, params, offset_work, beta_start,
+        eta_start, mu_start, suppress_intercept, has_intercept_column);
+
+    // Add initial fit iterations to total
+    iter_result.iter += initial_fit.iter;
 
     // Copy separation info from initial fit
     iter_result.has_separation = true;
@@ -357,9 +384,12 @@ InferenceAPPML fepoisson_asymmetric_fit(
     vec mu_start = initial_fit.fitted_values;
 
     // Run APPML on full data with original FE map
-    InferenceAPPML iter_result = appml_iterate(
-        X, y, w, fe_map, params, offset,
-        beta_start, eta_start, mu_start, suppress_intercept, has_intercept_column);
+    InferenceAPPML iter_result =
+        appml_iterate(X, y, w, fe_map, params, offset, beta_start, eta_start,
+                      mu_start, suppress_intercept, has_intercept_column);
+
+    // Add initial fit iterations to total
+    iter_result.iter += initial_fit.iter;
 
     iter_result.working_obs_idx = regspace<uvec>(0, n - 1);
 

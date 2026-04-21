@@ -148,8 +148,8 @@ detect_separation_simplex(const mat &X_centered, const uvec &boundary_sample,
   const vec w_interior = w.elem(interior_sample);
 
   // Step 1: Find collinear columns on interior sample
-  const uvec ok_cols = find_noncollinear_cols(X_interior, w_interior,
-                                              params.collin_tol);
+  const uvec ok_cols =
+      find_noncollinear_cols(X_interior, w_interior, params.collin_tol);
   const uword n_ok = ok_cols.n_elem;
 
   if (n_ok == k) {
@@ -336,61 +336,6 @@ detect_separation_simplex(const mat &X_centered, const uvec &boundary_sample,
   }
 
   // Convert dropped_obs mask to separated_obs indices (in boundary_sample)
-  result.separated_obs = find(dropped_obs);
-  result.num_separated = result.separated_obs.n_elem;
-  result.converged = true;
-
-  return result;
-}
-
-// Legacy interface for backward compatibility (without collinearity check)
-// This should NOT be used - kept only for reference
-inline SeparationResult
-detect_separation_simplex(const mat &residuals,
-                          const CapybaraParameters &params) {
-  SeparationResult result;
-  result.converged = false;
-  result.num_separated = 0;
-
-  if (residuals.n_elem == 0) {
-    result.converged = true;
-    return result;
-  }
-
-  mat X = residuals;
-  uword n = X.n_rows;
-  uword k = X.n_cols;
-
-  // Use byte masks instead of uvec (8x memory reduction)
-  Col<unsigned char> dropped_obs(n, fill::zeros);
-  Col<unsigned char> dropped_vars(k, fill::zeros);
-
-  // Test 1: Inspect each column and check if all values have the same sign
-  rowvec col_min = min(X, 0);
-  rowvec col_max = max(X, 0);
-  col_min.clean(params.sep_tol);
-  col_max.clean(params.sep_tol);
-
-  for (uword j = 0; j < k; ++j) {
-    if (col_min(j) == 0 && col_max(j) == 0) {
-      dropped_vars(j) = 1;
-    } else if (col_min(j) >= 0) {
-      for (uword i = 0; i < n; ++i) {
-        if (X(i, j) > params.sep_tol) {
-          dropped_obs(i) = 1;
-        }
-      }
-      dropped_vars(j) = 1;
-    } else if (col_max(j) <= 0) {
-      for (uword i = 0; i < n; ++i) {
-        if (X(i, j) < -params.sep_tol) {
-          dropped_obs(i) = 1;
-        }
-      }
-      dropped_vars(j) = 1;
-    }
-  }
-
   result.separated_obs = find(dropped_obs);
   result.num_separated = result.separated_obs.n_elem;
   result.converged = true;

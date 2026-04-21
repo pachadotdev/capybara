@@ -1,4 +1,4 @@
-sink("dev/check-appml.txt")
+devtools::install(".", upgrade = "never")
 
 library(capybara)
 library(data.table)
@@ -43,14 +43,30 @@ tails <- tails[!is.na(EIAp)]
 # Create interaction term for INTER and year
 tails[, INTER_YEAR := interaction(INTER, year, sep = "_")]
 
+# Expected result ----
+
+# From the Tails of Gravity:
+
+# Table 4  Baseline results for selected expectiles.
+#        10th     50th     90th     10th–90th
+# EIAijt 0.314∗∗∗ 0.198∗∗∗ 0.131∗∗∗ 0.183∗∗∗
+#        (0.057)  (0.042)  (0.032)  (0.048)
+# Note: All models include Exporter-year, Importer-year, and Pair fixed effects.
+# Number of observations is 1,499,735. Estimates for the 50th expectile correspond to the standard
+# PPML estimates for the mean. Clustered standard errors by country-pair are in parentheses,
+# ∗ p < .10, ∗∗ p < .05, ∗∗∗ p < .01.
+
 # Expectile 50% ----
 
 fepoisson(trade_all ~ EIAp | INTER_YEAR + expyear2 + impyear2 + pairid, data = tails)
 
+fepoisson(trade_all ~ EIAp | INTER_YEAR + expyear2 + impyear2 + pairid, data = tails,
+  control = fit_control(check_separation = FALSE))
+
 fepoisson_asymmetric(trade_all ~ EIAp | INTER_YEAR + expyear2 + impyear2 + pairid, data = tails,
   control = fit_control(expectile = 0.5, expectile_trace = TRUE, check_separation = TRUE))
 
-fepoisson(trade_all ~ EIAp | INTER_YEAR + expyear2 + impyear2 + pairid, data = tails,
+fepoisson_asymmetric(trade_all ~ EIAp | INTER_YEAR + expyear2 + impyear2 + pairid, data = tails,
   control = fit_control(expectile = 0.5, expectile_trace = TRUE, check_separation = FALSE))
 
 # Expectile 10% ----
@@ -68,5 +84,3 @@ fepoisson_asymmetric(trade_all ~ EIAp | INTER_YEAR + expyear2 + impyear2 + pairi
 
 fepoisson_asymmetric(trade_all ~ EIAp | INTER_YEAR + expyear2 + impyear2 + pairid, data = tails,
   control = fit_control(expectile = 0.9, expectile_trace = TRUE, check_separation = FALSE))
-
-sink()

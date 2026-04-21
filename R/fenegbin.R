@@ -222,7 +222,7 @@ fenegbin <- function(
 
   # Information if convergence failed ----
   if (!isTRUE(fit[["conv_outer"]])) {
-    cat("Algorithm did not converge.\n")
+    warning("Algorithm did not converge.\n")
   }
 
   # Get term names from C++ result ----

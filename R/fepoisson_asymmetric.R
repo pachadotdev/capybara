@@ -186,7 +186,7 @@ fepoisson_asymmetric <- function(
   }
 
   # Determine needed columns (validates they exist) ----
-  cols_info <- get_needed_cols_(formula, data, weights, offset)
+  get_needed_cols_(formula, data, weights, offset)
 
   # Preserve original row names ----
   orig_rownames <- rownames(data)
@@ -194,9 +194,6 @@ fepoisson_asymmetric <- function(
 
   # Convert formula to normalized string for C++ ----
   formula_str <- normalize_formula_(formula, data)
-
-  # Detect if intercept is suppressed (e.g., ~ wt - 1)
-  has_intercept <- !grepl("__NO_INTERCEPT__", formula_str, fixed = TRUE)
 
   # Extract offset before fitting ----
   offset_vec <- extract_offset_(offset, data, nrow(data))
@@ -220,7 +217,7 @@ fepoisson_asymmetric <- function(
   nobs_full <- nrow(data)
 
   # Get FE variable names ----
-  fe_vars <- check_fe_(formula, data)
+  check_fe_(formula, data)
 
   # Starting guesses ----
   beta <- if (!is.null(beta_start)) as.numeric(beta_start) else numeric(0)
@@ -266,27 +263,14 @@ fepoisson_asymmetric <- function(
 
   # Information if convergence failed ----
   if (!isTRUE(fit[["conv_outer"]])) {
-    warning(
-      "APPML algorithm did not converge after ", fit[["iter_outer"]], " iterations. ",
-      "Final objective function: ", format(fit[["objective_function"]], scientific = TRUE),
-      call. = FALSE
-    )
+    warning("Algorithm did not converge.\n")
   }
 
   # Get term names from C++ result ----
-  # C++ now includes "(Intercept)" when applicable, so use term_names directly
-  n_coef <- nrow(fit[["coef_table"]])
-  nms_sp <- if (!is.null(fit[["term_names"]]) && 
-                length(fit[["term_names"]]) == n_coef) {
+  nms_sp <- if (!is.null(fit[["term_names"]])) {
     fit[["term_names"]]
   } else {
-    # Fallback for edge cases - check if model has FE
-    has_fe <- !is.null(nms_fe) && length(nms_fe) > 0
-    if (!has_fe && n_coef > 0) {
-      c("(Intercept)", paste0("V", seq_len(n_coef - 1)))
-    } else {
-      paste0("V", seq_len(n_coef))
-    }
+    paste0("V", seq_len(nrow(fit[["coef_table"]])))
   }
 
   # Add names to outputs ----
