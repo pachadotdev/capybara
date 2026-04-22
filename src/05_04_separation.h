@@ -22,7 +22,9 @@ inline SeparationResult check_separation(const vec &y, const mat &X,
   // Following ppmlhdfe: partial out X on the interior (y > 0) sample
   // For FE models: use full AP demeaning through FE structure
   // For non-FE models: just subtract weighted mean
-  mat X_centered;
+  // Use pointer to avoid copying X when no centering is needed
+  mat X_centered_storage;
+  const mat *X_to_use = &X;
   const bool has_fe = (fe_map.K > 0 && fe_map.structure_built);
 
   if (X.n_cols > 0 && interior_sample.n_elem > 0) {
@@ -35,29 +37,32 @@ inline SeparationResult check_separation(const vec &y, const mat &X,
       if (has_fe) {
         // FE case: use centering algorithm to partial out FE
         // This matches ppmlhdfe's HDFE._partial_out()
-        X_centered = X;
+        X_centered_storage = X;
 
         // Update FE map with interior-only weights
         fe_map.update_weights(w_interior);
 
         // Center X through the FE structure
-        center_variables(X_centered, w_interior, fe_map, params.center_tol,
-                         params.iter_center_max, params.grand_acc_period);
+        center_variables(X_centered_storage, w_interior, fe_map,
+                         params.center_tol, params.iter_center_max,
+                         params.grand_acc_period);
 
         // Restore original weights
         fe_map.update_weights(w);
+        X_to_use = &X_centered_storage;
       } else {
         // Non-FE case: simple mean centering
         const vec center_vec = (X.t() * w_interior) / sum_w;
-        X_centered = X;
-        X_centered.each_row() -= center_vec.t();
+        X_centered_storage = X;
+        X_centered_storage.each_row() -= center_vec.t();
+        X_to_use = &X_centered_storage;
       }
-    } else {
-      X_centered = X;
     }
-  } else {
-    X_centered = X;
+    // else: X_to_use remains &X (no copy needed)
   }
+  // else: X_to_use remains &X (no copy needed)
+
+  const mat &X_centered = *X_to_use;
 
   // Simplex algorithm with collinearity-aware residual computation
   // (matches ppmlhdfe logic)

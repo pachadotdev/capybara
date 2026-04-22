@@ -335,7 +335,7 @@ struct CapybaraParameters {
 #include "06_01_fit_helpers.h"
 #include "06_02_fit_deviance.h"
 #include "06_03_fit_links.h"
-#include "06_04_fit_separation.h"
+#include "06_04_fit_drop.h"
 #include "06_05_fit_vcov.h"
 #include "06_06_fit_sums.h"
 

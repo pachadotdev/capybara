@@ -120,7 +120,7 @@ inline void simplex_presolve(mat &X, uvec &basic_vars, uvec &nonbasic_vars,
 }
 
 // Main simplex algorithm following ppmlhdfe logic:
-// 1. Check collinearity on interior (y>0) sample
+// 1. Check collinearity on interior (y>0) sample using zero weights on boundary
 // 2. Compute residuals of collinear vars by regressing on non-collinear vars
 // 3. Test 1: Check if residuals have uniform sign
 // 4. Test 2: Full simplex on residuals
@@ -137,19 +137,21 @@ detect_separation_simplex(const mat &X_centered, const uvec &boundary_sample,
     return result;
   }
 
+  const uword n = X_centered.n_rows;
   const uword n_boundary = boundary_sample.n_elem;
   const uword k = X_centered.n_cols;
 
   // Use byte masks for memory efficiency
   Col<unsigned char> dropped_obs(n_boundary, fill::zeros);
 
-  // Extract interior data for collinearity check
-  const mat X_interior = X_centered.rows(interior_sample);
-  const vec w_interior = w.elem(interior_sample);
+  // Create interior weights: zero out boundary observations instead of copying
+  vec w_interior = w;
+  w_interior.elem(boundary_sample).zeros();
 
-  // Step 1: Find collinear columns on interior sample
+  // Step 1: Find collinear columns on interior sample (using zero-weight
+  // strategy)
   const uvec ok_cols =
-      find_noncollinear_cols(X_interior, w_interior, params.collin_tol);
+      find_noncollinear_cols(X_centered, w_interior, params.collin_tol);
   const uword n_ok = ok_cols.n_elem;
 
   if (n_ok == k) {
@@ -169,38 +171,67 @@ detect_separation_simplex(const mat &X_centered, const uvec &boundary_sample,
     return result;
   }
 
-  // Extract boundary data
-  const mat X_boundary = X_centered.rows(boundary_sample);
-
   // Step 2: Compute residuals of flagged (collinear) variables on boundary
-  // By regressing them on non-flagged vars using interior data,
-  // then predicting for boundary data
-  mat residuals;
-  if (n_ok == 0) {
-    // All variables are collinear - use the data directly (no regression)
-    residuals = X_boundary.cols(flagged_vars);
-  } else {
-    // Regress flagged vars on ok vars using interior data
-    // Then compute residuals on boundary data
-    const mat X_ok_int = X_interior.cols(ok_cols);
-    const mat X_flag_int = X_interior.cols(flagged_vars);
-    const mat X_ok_bnd = X_boundary.cols(ok_cols);
-    const mat X_flag_bnd = X_boundary.cols(flagged_vars);
+  // By regressing them on non-flagged vars using interior weights (boundary=0),
+  // then computing residuals for boundary observations only
+  mat residuals(n_boundary, n_flagged);
 
-    // Weighted least squares: b = (X_ok' W X_ok)^-1 X_ok' W X_flag
-    // Using interior sample only
-    const mat X_ok_w = X_ok_int.each_col() % sqrt(w_interior);
-    const mat X_flag_w = X_flag_int.each_col() % sqrt(w_interior);
-    const mat XtX = X_ok_w.t() * X_ok_w;
+  if (n_ok == 0) {
+    // All variables are collinear - extract boundary rows directly
+    for (uword j = 0; j < n_flagged; ++j) {
+      const uword col_idx = flagged_vars(j);
+      for (uword i = 0; i < n_boundary; ++i) {
+        residuals(i, j) = X_centered(boundary_sample(i), col_idx);
+      }
+    }
+  } else {
+    // Regress flagged vars on ok vars using interior weights (zero-weight
+    // strategy) Compute: b = (X_ok' W X_ok)^-1 X_ok' W X_flag where W has zeros
+    // for boundary observations
+
+    const vec sqrt_w_int = sqrt(w_interior);
+
+    // Build weighted cross-products without copying submatrices
+    // XtX_ok = sum_i w_i * X_ok[i,:].t() * X_ok[i,:]
+    mat XtX_ok(n_ok, n_ok, fill::zeros);
+    mat XtX_ok_flag(n_ok, n_flagged, fill::zeros);
+
+    for (uword i = 0; i < n; ++i) {
+      const double sw = sqrt_w_int(i);
+      if (sw > 0) {
+        // Build weighted outer products incrementally
+        for (uword j1 = 0; j1 < n_ok; ++j1) {
+          const double x1 = sw * X_centered(i, ok_cols(j1));
+          for (uword j2 = j1; j2 < n_ok; ++j2) {
+            const double x2 = sw * X_centered(i, ok_cols(j2));
+            XtX_ok(j1, j2) += x1 * x2;
+          }
+          for (uword j2 = 0; j2 < n_flagged; ++j2) {
+            XtX_ok_flag(j1, j2) += x1 * sw * X_centered(i, flagged_vars(j2));
+          }
+        }
+      }
+    }
+    // Fill lower triangle (symmetric)
+    XtX_ok = symmatu(XtX_ok);
 
     mat b;
-    if (!solve(b, XtX, X_ok_w.t() * X_flag_w, solve_opts::likely_sympd)) {
-      // Singular - fallback to pinv
-      b = pinv(XtX) * (X_ok_w.t() * X_flag_w);
+    if (!solve(b, XtX_ok, XtX_ok_flag, solve_opts::likely_sympd)) {
+      b = pinv(XtX_ok) * XtX_ok_flag;
     }
 
-    // Residuals on boundary: X_flag_bnd - X_ok_bnd * b
-    residuals = X_flag_bnd - X_ok_bnd * b;
+    // Compute residuals only for boundary observations: X_flag[bnd] - X_ok[bnd]
+    // * b
+    for (uword i = 0; i < n_boundary; ++i) {
+      const uword row = boundary_sample(i);
+      for (uword j = 0; j < n_flagged; ++j) {
+        double pred = 0.0;
+        for (uword c = 0; c < n_ok; ++c) {
+          pred += X_centered(row, ok_cols(c)) * b(c, j);
+        }
+        residuals(i, j) = X_centered(row, flagged_vars(j)) - pred;
+      }
+    }
   }
 
   // Clean up tiny values
@@ -242,20 +273,29 @@ detect_separation_simplex(const mat &X_centered, const uvec &boundary_sample,
 
   // Step 4: Test 2 - Full simplex on remaining observations and variables
   // (only if there are remaining flagged variables with mixed signs)
-  uvec remaining_vars_idx;
+  // Count first, then allocate once (avoid O(n²) resizing)
+  uword n_remaining_vars = 0;
   for (uword j = 0; j < n_flagged; ++j) {
     if (!dropped_vars(j))
-      remaining_vars_idx.resize(remaining_vars_idx.n_elem + 1);
+      ++n_remaining_vars;
+  }
+  uvec remaining_vars_idx(n_remaining_vars);
+  uword var_idx = 0;
+  for (uword j = 0; j < n_flagged; ++j) {
     if (!dropped_vars(j))
-      remaining_vars_idx(remaining_vars_idx.n_elem - 1) = j;
+      remaining_vars_idx(var_idx++) = j;
   }
 
-  uvec remaining_obs_idx;
+  uword n_remaining_obs = 0;
   for (uword i = 0; i < n_boundary; ++i) {
     if (!dropped_obs(i))
-      remaining_obs_idx.resize(remaining_obs_idx.n_elem + 1);
+      ++n_remaining_obs;
+  }
+  uvec remaining_obs_idx(n_remaining_obs);
+  uword obs_idx = 0;
+  for (uword i = 0; i < n_boundary; ++i) {
     if (!dropped_obs(i))
-      remaining_obs_idx(remaining_obs_idx.n_elem - 1) = i;
+      remaining_obs_idx(obs_idx++) = i;
   }
 
   if (remaining_vars_idx.n_elem > 1 && remaining_obs_idx.n_elem > 0) {
