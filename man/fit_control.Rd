@@ -21,10 +21,12 @@ fit_control(
   centering = "berge",
   sep_tol = 1e-08,
   sep_zero_tol = 1e-08,
+  sep_mu_tol = 1e-06,
   sep_max_iter = 200L,
   sep_simplex_max_iter = 2000L,
   sep_use_relu = TRUE,
   sep_use_simplex = TRUE,
+  sep_use_mu = TRUE,
   return_fe = FALSE,
   keep_tx = FALSE,
   keep_data = FALSE,
@@ -99,6 +101,10 @@ and grand acceleration.}
 
 \item{sep_zero_tol}{tolerance for treating values as zero in separation detection. The default is \code{1.0e-08}.}
 
+\item{sep_mu_tol}{tolerance for mu-based separation detection during IRLS iterations. Observations with
+\code{y == 0} and \code{eta <= log(sep_mu_tol)} are flagged as separated. Based on ppmlhdfe's mu separation
+method. The default is \code{1.0e-06}.}
+
 \item{sep_max_iter}{maximum iterations for ReLU separation detection algorithm. The default is \code{200L}.}
 
 \item{sep_simplex_max_iter}{maximum iterations for simplex separation detection algorithm. The default is \code{2000L}.}
@@ -106,6 +112,10 @@ and grand acceleration.}
 \item{sep_use_relu}{logical indicating whether to use the ReLU algorithm for separation detection. The default is \code{TRUE}.}
 
 \item{sep_use_simplex}{logical indicating whether to use the simplex algorithm for separation detection. The default is \code{TRUE}.}
+
+\item{sep_use_mu}{logical indicating whether to use mu-based separation detection during IRLS iterations.
+This catches observations where predicted values become extremely small (suggesting perfect prediction
+of zeros). Following ppmlhdfe methodology. The default is \code{TRUE}.}
 
 \item{return_fe}{logical indicating if the fixed effects should be returned. This can be useful when fitting general
 equilibrium models where skipping the fixed effects for intermediate steps speeds up computation. Note: Set to

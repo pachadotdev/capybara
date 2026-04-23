@@ -362,7 +362,8 @@ inline void expand_separation_result(InferenceGLM &result,
                                      const InferenceGLM &result_sub,
                                      const SeparationSubset &sub,
                                      const uvec &separated_obs,
-                                     const vec *separation_support) {
+                                     const vec *separation_support,
+                                     const uvec *separated_coefs = nullptr) {
   // Validate result dimensions before mapping back
   if (result_sub.eta.n_elem != sub.n_kept) {
     cpp4r::stop("Internal error: result_sub.eta has %u elements, expected %u",
@@ -386,6 +387,19 @@ inline void expand_separation_result(InferenceGLM &result,
   result.coef_status = result_sub.coef_status;
   result.pseudo_rsq = result_sub.pseudo_rsq;
 
+  // Set separated coefficients to -Inf (perfectly predict y=0)
+  if (separated_coefs != nullptr && separated_coefs->n_elem > 0) {
+    for (uword i = 0; i < separated_coefs->n_elem; ++i) {
+      const uword coef_idx = (*separated_coefs)(i);
+      if (coef_idx < result.coef_table.n_rows) {
+        result.coef_table(coef_idx, 0) = -datum::inf; // Estimate
+        result.coef_table(coef_idx, 1) = datum::nan;  // Std. Error
+        result.coef_table(coef_idx, 2) = datum::nan;  // z value
+        result.coef_table(coef_idx, 3) = datum::nan;  // Pr(>|z|)
+      }
+    }
+  }
+
   // Expand eta and fitted_values back to original size
   result.eta.set_size(sub.n_orig);
   result.eta.fill(datum::nan);
@@ -399,12 +413,31 @@ inline void expand_separation_result(InferenceGLM &result,
   if (result_sub.fixed_effects.n_elem > 0) {
     result.fixed_effects = result_sub.fixed_effects;
   }
+  result.has_fe = result_sub.has_fe;
+
+  // Copy APE results if computed
+  if (result_sub.has_apes) {
+    result.ape_delta = result_sub.ape_delta;
+    result.ape_vcov = result_sub.ape_vcov;
+    result.ape_binary = result_sub.ape_binary;
+    result.has_apes = true;
+  }
+
+  // Copy bias correction results if computed
+  if (result_sub.has_bias_corr) {
+    result.beta_corrected = result_sub.beta_corrected;
+    result.bias_term = result_sub.bias_term;
+    result.has_bias_corr = true;
+  }
 
   result.has_separation = true;
   result.separated_obs = separated_obs;
   result.num_separated = separated_obs.n_elem;
   if (separation_support != nullptr && separation_support->n_elem > 0) {
     result.separation_support = *separation_support;
+  }
+  if (separated_coefs != nullptr && separated_coefs->n_elem > 0) {
+    result.separated_coefs = *separated_coefs;
   }
 }
 
@@ -863,8 +896,11 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
                                    true);
       const vec *support_ptr =
           sep_result.support.n_elem > 0 ? &sep_result.support : nullptr;
+      const uvec *sep_coefs_ptr = sep_result.separated_coefs.n_elem > 0
+                                      ? &sep_result.separated_coefs
+                                      : nullptr;
       expand_separation_result(result_with_sep, result_sub, sub, all_separated,
-                               support_ptr);
+                               support_ptr, sep_coefs_ptr);
       return result_with_sep;
     }
   } else if (group_sep_result.num_separated > 0) {
@@ -1038,6 +1074,20 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   // the non-collinear columns. For FE recovery, we use X directly with
   // beta.elem(non_collinear_cols) which matches the post-shed column structure.
 
+  // Mu-based separation detection during IRLS (ppmlhdfe style)
+  // Only for Poisson-family models when separation checking is enabled
+  const bool do_mu_sep = (family_type == POISSON || family_type == NEG_BIN) &&
+                         params.check_separation && params.sep_use_mu &&
+                         !skip_separation_check;
+  const double log_septol =
+      do_mu_sep ? std::log(params.sep_mu_tol) : -datum::inf;
+  Col<unsigned char> mu_sep_mask; // byte mask for memory efficiency
+  uvec zero_sample;               // indices where y == 0
+  if (do_mu_sep) {
+    zero_sample = find(y == 0);
+    mu_sep_mask.zeros(n);
+  }
+
 #ifdef CAPYBARA_DEBUG
   cpp4r::message("/// Begin GLM iterations...\n");
   auto tglmiter0 = std::chrono::high_resolution_clock::now();
@@ -1084,6 +1134,19 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
         if (!std::isfinite(ww_ptr[i]) || !std::isfinite(z_ptr[i])) {
           ww_ptr[i] = 0.0;
           z_ptr[i] = 0.0;
+        }
+      }
+    }
+
+    // Zero working weights for observations already marked as separated
+    // This ensures separated obs don't contribute to coefficient estimation
+    // (following ppmlhdfe: mu=0 for separated obs means w=0 in next iteration)
+    if (do_mu_sep && iter > 0) {
+      double *ww_ptr = w_working.memptr();
+      const unsigned char *mask_ptr = mu_sep_mask.memptr();
+      for (uword i = 0; i < n; ++i) {
+        if (mask_ptr[i]) {
+          ww_ptr[i] = 0.0;
         }
       }
     }
@@ -1212,6 +1275,34 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       mu_(mu, eta0);
     }
 
+    // Mu-based separation detection during IRLS (ppmlhdfe style)
+    // Check if eta is below threshold for observations with y=0
+    if (do_mu_sep && zero_sample.n_elem > 0) {
+      // Adjusted tolerance based on minimum eta when y > 0
+      // Following ppmlhdfe: adjusted_log_septol = log_septol +
+      // min(min(eta[y>0])
+      // + 5, 0)
+      const uvec pos_sample = find(y > 0);
+      double adjusted_log_septol = log_septol;
+      if (pos_sample.n_elem > 0) {
+        const double min_eta_positive = min(eta.elem(pos_sample));
+        adjusted_log_septol += std::min(min_eta_positive + 5.0, 0.0);
+      }
+
+      // Mark separated observations: eta <= adjusted_log_septol AND y == 0
+      // Use OR to accumulate across iterations
+      const double *eta_ptr = eta.memptr();
+      double *mu_ptr = mu.memptr();
+      unsigned char *mask_ptr = mu_sep_mask.memptr();
+      for (uword i = 0; i < zero_sample.n_elem; ++i) {
+        const uword idx = zero_sample(i);
+        if (eta_ptr[idx] <= adjusted_log_septol) {
+          mask_ptr[idx] = 1;
+          mu_ptr[idx] = 0.0; // Set mu to 0 for separated observations
+        }
+      }
+    }
+
     const double delta_deviance = dev0 - dev;
 
     // Adaptive centering tolerance: always driven by eta, since the
@@ -1275,6 +1366,39 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     }
 
     result.iter = iter + 1;
+  }
+
+  // Post-IRLS handling of mu-based separated observations
+  // Following ppmlhdfe: if separation found during IRLS, subset data and re-fit
+  if (do_mu_sep) {
+    const uvec irls_sep_obs = find(mu_sep_mask);
+    if (irls_sep_obs.n_elem > 0) {
+#ifdef CAPYBARA_DEBUG
+      cpp4r::message("IRLS detected %u mu-based separated observations\n",
+                     (unsigned)irls_sep_obs.n_elem);
+#endif
+      // Subset data and recursively fit without separated observations
+      SeparationSubset sub = subset_for_separation(
+          beta, eta, y, X, w, fe_map, cluster_groups, offset, irls_sep_obs);
+
+      const vec *offset_sub_ptr = sub.has_offset ? &sub.offset_sub : nullptr;
+      const field<uvec> *cluster_sub_ptr =
+          sub.has_cluster_groups ? &sub.cluster_groups_sub : nullptr;
+
+      // Re-fit with subsetted data, skipping separation check (we already
+      // handled it)
+      InferenceGLM result_sub =
+          feglm_fit(sub.beta_sub, sub.eta_sub, sub.y_sub, sub.X_sub, sub.w_sub,
+                    theta, family_type, sub.fe_map_sub, params, nullptr,
+                    cluster_sub_ptr, offset_sub_ptr, true, nullptr, nullptr,
+                    run_from_negbin, suppress_intercept, intercept_in_X);
+
+      InferenceGLM result_with_sep(sub.n_orig, result_sub.coef_table.n_rows,
+                                   true);
+      expand_separation_result(result_with_sep, result_sub, sub, irls_sep_obs,
+                               nullptr);
+      return result_with_sep;
+    }
   }
 
 #ifdef CAPYBARA_DEBUG

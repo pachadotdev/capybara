@@ -110,11 +110,13 @@ struct CapybaraParameters {
   // Separation detection parameters
   double sep_tol;              // Convergence tolerance
   double sep_zero_tol;         // Tolerance for treating values as zero
+  double sep_mu_tol;           // Mu-based separation tolerance (ppmlhdfe style)
   size_t sep_max_iter;         // Max iterations for ReLU algorithm
   size_t sep_simplex_max_iter; // Max iterations for simplex algorithm
   bool check_separation;       // Whether to perform separation detection
   bool sep_use_relu;           // Use ReLU algorithm
   bool sep_use_simplex;        // Use simplex algorithm
+  bool sep_use_mu;             // Use mu-based detection during IRLS
 
   size_t iter_max;
   size_t iter_center_max;
@@ -171,11 +173,13 @@ struct CapybaraParameters {
     // Separation detection parameters
     sep_tol = as_cpp<double>(control["sep_tol"]);
     sep_zero_tol = as_cpp<double>(control["sep_zero_tol"]);
+    sep_mu_tol = as_cpp<double>(control["sep_mu_tol"]);
     sep_max_iter = as_cpp<size_t>(control["sep_max_iter"]);
     sep_simplex_max_iter = as_cpp<size_t>(control["sep_simplex_max_iter"]);
     check_separation = as_cpp<bool>(control["check_separation"]);
     sep_use_relu = as_cpp<bool>(control["sep_use_relu"]);
     sep_use_simplex = as_cpp<bool>(control["sep_use_simplex"]);
+    sep_use_mu = as_cpp<bool>(control["sep_use_mu"]);
 
     iter_max = as_cpp<size_t>(control["iter_max"]);
     iter_center_max = as_cpp<size_t>(control["iter_center_max"]);
@@ -1291,7 +1295,7 @@ feglm_fit_(const std::string &formula_str, SEXP df, const doubles &beta_r,
   }
 
   if (family_type == capybara::POISSON && result.pseudo_rsq > 0.0) {
-    out.push_back({"pseudo.rsq"_nm = result.pseudo_rsq});
+    out.push_back({"pseudo_rsq"_nm = result.pseudo_rsq});
   }
 
   if (result.has_separation) {
@@ -1700,7 +1704,7 @@ feglm_fit_(const std::string &formula_str, SEXP df, const doubles &beta_r,
   }
 
   if (family_type == capybara::POISSON && result.pseudo_rsq > 0.0) {
-    out.push_back({"pseudo.rsq"_nm = result.pseudo_rsq});
+    out.push_back({"pseudo_rsq"_nm = result.pseudo_rsq});
   }
 
   if (result.has_separation) {

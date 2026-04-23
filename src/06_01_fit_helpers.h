@@ -32,6 +32,7 @@ struct InferenceGLM {
   bool has_separation = false;
   uword num_separated = 0;
   uvec separated_obs;
+  uvec separated_coefs; // Coefficients that perfectly predict y=0 (set to -Inf)
   vec separation_support;
 
   // Average Partial Effects (APE) fields for binomial models

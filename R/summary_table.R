@@ -201,8 +201,8 @@ summary_table <- function(
     sapply(models, function(m) {
       if (inherits(m, "felm")) {
         formatC(m$r_squared, digits = 3, format = "f")
-      } else if (inherits(m, "feglm") && !is.null(m$pseudo.rsq)) {
-        formatC(m$pseudo.rsq, digits = 3, format = "f")
+      } else if (inherits(m, "feglm") && !is.null(m$pseudo_rsq)) {
+        formatC(m$pseudo_rsq, digits = 3, format = "f")
       } else {
         ""
       }

@@ -58,10 +58,36 @@ tails[, INTER_YEAR := interaction(INTER, year, sep = "_")]
 
 # Expectile 50% ----
 
-fepoisson(trade_all ~ EIAp | INTER_YEAR + expyear2 + impyear2 + pairid, data = tails)
+fit1 <- fepoisson(trade_all ~ EIAp | INTER_YEAR + expyear2 + impyear2 + pairid, data = tails,
+  control = fit_control(return_fe = TRUE, check_separation = TRUE))
 
-fepoisson(trade_all ~ EIAp | INTER_YEAR + expyear2 + impyear2 + pairid, data = tails,
-  control = fit_control(check_separation = FALSE))
+fit2 <- fepoisson(trade_all ~ EIAp | INTER_YEAR + expyear2 + impyear2 + pairid, data = tails,
+  control = fit_control(return_fe = TRUE, check_separation = FALSE))
+
+fit1$conv
+fit2$conv
+
+fit1$nms_fe
+fit1$fe_levels
+fit1$separated_obs
+fit1$fixed_effects
+
+length(fit1$fixed_effects)
+
+for (i in seq_along(fit1$fixed_effects)) {
+  cat("FE", i, "levels:", length(fit1$fixed_effects[[i]]), "\n")
+}
+
+length(fit2$fixed_effects)
+
+for (i in seq_along(fit2$fixed_effects)) {
+  cat("FE", i, "levels:", length(fit2$fixed_effects[[i]]), "\n")
+}
+
+all.equal(fit1$fixed_effects, fit2$fixed_effects)
+
+fit1
+fit2
 
 fepoisson_asymmetric(trade_all ~ EIAp | INTER_YEAR + expyear2 + impyear2 + pairid, data = tails,
   control = fit_control(expectile = 0.5, expectile_trace = TRUE, check_separation = TRUE))

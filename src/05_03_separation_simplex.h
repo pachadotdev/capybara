@@ -378,6 +378,14 @@ detect_separation_simplex(const mat &X_centered, const uvec &boundary_sample,
   // Convert dropped_obs mask to separated_obs indices (in boundary_sample)
   result.separated_obs = find(dropped_obs);
   result.num_separated = result.separated_obs.n_elem;
+
+  // Track separated coefficients: flagged_vars that were dropped due to
+  // uniform sign (these perfectly predict y=0, so their coef -> -Inf)
+  const uvec dropped_var_idx = find(dropped_vars);
+  if (dropped_var_idx.n_elem > 0) {
+    result.separated_coefs = flagged_vars.elem(dropped_var_idx);
+  }
+
   result.converged = true;
 
   return result;

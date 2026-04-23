@@ -51,8 +51,14 @@ NULL
 #' @param sep_max_iter maximum iterations for ReLU separation detection algorithm. The default is \code{200L}.
 #' @param sep_simplex_max_iter maximum iterations for simplex separation detection algorithm. The default is \code{2000L}.
 #' @param sep_zero_tol tolerance for treating values as zero in separation detection. The default is \code{1.0e-08}.
+#' @param sep_mu_tol tolerance for mu-based separation detection during IRLS iterations. Observations with 
+#'  \code{y == 0} and \code{eta <= log(sep_mu_tol)} are flagged as separated. Based on ppmlhdfe's mu separation 
+#'  method. The default is \code{1.0e-06}.
 #' @param sep_use_relu logical indicating whether to use the ReLU algorithm for separation detection. The default is \code{TRUE}.
 #' @param sep_use_simplex logical indicating whether to use the simplex algorithm for separation detection. The default is \code{TRUE}.
+#' @param sep_use_mu logical indicating whether to use mu-based separation detection during IRLS iterations.
+#'  This catches observations where predicted values become extremely small (suggesting perfect prediction 
+#'  of zeros). Following ppmlhdfe methodology. The default is \code{TRUE}.
 #' @param step_halving_memory numeric memory factor for step-halving algorithm. Controls how much of the previous
 #'  iteration is retained. The default is \code{0.9}.
 #' @param max_step_halving maximum number of post-convergence step-halving attempts. The default is \code{2}.
@@ -189,10 +195,12 @@ fit_control <- function(
   centering = "berge",
   sep_tol = 1.0e-08,
   sep_zero_tol = 1.0e-08,
+  sep_mu_tol = 1.0e-06,
   sep_max_iter = 200L,
   sep_simplex_max_iter = 2000L,
   sep_use_relu = TRUE,
   sep_use_simplex = TRUE,
+  sep_use_mu = TRUE,
   return_fe = FALSE,
   keep_tx = FALSE,
   keep_data = FALSE,
@@ -223,7 +231,8 @@ fit_control <- function(
       step_halving_factor <= 0.0 ||
       alpha_tol <= 0.0 ||
       sep_tol <= 0.0 ||
-      sep_zero_tol <= 0.0
+      sep_zero_tol <= 0.0 ||
+      sep_mu_tol <= 0.0
   ) {
     stop(
       "All tolerance parameters should be greater than zero.",
@@ -259,12 +268,13 @@ fit_control <- function(
   check_separation <- as.logical(check_separation)
   sep_use_relu <- as.logical(sep_use_relu)
   sep_use_simplex <- as.logical(sep_use_simplex)
+  sep_use_mu <- as.logical(sep_use_mu)
   compute_apes <- as.logical(compute_apes)
   ape_weak_exo <- as.logical(ape_weak_exo)
   compute_bias_corr <- as.logical(compute_bias_corr)
   if (is.na(return_fe) || is.na(keep_tx) || is.na(keep_data) || is.na(return_hessian) ||
     is.na(check_separation) || is.na(sep_use_relu) || is.na(sep_use_simplex) ||
-    is.na(compute_apes) || is.na(ape_weak_exo) || is.na(compute_bias_corr)) {
+    is.na(sep_use_mu) || is.na(compute_apes) || is.na(ape_weak_exo) || is.na(compute_bias_corr)) {
     stop(
       "All logical parameters should be TRUE or FALSE.",
       call. = FALSE
@@ -382,10 +392,12 @@ fit_control <- function(
     centering = centering,
     sep_tol = sep_tol,
     sep_zero_tol = sep_zero_tol,
+    sep_mu_tol = sep_mu_tol,
     sep_max_iter = sep_max_iter,
     sep_simplex_max_iter = sep_simplex_max_iter,
     sep_use_relu = sep_use_relu,
     sep_use_simplex = sep_use_simplex,
+    sep_use_mu = sep_use_mu,
     return_fe = return_fe,
     keep_tx = keep_tx,
     keep_data = keep_data,

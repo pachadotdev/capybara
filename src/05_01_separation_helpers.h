@@ -10,8 +10,10 @@ namespace capybara {
 
 // Result structure for separation detection
 struct SeparationResult {
-  uvec separated_obs; // Indices of separated observations (0-based)
-  vec support;        // z vector proving separation (supporting hyperplane)
+  uvec separated_obs;   // Indices of separated observations (0-based)
+  uvec separated_coefs; // Indices of separated coefficients (perfectly predict
+                        // y=0)
+  vec support;          // z vector proving separation (supporting hyperplane)
   uword num_separated;
   bool converged;
   uword iterations;

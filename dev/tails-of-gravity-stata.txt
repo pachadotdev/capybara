@@ -1,0 +1,211 @@
+=== WITH separation checking ===
+r; t=0.00 17:50:09
+
+. 
+. ppmlhdfe trade_all EIAp, a(INTER#year expyear2 impyear2 pairid) vce(cluster p
+> airid)
+(dropped 270186 observations that are either singletons or separated by a fixed
+>  effect)
+warning: dependent variable takes very low values after standardizing (1.6321e-
+> 11)
+ $$ Stopping (no negative residuals); separation found in 0 observations (1 ite
+> rations and 25 subiterations)
+Iteration 1:   deviance = 7.7098e+08  eps = .         iters = 11   tol = 1.0e-0
+> 4                                                                            
+>    min(eta) =  -6.86  P   
+Iteration 2:   deviance = 2.5674e+08  eps = 2.00e+00  iters = 10   tol = 1.0e-0
+> 4                                                                            
+>    min(eta) =  -8.24      
+Iteration 3:   deviance = 1.2054e+08  eps = 1.13e+00  iters = 10   tol = 1.0e-0
+> 4                                                                            
+>    min(eta) = -10.13      
+Iteration 4:   deviance = 7.3495e+07  eps = 6.40e-01  iters = 10   tol = 1.0e-0
+> 4                                                                            
+>    min(eta) = -12.45      
+Iteration 5:   deviance = 5.7262e+07  eps = 2.83e-01  iters = 10   tol = 1.0e-0
+> 4                                                                            
+>    min(eta) = -15.40      
+Iteration 6:   deviance = 5.1942e+07  eps = 1.02e-01  iters = 12   tol = 1.0e-0
+> 4                                                                            
+>    min(eta) = -18.21      
+Iteration 7:   deviance = 5.0289e+07  eps = 3.29e-02  iters = 12   tol = 1.0e-0
+> 4                                                                            
+>    min(eta) = -20.63      
+Iteration 8:   deviance = 4.9781e+07  eps = 1.02e-02  iters = 11   tol = 1.0e-0
+> 4                                                                            
+>    min(eta) = -22.53      
+Iteration 9:   deviance = 4.9627e+07  eps = 3.11e-03  iters = 10   tol = 1.0e-0
+> 4                                                                            
+>    min(eta) = -23.93      
+Iteration 10:  deviance = 4.9581e+07  eps = 9.15e-04  iters = 8    tol = 1.0e-0
+> 4                                                                            
+>    min(eta) = -26.05      
+Iteration 11:  deviance = 4.9568e+07  eps = 2.60e-04  iters = 5    tol = 1.0e-0
+> 4                                                                            
+>    min(eta) = -27.71      
+Iteration 12:  deviance = 4.9565e+07  eps = 7.21e-05  iters = 2    tol = 1.0e-0
+> 4                                                                            
+>    min(eta) = -28.92      
+Iteration 13:  deviance = 4.9564e+07  eps = 2.01e-05  iters = 10   tol = 1.0e-0
+> 5                                                                            
+>    min(eta) = -30.57      
+Iteration 14:  deviance = 4.9564e+07  eps = 4.92e-06  iters = 3    tol = 1.0e-0
+> 5                                                                            
+>    min(eta) = -31.96   S  
+Iteration 15:  deviance = 4.9564e+07  eps = 1.21e-06  iters = 11   tol = 1.0e-0
+> 6                                                                            
+>    min(eta) = -33.01   S  
+Iteration 16:  deviance = 4.9564e+07  eps = 2.75e-07  iters = 3    tol = 1.0e-0
+> 6                                                                            
+>    min(eta) = -33.88   S  
+Iteration 17:  deviance = 4.9564e+07  eps = 6.10e-08  iters = 16   tol = 1.0e-0
+> 7                                                                            
+>    min(eta) = -35.12   S  
+Iteration 18:  deviance = 4.9564e+07  eps = 1.25e-08  iters = 21   tol = 1.0e-0
+> 8                                                                            
+>    min(eta) = -36.28   S  
+Iteration 19:  deviance = 4.9564e+07  eps = 2.39e-09  iters = 21   tol = 1.0e-0
+> 9                                                                            
+>    min(eta) = -37.16   S O
+-------------------------------------------------------------------------------
+> -----------------------------
+(legend: p: exact partial-out   s: exact solver   h: step-halving   o: epsilon 
+> below tolerance)
+Converged in 19 iterations and 196 HDFE sub-iterations (tol = 1.0e-08)
+
+HDFE PPML regression                              No. of obs      =    1499735
+Absorbing 4 HDFE groups                           Residual df     =     33,059
+Statistics robust to heteroskedasticity           Wald chi2(1)    =      21.70
+Deviance             =  49563525.67               Prob > chi2     =     0.0000
+Log pseudolikelihood = -26076034.48               Pseudo R2       =     0.9973
+
+Number of clusters (pairid) =     33,060
+                            (Std. Err. adjusted for 33,060 clusters in pairid)
+------------------------------------------------------------------------------
+             |               Robust
+   trade_all |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+        EIAp |   .1975308   .0424003     4.66   0.000     .1144277     .280634
+       _cons |   13.29698   .0049553  2683.41   0.000     13.28727     13.3067
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------+
+  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------+---------------------------------------|
+   INTER#year |       112           1         111     |
+     expyear2 |      9728          56        9672     |
+     impyear2 |      9218          56        9162    ?|
+       pairid |     33060       33060           0    *|
+------------------------------------------------------+
+? = number of redundant parameters may be higher
+* = FE nested within cluster; treated as redundant for DoF computation
+r; t=269.77 17:54:38
+
+. 
+. 
+. 
+. * WITHOUT separation checking
+
+. 
+. di _n as result "=== WITHOUT separation checking ==="
+
+=== WITHOUT separation checking ===
+r; t=0.01 17:54:38
+
+. 
+. ppmlhdfe trade_all EIAp, a(INTER#year expyear2 impyear2 pairid) vce(cluster p
+> airid) sep(none)
+(dropped 128 singleton observations)
+warning: dependent variable takes very low values after standardizing (1.7730e-
+> 11)
+Iteration 1:   deviance = 7.8602e+08  eps = .         iters = 11   tol = 1.0e-0
+> 4                                                                            
+>    min(eta) =  -7.05  P   
+Iteration 2:   deviance = 2.6332e+08  eps = 1.99e+00  iters = 10   tol = 1.0e-0
+> 4                                                                            
+>    min(eta) =  -8.70      
+Iteration 3:   deviance = 1.2404e+08  eps = 1.12e+00  iters = 10   tol = 1.0e-0
+> 4                                                                            
+>    min(eta) = -10.76      
+Iteration 4:   deviance = 7.5573e+07  eps = 6.41e-01  iters = 10   tol = 1.0e-0
+> 4                                                                            
+>    min(eta) = -13.36      
+Iteration 5:   deviance = 5.8479e+07  eps = 2.92e-01  iters = 10   tol = 1.0e-0
+> 4                                                                            
+>    min(eta) = -16.63      
+Iteration 6:   deviance = 5.2546e+07  eps = 1.13e-01  iters = 12   tol = 1.0e-0
+> 4                                                                            
+>    min(eta) = -19.99      
+Iteration 7:   deviance = 5.0553e+07  eps = 3.94e-02  iters = 12   tol = 1.0e-0
+> 4                                                                            
+>    min(eta) = -23.13      
+Iteration 8:   deviance = 4.9892e+07  eps = 1.32e-02  iters = 11   tol = 1.0e-0
+> 4                                                                            
+>    min(eta) = -25.95      
+Iteration 9:   deviance = 4.9672e+07  eps = 4.44e-03  iters = 10   tol = 1.0e-0
+> 4                                                                            
+>    min(eta) = -28.34      
+Iteration 10:  deviance = 4.9599e+07  eps = 1.47e-03  iters = 8    tol = 1.0e-0
+> 4                                                                            
+>    min(eta) = -30.43      
+Iteration 11:  deviance = 4.9575e+07  eps = 4.77e-04  iters = 8    tol = 1.0e-0
+> 4                                                                            
+>    min(eta) = -32.46      
+Iteration 12:  deviance = 4.9567e+07  eps = 1.54e-04  iters = 5    tol = 1.0e-0
+> 4                                                                            
+>    min(eta) = -34.98      
+Iteration 13:  deviance = 4.9565e+07  eps = 5.12e-05  iters = 5    tol = 1.0e-0
+> 4                                                                            
+>    min(eta) = -37.90      
+Iteration 14:  deviance = 4.9564e+07  eps = 1.73e-05  iters = 9    tol = 1.0e-0
+> 5                                                                            
+>    min(eta) = -40.90      
+Iteration 15:  deviance = 4.9564e+07  eps = 5.87e-06  iters = 9    tol = 1.0e-0
+> 5                                                                            
+>    min(eta) = -43.90   S  
+Iteration 16:  deviance = 4.9564e+07  eps = 2.06e-06  iters = 19   tol = 1.0e-0
+> 6                                                                            
+>    min(eta) = -46.90   S  
+Iteration 17:  deviance = 4.9564e+07  eps = 6.91e-07  iters = 4    tol = 1.0e-0
+> 6                                                                            
+>    min(eta) = -49.90   S  
+Iteration 18:  deviance = 4.9564e+07  eps = 2.93e-07  iters = 28   tol = 1.0e-0
+> 7                                                                            
+>    min(eta) = -52.90   S  
+Iteration 19:  deviance = 4.9564e+07  eps = 1.07e-07  iters = 29   tol = 1.0e-07  min(eta) = -55.90   S  
+Iteration 20:  deviance = 4.9564e+07  eps = 3.24e-08  iters = 4    tol = 1.0e-07  min(eta) = -58.90   S  
+Iteration 21:  deviance = 4.9564e+07  eps = 1.88e-08  iters = 42   tol = 1.0e-08  min(eta) = -61.89   S  
+Iteration 22:  deviance = 4.9564e+07  eps = 6.91e-09  iters = 49   tol = 1.0e-09  min(eta) = -64.89   S O
+------------------------------------------------------------------------------------------------------------
+(legend: p: exact partial-out   s: exact solver   h: step-halving   o: epsilon below tolerance)
+Converged in 22 iterations and 315 HDFE sub-iterations (tol = 1.0e-08)
+
+HDFE PPML regression                              No. of obs      =    1769793
+Absorbing 4 HDFE groups                           Residual df     =     37,238
+Statistics robust to heteroskedasticity           Wald chi2(1)    =      21.70
+Deviance             =  49563525.84               Prob > chi2     =     0.0000
+Log pseudolikelihood = -26076302.71               Pseudo R2       =     0.9974
+
+Number of clusters (pairid) =     37,239
+                            (Std. Err. adjusted for 37,239 clusters in pairid)
+------------------------------------------------------------------------------
+             |               Robust
+   trade_all |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+        EIAp |   .1975308   .0424003     4.66   0.000     .1144278    .2806338
+       _cons |   13.29678   .0049551  2683.48   0.000     13.28707    13.30649
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------+
+  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------+---------------------------------------|
+   INTER#year |       112           1         111     |
+     expyear2 |      9930          56        9874     |
+     impyear2 |      9930          56        9874    ?|
+       pairid |     37239       37239           0    *|
+------------------------------------------------------+
+? = number of redundant parameters may be higher
+* = FE nested within cluster; treated as redundant for DoF computation
+r; t=371.78 18:00:50
