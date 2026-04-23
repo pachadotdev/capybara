@@ -128,6 +128,8 @@ inline SeparationResult
 detect_separation_simplex(const mat &X_centered, const uvec &boundary_sample,
                           const uvec &interior_sample, const vec &w,
                           const CapybaraParameters &params) {
+  (void)interior_sample; // Unused but kept for API compatibility
+
   SeparationResult result;
   result.converged = false;
   result.num_separated = 0;
@@ -137,7 +139,6 @@ detect_separation_simplex(const mat &X_centered, const uvec &boundary_sample,
     return result;
   }
 
-  const uword n = X_centered.n_rows;
   const uword n_boundary = boundary_sample.n_elem;
   const uword k = X_centered.n_cols;
 
@@ -178,60 +179,39 @@ detect_separation_simplex(const mat &X_centered, const uvec &boundary_sample,
 
   if (n_ok == 0) {
     // All variables are collinear - extract boundary rows directly
+    // Note: Armadillo subview chaining requires explicit submat
     for (uword j = 0; j < n_flagged; ++j) {
-      const uword col_idx = flagged_vars(j);
-      for (uword i = 0; i < n_boundary; ++i) {
-        residuals(i, j) = X_centered(boundary_sample(i), col_idx);
-      }
+      residuals.col(j) = X_centered(boundary_sample, uvec{flagged_vars(j)});
     }
   } else {
     // Regress flagged vars on ok vars using interior weights (zero-weight
     // strategy) Compute: b = (X_ok' W X_ok)^-1 X_ok' W X_flag where W has zeros
     // for boundary observations
 
+    // Use BLAS-optimized matrix operations
+    // Extract submatrices first, then apply sqrt weights
     const vec sqrt_w_int = sqrt(w_interior);
+    const mat X_ok = X_centered.cols(ok_cols);
+    const mat X_flag = X_centered.cols(flagged_vars);
 
-    // Build weighted cross-products without copying submatrices
-    // XtX_ok = sum_i w_i * X_ok[i,:].t() * X_ok[i,:]
-    mat XtX_ok(n_ok, n_ok, fill::zeros);
-    mat XtX_ok_flag(n_ok, n_flagged, fill::zeros);
+    // Apply sqrt weights via broadcasting (BLAS)
+    const mat X_ok_w = X_ok.each_col() % sqrt_w_int;
+    const mat X_flag_w = X_flag.each_col() % sqrt_w_int;
 
-    for (uword i = 0; i < n; ++i) {
-      const double sw = sqrt_w_int(i);
-      if (sw > 0) {
-        // Build weighted outer products incrementally
-        for (uword j1 = 0; j1 < n_ok; ++j1) {
-          const double x1 = sw * X_centered(i, ok_cols(j1));
-          for (uword j2 = j1; j2 < n_ok; ++j2) {
-            const double x2 = sw * X_centered(i, ok_cols(j2));
-            XtX_ok(j1, j2) += x1 * x2;
-          }
-          for (uword j2 = 0; j2 < n_flagged; ++j2) {
-            XtX_ok_flag(j1, j2) += x1 * sw * X_centered(i, flagged_vars(j2));
-          }
-        }
-      }
-    }
-    // Fill lower triangle (symmetric)
-    XtX_ok = symmatu(XtX_ok);
+    // Form normal equations using BLAS gemm: O(n * p^2) ops
+    const mat XtX_ok = X_ok_w.t() * X_ok_w;
+    const mat XtX_ok_flag = X_ok_w.t() * X_flag_w;
 
     mat b;
     if (!solve(b, XtX_ok, XtX_ok_flag, solve_opts::likely_sympd)) {
       b = pinv(XtX_ok) * XtX_ok_flag;
     }
 
-    // Compute residuals only for boundary observations: X_flag[bnd] - X_ok[bnd]
-    // * b
-    for (uword i = 0; i < n_boundary; ++i) {
-      const uword row = boundary_sample(i);
-      for (uword j = 0; j < n_flagged; ++j) {
-        double pred = 0.0;
-        for (uword c = 0; c < n_ok; ++c) {
-          pred += X_centered(row, ok_cols(c)) * b(c, j);
-        }
-        residuals(i, j) = X_centered(row, flagged_vars(j)) - pred;
-      }
-    }
+    // Compute residuals only for boundary observations using matrix ops
+    // Extract boundary rows of submatrices
+    const mat X_flag_bnd = X_flag.rows(boundary_sample);
+    const mat X_ok_bnd = X_ok.rows(boundary_sample);
+    residuals = X_flag_bnd - X_ok_bnd * b;
   }
 
   // Clean up tiny values
@@ -242,16 +222,20 @@ detect_separation_simplex(const mat &X_centered, const uvec &boundary_sample,
   // then observations with non-zero values are separated
   Col<unsigned char> dropped_vars(n_flagged, fill::zeros);
 
+  // Use vectorized min/max for all columns at once (single pass)
+  rowvec col_mins = min(residuals, 0);
+  rowvec col_maxs = max(residuals, 0);
+
   for (uword j = 0; j < n_flagged; ++j) {
-    const vec col = residuals.col(j);
-    const double col_min = col.min();
-    const double col_max = col.max();
+    const double col_min = col_mins(j);
+    const double col_max = col_maxs(j);
 
     if (col_min >= 0 && col_max > params.sep_tol) {
       // Uniformly non-negative with some positive values
       // Mark observations with positive values as separated
+      const double *col_ptr = residuals.colptr(j);
       for (uword i = 0; i < n_boundary; ++i) {
-        if (col(i) > params.sep_tol) {
+        if (col_ptr[i] > params.sep_tol) {
           dropped_obs(i) = 1;
         }
       }
@@ -259,8 +243,9 @@ detect_separation_simplex(const mat &X_centered, const uvec &boundary_sample,
     } else if (col_max <= 0 && col_min < -params.sep_tol) {
       // Uniformly non-positive with some negative values
       // Mark observations with negative values as separated
+      const double *col_ptr = residuals.colptr(j);
       for (uword i = 0; i < n_boundary; ++i) {
-        if (col(i) < -params.sep_tol) {
+        if (col_ptr[i] < -params.sep_tol) {
           dropped_obs(i) = 1;
         }
       }

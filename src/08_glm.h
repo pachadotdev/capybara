@@ -861,7 +861,8 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       w_for_sep.elem(group_sep_result.separated_obs).zeros();
     }
 
-    // Create a copy of fe_map for separation detection (may modify weights)
+    // Create a copy of fe_map for separation detection (modifies weights
+    // internally)
     FlatFEMap fe_map_sep = fe_map;
     SeparationResult sep_result =
         check_separation(y, X, w_for_sep, fe_map_sep, params);

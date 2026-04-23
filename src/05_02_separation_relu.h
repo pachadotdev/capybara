@@ -17,7 +17,19 @@ struct SeparationReluWorkspace {
   vec weights;
   vec boundary_xbd; // sized to num_boundary
 
-  void ensure_size(uword n, uword num_boundary) {
+  // WLS solver buffers (avoid allocations in hot loop)
+  mat Xw;         // n × p weighted design matrix
+  mat XtWX;       // p × p normal equations matrix
+  vec XtWy;       // p × 1 RHS of normal equations
+  mat R;          // p × p Cholesky factor
+  vec z_wls;      // p × 1 intermediate solve vector
+  vec beta;       // p × 1 coefficients
+  uvec excluded;  // p × 1 excluded columns mask
+  uword cached_p; // cached number of columns
+
+  SeparationReluWorkspace() : cached_p(0) {}
+
+  void ensure_size(uword n, uword num_boundary, uword p = 0) {
     if (xbd.n_elem != n) {
       // Use zeros() for deterministic initialization
       xbd.zeros(n);
@@ -30,8 +42,75 @@ struct SeparationReluWorkspace {
     if (boundary_xbd.n_elem != num_boundary) {
       boundary_xbd.zeros(num_boundary);
     }
+    // Allocate WLS buffers if needed
+    if (p > 0 && cached_p != p) {
+      XtWX.zeros(p, p);
+      XtWy.zeros(p);
+      R.zeros(p, p);
+      z_wls.zeros(p);
+      beta.zeros(p);
+      excluded.zeros(p);
+      cached_p = p;
+    }
   }
 };
+
+// Inlined WLS solver using workspace buffers (avoids allocations)
+inline void solve_wls_inplace(const mat &X, const vec &y, const vec &w,
+                              vec &residuals, SeparationReluWorkspace &ws) {
+  const uword p = X.n_cols;
+  if (p == 0) {
+    residuals = y;
+    return;
+  }
+
+  // Reuse workspace buffers
+  mat &Xw = ws.Xw;
+  mat &XtWX = ws.XtWX;
+  vec &XtWy = ws.XtWy;
+  mat &R = ws.R;
+  vec &z = ws.z_wls;
+  vec &beta = ws.beta;
+  uvec &excluded = ws.excluded;
+
+  // Resize Xw only if dimensions changed (common case: same size)
+  if (Xw.n_rows != X.n_rows || Xw.n_cols != p) {
+    Xw.set_size(X.n_rows, p);
+  }
+
+  // Form weighted design matrix
+  Xw = X.each_col() % w;
+
+  // Form normal equations: X'WX and X'Wy
+  XtWX = X.t() * Xw;
+  XtWy = Xw.t() * y;
+
+  // Rank-revealing Cholesky
+  uword rank;
+  chol_rank(R, excluded, rank, XtWX, "upper");
+
+  beta.zeros();
+
+  if (rank == p) {
+    // Full rank: solve via back-substitution
+    solve(z, trimatl(R.t()), XtWy, solve_opts::fast);
+    solve(beta, trimatu(R), z, solve_opts::fast);
+  } else if (rank > 0) {
+    // Rank-deficient: solve on non-excluded columns
+    const uvec included = find(excluded == 0);
+    if (included.n_elem > 0) {
+      const mat R_sub = R.submat(included, included);
+      const vec XtWy_sub = XtWy.elem(included);
+      vec z_sub;
+      solve(z_sub, trimatl(R_sub.t()), XtWy_sub, solve_opts::fast);
+      vec beta_sub;
+      solve(beta_sub, trimatu(R_sub), z_sub, solve_opts::fast);
+      beta.elem(included) = beta_sub;
+    }
+  }
+
+  residuals = y - X * beta;
+}
 
 // Main ReLU separation detection algorithm (without FE)
 inline SeparationResult
@@ -56,10 +135,12 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
     return result;
   }
 
+  const uword p = X.n_cols;
+
   // Use workspace if provided, otherwise create local buffers
   SeparationReluWorkspace local_ws;
   SeparationReluWorkspace &work = ws ? *ws : local_ws;
-  work.ensure_size(n, num_boundary);
+  work.ensure_size(n, num_boundary, p);
 
   vec &xbd = work.xbd;
   vec &xbd_prev1 = work.xbd_prev1;
@@ -122,7 +203,8 @@ detect_separation_relu(const vec &y, const mat &X, const vec &w,
       }
     }
 
-    solve_wls(X, u, weights, resid);
+    // Use inlined WLS solver with workspace buffers
+    solve_wls_inplace(X, u, weights, resid, work);
     xbd = u - resid;
 
     const double ee = dot(resid, resid);
