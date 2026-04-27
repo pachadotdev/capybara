@@ -150,7 +150,7 @@ felm <- function(
   # Convert formula to normalized string for C++ ----
   # Use normalize_formula_ to expand *, ^, -, /, %in%, . using R's terms()
   formula_str <- normalize_formula_(formula, data)
-  
+
   # Detect if intercept is suppressed (e.g., ~ wt - 1)
   has_intercept <- !grepl("__NO_INTERCEPT__", formula_str, fixed = TRUE)
 
@@ -201,17 +201,20 @@ felm <- function(
   fe_levels <- fit[["fe_levels"]]
 
   # Get term names from C++ result ----
-  nms_sp <- if (!is.null(fit[["term_names"]])) {
+  # C++ now includes "(Intercept)" when applicable, so use term_names directly
+  n_coef <- nrow(fit[["coef_table"]])
+  nms_sp <- if (!is.null(fit[["term_names"]]) && length(fit[["term_names"]]) == n_coef) {
     fit[["term_names"]]
   } else {
-    paste0("V", seq_len(ncol(fit[["coef_table"]])))
+    # Fallback for edge cases
+    if (length(fe_vars) == 0L && has_intercept && n_coef > 0) {
+      c("(Intercept)", paste0("V", seq_len(n_coef - 1)))
+    } else {
+      paste0("V", seq_len(n_coef))
+    }
   }
 
   # Add names to outputs ----
-  # Add intercept name only if: no FE, and intercept is not suppressed (- 1)
-  if (length(fe_vars) == 0L && has_intercept) {
-    nms_sp <- c("(Intercept)", nms_sp)
-  }
   dimnames(fit[["coef_table"]]) <- list(nms_sp, c("Estimate", "Std. Error", "z value", "Pr(>|z|)"))
   if (!is.null(fit[["hessian"]])) {
     dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)

@@ -1,13 +1,10 @@
 #' srr_stats
-#' @srrstats {G1.0} Implements Negative Binomial regression with high-dimensional fixed effects, adapting `feglm`.
-#' @srrstats {G2.1a} Validates input `formula` to ensure inclusion of fixed effects.
-#' @srrstats {G2.1b} Ensures `data` is of the appropriate class and contains non-zero rows.
-#' @srrstats {G2.3a} Uses `match.arg()` to validate the `link` argument.
-#' @srrstats {G2.3b} Checks numeric parameters such as starting guesses and weights for validity.
-#' @srrstats {G2.4} Handles missing and non-contributing observations by excluding them appropriately.
-#' @srrstats {G3.1a} Supports customizable link functions (`log`, `sqrt`, and `identity`) and initialization of theta.
-#' @srrstats {G3.1b} Provides detailed outputs including coefficients, deviance, and theta.
-#' @srrstats {G4.0} Uses an iterative algorithm for joint estimation of coefficients and theta, ensuring convergence.
+#' @srrstats {G1.0} Implements Poisson regression with high-dimensional fixed effects via `feglm`.
+#' @srrstats {G2.1a} Validates input `formula` to ensure correct specification of fixed effects.
+#' @srrstats {G2.1b} Ensures `data` is appropriately formatted and contains sufficient observations.
+#' @srrstats {G2.3a} Uses internally validated arguments (`control` and starting guesses) for consistency.
+#' @srrstats {G3.1a} Supports canonical log link function for Poisson family.
+#' @srrstats {G3.1b} Provides detailed outputs including coefficients, deviance, and convergence diagnostics.
 #' @srrstats {G5.0} Ensures that identical input data and parameter settings consistently produce the same outputs,
 #'  supporting reproducible workflows.
 #' @srrstats {G5.1} Includes complete output elements (coefficients, deviance, etc.) for reproducibility.
@@ -70,62 +67,103 @@
 #' @srrstats {RE4.6} Includes standard metrics such as R-squared and RMSE to help users evaluate model performance.
 #' @srrstats {RE4.7} Tests sensitivity to hyperparameter choices in regularized or complex regression models.
 #' @srrstats {RE4.14} Uses simulated datasets to test the reproducibility and robustness of regression results.
-#' @srrstats {RE5.0} Optimized for high-dimensional fixed effects and large datasets, ensuring computational
-#'  feasibility.
-#' @srrstats {RE5.1} Validates convergence of both deviance and theta with strict tolerances.
-#' @srrstats {RE5.2} Issues warnings if the algorithm fails to converge within the maximum iterations.
-#' @srrstats {RE5.3} Outputs reproducible results, including detailed diagnostics and convergence information.
+#' @srrstats {RE5.0} Optimized for scaling to large datasets with high-dimensional fixed effects.
+#' @srrstats {RE5.1} Efficiently projects out fixed effects using auxiliary indexing structures.
+#' @srrstats {RE5.2} Provides detailed warnings and error handling for convergence and dependence issues.
+#' @srrstats {RE5.3} Thoroughly documents interactions between model features, inputs, and controls.
+#' @srrstats {RE7.4} Provides comprehensive examples that demonstrate proper usage of the regression functions, covering
+#'  input preparation, function execution, and result interpretation.
 #' @noRd
 NULL
 
-#' @title Negative Binomial model fitting with high-dimensional k-way fixed
-#'  effects
+#' @title Asymmetric Poisson Pseudo-Maximum Likelihood (APPML) Estimation
 #'
-#' @description A routine that uses the same internals as \link{feglm}.
+#' @description Fits an asymmetric Poisson pseudo-maximum likelihood model with high-dimensional fixed effects
+#'  using expectile regression. This approach extends standard PPML by allowing different weights for positive
+#'  and negative residuals, enabling estimation of conditional expectiles rather than the conditional mean.
 #'
 #' @inheritParams feglm
 #'
-#' @param init_theta an optional initial value for the theta parameter (see \link[MASS]{glm.nb}).
-#' @param link the link function. Must be one of \code{"log"}, \code{"sqrt"}, or \code{"identity"}.
-#' @param offset an optional formula or numeric vector specifying an a priori known component to be included in the
-#'  linear predictor. If a formula, it should be of the form \code{~ variable}.
+#' @details
+#' The APPML estimator minimizes an asymmetric loss function based on expectiles. For a given expectile \eqn{\tau},
+#' observations with negative residuals receive weight \eqn{\tau} while observations with positive residuals
+#' receive weight \eqn{1 - \tau}. The algorithm iteratively:
+#' \enumerate{
+#'   \item Computes residuals from the current fit
+#'   \item Updates weights as \eqn{w_i = |\tau - \mathbf{1}(r_i < 0)|}
+#'   \item Re-fits the weighted Poisson model
+#'   \item Checks convergence using \eqn{(b - b_{old})' V^{-1} (b - b_{old}) < \epsilon}
+#' }
 #'
-#' @examples
-#' # check the feglm examples for the details about clustered standard errors
-#' mod <- fenegbin(mpg ~ wt | cyl, mtcars)
-#' summary(mod)
+#' The expectile parameter is specified via \code{control = fit_control(expectile = ...)}. When
+#' \code{expectile = 0.5}, the estimator is equivalent to standard PPML. Values below 0.5 estimate
+#' lower conditional expectiles (more sensitive to small values), while values above 0.5 estimate
+#' upper conditional expectiles (more sensitive to large values).
 #'
-#' @return A named list of class \code{"feglm"}. The list contains the following
-#'  eighteen elements:
-#'  \item{coefficients}{a named vector of the estimated coefficients}
-#'  \item{eta}{a vector of the linear predictor}
-#'  \item{weights}{a vector of the weights used in the estimation}
-#'  \item{hessian}{a matrix with the numerical second derivatives}
+#' @return A named list of class \code{"feglm"} containing:
+#'  \item{coefficients}{named vector of estimated coefficients}
+#'  \item{vcov}{variance-covariance matrix of coefficients}
+#'  \item{eta}{linear predictor}
+#'  \item{fitted_values}{fitted values from the final iteration}
+#'  \item{residuals}{residuals from the final fit}
+#'  \item{weights}{observation weights used in final fit}
+#'  \item{appml_weights}{asymmetric weights used in APPML algorithm}
 #'  \item{deviance}{the deviance of the model}
 #'  \item{null_deviance}{the null deviance of the model}
-#'  \item{conv}{a logical indicating whether the model converged}
-#'  \item{iter}{the number of iterations needed to converge}
-#'  \item{theta}{the estimated theta parameter}
-#'  \item{iter_outer}{the number of outer iterations}
-#'  \item{conv_outer}{a logical indicating whether the outer loop converged}
-#'  \item{nobs}{a named vector with the number of observations used in the estimation indicating the dropped and
-#'   perfectly predicted observations}
-#'  \item{fe_levels}{a named vector with the number of levels in each fixed effects}
+#'  \item{conv}{logical indicating whether inner GLM converged}
+#'  \item{conv_outer}{logical indicating whether APPML outer loop converged}
+#'  \item{iter}{number of inner iterations}
+#'  \item{iter_outer}{number of outer APPML iterations}
+#'  \item{expectile}{the expectile value used}
+#'  \item{objective_function}{final value of the convergence criterion}
+#'  \item{negative_residuals_share}{proportion of negative residuals in final fit}
+#'  \item{nobs}{a named vector with the number of observations}
+#'  \item{fe_levels}{a named vector with the number of levels in each fixed effect}
 #'  \item{nms_fe}{a list with the names of the fixed effects variables}
 #'  \item{formula}{the formula used in the model}
-#'  \item{data}{the data used in the model after dropping non-contributing observations}
-#'  \item{family}{the family used in the model}
+#'  \item{family}{the family used in the model (Poisson)}
 #'  \item{control}{the control list used in the model}
 #'
+#' @references
+#' Newey, W. K., & Powell, J. L. (1987). Asymmetric least squares estimation and testing.
+#'   \emph{Econometrica}, 55(4), 819-847.
+#'
+#' @examples
+#' # Standard PPML (expectile = 0.5)
+#' mod_ppml <- fepoisson_asymmetric(
+#'   mpg ~ wt | cyl, mtcars,
+#'   control = fit_control(expectile = 0.5)
+#' )
+#' summary(mod_ppml)
+#'
+#' # Lower expectile (10th) - more weight on negative residuals
+#' mod_low <- fepoisson_asymmetric(
+#'   mpg ~ wt | cyl, mtcars,
+#'   control = fit_control(expectile = 0.1)
+#' )
+#'
+#' # Upper expectile (90th) - more weight on positive residuals
+#' mod_high <- fepoisson_asymmetric(
+#'   mpg ~ wt | cyl, mtcars,
+#'   control = fit_control(expectile = 0.9)
+#' )
+#'
+#' # Compare coefficients across expectiles
+#' cbind(
+#'   low = coef(mod_low),
+#'   median = coef(mod_ppml),
+#'   high = coef(mod_high)
+#' )
+#'
+#' @seealso \link{fepoisson}, \link{feglm}, \link{fit_control}
+#'
 #' @export
-fenegbin <- function(
+fepoisson_asymmetric <- function(
   formula = NULL,
   data = NULL,
   weights = NULL,
   beta_start = NULL,
   eta_start = NULL,
-  init_theta = NULL,
-  link = c("log", "identity", "sqrt"),
   offset = NULL,
   control = NULL
 ) {
@@ -135,25 +173,27 @@ fenegbin <- function(
   # Check validity of data ----
   check_data_(data)
 
-  # Check validity of link ----
-  link <- match.arg(link)
-
   # Check validity of control + Extract control list ----
   control <- check_control_(control)
 
+  # Validate expectile is specified
+  if (is.null(control[["expectile"]]) || control[["expectile"]] <= 0 || control[["expectile"]] >= 1) {
+    stop(
+      "expectile must be specified in control and between 0 and 1 (exclusive). ",
+      "Use: control = fit_control(expectile = 0.5)",
+      call. = FALSE
+    )
+  }
+
   # Determine needed columns (validates they exist) ----
-  cols_info <- get_needed_cols_(formula, data, weights, offset)
+  get_needed_cols_(formula, data, weights, offset)
 
   # Preserve original row names ----
   orig_rownames <- rownames(data)
   needs_rowname_conversion <- is.null(orig_rownames)
 
   # Convert formula to normalized string for C++ ----
-  # Use normalize_formula_ to expand *, ^, -, /, %in%, . using R's terms()
   formula_str <- normalize_formula_(formula, data)
-
-  # Detect if intercept is suppressed (e.g., ~ wt - 1)
-  has_intercept <- !grepl("__NO_INTERCEPT__", formula_str, fixed = TRUE)
 
   # Extract offset before fitting ----
   offset_vec <- extract_offset_(offset, data, nrow(data))
@@ -177,28 +217,19 @@ fenegbin <- function(
   nobs_full <- nrow(data)
 
   # Get FE variable names ----
-  fe_vars <- check_fe_(formula, data)
+  check_fe_(formula, data)
 
   # Starting guesses ----
   beta <- if (!is.null(beta_start)) as.numeric(beta_start) else numeric(0)
   eta_vec <- if (!is.null(eta_start)) as.numeric(eta_start) else numeric(0)
-
-  # Set init_theta to 0 if NULL
-  if (is.null(init_theta)) {
-    init_theta <- 0.0
-  } else {
-    if (length(init_theta) != 1L || init_theta <= 0) {
-      stop("'init_theta' must be a positive scalar.", call. = FALSE)
-    }
-  }
 
   # Store data for output ----
   data_for_output <- if (control[["keep_data"]]) data else NULL
 
   # FIT MODEL ----
   fit <- structure(
-    fenegbin_fit_(formula_str, data, w, link, beta, eta_vec, init_theta, offset_vec, control),
-    class = c("feglm", "fenegbin")
+    fepoisson_asymmetric_fit_(formula_str, data, w, beta, eta_vec, offset_vec, control),
+    class = c("feglm", "fepoisson_asymmetric")
   )
 
   # Free large input objects immediately after C++ call
@@ -208,11 +239,21 @@ fenegbin <- function(
   eta_vec <- NULL
 
   # Post-processing ----
-  nobs_na <- nobs_full - fit[["nobs_used"]]
+  # APPML uses separation detection like fepoisson
+  num_separated <- if (isTRUE(fit[["has_separation"]])) {
+    fit[["num_separated"]]
+  } else {
+    0L
+  }
+  # nobs_used = working sample size (after NA removal AND separation exclusion)
+  # nobs_na = observations removed due to NA/missing values only
+  # We compute: nobs_full - nobs_na - num_separated = nobs_used
+  # So: nobs_na = nobs_full - nobs_used - num_separated
+  nobs_na <- nobs_full - fit[["nobs_used"]] - num_separated
   nobs <- c(
     nobs_full = nobs_full,
     nobs_na = nobs_na,
-    nobs_separated = 0L,
+    nobs_separated = num_separated,
     nobs_pc = 0L,
     nobs = fit[["nobs_used"]]
   )
@@ -237,10 +278,10 @@ fenegbin <- function(
   if (control[["keep_tx"]] && !is.null(fit[["tx"]]) && is.matrix(fit[["tx"]])) {
     colnames(fit[["tx"]]) <- nms_sp
   }
-  if (!is.null(fit[["hessian"]])) {
+  if (!is.null(fit[["hessian"]]) && nrow(fit[["hessian"]]) == length(nms_sp)) {
     dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
   }
-  if (!is.null(fit[["vcov"]])) {
+  if (!is.null(fit[["vcov"]]) && nrow(fit[["vcov"]]) == length(nms_sp)) {
     dimnames(fit[["vcov"]]) <- list(nms_sp, nms_sp)
   }
 
@@ -251,6 +292,8 @@ fenegbin <- function(
     }
     used_rownames <- orig_rownames[fit[["obs_indices"]]]
     names(fit[["fitted_values"]]) <- used_rownames
+    names(fit[["residuals"]]) <- used_rownames
+    names(fit[["appml_weights"]]) <- used_rownames
     fit[[".rownames"]] <- used_rownames
     if (!is.null(data_for_output)) {
       data_for_output <- data_for_output[fit[["obs_indices"]], ]
@@ -260,6 +303,8 @@ fenegbin <- function(
       orig_rownames <- as.character(seq_len(nobs_full))
     }
     names(fit[["fitted_values"]]) <- orig_rownames
+    names(fit[["residuals"]]) <- orig_rownames
+    names(fit[["appml_weights"]]) <- orig_rownames
     fit[[".rownames"]] <- orig_rownames
   }
 
@@ -267,6 +312,8 @@ fenegbin <- function(
   fit[["obs_indices"]] <- NULL
   fit[["nobs_used"]] <- NULL
   fit[["term_names"]] <- NULL
+  fit[["has_separation"]] <- NULL
+  fit[["num_separated"]] <- NULL
 
   # Build result ----
   fit[["nobs"]] <- nobs
@@ -276,52 +323,9 @@ fenegbin <- function(
   if (control[["keep_data"]]) {
     fit[["data"]] <- data_for_output
   }
-  fit[["family"]] <- negative.binomial(theta = fit[["theta"]], link = link)
+  fit[["family"]] <- poisson()
   fit[["control"]] <- control
   fit[["offset"]] <- offset_vec
 
   fit
-}
-
-# Convergence Check ----
-
-fenegbin_check_convergence_ <- function(dev, dev_old, theta, theta_old, tol) {
-  dev_crit <- abs(dev - dev_old) / (0.1 + abs(dev))
-  theta_crit <- abs(theta - theta_old) / (0.1 + abs(theta_old))
-  dev_crit <= tol && theta_crit <= tol
-}
-
-# Generate result list ----
-
-fenegbin_result_list_ <- function(
-  fit,
-  theta,
-  iter,
-  conv,
-  nobs,
-  fe_levels,
-  nms_fe,
-  formula,
-  data,
-  family,
-  control
-) {
-  reslist <- c(
-    fit,
-    list(
-      theta = theta,
-      iter_outer = iter,
-      conv_outer = conv,
-      nobs = nobs,
-      fe_levels = fe_levels,
-      nms_fe = nms_fe,
-      formula = formula,
-      data = data,
-      family = family,
-      control = control
-    )
-  )
-
-  # Return result list ----
-  structure(reslist, class = c("feglm", "fenegbin"))
 }

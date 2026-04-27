@@ -326,7 +326,7 @@ extract_weight_col_ <- function(weights) {
 get_needed_cols_ <- function(formula, data, weights = NULL, offset = NULL) {
   # Use all.vars first to check for . operator
   formula_vars_raw <- all.vars(formula)
-  
+
   # If formula contains ".", we need to expand it using terms()
   # This handles formulas like y ~ . or y ~ . - x
   if ("." %in% formula_vars_raw) {
@@ -340,7 +340,7 @@ get_needed_cols_ <- function(formula, data, weights = NULL, offset = NULL) {
   } else {
     formula_vars <- formula_vars_raw
   }
-  
+
   weight_col <- extract_weight_col_(weights)
   offset_cols <- if (!is.null(offset) && inherits(offset, "formula")) {
     all.vars(offset)
@@ -348,13 +348,13 @@ get_needed_cols_ <- function(formula, data, weights = NULL, offset = NULL) {
     NULL
   }
   needed_cols <- unique(c(formula_vars, weight_col, offset_cols))
-  
+
   # Validate columns exist before subsetting
   missing_cols <- setdiff(needed_cols, names(data))
   if (length(missing_cols) > 0L) {
     stop("undefined columns: ", paste(missing_cols, collapse = ", "), call. = FALSE)
   }
-  
+
   list(formula_vars = formula_vars, needed_cols = needed_cols)
 }
 

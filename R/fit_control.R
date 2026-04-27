@@ -51,8 +51,14 @@ NULL
 #' @param sep_max_iter maximum iterations for ReLU separation detection algorithm. The default is \code{200L}.
 #' @param sep_simplex_max_iter maximum iterations for simplex separation detection algorithm. The default is \code{2000L}.
 #' @param sep_zero_tol tolerance for treating values as zero in separation detection. The default is \code{1.0e-08}.
+#' @param sep_mu_tol tolerance for mu-based separation detection during IRLS iterations. Observations with 
+#'  \code{y == 0} and \code{eta <= log(sep_mu_tol)} are flagged as separated. Based on ppmlhdfe's mu separation 
+#'  method. The default is \code{1.0e-06}.
 #' @param sep_use_relu logical indicating whether to use the ReLU algorithm for separation detection. The default is \code{TRUE}.
 #' @param sep_use_simplex logical indicating whether to use the simplex algorithm for separation detection. The default is \code{TRUE}.
+#' @param sep_use_mu logical indicating whether to use mu-based separation detection during IRLS iterations.
+#'  This catches observations where predicted values become extremely small (suggesting perfect prediction 
+#'  of zeros). Following ppmlhdfe methodology. The default is \code{TRUE}.
 #' @param step_halving_memory numeric memory factor for step-halving algorithm. Controls how much of the previous
 #'  iteration is retained. The default is \code{0.9}.
 #' @param max_step_halving maximum number of post-convergence step-halving attempts. The default is \code{2}.
@@ -71,13 +77,13 @@ NULL
 #' @param return_fe logical indicating if the fixed effects should be returned. This can be useful when fitting general
 #'  equilibrium models where skipping the fixed effects for intermediate steps speeds up computation. Note: Set to
 #'  \code{TRUE} if you plan to extract fixed effects later. The default is \code{FALSE} to minimize memory usage.
-#' @param keep_tx logical indicating if the centered regressor matrix should be stored. The default is \code{FALSE} 
+#' @param keep_tx logical indicating if the centered regressor matrix should be stored. The default is \code{FALSE}
 #'  to minimize memory usage.
 #' @param keep_data logical indicating if the filtered data should be stored in the result object. Required for
-#'  \code{predict()} methods. Set to \code{TRUE} when planning to use prediction functions. The default is 
+#'  \code{predict()} methods. Set to \code{TRUE} when planning to use prediction functions. The default is
 #'  \code{FALSE} to minimize memory usage for production/benchmark use.
-#' @param return_hessian logical indicating if the Hessian matrix should be returned. The Hessian is a P×P
-#'  matrix used to compute the variance-covariance matrix. The default is \code{FALSE} to minimize memory usage 
+#' @param return_hessian logical indicating if the Hessian matrix should be returned. The Hessian is a P*P
+#'  matrix used to compute the variance-covariance matrix. The default is \code{FALSE} to minimize memory usage
 #'  (vcov is still computed and returned).
 #' @param check_separation logical indicating whether to perform separation detection for Poisson models. When \code{TRUE}
 #'  (default), observations with perfect prediction are automatically detected and excluded from estimation. Set to
@@ -87,13 +93,13 @@ NULL
 #' @param vcov_type Optional character string specifying the type of variance-covariance estimator to be used.
 #'  When \code{NULL} (default), the covariance matrix is the inverse Hessian (IID) when no cluster variable is
 #'  present, or a clustered sandwich when one is. Other values:
-#'  \code{"hetero"} — heteroskedastic-robust HC0 sandwich (no cluster variable needed);
-#'  \code{"m-estimator"} — one-way M-estimator sandwich (cluster variable required);
-#'  \code{"m-estimator-dyadic"} — dyadic-robust Cameron-Miller sandwich (two entity columns required in the
+#'  \code{"hetero"} - heteroskedastic-robust HC0 sandwich (no cluster variable needed);
+#'  \code{"m-estimator"} - one-way M-estimator sandwich (cluster variable required);
+#'  \code{"m-estimator-dyadic"} - dyadic-robust Cameron-Miller sandwich (two entity columns required in the
 #'  third part of the formula like \code{z ~ x + y | fe | cl1 + cl2}).
-#' @param tobit_lb numeric indicating the lower censoring bound for Tobit models. Observations with 
+#' @param tobit_lb numeric indicating the lower censoring bound for Tobit models. Observations with
 #'  \code{y <= tobit_lb} are treated as left-censored. Default is \code{-Inf} (no left censoring).
-#' @param tobit_ub numeric indicating the upper censoring bound for Tobit models. Observations with 
+#' @param tobit_ub numeric indicating the upper censoring bound for Tobit models. Observations with
 #'  \code{y >= tobit_ub} are treated as right-censored. Default is \code{Inf} (no right censoring).
 #' @param compute_apes logical indicating whether to compute Average Partial Effects (APEs) for binomial models.
 #'  When \code{TRUE}, the model returns APE estimates and their covariance matrix alongside the standard output.
@@ -101,40 +107,55 @@ NULL
 #'  For continuous regressors, this is \code{avg(beta * mu * (1-mu))} for logit link.
 #'  For binary regressors, this is \code{avg(F(eta+beta) - F(eta-X*beta))} where \code{F} is the link inverse.
 #'  The default is \code{FALSE}.
-#' @param ape_n_pop unsigned integer indicating a finite population correction for the estimation of the 
-#'  covariance matrix of the average partial effects, proposed by Cruz-Gonzalez, Fernández-Val, and 
-#'  Weidner (2017). The correction factor is computed as: \code{(n_pop - n) / (n_pop - 1)}, where 
+#' @param ape_n_pop unsigned integer indicating a finite population correction for the estimation of the
+#'  covariance matrix of the average partial effects, proposed by Cruz-Gonzalez, Fernandez-Val, and
+#'  Weidner (2017). The correction factor is computed as: \code{(n_pop - n) / (n_pop - 1)}, where
 #'  \code{n_pop} is the population size and \code{n} is the sample size. Default is \code{NULL} (no correction,
 #'  covariance obtained by delta method only).
-#' @param ape_panel_structure character string equal to \code{"classic"} or \code{"network"} which 
-#'  determines the structure of the panel used for APE variance computation. \code{"classic"} denotes 
+#' @param ape_panel_structure character string equal to \code{"classic"} or \code{"network"} which
+#'  determines the structure of the panel used for APE variance computation. \code{"classic"} denotes
 #'  panel structures where the same cross-sectional units are observed several times (includes pseudo panels).
-#'  \code{"network"} denotes panel structures where bilateral flows are observed for several time periods 
+#'  \code{"network"} denotes panel structures where bilateral flows are observed for several time periods
 #'  (e.g., trade data). Default is \code{"classic"}.
-#' @param ape_sampling_fe character string equal to \code{"independence"} or \code{"unrestricted"} which 
-#'  imposes sampling assumptions about the unobserved effects for APE variance computation. 
-#'  \code{"independence"} imposes that all unobserved effects are independent sequences. 
-#'  \code{"unrestricted"} does not impose any sampling assumptions. This option only affects the 
+#' @param ape_sampling_fe character string equal to \code{"independence"} or \code{"unrestricted"} which
+#'  imposes sampling assumptions about the unobserved effects for APE variance computation.
+#'  \code{"independence"} imposes that all unobserved effects are independent sequences.
+#'  \code{"unrestricted"} does not impose any sampling assumptions. This option only affects the
 #'  optional finite population correction. Default is \code{"independence"}.
-#' @param ape_weak_exo logical indicating if some of the regressors are assumed to be weakly exogenous 
-#'  (e.g., predetermined) for APE variance computation. When \code{TRUE}, additional covariance terms 
+#' @param ape_weak_exo logical indicating if some of the regressors are assumed to be weakly exogenous
+#'  (e.g., predetermined) for APE variance computation. When \code{TRUE}, additional covariance terms
 #'  are included in the variance calculation. Default is \code{FALSE} (all regressors strictly exogenous).
-#' @param compute_bias_corr logical indicating whether to compute analytical bias correction for binomial 
-#'  models. When \code{TRUE}, the model returns bias-corrected coefficient estimates alongside the 
-#'  standard (uncorrected) coefficients. The bias correction follows Fernández-Val and Weidner (2016) 
-#'  and Hinz, Stammann, and Wanner (2020). Currently restricted to binomial family with 1-3 way fixed 
+#' @param compute_bias_corr logical indicating whether to compute analytical bias correction for binomial
+#'  models. When \code{TRUE}, the model returns bias-corrected coefficient estimates alongside the
+#'  standard (uncorrected) coefficients. The bias correction follows Fernandez-Val and Weidner (2016)
+#'  and Hinz, Stammann, and Wanner (2020). Currently restricted to binomial family with 1-3 way fixed
 #'  effects. Default is \code{FALSE}.
-#' @param bias_corr_bandwidth unsigned integer indicating a bandwidth for the estimation of spectral 
-#'  densities proposed by Hahn and Kuersteiner (2011). Default is \code{0L}, which should be used if 
-#'  all regressors are assumed to be strictly exogenous with respect to the idiosyncratic error term. 
-#'  In the presence of weakly exogenous regressors (e.g., lagged outcome variables), Fernández-Val and 
-#'  Weidner (2016, 2018) suggest choosing a bandwidth between one and four. Note that the order of 
+#' @param bias_corr_bandwidth unsigned integer indicating a bandwidth for the estimation of spectral
+#'  densities proposed by Hahn and Kuersteiner (2011). Default is \code{0L}, which should be used if
+#'  all regressors are assumed to be strictly exogenous with respect to the idiosyncratic error term.
+#'  In the presence of weakly exogenous regressors (e.g., lagged outcome variables), Fernandez-Val and
+#'  Weidner (2016, 2018) suggest choosing a bandwidth between one and four. Note that the order of
 #'  factors to be partialed out is important for bandwidths larger than zero.
-#' @param bias_corr_panel_structure character string equal to \code{"classic"} or \code{"network"} which 
-#'  determines the structure of the panel used for bias correction. \code{"classic"} denotes panel 
-#'  structures where the same cross-sectional units are observed several times (requires 1-2 way FE). 
-#'  \code{"network"} denotes panel structures where bilateral flows are observed for several time 
+#' @param bias_corr_panel_structure character string equal to \code{"classic"} or \code{"network"} which
+#'  determines the structure of the panel used for bias correction. \code{"classic"} denotes panel
+#'  structures where the same cross-sectional units are observed several times (requires 1-2 way FE).
+#'  \code{"network"} denotes panel structures where bilateral flows are observed for several time
 #'  periods, e.g., trade data (requires 2-3 way FE). Default is \code{"classic"}.
+#' @param expectile numeric value between 0 and 1 (exclusive) specifying the expectile for asymmetric
+#'  Poisson pseudo-maximum likelihood (APPML) estimation. When \code{NULL} (default), standard symmetric
+#'  estimation is performed. Values below 0.5 give more weight to negative residuals (lower quantiles),
+#'  while values above 0.5 give more weight to positive residuals (upper quantiles). For example,
+#'  \code{expectile = 0.1} estimates the 10th expectile, \code{expectile = 0.5} is equivalent to
+#'  standard Poisson PML, and \code{expectile = 0.9} estimates the 90th expectile.
+#' @param expectile_tol tolerance level for the stopping condition of the expectile iteration algorithm.
+#'
+#'  The convergence criterion is based on the quadratic form \eqn{(b - b_{old})' V^{-1} (b - b_{old})},
+#'  where \eqn{b} are the current coefficients and \eqn{V} is the variance-covariance matrix.
+#'  The default is \code{1.0e-12}.
+#' @param expectile_iter_max integer indicating the maximum number of iterations for the expectile
+#'  reweighting algorithm. The default is \code{50L}.
+#' @param expectile_trace logical indicating whether to print iteration information during expectile
+#'  estimation. The default is \code{FALSE}.
 #'
 #' @return A named list of control parameters.
 #'
@@ -150,7 +171,7 @@ NULL
 #' @examples
 #' # Default
 #' fit_control()
-#' 
+#'
 #' # Custom tolerances
 #' fit_control(dev_tol = 1e-10, center_tol = 1e-10)
 #'
@@ -174,10 +195,12 @@ fit_control <- function(
   centering = "berge",
   sep_tol = 1.0e-08,
   sep_zero_tol = 1.0e-08,
+  sep_mu_tol = 1.0e-06,
   sep_max_iter = 200L,
   sep_simplex_max_iter = 2000L,
   sep_use_relu = TRUE,
   sep_use_simplex = TRUE,
+  sep_use_mu = TRUE,
   return_fe = FALSE,
   keep_tx = FALSE,
   keep_data = FALSE,
@@ -194,7 +217,11 @@ fit_control <- function(
   ape_weak_exo = FALSE,
   compute_bias_corr = FALSE,
   bias_corr_bandwidth = 0L,
-  bias_corr_panel_structure = "classic"
+  bias_corr_panel_structure = "classic",
+  expectile = NULL,
+  expectile_tol = 1.0e-12,
+  expectile_iter_max = 50L,
+  expectile_trace = FALSE
 ) {
   # Check validity of tolerance parameters
   if (
@@ -204,7 +231,8 @@ fit_control <- function(
       step_halving_factor <= 0.0 ||
       alpha_tol <= 0.0 ||
       sep_tol <= 0.0 ||
-      sep_zero_tol <= 0.0
+      sep_zero_tol <= 0.0 ||
+      sep_mu_tol <= 0.0
   ) {
     stop(
       "All tolerance parameters should be greater than zero.",
@@ -240,12 +268,13 @@ fit_control <- function(
   check_separation <- as.logical(check_separation)
   sep_use_relu <- as.logical(sep_use_relu)
   sep_use_simplex <- as.logical(sep_use_simplex)
+  sep_use_mu <- as.logical(sep_use_mu)
   compute_apes <- as.logical(compute_apes)
   ape_weak_exo <- as.logical(ape_weak_exo)
   compute_bias_corr <- as.logical(compute_bias_corr)
   if (is.na(return_fe) || is.na(keep_tx) || is.na(keep_data) || is.na(return_hessian) ||
-    is.na(check_separation) || is.na(sep_use_relu) || is.na(sep_use_simplex) || 
-    is.na(compute_apes) || is.na(ape_weak_exo) || is.na(compute_bias_corr)) {
+    is.na(check_separation) || is.na(sep_use_relu) || is.na(sep_use_simplex) ||
+    is.na(sep_use_mu) || is.na(compute_apes) || is.na(ape_weak_exo) || is.na(compute_bias_corr)) {
     stop(
       "All logical parameters should be TRUE or FALSE.",
       call. = FALSE
@@ -325,6 +354,27 @@ fit_control <- function(
     )
   }
 
+  # Check validity of expectile parameters
+  if (!is.null(expectile)) {
+    if (!is.numeric(expectile) || length(expectile) != 1L) {
+      stop("expectile should be a single numeric value or NULL.", call. = FALSE)
+    }
+    if (expectile <= 0 || expectile >= 1) {
+      stop("expectile should be between 0 and 1 (exclusive).", call. = FALSE)
+    }
+  }
+  if (expectile_tol <= 0) {
+    stop("expectile_tol should be greater than zero.", call. = FALSE)
+  }
+  expectile_iter_max <- as.integer(expectile_iter_max)
+  if (expectile_iter_max < 1L) {
+    stop("expectile_iter_max should be greater than or equal to one.", call. = FALSE)
+  }
+  expectile_trace <- as.logical(expectile_trace)
+  if (is.na(expectile_trace)) {
+    stop("expectile_trace should be TRUE or FALSE.", call. = FALSE)
+  }
+
   list(
     dev_tol = dev_tol,
     center_tol = center_tol,
@@ -342,10 +392,12 @@ fit_control <- function(
     centering = centering,
     sep_tol = sep_tol,
     sep_zero_tol = sep_zero_tol,
+    sep_mu_tol = sep_mu_tol,
     sep_max_iter = sep_max_iter,
     sep_simplex_max_iter = sep_simplex_max_iter,
     sep_use_relu = sep_use_relu,
     sep_use_simplex = sep_use_simplex,
+    sep_use_mu = sep_use_mu,
     return_fe = return_fe,
     keep_tx = keep_tx,
     keep_data = keep_data,
@@ -362,6 +414,10 @@ fit_control <- function(
     bias_corr_bandwidth = bias_corr_bandwidth,
     bias_corr_panel_structure = bias_corr_panel_structure,
     tobit_lb = tobit_lb,
-    tobit_ub = tobit_ub
+    tobit_ub = tobit_ub,
+    expectile = expectile,
+    expectile_tol = expectile_tol,
+    expectile_iter_max = expectile_iter_max,
+    expectile_trace = expectile_trace
   )
 }

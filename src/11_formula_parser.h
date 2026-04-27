@@ -654,6 +654,7 @@ build_matrix_from_formula(const std::string &formula_str, SEXP df,
   // Fill intercept column first (if needed)
   if (needs_intercept) {
     result.X.col(0).ones();
+    result.term_names.push_back("(Intercept)");
     result.has_intercept_column = true;
     col_offset = 1;
   }

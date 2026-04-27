@@ -47,15 +47,23 @@ extern "C" SEXP _capybara_fenegbin_fit_(SEXP formula_str, SEXP df, SEXP w_r, SEX
     return cpp4r::as_sexp(fenegbin_fit_(cpp4r::as_cpp<cpp4r::decay_t<const std::string &>>(formula_str), cpp4r::as_cpp<cpp4r::decay_t<SEXP>>(df), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(w_r), cpp4r::as_cpp<cpp4r::decay_t<const std::string &>>(link), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(beta_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(eta_r), cpp4r::as_cpp<cpp4r::decay_t<const double &>>(init_theta), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(offset_r), cpp4r::as_cpp<cpp4r::decay_t<const list &>>(control)));
   END_CPP4R
 }
+// capybara.cpp
+list fepoisson_asymmetric_fit_(const std::string & formula_str, SEXP df, const doubles & w_r, const doubles & beta_r, const doubles & eta_r, const doubles & offset_r, const list & control);
+extern "C" SEXP _capybara_fepoisson_asymmetric_fit_(SEXP formula_str, SEXP df, SEXP w_r, SEXP beta_r, SEXP eta_r, SEXP offset_r, SEXP control) {
+  BEGIN_CPP4R
+    return cpp4r::as_sexp(fepoisson_asymmetric_fit_(cpp4r::as_cpp<cpp4r::decay_t<const std::string &>>(formula_str), cpp4r::as_cpp<cpp4r::decay_t<SEXP>>(df), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(w_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(beta_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(eta_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(offset_r), cpp4r::as_cpp<cpp4r::decay_t<const list &>>(control)));
+  END_CPP4R
+}
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
-    {"_capybara_center_variables_", (DL_FUNC) &_capybara_center_variables_,  6},
-    {"_capybara_feglm_fit_",        (DL_FUNC) &_capybara_feglm_fit_,         9},
-    {"_capybara_feglm_fit_matrix_", (DL_FUNC) &_capybara_feglm_fit_matrix_, 14},
-    {"_capybara_feglm_offset_fit_", (DL_FUNC) &_capybara_feglm_offset_fit_,  7},
-    {"_capybara_felm_fit_",         (DL_FUNC) &_capybara_felm_fit_,          4},
-    {"_capybara_fenegbin_fit_",     (DL_FUNC) &_capybara_fenegbin_fit_,      9},
+    {"_capybara_center_variables_",         (DL_FUNC) &_capybara_center_variables_,          6},
+    {"_capybara_feglm_fit_",                (DL_FUNC) &_capybara_feglm_fit_,                 9},
+    {"_capybara_feglm_fit_matrix_",         (DL_FUNC) &_capybara_feglm_fit_matrix_,         14},
+    {"_capybara_feglm_offset_fit_",         (DL_FUNC) &_capybara_feglm_offset_fit_,          7},
+    {"_capybara_felm_fit_",                 (DL_FUNC) &_capybara_felm_fit_,                  4},
+    {"_capybara_fenegbin_fit_",             (DL_FUNC) &_capybara_fenegbin_fit_,              9},
+    {"_capybara_fepoisson_asymmetric_fit_", (DL_FUNC) &_capybara_fepoisson_asymmetric_fit_,  7},
     {NULL, NULL, 0}
 };
 }

@@ -21,10 +21,12 @@ fit_control(
   centering = "berge",
   sep_tol = 1e-08,
   sep_zero_tol = 1e-08,
+  sep_mu_tol = 1e-06,
   sep_max_iter = 200L,
   sep_simplex_max_iter = 2000L,
   sep_use_relu = TRUE,
   sep_use_simplex = TRUE,
+  sep_use_mu = TRUE,
   return_fe = FALSE,
   keep_tx = FALSE,
   keep_data = FALSE,
@@ -41,7 +43,11 @@ fit_control(
   ape_weak_exo = FALSE,
   compute_bias_corr = FALSE,
   bias_corr_bandwidth = 0L,
-  bias_corr_panel_structure = "classic"
+  bias_corr_panel_structure = "classic",
+  expectile = NULL,
+  expectile_tol = 1e-12,
+  expectile_iter_max = 50L,
+  expectile_trace = FALSE
 )
 }
 \arguments{
@@ -95,6 +101,10 @@ and grand acceleration.}
 
 \item{sep_zero_tol}{tolerance for treating values as zero in separation detection. The default is \code{1.0e-08}.}
 
+\item{sep_mu_tol}{tolerance for mu-based separation detection during IRLS iterations. Observations with
+\code{y == 0} and \code{eta <= log(sep_mu_tol)} are flagged as separated. Based on ppmlhdfe's mu separation
+method. The default is \code{1.0e-06}.}
+
 \item{sep_max_iter}{maximum iterations for ReLU separation detection algorithm. The default is \code{200L}.}
 
 \item{sep_simplex_max_iter}{maximum iterations for simplex separation detection algorithm. The default is \code{2000L}.}
@@ -102,6 +112,10 @@ and grand acceleration.}
 \item{sep_use_relu}{logical indicating whether to use the ReLU algorithm for separation detection. The default is \code{TRUE}.}
 
 \item{sep_use_simplex}{logical indicating whether to use the simplex algorithm for separation detection. The default is \code{TRUE}.}
+
+\item{sep_use_mu}{logical indicating whether to use mu-based separation detection during IRLS iterations.
+This catches observations where predicted values become extremely small (suggesting perfect prediction
+of zeros). Following ppmlhdfe methodology. The default is \code{TRUE}.}
 
 \item{return_fe}{logical indicating if the fixed effects should be returned. This can be useful when fitting general
 equilibrium models where skipping the fixed effects for intermediate steps speeds up computation. Note: Set to
@@ -186,6 +200,25 @@ determines the structure of the panel used for bias correction. \code{"classic"}
 structures where the same cross-sectional units are observed several times (requires 1-2 way FE).
 \code{"network"} denotes panel structures where bilateral flows are observed for several time
 periods, e.g., trade data (requires 2-3 way FE). Default is \code{"classic"}.}
+
+\item{expectile}{numeric value between 0 and 1 (exclusive) specifying the expectile for asymmetric
+Poisson pseudo-maximum likelihood (APPML) estimation. When \code{NULL} (default), standard symmetric
+estimation is performed. Values below 0.5 give more weight to negative residuals (lower quantiles),
+while values above 0.5 give more weight to positive residuals (upper quantiles). For example,
+\code{expectile = 0.1} estimates the 10th expectile, \code{expectile = 0.5} is equivalent to
+standard Poisson PML, and \code{expectile = 0.9} estimates the 90th expectile.}
+
+\item{expectile_tol}{tolerance level for the stopping condition of the expectile iteration algorithm.
+
+The convergence criterion is based on the quadratic form \eqn{(b - b_{old})' V^{-1} (b - b_{old})},
+where \eqn{b} are the current coefficients and \eqn{V} is the variance-covariance matrix.
+The default is \code{1.0e-12}.}
+
+\item{expectile_iter_max}{integer indicating the maximum number of iterations for the expectile
+reweighting algorithm. The default is \code{50L}.}
+
+\item{expectile_trace}{logical indicating whether to print iteration information during expectile
+estimation. The default is \code{FALSE}.}
 }
 \value{
 A named list of control parameters.

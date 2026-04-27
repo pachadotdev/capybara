@@ -39,7 +39,7 @@ struct FelmWorkspace {
   // Contiguous memory block holding [y_demeaned | X_centered] column-major.
   // A single allocation of N*(P+1) doubles, with non-owning Armadillo
   // views pointing into it.  This lets center_variables() operate on
-  // all P+1 columns in a single call — no temporary yX matrix, no memcpy.
+  // all P+1 columns in a single call - no temporary yX matrix, no memcpy.
   std::vector<double> center_buf; // owns the memory: N * (P+1) doubles
   vec y_demeaned;                 // non-owning view of center_buf[0..N-1]
   mat X_centered;                 // non-owning view of center_buf[N..N*(P+1)-1]

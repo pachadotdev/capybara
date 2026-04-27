@@ -23,7 +23,7 @@ test_that("felm works", {
   #        wt
   # -3.205613
 
-  # m1$fixed.effects
+  # m1$fixed_effects
   # fixest::fixef(m1_fixest)
   # $cyl
   #        4        6        8
@@ -50,7 +50,7 @@ test_that("felm works", {
   m1 <- felm(mpg ~ wt + qsec | cyl + am, mtcars)
 
   # m1$coefficients
-  # m1$fixed.effects
+  # m1$fixed_effects
 
   # m1fixest <- fixest::feols(mpg ~ wt + qsec | cyl + am, mtcars)
   # m1fixest$coefficients
@@ -118,10 +118,10 @@ test_that("felm time is the minimally affected when adding noise to the data", {
   mtcars2$mpg <- mtcars2$mpg +
     rbinom(nrow(mtcars2), 1, 0.5) *
       .Machine$double.eps
-  m1 <- felm(mpg ~ wt | cyl, mtcars)
-  m2 <- felm(mpg ~ wt | cyl, mtcars2)
+  m1 <- felm(mpg ~ wt | cyl, mtcars, control = fit_control(return_fe = TRUE))
+  m2 <- felm(mpg ~ wt | cyl, mtcars2, control = fit_control(return_fe = TRUE))
   expect_equal(coef(m1), coef(m2))
-  expect_equal(m1$fixed.effects, m2$fixed.effects)
+  expect_equal(m1$fixed_effects, m2$fixed_effects)
 
   t1 <- rep(NA, 10)
   t2 <- rep(NA, 10)
@@ -183,7 +183,7 @@ test_that("felm correctly predicts values outside the inter-quartile range", {
   # print(coef(m1_lm))
   # print(coef(m2_lm)[2:3])
 
-  # print(m1_lm$fixed.effects)
+  # print(m1_lm$fixed_effects)
   # print(coef(m2_lm)[c(1,4:5)] + c(0, coef(m2_lm)[1], coef(m2_lm)[1]))
 
   pred1_lm <- predict(m1_lm, newdata = d1)

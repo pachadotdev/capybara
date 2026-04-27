@@ -93,7 +93,7 @@ NULL
 #' @param weights an optional string with the name of the prior weights variable in \code{data}.
 #' @param vcov an optional character string specifying the type of variance-covariance estimator.
 #'  One of \code{"iid"} (default OLS, ignore cluster part of formula), \code{"hetero"} (heteroskedastic-robust
-#'  HC0, computed in C++ — no cluster variable needed), \code{"cluster"} (one-way sandwich using the cluster
+#'  HC0, computed in C++ - no cluster variable needed), \code{"cluster"} (one-way sandwich using the cluster
 #'  variable in the formula), \code{"m-estimator"} (M-estimator one-way sandwich), or \code{"dyadic"}
 #'  (Cameron-Miller dyadic sandwich; requires two entity variables in the third part of the formula).
 #'  When \code{NULL} (default), the type is inferred from the formula: if a cluster variable is present the
@@ -142,7 +142,7 @@ NULL
 #'  k-Way Fixed Effects". ArXiv e-prints.
 #'
 #' @examples
-#' # IID (default — no cluster in formula)
+#' # IID (default - no cluster in formula)
 #' mod <- feglm(mpg ~ wt | cyl, mtcars, family = poisson(link = "log"))
 #' summary(mod)
 #'
@@ -156,7 +156,7 @@ NULL
 #' )
 #' summary(mod_cl)
 #'
-#' # Dyadic-robust (Cameron & Miller) — two entity columns in cluster part
+#' # Dyadic-robust (Cameron & Miller) - two entity columns in cluster part
 #' mod_dy <- feglm(mpg ~ wt | cyl | am + vs, mtcars,
 #'   family = poisson(link = "log"), vcov = "dyadic"
 #' )
@@ -195,7 +195,7 @@ feglm <- function(
   cols_info <- get_needed_cols_(formula, data, weights, offset)
   formula_vars <- cols_info$formula_vars
   lhs <- formula_vars[1L]
-  
+
   # Preserve original row names ----
   orig_rownames <- rownames(data)
   needs_rowname_conversion <- is.null(orig_rownames)
@@ -206,7 +206,7 @@ feglm <- function(
   # Convert formula to normalized string for C++ ----
   # Use normalize_formula_ to expand *, ^, -, /, %in%, . using R's terms()
   formula_str <- normalize_formula_(formula, data)
-  
+
   # Detect if intercept is suppressed (e.g., ~ wt - 1)
   has_intercept <- !grepl("__NO_INTERCEPT__", formula_str, fixed = TRUE)
 
@@ -242,7 +242,7 @@ feglm <- function(
   tt <- terms(f1, data = data)
   rhs_labels <- attr(tt, "term.labels")
   p <- length(rhs_labels)
-  if (p == 0L) p <- 1L  # intercept only
+  if (p == 0L) p <- 1L # intercept only
 
   # nt for eta initialization
   nt <- nobs_full
@@ -257,7 +257,7 @@ feglm <- function(
       stop("Length of 'beta_start' has to be equal to the number of structural parameters.", call. = FALSE)
     }
     beta <- beta_start
-    eta <- numeric(0)  # Will be computed in C++
+    eta <- numeric(0) # Will be computed in C++
   } else if (!is.null(eta_start)) {
     if (length(eta_start) != nt) {
       stop("Length of 'eta_start' has to be equal to the number of observations.", call. = FALSE)
@@ -306,17 +306,20 @@ feglm <- function(
   fe_levels <- fit[["fe_levels"]]
 
   # Get term names from C++ result ----
-  nms_sp <- if (!is.null(fit[["term_names"]])) {
+  # C++ term_names should include intercept if applicable, so use them if they match
+  n_coef <- nrow(fit[["coef_table"]])
+  nms_sp <- if (!is.null(fit[["term_names"]]) && length(fit[["term_names"]]) == n_coef) {
     fit[["term_names"]]
   } else {
-    paste0("V", seq_len(nrow(fit[["coef_table"]])))
+    # Generate default names - handle intercept case
+    if (length(fe_vars) == 0L && has_intercept && n_coef > 0) {
+      c("(Intercept)", paste0("V", seq_len(n_coef - 1)))
+    } else {
+      paste0("V", seq_len(n_coef))
+    }
   }
 
   # Add names to outputs ----
-  # Add intercept name only if: no FE, and intercept is not suppressed (- 1)
-  if (length(fe_vars) == 0L && has_intercept) {
-    nms_sp <- c("(Intercept)", nms_sp)
-  }
   dimnames(fit[["coef_table"]]) <- list(nms_sp, c("Estimate", "Std. Error", "z value", "Pr(>|z|)"))
   if (control[["keep_tx"]] && !is.null(fit[["tx"]]) && is.matrix(fit[["tx"]])) {
     colnames(fit[["tx"]]) <- nms_sp
@@ -352,8 +355,10 @@ feglm <- function(
 
   # Add separation info if present ----
   if (isTRUE(fit$has_separation)) {
-    message("Separation detected: ", num_separated, " observation(s) ",
-            "with perfect prediction were excluded from estimation.")
+    message(
+      "Separation detected: ", num_separated, " observation(s) ",
+      "with perfect prediction were excluded from estimation."
+    )
     fit[["separated_obs"]] <- fit$separated_obs
     fit[["separation_support"]] <- fit$separation_support
   }

@@ -139,7 +139,7 @@ inline void ww_nu_tobit(vec &w_working, vec &nu, const vec &w, const vec &mu,
       // Left-censored: y = lower
       // a = (lower - mu) / sigma (typically negative when mu > lower)
       const double a = (lower - mui) / sigma_safe;
-      // Φ(a) = P(Z < a)
+      // Phi(a) = P(Z < a)
       const double Phi_a = 0.5 * std::erfc(-a * M_SQRT1_2);
       const double phi_a =
           std::exp(-0.5 * a * a) * M_2_SQRTPI * 0.5 * M_SQRT1_2;
@@ -264,9 +264,187 @@ inline WorkingWtsNu get_ww_nu_fn(Family family_type) {
 }
 
 ///////////////////////////////////////////////////////////////////////////
+// Separation subsetting: holds subsetted data for separated observations
+///////////////////////////////////////////////////////////////////////////
+
+struct SeparationSubset {
+  vec y_sub;
+  mat X_sub;
+  vec w_sub;
+  vec eta_sub;
+  vec beta_sub;
+  vec offset_sub;
+  FlatFEMap fe_map_sub;
+  field<uvec> cluster_groups_sub;
+  uvec keep_idx;
+  uword n_orig;
+  uword n_kept;
+  bool has_offset;
+  bool has_cluster_groups;
+};
+
+// Subset data for separation handling (no recursive call)
+inline SeparationSubset
+subset_for_separation(const vec &beta, const vec &eta, const vec &y,
+                      const mat &X, const vec &w, const FlatFEMap &fe_map,
+                      const field<uvec> *cluster_groups, const vec *offset,
+                      const uvec &separated_obs) {
+
+  SeparationSubset sub;
+  sub.n_orig = y.n_elem;
+
+  // Validate separated indices are in bounds
+  if (separated_obs.n_elem > 0) {
+    const uword max_sep = separated_obs.max();
+    if (max_sep >= sub.n_orig) {
+      cpp4r::stop("Internal error: separated index %u >= n_orig %u",
+                  (unsigned)max_sep, (unsigned)sub.n_orig);
+    }
+  }
+
+  uvec sep_flags(sub.n_orig, fill::zeros);
+  sep_flags.elem(separated_obs).ones();
+  sub.keep_idx = find(sep_flags == 0);
+  sub.n_kept = sub.keep_idx.n_elem;
+
+  if (sub.n_kept == 0) {
+    cpp4r::stop("All observations are separated - cannot fit model");
+  }
+
+  // Subset all data to non-separated observations
+  sub.y_sub = y.elem(sub.keep_idx);
+  sub.X_sub = X.rows(sub.keep_idx);
+  sub.w_sub = w.elem(sub.keep_idx);
+  if (eta.n_elem > 0) {
+    sub.eta_sub = eta.elem(sub.keep_idx);
+  }
+  sub.beta_sub = beta;
+
+  // Subset offset if present
+  sub.has_offset = (offset != nullptr && offset->n_elem == sub.n_orig);
+  if (sub.has_offset) {
+    sub.offset_sub = offset->elem(sub.keep_idx);
+  }
+
+  // Subset FE map
+  sub.fe_map_sub = fe_map.subset(sub.keep_idx);
+
+  // Remap cluster groups if present
+  sub.has_cluster_groups =
+      (cluster_groups != nullptr && cluster_groups->n_elem > 0);
+  if (sub.has_cluster_groups) {
+    // Build old-to-new index mapping
+    uvec idx_map(sub.n_orig);
+    idx_map.fill(sub.n_orig); // invalid marker
+    for (uword i = 0; i < sub.n_kept; ++i) {
+      idx_map(sub.keep_idx(i)) = i;
+    }
+
+    sub.cluster_groups_sub.set_size(cluster_groups->n_elem);
+    for (uword c = 0; c < cluster_groups->n_elem; ++c) {
+      const uvec &orig_cluster = (*cluster_groups)(c);
+      std::vector<uword> new_idx;
+      for (uword j = 0; j < orig_cluster.n_elem; ++j) {
+        uword old_i = orig_cluster(j);
+        if (idx_map(old_i) < sub.n_orig) {
+          new_idx.push_back(idx_map(old_i));
+        }
+      }
+      sub.cluster_groups_sub(c) = uvec(new_idx);
+    }
+  }
+
+  return sub;
+}
+
+// Expand result from subsetted fit back to original indices
+inline void expand_separation_result(InferenceGLM &result,
+                                     const InferenceGLM &result_sub,
+                                     const SeparationSubset &sub,
+                                     const uvec &separated_obs,
+                                     const vec *separation_support,
+                                     const uvec *separated_coefs = nullptr) {
+  // Validate result dimensions before mapping back
+  if (result_sub.eta.n_elem != sub.n_kept) {
+    cpp4r::stop("Internal error: result_sub.eta has %u elements, expected %u",
+                (unsigned)result_sub.eta.n_elem, (unsigned)sub.n_kept);
+  }
+  if (result_sub.fitted_values.n_elem != sub.n_kept) {
+    cpp4r::stop("Internal error: result_sub.fitted_values has %u elements, "
+                "expected %u",
+                (unsigned)result_sub.fitted_values.n_elem,
+                (unsigned)sub.n_kept);
+  }
+
+  // Copy scalar and matrix results directly
+  result.coef_table = result_sub.coef_table;
+  result.vcov = result_sub.vcov;
+  result.hessian = result_sub.hessian;
+  result.deviance = result_sub.deviance;
+  result.null_deviance = result_sub.null_deviance;
+  result.conv = result_sub.conv;
+  result.iter = result_sub.iter;
+  result.coef_status = result_sub.coef_status;
+  result.pseudo_rsq = result_sub.pseudo_rsq;
+
+  // Set separated coefficients to -Inf (perfectly predict y=0)
+  if (separated_coefs != nullptr && separated_coefs->n_elem > 0) {
+    for (uword i = 0; i < separated_coefs->n_elem; ++i) {
+      const uword coef_idx = (*separated_coefs)(i);
+      if (coef_idx < result.coef_table.n_rows) {
+        result.coef_table(coef_idx, 0) = -datum::inf; // Estimate
+        result.coef_table(coef_idx, 1) = datum::nan;  // Std. Error
+        result.coef_table(coef_idx, 2) = datum::nan;  // z value
+        result.coef_table(coef_idx, 3) = datum::nan;  // Pr(>|z|)
+      }
+    }
+  }
+
+  // Expand eta and fitted_values back to original size
+  result.eta.set_size(sub.n_orig);
+  result.eta.fill(datum::nan);
+  result.eta.elem(sub.keep_idx) = result_sub.eta;
+
+  result.fitted_values.set_size(sub.n_orig);
+  result.fitted_values.fill(datum::nan);
+  result.fitted_values.elem(sub.keep_idx) = result_sub.fitted_values;
+
+  // Copy fixed effects if present
+  if (result_sub.fixed_effects.n_elem > 0) {
+    result.fixed_effects = result_sub.fixed_effects;
+  }
+  result.has_fe = result_sub.has_fe;
+
+  // Copy APE results if computed
+  if (result_sub.has_apes) {
+    result.ape_delta = result_sub.ape_delta;
+    result.ape_vcov = result_sub.ape_vcov;
+    result.ape_binary = result_sub.ape_binary;
+    result.has_apes = true;
+  }
+
+  // Copy bias correction results if computed
+  if (result_sub.has_bias_corr) {
+    result.beta_corrected = result_sub.beta_corrected;
+    result.bias_term = result_sub.bias_term;
+    result.has_bias_corr = true;
+  }
+
+  result.has_separation = true;
+  result.separated_obs = separated_obs;
+  result.num_separated = separated_obs.n_elem;
+  if (separation_support != nullptr && separation_support->n_elem > 0) {
+    result.separation_support = *separation_support;
+  }
+  if (separated_coefs != nullptr && separated_coefs->n_elem > 0) {
+    result.separated_coefs = *separated_coefs;
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////
 // Average Partial Effects (APE) and Bias Correction for binomial models
-// Based on Cruz-Gonzalez, Fernández-Val, and Weidner (2017)
-// and Fernández-Val & Weidner (2016)
+// Based on Cruz-Gonzalez, Fernandez-Val, and Weidner (2017)
+// and Fernandez-Val & Weidner (2016)
 // Following R implementations in biasCorr.R and getAPEs.R
 ///////////////////////////////////////////////////////////////////////////
 
@@ -470,7 +648,7 @@ inline void compute_apes_binomial(InferenceGLM &result, const mat &X,
   Psi.each_col() /= w;
   mat MPsi = Psi; // Will be centered in-place
   // Note: For APE variance we need centered Psi, but full centering is
-  // expensive Here we use the approximation that PPsi ≈ Psi for variance
+  // expensive Here we use the approximation that PPsi ~= Psi for variance
   // computation The R code uses: PPsi <- Psi - MPsi
 
   // Bias correction for APEs (if biascorr and bandwith info available)
@@ -561,15 +739,16 @@ inline void compute_apes_binomial(InferenceGLM &result, const mat &X,
   result.has_apes = true;
 }
 
-InferenceGLM feglm_fit(
-    vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
-    const double &theta, const Family family_type, const FlatFEMap &fe_map,
-    const CapybaraParameters &params, GlmWorkspace *workspace = nullptr,
-    const field<uvec> *cluster_groups = nullptr, const vec *offset = nullptr,
-    bool skip_separation_check = false,
-    const field<uvec> *entity1_groups = nullptr,
-    const field<uvec> *entity2_groups = nullptr, bool run_from_negbin = false,
-    bool suppress_intercept = false, bool has_intercept_column = false) {
+InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
+                       const double &theta, const Family family_type,
+                       const FlatFEMap &fe_map,
+                       const CapybaraParameters &params,
+                       GlmWorkspace *workspace,
+                       const field<uvec> *cluster_groups, const vec *offset,
+                       bool skip_separation_check,
+                       const field<uvec> *entity1_groups,
+                       const field<uvec> *entity2_groups, bool run_from_negbin,
+                       bool suppress_intercept, bool has_intercept_column) {
 #ifdef CAPYBARA_DEBUG
   double mem_start = get_memory_usage_mb();
   std::ostringstream feglm_msg;
@@ -615,7 +794,7 @@ InferenceGLM feglm_fit(
   const uword p = X.n_cols;
 
   // Store original X in the FelmWorkspace (needed for FE recovery after
-  // convergence). Skip when called from negbin outer loop — only the final
+  // convergence). Skip when called from negbin outer loop - only the final
   // converged call needs FE recovery (run_from_negbin=false).
   // This avoids an upfront N*P copy; instead the workspace owns it.
 
@@ -639,26 +818,54 @@ InferenceGLM feglm_fit(
   auto tsep0 = std::chrono::high_resolution_clock::now();
 #endif
 
-  // Group-level separation pre-filter
+  // Group-level separation pre-filter (requires fixed effects)
   // For Poisson/NegBin/Binomial/Probit FE models: drop entire FE groups where
   // mean(y)==0 (Poisson/NegBin) or mean(y) in {0,1} (Binomial/Probit)
   SeparationResult group_sep_result;
+#ifdef CAPYBARA_DEBUG
+  cpp4r::message("Before separation check - n=%u, X.n_cols=%u, fe_map.K=%u, "
+                 "check_sep=%d\n",
+                 (unsigned)n, (unsigned)X.n_cols, (unsigned)fe_map.K,
+                 (int)params.check_separation);
+#endif
   if (!skip_separation_check && has_fixed_effects && params.check_separation &&
       (family_type == POISSON || family_type == NEG_BIN ||
        family_type == BINOMIAL || family_type == PROBIT)) {
+#ifdef CAPYBARA_DEBUG
+    cpp4r::message("Running group separation check\n");
+#endif
     group_sep_result = check_group_separation(y, w, fe_map, family_type);
+#ifdef CAPYBARA_DEBUG
+    cpp4r::message("group_sep found %u separated obs\n",
+                   (unsigned)group_sep_result.num_separated);
+#endif
   }
 
-  // Observation-level separation detection (ReLU + Simplex) for Poisson FE
+  // Observation-level separation detection (ReLU + Simplex) for Poisson
+  // Works with or without fixed effects
   if (family_type == Family::POISSON && !skip_separation_check &&
-      has_fixed_effects && params.check_separation) {
+      params.check_separation) {
+#ifdef CAPYBARA_DEBUG
+    cpp4r::message("Running Poisson separation check\n");
+#endif
     // Use weights with group-separated obs already zeroed
     vec w_for_sep = w;
     if (group_sep_result.num_separated > 0) {
+#ifdef CAPYBARA_DEBUG
+      cpp4r::message("Zeroing weights for %u group-separated obs, max_idx=%u, "
+                     "w.n_elem=%u\n",
+                     (unsigned)group_sep_result.num_separated,
+                     (unsigned)group_sep_result.separated_obs.max(),
+                     (unsigned)w_for_sep.n_elem);
+#endif
       w_for_sep.elem(group_sep_result.separated_obs).zeros();
     }
 
-    SeparationResult sep_result = check_separation(y, X, w_for_sep, params);
+    // Create a copy of fe_map for separation detection (modifies weights
+    // internally)
+    FlatFEMap fe_map_sep = fe_map;
+    SeparationResult sep_result =
+        check_separation(y, X, w_for_sep, fe_map_sep, params);
 
     // Merge group-level and observation-level results
     if (group_sep_result.num_separated > 0 || sep_result.num_separated > 0) {
@@ -672,43 +879,51 @@ InferenceGLM feglm_fit(
         all_separated = sep_result.separated_obs;
       }
 
-      // Zero weights for all separated obs
-      vec w_work = w;
-      w_work.elem(all_separated).zeros();
+      // Subset data, run recursive fit, expand results
+      SeparationSubset sub = subset_for_separation(
+          beta, eta, y, X, w, fe_map, cluster_groups, offset, all_separated);
 
-      InferenceGLM result_with_sep = feglm_fit(
-          beta, eta, y, X, w_work, theta, family_type, fe_map, params, &ws,
-          cluster_groups, offset, true, entity1_groups, entity2_groups,
-          run_from_negbin, suppress_intercept, intercept_in_X);
+      const vec *offset_sub_ptr = sub.has_offset ? &sub.offset_sub : nullptr;
+      const field<uvec> *cluster_sub_ptr =
+          sub.has_cluster_groups ? &sub.cluster_groups_sub : nullptr;
 
-      result_with_sep.eta.elem(all_separated).fill(datum::nan);
-      result_with_sep.fitted_values.elem(all_separated).fill(datum::nan);
-      result_with_sep.has_separation = true;
-      result_with_sep.separated_obs = all_separated;
-      result_with_sep.num_separated = all_separated.n_elem;
-      if (sep_result.support.n_elem > 0) {
-        result_with_sep.separation_support = sep_result.support;
-      }
+      InferenceGLM result_sub =
+          feglm_fit(sub.beta_sub, sub.eta_sub, sub.y_sub, sub.X_sub, sub.w_sub,
+                    theta, family_type, sub.fe_map_sub, params, nullptr,
+                    cluster_sub_ptr, offset_sub_ptr, true, nullptr, nullptr,
+                    run_from_negbin, suppress_intercept, intercept_in_X);
 
+      InferenceGLM result_with_sep(sub.n_orig, result_sub.coef_table.n_rows,
+                                   true);
+      const vec *support_ptr =
+          sep_result.support.n_elem > 0 ? &sep_result.support : nullptr;
+      const uvec *sep_coefs_ptr = sep_result.separated_coefs.n_elem > 0
+                                      ? &sep_result.separated_coefs
+                                      : nullptr;
+      expand_separation_result(result_with_sep, result_sub, sub, all_separated,
+                               support_ptr, sep_coefs_ptr);
       return result_with_sep;
     }
   } else if (group_sep_result.num_separated > 0) {
     // Non-Poisson (Binomial, NegBin) with group separation only
-    vec w_work = w;
-    w_work.elem(group_sep_result.separated_obs).zeros();
+    SeparationSubset sub =
+        subset_for_separation(beta, eta, y, X, w, fe_map, cluster_groups,
+                              offset, group_sep_result.separated_obs);
 
-    InferenceGLM result_with_sep = feglm_fit(
-        beta, eta, y, X, w_work, theta, family_type, fe_map, params, &ws,
-        cluster_groups, offset, true, entity1_groups, entity2_groups,
-        run_from_negbin, suppress_intercept, intercept_in_X);
+    const vec *offset_sub_ptr = sub.has_offset ? &sub.offset_sub : nullptr;
+    const field<uvec> *cluster_sub_ptr =
+        sub.has_cluster_groups ? &sub.cluster_groups_sub : nullptr;
 
-    result_with_sep.eta.elem(group_sep_result.separated_obs).fill(datum::nan);
-    result_with_sep.fitted_values.elem(group_sep_result.separated_obs)
-        .fill(datum::nan);
-    result_with_sep.has_separation = true;
-    result_with_sep.separated_obs = group_sep_result.separated_obs;
-    result_with_sep.num_separated = group_sep_result.num_separated;
+    InferenceGLM result_sub =
+        feglm_fit(sub.beta_sub, sub.eta_sub, sub.y_sub, sub.X_sub, sub.w_sub,
+                  theta, family_type, sub.fe_map_sub, params, nullptr,
+                  cluster_sub_ptr, offset_sub_ptr, true, nullptr, nullptr,
+                  run_from_negbin, suppress_intercept, intercept_in_X);
 
+    InferenceGLM result_with_sep(sub.n_orig, result_sub.coef_table.n_rows,
+                                 true);
+    expand_separation_result(result_with_sep, result_sub, sub,
+                             group_sep_result.separated_obs, nullptr);
     return result_with_sep;
   }
 
@@ -731,7 +946,7 @@ InferenceGLM feglm_fit(
   CollinearityResult collin_result(X.n_cols);
 
   // Scope XtX and R_rank so they're deallocated immediately after use
-  // (avoids holding P² memory through the entire IRLS loop)
+  // (avoids holding P^2 memory through the entire IRLS loop)
   {
     const mat XtX = use_weights ? crossprod(X, w) : crossprod(X);
     mat R_rank;
@@ -860,6 +1075,20 @@ InferenceGLM feglm_fit(
   // the non-collinear columns. For FE recovery, we use X directly with
   // beta.elem(non_collinear_cols) which matches the post-shed column structure.
 
+  // Mu-based separation detection during IRLS (ppmlhdfe style)
+  // Only for Poisson-family models when separation checking is enabled
+  const bool do_mu_sep = (family_type == POISSON || family_type == NEG_BIN) &&
+                         params.check_separation && params.sep_use_mu &&
+                         !skip_separation_check;
+  const double log_septol =
+      do_mu_sep ? std::log(params.sep_mu_tol) : -datum::inf;
+  Col<unsigned char> mu_sep_mask; // byte mask for memory efficiency
+  uvec zero_sample;               // indices where y == 0
+  if (do_mu_sep) {
+    zero_sample = find(y == 0);
+    mu_sep_mask.zeros(n);
+  }
+
 #ifdef CAPYBARA_DEBUG
   cpp4r::message("/// Begin GLM iterations...\n");
   auto tglmiter0 = std::chrono::high_resolution_clock::now();
@@ -910,6 +1139,19 @@ InferenceGLM feglm_fit(
       }
     }
 
+    // Zero working weights for observations already marked as separated
+    // This ensures separated obs don't contribute to coefficient estimation
+    // (following ppmlhdfe: mu=0 for separated obs means w=0 in next iteration)
+    if (do_mu_sep && iter > 0) {
+      double *ww_ptr = w_working.memptr();
+      const unsigned char *mask_ptr = mu_sep_mask.memptr();
+      for (uword i = 0; i < n; ++i) {
+        if (mask_ptr[i]) {
+          ww_ptr[i] = 0.0;
+        }
+      }
+    }
+
 #ifdef CAPYBARA_DEBUG
     auto twwnu1 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> wwnu_duration = twwnu1 - twwnu0;
@@ -946,6 +1188,26 @@ InferenceGLM feglm_fit(
       beta.fill(datum::nan);
     }
 
+// Check dimensions before step-halving
+#ifdef CAPYBARA_DEBUG
+    cpp4r::message("iteration=%u, beta.n_elem=%u, beta0.n_elem=%u, "
+                   "beta_upd_reduced.n_elem=%u, "
+                   "has_collinearity=%d, non_collinear_cols.n_elem=%u, "
+                   "X.n_cols=%u, p=%u, full_p=%u\n",
+                   (unsigned)iter, (unsigned)beta.n_elem,
+                   (unsigned)beta0.n_elem, (unsigned)beta_upd_reduced.n_elem,
+                   (int)collin_result.has_collinearity,
+                   (unsigned)collin_result.non_collinear_cols.n_elem,
+                   (unsigned)X.n_cols, (unsigned)p, (unsigned)full_p);
+#endif
+    if (collin_result.has_collinearity &&
+        collin_result.non_collinear_cols.n_elem > 0) {
+#ifdef CAPYBARA_DEBUG
+      cpp4r::message("non_collinear_cols max=%u\n",
+                     (unsigned)collin_result.non_collinear_cols.max());
+#endif
+    }
+
     // Step-halving inner loop
     bool dev_crit = false, val_crit = false, imp_crit = false;
 
@@ -956,6 +1218,23 @@ InferenceGLM feglm_fit(
       // Update beta with step-halving
       if (collin_result.has_collinearity) {
         const uvec &idx = collin_result.non_collinear_cols;
+        // Validate indices before elem() calls
+        if (idx.n_elem > 0) {
+          uword max_idx = idx.max();
+          if (max_idx >= beta.n_elem) {
+            cpp4r::stop("Index out of bounds: max_idx=%u >= beta.n_elem=%u",
+                        (unsigned)max_idx, (unsigned)beta.n_elem);
+          }
+          if (max_idx >= beta0.n_elem) {
+            cpp4r::stop("Index out of bounds: max_idx=%u >= beta0.n_elem=%u",
+                        (unsigned)max_idx, (unsigned)beta0.n_elem);
+          }
+          if (idx.n_elem != beta_upd_reduced.n_elem) {
+            cpp4r::stop(
+                "Size mismatch: idx.n_elem=%u != beta_upd_reduced.n_elem=%u",
+                (unsigned)idx.n_elem, (unsigned)beta_upd_reduced.n_elem);
+          }
+        }
         beta = beta0;
         beta.elem(idx) = (1.0 - rho) * beta0.elem(idx) + rho * beta_upd_reduced;
       } else {
@@ -995,6 +1274,34 @@ InferenceGLM feglm_fit(
       beta = beta0;
       dev = dev0;
       mu_(mu, eta0);
+    }
+
+    // Mu-based separation detection during IRLS (ppmlhdfe style)
+    // Check if eta is below threshold for observations with y=0
+    if (do_mu_sep && zero_sample.n_elem > 0) {
+      // Adjusted tolerance based on minimum eta when y > 0
+      // Following ppmlhdfe: adjusted_log_septol = log_septol +
+      // min(min(eta[y>0])
+      // + 5, 0)
+      const uvec pos_sample = find(y > 0);
+      double adjusted_log_septol = log_septol;
+      if (pos_sample.n_elem > 0) {
+        const double min_eta_positive = min(eta.elem(pos_sample));
+        adjusted_log_septol += std::min(min_eta_positive + 5.0, 0.0);
+      }
+
+      // Mark separated observations: eta <= adjusted_log_septol AND y == 0
+      // Use OR to accumulate across iterations
+      const double *eta_ptr = eta.memptr();
+      double *mu_ptr = mu.memptr();
+      unsigned char *mask_ptr = mu_sep_mask.memptr();
+      for (uword i = 0; i < zero_sample.n_elem; ++i) {
+        const uword idx = zero_sample(i);
+        if (eta_ptr[idx] <= adjusted_log_septol) {
+          mask_ptr[idx] = 1;
+          mu_ptr[idx] = 0.0; // Set mu to 0 for separated observations
+        }
+      }
     }
 
     const double delta_deviance = dev0 - dev;
@@ -1060,6 +1367,39 @@ InferenceGLM feglm_fit(
     }
 
     result.iter = iter + 1;
+  }
+
+  // Post-IRLS handling of mu-based separated observations
+  // Following ppmlhdfe: if separation found during IRLS, subset data and re-fit
+  if (do_mu_sep) {
+    const uvec irls_sep_obs = find(mu_sep_mask);
+    if (irls_sep_obs.n_elem > 0) {
+#ifdef CAPYBARA_DEBUG
+      cpp4r::message("IRLS detected %u mu-based separated observations\n",
+                     (unsigned)irls_sep_obs.n_elem);
+#endif
+      // Subset data and recursively fit without separated observations
+      SeparationSubset sub = subset_for_separation(
+          beta, eta, y, X, w, fe_map, cluster_groups, offset, irls_sep_obs);
+
+      const vec *offset_sub_ptr = sub.has_offset ? &sub.offset_sub : nullptr;
+      const field<uvec> *cluster_sub_ptr =
+          sub.has_cluster_groups ? &sub.cluster_groups_sub : nullptr;
+
+      // Re-fit with subsetted data, skipping separation check (we already
+      // handled it)
+      InferenceGLM result_sub =
+          feglm_fit(sub.beta_sub, sub.eta_sub, sub.y_sub, sub.X_sub, sub.w_sub,
+                    theta, family_type, sub.fe_map_sub, params, nullptr,
+                    cluster_sub_ptr, offset_sub_ptr, true, nullptr, nullptr,
+                    run_from_negbin, suppress_intercept, intercept_in_X);
+
+      InferenceGLM result_with_sep(sub.n_orig, result_sub.coef_table.n_rows,
+                                   true);
+      expand_separation_result(result_with_sep, result_sub, sub, irls_sep_obs,
+                               nullptr);
+      return result_with_sep;
+    }
   }
 
 #ifdef CAPYBARA_DEBUG

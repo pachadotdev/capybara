@@ -23,3 +23,7 @@ feglm_offset_fit_ <- function(eta_r, y_r, offset_r, wt_r, family, control, fe_co
 fenegbin_fit_ <- function(formula_str, df, w_r, link, beta_r, eta_r, init_theta, offset_r, control) {
 	.Call(`_capybara_fenegbin_fit_`, formula_str, df, w_r, link, beta_r, eta_r, init_theta, offset_r, control)
 }
+
+fepoisson_asymmetric_fit_ <- function(formula_str, df, w_r, beta_r, eta_r, offset_r, control) {
+	.Call(`_capybara_fepoisson_asymmetric_fit_`, formula_str, df, w_r, beta_r, eta_r, offset_r, control)
+}

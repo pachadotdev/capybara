@@ -32,6 +32,7 @@ struct InferenceGLM {
   bool has_separation = false;
   uword num_separated = 0;
   uvec separated_obs;
+  uvec separated_coefs; // Coefficients that perfectly predict y=0 (set to -Inf)
   vec separation_support;
 
   // Average Partial Effects (APE) fields for binomial models
@@ -40,7 +41,7 @@ struct InferenceGLM {
   uvec ape_binary; // 1 = binary regressor, 0 = continuous
   bool has_apes = false;
 
-  // Bias correction fields for binomial models (Fernández-Val & Weidner 2016)
+  // Bias correction fields for binomial models (Fernandez-Val & Weidner 2016)
   vec beta_corrected; // Bias-corrected coefficient estimates
   vec bias_term;      // Estimated bias term
   bool has_bias_corr = false;

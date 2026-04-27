@@ -95,6 +95,43 @@ struct FlatFEMap {
     structure_built = true;
   }
 
+  // Create a subset of the FE map keeping only specified observation indices
+  // Returns a new FlatFEMap with n_obs = keep_idx.n_elem
+  // Group assignments are preserved (same group numbers, just fewer obs)
+  FlatFEMap subset(const uvec &keep_idx) const {
+    FlatFEMap result;
+    if (K == 0 || !structure_built) {
+      return result;
+    }
+
+    // Validate indices are in bounds
+    if (keep_idx.n_elem > 0) {
+      const uword max_idx = keep_idx.max();
+      if (max_idx >= n_obs) {
+        cpp4r::stop("FlatFEMap::subset: index %u >= n_obs %u",
+                    (unsigned)max_idx, (unsigned)n_obs);
+      }
+    }
+
+    result.K = K;
+    result.n_obs = keep_idx.n_elem;
+    result.n_groups = n_groups; // Same number of groups (some may be empty)
+    result.fe_map.resize(K);
+
+    for (uword k = 0; k < K; ++k) {
+      result.fe_map[k].resize(result.n_obs);
+      const uword *src_map = fe_map[k].data();
+      uword *dst_map = result.fe_map[k].data();
+      const uword *idx_ptr = keep_idx.memptr();
+      for (uword i = 0; i < result.n_obs; ++i) {
+        dst_map[i] = src_map[idx_ptr[i]];
+      }
+    }
+
+    result.structure_built = true;
+    return result;
+  }
+
   void update_weights(const vec &w) {
     if (K == 0)
       return;

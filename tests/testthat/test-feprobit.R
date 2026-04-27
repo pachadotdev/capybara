@@ -4,7 +4,6 @@
 #' @srrstats {RE4.3} Ensures stable estimates when adding negligible noise to the data.
 #' @srrstats {RE5.1} Validates proper output generation for the model summary and printing methods.
 #' @srrstats {RE7.3} Confirms that estimated coefficients are within a reasonable variation threshold compared to baseline models.
-#' @srrstats {G5.10} The CAPYBARA_EXTENDED_TESTS environment variable can be set to true to run extended tests.
 #' @srrstats {G5.11} The extended tests do not require additional downloads.
 #' @srrstats {G5.11a} As for G5.11., the extended tests do not require additional downloads.
 #' @srrstats {G5.12} The extended tests verify that the algorithm fitting time is robust to noise. This has to be tested with a larger dataset to see that time(clean) <= time(noisy).

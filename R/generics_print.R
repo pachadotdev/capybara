@@ -210,10 +210,10 @@ summary_r2_ <- function(x, digits) {
 #' @noRd
 summary_pseudo_rsq_ <- function(x, digits) {
   fam <- x[["family"]]
-  if (fam[["family"]] == "poisson" && !is.null(x[["pseudo.rsq"]])) {
+  if (fam[["family"]] == "poisson" && !is.null(x[["pseudo_rsq"]])) {
     cat(
       "\nPseudo R-squared:",
-      format(x[["pseudo.rsq"]], digits = digits, nsmall = 2L),
+      format(x[["pseudo_rsq"]], digits = digits, nsmall = 2L),
       "\n"
     )
   }
