@@ -15,31 +15,42 @@ struct InferenceNegBin : public InferenceGLM {
 };
 
 // Estimate theta using method of moments with Armadillo vectorized operations
-// theta = mean^2 / (variance - mean), clamped to [theta_min, theta_max]
-inline double estimate_theta(const vec &y, const double theta_min = 0.1,
+// Uses fitted values (mu) from current iteration for stable estimation
+// theta = mean(mu)^2 / (var(y) - mean(mu)), clamped to [theta_min, theta_max]
+// When mu is not provided, falls back to using y as initial estimate
+inline double estimate_theta(const vec &y, const vec &mu = vec(),
+                             const double theta_min = 0.1,
                              const double theta_max = 1.0e6,
-                             const double overdispersion_threshold = 0.01) {
-  // Compute mean and variance in a single pass using Armadillo's optimized
-  // routines
+                             const double overdispersion_threshold = 0.01,
+                             const double regularization = 1.0e-6) {
+  const double n = static_cast<double>(y.n_elem);
+  const double n_inv = 1.0 / n;
 
-  const double n_inv = 1.0 / static_cast<double>(y.n_elem);
+  // Use mu if provided, otherwise use y for initial estimate
+  const bool has_mu = (mu.n_elem == y.n_elem);
+  const double mu_mean = has_mu ? accu(mu) * n_inv : accu(y) * n_inv;
+
+  // Variance of y
   const double y_mean = accu(y) * n_inv;
-
-  // Variance: E[(y - mean)^2] using vectorized squared difference
-  // dot(y - y_mean, y - y_mean) is faster than accu(square(y - y_mean))
-  // for the variance computation
   const vec y_centered = y - y_mean;
-  const double y_var = dot(y_centered, y_centered) / (y.n_elem - 1);
+  const double y_var = dot(y_centered, y_centered) / (n - 1.0);
 
-  const double overdispersion = y_var - y_mean;
+  // Overdispersion: var(y) - mean(mu), with regularization for stability
+  const double overdispersion = y_var - mu_mean + regularization;
 
   // Low overdispersion -> return very large theta (Poisson-like)
-  if (overdispersion <= overdispersion_threshold * y_mean) {
+  if (overdispersion <=
+      overdispersion_threshold * std::abs(mu_mean) + regularization) {
     return theta_max;
   }
 
-  // Method of moments: theta = mean^2 / (var - mean)
-  return std::clamp(y_mean * y_mean / overdispersion, theta_min, theta_max);
+  // Ensure mu_mean is positive for stability
+  const double mu_mean_safe = std::max(mu_mean, regularization);
+
+  // Method of moments: theta = mean(mu)^2 / (var(y) - mean(mu))
+  const double theta_raw = mu_mean_safe * mu_mean_safe / overdispersion;
+
+  return std::clamp(theta_raw, theta_min, theta_max);
 }
 
 InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
@@ -82,9 +93,15 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
   beta_coef = std::move(poisson_fit.coef_table.col(0));
   eta = std::move(poisson_fit.eta);
 
-  // Estimate initial theta from y statistics (no mu needed)
-  double theta = (init_theta > 0.0) ? init_theta : estimate_theta(y);
+  // Compute initial mu from eta for theta estimation
+  vec mu = exp(eta);
+
+  // Estimate initial theta from y and mu statistics
+  double theta = (init_theta > 0.0) ? init_theta : estimate_theta(y, mu);
   double theta_prev = theta;
+
+  // Step dampening factor for theta updates (prevents oscillation on Mac BLAS)
+  const double theta_dampening = 0.7;
 
   // Outer iteration: alternate GLM fit and theta update
   const double tol = params.dev_tol;
@@ -107,8 +124,15 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
       return result;
     }
 
-    // Update theta estimate from current fit
-    double theta_new = estimate_theta(y);
+    // Update mu from fitted eta for theta estimation
+    mu = exp(glm_fit.eta);
+
+    // Update theta estimate from current fit using both y and mu
+    double theta_estimated = estimate_theta(y, mu);
+
+    // Apply step dampening to prevent oscillation across platforms
+    double theta_new = theta_dampening * theta_estimated +
+                       (1.0 - theta_dampening) * theta_prev;
 
     // Validate theta estimate
     if (theta_new <= 0.0 || !std::isfinite(theta_new)) {
