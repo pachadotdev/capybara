@@ -524,15 +524,28 @@ inline void compute_bias_corr_binomial(InferenceGLM &result, const mat &X,
     return;
   }
 
-  // Add small ridge regularization for numerical stability on ARM
-  // The regularization is proportional to the matrix scale to handle
-  // varying magnitudes across different datasets
-  const double ridge = std::max(H_scaled.max() * 1e-10, datum::eps * 100);
+  // Add ridge regularization for numerical stability across platforms
+  // Mac's Accelerate BLAS can have different floating-point behavior
+  // Use larger regularization factor to ensure stability
+  const double diag_mean = mean(abs(H_scaled.diag()));
+  const double ridge_base = std::max(diag_mean, 1.0) * 1e-8;
+  const double ridge = std::max(ridge_base, datum::eps * 1000);
   mat H_reg = H_scaled;
   H_reg.diag() += ridge;
 
   vec bias_term;
-  if (!solve(bias_term, H_reg, -b, solve_opts::likely_sympd)) {
+  bool solve_ok = solve(bias_term, H_reg, -b, solve_opts::likely_sympd);
+
+  // Fallback strategies if solve fails
+  if (!solve_ok || !bias_term.is_finite()) {
+    // Try with stronger regularization
+    const double ridge_strong = std::max(diag_mean, 1.0) * 1e-6;
+    H_reg = H_scaled;
+    H_reg.diag() += ridge_strong;
+    solve_ok = solve(bias_term, H_reg, -b, solve_opts::likely_sympd);
+  }
+
+  if (!solve_ok || !bias_term.is_finite()) {
     mat H_inv;
     if (!inv_sympd(H_inv, H_reg) && !pinv(H_inv, H_reg)) {
       result.has_bias_corr = false;
