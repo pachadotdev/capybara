@@ -12,9 +12,9 @@
 \item{formula.}{Update formula; only the segments you want to change need to
 differ from \code{.}.  Examples:
 \itemize{
-\item \code{. ~ . | country + year} — change FE, keep regressors.
-\item \code{. ~ . | . | ctry1 + ctry2} — keep FE, change cluster.
-\item \code{. ~ . - bothin | year} — drop a regressor, keep FE.
+\item \code{. ~ . | country + year} - change FE, keep regressors.
+\item \code{. ~ . | . | ctry1 + ctry2} - keep FE, change cluster.
+\item \code{. ~ . - bothin | year} - drop a regressor, keep FE.
 }}
 
 \item{vcov}{Optional new \code{vcov} value (e.g. \code{"cluster"}).  If omitted the
@@ -34,7 +34,7 @@ independently, reassembles, and re-fits the model.
 
 The \code{.} placeholder works as usual:
 \itemize{
-\item \code{. ~ .} — keep the current response and RHS regressors.
+\item \code{. ~ .} - keep the current response and RHS regressors.
 \item The second \code{|} segment replaces (or keeps, if \code{.}) the fixed-effects.
 \item The third \code{|} segment replaces (or keeps, if \code{.}) the cluster variables.
 }

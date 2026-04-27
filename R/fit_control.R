@@ -51,13 +51,13 @@ NULL
 #' @param sep_max_iter maximum iterations for ReLU separation detection algorithm. The default is \code{200L}.
 #' @param sep_simplex_max_iter maximum iterations for simplex separation detection algorithm. The default is \code{2000L}.
 #' @param sep_zero_tol tolerance for treating values as zero in separation detection. The default is \code{1.0e-08}.
-#' @param sep_mu_tol tolerance for mu-based separation detection during IRLS iterations. Observations with 
-#'  \code{y == 0} and \code{eta <= log(sep_mu_tol)} are flagged as separated. Based on ppmlhdfe's mu separation 
+#' @param sep_mu_tol tolerance for mu-based separation detection during IRLS iterations. Observations with
+#'  \code{y == 0} and \code{eta <= log(sep_mu_tol)} are flagged as separated. Based on ppmlhdfe's mu separation
 #'  method. The default is \code{1.0e-06}.
 #' @param sep_use_relu logical indicating whether to use the ReLU algorithm for separation detection. The default is \code{TRUE}.
 #' @param sep_use_simplex logical indicating whether to use the simplex algorithm for separation detection. The default is \code{TRUE}.
 #' @param sep_use_mu logical indicating whether to use mu-based separation detection during IRLS iterations.
-#'  This catches observations where predicted values become extremely small (suggesting perfect prediction 
+#'  This catches observations where predicted values become extremely small (suggesting perfect prediction
 #'  of zeros). Following ppmlhdfe methodology. The default is \code{TRUE}.
 #' @param step_halving_memory numeric memory factor for step-halving algorithm. Controls how much of the previous
 #'  iteration is retained. The default is \code{0.9}.

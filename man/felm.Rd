@@ -18,7 +18,7 @@ in the model.}
 
 \item{vcov}{an optional character string specifying the type of variance-covariance estimator.
 One of \code{"iid"} (default OLS, ignore cluster part of formula), \code{"hetero"} (heteroskedastic-robust
-HC0, computed in C++ — no cluster variable needed), \code{"cluster"} (one-way sandwich using the cluster
+HC0, computed in C++ - no cluster variable needed), \code{"cluster"} (one-way sandwich using the cluster
 variable in the formula), \code{"m-estimator"} (M-estimator one-way sandwich), or \code{"dyadic"}
 (Cameron-Miller dyadic sandwich; requires two entity variables in the third part of the formula).
 When \code{NULL} (default), the type is inferred from the formula: if a cluster variable is present the

@@ -54,10 +54,18 @@ extern "C" SEXP _capybara_fepoisson_asymmetric_fit_(SEXP formula_str, SEXP df, S
     return cpp4r::as_sexp(fepoisson_asymmetric_fit_(cpp4r::as_cpp<cpp4r::decay_t<const std::string &>>(formula_str), cpp4r::as_cpp<cpp4r::decay_t<SEXP>>(df), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(w_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(beta_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(eta_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(offset_r), cpp4r::as_cpp<cpp4r::decay_t<const list &>>(control)));
   END_CPP4R
 }
+// capybara.cpp
+doubles_matrix<> compute_sandwich_vcov_(const doubles_matrix<> & MX_r, const doubles & resid_r, const doubles_matrix<> & H_r, const std::string & vcov_type, SEXP cluster1_r, SEXP cluster2_r);
+extern "C" SEXP _capybara_compute_sandwich_vcov_(SEXP MX_r, SEXP resid_r, SEXP H_r, SEXP vcov_type, SEXP cluster1_r, SEXP cluster2_r) {
+  BEGIN_CPP4R
+    return cpp4r::as_sexp(compute_sandwich_vcov_(cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(MX_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles &>>(resid_r), cpp4r::as_cpp<cpp4r::decay_t<const doubles_matrix<> &>>(H_r), cpp4r::as_cpp<cpp4r::decay_t<const std::string &>>(vcov_type), cpp4r::as_cpp<cpp4r::decay_t<SEXP>>(cluster1_r), cpp4r::as_cpp<cpp4r::decay_t<SEXP>>(cluster2_r)));
+  END_CPP4R
+}
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
     {"_capybara_center_variables_",         (DL_FUNC) &_capybara_center_variables_,          6},
+    {"_capybara_compute_sandwich_vcov_",    (DL_FUNC) &_capybara_compute_sandwich_vcov_,     6},
     {"_capybara_feglm_fit_",                (DL_FUNC) &_capybara_feglm_fit_,                 9},
     {"_capybara_feglm_fit_matrix_",         (DL_FUNC) &_capybara_feglm_fit_matrix_,         14},
     {"_capybara_feglm_offset_fit_",         (DL_FUNC) &_capybara_feglm_offset_fit_,          7},

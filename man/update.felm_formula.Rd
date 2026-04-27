@@ -22,8 +22,8 @@ S3 method for \code{\link[=update]{update()}} on \code{felm_formula} objects.  S
 
 The \code{.} placeholder behaves as in \code{\link[=update.formula]{update.formula()}}:
 \itemize{
-\item \code{. ~ .} — keep current response and RHS unchanged.
-\item Second \code{|} segment — replaces (or keeps with \code{.}) the fixed effects.
-\item Third \code{|} segment — replaces (or keeps with \code{.}) the cluster variables.
+\item \code{. ~ .} - keep current response and RHS unchanged.
+\item Second \code{|} segment - replaces (or keeps with \code{.}) the fixed effects.
+\item Third \code{|} segment - replaces (or keeps with \code{.}) the cluster variables.
 }
 }

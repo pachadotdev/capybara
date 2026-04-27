@@ -123,3 +123,181 @@ vcov.felm <- function(object, ...) {
 
   v
 }
+
+#' @title Recompute Sandwich Variance-Covariance Matrix
+#'
+#' @description Recompute the variance-covariance matrix for a fitted model using a different
+#'  clustering structure or covariance type. This allows changing the vcov estimator without
+#'  re-fitting the model, provided the model was fit with \code{keep_tx = TRUE} and
+#'  \code{return_hessian = TRUE} in the control parameters.
+#'
+#' @param object a fitted model object of class \code{"feglm"} or \code{"felm"}.
+#' @param cluster1 a vector or factor for the first clustering variable. Required for
+#'  \code{"clustered"}, \code{"two-way"}, and \code{"dyadic"} types.
+#' @param cluster2 a vector or factor for the second clustering variable. Required for
+#'  \code{"two-way"} and \code{"dyadic"} types.
+#' @param type character string specifying the covariance type. One of:
+#'  \itemize{
+#'   \item \code{"hetero"} or \code{"HC0"}: heteroskedasticity-robust (no clustering)
+#'   \item \code{"clustered"} or \code{"m-estimator"}: one-way cluster-robust
+#'   \item \code{"two-way"}: two-way cluster-robust (Cameron-Gelbach-Miller)
+#'   \item \code{"dyadic"} or \code{"m-estimator-dyadic"}: dyadic cluster-robust for network/trade data
+#'  }
+#' @param ... additional arguments (currently ignored).
+#'
+#' @return A named matrix of covariance estimates.
+#'
+#' @details
+#' The model must be fit with \code{fit_control(keep_tx = TRUE, return_hessian = TRUE)} to store
+#' the centered design matrix, Hessian, and working residuals needed for vcov recomputation.
+#' Note that \code{keep_data = TRUE} is NOT required - residuals are stored automatically when
+#' \code{keep_tx = TRUE}.
+#'
+#' For dyadic clustering (used in gravity/trade models), \code{cluster1} and \code{cluster2}
+#' represent the two entity dimensions (e.g., exporter and importer). The function handles
+#' the full dyadic correlation structure including cross-entity correlations.
+#'
+#' @references
+#' Cameron, C., J. Gelbach, and D. Miller (2011). "Robust Inference With Multiway Clustering".
+#'  Journal of Business & Economic Statistics 29(2).
+#'
+#' Cameron, C. and D. Miller (2014). "Robust Inference for Dyadic Data". Unpublished manuscript.
+#'
+#' @seealso \link{feglm}, \link{felm}, \link{fit_control}
+#'
+#' @examples
+#' # Refitting models
+#'
+#' fepoisson(
+#'   mpg ~ wt | cyl,
+#'   mtcars,
+#'   control = fit_control(vcov_type = "hetero")
+#' )
+#'
+#' fepoisson(
+#'   mpg ~ wt | cyl | am,
+#'   mtcars,
+#'   control = fit_control(vcov_type = "m-estimator")
+#' )
+#'
+#' # Reusing models
+#'
+#' # Store required components
+#' mod <- fepoisson(
+#'   mpg ~ wt | cyl,
+#'   mtcars,
+#'   control = fit_control(keep_tx = TRUE, return_hessian = TRUE)
+#' )
+#'
+#' # Heteroskedastic-robust HC0 sandwich (no cluster variable needed)
+#' sandwich_vcov(mod, type = "hetero")
+#'
+#' # One-way M-estimator sandwich (cluster variable required)
+#' sandwich_vcov(mod, cluster1 = mtcars$am, type = "m-estimator")
+#'
+#' # Two-way Cameron-Miller sandwich (two cluster variables required)
+#' sandwich_vcov(mod, cluster1 = mtcars$am, cluster2 = mtcars$gear, type = "two-way")
+#'
+#' @export
+sandwich_vcov <- function(object, cluster1 = NULL, cluster2 = NULL,
+                          type = c(
+                            "hetero", "HC0", "clustered", "m-estimator",
+                            "two-way", "dyadic", "m-estimator-dyadic"
+                          ),
+                          ...) {
+  type <- match.arg(type)
+
+  # Check required components
+  MX <- object[["tx"]]
+  H <- object[["hessian"]]
+
+  if (is.null(MX)) {
+    stop(
+      "Centered design matrix (tx) not found. ",
+      "Re-fit the model with keep_tx = TRUE in control parameters.",
+      call. = FALSE
+    )
+  }
+
+  if (is.null(H)) {
+    stop(
+      "Hessian matrix not found. ",
+      "Re-fit the model with return_hessian = TRUE in control parameters.",
+      call. = FALSE
+    )
+  }
+
+  n_obs <- nrow(MX)
+
+  # Get working residuals - prefer stored residuals (efficient, no keep_data needed)
+  # Fall back to computing from data if stored residuals not available
+  resid <- object[["working_residuals"]]
+
+  if (is.null(resid) || length(resid) != n_obs) {
+    # Fall back: try to compute from stored data
+    mu <- object[["fitted_values"]]
+    data <- object[["data"]]
+    formula <- object[["formula"]]
+
+    y <- NULL
+    if (!is.null(data) && !is.null(formula)) {
+      resp_var <- all.vars(formula)[1]
+      if (resp_var %in% names(data)) {
+        y <- data[[resp_var]]
+      }
+    }
+
+    if (is.null(y) || is.null(mu) || length(y) != n_obs) {
+      stop(
+        "Working residuals not found. ",
+        "Re-fit the model with keep_tx = TRUE (stores residuals automatically).",
+        call. = FALSE
+      )
+    }
+
+    resid <- as.numeric(y - mu)
+  }
+
+  # Subset cluster variables to match model observations if needed
+  # data in fit object is already subset, so cluster vars should match n_obs
+  if (!is.null(cluster1) && length(cluster1) != n_obs) {
+    # Try to subset using .rownames
+    rownames_used <- object[[".rownames"]]
+    if (!is.null(rownames_used) && !is.null(names(cluster1))) {
+      cluster1 <- cluster1[rownames_used]
+    } else if (length(cluster1) > n_obs) {
+      # Assume sequential subset
+      warning("cluster1 length mismatch - using first n_obs elements")
+      cluster1 <- cluster1[seq_len(n_obs)]
+    }
+  }
+
+  if (!is.null(cluster2) && length(cluster2) != n_obs) {
+    rownames_used <- object[[".rownames"]]
+    if (!is.null(rownames_used) && !is.null(names(cluster2))) {
+      cluster2 <- cluster2[rownames_used]
+    } else if (length(cluster2) > n_obs) {
+      warning("cluster2 length mismatch - using first n_obs elements")
+      cluster2 <- cluster2[seq_len(n_obs)]
+    }
+  }
+
+  # Call C++ function
+  v <- compute_sandwich_vcov_(
+    MX_r = MX,
+    resid_r = resid,
+    H_r = H,
+    vcov_type = type,
+    cluster1_r = cluster1,
+    cluster2_r = cluster2
+  )
+
+  # Add names to match coefficients
+  coef_table <- object[["coef_table"]]
+  nms <- rownames(coef_table)
+  if (!is.null(nms) && length(nms) > 0 && length(nms) == nrow(v)) {
+    dimnames(v) <- list(nms, nms)
+  }
+
+  v
+}

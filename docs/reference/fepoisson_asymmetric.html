@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>feglm • capybara</title><link rel="stylesheet" href="../menu.css"><link rel="stylesheet" href="../content.css"><!-- MathJax Configuration --><script>
+<html lang="en"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>fepoisson_asymmetric • capybara</title><link rel="stylesheet" href="../menu.css"><link rel="stylesheet" href="../content.css"><!-- MathJax Configuration --><script>
     window.MathJax = {
       tex: {
         inlineMath: [['\\(', '\\)'], ['$', '$']],
@@ -62,23 +62,22 @@
 <div class="content-wrapper">
         <div class="content-main">
 
-<table style="width: 100%;"><tr><td>feglm {capybara}</td><td style="text-align: right;">R Documentation</td></tr></table><h2>GLM fitting with high-dimensional k-way fixed effects</h2>
+<table style="width: 100%;"><tr><td>fepoisson_asymmetric {capybara}</td><td style="text-align: right;">R Documentation</td></tr></table><h2>Asymmetric Poisson Pseudo-Maximum Likelihood (APPML) Estimation</h2>
 
 <h3>Description</h3>
 
-<p>feglm can be used to fit generalized linear models with many high-dimensional fixed effects. The
-term fixed effect means having one intercept for each level in each category.
+<p>Fits an asymmetric Poisson pseudo-maximum likelihood model with high-dimensional fixed effects
+using expectile regression. This approach extends standard PPML by allowing different weights for positive
+and negative residuals, enabling estimation of conditional expectiles rather than the conditional mean.
 </p>
 
 
 <h3>Usage</h3>
 
-<pre><code class="language-R">feglm(
+<pre><code class="language-R">fepoisson_asymmetric(
   formula = NULL,
   data = NULL,
-  family = gaussian(),
   weights = NULL,
-  vcov = NULL,
   beta_start = NULL,
   eta_start = NULL,
   offset = NULL,
@@ -98,23 +97,9 @@ must be of type <code>response ~ slopes | fixed_effects | cluster</code>.
 an object of class <code>"data.frame"</code> containing the variables in the model. The expected input is a
 dataset with the variables specified in <code>formula</code> and a number of rows at least equal to the number of variables
 in the model.
-</td></tr><tr><td><code id="family">family</code></td>
-<td>
-the link function to be used in the model. Similar to glm.fit this has to be the result
-of a call to a family function. Default is <code>gaussian()</code>. See family for details of family
-functions.
 </td></tr><tr><td><code id="weights">weights</code></td>
 <td>
 an optional string with the name of the prior weights variable in <code>data</code>.
-</td></tr><tr><td><code id="vcov">vcov</code></td>
-<td>
-an optional character string specifying the type of variance-covariance estimator.
-One of <code>"iid"</code> (default OLS, ignore cluster part of formula), <code>"hetero"</code> (heteroskedastic-robust
-HC0, computed in C++ - no cluster variable needed), <code>"cluster"</code> (one-way sandwich using the cluster
-variable in the formula), <code>"m-estimator"</code> (M-estimator one-way sandwich), or <code>"dyadic"</code>
-(Cameron-Miller dyadic sandwich; requires two entity variables in the third part of the formula).
-When <code>NULL</code> (default), the type is inferred from the formula: if a cluster variable is present the
-standard sandwich is used, otherwise the inverse Hessian (IID) is returned.
 </td></tr><tr><td><code id="beta_start">beta_start</code></td>
 <td>
 an optional vector of starting values for the structural parameters in the linear predictor.
@@ -131,27 +116,54 @@ linear predictor. If a formula, it should be of the form <code>~ variable</code>
 a named list of parameters for controlling the fitting process. See fit_control for details.
 </td></tr></table><h3>Details</h3>
 
-<p>If feglm does not converge this is often a sign of linear dependence between one or more
-regressors and a fixed effects category. In this case, you should carefully inspect your model specification.
+<p>The APPML estimator minimizes an asymmetric loss function based on expectiles. For a given expectile <code class="reqn">\tau</code>,
+observations with negative residuals receive weight <code class="reqn">\tau</code> while observations with positive residuals
+receive weight <code class="reqn">1 - \tau</code>. The algorithm iteratively:
+</p>
+
+<ol><li><p> Computes residuals from the current fit
+</p>
+</li>
+<li><p> Updates weights as <code class="reqn">w_i = |\tau - \mathbf{1}(r_i &lt; 0)|</code>
+</p>
+</li>
+<li><p> Re-fits the weighted Poisson model
+</p>
+</li>
+<li><p> Checks convergence using <code class="reqn">(b - b_{old})' V^{-1} (b - b_{old}) &lt; \epsilon</code>
+</p>
+</li></ol><p>The expectile parameter is specified via <code>control = fit_control(expectile = ...)</code>. When
+<code>expectile = 0.5</code>, the estimator is equivalent to standard PPML. Values below 0.5 estimate
+lower conditional expectiles (more sensitive to small values), while values above 0.5 estimate
+upper conditional expectiles (more sensitive to large values).
 </p>
 
 
 <h3>Value</h3>
 
-<p>A named list of class <code>"feglm"</code>. The list contains the following fifteen elements:
+<p>A named list of class <code>"feglm"</code> containing:
 </p>
 <table role="presentation"><tr><td><code>coefficients</code></td>
 <td>
-a named vector of the estimated coefficients
+named vector of estimated coefficients
+</td></tr><tr><td><code>vcov</code></td>
+<td>
+variance-covariance matrix of coefficients
 </td></tr><tr><td><code>eta</code></td>
 <td>
-a vector of the linear predictor
+linear predictor
+</td></tr><tr><td><code>fitted_values</code></td>
+<td>
+fitted values from the final iteration
+</td></tr><tr><td><code>residuals</code></td>
+<td>
+residuals from the final fit
 </td></tr><tr><td><code>weights</code></td>
 <td>
-a vector of the weights used in the estimation
-</td></tr><tr><td><code>hessian</code></td>
+observation weights used in final fit
+</td></tr><tr><td><code>appml_weights</code></td>
 <td>
-a matrix with the numerical second derivatives
+asymmetric weights used in APPML algorithm
 </td></tr><tr><td><code>deviance</code></td>
 <td>
 the deviance of the model
@@ -160,74 +172,83 @@ the deviance of the model
 the null deviance of the model
 </td></tr><tr><td><code>conv</code></td>
 <td>
-a logical indicating whether the model converged
+logical indicating whether inner GLM converged
+</td></tr><tr><td><code>conv_outer</code></td>
+<td>
+logical indicating whether APPML outer loop converged
 </td></tr><tr><td><code>iter</code></td>
 <td>
-the number of iterations needed to converge
+number of inner iterations
+</td></tr><tr><td><code>iter_outer</code></td>
+<td>
+number of outer APPML iterations
+</td></tr><tr><td><code>expectile</code></td>
+<td>
+the expectile value used
+</td></tr><tr><td><code>objective_function</code></td>
+<td>
+final value of the convergence criterion
+</td></tr><tr><td><code>negative_residuals_share</code></td>
+<td>
+proportion of negative residuals in final fit
 </td></tr><tr><td><code>nobs</code></td>
 <td>
-a named vector with the number of observations used in the estimation indicating the dropped and
-perfectly predicted observations
+a named vector with the number of observations
 </td></tr><tr><td><code>fe_levels</code></td>
 <td>
-a named vector with the number of levels in each fixed effects
+a named vector with the number of levels in each fixed effect
 </td></tr><tr><td><code>nms_fe</code></td>
 <td>
 a list with the names of the fixed effects variables
 </td></tr><tr><td><code>formula</code></td>
 <td>
 the formula used in the model
-</td></tr><tr><td><code>data</code></td>
-<td>
-the data used in the model after dropping non-contributing
-observations
 </td></tr><tr><td><code>family</code></td>
 <td>
-the family used in the model
+the family used in the model (Poisson)
 </td></tr><tr><td><code>control</code></td>
 <td>
 the control list used in the model
-</td></tr><tr><td><code>vcov_type</code></td>
-<td>
-a character string indicating the variance-covariance type used: <code>"iid"</code>,
-<code>"hetero"</code>, <code>"cluster"</code>, <code>"m-estimator"</code>, or <code>"dyadic"</code>
 </td></tr></table><h3>References</h3>
 
-<p>Gaure, S. (2013). "OLS with Multiple High Dimensional Category Variables". Computational Statistics and
-Data Analysis, 66.
+<p>Newey, W. K., &amp; Powell, J. L. (1987). Asymmetric least squares estimation and testing.
+<em>Econometrica</em>, 55(4), 819-847.
 </p>
-<p>Marschner, I. (2011). "glm2: Fitting generalized linear models with convergence problems". The R Journal,
-3(2).
-</p>
-<p>Stammann, A., F. Heiss, and D. McFadden (2016). "Estimating Fixed Effects Logit Models with Large Panel
-Data". Working paper.
-</p>
-<p>Stammann, A. (2018). "Fast and Feasible Estimation of Generalized Linear Models with High-Dimensional
-k-Way Fixed Effects". ArXiv e-prints.
+
+
+<h3>See Also</h3>
+
+<p>fepoisson, feglm, fit_control
 </p>
 
 
 <h3>Examples</h3>
 
-<pre><code class="language-R"># IID (default - no cluster in formula)
-mod &lt;- feglm(mpg ~ wt | cyl, mtcars, family = poisson(link = "log"))
-summary(mod)
-
-# Heteroskedastic-robust HC0
-mod_h &lt;- feglm(mpg ~ wt | cyl, mtcars, family = poisson(link = "log"), vcov = "hetero")
-sqrt(diag(vcov(mod_h)))
-
-# One-way cluster sandwich
-mod_cl &lt;- feglm(mpg ~ wt | cyl | am, mtcars,
-  family = poisson(link = "log"), vcov = "cluster"
+<pre><code class="language-R"># Standard PPML (expectile = 0.5)
+mod_ppml &lt;- fepoisson_asymmetric(
+  mpg ~ wt | cyl, mtcars,
+  control = fit_control(expectile = 0.5)
 )
-summary(mod_cl)
+summary(mod_ppml)
 
-# Dyadic-robust (Cameron &amp; Miller) - two entity columns in cluster part
-mod_dy &lt;- feglm(mpg ~ wt | cyl | am + vs, mtcars,
-  family = poisson(link = "log"), vcov = "dyadic"
+# Lower expectile (10th) - more weight on negative residuals
+mod_low &lt;- fepoisson_asymmetric(
+  mpg ~ wt | cyl, mtcars,
+  control = fit_control(expectile = 0.1)
 )
-sqrt(diag(vcov(mod_dy)))
+
+# Upper expectile (90th) - more weight on positive residuals
+mod_high &lt;- fepoisson_asymmetric(
+  mpg ~ wt | cyl, mtcars,
+  control = fit_control(expectile = 0.9)
+)
+
+# Compare coefficients across expectiles
+cbind(
+  low = coef(mod_low),
+  median = coef(mod_ppml),
+  high = coef(mod_high)
+)
 
 </code></pre>
 

@@ -32,7 +32,7 @@ functions.}
 
 \item{vcov}{an optional character string specifying the type of variance-covariance estimator.
 One of \code{"iid"} (default OLS, ignore cluster part of formula), \code{"hetero"} (heteroskedastic-robust
-HC0, computed in C++ — no cluster variable needed), \code{"cluster"} (one-way sandwich using the cluster
+HC0, computed in C++ - no cluster variable needed), \code{"cluster"} (one-way sandwich using the cluster
 variable in the formula), \code{"m-estimator"} (M-estimator one-way sandwich), or \code{"dyadic"}
 (Cameron-Miller dyadic sandwich; requires two entity variables in the third part of the formula).
 When \code{NULL} (default), the type is inferred from the formula: if a cluster variable is present the
@@ -79,7 +79,7 @@ If \link{feglm} does not converge this is often a sign of linear dependence betw
 regressors and a fixed effects category. In this case, you should carefully inspect your model specification.
 }
 \examples{
-# IID (default — no cluster in formula)
+# IID (default - no cluster in formula)
 mod <- feglm(mpg ~ wt | cyl, mtcars, family = poisson(link = "log"))
 summary(mod)
 
@@ -93,7 +93,7 @@ mod_cl <- feglm(mpg ~ wt | cyl | am, mtcars,
 )
 summary(mod_cl)
 
-# Dyadic-robust (Cameron & Miller) — two entity columns in cluster part
+# Dyadic-robust (Cameron & Miller) - two entity columns in cluster part
 mod_dy <- feglm(mpg ~ wt | cyl | am + vs, mtcars,
   family = poisson(link = "log"), vcov = "dyadic"
 )

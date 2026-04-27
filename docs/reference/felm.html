@@ -34,13 +34,15 @@
 
   <div class="submenu">
     <label>Functions</label>
-    <a href="../reference/apes.html">apes</a>
-    <a href="../reference/bias_corr.html">bias_corr</a>
     <a href="../reference/feglm.html">feglm</a>
     <a href="../reference/felm.html">felm</a>
     <a href="../reference/fenegbin.html">fenegbin</a>
+    <a href="../reference/fepoisson_asymmetric.html">fepoisson_asymmetric</a>
     <a href="../reference/fepoisson.html">fepoisson</a>
+    <a href="../reference/feprobit.html">feprobit</a>
+    <a href="../reference/fetobit.html">fetobit</a>
     <a href="../reference/fit_control.html">fit_control</a>
+    <a href="../reference/sandwich_vcov.html">sandwich_vcov</a>
     <a href="../reference/summary_table.html">summary_table</a>
   </div>
 
@@ -94,7 +96,7 @@ an optional string with the name of the prior weights variable in <code>data</co
 <td>
 an optional character string specifying the type of variance-covariance estimator.
 One of <code>"iid"</code> (default OLS, ignore cluster part of formula), <code>"hetero"</code> (heteroskedastic-robust
-HC0, computed in C++ — no cluster variable needed), <code>"cluster"</code> (one-way sandwich using the cluster
+HC0, computed in C++ - no cluster variable needed), <code>"cluster"</code> (one-way sandwich using the cluster
 variable in the formula), <code>"m-estimator"</code> (M-estimator one-way sandwich), or <code>"dyadic"</code>
 (Cameron-Miller dyadic sandwich; requires two entity variables in the third part of the formula).
 When <code>NULL</code> (default), the type is inferred from the formula: if a cluster variable is present the
@@ -160,12 +162,12 @@ k-Way Fixed Effects". ArXiv e-prints.
 <h3>Examples</h3>
 
 <pre><code class="language-R"># Model with fixed effects
-mod &lt;- felm(log(mpg) ~ log(wt) | cyl, mtcars)
+mod &lt;- felm(mpg ~ wt | cyl, mtcars)
 summary(mod)
 
 # Model without fixed effects but with clustered standard errors
 # Note: Use 0 to indicate no fixed effects when specifying clusters
-mod &lt;- felm(log(mpg) ~ log(wt) | 0 | cyl, mtcars)
+mod &lt;- felm(mpg ~ wt | 0 | cyl, mtcars)
 summary(mod)
 
 </code></pre>

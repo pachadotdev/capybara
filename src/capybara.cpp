@@ -1080,6 +1080,8 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
 
   if (params.keep_tx && result.has_tx) {
     ret.push_back({"tx"_nm = as_doubles_matrix(result.TX)});
+    // Store working residuals for vcov recomputation without needing keep_data
+    ret.push_back({"working_residuals"_nm = as_doubles(result.residuals)});
   }
 
   // Add term names
@@ -1346,6 +1348,9 @@ feglm_fit_(const std::string &formula_str, SEXP df, const doubles &beta_r,
 
   if (params.keep_tx && result.has_tx) {
     out.push_back({"tx"_nm = as_doubles_matrix(result.TX)});
+    // Store working residuals for vcov recomputation without needing keep_data
+    out.push_back(
+        {"working_residuals"_nm = as_doubles(fm.y - result.fitted_values)});
   }
 
   if (result.has_apes && result.ape_delta.n_elem > 0) {
@@ -1754,6 +1759,9 @@ feglm_fit_(const std::string &formula_str, SEXP df, const doubles &beta_r,
 
   if (params.keep_tx && result.has_tx) {
     out.push_back({"tx"_nm = as_doubles_matrix(result.TX)});
+    // Store working residuals for vcov recomputation without needing keep_data
+    out.push_back(
+        {"working_residuals"_nm = as_doubles(y_clean - result.fitted_values)});
   }
 
   if (result.has_apes && result.ape_delta.n_elem > 0) {
@@ -1957,6 +1965,9 @@ fenegbin_fit_(const std::string &formula_str, SEXP df, const doubles &w_r,
 
   if (result.has_tx) {
     out.push_back({"TX"_nm = as_doubles_matrix(result.TX)});
+    // Store working residuals for vcov recomputation without needing keep_data
+    out.push_back(
+        {"working_residuals"_nm = as_doubles(fm.y - result.fitted_values)});
   }
 
   // Add term names
@@ -2141,6 +2152,9 @@ fepoisson_asymmetric_fit_(const std::string &formula_str, SEXP df,
 
   if (result.has_tx) {
     out.push_back({"TX"_nm = as_doubles_matrix(result.TX)});
+    // Store working residuals for vcov recomputation without needing keep_data
+    out.push_back(
+        {"working_residuals"_nm = as_doubles(fm.y - result.fitted_values)});
   }
 
   // Add term names
@@ -2190,4 +2204,107 @@ fepoisson_asymmetric_fit_(const std::string &formula_str, SEXP df,
   out.push_back({"fe_levels"_nm = fe_lvl_counts});
 
   return out;
+}
+
+// ============================================================
+// Recompute variance-covariance matrix with different clustering
+// ============================================================
+// This allows post-hoc recomputation of vcov from a fitted model
+// without re-fitting. Requires MX (centered design matrix),
+// residuals, and Hessian from the original fit.
+
+[[cpp4r::register]] doubles_matrix<>
+compute_sandwich_vcov_(const doubles_matrix<> &MX_r, const doubles &resid_r,
+                       const doubles_matrix<> &H_r,
+                       const std::string &vcov_type, SEXP cluster1_r,
+                       SEXP cluster2_r) {
+  mat MX = as_mat(MX_r);
+  vec resid = as_col(resid_r);
+  mat H = as_mat(H_r);
+
+  const size_t n = MX.n_rows;
+  const size_t p = MX.n_cols;
+
+  // Build keep indices (all rows - data already subset to match fit)
+  uvec keep_idx = regspace<uvec>(0, n - 1);
+
+  // Heteroskedasticity-robust (HC0) - no clustering
+  if (vcov_type == "hetero" || vcov_type == "HC0") {
+    return as_doubles_matrix(capybara::sandwich_vcov_hetero_(MX, resid, H));
+  }
+
+  // One-way clustered
+  if (vcov_type == "clustered" || vcov_type == "m-estimator") {
+    if (cluster1_r == R_NilValue) {
+      Rf_error("cluster1 required for clustered vcov");
+    }
+    field<uvec> cluster_groups = build_cluster_groups(cluster1_r, keep_idx);
+    return as_doubles_matrix(
+        capybara::sandwich_vcov_mestimator_(H, MX, resid, cluster_groups));
+  }
+
+  // Two-way clustered (Cameron-Gelbach-Miller)
+  if (vcov_type == "two-way") {
+    if (cluster1_r == R_NilValue || cluster2_r == R_NilValue) {
+      Rf_error("cluster1 and cluster2 required for two-way vcov");
+    }
+    field<uvec> cl1_groups = build_cluster_groups(cluster1_r, keep_idx);
+    field<uvec> cl2_groups = build_cluster_groups(cluster2_r, keep_idx);
+
+    // V_{2way} = V_{c1} + V_{c2} - V_{c1*c2}
+    mat V1 = capybara::sandwich_vcov_mestimator_(H, MX, resid, cl1_groups);
+    mat V2 = capybara::sandwich_vcov_mestimator_(H, MX, resid, cl2_groups);
+
+    // Build interaction groups
+    std::vector<uword> obs_to_cl1(n), obs_to_cl2(n);
+    for (uword g = 0; g < cl1_groups.n_elem; ++g) {
+      const uvec &idx = cl1_groups(g);
+      for (uword i = 0; i < idx.n_elem; ++i)
+        obs_to_cl1[idx(i)] = g;
+    }
+    for (uword h = 0; h < cl2_groups.n_elem; ++h) {
+      const uvec &idx = cl2_groups(h);
+      for (uword i = 0; i < idx.n_elem; ++i)
+        obs_to_cl2[idx(i)] = h;
+    }
+
+    std::unordered_map<uword, uword> pair_map;
+    std::vector<std::vector<uword>> pair_buckets;
+    uword G2 = cl2_groups.n_elem;
+    for (uword i = 0; i < n; ++i) {
+      const uword key = obs_to_cl1[i] * G2 + obs_to_cl2[i];
+      auto it = pair_map.find(key);
+      if (it == pair_map.end()) {
+        pair_map[key] = pair_buckets.size();
+        pair_buckets.push_back({i});
+      } else {
+        pair_buckets[it->second].push_back(i);
+      }
+    }
+
+    field<uvec> cl12_groups(pair_buckets.size());
+    for (uword g = 0; g < pair_buckets.size(); ++g) {
+      cl12_groups(g) = uvec(pair_buckets[g]);
+    }
+
+    mat V12 = capybara::sandwich_vcov_mestimator_(H, MX, resid, cl12_groups);
+    return as_doubles_matrix(V1 + V2 - V12);
+  }
+
+  // Dyadic clustered (Cameron-Miller for trade/network data)
+  if (vcov_type == "dyadic" || vcov_type == "m-estimator-dyadic") {
+    if (cluster1_r == R_NilValue || cluster2_r == R_NilValue) {
+      Rf_error("cluster1 (entity1) and cluster2 (entity2) required for dyadic "
+               "vcov");
+    }
+    field<uvec> entity1_groups, entity2_groups;
+    build_aligned_entity_groups(cluster1_r, cluster2_r, keep_idx,
+                                entity1_groups, entity2_groups);
+    return as_doubles_matrix(capybara::sandwich_vcov_mestimator_dyadic_(
+        H, MX, resid, entity1_groups, entity2_groups));
+  }
+
+  // Default: return matrix of NaN
+  Rf_warning("Unknown vcov_type '%s', returning NA matrix", vcov_type.c_str());
+  return as_doubles_matrix(mat(p, p, fill::value(datum::nan)));
 }

@@ -34,13 +34,15 @@
 
   <div class="submenu">
     <label>Functions</label>
-    <a href="../reference/apes.html">apes</a>
-    <a href="../reference/bias_corr.html">bias_corr</a>
     <a href="../reference/feglm.html">feglm</a>
     <a href="../reference/felm.html">felm</a>
     <a href="../reference/fenegbin.html">fenegbin</a>
+    <a href="../reference/fepoisson_asymmetric.html">fepoisson_asymmetric</a>
     <a href="../reference/fepoisson.html">fepoisson</a>
+    <a href="../reference/feprobit.html">feprobit</a>
+    <a href="../reference/fetobit.html">fetobit</a>
     <a href="../reference/fit_control.html">fit_control</a>
+    <a href="../reference/sandwich_vcov.html">sandwich_vcov</a>
     <a href="../reference/summary_table.html">summary_table</a>
   </div>
 
@@ -66,7 +68,10 @@
 <p>This vignette is adapted from <a href="https://github.com/sergiocorreia/ppmlhdfe/blob/master/guides/nonexistence_benchmarks.md#r-packages" class="uri">https://github.com/sergiocorreia/ppmlhdfe/blob/master/guides/nonexistence_benchmarks.md#r-packages</a>.</p>
 <div id="example-1" class="section level2">
 <h2>Example 1</h2>
-<pre class="r"><code>library(capybara)</code></pre>
+<pre class="r"><code>library(capybara)
+#&gt; Registered S3 method overwritten by 'capybara':
+#&gt;   method         from
+#&gt;   update.formula stats</code></pre>
 <p>The table below shows a dataset with 12 observations and four
 regressors. Observations 5 is separated because <span class="math inline">\(y=0\)</span> and <span class="math inline">\(z
 \neq x_2 - x_1\)</span> is positive in those observations, and zero
@@ -111,28 +116,29 @@ this data.</p>
   y ~ x1 + x2 + x3 + x4,
   data = correia2019$example1
 )
+#&gt; Separation detected: 1 observation(s) with perfect prediction were excluded from estimation.
 #&gt; Formula: y ~ x1 + x2 + x3 + x4
-#&gt; &lt;environment: 0x555bdc098898&gt;
+#&gt; &lt;environment: 0x561105b4ff08&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
 #&gt; Estimates:
 #&gt;
-#&gt; |             | Estimate | Std. Error | z value | Pr(&gt;|z|) |
-#&gt; |-------------|----------|------------|---------|----------|
-#&gt; | (Intercept) |   0.5909 |     0.3029 |  1.9509 | 0.0511 + |
-#&gt; | x1          | -16.7357 |  3391.5124 | -0.0049 | 0.9961   |
-#&gt; | x2          |  16.2850 |  3391.5125 |  0.0048 | 0.9962   |
-#&gt; | x3          |  -0.4708 |     0.2312 | -2.0368 | 0.0417 * |
-#&gt; | x4          |  -0.0378 |     0.0438 | -0.8636 | 0.3878   |
+#&gt; |             | Estimate | Std. Error | z value | Pr(&gt;|z|)  |
+#&gt; |-------------|----------|------------|---------|-----------|
+#&gt; | (Intercept) |   0.5910 |     0.3029 |  1.9510 | 0.0511 +  |
+#&gt; | x1          |  -0.4507 |     0.1648 | -2.7352 | 0.0062 ** |
+#&gt; | x2          |       NA |         NA |      NA | NA        |
+#&gt; | x3          |  -0.4708 |     0.2311 | -2.0367 | 0.0417 *  |
+#&gt; | x4          |  -0.0378 |     0.0438 | -0.8634 | 0.3879    |
 #&gt;
 #&gt; Significance codes: ** p &lt; 0.01; * p &lt; 0.05; + p &lt; 0.10
 #&gt;
-#&gt; Pseudo R-squared: 0.5216
+#&gt; Pseudo R-squared: 0.4813
 #&gt;
-#&gt; Number of observations: Full 12; Missing 0; Perfect classification 0
+#&gt; Number of observations: Full 12; Separated 1; Perfect classification 0
 #&gt;
-#&gt; Number of Fisher Scoring iterations: 18</code></pre>
+#&gt; Number of Fisher Scoring iterations: 5</code></pre>
 </div>
 <div id="example-2" class="section level2">
 <h2>Example 2</h2>
@@ -182,28 +188,29 @@ model on this data.</p>
   y ~ x1 + x2 + x3 + x4,
   data = correia2019$example2
 )
+#&gt; Separation detected: 6 observation(s) with perfect prediction were excluded from estimation.
 #&gt; Formula: y ~ x1 + x2 + x3 + x4
-#&gt; &lt;environment: 0x555bdc098898&gt;
+#&gt; &lt;environment: 0x561105b4ff08&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
 #&gt; Estimates:
 #&gt;
-#&gt; |             | Estimate | Std. Error | z value | Pr(&gt;|z|) |
-#&gt; |-------------|----------|------------|---------|----------|
-#&gt; | (Intercept) |  -3.6123 |     5.4078 | -0.6680 |   0.5042 |
-#&gt; | x1          |   5.6482 |     7.6916 |  0.7343 |   0.4627 |
-#&gt; | x2          | -19.3380 |    25.0451 | -0.7721 |   0.4400 |
-#&gt; | x3          |  -0.9743 |     1.6226 | -0.6005 |   0.5482 |
-#&gt; | x4          |   0.3155 |     0.3019 |  1.0452 |   0.2959 |
+#&gt; |             | Estimate  | Std. Error | z value | Pr(&gt;|z|) |
+#&gt; |-------------|-----------|------------|---------|----------|
+#&gt; | (Intercept) | -239.2049 |  1134.4711 | -0.2109 |   0.8330 |
+#&gt; | x1          |  333.7767 |  1575.6630 |  0.2118 |   0.8322 |
+#&gt; | x2          |        NA |         NA |      NA |   NA     |
+#&gt; | x3          |  -68.9251 |   325.6385 | -0.2117 |   0.8324 |
+#&gt; | x4          |   13.4112 |    63.0263 |  0.2128 |   0.8315 |
 #&gt;
 #&gt; Significance codes: ** p &lt; 0.01; * p &lt; 0.05; + p &lt; 0.10
 #&gt;
-#&gt; Pseudo R-squared: 0.9317
+#&gt; Pseudo R-squared: 1.00
 #&gt;
-#&gt; Number of observations: Full 12; Missing 0; Perfect classification 0
+#&gt; Number of observations: Full 12; Separated 6; Perfect classification 0
 #&gt;
-#&gt; Number of Fisher Scoring iterations: 24</code></pre>
+#&gt; Number of Fisher Scoring iterations: 25</code></pre>
 </div>
 <div id="example-3-fixed-effects" class="section level2">
 <h2>Example 3 (fixed effects)</h2>
@@ -261,7 +268,7 @@ fixed effects on this data.</p>
 )
 #&gt; Separation detected: 4 observation(s) with perfect prediction were excluded from estimation.
 #&gt; Formula: y ~ x1 + x2 | i + j
-#&gt; &lt;environment: 0x555bdc098898&gt;
+#&gt; &lt;environment: 0x561105b4ff08&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -269,16 +276,16 @@ fixed effects on this data.</p>
 #&gt;
 #&gt; |    | Estimate | Std. Error | z value | Pr(&gt;|z|) |
 #&gt; |----|----------|------------|---------|----------|
-#&gt; | x1 |  -0.4845 |     1.2439 | -0.3895 |   0.6969 |
+#&gt; | x1 |  -0.4811 |     1.2419 | -0.3874 |   0.6984 |
 #&gt; | x2 |       NA |         NA |      NA |   NA     |
 #&gt;
 #&gt; Significance codes: ** p &lt; 0.01; * p &lt; 0.05; + p &lt; 0.10
 #&gt;
-#&gt; Pseudo R-squared: 0.09081
+#&gt; Pseudo R-squared: 0.1874
 #&gt;
 #&gt; Number of observations: Full 18; Separated 4; Perfect classification 0
 #&gt;
-#&gt; Number of Fisher Scoring iterations: 5</code></pre>
+#&gt; Number of Fisher Scoring iterations: 4</code></pre>
 <p>‘correia2019’ will also detect separation when estimating Poisson
 models with fixed effects.</p>
 <pre class="stata"><code>. correia2019 y x1 x2, a(i j)
@@ -326,7 +333,7 @@ fepoisson(
 )
 #&gt; Separation detected: 4 observation(s) with perfect prediction were excluded from estimation.
 #&gt; Formula: y ~ x1 + x2 | i + j | pair
-#&gt; &lt;environment: 0x555bdc098898&gt;
+#&gt; &lt;environment: 0x561105b4ff08&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -334,16 +341,16 @@ fepoisson(
 #&gt;
 #&gt; |    | Estimate | Std. Error | z value | Pr(&gt;|z|) |
 #&gt; |----|----------|------------|---------|----------|
-#&gt; | x1 |  -0.4845 |     0.3314 | -1.4620 |   0.1437 |
+#&gt; | x1 |  -0.4811 |     0.3101 | -1.5514 |   0.1208 |
 #&gt; | x2 |       NA |         NA |      NA |   NA     |
 #&gt;
 #&gt; Significance codes: ** p &lt; 0.01; * p &lt; 0.05; + p &lt; 0.10
 #&gt;
-#&gt; Pseudo R-squared: 0.09081
+#&gt; Pseudo R-squared: 0.1874
 #&gt;
 #&gt; Number of observations: Full 18; Separated 4; Perfect classification 0
 #&gt;
-#&gt; Number of Fisher Scoring iterations: 5</code></pre>
+#&gt; Number of Fisher Scoring iterations: 4</code></pre>
 <p>Other R packages may not detect separation in Poisson models with
 fixed effects. By disabling the separation check in Capybara, we can
 match ‘alpaca’ and ‘fixest’ results.</p>
@@ -354,7 +361,7 @@ match ‘alpaca’ and ‘fixest’ results.</p>
   control = list(check_separation = FALSE)
 )
 #&gt; Formula: y ~ x1 + x2 | i + j
-#&gt; &lt;environment: 0x555bdc098898&gt;
+#&gt; &lt;environment: 0x561105b4ff08&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -363,7 +370,7 @@ match ‘alpaca’ and ‘fixest’ results.</p>
 #&gt; |    | Estimate | Std. Error | z value | Pr(&gt;|z|) |
 #&gt; |----|----------|------------|---------|----------|
 #&gt; | x1 |  -0.4845 |     1.2439 | -0.3895 |   0.6969 |
-#&gt; | x2 | -17.3730 |  4668.0414 | -0.0037 |   0.9970 |
+#&gt; | x2 | -12.3711 |   383.1463 | -0.0323 |   0.9742 |
 #&gt;
 #&gt; Significance codes: ** p &lt; 0.01; * p &lt; 0.05; + p &lt; 0.10
 #&gt;
@@ -371,7 +378,7 @@ match ‘alpaca’ and ‘fixest’ results.</p>
 #&gt;
 #&gt; Number of observations: Full 18; Missing 0; Perfect classification 0
 #&gt;
-#&gt; Number of Fisher Scoring iterations: 19</code></pre>
+#&gt; Number of Fisher Scoring iterations: 14</code></pre>
 <p>Alpaca:</p>
 <pre class="r"><code>alpaca::feglm(
   y ~ x1 + x2 | i + j,

@@ -34,13 +34,15 @@
 
   <div class="submenu">
     <label>Functions</label>
-    <a href="../reference/apes.html">apes</a>
-    <a href="../reference/bias_corr.html">bias_corr</a>
     <a href="../reference/feglm.html">feglm</a>
     <a href="../reference/felm.html">felm</a>
     <a href="../reference/fenegbin.html">fenegbin</a>
+    <a href="../reference/fepoisson_asymmetric.html">fepoisson_asymmetric</a>
     <a href="../reference/fepoisson.html">fepoisson</a>
+    <a href="../reference/feprobit.html">feprobit</a>
+    <a href="../reference/fetobit.html">fetobit</a>
     <a href="../reference/fit_control.html">fit_control</a>
+    <a href="../reference/sandwich_vcov.html">sandwich_vcov</a>
     <a href="../reference/summary_table.html">summary_table</a>
   </div>
 
@@ -83,14 +85,19 @@ functions just format the output.</li>
 <li>Allows formulas without fixed effects, such as <code>y ~ x1 + x2</code> and <code>y ~ x1 + x2 | 0 | cluster</code> and
 formulas without slopes such as <code>y ~ 0 | fe1 + fe2</code>.</li>
 <li>Allows offsets in GLMs.</li>
+<li>All the computation is done on C++ side, and now model formulas explicitly fail if there are functions
+inside them.</li>
 <li>The default is now <code>predict(glm_object, type = "response")</code>, unlike base R behavior.</li>
 <li>Most of the R and C++ code was refactored to use memory efficiently.</li>
 <li>Follows fixest-based normalization for fixed effects to match Stata results.</li>
 <li>Provides the option to use <code>control = list(centering = "berge")</code> or <code>list(centering = "stammann")</code>. Both
 methods are equivalent but use different internal logics. Berge’s fixed point problem approach is usually
 faster.</li>
+<li>Supports Probit and Logit regression.</li>
 <li>Adds parallelization over columns for an efficient centering regardless of the method used.</li>
-<li>Most of the data processing was moved to C++ port to ease portability (e.g., Python version in the future)</li>
+<li>A new function <code>fepoisson_asymmetric()</code> to compare coefficients across expectiles (e.g., 10%, 50%, 90%)
+to weight positive/negative residuals. This is based on “The Tails of Gravity”
+(10.1016/j.jinteco.2025.104145)</li>
 </ul></div>
 <div id="capybara-1.8.1" class="section level1">
 <h1>capybara 1.8.1</h1>
