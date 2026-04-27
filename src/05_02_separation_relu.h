@@ -18,13 +18,13 @@ struct SeparationReluWorkspace {
   vec boundary_xbd; // sized to num_boundary
 
   // WLS solver buffers (avoid allocations in hot loop)
-  mat Xw;         // n × p weighted design matrix
-  mat XtWX;       // p × p normal equations matrix
-  vec XtWy;       // p × 1 RHS of normal equations
-  mat R;          // p × p Cholesky factor
-  vec z_wls;      // p × 1 intermediate solve vector
-  vec beta;       // p × 1 coefficients
-  uvec excluded;  // p × 1 excluded columns mask
+  mat Xw;         // n * p weighted design matrix
+  mat XtWX;       // p * p normal equations matrix
+  vec XtWy;       // p * 1 RHS of normal equations
+  mat R;          // p * p Cholesky factor
+  vec z_wls;      // p * 1 intermediate solve vector
+  vec beta;       // p * 1 coefficients
+  uvec excluded;  // p * 1 excluded columns mask
   uword cached_p; // cached number of columns
 
   SeparationReluWorkspace() : cached_p(0) {}

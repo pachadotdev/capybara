@@ -82,7 +82,7 @@ NULL
 #' @param keep_data logical indicating if the filtered data should be stored in the result object. Required for
 #'  \code{predict()} methods. Set to \code{TRUE} when planning to use prediction functions. The default is
 #'  \code{FALSE} to minimize memory usage for production/benchmark use.
-#' @param return_hessian logical indicating if the Hessian matrix should be returned. The Hessian is a P×P
+#' @param return_hessian logical indicating if the Hessian matrix should be returned. The Hessian is a P*P
 #'  matrix used to compute the variance-covariance matrix. The default is \code{FALSE} to minimize memory usage
 #'  (vcov is still computed and returned).
 #' @param check_separation logical indicating whether to perform separation detection for Poisson models. When \code{TRUE}
@@ -93,9 +93,9 @@ NULL
 #' @param vcov_type Optional character string specifying the type of variance-covariance estimator to be used.
 #'  When \code{NULL} (default), the covariance matrix is the inverse Hessian (IID) when no cluster variable is
 #'  present, or a clustered sandwich when one is. Other values:
-#'  \code{"hetero"} — heteroskedastic-robust HC0 sandwich (no cluster variable needed);
-#'  \code{"m-estimator"} — one-way M-estimator sandwich (cluster variable required);
-#'  \code{"m-estimator-dyadic"} — dyadic-robust Cameron-Miller sandwich (two entity columns required in the
+#'  \code{"hetero"} - heteroskedastic-robust HC0 sandwich (no cluster variable needed);
+#'  \code{"m-estimator"} - one-way M-estimator sandwich (cluster variable required);
+#'  \code{"m-estimator-dyadic"} - dyadic-robust Cameron-Miller sandwich (two entity columns required in the
 #'  third part of the formula like \code{z ~ x + y | fe | cl1 + cl2}).
 #' @param tobit_lb numeric indicating the lower censoring bound for Tobit models. Observations with
 #'  \code{y <= tobit_lb} are treated as left-censored. Default is \code{-Inf} (no left censoring).
@@ -108,7 +108,7 @@ NULL
 #'  For binary regressors, this is \code{avg(F(eta+beta) - F(eta-X*beta))} where \code{F} is the link inverse.
 #'  The default is \code{FALSE}.
 #' @param ape_n_pop unsigned integer indicating a finite population correction for the estimation of the
-#'  covariance matrix of the average partial effects, proposed by Cruz-Gonzalez, Fernández-Val, and
+#'  covariance matrix of the average partial effects, proposed by Cruz-Gonzalez, Fernandez-Val, and
 #'  Weidner (2017). The correction factor is computed as: \code{(n_pop - n) / (n_pop - 1)}, where
 #'  \code{n_pop} is the population size and \code{n} is the sample size. Default is \code{NULL} (no correction,
 #'  covariance obtained by delta method only).
@@ -127,13 +127,13 @@ NULL
 #'  are included in the variance calculation. Default is \code{FALSE} (all regressors strictly exogenous).
 #' @param compute_bias_corr logical indicating whether to compute analytical bias correction for binomial
 #'  models. When \code{TRUE}, the model returns bias-corrected coefficient estimates alongside the
-#'  standard (uncorrected) coefficients. The bias correction follows Fernández-Val and Weidner (2016)
+#'  standard (uncorrected) coefficients. The bias correction follows Fernandez-Val and Weidner (2016)
 #'  and Hinz, Stammann, and Wanner (2020). Currently restricted to binomial family with 1-3 way fixed
 #'  effects. Default is \code{FALSE}.
 #' @param bias_corr_bandwidth unsigned integer indicating a bandwidth for the estimation of spectral
 #'  densities proposed by Hahn and Kuersteiner (2011). Default is \code{0L}, which should be used if
 #'  all regressors are assumed to be strictly exogenous with respect to the idiosyncratic error term.
-#'  In the presence of weakly exogenous regressors (e.g., lagged outcome variables), Fernández-Val and
+#'  In the presence of weakly exogenous regressors (e.g., lagged outcome variables), Fernandez-Val and
 #'  Weidner (2016, 2018) suggest choosing a bandwidth between one and four. Note that the order of
 #'  factors to be partialed out is important for bandwidths larger than zero.
 #' @param bias_corr_panel_structure character string equal to \code{"classic"} or \code{"network"} which

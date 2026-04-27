@@ -258,7 +258,7 @@ detect_separation_simplex(const mat &X_centered, const uvec &boundary_sample,
 
   // Step 4: Test 2 - Full simplex on remaining observations and variables
   // (only if there are remaining flagged variables with mixed signs)
-  // Count first, then allocate once (avoid O(n²) resizing)
+  // Count first, then allocate once (avoid O(n^2) resizing)
   uword n_remaining_vars = 0;
   for (uword j = 0; j < n_flagged; ++j) {
     if (!dropped_vars(j))

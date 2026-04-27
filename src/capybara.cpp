@@ -148,7 +148,7 @@ struct CapybaraParameters {
   std::string ape_sampling_fe;     // "independence" or "unrestricted"
   bool ape_weak_exo;
 
-  // Bias correction (Fernández-Val & Weidner 2016)
+  // Bias correction (Fernandez-Val & Weidner 2016)
   bool compute_bias_corr;
   size_t bias_corr_bandwidth;            // L parameter (0 = strict exogeneity)
   std::string bias_corr_panel_structure; // "classic" or "network"
@@ -368,7 +368,7 @@ inline uvec R_1based_to_Cpp_0based_indices(const integers &r_indices) {
 
 // Build FlatFEMap directly from R integer code vectors (the lean path).
 // fe_codes is a list of K integer vectors, each of length N, with 0-based
-// group codes. This is O(N*K) with zero intermediate allocation — no more
+// group codes. This is O(N*K) with zero intermediate allocation - no more
 // field<field<uvec>> of hundreds of small heap-allocated uvecs.
 // Uses direct R INTEGER() pointer access to avoid cpp4r wrapper overhead.
 inline capybara::FlatFEMap R_codes_to_FlatFEMap(const list &fe_codes) {
@@ -741,13 +741,13 @@ inline PreparedData prepare_raw_data(const doubles_matrix<> &X_r,
   // Start with all valid
   std::vector<bool> valid(N, true);
 
-  // y — access via cpp4r doubles API
+  // y - access via cpp4r doubles API
   for (size_t i = 0; i < N; ++i) {
     if (!R_finite(static_cast<double>(y_r[i])))
       valid[i] = false;
   }
 
-  // X (column-major) — access via cpp4r doubles_matrix API
+  // X (column-major) - access via cpp4r doubles_matrix API
   for (size_t j = 0; j < p; ++j) {
     for (size_t i = 0; i < N; ++i) {
       if (valid[i] && !R_finite(static_cast<double>(X_r(i, j))))
@@ -755,7 +755,7 @@ inline PreparedData prepare_raw_data(const doubles_matrix<> &X_r,
     }
   }
 
-  // w (skip if empty — means unit weights)
+  // w (skip if empty - means unit weights)
   const bool has_weights = (w_r.size() > 0);
   if (has_weights) {
     for (size_t i = 0; i < N; ++i) {
@@ -888,7 +888,7 @@ inline void add_fe_metadata_to_result(
   ret.push_back(
       {"nobs_used"_nm = writable::integers({static_cast<int>(nobs_used)})});
 
-  // obs_indices (1-based) — only if some rows were dropped
+  // obs_indices (1-based) - only if some rows were dropped
   if (!all_valid) {
     writable::integers r_indices(obs_indices.n_elem);
     for (size_t i = 0; i < obs_indices.n_elem; ++i) {

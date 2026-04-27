@@ -139,7 +139,7 @@ inline void ww_nu_tobit(vec &w_working, vec &nu, const vec &w, const vec &mu,
       // Left-censored: y = lower
       // a = (lower - mu) / sigma (typically negative when mu > lower)
       const double a = (lower - mui) / sigma_safe;
-      // Φ(a) = P(Z < a)
+      // Phi(a) = P(Z < a)
       const double Phi_a = 0.5 * std::erfc(-a * M_SQRT1_2);
       const double phi_a =
           std::exp(-0.5 * a * a) * M_2_SQRTPI * 0.5 * M_SQRT1_2;
@@ -443,8 +443,8 @@ inline void expand_separation_result(InferenceGLM &result,
 
 ///////////////////////////////////////////////////////////////////////////
 // Average Partial Effects (APE) and Bias Correction for binomial models
-// Based on Cruz-Gonzalez, Fernández-Val, and Weidner (2017)
-// and Fernández-Val & Weidner (2016)
+// Based on Cruz-Gonzalez, Fernandez-Val, and Weidner (2017)
+// and Fernandez-Val & Weidner (2016)
 // Following R implementations in biasCorr.R and getAPEs.R
 ///////////////////////////////////////////////////////////////////////////
 
@@ -648,7 +648,7 @@ inline void compute_apes_binomial(InferenceGLM &result, const mat &X,
   Psi.each_col() /= w;
   mat MPsi = Psi; // Will be centered in-place
   // Note: For APE variance we need centered Psi, but full centering is
-  // expensive Here we use the approximation that PPsi ≈ Psi for variance
+  // expensive Here we use the approximation that PPsi ~= Psi for variance
   // computation The R code uses: PPsi <- Psi - MPsi
 
   // Bias correction for APEs (if biascorr and bandwith info available)
@@ -794,7 +794,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   const uword p = X.n_cols;
 
   // Store original X in the FelmWorkspace (needed for FE recovery after
-  // convergence). Skip when called from negbin outer loop — only the final
+  // convergence). Skip when called from negbin outer loop - only the final
   // converged call needs FE recovery (run_from_negbin=false).
   // This avoids an upfront N*P copy; instead the workspace owns it.
 
@@ -946,7 +946,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   CollinearityResult collin_result(X.n_cols);
 
   // Scope XtX and R_rank so they're deallocated immediately after use
-  // (avoids holding P² memory through the entire IRLS loop)
+  // (avoids holding P^2 memory through the entire IRLS loop)
   {
     const mat XtX = use_weights ? crossprod(X, w) : crossprod(X);
     mat R_rank;

@@ -196,7 +196,7 @@ inline mat sandwich_vcov_hetero_(const mat &MX, const vec &resid,
 // For large G the fraction potentially correlated ! 4/(G  1).
 
 // Extends to m-estimators (e.g. probit), IV, and GMM.
-// M-estimator based on $E[m_{gh} (θ)] = 0$ solves $\sum_{g,h} m_{gh}
+// M-estimator based on $E[m_{gh} (theta)] = 0$ solves $\sum_{g,h} m_{gh}
 // (\hat{\theta}) = 0$.
 // $\hat{\theta}$ is asymptotically normal with
 // $\hat{V}[\hat{\theta}] = \hat{A}^{-1} \hat{B} \hat{A}^{-1}$
@@ -371,7 +371,7 @@ inline mat sandwich_vcov_mestimator_dyadic_(const mat &A, const mat &scores,
     }
   }
 
-  // Dyadic meat — Cameron & Miller (2014) full decomposition:
+  // Dyadic meat - Cameron & Miller (2014) full decomposition:
   // B = B_11 + B_22 + B_12 + B_21 - B_same - B_rev
   //
   // where

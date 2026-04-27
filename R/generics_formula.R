@@ -24,16 +24,16 @@ felm_formula_parts_ <- function(formula) {
 #' independently, reassembles, and re-fits the model.
 #'
 #' The `.` placeholder works as usual:
-#' * `. ~ .` — keep the current response and RHS regressors.
+#' * `. ~ .` - keep the current response and RHS regressors.
 #' * The second `|` segment replaces (or keeps, if `.`) the fixed-effects.
 #' * The third `|` segment replaces (or keeps, if `.`) the cluster variables.
 #'
 #' @param object A fitted `felm` object.
 #' @param formula. Update formula; only the segments you want to change need to
 #'   differ from `.`.  Examples:
-#'   * `. ~ . | country + year` — change FE, keep regressors.
-#'   * `. ~ . | . | ctry1 + ctry2` — keep FE, change cluster.
-#'   * `. ~ . - bothin | year` — drop a regressor, keep FE.
+#'   * `. ~ . | country + year` - change FE, keep regressors.
+#'   * `. ~ . | . | ctry1 + ctry2` - keep FE, change cluster.
+#'   * `. ~ . - bothin | year` - drop a regressor, keep FE.
 #' @param vcov Optional new `vcov` value (e.g. `"cluster"`).  If omitted the
 #'   original value is reused.
 #' @param ... Additional arguments forwarded to [felm()].
@@ -153,7 +153,7 @@ update.formula <- function(object, formula., ...) {
   old <- felm_formula_parts_(object)
   new_segs <- trimws(strsplit(new_chr, "\\|")[[1L]])
 
-  # base (lhs ~ rhs) — safe to delegate to stats
+  # base (lhs ~ rhs) - safe to delegate to stats
   new_base <- deparse1(
     stats::update.formula(as.formula(old$base), as.formula(new_segs[[1L]]))
   )
@@ -185,9 +185,9 @@ update.formula <- function(object, formula., ...) {
 #' `|`, updates each segment independently, and reassembles.
 #'
 #' The `.` placeholder behaves as in [update.formula()]:
-#' * `. ~ .` — keep current response and RHS unchanged.
-#' * Second `|` segment — replaces (or keeps with `.`) the fixed effects.
-#' * Third `|` segment — replaces (or keeps with `.`) the cluster variables.
+#' * `. ~ .` - keep current response and RHS unchanged.
+#' * Second `|` segment - replaces (or keeps with `.`) the fixed effects.
+#' * Third `|` segment - replaces (or keeps with `.`) the cluster variables.
 #'
 #' @param object A `felm_formula` object.
 #' @param formula. Update specification, e.g. `. ~ . | . | ctry1 + ctry2`.
@@ -201,7 +201,7 @@ update.felm_formula <- function(object, formula., ...) {
   new_chr <- deparse1(formula.)
   new_segs <- trimws(strsplit(new_chr, "\\|")[[1L]])
 
-  # base (lhs ~ rhs) — safe to delegate to update.formula()
+  # base (lhs ~ rhs) - safe to delegate to update.formula()
   new_base <- deparse1(
     update.formula(as.formula(old$base), as.formula(new_segs[[1L]]))
   )

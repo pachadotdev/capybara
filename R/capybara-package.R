@@ -37,7 +37,7 @@ NULL
 #' function of the corresponding GLM. The package is based on the algorithm described in Stammann (2018). It also offers
 #' an efficient algorithm to recover estimates of the fixed effects in a post-estimation routine and includes robust and
 #' multi-way clustered standard errors. Further the package provides analytical bias corrections for binary choice
-#' models derived by Fernández-Val and Weidner (2016) and Hinz, Stammann, and Wanner (2020). This package is a ground up
+#' models derived by Fernandez-Val and Weidner (2016) and Hinz, Stammann, and Wanner (2020). This package is a ground up
 #' rewrite with multiple refactors, optimizations, and new features compared to the original package `alpaca`. In its
 #' current state, the package is stable and future changes will be limited to bug fixes and improvements, but not to
 #' altering the functions' arguments or outputs.
