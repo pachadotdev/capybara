@@ -122,6 +122,13 @@ inline void copy_numeric_column(SEXP col, const uvec &keep_idx, double *dst) {
       int val = src[keep_idx[i]];
       dst[i] = (val == NA_INTEGER) ? NA_REAL : static_cast<double>(val);
     }
+  } else if (TYPEOF(col) == LGLSXP) {
+    // Treat logical (boolean) as numeric 0/1, NA_LOGICAL -> NA_REAL
+    const int *src = LOGICAL(col);
+    for (size_t i = 0; i < n; ++i) {
+      int val = src[keep_idx[i]];
+      dst[i] = (val == NA_LOGICAL) ? NA_REAL : static_cast<double>(val);
+    }
   } else {
     for (size_t i = 0; i < n; ++i) {
       dst[i] = NA_REAL;
@@ -135,6 +142,9 @@ inline double get_numeric_value(SEXP col, size_t i) {
   } else if (TYPEOF(col) == INTSXP) {
     int val = INTEGER(col)[i];
     return (val == NA_INTEGER) ? NA_REAL : static_cast<double>(val);
+  } else if (TYPEOF(col) == LGLSXP) {
+    int val = LOGICAL(col)[i];
+    return (val == NA_LOGICAL) ? NA_REAL : static_cast<double>(val);
   }
   return NA_REAL;
 }
@@ -523,6 +533,14 @@ build_matrix_from_formula(const std::string &formula_str, SEXP df,
     case STRSXP: {
       for (size_t i = 0; i < N; ++i) {
         if (STRING_ELT(col, i) == NA_STRING)
+          valid[i] = false;
+      }
+      break;
+    }
+    case LGLSXP: {
+      const int *ptr = LOGICAL(col);
+      for (size_t i = 0; i < N; ++i) {
+        if (ptr[i] == NA_LOGICAL)
           valid[i] = false;
       }
       break;
