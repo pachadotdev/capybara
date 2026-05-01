@@ -8,6 +8,8 @@
 #' @param model_names Optional vector of custom model names
 #' @param caption Optional caption for the table (LaTeX only)
 #' @param label Optional label for cross-referencing (LaTeX only)
+#' @param position LaTeX float position specifier (LaTeX only). The default is
+#'   \code{"htbp"}.
 #' @examples
 #' m1 <- felm(mpg ~ wt | cyl, mtcars)
 #' m2 <- fepoisson(mpg ~ wt | cyl, mtcars)
@@ -22,7 +24,8 @@ summary_table <- function(
   latex = FALSE,
   model_names = NULL,
   caption = NULL,
-  label = NULL
+  label = NULL,
+  position = "htbp"
 ) {
   # Collect models
   models <- list(...)
@@ -227,7 +230,7 @@ summary_table <- function(
 
   # Format the output and return it directly (no print call)
   res <- if (latex) {
-    format_latex_table(result_df, result2_df, stars, label, caption)
+    format_latex_table(result_df, result2_df, stars, label, caption, position)
   } else {
     format_console_table(result_df, result2_df, stars)
   }
@@ -413,165 +416,109 @@ format_latex_table <- function(
   result2_df,
   stars,
   label = NULL,
-  caption = NULL
+  caption = NULL,
+  position = "htbp"
 ) {
-  # Convert to data frame
   full_df <- rbind(as.matrix(result_df), result2_df)
-
-  # Create LaTeX code
   n_cols <- ncol(full_df)
+  col_spec <- paste0("l", paste(rep("c", n_cols - 1), collapse = ""))
 
-  # Start with empty vector for LaTeX code
-  latex <- character(0)
-
-  # Include table environment if label or caption is provided
-  include_environment <- !is.null(label) || !is.null(caption)
-  if (include_environment) {
-    latex <- c(latex, "\\begin{table}[htbp]", "\\centering")
-    if (!is.null(caption)) {
-      latex <- c(latex, paste0("\\caption{", caption, "}"))
-    }
-    if (!is.null(label)) {
-      latex <- c(latex, paste0("\\label{", label, "}"))
-    }
+  read_tmpl <- function(name) {
+    path <- system.file("templates", name, package = "capybara", mustWork = TRUE)
+    paste(readLines(path, warn = FALSE), collapse = "\n")
   }
 
-  # Add tabular environment
-  latex <- c(
-    latex,
-    paste0(
-      "\\begin{tabular}{l",
-      paste(rep("c", n_cols - 1), collapse = ""),
-      "}"
-    ),
-    "\\toprule"
+  fill_tmpl <- function(tmpl, vals) {
+    for (key in names(vals)) {
+      tmpl <- gsub(paste0("{{", key, "}}"), vals[[key]], tmpl, fixed = TRUE)
+    }
+    tmpl
+  }
+
+  # Read all templates once
+  tmpl <- list(
+    table       = read_tmpl("latex_table.tex"),
+    row         = read_tmpl("row.tex"),
+    midrule_row = read_tmpl("midrule_row.tex"),
+    footnotes   = read_tmpl("footnotes.tex"),
+    caption     = read_tmpl("caption.tex"),
+    label       = read_tmpl("label.tex")
   )
 
-  # Header row
-  latex <- c(latex, paste(colnames(full_df), collapse = " & "), "\\\\")
+  make_row <- function(cols) fill_tmpl(tmpl$row, list(cols = paste(cols, collapse = " & ")))
+  make_midrule_row <- function(cols) fill_tmpl(tmpl$midrule_row, list(cols = paste(cols, collapse = " & ")))
 
-  # Midrule
-  latex <- c(latex, "\\midrule")
+  # --- Build body (header + coefficient rows + stat rows) ---
 
-  # Process coefficients
-  latex_rows <- unlist(lapply(1:nrow(result_df), function(i) {
+  body <- c(make_row(colnames(full_df)), "\\midrule")
+
+  # Coefficient rows
+  coef_rows <- unlist(lapply(seq_len(nrow(result_df)), function(i) {
     row <- result_df[i, ]
+    var_name <- gsub("_", "\\_", as.character(row[1]), fixed = TRUE)
 
-    # First process variable name (escape underscores for LaTeX)
-    var_name <- as.character(row[1])
-    var_name <- gsub("_", "\\_", var_name, fixed = TRUE)
-
-    # Create coefficient row
     coef_values <- character(ncol(row))
-    coef_values[1] <- var_name # Variable name
-
-    # Create SE row (empty in first column)
+    coef_values[1] <- var_name
     se_values <- character(ncol(row))
-    se_values[1] <- "" # Empty first column
+    se_values[1] <- ""
 
-    # Fill in coefficient and SE values for each model
     cell_results <- lapply(2:ncol(row), function(j) {
       cell <- as.character(row[j])
-
       if (is.na(cell) || cell == "") {
         list(coef = "", se = "")
       } else if (grepl("\n", cell)) {
-        # Split into coef and SE
         parts <- strsplit(cell, "\n")[[1]]
-        # Convert stars to LaTeX superscripts
-        # Only replace stars at the end of the string
         coef_with_stars <- parts[1]
         if (grepl("\\*\\*$", coef_with_stars)) {
           coef_with_stars <- sub("\\*\\*$", "$^{**}$", coef_with_stars)
         } else if (grepl("\\*$", coef_with_stars)) {
           coef_with_stars <- sub("\\*$", "$^{*}$", coef_with_stars)
-        } else if (grepl("\\+$", coef_with_stars)) {
-          coef_with_stars <- sub("\\+$", "$^{+}$", coef_with_stars)
-        }
+        } else if (grepl("\\+$", coef_with_stars)) coef_with_stars <- sub("\\+$", "$^{+}$", coef_with_stars)
         list(coef = coef_with_stars, se = parts[2])
       } else {
         list(coef = as.character(cell), se = "")
       }
     })
 
-    coef_values[2:ncol(row)] <- vapply(
-      cell_results,
-      function(x) x$coef,
-      character(1)
-    )
-    se_values[2:ncol(row)] <- vapply(
-      cell_results,
-      function(x) x$se,
-      character(1)
-    )
+    coef_values[2:ncol(row)] <- vapply(cell_results, function(x) x$coef, character(1))
+    se_values[2:ncol(row)] <- vapply(cell_results, function(x) x$se, character(1))
 
-    # Return coefficient row and SE row (if it has content)
-    result <- c(paste(coef_values, collapse = " & "), "\\\\")
-    if (any(nchar(se_values) > 0)) {
-      result <- c(result, paste(se_values, collapse = " & "), "\\\\")
-    }
-    result
+    out <- make_row(coef_values)
+    if (any(nchar(se_values) > 0)) out <- c(out, make_row(se_values))
+    out
   }))
 
-  latex <- c(latex, latex_rows)
+  body <- c(body, coef_rows)
 
-  # Midrule before stats
-  # latex <- c(latex, "\\midrule")
-
-  # Add stat rows (escape underscores for LaTeX)
+  # Stat rows — midrule_row for section headers, plain row otherwise
+  midrule_triggers <- c("Fixed effects", "N")
   stat_rows <- apply(result2_df, 1, function(row) {
     if (all(row == "")) {
       return(NULL)
     }
-    row <- gsub("_", "\\_", row, fixed = TRUE)
-    row_text <- paste(ifelse(is.na(row), "", row), collapse = " & ")
-    paste0(row_text, " \\\\")
+    row_esc <- gsub("_", "\\_", row, fixed = TRUE)
+    cols <- ifelse(is.na(row_esc), "", row_esc)
+    if (trimws(row[1]) %in% midrule_triggers) make_midrule_row(cols) else make_row(cols)
   })
-  latex <- c(latex, stat_rows[!sapply(stat_rows, is.null)])
+  body <- c(body, stat_rows[!vapply(stat_rows, is.null, logical(1))])
 
-  latex <- gsub(
-    "^Fixed effects ",
-    "\\\\midrule Fixed effects ",
-    latex
-  )
+  body_text <- paste(body, collapse = "\n")
 
-  latex <- gsub(
-    "^N ",
-    "\\\\midrule N ",
-    latex
-  )
+  # --- Fill main template ---
+  footnotes_text <- if (stars) fill_tmpl(tmpl$footnotes, list(n_cols = n_cols)) else ""
+  caption_text <- if (is.null(caption)) "" else fill_tmpl(tmpl$caption, list(caption = caption))
+  label_text <- if (is.null(label)) "" else fill_tmpl(tmpl$label, list(label = label))
 
-  # Table footer
-  latex <- c(latex, "\\bottomrule")
+  content <- fill_tmpl(tmpl$table, list(
+    position  = position,
+    caption   = caption_text,
+    label     = label_text,
+    col_spec  = col_spec,
+    body      = body_text,
+    footnotes = footnotes_text
+  ))
 
-  # Add significance legend
-  if (stars) {
-    latex <- c(
-      latex,
-      paste0(
-        "\\multicolumn{",
-        n_cols,
-        "}{l}{\\footnotesize Standard errors in parentheses} \\\\ \n",
-        "\\multicolumn{",
-        n_cols,
-        "}{l}{\\footnotesize Significance levels: ",
-        "$**\\: p < 0.01;\\: *\\: p < 0.05;\\: +\\: p < 0.10$}"
-      )
-    )
-  }
-
-  # Close environments
-  latex <- c(latex, "\\end{tabular}")
-
-  if (include_environment) {
-    latex <- c(latex, "\\end{table}")
-  }
-
-  # Create a new S3 object with better structure
-  obj <- list(
-    content = paste(latex, collapse = "\n"),
-    type = "latex"
-  )
+  obj <- list(content = content, type = "latex")
   class(obj) <- "summary_table"
   obj
 }

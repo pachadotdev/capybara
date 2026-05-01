@@ -12,7 +12,8 @@ summary_table(
   latex = FALSE,
   model_names = NULL,
   caption = NULL,
-  label = NULL
+  label = NULL,
+  position = "htbp"
 )
 }
 \arguments{
@@ -31,6 +32,9 @@ summary_table(
 \item{caption}{Optional caption for the table (LaTeX only)}
 
 \item{label}{Optional label for cross-referencing (LaTeX only)}
+
+\item{position}{LaTeX float position specifier (LaTeX only). The default is
+\code{"htbp"}.}
 }
 \value{
 A formatted table
