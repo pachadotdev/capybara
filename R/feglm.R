@@ -355,10 +355,7 @@ feglm <- function(
 
   # Add separation info if present ----
   if (isTRUE(fit$has_separation)) {
-    message(
-      "Separation detected: ", num_separated, " observation(s) ",
-      "with perfect prediction were excluded from estimation."
-    )
+    message("Separation found in ", num_separated, " observation(s)")
     fit[["separated_obs"]] <- fit$separated_obs
     fit[["separation_support"]] <- fit$separation_support
   }

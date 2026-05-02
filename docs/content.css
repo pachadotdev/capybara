@@ -307,8 +307,7 @@ pre code {
 /* Vignette code blocks - same styling as ref-usage */
 #content pre {
   background-color: var(--code-bg);
-  /* border-left: 4px solid var(--accent-color); */
-  border-left: 0;
+  border-left: 4px solid var(--accent-color);
   font-family: "Hack", "Fira Mono", "Courier New", Courier, monospace;
   transition: background-color 0.3s ease, border-color 0.3s ease;
 }

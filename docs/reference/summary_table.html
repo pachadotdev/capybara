@@ -48,6 +48,7 @@
 
   <div class="submenu">
     <label>Vignettes</label>
+    <a href="../vignettes/asymmetric.html">Asymmetric Poisson Pseudo-Maximum Likelihood (APPML)</a>
     <a href="../vignettes/intro.html">Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors</a>
     <a href="../vignettes/separation.html">Nonexistence of estimates of Poisson models</a>
     <a href="../vignettes/variance-covariance.html">Different Variance-Covariance Estimators</a>
@@ -80,7 +81,8 @@
   latex = FALSE,
   model_names = NULL,
   caption = NULL,
-  label = NULL
+  label = NULL,
+  position = "htbp"
 )
 </code></pre>
 
@@ -111,6 +113,10 @@ Optional caption for the table (LaTeX only)
 </td></tr><tr><td><code id="label">label</code></td>
 <td>
 Optional label for cross-referencing (LaTeX only)
+</td></tr><tr><td><code id="position">position</code></td>
+<td>
+LaTeX float position specifier (LaTeX only). The default is
+<code>"htbp"</code>.
 </td></tr></table><h3>Value</h3>
 
 <p>A formatted table

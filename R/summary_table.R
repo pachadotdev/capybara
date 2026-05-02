@@ -214,14 +214,18 @@ summary_table <- function(
 
   # Output in the requested format
 
+  # Only include r2_row / se_type_row when at least one model has a value
+  stat_rows_optional <- list()
+  if (any(r2_row[-1] != "")) stat_rows_optional <- c(stat_rows_optional, list(r2_row))
+  if (any(se_type_row[-1] != "")) stat_rows_optional <- c(stat_rows_optional, list(se_type_row))
+
   result2_df <- rbind(
     c("", rep("", length(models))), # for spacing
     c("Fixed effects ", rep("", length(models))), # for spacing
     do.call(rbind, fe_rows),
     c("", rep("", length(models))), # for spacing
     obs_row,
-    r2_row,
-    se_type_row
+    if (length(stat_rows_optional) > 0) do.call(rbind, stat_rows_optional) else NULL
   )
 
   # Set column names from result_df
@@ -273,8 +277,8 @@ format_console_table <- function(result_df, result2_df, stars) {
           # Center align header text
           name <- as.character(name) # Ensure it's a simple string
           padding <- width - nchar(name)
-          left_pad <- floor(padding / 2)
-          right_pad <- ceiling(padding / 2)
+          left_pad <- max(0L, floor(padding / 2))
+          right_pad <- max(0L, ceiling(padding / 2))
           paste0(
             paste(rep(" ", left_pad), collapse = ""),
             name,

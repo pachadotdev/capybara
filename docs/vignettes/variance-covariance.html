@@ -48,6 +48,7 @@
 
   <div class="submenu">
     <label>Vignettes</label>
+    <a href="../vignettes/asymmetric.html">Asymmetric Poisson Pseudo-Maximum Likelihood (APPML)</a>
     <a href="../vignettes/intro.html">Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors</a>
     <a href="../vignettes/separation.html">Nonexistence of estimates of Poisson models</a>
     <a href="../vignettes/variance-covariance.html">Different Variance-Covariance Estimators</a>
@@ -74,7 +75,7 @@ coefficients for the OLS model from table 1:</p>
 #&gt; Formula: ltrade ~ bothin + onein + gsp + ldist + lrgdp + lrgdppc + regional +
 #&gt;     custrict + comlang + border + landl + island + lareap + comcol +
 #&gt;     curcol + colony + comctry | year
-#&gt; &lt;environment: 0x561109202950&gt;
+#&gt; &lt;environment: 0x5641b98c63e0&gt;
 #&gt;
 #&gt; Estimates:
 #&gt;
@@ -102,6 +103,9 @@ coefficients for the OLS model from table 1:</p>
 #&gt;
 #&gt; R-squared     : 0.648
 #&gt; Adj. R-squared: 0.6479
+#&gt;
+#&gt; Fixed effects:
+#&gt;   year: 52
 #&gt;
 #&gt; Number of observations: Full 234597; Missing 0; Perfect classification 0</code></pre>
 <p>This does not involve many fixed effects. However, capybara will be

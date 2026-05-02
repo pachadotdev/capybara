@@ -277,7 +277,7 @@ InferenceAPPML fepoisson_asymmetric_fit(mat &X, const vec &y, const vec &w,
       initial_fit.has_separation && initial_fit.separated_obs.n_elem > 0;
 
   if (has_sep && trace) {
-    cpp4r::message("Separation detected: %lu observation(s) excluded\n",
+    cpp4r::message("Separation found in %lu observation(s)\n",
                    static_cast<unsigned long>(initial_fit.num_separated));
   }
 

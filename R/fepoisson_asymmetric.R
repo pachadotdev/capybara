@@ -176,17 +176,11 @@ fepoisson_asymmetric <- function(
   # Check validity of control + Extract control list ----
   control <- check_control_(control)
 
-  # Validate expectile is specified
-  if (is.null(control[["expectile"]]) || control[["expectile"]] <= 0 || control[["expectile"]] >= 1) {
-    stop(
-      "expectile must be specified in control and between 0 and 1 (exclusive). ",
-      "Use: control = fit_control(expectile = 0.5)",
-      call. = FALSE
-    )
-  }
+  # Check validity of expectile ----
+  check_expectile_(control[["expectile"]])
 
   # Determine needed columns (validates they exist) ----
-  get_needed_cols_(formula, data, weights, offset)
+  cols_info <- get_needed_cols_(formula, data, weights, offset)
 
   # Preserve original row names ----
   orig_rownames <- rownames(data)
@@ -217,7 +211,7 @@ fepoisson_asymmetric <- function(
   nobs_full <- nrow(data)
 
   # Get FE variable names ----
-  check_fe_(formula, data)
+  fe_vars <- check_fe_(formula, data)
 
   # Starting guesses ----
   beta <- if (!is.null(beta_start)) as.numeric(beta_start) else numeric(0)
@@ -227,9 +221,8 @@ fepoisson_asymmetric <- function(
   data_for_output <- if (control[["keep_data"]]) data else NULL
 
   # FIT MODEL ----
-  fit <- structure(
-    fepoisson_asymmetric_fit_(formula_str, data, w, beta, eta_vec, offset_vec, control),
-    class = c("feglm", "fepoisson_asymmetric")
+  fit <- fepoisson_asymmetric_fit_(
+    formula_str, data, w, beta, eta_vec, offset_vec, control
   )
 
   # Free large input objects immediately after C++ call
@@ -239,16 +232,12 @@ fepoisson_asymmetric <- function(
   eta_vec <- NULL
 
   # Post-processing ----
-  # APPML uses separation detection like fepoisson
   num_separated <- if (isTRUE(fit[["has_separation"]])) {
     fit[["num_separated"]]
   } else {
     0L
   }
-  # nobs_used = working sample size (after NA removal AND separation exclusion)
-  # nobs_na = observations removed due to NA/missing values only
-  # We compute: nobs_full - nobs_na - num_separated = nobs_used
-  # So: nobs_na = nobs_full - nobs_used - num_separated
+  # nobs_used is the working sample (after NA removal AND separation exclusion)
   nobs_na <- nobs_full - fit[["nobs_used"]] - num_separated
   nobs <- c(
     nobs_full = nobs_full,
@@ -327,5 +316,18 @@ fepoisson_asymmetric <- function(
   fit[["control"]] <- control
   fit[["offset"]] <- offset_vec
 
-  fit
+  structure(fit, class = c("feglm", "fepoisson_asymmetric"))
+}
+
+# Expectile validity check ----
+
+check_expectile_ <- function(expectile) {
+  if (is.null(expectile) || expectile <= 0 || expectile >= 1) {
+    stop(
+      "'expectile' must be specified in 'control' and between 0 and 1 ",
+      "(exclusive). Use: control = fit_control(expectile = 0.5)",
+      call. = FALSE
+    )
+  }
+  invisible(TRUE)
 }

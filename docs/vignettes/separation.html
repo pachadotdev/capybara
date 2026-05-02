@@ -48,6 +48,7 @@
 
   <div class="submenu">
     <label>Vignettes</label>
+    <a href="../vignettes/asymmetric.html">Asymmetric Poisson Pseudo-Maximum Likelihood (APPML)</a>
     <a href="../vignettes/intro.html">Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors</a>
     <a href="../vignettes/separation.html">Nonexistence of estimates of Poisson models</a>
     <a href="../vignettes/variance-covariance.html">Different Variance-Covariance Estimators</a>
@@ -68,10 +69,7 @@
 <p>This vignette is adapted from <a href="https://github.com/sergiocorreia/ppmlhdfe/blob/master/guides/nonexistence_benchmarks.md#r-packages" class="uri">https://github.com/sergiocorreia/ppmlhdfe/blob/master/guides/nonexistence_benchmarks.md#r-packages</a>.</p>
 <div id="example-1" class="section level2">
 <h2>Example 1</h2>
-<pre class="r"><code>library(capybara)
-#&gt; Registered S3 method overwritten by 'capybara':
-#&gt;   method         from
-#&gt;   update.formula stats</code></pre>
+<pre class="r"><code>library(capybara)</code></pre>
 <p>The table below shows a dataset with 12 observations and four
 regressors. Observations 5 is separated because <span class="math inline">\(y=0\)</span> and <span class="math inline">\(z
 \neq x_2 - x_1\)</span> is positive in those observations, and zero
@@ -116,9 +114,9 @@ this data.</p>
   y ~ x1 + x2 + x3 + x4,
   data = correia2019$example1
 )
-#&gt; Separation detected: 1 observation(s) with perfect prediction were excluded from estimation.
+#&gt; Separation found in 1 observation(s)
 #&gt; Formula: y ~ x1 + x2 + x3 + x4
-#&gt; &lt;environment: 0x561105b4ff08&gt;
+#&gt; &lt;environment: 0x5641baf3db40&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -188,9 +186,9 @@ model on this data.</p>
   y ~ x1 + x2 + x3 + x4,
   data = correia2019$example2
 )
-#&gt; Separation detected: 6 observation(s) with perfect prediction were excluded from estimation.
+#&gt; Separation found in 6 observation(s)
 #&gt; Formula: y ~ x1 + x2 + x3 + x4
-#&gt; &lt;environment: 0x561105b4ff08&gt;
+#&gt; &lt;environment: 0x5641baf3db40&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -266,9 +264,9 @@ fixed effects on this data.</p>
   y ~ x1 + x2 | i + j,
   data = correia2019$fe1
 )
-#&gt; Separation detected: 4 observation(s) with perfect prediction were excluded from estimation.
+#&gt; Separation found in 4 observation(s)
 #&gt; Formula: y ~ x1 + x2 | i + j
-#&gt; &lt;environment: 0x561105b4ff08&gt;
+#&gt; &lt;environment: 0x5641baf3db40&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -282,6 +280,10 @@ fixed effects on this data.</p>
 #&gt; Significance codes: ** p &lt; 0.01; * p &lt; 0.05; + p &lt; 0.10
 #&gt;
 #&gt; Pseudo R-squared: 0.1874
+#&gt;
+#&gt; Fixed effects:
+#&gt;   i: 4
+#&gt;   j: 4
 #&gt;
 #&gt; Number of observations: Full 18; Separated 4; Perfect classification 0
 #&gt;
@@ -331,9 +333,9 @@ fepoisson(
   y ~ x1 + x2 | i + j | pair,
   data = correia2019$fe1
 )
-#&gt; Separation detected: 4 observation(s) with perfect prediction were excluded from estimation.
+#&gt; Separation found in 4 observation(s)
 #&gt; Formula: y ~ x1 + x2 | i + j | pair
-#&gt; &lt;environment: 0x561105b4ff08&gt;
+#&gt; &lt;environment: 0x5641baf3db40&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -348,6 +350,10 @@ fepoisson(
 #&gt;
 #&gt; Pseudo R-squared: 0.1874
 #&gt;
+#&gt; Fixed effects:
+#&gt;   i: 4
+#&gt;   j: 4
+#&gt;
 #&gt; Number of observations: Full 18; Separated 4; Perfect classification 0
 #&gt;
 #&gt; Number of Fisher Scoring iterations: 4</code></pre>
@@ -361,7 +367,7 @@ match ‘alpaca’ and ‘fixest’ results.</p>
   control = list(check_separation = FALSE)
 )
 #&gt; Formula: y ~ x1 + x2 | i + j
-#&gt; &lt;environment: 0x561105b4ff08&gt;
+#&gt; &lt;environment: 0x5641baf3db40&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -375,6 +381,10 @@ match ‘alpaca’ and ‘fixest’ results.</p>
 #&gt; Significance codes: ** p &lt; 0.01; * p &lt; 0.05; + p &lt; 0.10
 #&gt;
 #&gt; Pseudo R-squared: 0.2614
+#&gt;
+#&gt; Fixed effects:
+#&gt;   i: 4
+#&gt;   j: 4
 #&gt;
 #&gt; Number of observations: Full 18; Missing 0; Perfect classification 0
 #&gt;

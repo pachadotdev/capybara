@@ -1,0 +1,105 @@
+---
+title: "Asymmetric Poisson Pseudo-Maximum Likelihood (APPML)"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Asymmetric Poisson Pseudo-Maximum Likelihood (APPML)}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(capybara)
+```
+
+## Overview
+
+Standard Poisson Pseudo-Maximum Likelihood (PPML) estimates the conditional mean of the outcome
+variable. `fepoisson_asymmetric()` extends this by fitting conditional expectiles — a
+generalization that lets you examine different parts of the conditional distribution with the
+same efficiency gains of high-dimensional fixed effects.
+
+The implementation follows Bergstrand et al. (2025): instead of minimizing a symmetric loss, the
+estimator minimizes an *asymmetric* weighted loss controlled by a single parameter `expectile`
+($\tau \in (0, 1)$):
+
+- $\tau = 0.5$ — standard PPML (symmetric, estimates the conditional mean).
+- $\tau < 0.5$ — places more weight on observations with *negative* residuals, pulling estimates
+  toward the lower part of the distribution.
+- $\tau > 0.5$ — places more weight on observations with *positive* residuals, shifting estimates
+  toward the upper part of the distribution.
+
+The `expectile` is set through `fit_control()` and defaults to `0.5`, so if you don't specify it,
+`fepoisson_asymmetric()` will behave like standard PPML.
+
+## Estimating lower and upper expectiles
+
+Shifting `expectile` away from 0.5 lets you trace how the entire conditional distribution
+of `mpg` varies with `wt`, after absorbing the `cyl` fixed effects.
+
+```{r lower}
+# 10th expectile — sensitive to small values of mpg
+mod_low <- fepoisson_asymmetric(
+  mpg ~ wt | cyl,
+  data    = mtcars,
+  control = fit_control(expectile = 0.1)
+)
+```
+
+```{r ppml}
+# Standard PPML: expectile = 0.5 recovers the conditional mean
+mod_ppml <- fepoisson_asymmetric(
+  mpg ~ wt | cyl,
+  data    = mtcars,
+  control = fit_control(expectile = 0.5)
+)
+summary(mod_ppml)
+```
+
+```{r upper}
+# 90th expectile — sensitive to large values of mpg
+mod_high <- fepoisson_asymmetric(
+  mpg ~ wt | cyl,
+  data    = mtcars,
+  control = fit_control(expectile = 0.9)
+)
+```
+
+## Comparing coefficients across expectiles
+
+A natural use-case is comparing how the effect of a regressor changes across the distribution.
+The table below collects the coefficient on `wt` at the three expectile levels:
+
+```{r compare}
+summary_table(
+  mod_low, mod_ppml, mod_high,
+  model_names = c("10th expectile", "PPML (50th expectile)", "90th expectile")
+)
+```
+
+A negative coefficient that grows in magnitude from `low` to `high` would indicate that
+heavier cars are disproportionately associated with low mpg at the top of the distribution —
+a pattern that standard PPML would average out.
+
+## Convergence diagnostics
+
+The outer APPML loop updates observation weights until the coefficient vector stops changing.
+You can inspect convergence through the returned list elements:
+
+```{r diag}
+cat("Outer loop converged:", mod_ppml$conv_outer, "\n")
+cat("Outer iterations:    ", mod_ppml$iter_outer, "\n")
+cat("Expectile used:      ", mod_ppml$expectile,  "\n")
+```
+
+## References
+
+Bergstrand, Jeffrey H., Matthew W. Clance, and JMC Santos Silva. "The tails of gravity: Using
+expectiles to quantify the trade-margins effects of economic integration agreements."
+*Journal of International Economics* (2025): 104145.

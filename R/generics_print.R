@@ -258,6 +258,20 @@ summary_nobs_ <- function(x) {
 #' @title Refactors for and 'feglm' summaries
 #' @description Reduces the cyclomatic complexity of print.summary.feglm
 #' @noRd
+summary_fixed_effects_ <- function(x) {
+  fe_levels <- x[["fe_levels"]]
+
+  if (is.null(fe_levels) || length(fe_levels) == 0L) return(invisible(NULL))
+
+  cat("\nFixed effects:\n")
+  for (k in seq_along(fe_levels)) {
+    cat("  ", names(fe_levels)[k], ": ", fe_levels[[k]], "\n", sep = "")
+  }
+}
+
+#' @title Refactors for and 'feglm' summaries
+#' @description Reduces the cyclomatic complexity of print.summary.feglm
+#' @noRd
 summary_fisher_ <- function(x, digits) {
   if (is.null(x[["theta"]])) {
     cat("\nNumber of Fisher Scoring iterations:", x[["iter"]], "\n")
@@ -323,6 +337,8 @@ print.feglm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
 
   summary_pseudo_rsq_(x, digits)
 
+  summary_fixed_effects_(x)
+
   summary_nobs_(x)
 
   summary_fisher_(x, digits)
@@ -352,6 +368,8 @@ print.felm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
   summary_estimates_(x, digits)
 
   summary_r2_(x, digits)
+
+  summary_fixed_effects_(x)
 
   summary_nobs_(x)
 

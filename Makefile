@@ -30,7 +30,7 @@ check:
 
 site:
 	clear
-	@Rscript -e 'pkgdown::build_site()'
+	@Rscript -e 'pkgsite::build_site()'
 
 install:
 	clear
