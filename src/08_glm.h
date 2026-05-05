@@ -532,6 +532,10 @@ inline void compute_bias_corr_binomial(InferenceGLM &result, const mat &X,
   const double ridge = std::max(ridge_base, datum::eps * 1000);
   mat H_reg = H_scaled;
   H_reg.diag() += ridge;
+  // Symmetrize explicitly: ARM FMA units can introduce tiny asymmetry in
+  // crossprod(), causing Accelerate's Cholesky-based solver to reject the
+  // matrix as non-SPD even though the mathematical result is symmetric.
+  H_reg = (H_reg + H_reg.t()) / 2.0;
 
   vec bias_term;
   bool solve_ok = solve(bias_term, H_reg, -b, solve_opts::likely_sympd);
@@ -542,6 +546,7 @@ inline void compute_bias_corr_binomial(InferenceGLM &result, const mat &X,
     const double ridge_strong = std::max(diag_mean, 1.0) * 1e-6;
     H_reg = H_scaled;
     H_reg.diag() += ridge_strong;
+    H_reg = (H_reg + H_reg.t()) / 2.0;
     solve_ok = solve(bias_term, H_reg, -b, solve_opts::likely_sympd);
   }
 
