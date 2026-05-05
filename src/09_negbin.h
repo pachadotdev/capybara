@@ -150,7 +150,15 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
     const double theta_crit =
         std::abs(theta_new - theta_prev) / (tol_denom + std::abs(theta_prev));
 
-    if (beta_crit <= tol && theta_crit <= tol) {
+    // On ARM (Accelerate BLAS), exp() rounding via FMA can cause theta to
+    // oscillate at machine-epsilon amplitude, never crossing tol.  If the
+    // absolute change in theta is below the representable precision for this
+    // magnitude, further iterations are numerically pointless.
+    const bool theta_at_machine_eps =
+        std::abs(theta_new - theta_prev) <=
+        datum::eps * std::max(std::abs(theta_prev), 1.0);
+
+    if (beta_crit <= tol && (theta_crit <= tol || theta_at_machine_eps)) {
       // Converged - do one final full fit (run_from_negbin=false) to
       // compute Hessian, vcov, FE recovery, SE/z/p, pseudo R-sq, etc.
       beta_coef = glm_fit.coef_table.col(0);
