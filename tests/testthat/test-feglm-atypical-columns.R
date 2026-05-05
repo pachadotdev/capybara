@@ -4,6 +4,8 @@
 NULL
 
 test_that("feglm handles unit-type columns", {
+  skip_if_not_installed("units")
+  
   set.seed(123)
 
   # F = m * a
