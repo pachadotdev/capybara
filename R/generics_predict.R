@@ -38,6 +38,16 @@ predict.feglm <- function(
     formula <- object$formula
     k_vars <- attr(terms(formula, rhs = 2L), "term.labels")
 
+    # Fixed effects must have been stored to predict on new data
+    if (length(k_vars) > 0 && is.null(object[["fixed_effects"]])) {
+      stop(
+        "Model has fixed effects but they were not stored. ",
+        "Refit with `control = fit_control(return_fe = TRUE)` to enable ",
+        "out-of-sample predictions.",
+        call. = FALSE
+      )
+    }
+
     # Get all variables needed (predictors + fixed effects)
     pred_vars <- attr(terms(formula, rhs = 1L), "term.labels")
     all_vars <- c(pred_vars, k_vars)
@@ -206,6 +216,16 @@ predict.felm <- function(
       fe_names <- attr(terms(formula, rhs = 2L), "term.labels")
     } else {
       fe_names <- character(0)
+    }
+
+    # Fixed effects must have been stored to predict on new data
+    if (length(fe_names) > 0 && is.null(object[["fixed_effects"]])) {
+      stop(
+        "Model has fixed effects but they were not stored. ",
+        "Refit with `control = fit_control(return_fe = TRUE)` to enable ",
+        "out-of-sample predictions.",
+        call. = FALSE
+      )
     }
 
     # Get all variables needed (predictors + fixed effects)

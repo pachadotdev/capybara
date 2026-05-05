@@ -256,7 +256,7 @@ test_that("model errors on empty fixed effects", {
 })
 
 test_that("predict errors on missing newdata variables", {
-  mod <- fepoisson(mpg ~ wt + hp | cyl, mtcars)
+  mod <- fepoisson(mpg ~ wt + hp | cyl, mtcars, control = fit_control(return_fe = TRUE))
 
   newdata <- data.frame(wt = c(2.5, 3.0)) # Missing hp and cyl
 

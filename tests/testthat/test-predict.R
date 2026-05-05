@@ -30,7 +30,7 @@ test_that("predict.feglm works with type = 'link'", {
 })
 
 test_that("predict.feglm works with newdata", {
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+  mod <- fepoisson(mpg ~ wt | cyl, mtcars, control = fit_control(return_fe = TRUE))
 
   newdata <- data.frame(
     wt = c(2.5, 3.0, 3.5),
@@ -41,6 +41,14 @@ test_that("predict.feglm works with newdata", {
 
   expect_equal(length(preds), 3)
   expect_true(all(preds > 0))
+
+  expect_error(
+    predict(
+      fepoisson(mpg ~ wt | cyl, mtcars, control = fit_control(return_fe = FALSE)),
+      newdata = newdata
+    ),
+    "Model has fixed effects but they were not stored."
+  )
 })
 
 test_that("predict.feglm works with binomial", {
@@ -169,7 +177,7 @@ test_that("predict handles NA in newdata gracefully", {
 })
 
 test_that("predict returns same length as input for newdata", {
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+  mod <- fepoisson(mpg ~ wt | cyl, mtcars, control = fit_control(return_fe = TRUE))
 
   newdata <- data.frame(
     wt = c(2.5, 3.0, 3.5, 4.0),
