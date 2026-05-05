@@ -509,18 +509,44 @@ format_latex_table <- function(
   body_text <- paste(body, collapse = "\n")
 
   # --- Fill main template ---
-  footnotes_text <- if (stars) fill_tmpl(tmpl$footnotes, list(n_cols = n_cols)) else ""
-  caption_text <- if (is.null(caption)) "" else fill_tmpl(tmpl$caption, list(caption = caption))
-  label_text <- if (is.null(label)) "" else fill_tmpl(tmpl$label, list(label = label))
+  # When inside a Quarto chunk with a tbl- label, Quarto itself creates the
+  # \begin{table}\caption{...}\label{tbl-xxx}...\end{table} wrapper (driven by
+  # the tbl-cap and label chunk options).  If we also emit a full table float,
+  # the result is two nested floats: an empty "Table N" from Quarto and the real
+  # "Table N+1: Caption" from us.  In that context we must output only the inner
+  # tabular content and let Quarto supply the outer environment.
+  in_quarto_tbl <- nzchar(Sys.getenv("QUARTO_BIN_PATH")) &&
+    isTRUE(getOption("knitr.in.progress")) &&
+    tryCatch({
+      lbl <- knitr::opts_current$get("label")
+      !is.null(lbl) && nzchar(lbl) && grepl("^tbl-", lbl)
+    }, error = function(e) FALSE)
 
-  content <- fill_tmpl(tmpl$table, list(
-    position  = position,
-    caption   = caption_text,
-    label     = label_text,
-    col_spec  = col_spec,
-    body      = body_text,
-    footnotes = footnotes_text
-  ))
+  footnotes_text <- if (stars) fill_tmpl(tmpl$footnotes, list(n_cols = n_cols)) else ""
+
+  content <- if (in_quarto_tbl) {
+    # Emit only the tabular — Quarto wraps it with caption, label, and position.
+    paste0(
+      "\\centering\n",
+      "\\begin{tabular}{", col_spec, "}\n",
+      "\\toprule\n",
+      body_text, "\n",
+      "\\bottomrule\n",
+      if (nzchar(footnotes_text)) paste0(footnotes_text, "\n") else "",
+      "\\end{tabular}"
+    )
+  } else {
+    caption_text <- if (is.null(caption)) "" else fill_tmpl(tmpl$caption, list(caption = caption))
+    label_text   <- if (is.null(label) || !nzchar(label)) "" else fill_tmpl(tmpl$label, list(label = label))
+    fill_tmpl(tmpl$table, list(
+      position  = position,
+      caption   = caption_text,
+      label     = label_text,
+      col_spec  = col_spec,
+      body      = body_text,
+      footnotes = footnotes_text
+    ))
+  }
 
   obj <- list(content = content, type = "latex")
   class(obj) <- "summary_table"
