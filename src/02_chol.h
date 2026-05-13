@@ -2,11 +2,9 @@
 #ifndef CAPYBARA_CHOL_H
 #define CAPYBARA_CHOL_H
 
-// chol_rank was submitted to Armadillo
-// assume it is available from version X.Y.Z
-// define it here only for older versions
-#if !(ARMA_VERSION_MAJOR >= 15 && ARMA_VERSION_MINOR >= 2 &&                   \
-      ARMA_VERSION_PATCH >= 4)
+// chol_rank was submitted to Armadillo but not yet merged
+// define it here until Armadillo defines ARMA_HAVE_CHOL_RANK
+#ifndef ARMA_HAVE_CHOL_RANK
 
 namespace capybara {
 template <typename T1>
@@ -257,6 +255,6 @@ chol_rank(Mat<typename T1::elem_type> &out, Col<uword> &excluded,
 }
 } // namespace capybara
 
-#endif // Armadillo version guard
+#endif // ARMA_HAVE_CHOL_RANK
 
 #endif // CAPYBARA_CHOL_H
