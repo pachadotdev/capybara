@@ -154,6 +154,11 @@ NULL
 #'  The default is \code{1.0e-12}.
 #' @param expectile_iter_max integer indicating the maximum number of iterations for the expectile
 #'  reweighting algorithm. The default is \code{50L}.
+#' @param expectile_glm_iter_max integer indicating the maximum number of inner GLM (IRLS) iterations
+#'  per APPML outer iteration. When \code{NULL} (default), the value of \code{iter_max} is used,
+#'  meaning the inner GLM runs to full convergence before APPML weights are updated. Setting this to
+#'  \code{1L} enables a single-step mode where APPML asymmetric weights are updated after every Newton
+#'  step, which typically reduces the total number of iterations needed.
 #' @param expectile_trace logical indicating whether to print iteration information during expectile
 #'  estimation. The default is \code{FALSE}.
 #'
@@ -221,6 +226,7 @@ fit_control <- function(
   expectile = NULL,
   expectile_tol = 1.0e-12,
   expectile_iter_max = 50L,
+  expectile_glm_iter_max = NULL,
   expectile_trace = FALSE
 ) {
   # Check validity of tolerance parameters
@@ -374,6 +380,12 @@ fit_control <- function(
   if (is.na(expectile_trace)) {
     stop("expectile_trace should be TRUE or FALSE.", call. = FALSE)
   }
+  if (!is.null(expectile_glm_iter_max)) {
+    expectile_glm_iter_max <- as.integer(expectile_glm_iter_max)
+    if (expectile_glm_iter_max < 1L) {
+      stop("expectile_glm_iter_max should be a positive integer or NULL.", call. = FALSE)
+    }
+  }
 
   list(
     dev_tol = dev_tol,
@@ -418,6 +430,7 @@ fit_control <- function(
     expectile = expectile,
     expectile_tol = expectile_tol,
     expectile_iter_max = expectile_iter_max,
+    expectile_glm_iter_max = expectile_glm_iter_max,
     expectile_trace = expectile_trace
   )
 }

@@ -28,6 +28,11 @@ Useful links:
 \author{
 \strong{Maintainer}: Mauricio Vargas Sepulveda \email{m.vargas.sepulveda@gmail.com} (\href{https://orcid.org/0000-0003-1017-7574}{ORCID})
 
+Authors:
+\itemize{
+  \item Mauricio Vargas Sepulveda \email{m.vargas.sepulveda@gmail.com} (\href{https://orcid.org/0000-0003-1017-7574}{ORCID})
+}
+
 Other contributors:
 \itemize{
   \item Joao Santos Silva [thesis advisor]

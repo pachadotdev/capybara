@@ -161,7 +161,9 @@ struct CapybaraParameters {
   double expectile;          // Expectile value (0 < tau < 1), 0 = not used
   double expectile_tol;      // Convergence tolerance for expectile iteration
   size_t expectile_iter_max; // Max iterations for expectile reweighting
-  bool expectile_trace;      // Print iteration info
+  size_t expectile_glm_iter_max; // Max inner GLM iters per APPML step (0 = use
+                                 // iter_max)
+  bool expectile_trace;          // Print iteration info
 
   explicit CapybaraParameters(const cpp4r::list &control) {
     dev_tol = as_cpp<double>(control["dev_tol"]);
@@ -317,6 +319,14 @@ struct CapybaraParameters {
       expectile_trace = as_cpp<bool>(expectile_trace_sexp);
     } else {
       expectile_trace = false;
+    }
+
+    SEXP expectile_glm_iter_max_sexp = control["expectile_glm_iter_max"];
+    if (expectile_glm_iter_max_sexp != R_NilValue &&
+        !Rf_isNull(expectile_glm_iter_max_sexp)) {
+      expectile_glm_iter_max = as_cpp<size_t>(expectile_glm_iter_max_sexp);
+    } else {
+      expectile_glm_iter_max = 0; // 0 = use iter_max (default behaviour)
     }
   }
 };

@@ -1,4 +1,4 @@
-devtools::install(".", upgrade = "never")
+devtools::install(".", upgrade = FALSE)
 
 library(capybara)
 library(data.table)

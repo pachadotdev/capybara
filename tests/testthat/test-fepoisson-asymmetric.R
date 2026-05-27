@@ -31,3 +31,21 @@ test_that("fepoisson_asymmetric slopes are smaller than fepoisson at 25% expecti
 
   expect_lt(coef(mod1), coef(mod2))
 })
+
+test_that("fepoisson_asymmetric with expectile_glm_iter_max = 1L gives same result as default", {
+  skip_on_cran()
+
+  mod1 <- fepoisson_asymmetric(
+    mpg ~ wt | cyl | am,
+    mtcars,
+    control = fit_control(expectile = 0.25, expectile_iter_max = 500L)
+  )
+
+  mod2 <- fepoisson_asymmetric(
+    mpg ~ wt | cyl | am,
+    mtcars,
+    control = fit_control(expectile = 0.25, expectile_glm_iter_max = 1L, expectile_iter_max = 500L)
+  )
+
+  expect_equal(coef(mod1), coef(mod2), tolerance = 1e-4)
+})

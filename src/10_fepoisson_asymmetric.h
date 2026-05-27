@@ -47,6 +47,20 @@ appml_iterate(const mat &X, const vec &y, const vec &w, const FlatFEMap &fe_map,
   CapybaraParameters iter_params = params;
   iter_params.check_separation = false;
 
+  // In single-step mode each outer iteration does exactly one Newton step, so
+  // APPML asymmetric weights (which depend on current residuals) are updated
+  // after every step rather than only after the inner GLM converges.
+  const bool single_step = (params.expectile_glm_iter_max > 0);
+  if (single_step) {
+    iter_params.iter_max = params.expectile_glm_iter_max;
+  }
+
+  // Final fits (for vcov computation) always run to full convergence.
+  CapybaraParameters final_params = iter_params;
+  if (single_step) {
+    final_params.iter_max = params.iter_max;
+  }
+
   // Initialize from starting values
   vec beta_coef = beta_start;
   vec beta_old = beta_start;
@@ -106,7 +120,12 @@ appml_iterate(const mat &X, const vec &y, const vec &w, const FlatFEMap &fe_map,
 
     total_fs_iter += glm_fit.iter;
 
-    if (!glm_fit.conv) {
+    // In single-step mode conv=false is expected after each step (one Newton
+    // step is never enough to satisfy the GLM stopping rule); only bail on
+    // actual numerical failures (non-finite fitted values).
+    const bool numeric_failure =
+        !glm_fit.conv && !glm_fit.fitted_values.is_finite();
+    if (!glm_fit.conv && (!single_step || numeric_failure)) {
       if (trace) {
         cpp4r::message("APPML: Inner fit failed at iteration %lu\n",
                        static_cast<unsigned long>(iter + 1));
@@ -142,7 +161,7 @@ appml_iterate(const mat &X, const vec &y, const vec &w, const FlatFEMap &fe_map,
 
       InferenceGLM final_fit = feglm_fit(
           beta_new, eta_final, y, X_final, combined_w, 0.0, POISSON,
-          fe_map_iter, iter_params, &final_ws, nullptr, offset_ptr, true,
+          fe_map_iter, final_params, &final_ws, nullptr, offset_ptr, true,
           nullptr, nullptr, false, suppress_intercept, has_intercept_column);
 
       total_fs_iter += final_fit.iter;
@@ -204,7 +223,7 @@ appml_iterate(const mat &X, const vec &y, const vec &w, const FlatFEMap &fe_map,
 
   InferenceGLM final_fit = feglm_fit(
       beta_coef, eta_final, y, X_final, combined_w, 0.0, POISSON, fe_map_iter,
-      iter_params, &final_ws, nullptr, offset_ptr, true, nullptr, nullptr,
+      final_params, &final_ws, nullptr, offset_ptr, true, nullptr, nullptr,
       false, suppress_intercept, has_intercept_column);
 
   total_fs_iter += final_fit.iter;

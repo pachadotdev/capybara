@@ -47,13 +47,14 @@ fit_control(
   expectile = NULL,
   expectile_tol = 1e-12,
   expectile_iter_max = 50L,
+  expectile_glm_iter_max = NULL,
   expectile_trace = FALSE
 )
 }
 \arguments{
 \item{dev_tol}{tolerance level for the first stopping condition of the maximization routine. The stopping condition
 is based on the relative change of the deviance in iteration \eqn{r} and can be expressed as follows: \eqn{|dev_{r}
- - dev_{r - 1}| / (0.1 + |dev_{r}|) < tol}{|dev - devold| / (0.1 + |dev|) < tol}. The default is \code{1.0e-06}.}
+- dev_{r - 1}| / (0.1 + |dev_{r}|) < tol}{|dev - devold| / (0.1 + |dev|) < tol}. The default is \code{1.0e-06}.}
 
 \item{center_tol}{tolerance level for the stopping condition of the centering algorithm. The stopping condition is
 based on the relative change of the centered variable similar to the \code{'lfe'} package. The default is
@@ -216,6 +217,12 @@ The default is \code{1.0e-12}.}
 
 \item{expectile_iter_max}{integer indicating the maximum number of iterations for the expectile
 reweighting algorithm. The default is \code{50L}.}
+
+\item{expectile_glm_iter_max}{integer indicating the maximum number of inner GLM (IRLS) iterations
+per APPML outer iteration. When \code{NULL} (default), the value of \code{iter_max} is used,
+meaning the inner GLM runs to full convergence before APPML weights are updated. Setting this to
+\code{1L} enables a single-step mode where APPML asymmetric weights are updated after every Newton
+step, which typically reduces the total number of iterations needed.}
 
 \item{expectile_trace}{logical indicating whether to print iteration information during expectile
 estimation. The default is \code{FALSE}.}

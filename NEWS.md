@@ -30,8 +30,11 @@
 * Adds parallelization over columns for an efficient centering regardless of the method used.
 * A new function `fepoisson_asymmetric()` to compare coefficients across expectiles (e.g., 10%, 50%, 90%)
   to weight positive/negative residuals. This is based on "The Tails of Gravity"
-  (10.1016/j.jinteco.2025.104145).
+  (10.1016/j.jinteco.2025.104145). The argument `expectile_glm_iter_max` in `fit_control()` controls the
+  number of inner GLM iterations per APPML step. Setting it to `1L` updates asymmetric weights at every
+  Newton step instead of only after the inner GLM converges, which typically reduces total iterations needed.
 * The `summary_table()` function now accepts positioning arguments for LaTeX.
+
 # capybara 1.8.1
 
 * Link to published article and citation info.
