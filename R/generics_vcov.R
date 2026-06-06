@@ -133,14 +133,13 @@ vcov.felm <- function(object, ...) {
 #'
 #' @param object a fitted model object of class \code{"feglm"} or \code{"felm"}.
 #' @param cluster1 a vector or factor for the first clustering variable. Required for
-#'  \code{"clustered"}, \code{"two-way"}, and \code{"dyadic"} types.
+#'  \code{"clustered"} and \code{"dyadic"} types.
 #' @param cluster2 a vector or factor for the second clustering variable. Required for
-#'  \code{"two-way"} and \code{"dyadic"} types.
+#'  \code{"dyadic"} type.
 #' @param type character string specifying the covariance type. One of:
 #'  \itemize{
-#'   \item \code{"hetero"} or \code{"HC0"}: heteroskedasticity-robust (no clustering)
+#'   \item \code{"hetero"}: heteroskedasticity-robust (no clustering, also known as \code{"HC0"})
 #'   \item \code{"clustered"} or \code{"m-estimator"}: one-way cluster-robust
-#'   \item \code{"two-way"}: two-way cluster-robust (Cameron-Gelbach-Miller)
 #'   \item \code{"dyadic"} or \code{"m-estimator-dyadic"}: dyadic cluster-robust for network/trade data
 #'  }
 #' @param ... additional arguments (currently ignored).
@@ -192,17 +191,21 @@ vcov.felm <- function(object, ...) {
 #' # Heteroskedastic-robust HC0 sandwich (no cluster variable needed)
 #' sandwich_vcov(mod, type = "hetero")
 #'
+#' #' One-way and two-way cluster
+#' sandwich_vcov(mod, cluster1 = mtcars$am, type = "clustered")
+#' sandwich_vcov(mod, cluster1 = mtcars$am, cluster2 = mtcars$gear, type = "clustered")
+#' 
 #' # One-way M-estimator sandwich (cluster variable required)
 #' sandwich_vcov(mod, cluster1 = mtcars$am, type = "m-estimator")
 #'
-#' # Two-way Cameron-Miller sandwich (two cluster variables required)
-#' sandwich_vcov(mod, cluster1 = mtcars$am, cluster2 = mtcars$gear, type = "two-way")
+#' # Dyadic Cameron-Miller sandwich (two cluster variables required)
+#' sandwich_vcov(mod, cluster1 = mtcars$am, cluster2 = mtcars$gear, type = "dyadic")
 #'
 #' @export
 sandwich_vcov <- function(object, cluster1 = NULL, cluster2 = NULL,
                           type = c(
-                            "hetero", "HC0", "clustered", "m-estimator",
-                            "two-way", "dyadic", "m-estimator-dyadic"
+                            "hetero", "clustered", "m-estimator",
+                            "dyadic", "m-estimator-dyadic"
                           ),
                           ...) {
   type <- match.arg(type)
