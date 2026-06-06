@@ -334,7 +334,7 @@ get_needed_cols_ <- function(formula, data, weights = NULL, offset = NULL) {
     fml_chr <- deparse1(formula)
     parts <- trimws(strsplit(fml_chr, "\\|")[[1L]])
     base_part <- parts[[1L]]
-    base_fml <- as.formula(base_part, env = environment(formula))
+    base_fml <- as.Formula(base_part, env = environment(formula))
     tt <- terms(base_fml, data = data)
     formula_vars <- all.vars(tt)
   } else {

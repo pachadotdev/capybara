@@ -17,10 +17,10 @@
 A new \code{felm_formula} object.
 }
 \description{
-S3 method for \code{\link[=update]{update()}} on \code{felm_formula} objects.  Splits the formula on
-\code{|}, updates each segment independently, and reassembles.
+S3 method for \code{\link[=update]{update()}} on \code{felm_formula} objects.  Uses
+\code{\link[Formula:update.Formula]{Formula::update.Formula()}} to properly handle multi-part formulas with \code{|}.
 
-The \code{.} placeholder behaves as in \code{\link[=update.formula]{update.formula()}}:
+The \code{.} placeholder behaves as in \code{\link[stats:update.formula]{stats::update.formula()}}:
 \itemize{
 \item \code{. ~ .} - keep current response and RHS unchanged.
 \item Second \code{|} segment - replaces (or keeps with \code{.}) the fixed effects.

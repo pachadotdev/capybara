@@ -52,6 +52,94 @@
 #' @noRd
 NULL
 
+#' @title Split formula on top-level pipes
+#' @description Splits formula string on `|` while respecting parentheses.
+#'   Only splits on `|` that appear at parenthesis depth 0.
+#' @param fml_chr Formula as character string
+#' @return Character vector of formula parts
+#' @noRd
+split_formula_on_pipe_ <- function(fml_chr) {
+  parts <- character(0L)
+  current_part <- ""
+  paren_depth <- 0L
+
+  for (i in seq_len(nchar(fml_chr))) {
+    char <- substr(fml_chr, i, i)
+
+    if (char == "(") {
+      paren_depth <- paren_depth + 1L
+      current_part <- paste0(current_part, char)
+    } else if (char == ")") {
+      paren_depth <- paren_depth - 1L
+      current_part <- paste0(current_part, char)
+    } else if (char == "|" && paren_depth == 0L) {
+      parts <- c(parts, trimws(current_part))
+      current_part <- ""
+    } else {
+      current_part <- paste0(current_part, char)
+    }
+  }
+
+  # Add the last part
+  if (nzchar(current_part)) {
+    parts <- c(parts, trimws(current_part))
+  }
+
+  parts
+}
+
+#' @title Remove unmatched parentheses from a formula part
+#' @description Removes orphaned parentheses that result from splitting a
+#'   wrapped formula. Handles cases like "(x" -> "x" and "y)" -> "y".
+#' @param part Formula part string
+#' @noRd
+clean_formula_part_ <- function(part) {
+  if (!nzchar(part)) return(part)
+
+  part <- trimws(part)
+
+  # Remove unmatched opening parens at the end (e.g., "x + y (" -> "x + y")
+  while (nchar(part) > 0L && substr(part, nchar(part), nchar(part)) == "(") {
+    part <- trimws(substr(part, 1L, nchar(part) - 1L))
+  }
+
+  # Remove unmatched closing parens at the start (e.g., ") + x" -> "+ x")
+  while (nchar(part) > 0L && substr(part, 1L, 1L) == ")") {
+    part <- trimws(substr(part, 2L, nchar(part)))
+  }
+
+  # Remove matching outer parentheses (e.g., "(x + y)" -> "x + y")
+  while (nchar(part) >= 2L &&
+    substr(part, 1L, 1L) == "(" &&
+    substr(part, nchar(part), nchar(part)) == ")") {
+    # Check if outer parens are actually matched
+    paren_depth <- 0L
+    matched <- TRUE
+    for (i in seq_len(nchar(part))) {
+      char <- substr(part, i, i)
+      if (char == "(") {
+        paren_depth <- paren_depth + 1L
+      } else if (char == ")") {
+        paren_depth <- paren_depth - 1L
+        # If depth reaches 0 before the end, outer parens aren't matched
+        if (paren_depth == 0L && i < nchar(part)) {
+          matched <- FALSE
+          break
+        }
+      }
+    }
+    # Only remove if outer parens are matched
+    if (matched && paren_depth == 0L) {
+      part <- substr(part, 2L, nchar(part) - 1L)
+      part <- trimws(part)
+    } else {
+      break
+    }
+  }
+
+  part
+}
+
 #' @title Normalize multi-part formula for C++
 #' @description Expands formula operators (*, ^, -, /, %in%, .) using R's
 #'   terms() machinery, then rebuilds a simplified formula string that
@@ -61,13 +149,20 @@ NULL
 #' @return A character string of the normalized formula
 #' @noRd
 normalize_formula_ <- function(formula, data) {
-  # Split formula on | for fixed effects and clusters
-  fml_chr <- deparse1(formula)
-  parts <- trimws(strsplit(fml_chr, "\\|")[[1L]])
+  # Convert to Formula object for proper multi-part formula handling
+  # This ensures that pipes are preserved correctly during normalization
+  fml <- Formula::as.Formula(formula)
+  fml_chr <- deparse1(fml)
+  parts <- split_formula_on_pipe_(fml_chr)
 
   base_part <- parts[[1L]]
   fe_part <- if (length(parts) >= 2L) parts[[2L]] else NULL
   cl_part <- if (length(parts) >= 3L) parts[[3L]] else NULL
+
+  # Clean unmatched parentheses from update.Formula() wrapping
+  base_part <- clean_formula_part_(base_part)
+  if (!is.null(fe_part)) fe_part <- clean_formula_part_(fe_part)
+  if (!is.null(cl_part)) cl_part <- clean_formula_part_(cl_part)
 
   # Handle "0" meaning no fixed effects - convert to empty string
   # but preserve structure when cluster is present
@@ -76,10 +171,10 @@ normalize_formula_ <- function(formula, data) {
   }
   if (!is.null(cl_part) && cl_part == "0") {
     cl_part <- ""
-  }
+  } 
 
   # Compute terms for base formula
-  base_fml <- as.formula(base_part, env = environment(formula))
+  base_fml <- as.Formula(base_part, env = environment(formula))
   tt <- terms(base_fml, data = data)
 
   # Get LHS (response)

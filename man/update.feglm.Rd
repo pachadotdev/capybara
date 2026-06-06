@@ -30,5 +30,6 @@ A refitted \code{feglm} object.
 }
 \description{
 S3 method for \code{\link[=update]{update()}} that understands the \code{|}-separated formula syntax
-used by \code{\link[=feglm]{feglm()}}.  Identical semantics to \code{\link[=update.felm]{update.felm()}}.
+used by \code{\link[=feglm]{feglm()}}.  Uses \code{\link[Formula:update.Formula]{Formula::update.Formula()}} for proper handling of
+multi-part formulas.  Identical semantics to \code{\link[=update.felm]{update.felm()}}.
 }

@@ -27,7 +27,7 @@ fit_control(
   sep_use_relu = TRUE,
   sep_use_simplex = TRUE,
   sep_use_mu = TRUE,
-  return_fe = FALSE,
+  return_fe = TRUE,
   keep_tx = FALSE,
   keep_data = FALSE,
   return_hessian = FALSE,
@@ -119,8 +119,8 @@ This catches observations where predicted values become extremely small (suggest
 of zeros). Following ppmlhdfe methodology. The default is \code{TRUE}.}
 
 \item{return_fe}{logical indicating if the fixed effects should be returned. This can be useful when fitting general
-equilibrium models where skipping the fixed effects for intermediate steps speeds up computation. Note: Set to
-\code{TRUE} if you plan to extract fixed effects later. The default is \code{FALSE} to minimize memory usage.}
+equilibrium models where skipping the fixed effects for intermediate steps speeds up computation. Set it to
+\code{FALSE}  to minimize memory usage. The default is \code{TRUE}.}
 
 \item{keep_tx}{logical indicating if the centered regressor matrix should be stored. The default is \code{FALSE}
 to minimize memory usage.}

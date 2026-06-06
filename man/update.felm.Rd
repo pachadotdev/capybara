@@ -27,10 +27,10 @@ A refitted \code{felm} object.
 }
 \description{
 S3 method for \code{\link[=update]{update()}} that understands the \code{|}-separated formula syntax
-used by \code{\link[=felm]{felm()}}.  R's built-in \code{\link[=update.formula]{update.formula()}} breaks on these formulas
-because the \code{|} parts look like factor arithmetic.  This method splits the
-formula into its three segments, applies updates to each segment
-independently, reassembles, and re-fits the model.
+used by \code{\link[=felm]{felm()}}.  R's built-in \code{\link[stats:update.formula]{stats::update.formula()}} breaks on these
+formulas because the \code{|} parts look like factor arithmetic.  This method uses
+the \code{\link[Formula:update.Formula]{Formula::update.Formula()}} method which correctly handles multi-part
+formulas.
 
 The \code{.} placeholder works as usual:
 \itemize{

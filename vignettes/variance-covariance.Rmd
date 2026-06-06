@@ -46,50 +46,74 @@ Capybara provides an `update()` method to easily modify the formula for each mod
 to change the clustering variables for each model, which avoids error-prone copy-pasting of the full
 formula every time.
 
+## IID  (no cluster part in formula)
+
 ```{r table4b_models, cache = TRUE}
 fml <- ltrade ~ bothin + onein + gsp + ldist + lrgdp + lrgdppc + regional +
   custrict + comlang + border + landl + island + lareap + comcol +
   curcol + colony + comctry | year
 
-# IID  (no cluster part in formula)
 fit_iid <- felm(
   fml,
   data = ross2004, vcov = "iid"
 )
+```
 
-# Heteroskedastic-robust (HC0)
+## Heteroskedastic-robust (HC0)
+
+```{r table4b_models2, cache = TRUE}
 fit_hetero <- felm(
   fml,
   data = ross2004, vcov = "hetero"
 )
+```
 
-# One-way: cluster on country-pair (g,h)
+## One-way: cluster on country-pair (g,h)
+
+Note that multi-part formulas (e.g., `y ~ x | fe | cl`) are handled by the Formula package. Therefore,
+updating those needs an explicit `Formula.as.Formula()` is the formula type was not stated.
+
+```{r table4b_models3, cache = TRUE}
+fml2 <- update(Formula::as.Formula(fml), . ~ . | pair)
+
 fit_pairs <- felm(
-  update(fml, . ~ . | . | pair),
+  fml2,
   data = ross2004, vcov = "cluster"
 )
+```
 
-# One-way: cluster on country 1 (g)
+## One-way: cluster on country 1 (g)
+
+```{r table4b_models4, cache = TRUE}
 fit_ctry1 <- felm(
-  update(fml, . ~ . | . | ctry1),
+  update(fml2, . ~ . | . | ctry1),
   data = ross2004, vcov = "cluster"
 )
+```
 
-# One-way: cluster on country 2 (h)
+## One-way: cluster on country 2 (h)
+
+```{r table4b_models5, cache = TRUE}
 fit_ctry2 <- felm(
-  update(fml, . ~ . | . | ctry2),
+  update(fml2, . ~ . | . | ctry2),
   data = ross2004, vcov = "cluster"
 )
+```
 
-# Two-way: cluster on (g) and (h) simultaneously
+## Two-way: cluster on (g) and (h) simultaneously
+
+```{r table4b_models6, cache = TRUE}
 fit_2way <- felm(
-  update(fml, . ~ . | . | ctry1 + ctry2),
+  update(fml2, . ~ . | . | ctry1 + ctry2),
   data = ross2004, vcov = "cluster"
 )
+```
 
-# Dyadic-robust: Cameron-Miller (2014) sandwich with cross-dyad correlations
+## Dyadic-robust: Cameron-Miller (2014) sandwich with cross-dyad correlations
+
+```{r table4b_models7, cache = TRUE}
 fit_dyadic <- felm(
-  update(fml, . ~ . | . | ctry1 + ctry2),
+  update(fml2, . ~ . | . | ctry1 + ctry2),
   data = ross2004, vcov = "dyadic"
 )
 ```

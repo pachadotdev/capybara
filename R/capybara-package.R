@@ -43,10 +43,10 @@ NULL
 #' altering the functions' arguments or outputs.
 #'
 #' @name capybara-package
-#' @importFrom Formula Formula
+#' @importFrom Formula Formula as.Formula
 #' @importFrom ggplot2 ggplot aes geom_point geom_errorbar labs theme_minimal coord_flip autoplot
 #' @importFrom MASS negative.binomial theta.ml
-#' @importFrom stats as.formula ave binomial coef complete.cases fitted.values Gamma gaussian inverse.gaussian model.frame model.matrix model.response na.omit na.pass pnorm poisson predict printCoefmat qnorm reformulate setNames terms vcov
+#' @importFrom stats ave binomial coef complete.cases fitted.values Gamma gaussian inverse.gaussian model.frame model.matrix model.response na.omit na.pass pnorm poisson predict printCoefmat qnorm reformulate setNames terms update vcov
 #' @importFrom utils combn head
 #' @useDynLib capybara, .registration = TRUE
 "_PACKAGE"
