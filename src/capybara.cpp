@@ -1306,8 +1306,8 @@ feglm_fit_(const std::string &formula_str, SEXP df, const doubles &beta_r,
     out.push_back({"hessian"_nm = as_doubles_matrix(result.hessian)});
   }
 
-  if (family_type == capybara::POISSON && result.pseudo_rsq > 0.0) {
-    out.push_back({"pseudo_rsq"_nm = result.pseudo_rsq});
+  if (family_type == capybara::POISSON && result.r_squared > 0.0) {
+    out.push_back({"r_squared"_nm = result.r_squared});
   }
 
   if (result.has_separation) {
@@ -1718,8 +1718,8 @@ feglm_fit_(const std::string &formula_str, SEXP df, const doubles &beta_r,
     out.push_back({"hessian"_nm = as_doubles_matrix(result.hessian)});
   }
 
-  if (family_type == capybara::POISSON && result.pseudo_rsq > 0.0) {
-    out.push_back({"pseudo_rsq"_nm = result.pseudo_rsq});
+  if (family_type == capybara::POISSON && result.r_squared > 0.0) {
+    out.push_back({"r_squared"_nm = result.r_squared});
   }
 
   if (result.has_separation) {

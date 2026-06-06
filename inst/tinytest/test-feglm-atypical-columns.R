@@ -3,8 +3,11 @@
 #' @noRd
 NULL
 
-test_that("feglm handles unit-type columns", {
-  skip_if_not_installed("units")
+# feglm handles unit-type columns"
+local({
+  if (!requireNamespace("units", quietly = TRUE)) {
+    return(NULL)
+  }
   
   set.seed(123)
 

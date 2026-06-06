@@ -6,7 +6,10 @@
 #' @noRd
 NULL
 
-test_that("vcov returns correct structure for feglm", {
+source(system.file("tinytest", "helper.R", package = "capybara"))
+
+# vcov returns correct structure for feglm"
+local({
   skip_on_cran()
 
   # Model without clustering - returns inverse Hessian
@@ -28,7 +31,8 @@ test_that("vcov returns correct structure for feglm", {
   expect_true(all(is.finite(v2)))
 })
 
-test_that("vcov is precomputed during fitting", {
+# vcov is precomputed during fitting"
+local({
   skip_on_cran()
 
   # Model without clustering
@@ -40,7 +44,8 @@ test_that("vcov is precomputed during fitting", {
   expect_true(!is.null(m2$vcov))
 })
 
-test_that("sandwich vcov is symmetric and positive semi-definite", {
+# sandwich vcov is symmetric and positive semi-definite"
+local({
   skip_on_cran()
 
   m <- fepoisson(mpg ~ wt + disp | cyl | carb, mtcars)
@@ -54,7 +59,8 @@ test_that("sandwich vcov is symmetric and positive semi-definite", {
   expect_true(all(eigen_vals >= -1e-10)) # Allow small numerical error
 })
 
-test_that("clustered SEs are larger with positive within-cluster correlation", {
+# clustered SEs are larger with positive within-cluster correlation"
+local({
   skip_on_cran()
 
   # Simulate panel data with strong positive within-cluster correlation
@@ -105,7 +111,8 @@ test_that("clustered SEs are larger with positive within-cluster correlation", {
   expect_true(all(se_sandwich >= se_hessian * 0.99)) # Allow tiny numerical tolerance
 })
 
-test_that("clustered vs non-clustered vcov give different results", {
+# clustered vs non-clustered vcov give different results"
+local({
   skip_on_cran()
 
   # Fit same model with and without clustering
@@ -123,7 +130,8 @@ test_that("clustered vs non-clustered vcov give different results", {
   )))
 })
 
-test_that("vcov works for felm models", {
+# vcov works for felm models"
+local({
   skip_on_cran()
 
   m <- felm(mpg ~ wt + disp | cyl, mtcars)
@@ -135,7 +143,8 @@ test_that("vcov works for felm models", {
   expect_true(all(is.finite(v)))
 })
 
-test_that("vcov works for felm with clustering", {
+# vcov works for felm with clustering"
+local({
   skip_on_cran()
 
   m <- felm(mpg ~ wt + disp | cyl | carb, mtcars)
@@ -147,7 +156,8 @@ test_that("vcov works for felm with clustering", {
   expect_true(all(is.finite(v)))
 })
 
-test_that("vcov has correct row and column names", {
+# vcov has correct row and column names"
+local({
   skip_on_cran()
 
   m <- fepoisson(mpg ~ wt + disp | cyl, mtcars)
@@ -157,7 +167,8 @@ test_that("vcov has correct row and column names", {
   expect_equal(colnames(v), c("wt", "disp"))
 })
 
-test_that("vcov works with single predictor", {
+# vcov works with single predictor"
+local({
   skip_on_cran()
 
   m <- fepoisson(mpg ~ wt | cyl, mtcars)
@@ -168,7 +179,8 @@ test_that("vcov works with single predictor", {
   expect_equal(ncol(v), 1L)
 })
 
-test_that("vcov works for binomial feglm", {
+# vcov works for binomial feglm"
+local({
   skip_on_cran()
 
   m <- feglm(am ~ wt + disp | cyl, mtcars, family = binomial())
@@ -179,7 +191,8 @@ test_that("vcov works for binomial feglm", {
   expect_equal(ncol(v), 2L)
 })
 
-test_that("vcov works for fenegbin", {
+# vcov works for fenegbin"
+local({
   skip_on_cran()
 
   m <- fenegbin(mpg ~ wt | cyl, mtcars)
@@ -191,7 +204,8 @@ test_that("vcov works for fenegbin", {
 
 # Stammann centering ----
 
-test_that("vcov returns correct structure for feglm (stammann centering)", {
+# vcov returns correct structure for feglm (stammann centering)"
+local({
   skip_on_cran()
   ctrl <- list(centering = "stammann")
 
@@ -212,7 +226,8 @@ test_that("vcov returns correct structure for feglm (stammann centering)", {
   expect_true(all(is.finite(v2)))
 })
 
-test_that("vcov works for felm (stammann centering)", {
+# vcov works for felm (stammann centering)"
+local({
   skip_on_cran()
   ctrl <- list(centering = "stammann")
 
@@ -225,7 +240,8 @@ test_that("vcov works for felm (stammann centering)", {
   expect_true(all(is.finite(v)))
 })
 
-test_that("vcov works for felm with clustering (stammann centering)", {
+# vcov works for felm with clustering (stammann centering)"
+local({
   skip_on_cran()
   ctrl <- list(centering = "stammann")
 
@@ -238,7 +254,8 @@ test_that("vcov works for felm with clustering (stammann centering)", {
   expect_true(all(is.finite(v)))
 })
 
-test_that("vcov works for binomial feglm (stammann centering)", {
+# vcov works for binomial feglm (stammann centering)"
+local({
   skip_on_cran()
   ctrl <- list(centering = "stammann")
 
@@ -250,7 +267,8 @@ test_that("vcov works for binomial feglm (stammann centering)", {
   expect_equal(ncol(v), 2L)
 })
 
-test_that("vcov works for fenegbin (stammann centering)", {
+# vcov works for fenegbin (stammann centering)"
+local({
   skip_on_cran()
   ctrl <- list(centering = "stammann")
 

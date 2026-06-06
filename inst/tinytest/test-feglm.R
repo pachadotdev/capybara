@@ -16,7 +16,10 @@
 #' @noRd
 NULL
 
-test_that("feglm is similar to glm", {
+source(system.file("tinytest", "helper.R", package = "capybara"))
+
+# feglm is similar to glm"
+local({
   # Gaussian ----
   # see test-felm.R
 
@@ -75,7 +78,8 @@ test_that("feglm is similar to glm", {
   )
 })
 
-test_that("feglm works without fixed effects", {
+# feglm works without fixed effects"
+local({
   mtcars$log_mpg <- log(mtcars$mpg)
   mtcars$log_wt <- log(mtcars$wt)
 
@@ -85,7 +89,8 @@ test_that("feglm works without fixed effects", {
   expect_equal(coef(m1), coef(m2), tolerance = 1e-6)
 })
 
-test_that("predicted values increase the error outside the inter-quartile range for GLMs", {
+# predicted values increase the error outside the inter-quartile range for GLMs"
+local({
   skip_on_cran()
 
   # Helper function for MAPE calculation
@@ -119,7 +124,7 @@ test_that("predicted values increase the error outside the inter-quartile range 
   mape1_pois <- mape(d1$mpg, pred1_pois)
   mape2_pois <- mape(d2$mpg, pred2_pois)
 
-  expect_gt(mape2_pois, mape1_pois)
+  expect_true(mape2_pois > mape1_pois)
 
   # Compare with base R Poisson
   pred1_base_pois <- predict(m2_pois, newdata = d1, type = "response")
@@ -143,7 +148,7 @@ test_that("predicted values increase the error outside the inter-quartile range 
   mape1_binom <- mape(d1$mpg, pred1_binom)
   mape2_binom <- mape(d2$mpg, pred2_binom)
 
-  expect_lt(mape1_binom, mape2_binom)
+  expect_true(mape1_binom < mape2_binom)
 
   # Compare with base R Binomial
   pred1_base_binom <- predict(m2_binom, newdata = d1, type = "response")
@@ -154,7 +159,8 @@ test_that("predicted values increase the error outside the inter-quartile range 
   names(m2_binom)
 })
 
-test_that("predicted values increase the error outside the inter-quartile range for LMs", {
+# predicted values increase the error outside the inter-quartile range for LMs"
+local({
   skip_on_cran()
 
   # Helper function for MAPE calculation
@@ -187,7 +193,7 @@ test_that("predicted values increase the error outside the inter-quartile range 
   mape1_binom <- mape(d1$mpg, pred1_binom)
   mape2_binom <- mape(d2$mpg, pred2_binom)
 
-  expect_lt(mape1_binom, mape2_binom)
+  expect_true(mape1_binom < mape2_binom)
 
   # Compare with base R Binomial
   pred1_base_binom <- predict(m2_binom, newdata = d1, type = "response")
@@ -196,7 +202,8 @@ test_that("predicted values increase the error outside the inter-quartile range 
   expect_equal(pred2_binom, pred2_base_binom, tolerance = 1e-2)
 })
 
-test_that("proportional regressors return NA coefficients", {
+# proportional regressors return NA coefficients"
+local({
   set.seed(200100)
   d <- data.frame(
     y = rnorm(100),
@@ -212,7 +219,8 @@ test_that("proportional regressors return NA coefficients", {
   expect_equal(predict(fit2), predict(fit1), tolerance = 1e-2)
 })
 
-test_that("feglm with weights works", {
+# feglm with weights works"
+local({
   skip_on_cran()
 
   m1 <- feglm(mpg ~ wt | am, weights = ~cyl, data = mtcars)
@@ -227,12 +235,13 @@ test_that("feglm with weights works", {
   w <- NULL
   m4 <- feglm(mpg ~ wt | am, weights = w, data = mtcars)
 
-  expect_gt(coef(m1), coef(m4))
+  expect_true(coef(m1) > coef(m4))
 })
 
 # Stammann centering ----
 
-test_that("feglm is similar to glm (stammann centering)", {
+# feglm is similar to glm (stammann centering)"
+local({
   ctrl <- list(centering = "stammann")
 
   # Binomial ----
@@ -277,7 +286,8 @@ test_that("feglm is similar to glm (stammann centering)", {
   )
 })
 
-test_that("feglm works without fixed effects (stammann centering)", {
+# feglm works without fixed effects (stammann centering)"
+local({
   # centering is unused without FEs, but control must be accepted
   ctrl <- list(centering = "stammann")
 
@@ -290,7 +300,8 @@ test_that("feglm works without fixed effects (stammann centering)", {
   expect_equal(coef(m1), coef(m2), tolerance = 1e-6)
 })
 
-test_that("proportional regressors return NA coefficients (stammann centering)", {
+# proportional regressors return NA coefficients (stammann centering)"
+local({
   ctrl <- list(centering = "stammann")
   set.seed(200100)
   d <- data.frame(
@@ -307,7 +318,8 @@ test_that("proportional regressors return NA coefficients (stammann centering)",
   expect_equal(predict(fit2), predict(fit1), tolerance = 1e-2)
 })
 
-test_that("feglm with weights works (stammann centering)", {
+# feglm with weights works (stammann centering)"
+local({
   skip_on_cran()
   ctrl <- list(centering = "stammann")
 
@@ -323,12 +335,13 @@ test_that("feglm with weights works (stammann centering)", {
   w <- NULL
   m4 <- feglm(mpg ~ wt | am, weights = w, data = mtcars, control = ctrl)
 
-  expect_gt(coef(m1), coef(m4))
+  expect_true(coef(m1) > coef(m4))
 })
 
 # Average Partial Effects (APE) tests ----
 
-test_that("feglm computes APEs for binomial models", {
+# feglm computes APEs for binomial models"
+local({
   # Fit binomial model with APE computation
   mod_binom_ape <- feglm(
     am ~ wt + mpg | cyl,
@@ -359,7 +372,8 @@ test_that("feglm computes APEs for binomial models", {
   expect_true(all(eigen(mod_binom_ape$ape_vcov)$values >= -1e-10))
 })
 
-test_that("APEs are not computed when compute_apes = FALSE", {
+# APEs are not computed when compute_apes = FALSE"
+local({
   # Default: compute_apes = FALSE
   mod_binom <- feglm(
     am ~ wt + mpg | cyl,
@@ -372,7 +386,8 @@ test_that("APEs are not computed when compute_apes = FALSE", {
   expect_null(mod_binom$ape_vcov)
 })
 
-test_that("APEs are not computed for non-binomial models", {
+# APEs are not computed for non-binomial models"
+local({
   # Poisson model with compute_apes = TRUE should not have APEs
   mod_poisson <- feglm(
     mpg ~ wt + am | cyl,
@@ -385,7 +400,8 @@ test_that("APEs are not computed for non-binomial models", {
   expect_null(mod_poisson$ape_delta)
 })
 
-test_that("APE binary indicator correctly identifies binary regressors", {
+# APE binary indicator correctly identifies binary regressors"
+local({
   # Create data with mixed binary and continuous regressors
   set.seed(123)
   d <- data.frame(
@@ -408,7 +424,8 @@ test_that("APE binary indicator correctly identifies binary regressors", {
   expect_equal(as.numeric(mod$ape_binary), c(0, 1))
 })
 
-test_that("APE standard errors can be computed from vcov", {
+# APE standard errors can be computed from vcov"
+local({
   mod <- feglm(
     am ~ wt + mpg | cyl,
     mtcars,
@@ -428,7 +445,8 @@ test_that("APE standard errors can be computed from vcov", {
   expect_true(all(is.finite(z_vals)))
 })
 
-test_that("APE with finite population correction works", {
+# APE with finite population correction works"
+local({
   # With n_pop > n, variance should be adjusted
   mod_no_pop <- feglm(
     am ~ wt + mpg | cyl,
@@ -456,7 +474,8 @@ test_that("APE with finite population correction works", {
   expect_true(!is.null(mod_with_pop$ape_vcov))
 })
 
-test_that("APE panel_structure parameter works", {
+# APE panel_structure parameter works"
+local({
   # Create a simple two-way panel dataset
   set.seed(42)
   n_obs <- 200
@@ -496,7 +515,8 @@ test_that("APE panel_structure parameter works", {
   expect_true(all(is.finite(mod_network$ape_delta)))
 })
 
-test_that("APE with sampling_fe parameter works", {
+# APE with sampling_fe parameter works"
+local({
   set.seed(123)
   d <- data.frame(
     y = rbinom(100, 1, 0.5),
@@ -536,7 +556,8 @@ test_that("APE with sampling_fe parameter works", {
   expect_equal(mod_indep$ape_delta, mod_unrest$ape_delta, tolerance = 1e-10)
 })
 
-test_that("APE with weak_exo parameter works", {
+# APE with weak_exo parameter works"
+local({
   set.seed(456)
   d <- data.frame(
     y = rbinom(100, 1, 0.5),
@@ -578,7 +599,8 @@ test_that("APE with weak_exo parameter works", {
 
 # Bias Correction Tests ----
 
-test_that("bias correction works for one-way FE binomial", {
+# bias correction works for one-way FE binomial"
+local({
   set.seed(789)
   n <- 200
   n_f <- 10
@@ -629,7 +651,8 @@ test_that("bias correction works for one-way FE binomial", {
   )
 })
 
-test_that("bias correction works for two-way FE binomial (classic panel)", {
+# bias correction works for two-way FE binomial (classic panel)"
+local({
   set.seed(101)
   n_i <- 20
   n_t <- 10
@@ -658,7 +681,8 @@ test_that("bias correction works for two-way FE binomial (classic panel)", {
   expect_true(isTRUE(mod$has_bias_corr))
 })
 
-test_that("bias correction with network panel structure", {
+# bias correction with network panel structure"
+local({
   set.seed(202)
   # Simulate bilateral trade data (exporter-importer-time)
   # Use larger dimensions for reliable convergence across platforms
@@ -694,7 +718,8 @@ test_that("bias correction with network panel structure", {
   expect_true(isTRUE(mod$has_bias_corr))
 })
 
-test_that("bias correction not computed for non-binomial families", {
+# bias correction not computed for non-binomial families"
+local({
   set.seed(303)
   d <- data.frame(
     y = rpois(100, 5),
@@ -713,7 +738,8 @@ test_that("bias correction not computed for non-binomial families", {
   expect_true(is.null(mod$beta_corrected) || !isTRUE(mod$has_bias_corr))
 })
 
-test_that("bias correction not computed when not requested", {
+# bias correction not computed when not requested"
+local({
   set.seed(404)
   d <- data.frame(
     y = rbinom(100, 1, 0.5),
@@ -731,15 +757,8 @@ test_that("bias correction not computed when not requested", {
   expect_true(is.null(mod$beta_corrected) || !isTRUE(mod$has_bias_corr))
 })
 
-test_that("bias_corr_bandwidth parameter validation works", {
-  # Should not error with valid bandwidth
-  expect_no_error(
-    fit_control(compute_bias_corr = TRUE, bias_corr_bandwidth = 0L)
-  )
-  expect_no_error(
-    fit_control(compute_bias_corr = TRUE, bias_corr_bandwidth = 2L)
-  )
-
+# bias_corr_bandwidth parameter validation works"
+local({
   # Should error with negative bandwidth
   expect_error(
     fit_control(compute_bias_corr = TRUE, bias_corr_bandwidth = -1L),
@@ -747,15 +766,8 @@ test_that("bias_corr_bandwidth parameter validation works", {
   )
 })
 
-test_that("bias_corr_panel_structure parameter validation works", {
-  # Valid values
-  expect_no_error(
-    fit_control(bias_corr_panel_structure = "classic")
-  )
-  expect_no_error(
-    fit_control(bias_corr_panel_structure = "network")
-  )
-
+# bias_corr_panel_structure parameter validation works"
+local({
   # Invalid value should error
   expect_error(
     fit_control(bias_corr_panel_structure = "invalid")

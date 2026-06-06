@@ -37,17 +37,17 @@ clean:
 install:
 	@Rscript -e 'devtools::install(".", upgrade = FALSE)'
 
-clang_format=`which clang-format-21`
-
-format: $(shell find . -not -path './check-docker/*' -not -path './src/vendor/*' -name '*.h') $(shell find . -not -path './check-docker/*' -not -path './src/vendor/*' -name '*.hpp') $(shell find . -not -path './check-docker/*' -not -path './src/vendor/*' -name '*.cpp')
-	@${clang_format} -i $?
-
-cran:
+build:
 	clear
 	@cp DESCRIPTION DESCRIPTION.bak
 	@awk '/^Remotes:/ {skip=1} /^Roxygen:/ {skip=1} skip && NF==0 {skip=0; next} !skip' DESCRIPTION.bak > DESCRIPTION
-	@Rscript -e 'devtools::build()'
+	@Rscript -e 'tinydev::pkg_build(".", FALSE)'
 	@mv DESCRIPTION.bak DESCRIPTION
 
 nonascii:
 	@find R/ src/ -type f -exec grep -P -H -n "[^\x00-\x7F]" {} + || true
+
+clang_format=`which clang-format-21`
+
+format: $(shell find . -not -path './check-docker/*' -not -path './src/vendor/*' -name '*.h') $(shell find . -not -path './check-docker/*' -not -path './src/vendor/*' -name '*.hpp') $(shell find . -not -path './check-docker/*' -not -path './src/vendor/*' -name '*.cpp')
+	@${clang_format} -i $?

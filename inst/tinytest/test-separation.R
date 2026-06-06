@@ -5,7 +5,10 @@
 # #' @noRd
 # NULL
 
-test_that("check_separation works as expected", {
+source(system.file("tinytest", "helper.R", package = "capybara"))
+
+# check_separation works as expected"
+local({
   skip_on_cran()
 
   fit1 <- coef(fepoisson(
@@ -23,7 +26,8 @@ test_that("check_separation works as expected", {
   expect_true(fit2[2] < 0)
 })
 
-test_that("fepoisson_asymmetric slopes change with/without separation check", {
+# fepoisson_asymmetric slopes change with/without separation check"
+local({
   skip_on_cran()
 
   mod1 <- fepoisson_asymmetric(
@@ -39,5 +43,5 @@ test_that("fepoisson_asymmetric slopes change with/without separation check", {
   )
 
   expect_equal(unname(coef(mod1)[3]), NA_real_)
-  expect_gt(unname(coef(mod2)[3]), 0)
+  expect_true(unname(coef(mod2)[3]) > 0)
 })

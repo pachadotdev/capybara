@@ -6,7 +6,8 @@ NULL
 # these tests are a formality but an important one to check NA/Inf/NaN handling
 # this is justified provided that I am not using base R's model.matrix
 
-test_that("NAs on the lhs", {
+# NAs on the lhs"
+local({
   mtcars2 <- mtcars
   mtcars2$mpg[c(1, 3, 5)] <- NA
 
@@ -16,7 +17,8 @@ test_that("NAs on the lhs", {
   expect_equal(coef(m1), coef(m2)[1])
 })
 
-test_that("NAs on the rhs", {
+# NAs on the rhs"
+local({
   mtcars2 <- mtcars
   mtcars2$cyl[c(1, 3, 5)] <- NA
 
@@ -26,7 +28,8 @@ test_that("NAs on the rhs", {
   expect_equal(coef(m1), coef(m2)[1])
 })
 
-test_that("0+log on the lhs", {
+# 0+log on the lhs"
+local({
   mtcars2 <- mtcars
   mtcars2$mpg[c(1, 3, 5)] <- 0
   mtcars2$log_mpg <- log(mtcars2$mpg)
@@ -44,7 +47,8 @@ test_that("0+log on the lhs", {
   expect_equal(coef(m1), coef(m2)[1])
 })
 
-test_that("0+log on the rhs", {
+# 0+log on the rhs"
+local({
   mtcars2 <- mtcars
   mtcars2$hp[c(1, 3, 5)] <- 0
   mtcars2$log_mpg <- log(mtcars2$mpg)

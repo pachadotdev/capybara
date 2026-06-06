@@ -160,7 +160,7 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
 
     if (beta_crit <= tol && (theta_crit <= tol || theta_at_machine_eps)) {
       // Converged - do one final full fit (run_from_negbin=false) to
-      // compute Hessian, vcov, FE recovery, SE/z/p, pseudo R-sq, etc.
+      // compute Hessian, vcov, FE recovery, SE/z/p, R-sq, etc.
       beta_coef = glm_fit.coef_table.col(0);
       eta = glm_fit.eta;
       InferenceGLM final_fit =

@@ -9,7 +9,7 @@
 #' @srrstats {G5.4a} Validates consistency of printed summaries across model types, ensuring uniform presentation.
 #' @srrstats {RE4.17} Specific default `print()` method for summaries and coefficients.
 #' @srrstats {RE5.0} Reduces cyclomatic complexity by modularizing summary and print methods.
-#' @srrstats {RE5.2} Facilitates easy interpretation of model summaries, including pseudo R-squared, deviance, and
+#' @srrstats {RE5.2} Facilitates easy interpretation of model summaries, including R-squared, deviance, and
 #'  fixed-effects estimates.
 #' @srrstats {RE5.3} Designed for extensibility to accommodate additional model types or summary elements.
 #' @noRd
@@ -208,12 +208,12 @@ summary_r2_ <- function(x, digits) {
 #' @title Refactors for and 'feglm' summaries
 #' @description Reduces the cyclomatic complexity of print.summary.feglm
 #' @noRd
-summary_pseudo_rsq_ <- function(x, digits) {
+summary_r_squared_ <- function(x, digits) {
   fam <- x[["family"]]
-  if (fam[["family"]] == "poisson" && !is.null(x[["pseudo_rsq"]])) {
+  if (fam[["family"]] == "poisson" && !is.null(x[["r_squared"]])) {
     cat(
       "\nPseudo R-squared:",
-      format(x[["pseudo_rsq"]], digits = digits, nsmall = 2L),
+      format(x[["r_squared"]], digits = digits, nsmall = 2L),
       "\n"
     )
   }
@@ -335,7 +335,7 @@ print.feglm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
 
   summary_estimates_(x, digits)
 
-  summary_pseudo_rsq_(x, digits)
+  summary_r_squared_(x, digits)
 
   summary_fixed_effects_(x)
 

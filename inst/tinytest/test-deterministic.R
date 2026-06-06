@@ -9,7 +9,8 @@
 #' @noRd
 NULL
 
-test_that("deterministic relations", {
+# deterministic relations"
+local({
   set.seed(123)
   d <- data.frame(
     y = rnorm(100),

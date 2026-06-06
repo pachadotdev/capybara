@@ -5,48 +5,53 @@
 #' @noRd
 NULL
 
-test_that("summary_table works with single model", {
+# summary_table works with single model"
+local({
   m1 <- felm(mpg ~ wt | cyl, mtcars)
 
   result <- summary_table(m1)
 
-  expect_s3_class(result, "summary_table")
-  expect_type(result, "list")
+  expect_true(inherits(result, "summary_table"))
+  expect_true(is.list(result))
   expect_true("content" %in% names(result))
 })
 
-test_that("summary_table works with multiple models", {
+# summary_table works with multiple models"
+local({
   m1 <- felm(mpg ~ wt | cyl, mtcars)
   m2 <- fepoisson(mpg ~ wt | cyl, mtcars)
 
   result <- summary_table(m1, m2)
 
-  expect_s3_class(result, "summary_table")
-  expect_type(result, "list")
+  expect_true(inherits(result, "summary_table"))
+  expect_true(is.list(result))
 })
 
-test_that("summary_table works with custom model names", {
+# summary_table works with custom model names"
+local({
   m1 <- felm(mpg ~ wt | cyl, mtcars)
   m2 <- fepoisson(mpg ~ wt | cyl, mtcars)
 
   result <- summary_table(m1, m2, model_names = c("OLS", "Poisson"))
 
-  expect_s3_class(result, "summary_table")
+  expect_true(inherits(result, "summary_table"))
   expect_true(grepl("OLS", result$content))
   expect_true(grepl("Poisson", result$content))
 })
 
-test_that("summary_table works with latex output", {
+# summary_table works with latex output"
+local({
   m1 <- felm(mpg ~ wt | cyl, mtcars)
 
   result <- summary_table(m1, latex = TRUE)
 
-  expect_s3_class(result, "summary_table")
+  expect_true(inherits(result, "summary_table"))
   expect_equal(result$type, "latex")
   expect_true(grepl("tabular", result$content))
 })
 
-test_that("summary_table works with latex caption and label", {
+# summary_table works with latex caption and label"
+local({
   m1 <- felm(mpg ~ wt | cyl, mtcars)
 
   result <- summary_table(
@@ -56,35 +61,39 @@ test_that("summary_table works with latex caption and label", {
     label = "tab:mytable"
   )
 
-  expect_s3_class(result, "summary_table")
+  expect_true(inherits(result, "summary_table"))
   expect_true(grepl("caption", result$content))
   expect_true(grepl("label", result$content))
 })
 
-test_that("summary_table works without stars", {
+# summary_table works without stars"
+local({
   m1 <- felm(mpg ~ wt | cyl, mtcars)
 
   result <- summary_table(m1, stars = FALSE)
 
-  expect_s3_class(result, "summary_table")
+  expect_true(inherits(result, "summary_table"))
   expect_false(grepl("\\*", result$content))
 })
 
-test_that("summary_table respects digit settings", {
+# summary_table respects digit settings"
+local({
   m1 <- felm(mpg ~ wt | cyl, mtcars)
 
   result <- summary_table(m1, coef_digits = 5, se_digits = 5)
 
-  expect_s3_class(result, "summary_table")
-  expect_type(result, "list")
+  expect_true(inherits(result, "summary_table"))
+  expect_true(is.list(result))
 })
 
-test_that("summary_table errors on invalid input", {
+# summary_table errors on invalid input"
+local({
   expect_error(summary_table(1L), "not a felm or feglm")
   expect_error(summary_table(lm(mpg ~ wt, mtcars)), "not a felm or feglm")
 })
 
-test_that("summary_table errors on mismatched model_names length", {
+# summary_table errors on mismatched model_names length"
+local({
   m1 <- felm(mpg ~ wt | cyl, mtcars)
   m2 <- fepoisson(mpg ~ wt | cyl, mtcars)
 
@@ -94,31 +103,34 @@ test_that("summary_table errors on mismatched model_names length", {
   )
 })
 
-test_that("summary_table works with models without fixed effects", {
+# summary_table works with models without fixed effects"
+local({
   m1 <- felm(mpg ~ wt, mtcars)
   m2 <- fepoisson(mpg ~ wt, mtcars)
 
   result <- summary_table(m1, m2)
 
-  expect_s3_class(result, "summary_table")
-  expect_type(result, "list")
+  expect_true(inherits(result, "summary_table"))
+  expect_true(is.list(result))
 })
 
-test_that("summary_table handles models with different variables", {
+# summary_table handles models with different variables"
+local({
   m1 <- felm(mpg ~ wt | cyl, mtcars)
   m2 <- felm(mpg ~ wt + hp | cyl, mtcars)
 
   result <- summary_table(m1, m2)
 
-  expect_s3_class(result, "summary_table")
+  expect_true(inherits(result, "summary_table"))
   expect_true(grepl("hp", result$content))
 })
 
-test_that("summary_table works with feglm binomial", {
+# summary_table works with feglm binomial"
+local({
   m1 <- feglm(am ~ wt | cyl, mtcars, family = binomial())
 
   result <- summary_table(m1)
 
-  expect_s3_class(result, "summary_table")
-  expect_type(result, "list")
+  expect_true(inherits(result, "summary_table"))
+  expect_true(is.list(result))
 })

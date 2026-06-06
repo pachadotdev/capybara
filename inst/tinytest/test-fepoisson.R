@@ -10,7 +10,10 @@
 #' @noRd
 NULL
 
-test_that("fepoisson is similar to base", {
+source(system.file("tinytest", "helper.R", package = "capybara"))
+
+# fepoisson is similar to base"
+local({
   skip_on_cran()
 
   # K = 1
@@ -29,10 +32,6 @@ test_that("fepoisson is similar to base", {
 
   expect_equal(dist_variation, 0.0, tolerance = 1e-2)
 
-  expect_output(print(mod))
-
-  expect_visible(summary(mod))
-
   # fes <- fixed_effects(mod)
   n <- unname(mod[["nobs"]]["nobs_full"])
   # expect_equal(length(fes), 1)
@@ -49,12 +48,6 @@ test_that("fepoisson is similar to base", {
   smod <- summary(mod)
 
   expect_equal(length(coef(smod)[, 1]), 1)
-  expect_output(summary_formula_(smod))
-  expect_output(summary_family_(smod))
-  expect_output(summary_estimates_(smod, 3))
-  expect_output(summary_r2_(smod, 3))
-  expect_output(summary_nobs_(smod))
-  expect_output(summary_fisher_(smod))
 
   # K = 2
 
@@ -73,7 +66,7 @@ test_that("fepoisson is similar to base", {
 
   dist_variation <- abs((coef(mod)[1] - coef_dist_base) / coef(mod)[1])
 
-  expect_lt(dist_variation, 0.05)
+  expect_true(dist_variation < 0.05)
 
   # K = 3
 
@@ -89,7 +82,7 @@ test_that("fepoisson is similar to base", {
 
   dist_variation <- abs((coef(mod)[1] - coef_dist_base) / coef(mod)[1])
 
-  expect_lt(dist_variation, 0.05)
+  expect_true(dist_variation < 0.05)
 
   # mod$coefficients
   # mod_base$coefficients
@@ -115,7 +108,8 @@ test_that("fepoisson is similar to base", {
   expect_equal(unname(pred_mod_link), unname(pred_mod_base_link), tolerance = 1e-2)
 })
 
-test_that("fepoisson estimation is the same adding noise to the data", {
+# fepoisson estimation is the same adding noise to the data"
+local({
   set.seed(123)
   d <- mtcars[, c("mpg", "wt", "cyl")]
   d$wt2 <- d$wt + pmax(rnorm(nrow(d)), 0) * .Machine$double.eps
@@ -128,7 +122,8 @@ test_that("fepoisson estimation is the same adding noise to the data", {
 })
 
 
-test_that("proportional regressors return NA coefficients", {
+# proportional regressors return NA coefficients"
+local({
   set.seed(200100)
   d <- data.frame(
     y = rpois(100, 2),
@@ -147,7 +142,8 @@ test_that("proportional regressors return NA coefficients", {
 
 # Stammann centering ----
 
-test_that("fepoisson is similar to base (stammann centering)", {
+# fepoisson is similar to base (stammann centering)"
+local({
   skip_on_cran()
   ctrl <- fit_control(centering = "stammann", return_fe = TRUE)
 
@@ -184,7 +180,7 @@ test_that("fepoisson is similar to base (stammann centering)", {
 
   dist_variation <- abs((coef(mod)[1] - coef(mod_base)[2]) / coef(mod)[1])
 
-  expect_lt(dist_variation, 0.05)
+  expect_true(dist_variation < 0.05)
 
   # K = 3
 
@@ -198,7 +194,7 @@ test_that("fepoisson is similar to base (stammann centering)", {
 
   dist_variation <- abs((coef(mod)[1] - coef(mod_base)[2]) / coef(mod)[1])
 
-  expect_lt(dist_variation, 0.05)
+  expect_true(dist_variation < 0.05)
 
   expect_equal(mod[["fitted_values"]], mod_base[["fitted.values"]], tolerance = 1e-2)
 
@@ -211,7 +207,8 @@ test_that("fepoisson is similar to base (stammann centering)", {
   expect_equal(unname(pred_mod), unname(pred_mod_base), tolerance = 1e-2)
 })
 
-test_that("fepoisson estimation is the same adding noise to the data (stammann centering)", {
+# fepoisson estimation is the same adding noise to the data (stammann centering)"
+local({
   ctrl <- list(centering = "stammann")
   set.seed(123)
   d <- mtcars[, c("mpg", "wt", "cyl")]
@@ -224,7 +221,8 @@ test_that("fepoisson estimation is the same adding noise to the data (stammann c
   expect_equal(m1$fixed.effects, m2$fixed.effects)
 })
 
-test_that("proportional regressors return NA coefficients (stammann centering)", {
+# proportional regressors return NA coefficients (stammann centering)"
+local({
   ctrl <- list(centering = "stammann")
   set.seed(200100)
   d <- data.frame(

@@ -1,4 +1,5 @@
-test_that("formulas with operators are handled correctly", {
+# formulas with operators are handled correctly"
+local({
   # log-log
   expect_error(felm(log(mpg) ~ log(wt) | cyl, mtcars))
 

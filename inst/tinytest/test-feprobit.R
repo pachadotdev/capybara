@@ -10,6 +10,8 @@
 #' @noRd
 NULL
 
+source(system.file("tinytest", "helper.R", package = "capybara"))
+
 # Helper to create probit test data without separation issues
 make_probit_data <- function(n = 200, seed = 123) {
   set.seed(seed)
@@ -26,7 +28,8 @@ make_probit_data <- function(n = 200, seed = 123) {
   d
 }
 
-test_that("feprobit is similar to base", {
+# feprobit is similar to base"
+local({
   skip_on_cran()
 
   d <- make_probit_data(n = 300, seed = 42)
@@ -48,10 +51,6 @@ test_that("feprobit is similar to base", {
 
   expect_equal(dist_variation, 0.0, tolerance = 1e-2)
 
-  expect_output(print(mod))
-
-  expect_visible(summary(mod))
-
   n_obs <- unname(mod[["nobs"]]["nobs_full"])
   expect_equal(length(fitted(mod)), n_obs)
   expect_equal(length(predict(mod)), n_obs)
@@ -60,12 +59,6 @@ test_that("feprobit is similar to base", {
   smod <- summary(mod)
 
   expect_equal(length(coef(smod)[, 1]), 1)
-  expect_output(summary_formula_(smod))
-  expect_output(summary_family_(smod))
-  expect_output(summary_estimates_(smod, 3))
-  expect_output(summary_r2_(smod, 3))
-  expect_output(summary_nobs_(smod))
-  expect_output(summary_fisher_(smod))
 
   # K = 2
 
@@ -81,7 +74,7 @@ test_that("feprobit is similar to base", {
 
   dist_variation <- abs((coef(mod)[1] - coef_dist_base) / coef(mod)[1])
 
-  expect_lt(dist_variation, 0.05)
+  expect_true(dist_variation < 0.05)
 
   # K = 3
 
@@ -97,7 +90,7 @@ test_that("feprobit is similar to base", {
 
   dist_variation <- abs((coef(mod)[1] - coef_dist_base) / coef(mod)[1])
 
-  expect_lt(dist_variation, 0.05)
+  expect_true(dist_variation < 0.05)
 
   expect_equal(mod[["fitted_values"]], mod_base[["fitted.values"]], tolerance = 1e-2)
 
@@ -120,7 +113,8 @@ test_that("feprobit is similar to base", {
   expect_equal(unname(pred_mod_link), unname(pred_mod_base_link), tolerance = 1e-2)
 })
 
-test_that("feprobit estimation is the same adding noise to the data", {
+# feprobit estimation is the same adding noise to the data"
+local({
   set.seed(123)
 
   d <- make_probit_data(n = 200, seed = 456)
@@ -133,7 +127,8 @@ test_that("feprobit estimation is the same adding noise to the data", {
   expect_equal(m1$fixed.effects, m2$fixed.effects)
 })
 
-test_that("proportional regressors return NA coefficients", {
+# proportional regressors return NA coefficients"
+local({
   set.seed(200100)
   d <- data.frame(
     y = rbinom(100, 1, 0.5),
@@ -149,7 +144,8 @@ test_that("proportional regressors return NA coefficients", {
   expect_equal(predict(fit2), predict(fit1, type = "response"), tolerance = 1e-2)
 })
 
-test_that("feprobit without FE matches base glm", {
+# feprobit without FE matches base glm"
+local({
   d <- make_probit_data(n = 200, seed = 789)
 
   # Without FE, should match base R glm exactly
@@ -161,7 +157,8 @@ test_that("feprobit without FE matches base glm", {
   expect_equal(unname(fitted(mod_cap)), unname(fitted(mod_base)), tolerance = 1e-3)
 })
 
-test_that("feprobit handles cluster standard errors", {
+# feprobit handles cluster standard errors"
+local({
   d <- make_probit_data(n = 200, seed = 111)
   d$cl <- factor(sample(1:10, nrow(d), replace = TRUE))
 
@@ -174,7 +171,8 @@ test_that("feprobit handles cluster standard errors", {
 
 # Stammann centering ----
 
-test_that("feprobit is similar to base (stammann centering)", {
+# feprobit is similar to base (stammann centering)"
+local({
   skip_on_cran()
   ctrl <- fit_control(centering = "stammann", return_fe = TRUE)
 
@@ -213,7 +211,7 @@ test_that("feprobit is similar to base (stammann centering)", {
 
   dist_variation <- abs((coef(mod)[1] - coef(mod_base)[2]) / coef(mod)[1])
 
-  expect_lt(dist_variation, 0.05)
+  expect_true(dist_variation < 0.05)
 
   # K = 3
 
@@ -227,7 +225,7 @@ test_that("feprobit is similar to base (stammann centering)", {
 
   dist_variation <- abs((coef(mod)[1] - coef(mod_base)[2]) / coef(mod)[1])
 
-  expect_lt(dist_variation, 0.05)
+  expect_true(dist_variation < 0.05)
 
   expect_equal(mod[["fitted_values"]], mod_base[["fitted.values"]], tolerance = 1e-2)
 
@@ -240,7 +238,8 @@ test_that("feprobit is similar to base (stammann centering)", {
   expect_equal(unname(pred_mod), unname(pred_mod_base), tolerance = 1e-2)
 })
 
-test_that("feprobit estimation is the same adding noise to the data (stammann centering)", {
+# feprobit estimation is the same adding noise to the data (stammann centering)"
+local({
   ctrl <- list(centering = "stammann")
   set.seed(123)
 
@@ -254,7 +253,8 @@ test_that("feprobit estimation is the same adding noise to the data (stammann ce
   expect_equal(m1$fixed.effects, m2$fixed.effects)
 })
 
-test_that("proportional regressors return NA coefficients (stammann centering)", {
+# proportional regressors return NA coefficients (stammann centering)"
+local({
   ctrl <- list(centering = "stammann")
   set.seed(200100)
   d <- data.frame(

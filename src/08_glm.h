@@ -385,7 +385,7 @@ inline void expand_separation_result(InferenceGLM &result,
   result.conv = result_sub.conv;
   result.iter = result_sub.iter;
   result.coef_status = result_sub.coef_status;
-  result.pseudo_rsq = result_sub.pseudo_rsq;
+  result.r_squared = result_sub.r_squared;
 
   // Set separated coefficients to -Inf (perfectly predict y=0)
   if (separated_coefs != nullptr && separated_coefs->n_elem > 0) {
@@ -1539,7 +1539,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     // Pseudo R-squared for Poisson
     if (family_type == POISSON) {
       const double corr = as_scalar(cor(y, result.fitted_values));
-      result.pseudo_rsq = corr * corr;
+      result.r_squared = corr * corr;
     }
 
     // Build coefficient table

@@ -7,73 +7,80 @@ NULL
 
 # ---- glance tests ----
 
-test_that("glance.feglm returns correct structure", {
+# glance.feglm returns correct structure
+local({
   mod <- fepoisson(mpg ~ wt | cyl, mtcars)
 
   result <- glance(mod)
 
-  expect_s3_class(result, "data.frame")
+  expect_true(is.data.frame(result))
   expect_true("deviance" %in% names(result))
   expect_true("null_deviance" %in% names(result))
   expect_true("nobs" %in% names(result))
 })
 
-test_that("glance.feglm works with binomial", {
+# glance.feglm works with binomial
+local({
   mod <- feglm(am ~ wt | cyl, mtcars, family = binomial())
 
   result <- glance(mod)
 
-  expect_s3_class(result, "data.frame")
+  expect_true(is.data.frame(result))
   expect_true(is.numeric(result$deviance))
 })
 
-test_that("glance.felm returns correct structure", {
+# glance.felm returns correct structure
+local({
   mod <- felm(mpg ~ wt | cyl, mtcars)
 
   result <- glance(mod)
 
-  expect_s3_class(result, "data.frame")
+  expect_true(is.data.frame(result))
   expect_true("r_squared" %in% names(result))
   expect_true("adj_r_squared" %in% names(result))
   expect_true("nobs" %in% names(result))
 })
 
-test_that("glance.felm works with multiple fixed effects", {
+# glance.felm works with multiple fixed effects
+local({
   mod <- felm(mpg ~ wt | cyl + am, mtcars)
 
   result <- glance(mod)
 
-  expect_s3_class(result, "data.frame")
+  expect_true(is.data.frame(result))
   expect_true(result$r_squared > 0 && result$r_squared < 1)
 })
 
 # ---- tidy tests ----
 
-test_that("tidy.feglm returns correct structure", {
+# tidy.feglm returns correct structure
+local({
   mod <- fepoisson(mpg ~ wt | cyl, mtcars)
 
   result <- tidy(mod)
 
-  expect_s3_class(result, "data.frame")
+  expect_true(is.data.frame(result))
   expect_equal(
     names(result),
     c("estimate", "std.error", "statistic", "p.value")
   )
 })
 
-test_that("tidy.feglm works with conf_int", {
+# tidy.feglm works with conf_int
+local({
   mod <- fepoisson(mpg ~ wt | cyl, mtcars)
 
   result <- tidy(mod, conf_int = TRUE)
 
-  expect_s3_class(result, "data.frame")
+  expect_true(is.data.frame(result))
   expect_true("conf.low" %in% names(result))
   expect_true("conf.high" %in% names(result))
   expect_true(all(result$conf.low < result$estimate))
   expect_true(all(result$conf.high > result$estimate))
 })
 
-test_that("tidy.feglm respects conf_level", {
+# tidy.feglm respects conf_level
+local({
   mod <- fepoisson(mpg ~ wt | cyl, mtcars)
 
   result_95 <- tidy(mod, conf_int = TRUE, conf_level = 0.95)
@@ -86,28 +93,32 @@ test_that("tidy.feglm respects conf_level", {
   expect_true(all(width_99 > width_95))
 })
 
-test_that("tidy.felm returns correct structure", {
+# tidy.felm returns correct structure
+local({
   mod <- felm(mpg ~ wt | cyl, mtcars)
 
   result <- tidy(mod)
 
-  expect_s3_class(result, "data.frame")
+  expect_true(is.data.frame(result))
   expect_equal(
     names(result),
     c("estimate", "std.error", "statistic", "p.value")
   )
 })
 
-test_that("tidy.felm works with conf_int", {
+# tidy.felm works with conf_int
+local({
   mod <- felm(mpg ~ wt | cyl, mtcars)
 
   result <- tidy(mod, conf_int = TRUE)
 
+  expect_true(is.data.frame(result))
   expect_true("conf.low" %in% names(result))
   expect_true("conf.high" %in% names(result))
 })
 
-test_that("tidy works with multiple predictors", {
+# tidy works with multiple predictors
+local({
   mod <- felm(mpg ~ wt + hp + qsec | cyl, mtcars)
 
   result <- tidy(mod)
@@ -117,18 +128,20 @@ test_that("tidy works with multiple predictors", {
 
 # ---- augment tests ----
 
-test_that("augment.feglm returns correct structure", {
+# augment.feglm returns correct structure
+local({
   mod <- fepoisson(mpg ~ wt | cyl, mtcars, control = fit_control(keep_data = TRUE))
 
   result <- augment(mod)
 
-  expect_s3_class(result, "data.frame")
+  expect_true(is.data.frame(result))
   expect_true(".fitted" %in% names(result))
   expect_true(".residuals" %in% names(result))
   expect_equal(nrow(result), nrow(mtcars))
 })
 
-test_that("augment.feglm preserves original columns", {
+# augment.feglm preserves original columns
+local({
   mod <- fepoisson(mpg ~ wt | cyl, mtcars, control = fit_control(keep_data = TRUE))
 
   result <- augment(mod)
@@ -138,17 +151,19 @@ test_that("augment.feglm preserves original columns", {
   expect_true("cyl" %in% names(result))
 })
 
-test_that("augment.felm returns correct structure", {
+# augment.felm returns correct structure
+local({
   mod <- felm(mpg ~ wt | cyl, mtcars, control = fit_control(keep_data = TRUE))
 
   result <- augment(mod)
 
-  expect_s3_class(result, "data.frame")
+  expect_true(is.data.frame(result))
   expect_true(".fitted" %in% names(result))
   expect_true(".residuals" %in% names(result))
 })
 
-test_that("augment.felm fitted values are reasonable", {
+# augment.felm fitted values are reasonable
+local({
   mod <- felm(mpg ~ wt | cyl, mtcars, control = fit_control(keep_data = TRUE))
 
   result <- augment(mod)
@@ -158,12 +173,13 @@ test_that("augment.felm fitted values are reasonable", {
   expect_true(all(result$.fitted < 50))
 })
 
-test_that("augment works with binomial model", {
+# augment works with binomial model
+local({
   mod <- feglm(am ~ wt | cyl, mtcars, family = binomial(), control = fit_control(keep_data = TRUE))
 
   result <- augment(mod)
 
-  expect_s3_class(result, "data.frame")
+  expect_true(is.data.frame(result))
   expect_true(".fitted" %in% names(result))
   # Fitted values for binomial should be probabilities
   expect_true(all(result$.fitted >= 0 & result$.fitted <= 1))
@@ -171,7 +187,8 @@ test_that("augment works with binomial model", {
 
 # ---- fitted tests ----
 
-test_that("fitted.feglm returns correct values", {
+# fitted.feglm returns correct values
+local({
   mod <- fepoisson(mpg ~ wt | cyl, mtcars)
 
   result <- fitted(mod)
@@ -180,7 +197,8 @@ test_that("fitted.feglm returns correct values", {
   expect_true(all(result > 0))
 })
 
-test_that("fitted.felm returns correct values", {
+# fitted.felm returns correct values
+local({
   mod <- felm(mpg ~ wt | cyl, mtcars)
 
   result <- fitted(mod)

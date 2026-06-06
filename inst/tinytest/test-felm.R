@@ -11,7 +11,10 @@
 #' @noRd
 NULL
 
-test_that("felm works", {
+source(system.file("tinytest", "helper.R", package = "capybara"))
+
+# felm works"
+local({
   # 1-FE ----
 
   m1 <- felm(formula = mpg ~ wt | cyl, data = mtcars)
@@ -100,7 +103,8 @@ test_that("felm works", {
   expect_equal(s1$adj_r_squared, s2$adj.r.squared, tolerance = 1e-2)
 })
 
-test_that("felm is correct without fixed effects", {
+# felm is correct without fixed effects"
+local({
   m1 <- felm(mpg ~ wt, mtcars)
   m2 <- lm(mpg ~ wt, mtcars)
 
@@ -112,7 +116,8 @@ test_that("felm is correct without fixed effects", {
   expect_equal(m1$adj_r_squared, s2$adj.r.squared, tolerance = 1e-2)
 })
 
-test_that("felm time is the minimally affected when adding noise to the data", {
+# felm time is the minimally affected when adding noise to the data"
+local({
   mtcars2 <- mtcars[, c("mpg", "wt", "cyl")]
   set.seed(200100)
   mtcars2$mpg <- mtcars2$mpg +
@@ -136,10 +141,11 @@ test_that("felm time is the minimally affected when adding noise to the data", {
     b <- Sys.time()
     t2[i] <- b - a
   }
-  expect_gte(0.05, abs(median(t1) - median(t2)))
+  expect_true(abs(median(t1) - median(t2)) < 0.05)
 })
 
-test_that("proportional regressors return NA coefficients", {
+# proportional regressors return NA coefficients"
+local({
   set.seed(200100)
   d <- data.frame(
     y = rnorm(100),
@@ -161,7 +167,8 @@ test_that("proportional regressors return NA coefficients", {
   # expect_equal(predict(fit3), unname(predict(fit1)), tolerance = 1e-2)
 })
 
-test_that("felm correctly predicts values outside the inter-quartile range", {
+# felm correctly predicts values outside the inter-quartile range"
+local({
   # Helper function for MAPE calculation
   mape <- function(y, yhat) {
     mean(abs(y - yhat) / y)
@@ -192,7 +199,7 @@ test_that("felm correctly predicts values outside the inter-quartile range", {
   mape1_lm <- mape(d1$mpg, pred1_lm)
   mape2_lm <- mape(d2$mpg, pred2_lm)
 
-  expect_lt(mape1_lm, mape2_lm)
+  expect_true(mape1_lm < mape2_lm)
 
   # Compare with base R linear model
   pred1_base_lm <- predict(m2_lm, newdata = d1)
@@ -205,7 +212,8 @@ test_that("felm correctly predicts values outside the inter-quartile range", {
   expect_equal(pred2_lm, pred2_base_lm, tolerance = 1e-2)
 })
 
-test_that("felm with weights works", {
+# felm with weights works"
+local({
   skip_on_cran()
 
   m1 <- felm(mpg ~ wt | am, weights = ~cyl, data = mtcars)
@@ -220,12 +228,13 @@ test_that("felm with weights works", {
   w <- NULL
   m4 <- felm(mpg ~ wt | am, weights = w, data = mtcars)
 
-  expect_gt(coef(m1), coef(m4))
+  expect_true(coef(m1) > coef(m4))
 })
 
 # Stammann centering ----
 
-test_that("felm works (stammann centering)", {
+# felm works (stammann centering)"
+local({
   ctrl <- list(centering = "stammann")
 
   # 1-FE ----
@@ -293,7 +302,8 @@ test_that("felm works (stammann centering)", {
   expect_equal(s1$adj_r_squared, s2$adj.r.squared, tolerance = 1e-2)
 })
 
-test_that("felm is correct without fixed effects (stammann centering)", {
+# felm is correct without fixed effects (stammann centering)"
+local({
   # centering is unused when there are no FEs, but the control arg
   # must still be accepted without error
   ctrl <- list(centering = "stammann")
@@ -307,7 +317,8 @@ test_that("felm is correct without fixed effects (stammann centering)", {
   expect_equal(m1$adj_r_squared, s2$adj.r.squared, tolerance = 1e-2)
 })
 
-test_that("proportional regressors return NA coefficients (stammann centering)", {
+# proportional regressors return NA coefficients (stammann centering)"
+local({
   ctrl <- list(centering = "stammann")
   set.seed(200100)
   d <- data.frame(
@@ -324,7 +335,8 @@ test_that("proportional regressors return NA coefficients (stammann centering)",
   expect_equal(predict(fit2), predict(fit1), tolerance = 1e-2)
 })
 
-test_that("felm correctly predicts values outside the inter-quartile range (stammann centering)", {
+# felm correctly predicts values outside the inter-quartile range (stammann centering)"
+local({
   ctrl <- list(centering = "stammann")
 
   mape <- function(y, yhat) mean(abs(y - yhat) / y)
@@ -344,12 +356,13 @@ test_that("felm correctly predicts values outside the inter-quartile range (stam
   pred1_lm <- predict(m1_lm, newdata = d1)
   pred2_lm <- predict(m1_lm, newdata = d2)
 
-  expect_lt(mape(d1$mpg, pred1_lm), mape(d2$mpg, pred2_lm))
+  expect_true(mape(d1$mpg, pred1_lm) < mape(d2$mpg, pred2_lm))
   expect_equal(pred1_lm, predict(m2_lm, newdata = d1), tolerance = 1e-2)
   expect_equal(pred2_lm, predict(m2_lm, newdata = d2), tolerance = 1e-2)
 })
 
-test_that("felm with weights works (stammann centering)", {
+# felm with weights works (stammann centering)"
+local({
   skip_on_cran()
   ctrl <- list(centering = "stammann")
 
@@ -365,5 +378,5 @@ test_that("felm with weights works (stammann centering)", {
   w <- NULL
   m4 <- felm(mpg ~ wt | am, weights = w, data = mtcars, control = ctrl)
 
-  expect_gt(coef(m1), coef(m4))
+  expect_true(coef(m1) > coef(m4))
 })

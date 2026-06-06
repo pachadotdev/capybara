@@ -7,7 +7,8 @@ NULL
 
 # ---- predict.feglm tests ----
 
-test_that("predict.feglm works with default type (response)", {
+# predict.feglm works with default type (response)"
+local({
   mod <- fepoisson(mpg ~ wt | cyl, mtcars)
 
   preds <- predict(mod)
@@ -16,7 +17,8 @@ test_that("predict.feglm works with default type (response)", {
   expect_true(all(preds > 0))
 })
 
-test_that("predict.feglm works with type = 'link'", {
+# predict.feglm works with type = 'link'"
+local({
   mod <- fepoisson(mpg ~ wt | cyl, mtcars)
 
   preds_link <- predict(mod, type = "link")
@@ -29,7 +31,8 @@ test_that("predict.feglm works with type = 'link'", {
   expect_equal(exp(preds_link), preds_response, tolerance = 1e-6)
 })
 
-test_that("predict.feglm works with newdata", {
+# predict.feglm works with newdata"
+local({
   mod <- fepoisson(mpg ~ wt | cyl, mtcars, control = fit_control(return_fe = TRUE))
 
   newdata <- data.frame(
@@ -51,7 +54,8 @@ test_that("predict.feglm works with newdata", {
   )
 })
 
-test_that("predict.feglm works with binomial", {
+# predict.feglm works with binomial"
+local({
   mod <- feglm(am ~ wt | cyl, mtcars, family = binomial())
 
   preds <- predict(mod, type = "response")
@@ -60,7 +64,8 @@ test_that("predict.feglm works with binomial", {
   expect_true(all(preds >= 0 & preds <= 1))
 })
 
-test_that("predict.feglm link type gives different results than response", {
+# predict.feglm link type gives different results than response"
+local({
   mod <- feglm(am ~ wt | cyl, mtcars, family = binomial())
 
   preds_link <- predict(mod, type = "link")
@@ -71,7 +76,8 @@ test_that("predict.feglm link type gives different results than response", {
 
 # ---- predict.felm tests ----
 
-test_that("predict.felm works with default type", {
+# predict.felm works with default type"
+local({
   mod <- felm(mpg ~ wt | cyl, mtcars)
 
   preds <- predict(mod)
@@ -79,7 +85,8 @@ test_that("predict.felm works with default type", {
   expect_equal(length(preds), nrow(mtcars))
 })
 
-test_that("predict.felm works with newdata", {
+# predict.felm works with newdata"
+local({
   mod <- felm(mpg ~ wt | cyl, mtcars)
 
   newdata <- data.frame(
@@ -92,7 +99,8 @@ test_that("predict.felm works with newdata", {
   expect_equal(length(preds), 3)
 })
 
-test_that("predict.felm with type='response' works", {
+# predict.felm with type='response' works"
+local({
   mod <- felm(mpg ~ wt | cyl, mtcars)
 
   preds_response <- predict(mod, type = "response")
@@ -104,7 +112,8 @@ test_that("predict.felm with type='response' works", {
 
 # ---- predict with multiple fixed effects ----
 
-test_that("predict works with multiple fixed effects", {
+# predict works with multiple fixed effects"
+local({
   mod <- fepoisson(mpg ~ wt | cyl + am, mtcars)
 
   preds <- predict(mod)
@@ -112,7 +121,8 @@ test_that("predict works with multiple fixed effects", {
   expect_equal(length(preds), nrow(mtcars))
 })
 
-test_that("predict with newdata handles multiple FEs", {
+# predict with newdata handles multiple FEs"
+local({
   mod <- felm(mpg ~ wt | cyl + am, mtcars)
 
   newdata <- data.frame(
@@ -128,7 +138,8 @@ test_that("predict with newdata handles multiple FEs", {
 
 # ---- predict with model without FE ----
 
-test_that("predict works for model without fixed effects", {
+# predict works for model without fixed effects"
+local({
   mod <- fepoisson(mpg ~ wt, mtcars)
 
   preds <- predict(mod)
@@ -136,7 +147,8 @@ test_that("predict works for model without fixed effects", {
   expect_equal(length(preds), nrow(mtcars))
 })
 
-test_that("predict with newdata works for model without FE", {
+# predict with newdata works for model without FE"
+local({
   mod <- felm(mpg ~ wt, mtcars)
 
   newdata <- data.frame(wt = c(2.5, 3.0, 3.5))
@@ -148,7 +160,8 @@ test_that("predict with newdata works for model without FE", {
 
 # ---- predict with offset ----
 
-test_that("predict works with offset", {
+# predict works with offset"
+local({
   mtcars2 <- mtcars
   mtcars2$offset_var <- log(mtcars2$hp)
 
@@ -159,7 +172,8 @@ test_that("predict works with offset", {
   expect_equal(length(preds), nrow(mtcars2))
 })
 
-test_that("predict handles NA in newdata gracefully", {
+# predict handles NA in newdata gracefully"
+local({
   mod <- felm(mpg ~ wt | cyl, mtcars)
 
   newdata <- data.frame(
@@ -176,7 +190,8 @@ test_that("predict handles NA in newdata gracefully", {
   expect_false(is.na(preds[3]))
 })
 
-test_that("predict returns same length as input for newdata", {
+# predict returns same length as input for newdata"
+local({
   mod <- fepoisson(mpg ~ wt | cyl, mtcars, control = fit_control(return_fe = TRUE))
 
   newdata <- data.frame(
@@ -188,7 +203,8 @@ test_that("predict returns same length as input for newdata", {
   expect_equal(length(preds), nrow(newdata))
 })
 
-test_that("predict works with type='terms' for felm", {
+# predict works with type='terms' for felm"
+local({
   mod <- felm(mpg ~ wt + hp | cyl, mtcars)
 
   preds_terms <- predict(mod, type = "terms")
@@ -196,7 +212,8 @@ test_that("predict works with type='terms' for felm", {
   expect_true(is.matrix(preds_terms) || is.numeric(preds_terms))
 })
 
-test_that("predict maintains order for newdata", {
+# predict maintains order for newdata"
+local({
   mod <- felm(mpg ~ wt | cyl, mtcars)
 
   newdata <- data.frame(

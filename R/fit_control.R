@@ -75,8 +75,8 @@ NULL
 #'  Irons and Tuck (1969) acceleration is then applied to the composed iteration. Both methods use warm-starting
 #'  and grand acceleration.
 #' @param return_fe logical indicating if the fixed effects should be returned. This can be useful when fitting general
-#'  equilibrium models where skipping the fixed effects for intermediate steps speeds up computation. Note: Set to
-#'  \code{TRUE} if you plan to extract fixed effects later. The default is \code{FALSE} to minimize memory usage.
+#'  equilibrium models where skipping the fixed effects for intermediate steps speeds up computation. Set it to
+#'  \code{FALSE}  to minimize memory usage. The default is \code{TRUE}.
 #' @param keep_tx logical indicating if the centered regressor matrix should be stored. The default is \code{FALSE}
 #'  to minimize memory usage.
 #' @param keep_data logical indicating if the filtered data should be stored in the result object. Required for
@@ -206,7 +206,7 @@ fit_control <- function(
   sep_use_relu = TRUE,
   sep_use_simplex = TRUE,
   sep_use_mu = TRUE,
-  return_fe = FALSE,
+  return_fe = TRUE,
   keep_tx = FALSE,
   keep_data = FALSE,
   return_hessian = FALSE,

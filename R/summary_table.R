@@ -190,22 +190,15 @@ summary_table <- function(
     })
   )
 
-  # Check if any model is a GLM (uses pseudo R-squared)
+  # Check if any model is a GLM
 
-  has_glm <- any(sapply(models, function(m) inherits(m, "feglm")))
-  r2_label <- if (has_glm) {
-    if (latex) "Pseudo $R^2$" else "Pseudo R-squared"
-  } else {
-    if (latex) "$R^2$" else "R-squared"
-  }
-
+  r2_label <- ifelse(latex, "$R^2$", "R-squared")
+  
   r2_row <- c(
     r2_label,
     sapply(models, function(m) {
-      if (inherits(m, "felm")) {
+      if (!is.null(m$r_squared)) {
         formatC(m$r_squared, digits = 3, format = "f")
-      } else if (inherits(m, "feglm") && !is.null(m$pseudo_rsq)) {
-        formatC(m$pseudo_rsq, digits = 3, format = "f")
       } else {
         ""
       }

@@ -6,7 +6,10 @@
 #' @noRd
 NULL
 
-test_that("fenegbin is similar to fixest", {
+source(system.file("tinytest", "helper.R", package = "capybara"))
+
+# fenegbin is similar to fixest"
+local({
   skip_on_cran()
 
   mod <- fenegbin(mpg ~ wt | cyl, mtcars)
@@ -22,19 +25,21 @@ test_that("fenegbin is similar to fixest", {
   expect_equal(coef(mod)[1], coef(mod_mass)[2], tolerance = 0.05)
 })
 
-test_that("fenegbin returns correct structure", {
+# fenegbin returns correct structure"
+local({
   skip_on_cran()
 
   mod <- fenegbin(mpg ~ wt | cyl, mtcars)
 
-  expect_s3_class(mod, "feglm")
+  expect_true(inherits(mod, "feglm"))
   expect_true("theta" %in% names(mod))
   expect_true("coef_table" %in% names(mod))
   expect_true("deviance" %in% names(mod))
   expect_true("null_deviance" %in% names(mod))
 })
 
-test_that("fenegbin works with multiple predictors", {
+# fenegbin works with multiple predictors"
+local({
   skip_on_cran()
 
   mod <- fenegbin(mpg ~ wt + hp + disp | cyl, mtcars)
@@ -43,16 +48,18 @@ test_that("fenegbin works with multiple predictors", {
   expect_true(all(is.finite(coef(mod))))
 })
 
-test_that("fenegbin works with multiple fixed effects", {
+# fenegbin works with multiple fixed effects"
+local({
   skip_on_cran()
 
   mod <- fenegbin(mpg ~ wt | cyl + am, mtcars)
 
-  expect_s3_class(mod, "feglm")
+  expect_true(inherits(mod, "feglm"))
   expect_true("theta" %in% names(mod))
 })
 
-test_that("fenegbin theta parameter is positive", {
+# fenegbin theta parameter is positive"
+local({
   skip_on_cran()
 
   mod <- fenegbin(mpg ~ wt | cyl, mtcars)
@@ -61,58 +68,64 @@ test_that("fenegbin theta parameter is positive", {
   expect_true(is.finite(mod$theta))
 })
 
-test_that("fenegbin works with clustering", {
+# fenegbin works with clustering"
+local({
   skip_on_cran()
 
   mod <- fenegbin(mpg ~ wt | cyl | carb, mtcars)
 
-  expect_s3_class(mod, "feglm")
+  expect_true(inherits(mod, "feglm"))
   expect_true(!is.null(mod$vcov))
 })
 
-test_that("fenegbin completes fitting", {
+# fenegbin completes fitting"
+local({
   skip_on_cran()
 
   mod <- fenegbin(mpg ~ wt | cyl, mtcars)
 
-  expect_s3_class(mod, "feglm")
+  expect_true(inherits(mod, "feglm"))
   expect_true(!is.null(mod$coef_table))
 })
 
-test_that("fenegbin summary works", {
+# fenegbin summary works"
+local({
   skip_on_cran()
 
   mod <- fenegbin(mpg ~ wt | cyl, mtcars)
   s <- summary(mod)
 
-  expect_s3_class(s, "summary.feglm")
+  expect_true(inherits(s, "summary.feglm"))
   expect_true("theta" %in% names(s))
 })
 
-test_that("fenegbin works with different data", {
+# fenegbin works with different data"
+local({
   skip_on_cran()
 
   # Test with a different dataset
   data("yotov2017", package = "capybara")
   mod <- fenegbin(trade ~ log_dist | exp_year, yotov2017)
 
-  expect_s3_class(mod, "feglm")
+  expect_true(inherits(mod, "feglm"))
   expect_true(!is.null(mod$coef_table))
 })
 
-test_that("fenegbin respects control parameters", {
+# fenegbin respects control parameters"
+local({
   skip_on_cran()
 
   ctrl <- fit_control(dev_tol = 1e-10, iter_max = 50L)
   mod <- fenegbin(mpg ~ wt | cyl, mtcars, control = ctrl)
 
-  expect_s3_class(mod, "feglm")
+  expect_true(inherits(mod, "feglm"))
   expect_true(!is.null(mod$coef_table))
 })
 
 # Stammann centering ----
 
-test_that("fenegbin is similar to fixest (stammann centering)", {
+# fenegbin is similar to fixest (stammann centering)"
+local({
   skip_on_cran()
   ctrl <- list(centering = "stammann")
 
@@ -125,30 +138,33 @@ test_that("fenegbin is similar to fixest (stammann centering)", {
   expect_equal(coef(mod)[1], coef(mod_mass)[2], tolerance = 0.05)
 })
 
-test_that("fenegbin returns correct structure (stammann centering)", {
+# fenegbin returns correct structure (stammann centering)"
+local({
   skip_on_cran()
   ctrl <- list(centering = "stammann")
 
   mod <- fenegbin(mpg ~ wt | cyl, mtcars, control = ctrl)
 
-  expect_s3_class(mod, "feglm")
+  expect_true(inherits(mod, "feglm"))
   expect_true("theta" %in% names(mod))
   expect_true("coef_table" %in% names(mod))
   expect_true("deviance" %in% names(mod))
   expect_true("null_deviance" %in% names(mod))
 })
 
-test_that("fenegbin works with multiple fixed effects (stammann centering)", {
+# fenegbin works with multiple fixed effects (stammann centering)"
+local({
   skip_on_cran()
   ctrl <- list(centering = "stammann")
 
   mod <- fenegbin(mpg ~ wt | cyl + am, mtcars, control = ctrl)
 
-  expect_s3_class(mod, "feglm")
+  expect_true(inherits(mod, "feglm"))
   expect_true("theta" %in% names(mod))
 })
 
-test_that("fenegbin theta is positive (stammann centering)", {
+# fenegbin theta is positive (stammann centering)"
+local({
   skip_on_cran()
   ctrl <- list(centering = "stammann")
 
@@ -158,12 +174,13 @@ test_that("fenegbin theta is positive (stammann centering)", {
   expect_true(is.finite(mod$theta))
 })
 
-test_that("fenegbin respects control parameters (stammann centering)", {
+# fenegbin respects control parameters (stammann centering)"
+local({
   skip_on_cran()
 
   ctrl <- fit_control(dev_tol = 1e-10, iter_max = 50L, centering = "stammann")
   mod <- fenegbin(mpg ~ wt | cyl, mtcars, control = ctrl)
 
-  expect_s3_class(mod, "feglm")
+  expect_true(inherits(mod, "feglm"))
   expect_true(!is.null(mod$coef_table))
 })

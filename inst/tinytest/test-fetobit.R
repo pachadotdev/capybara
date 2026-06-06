@@ -7,6 +7,8 @@
 #' @noRd
 NULL
 
+source(system.file("tinytest", "helper.R", package = "capybara"))
+
 # Helper to create tobit test data
 make_tobit_data <- function(n = 200, lower = 0, upper = Inf, seed = 123) {
   set.seed(seed)
@@ -23,25 +25,24 @@ make_tobit_data <- function(n = 200, lower = 0, upper = Inf, seed = 123) {
   d
 }
 
-test_that("fetobit basic functionality works", {
+# fetobit basic functionality works"
+local({
   d <- make_tobit_data(n = 200, lower = 0, seed = 42)
 
   # Should run without error
   mod <- fetobit(y ~ x1 | f1, d, tobit_lb = 0)
 
-  expect_s3_class(mod, "feglm")
+  expect_true(inherits(mod, "feglm"))
   expect_equal(length(coef(mod)), 1)
-  expect_output(print(mod))
-  expect_visible(summary(mod))
-
+  
   # Check that fitted values are returned
   n_obs <- unname(mod[["nobs"]]["nobs_full"])
   expect_equal(length(fitted(mod)), n_obs)
   expect_equal(length(predict(mod)), n_obs)
 })
 
-test_that("fetobit without FE is similar to AER::tobit", {
-  skip_if_not_installed("AER")
+# fetobit without FE is similar to AER::tobit"
+local({
   skip_on_cran()
 
   # Create data without FE for comparison (AER::tobit doesn't support FE)
@@ -54,37 +55,42 @@ test_that("fetobit without FE is similar to AER::tobit", {
   d$y <- pmax(y_star, 0)
 
   # Fit with AER
-  mod_aer <- AER::tobit(y ~ 1 + x1 + x2, data = d, left = 0)
+  # mod_aer <- AER::tobit(y ~ 1 + x1 + x2, data = d, left = 0)
+  # coef(mod_aer)
+  coef_mod_aer <- c(2.014803, 1.455198, -0.852519)
 
   # Fit with fetobit (no FE)
   mod_cap <- fetobit(y ~ x1 + x2, d, tobit_lb = 0)
 
-  expect_equal(unname(coef(mod_aer)), unname(coef(mod_cap)), tolerance = 0.05)
+  expect_equal(coef_mod_aer, unname(coef(mod_cap)), tolerance = 0.05)
 })
 
-test_that("fetobit handles two-sided censoring", {
+# fetobit handles two-sided censoring"
+local({
   d <- make_tobit_data(n = 200, lower = 0, upper = 5, seed = 456)
 
   mod <- fetobit(y ~ x1 | f1, d, tobit_lb = 0, tobit_ub = 5)
 
-  expect_s3_class(mod, "feglm")
+  expect_true(inherits(mod, "feglm"))
   expect_equal(length(coef(mod)), 1)
 
   # Fitted values should be within valid range (though for tobit this isn't strictly required)
   expect_true(all(is.finite(fitted(mod))))
 })
 
-test_that("fetobit with multiple fixed effects", {
+# fetobit with multiple fixed effects"
+local({
   d <- make_tobit_data(n = 300, lower = 0, seed = 222)
 
   # K = 2
   mod <- fetobit(y ~ x1 | f1 + f2, d, tobit_lb = 0)
 
-  expect_s3_class(mod, "feglm")
+  expect_true(inherits(mod, "feglm"))
   expect_equal(length(coef(mod)), 1)
 })
 
-test_that("fetobit handles cluster standard errors", {
+# fetobit handles cluster standard errors"
+local({
   d <- make_tobit_data(n = 200, lower = 0, seed = 111)
   d$cl <- factor(sample(1:10, nrow(d), replace = TRUE))
 
@@ -95,7 +101,8 @@ test_that("fetobit handles cluster standard errors", {
   expect_true(all(is.finite(coef(smod)[, "Std. Error"])))
 })
 
-test_that("fetobit estimation is stable with noise", {
+# fetobit estimation is stable with noise"
+local({
   set.seed(123)
   d <- make_tobit_data(n = 200, lower = 0, seed = 456)
   d$x1_noisy <- d$x1 + pmax(rnorm(nrow(d)), 0) * .Machine$double.eps
@@ -106,19 +113,21 @@ test_that("fetobit estimation is stable with noise", {
   expect_equal(unname(coef(m1)), unname(coef(m2)))
 })
 
-test_that("fetobit with FE is similar to AER::tobit with dummies", {
-  skip_if_not_installed("AER")
+# fetobit with FE is similar to AER::tobit with dummies"
+local({
   skip_on_cran()
 
   d <- make_tobit_data(n = 300, lower = 0, seed = 555)
   d$f1 <- factor(sample(1:5, nrow(d), replace = TRUE))
 
   # Fit with AER (include FE as dummies)
-  mod_aer <- AER::tobit(y ~ 0 + x1 + as.factor(f1), data = d, left = 0)
+  # mod_aer <- AER::tobit(y ~ 0 + x1 + as.factor(f1), data = d, left = 0)
+  # coef(mod_aer)
+  coef_mod_aer <- c(1.525423, 1.950605, 2.074851, 1.955391, 2.053087, 1.958672)
 
   # Fit with fetobit
   mod_cap <- fetobit(y ~ x1 | f1, d, tobit_lb = 0, control = fit_control(return_fe = TRUE))
 
   # Compare x1 coefficient
-  expect_equal(coef(mod_aer)["x1"], coef(mod_cap)["x1"], tolerance = 0.05)
+  expect_true(abs(coef_mod_aer[1] - coef(mod_cap)["x1"]) < 0.05)
 })

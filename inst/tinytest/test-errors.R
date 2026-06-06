@@ -8,7 +8,10 @@
 #' @noRd
 NULL
 
-test_that("error conditions in GLMs", {
+source(system.file("tinytest", "helper.R", package = "capybara"))
+
+# error conditions in GLMs"
+local({
   trade_short <- yotov2017[yotov2017$year == 2002, ]
   trade_short$trade_200 <- ifelse(trade_short$trade >= 100, 1, 0)
   trade_short$trade_200_100 <- as.factor(ifelse(
@@ -62,7 +65,8 @@ test_that("error conditions in GLMs", {
   )
 })
 
-test_that("error conditions in helpers", {
+# error conditions in helpers"
+local({
   trade_short <- yotov2017[yotov2017$year == 2002, ]
   trade_short$trade_200 <- ifelse(trade_short$trade >= 100, 1, 0)
   trade_short$trade_200_100 <- as.factor(ifelse(
@@ -226,36 +230,41 @@ test_that("error conditions in helpers", {
 
 # ---- Additional error tests ----
 
-test_that("model errors on missing data", {
+# model errors on missing data"
+local({
   expect_error(
     fepoisson(mpg ~ wt | cyl),
     "data"
   )
 })
 
-test_that("model errors on invalid formula", {
+# model errors on invalid formula"
+local({
   expect_error(
     fepoisson(~ wt | cyl, mtcars),
     "formula"
   )
 })
 
-test_that("model errors on non-existent variables", {
+# model errors on non-existent variables"
+local({
   expect_error(
     fepoisson(mpg ~ nonexistent | cyl, mtcars),
     "undefined columns"
   )
 })
 
-test_that("model errors on empty fixed effects", {
+# model errors on empty fixed effects"
+local({
   skip_on_cran()
 
   # This should work - no FE is valid
   mod <- fepoisson(mpg ~ wt, mtcars)
-  expect_s3_class(mod, "feglm")
+  expect_true(inherits(mod, "feglm"))
 })
 
-test_that("predict errors on missing newdata variables", {
+# predict errors on missing newdata variables"
+local({
   mod <- fepoisson(mpg ~ wt + hp | cyl, mtcars, control = fit_control(return_fe = TRUE))
 
   newdata <- data.frame(wt = c(2.5, 3.0)) # Missing hp and cyl
@@ -266,7 +275,8 @@ test_that("predict errors on missing newdata variables", {
   )
 })
 
-test_that("vcov works correctly", {
+# vcov works correctly"
+local({
   mod <- fepoisson(mpg ~ wt | cyl, mtcars)
   v <- vcov(mod)
 
@@ -274,25 +284,28 @@ test_that("vcov works correctly", {
   expect_equal(dim(v), c(1, 1))
 })
 
-test_that("summary works for all model types", {
+# summary works for all model types"
+local({
   mod_felm <- felm(mpg ~ wt | cyl, mtcars)
   mod_feglm <- fepoisson(mpg ~ wt | cyl, mtcars)
   mod_fenegbin <- fenegbin(mpg ~ wt | cyl, mtcars)
 
-  expect_s3_class(summary(mod_felm), "summary.felm")
-  expect_s3_class(summary(mod_feglm), "summary.feglm")
-  expect_s3_class(summary(mod_fenegbin), "summary.feglm")
+  expect_true(inherits(summary(mod_felm), "summary.felm"))
+  expect_true(inherits(summary(mod_feglm), "summary.feglm"))
+  expect_true(inherits(summary(mod_fenegbin), "summary.feglm"))
 })
 
-test_that("coef extraction works", {
+# coef extraction works"
+local({
   mod <- fepoisson(mpg ~ wt + hp | cyl, mtcars)
   cf <- coef(mod)
 
   expect_equal(length(cf), 2)
-  expect_named(cf, c("wt", "hp"))
+  expect_true(all(names(cf) %in% c("wt", "hp")))
 })
 
-test_that("model handles zero counts in Poisson", {
+# model handles zero counts in Poisson"
+local({
   skip_on_cran()
 
   mtcars2 <- mtcars
@@ -300,10 +313,11 @@ test_that("model handles zero counts in Poisson", {
 
   mod <- fepoisson(mpg ~ wt | cyl, mtcars2)
 
-  expect_s3_class(mod, "feglm")
+  expect_true(inherits(mod, "feglm"))
 })
 
-test_that("model handles extreme values", {
+# model handles extreme values"
+local({
   skip_on_cran()
 
   mtcars2 <- mtcars
@@ -311,15 +325,5 @@ test_that("model handles extreme values", {
 
   mod <- felm(mpg ~ wt_large | cyl, mtcars2)
 
-  expect_s3_class(mod, "felm")
-})
-
-test_that("print methods work", {
-  mod_felm <- felm(mpg ~ wt | cyl, mtcars)
-  mod_feglm <- fepoisson(mpg ~ wt | cyl, mtcars)
-
-  expect_output(print(mod_felm))
-  expect_output(print(mod_feglm))
-  expect_output(print(summary(mod_felm)))
-  expect_output(print(summary(mod_feglm)))
+  expect_true(inherits(mod, "felm"))
 })

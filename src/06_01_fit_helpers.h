@@ -19,7 +19,7 @@ struct InferenceGLM {
   uvec coef_status; // 1 = estimable, 0 = collinear
 
   field<vec> fixed_effects;
-  double pseudo_rsq; // pseudo R-squared for Poisson
+  double r_squared; // R-squared for Poisson
   bool has_fe = false;
   uvec iterations;
 
@@ -52,7 +52,7 @@ struct InferenceGLM {
         fitted_values(n, fill::none), weights(n, fill::ones),
         hessian(p, p, fill::zeros), vcov(p, p, fill::zeros), deviance(0.0),
         null_deviance(0.0), conv(false), iter(0), coef_status(p, fill::ones),
-        pseudo_rsq(0.0), has_fe(false), has_tx(false), has_separation(false),
+        r_squared(0.0), has_fe(false), has_tx(false), has_separation(false),
         num_separated(0) {}
 
   // Lite constructor - skips hessian/vcov allocation for fast paths
@@ -60,7 +60,7 @@ struct InferenceGLM {
   InferenceGLM(uword n, uword p, bool allocate_vcov)
       : coef_table(p, 4, fill::none), eta(), fitted_values(), weights(),
         hessian(), vcov(), deviance(0.0), null_deviance(0.0), conv(false),
-        iter(0), coef_status(p, fill::ones), pseudo_rsq(0.0), has_fe(false),
+        iter(0), coef_status(p, fill::ones), r_squared(0.0), has_fe(false),
         has_tx(false), has_separation(false), num_separated(0) {
     // Defer N-length vector allocation until results are assigned
     // This avoids allocating 3N doubles that would be immediately overwritten

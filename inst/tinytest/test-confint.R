@@ -7,7 +7,8 @@ NULL
 
 # ---- confint tests ----
 
-test_that("confint.feglm returns correct structure and values", {
+# confint.feglm returns correct structure and values"
+local({
   mod1 <- fepoisson(mpg ~ wt | cyl, mtcars)
 
   res1 <- confint(mod1)
@@ -32,7 +33,8 @@ test_that("confint.feglm returns correct structure and values", {
   expect_equal(midpoint, est, tolerance = 1e-10)
 })
 
-test_that("confint.feglm respects level parameter", {
+# confint.feglm respects level parameter"
+local({
   mod <- fepoisson(mpg ~ wt | cyl, mtcars)
 
   ci_95 <- confint(mod, level = 0.95)
@@ -45,7 +47,8 @@ test_that("confint.feglm respects level parameter", {
   expect_true(all(width_99 > width_95))
 })
 
-test_that("confint.felm returns correct structure", {
+# confint.felm returns correct structure"
+local({
   mod <- felm(mpg ~ wt | cyl, mtcars)
 
   result <- confint(mod)
@@ -54,7 +57,8 @@ test_that("confint.felm returns correct structure", {
   expect_equal(nrow(result), length(coef(mod)))
 })
 
-test_that("confint column names reflect confidence level", {
+# confint column names reflect confidence level"
+local({
   mod <- felm(mpg ~ wt | cyl, mtcars)
 
   ci_95 <- confint(mod, level = 0.95)
@@ -66,7 +70,8 @@ test_that("confint column names reflect confidence level", {
   expect_true(grepl("95", colnames(ci_90)[2]))
 })
 
-test_that("confint works with parm parameter", {
+# confint works with parm parameter"
+local({
   mod <- felm(mpg ~ wt + hp + qsec | cyl, mtcars)
 
   # Select specific parameters
@@ -76,7 +81,8 @@ test_that("confint works with parm parameter", {
   expect_equal(rownames(ci_wt), "wt")
 })
 
-test_that("confint works with multiple parm selection", {
+# confint works with multiple parm selection"
+local({
   mod <- felm(mpg ~ wt + hp + qsec | cyl, mtcars)
 
   ci_subset <- confint(mod, parm = c("wt", "hp"))
@@ -85,7 +91,8 @@ test_that("confint works with multiple parm selection", {
   expect_equal(rownames(ci_subset), c("wt", "hp"))
 })
 
-test_that("confint works with numeric parm indices", {
+# confint works with numeric parm indices"
+local({
   mod <- felm(mpg ~ wt + hp + qsec | cyl, mtcars)
 
   ci_first <- confint(mod, parm = 1)
@@ -94,7 +101,8 @@ test_that("confint works with numeric parm indices", {
   expect_equal(rownames(ci_first), "wt")
 })
 
-test_that("confint for feglm works with parm", {
+# confint for feglm works with parm"
+local({
   mod <- fepoisson(mpg ~ wt | cyl, mtcars)
 
   ci_full <- confint(mod)
@@ -103,7 +111,8 @@ test_that("confint for feglm works with parm", {
   expect_equal(ci_full, ci_parm)
 })
 
-test_that("confint handles different confidence levels correctly", {
+# confint handles different confidence levels correctly"
+local({
   mod <- felm(mpg ~ wt | cyl, mtcars)
 
   ci_50 <- confint(mod, level = 0.50)

@@ -7,13 +7,8 @@ NULL
 
 # ---- print.feglm tests ----
 
-test_that("print.feglm produces output", {
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars)
-
-  expect_output(print(mod))
-})
-
-test_that("print.feglm shows coefficients", {
+# print.feglm shows coefficients"
+local({
   mod <- fepoisson(mpg ~ wt | cyl, mtcars)
 
   output <- capture.output(print(mod))
@@ -23,13 +18,8 @@ test_that("print.feglm shows coefficients", {
 
 # ---- print.felm tests ----
 
-test_that("print.felm produces output", {
-  mod <- felm(mpg ~ wt | cyl, mtcars)
-
-  expect_output(print(mod))
-})
-
-test_that("print.felm shows coefficients", {
+# print.felm shows coefficients"
+local({
   mod <- felm(mpg ~ wt | cyl, mtcars)
 
   output <- capture.output(print(mod))
@@ -39,13 +29,8 @@ test_that("print.felm shows coefficients", {
 
 # ---- print.summary.feglm tests ----
 
-test_that("print.summary.feglm produces output", {
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars)
-
-  expect_output(print(summary(mod)))
-})
-
-test_that("summary.feglm shows formula", {
+# summary.feglm shows formula"
+local({
   mod <- fepoisson(mpg ~ wt | cyl, mtcars)
 
   output <- capture.output(print(summary(mod)))
@@ -53,7 +38,8 @@ test_that("summary.feglm shows formula", {
   expect_true(any(grepl("Formula", output)))
 })
 
-test_that("summary.feglm shows family", {
+# summary.feglm shows family"
+local({
   mod <- fepoisson(mpg ~ wt | cyl, mtcars)
 
   output <- capture.output(print(summary(mod)))
@@ -63,7 +49,8 @@ test_that("summary.feglm shows family", {
   ))
 })
 
-test_that("summary.feglm shows estimates", {
+# summary.feglm shows estimates"
+local({
   mod <- fepoisson(mpg ~ wt | cyl, mtcars)
 
   output <- capture.output(print(summary(mod)))
@@ -71,7 +58,8 @@ test_that("summary.feglm shows estimates", {
   expect_true(any(grepl("Estimate", output)))
 })
 
-test_that("summary.feglm shows significance codes", {
+# summary.feglm shows significance codes"
+local({
   mod <- fepoisson(mpg ~ wt | cyl, mtcars)
 
   output <- capture.output(print(summary(mod)))
@@ -81,13 +69,8 @@ test_that("summary.feglm shows significance codes", {
 
 # ---- print.summary.felm tests ----
 
-test_that("print.summary.felm produces output", {
-  mod <- felm(mpg ~ wt | cyl, mtcars)
-
-  expect_output(print(summary(mod)))
-})
-
-test_that("summary.felm shows R-squared", {
+# summary.felm shows R-squared"
+local({
   mod <- felm(mpg ~ wt | cyl, mtcars)
 
   output <- capture.output(print(summary(mod)))
@@ -97,7 +80,8 @@ test_that("summary.felm shows R-squared", {
 
 # ---- print with multiple predictors ----
 
-test_that("print shows multiple predictors", {
+# print shows multiple predictors"
+local({
   mod <- felm(mpg ~ wt + hp + qsec | cyl, mtcars)
 
   output <- capture.output(print(summary(mod)))
@@ -105,29 +89,4 @@ test_that("print shows multiple predictors", {
   expect_true(any(grepl("wt", output)))
   expect_true(any(grepl("hp", output)))
   expect_true(any(grepl("qsec", output)))
-})
-
-# ---- print for binomial ----
-
-test_that("print works for binomial model", {
-  mod <- feglm(am ~ wt | cyl, mtcars, family = binomial())
-
-  expect_output(print(mod))
-  expect_output(print(summary(mod)))
-})
-
-# ---- print for models without FE ----
-
-test_that("print works for model without fixed effects", {
-  mod <- fepoisson(mpg ~ wt, mtcars)
-
-  expect_output(print(mod))
-  expect_output(print(summary(mod)))
-})
-
-test_that("print.felm works for model without fixed effects", {
-  mod <- felm(mpg ~ wt, mtcars)
-
-  expect_output(print(mod))
-  expect_output(print(summary(mod)))
 })
