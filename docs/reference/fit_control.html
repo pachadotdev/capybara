@@ -32,8 +32,10 @@
     <label style="border-bottom: 0;"><a style="padding-left: 0;" href="../index.html">Home 🏠</a></label>
   </div>
 
+
   <div class="submenu">
     <label>Functions</label>
+    <a href="../reference/fe_table.html">fe_table</a>
     <a href="../reference/feglm.html">feglm</a>
     <a href="../reference/felm.html">felm</a>
     <a href="../reference/fenegbin.html">fenegbin</a>
@@ -97,7 +99,7 @@ conditions are similar to glm.
   sep_use_relu = TRUE,
   sep_use_simplex = TRUE,
   sep_use_mu = TRUE,
-  return_fe = FALSE,
+  return_fe = TRUE,
   keep_tx = FALSE,
   keep_data = FALSE,
   return_hessian = FALSE,
@@ -117,6 +119,7 @@ conditions are similar to glm.
   expectile = NULL,
   expectile_tol = 1e-12,
   expectile_iter_max = 50L,
+  expectile_glm_iter_max = NULL,
   expectile_trace = FALSE
 )
 </code></pre>
@@ -128,7 +131,7 @@ conditions are similar to glm.
 <td>
 tolerance level for the first stopping condition of the maximization routine. The stopping condition
 is based on the relative change of the deviance in iteration <code class="reqn">r</code> and can be expressed as follows: <code class="reqn">|dev_{r}
- - dev_{r - 1}| / (0.1 + |dev_{r}|) &lt; tol</code>. The default is <code>1.0e-06</code>.
+- dev_{r - 1}| / (0.1 + |dev_{r}|) &lt; tol</code>. The default is <code>1.0e-06</code>.
 </td></tr><tr><td><code id="center_tol">center_tol</code></td>
 <td>
 tolerance level for the stopping condition of the centering algorithm. The stopping condition is
@@ -215,8 +218,8 @@ of zeros). Following ppmlhdfe methodology. The default is <code>TRUE</code>.
 </td></tr><tr><td><code id="return_fe">return_fe</code></td>
 <td>
 logical indicating if the fixed effects should be returned. This can be useful when fitting general
-equilibrium models where skipping the fixed effects for intermediate steps speeds up computation. Note: Set to
-<code>TRUE</code> if you plan to extract fixed effects later. The default is <code>FALSE</code> to minimize memory usage.
+equilibrium models where skipping the fixed effects for intermediate steps speeds up computation. Set it to
+<code>FALSE</code>  to minimize memory usage. The default is <code>TRUE</code>.
 </td></tr><tr><td><code id="keep_tx">keep_tx</code></td>
 <td>
 logical indicating if the centered regressor matrix should be stored. The default is <code>FALSE</code>
@@ -332,6 +335,13 @@ The default is <code>1.0e-12</code>.
 <td>
 integer indicating the maximum number of iterations for the expectile
 reweighting algorithm. The default is <code>50L</code>.
+</td></tr><tr><td><code id="expectile_glm_iter_max">expectile_glm_iter_max</code></td>
+<td>
+integer indicating the maximum number of inner GLM (IRLS) iterations
+per APPML outer iteration. When <code>NULL</code> (default), the value of <code>iter_max</code> is used,
+meaning the inner GLM runs to full convergence before APPML weights are updated. Setting this to
+<code>1L</code> enables a single-step mode where APPML asymmetric weights are updated after every Newton
+step, which typically reduces the total number of iterations needed.
 </td></tr><tr><td><code id="expectile_trace">expectile_trace</code></td>
 <td>
 logical indicating whether to print iteration information during expectile

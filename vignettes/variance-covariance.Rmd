@@ -71,10 +71,10 @@ fit_hetero <- felm(
 ## One-way: cluster on country-pair (g,h)
 
 Note that multi-part formulas (e.g., `y ~ x | fe | cl`) are handled by the Formula package. Therefore,
-updating those needs an explicit `Formula.as.Formula()` is the formula type was not stated.
+updating those needs an explicit `Formula::as.Formula()` call if the formula type was not specified initially.
 
 ```{r table4b_models3, cache = TRUE}
-fml2 <- update(Formula::as.Formula(fml), . ~ . | pair)
+fml2 <- update(Formula::as.Formula(fml), . ~ . | . | pair)
 
 fit_pairs <- felm(
   fml2,

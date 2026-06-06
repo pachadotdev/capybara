@@ -33,31 +33,17 @@
   </div>
 
   <div class="submenu">
-    <label>Functions</label>
-    <a href="../reference/feglm.html">feglm</a>
-    <a href="../reference/felm.html">felm</a>
-    <a href="../reference/fenegbin.html">fenegbin</a>
-    <a href="../reference/fepoisson_asymmetric.html">fepoisson_asymmetric</a>
-    <a href="../reference/fepoisson.html">fepoisson</a>
-    <a href="../reference/feprobit.html">feprobit</a>
-    <a href="../reference/fetobit.html">fetobit</a>
-    <a href="../reference/fit_control.html">fit_control</a>
-    <a href="../reference/sandwich_vcov.html">sandwich_vcov</a>
-    <a href="../reference/summary_table.html">summary_table</a>
+    <label>On this page</label>
+    <a href="#iid-no-cluster-part-in-formula" class="toc-level-2">IID (no cluster part in formula)</a>
+    <a href="#heteroskedastic-robust-hc0" class="toc-level-2">Heteroskedastic-robust (HC0)</a>
+    <a href="#one-way-cluster-on-country-pair-g-h" class="toc-level-2">One-way: cluster on country-pair (g,h)</a>
+    <a href="#one-way-cluster-on-country-1-g" class="toc-level-2">One-way: cluster on country 1 (g)</a>
+    <a href="#one-way-cluster-on-country-2-h" class="toc-level-2">One-way: cluster on country 2 (h)</a>
+    <a href="#two-way-cluster-on-g-and-h-simultaneously" class="toc-level-2">Two-way: cluster on (g) and (h) simultaneously</a>
+    <a href="#dyadic-robust-cameron-miller-2014-sandwich-with-cross-dyad-correlations" class="toc-level-2">Dyadic-robust: Cameron-Miller (2014) sandwich with cross-dyad
+correlations</a>
   </div>
 
-  <div class="submenu">
-    <label>Vignettes</label>
-    <a href="../vignettes/asymmetric.html">Asymmetric Poisson Pseudo-Maximum Likelihood (APPML)</a>
-    <a href="../vignettes/intro.html">Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors</a>
-    <a href="../vignettes/separation.html">Nonexistence of estimates of Poisson models</a>
-    <a href="../vignettes/variance-covariance.html">Different Variance-Covariance Estimators</a>
-  </div>
-
-  <div class="submenu">
-    <label>News</label>
-    <a href="../news/index.html">Changelog</a>
-  </div>
 </div>
 <div id="content">
 <div class="content-wrapper">
@@ -75,7 +61,7 @@ coefficients for the OLS model from table 1:</p>
 #&gt; Formula: ltrade ~ bothin + onein + gsp + ldist + lrgdp + lrgdppc + regional +
 #&gt;     custrict + comlang + border + landl + island + lareap + comcol +
 #&gt;     curcol + colony + comctry | year
-#&gt; &lt;environment: 0x5641b98c63e0&gt;
+#&gt; &lt;environment: 0x563bdb285790&gt;
 #&gt;
 #&gt; Estimates:
 #&gt;
@@ -133,49 +119,63 @@ are used:</p>
 the formula for each model, as we need to change the clustering
 variables for each model, which avoids error-prone copy-pasting of the
 full formula every time.</p>
+<div id="iid-no-cluster-part-in-formula" class="section level2">
+<h2 id="iid-no-cluster-part-in-formula">IID (no cluster part in formula)</h2>
 <pre class="r"><code>fml &lt;- ltrade ~ bothin + onein + gsp + ldist + lrgdp + lrgdppc + regional +
   custrict + comlang + border + landl + island + lareap + comcol +
   curcol + colony + comctry | year
 
-# IID  (no cluster part in formula)
 fit_iid &lt;- felm(
   fml,
   data = ross2004, vcov = "iid"
-)
-
-# Heteroskedastic-robust (HC0)
-fit_hetero &lt;- felm(
+)</code></pre>
+</div>
+<div id="heteroskedastic-robust-hc0" class="section level2">
+<h2 id="heteroskedastic-robust-hc0">Heteroskedastic-robust (HC0)</h2>
+<pre class="r"><code>fit_hetero &lt;- felm(
   fml,
   data = ross2004, vcov = "hetero"
-)
+)</code></pre>
+</div>
+<div id="one-way-cluster-on-country-pair-gh" class="section level2">
+<h2 id="one-way-cluster-on-country-pair-g-h">One-way: cluster on country-pair (g,h)</h2>
+<p>Note that multi-part formulas (e.g., <code>y ~ x | fe | cl</code>)
+are handled by the Formula package. Therefore, updating those needs an
+explicit <code>Formula::as.Formula()</code> call if the formula type was
+not specified initially.</p>
+<pre class="r"><code>fml2 &lt;- update(Formula::as.Formula(fml), . ~ . | . | pair)
 
-# One-way: cluster on country-pair (g,h)
 fit_pairs &lt;- felm(
-  update(fml, . ~ . | . | pair),
+  fml2,
   data = ross2004, vcov = "cluster"
-)
-
-# One-way: cluster on country 1 (g)
-fit_ctry1 &lt;- felm(
-  update(fml, . ~ . | . | ctry1),
+)</code></pre>
+</div>
+<div id="one-way-cluster-on-country-1-g" class="section level2">
+<h2 id="one-way-cluster-on-country-1-g">One-way: cluster on country 1 (g)</h2>
+<pre class="r"><code>fit_ctry1 &lt;- felm(
+  update(fml2, . ~ . | . | ctry1),
   data = ross2004, vcov = "cluster"
-)
-
-# One-way: cluster on country 2 (h)
-fit_ctry2 &lt;- felm(
-  update(fml, . ~ . | . | ctry2),
+)</code></pre>
+</div>
+<div id="one-way-cluster-on-country-2-h" class="section level2">
+<h2 id="one-way-cluster-on-country-2-h">One-way: cluster on country 2 (h)</h2>
+<pre class="r"><code>fit_ctry2 &lt;- felm(
+  update(fml2, . ~ . | . | ctry2),
   data = ross2004, vcov = "cluster"
-)
-
-# Two-way: cluster on (g) and (h) simultaneously
-fit_2way &lt;- felm(
-  update(fml, . ~ . | . | ctry1 + ctry2),
+)</code></pre>
+</div>
+<div id="two-way-cluster-on-g-and-h-simultaneously" class="section level2">
+<h2 id="two-way-cluster-on-g-and-h-simultaneously">Two-way: cluster on (g) and (h) simultaneously</h2>
+<pre class="r"><code>fit_2way &lt;- felm(
+  update(fml2, . ~ . | . | ctry1 + ctry2),
   data = ross2004, vcov = "cluster"
-)
-
-# Dyadic-robust: Cameron-Miller (2014) sandwich with cross-dyad correlations
-fit_dyadic &lt;- felm(
-  update(fml, . ~ . | . | ctry1 + ctry2),
+)</code></pre>
+</div>
+<div id="dyadic-robust-cameron-miller-2014-sandwich-with-cross-dyad-correlations" class="section level2">
+<h2 id="dyadic-robust-cameron-miller-2014-sandwich-with-cross-dyad-correlations">Dyadic-robust: Cameron-Miller (2014) sandwich with cross-dyad
+correlations</h2>
+<pre class="r"><code>fit_dyadic &lt;- felm(
+  update(fml2, . ~ . | . | ctry1 + ctry2),
   data = ross2004, vcov = "dyadic"
 )</code></pre>
 <p>With the above models, we can replicate Table 4B from Cameron &amp;
@@ -234,6 +234,7 @@ table.</p>
 #&gt;
 #&gt; Standard errors in parenthesis
 #&gt; Significance levels: ** p &lt; 0.01; * p &lt; 0.05; + p &lt; 0.10</code></pre>
+</div>
         </div>
         <footer><p id="last-updated">Loading...</p>
 </footer><script src="../js/footer.js"></script><script src="../js/theme.js"></script><script src="../js/search.js"></script><script src="../js/fontsize.js"></script></div>

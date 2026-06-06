@@ -33,31 +33,14 @@
   </div>
 
   <div class="submenu">
-    <label>Functions</label>
-    <a href="../reference/feglm.html">feglm</a>
-    <a href="../reference/felm.html">felm</a>
-    <a href="../reference/fenegbin.html">fenegbin</a>
-    <a href="../reference/fepoisson_asymmetric.html">fepoisson_asymmetric</a>
-    <a href="../reference/fepoisson.html">fepoisson</a>
-    <a href="../reference/feprobit.html">feprobit</a>
-    <a href="../reference/fetobit.html">fetobit</a>
-    <a href="../reference/fit_control.html">fit_control</a>
-    <a href="../reference/sandwich_vcov.html">sandwich_vcov</a>
-    <a href="../reference/summary_table.html">summary_table</a>
+    <label>On this page</label>
+    <a href="#overview" class="toc-level-2">Overview</a>
+    <a href="#estimating-lower-and-upper-expectiles" class="toc-level-2">Estimating lower and upper expectiles</a>
+    <a href="#comparing-coefficients-across-expectiles" class="toc-level-2">Comparing coefficients across expectiles</a>
+    <a href="#convergence-diagnostics" class="toc-level-2">Convergence diagnostics</a>
+    <a href="#references" class="toc-level-2">References</a>
   </div>
 
-  <div class="submenu">
-    <label>Vignettes</label>
-    <a href="../vignettes/asymmetric.html">Asymmetric Poisson Pseudo-Maximum Likelihood (APPML)</a>
-    <a href="../vignettes/intro.html">Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors</a>
-    <a href="../vignettes/separation.html">Nonexistence of estimates of Poisson models</a>
-    <a href="../vignettes/variance-covariance.html">Different Variance-Covariance Estimators</a>
-  </div>
-
-  <div class="submenu">
-    <label>News</label>
-    <a href="../news/index.html">Changelog</a>
-  </div>
 </div>
 <div id="content">
 <div class="content-wrapper">
@@ -66,12 +49,9 @@
 
 
 
-<pre class="r"><code>library(capybara)
-#&gt; Registered S3 method overwritten by 'capybara':
-#&gt;   method         from
-#&gt;   update.formula stats</code></pre>
+<pre class="r"><code>library(capybara)</code></pre>
 <div id="overview" class="section level2">
-<h2>Overview</h2>
+<h2 id="overview">Overview</h2>
 <p>Standard Poisson Pseudo-Maximum Likelihood (PPML) estimates the
 conditional mean of the outcome variable.
 <code>fepoisson_asymmetric()</code> extends this by fitting conditional
@@ -96,7 +76,7 @@ and defaults to <code>0.5</code>, so if you don’t specify it,
 <code>fepoisson_asymmetric()</code> will behave like standard PPML.</p>
 </div>
 <div id="estimating-lower-and-upper-expectiles" class="section level2">
-<h2>Estimating lower and upper expectiles</h2>
+<h2 id="estimating-lower-and-upper-expectiles">Estimating lower and upper expectiles</h2>
 <p>Shifting <code>expectile</code> away from 0.5 lets you trace how the
 entire conditional distribution of <code>mpg</code> varies with
 <code>wt</code>, after absorbing the <code>cyl</code> fixed effects.</p>
@@ -114,7 +94,7 @@ mod_ppml &lt;- fepoisson_asymmetric(
 )
 summary(mod_ppml)
 #&gt; Formula: mpg ~ wt | cyl
-#&gt; &lt;environment: 0x5641bac33f88&gt;
+#&gt; &lt;environment: 0x563bd4091c78&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -140,7 +120,7 @@ mod_high &lt;- fepoisson_asymmetric(
 )</code></pre>
 </div>
 <div id="comparing-coefficients-across-expectiles" class="section level2">
-<h2>Comparing coefficients across expectiles</h2>
+<h2 id="comparing-coefficients-across-expectiles">Comparing coefficients across expectiles</h2>
 <p>A natural use-case is comparing how the effect of a regressor changes
 across the distribution. The table below collects the coefficient on
 <code>wt</code> at the three expectile levels:</p>
@@ -166,7 +146,7 @@ disproportionately associated with low mpg at the top of the
 distribution — a pattern that standard PPML would average out.</p>
 </div>
 <div id="convergence-diagnostics" class="section level2">
-<h2>Convergence diagnostics</h2>
+<h2 id="convergence-diagnostics">Convergence diagnostics</h2>
 <p>The outer APPML loop updates observation weights until the
 coefficient vector stops changing. You can inspect convergence through
 the returned list elements:</p>
@@ -178,7 +158,7 @@ cat("Expectile used:      ", mod_ppml$expectile,  "\n")
 #&gt; Expectile used:       0.5</code></pre>
 </div>
 <div id="references" class="section level2">
-<h2>References</h2>
+<h2 id="references">References</h2>
 <p>Bergstrand, Jeffrey H., Matthew W. Clance, and JMC Santos Silva. “The
 tails of gravity: Using expectiles to quantify the trade-margins effects
 of economic integration agreements.” <em>Journal of International

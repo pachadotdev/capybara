@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>glance • capybara</title><link rel="stylesheet" href="../menu.css"><link rel="stylesheet" href="../content.css"><!-- MathJax Configuration --><script>
+<html lang="en"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>fe_table • capybara</title><link rel="stylesheet" href="../menu.css"><link rel="stylesheet" href="../content.css"><!-- MathJax Configuration --><script>
     window.MathJax = {
       tex: {
         inlineMath: [['\\(', '\\)'], ['$', '$']],
@@ -65,19 +65,74 @@
 <div class="content-wrapper">
         <div class="content-main">
 
-<table style="width: 100%;"><tr><td>reexports {capybara}</td><td style="text-align: right;">R Documentation</td></tr></table><h2>Objects exported from other packages</h2>
+<table style="width: 100%;"><tr><td>fe_table {capybara}</td><td style="text-align: right;">R Documentation</td></tr></table><h2>Generate fixed effects tables</h2>
 
 <h3>Description</h3>
 
-<p>These objects are imported from other packages. Follow the links
-below to see their documentation.
+<p>Generate fixed effects tables
 </p>
 
-<dl><dt>generics</dt><dd><p><code>augment()</code>, <code>glance()</code>, <code>tidy()</code></p>
-</dd>
-<dt>ggplot2</dt><dd><p><code>autoplot()</code></p>
-</dd>
-</dl></div>
+
+<h3>Usage</h3>
+
+<pre><code class="language-R">fe_table(
+  ...,
+  n = 5,
+  coef_digits = 3,
+  latex = FALSE,
+  model_names = NULL,
+  caption = NULL,
+  label = NULL,
+  position = "htbp"
+)
+</code></pre>
+
+
+<h3>Arguments</h3>
+
+<table role="presentation"><tr><td><code id="...">...</code></td>
+<td>
+One or more model objects of <code>felm</code> or <code>feglm</code> class
+fitted with <code>return_fe = TRUE</code> in <code>control</code>.
+</td></tr><tr><td><code id="n">n</code></td>
+<td>
+Number of levels to show per fixed effect dimension. Use
+<code>Inf</code> to show all levels. The default is 5.
+</td></tr><tr><td><code id="coef_digits">coef_digits</code></td>
+<td>
+Number of digits for fixed effect coefficients. The
+default is 3.
+</td></tr><tr><td><code id="latex">latex</code></td>
+<td>
+Whether to output as LaTeX code. The default is <code>FALSE</code>.
+</td></tr><tr><td><code id="model_names">model_names</code></td>
+<td>
+Optional vector of custom model names.
+</td></tr><tr><td><code id="caption">caption</code></td>
+<td>
+Optional caption for the table (LaTeX only).
+</td></tr><tr><td><code id="label">label</code></td>
+<td>
+Optional label for cross-referencing (LaTeX only).
+</td></tr><tr><td><code id="position">position</code></td>
+<td>
+LaTeX float position specifier (LaTeX only). The default
+is <code>"htbp"</code>.
+</td></tr></table><h3>Value</h3>
+
+<p>A formatted fixed effects table of class <code>summary_table</code>.
+</p>
+
+
+<h3>Examples</h3>
+
+<pre><code class="language-R">m1 &lt;- felm(mpg ~ wt | cyl, mtcars, control = list(return_fe = TRUE))
+m2 &lt;- fepoisson(mpg ~ wt | cyl, mtcars, control = list(return_fe = TRUE))
+fe_table(m1, m2, model_names = c("Linear", "Poisson"))
+</code></pre>
+
+
+</div>
         </div>
         <footer><p id="last-updated">Loading...</p>
 </footer><script src="../js/footer.js"></script><script src="../js/theme.js"></script><script src="../js/search.js"></script><script src="../js/fontsize.js"></script></div>

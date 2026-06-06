@@ -32,8 +32,10 @@
     <label style="border-bottom: 0;"><a style="padding-left: 0;" href="../index.html">Home 🏠</a></label>
   </div>
 
+
   <div class="submenu">
     <label>Functions</label>
+    <a href="../reference/fe_table.html">fe_table</a>
     <a href="../reference/feglm.html">feglm</a>
     <a href="../reference/felm.html">felm</a>
     <a href="../reference/fenegbin.html">fenegbin</a>
@@ -68,40 +70,44 @@
 
 <div id="capybara-2.0.0" class="section level1">
 <h1>capybara 2.0.0</h1>
-<ul><li><p>Capybara now offers different variance-covariance estimators that do not require to call <code>summary()</code>
+<ul><li>Capybara now offers different variance-covariance estimators that do not require to call <code>summary()</code>
 (e.g., this differens from Alpaca). I added a vignette replicating Cameron and Miller (2014)
-to show how to use 1-way, 2-way, and dyadic clustering.</p></li>
-<li><p>Besides vcov estimation, capybara now allows to update formulas, which is explained in the vcov
+to show how to use 1-way, 2-way, and dyadic clustering.</li>
+<li>Besides vcov estimation, capybara now allows to update formulas, which is explained in the vcov
 vignette. tldr; you can use <code>fml &lt;- mpg ~ wt | am</code> followed by
 <code>felm(update(fml, . ~ . | cyl), data = mtcars</code> and variations of (same for <code>feglm()</code> and cluster
-update)</p></li>
-<li><p>I rewrote the the Rank-Revealing Cholesky general method to contribute back to Armadillo.</p></li>
-<li><p>I found an error when using <code>summary(lm/glm, type = "clustered")</code> that largely underestimated
+update)</li>
+<li>I rewrote the the Rank-Revealing Cholesky general method to contribute back to Armadillo.</li>
+<li>I found an error when using <code>summary(lm/glm, type = "clustered")</code> that largely underestimated
 the standard errors. This is now fixed and I merged “clustered” and ” sandwich” types into a single
-“sandwich” type for clarity and consistency as both use a bread-meat-bread approach.</p></li>
-<li><p>The <code>InferenceGLM</code> struct now adds the VCOV matrix and the standard errors to reuse computation and<br>
-strealine the summary creation. Same for the <code>InferenceLM</code> struct.</p></li>
-<li><p>All the inference (std. error, R-squared, etc) was moved to C++ side and <code>print()</code> and <code>summary()</code>
-functions just format the output.</p></li>
-<li><p>Allows formulas without fixed effects, such as <code>y ~ x1 + x2</code> and <code>y ~ x1 + x2 | 0 | cluster</code> and
-formulas without slopes such as <code>y ~ 0 | fe1 + fe2</code>.</p></li>
-<li><p>Allows offsets in GLMs.</p></li>
-<li><p>All the computation is done on C++ side, and now model formulas explicitly fail if there are functions
-inside them.</p></li>
-<li><p>The default is now <code>predict(glm_object, type = "response")</code>, unlike base R behavior.</p></li>
-<li><p>Most of the R and C++ code was refactored to use memory efficiently.</p></li>
-<li><p>Follows fixest-based normalization for fixed effects to match Stata results.</p></li>
-<li><p>Provides the option to use <code>control = list(centering = "berge")</code> or <code>list(centering = "stammann")</code>. Both
+“sandwich” type for clarity and consistency as both use a bread-meat-bread approach.</li>
+<li>The <code>InferenceGLM</code> struct now adds the VCOV matrix and the standard errors to reuse computation and<br>
+strealine the summary creation. Same for the <code>InferenceLM</code> struct.</li>
+<li>All the inference (std. error, R-squared, etc) was moved to C++ side and <code>print()</code> and <code>summary()</code>
+functions just format the output.</li>
+<li>Allows formulas without fixed effects, such as <code>y ~ x1 + x2</code> and <code>y ~ x1 + x2 | 0 | cluster</code> and
+formulas without slopes such as <code>y ~ 0 | fe1 + fe2</code>.</li>
+<li>Allows offsets in GLMs.</li>
+<li>All the computation is done on C++ side, and now model formulas explicitly fail if there are functions
+inside them.</li>
+<li>The default is now <code>predict(glm_object, type = "response")</code>, unlike base R behavior.</li>
+<li>Most of the R and C++ code was refactored to use memory efficiently.</li>
+<li>Follows fixest-based normalization for fixed effects to match Stata results.</li>
+<li>Provides the option to use <code>control = list(centering = "berge")</code> or <code>list(centering = "stammann")</code>. Both
 methods are equivalent but use different internal logics. Berge’s fixed point problem approach is usually
-faster.</p></li>
-<li><p>Supports Probit and Logit regression.</p></li>
-<li><p>Adds parallelization over columns for an efficient centering regardless of the method used.</p></li>
-<li><p>A new function <code>fepoisson_asymmetric()</code> to compare coefficients across expectiles (e.g., 10%, 50%, 90%)
+faster.</li>
+<li>Supports Probit and Logit regression.</li>
+<li>Adds parallelization over columns for an efficient centering regardless of the method used.</li>
+<li>A new function <code>fepoisson_asymmetric()</code> to compare coefficients across expectiles (e.g., 10%, 50%, 90%)
 to weight positive/negative residuals. This is based on “The Tails of Gravity”
-(10.1016/j.jinteco.2025.104145).</p></li>
-<li><p>The <code>summary_table()</code> function now accepts positioning arguments for LaTeX.
-# capybara 1.8.1</p></li>
-<li><p>Link to published article and citation info.</p></li>
+(10.1016/j.jinteco.2025.104145). The argument <code>expectile_glm_iter_max</code> in <code>fit_control()</code> controls the
+number of inner GLM iterations per APPML step. Setting it to <code>1L</code> updates asymmetric weights at every
+Newton step instead of only after the inner GLM converges, which typically reduces total iterations needed.</li>
+<li>The <code>summary_table()</code> function now accepts positioning arguments for LaTeX.</li>
+</ul></div>
+<div id="capybara-1.8.1" class="section level1">
+<h1>capybara 1.8.1</h1>
+<ul><li>Link to published article and citation info.</li>
 </ul></div>
 <div id="capybara-1.8.0" class="section level1">
 <h1>capybara 1.8.0</h1>

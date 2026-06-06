@@ -33,31 +33,12 @@
   </div>
 
   <div class="submenu">
-    <label>Functions</label>
-    <a href="../reference/feglm.html">feglm</a>
-    <a href="../reference/felm.html">felm</a>
-    <a href="../reference/fenegbin.html">fenegbin</a>
-    <a href="../reference/fepoisson_asymmetric.html">fepoisson_asymmetric</a>
-    <a href="../reference/fepoisson.html">fepoisson</a>
-    <a href="../reference/feprobit.html">feprobit</a>
-    <a href="../reference/fetobit.html">fetobit</a>
-    <a href="../reference/fit_control.html">fit_control</a>
-    <a href="../reference/sandwich_vcov.html">sandwich_vcov</a>
-    <a href="../reference/summary_table.html">summary_table</a>
+    <label>On this page</label>
+    <a href="#example-1" class="toc-level-2">Example 1</a>
+    <a href="#example-2" class="toc-level-2">Example 2</a>
+    <a href="#example-3-fixed-effects" class="toc-level-2">Example 3 (fixed effects)</a>
   </div>
 
-  <div class="submenu">
-    <label>Vignettes</label>
-    <a href="../vignettes/asymmetric.html">Asymmetric Poisson Pseudo-Maximum Likelihood (APPML)</a>
-    <a href="../vignettes/intro.html">Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors</a>
-    <a href="../vignettes/separation.html">Nonexistence of estimates of Poisson models</a>
-    <a href="../vignettes/variance-covariance.html">Different Variance-Covariance Estimators</a>
-  </div>
-
-  <div class="submenu">
-    <label>News</label>
-    <a href="../news/index.html">Changelog</a>
-  </div>
 </div>
 <div id="content">
 <div class="content-wrapper">
@@ -68,7 +49,7 @@
 
 <p>This vignette is adapted from <a href="https://github.com/sergiocorreia/ppmlhdfe/blob/master/guides/nonexistence_benchmarks.md#r-packages" class="uri">https://github.com/sergiocorreia/ppmlhdfe/blob/master/guides/nonexistence_benchmarks.md#r-packages</a>.</p>
 <div id="example-1" class="section level2">
-<h2>Example 1</h2>
+<h2 id="example-1">Example 1</h2>
 <pre class="r"><code>library(capybara)</code></pre>
 <p>The table below shows a dataset with 12 observations and four
 regressors. Observations 5 is separated because <span class="math inline">\(y=0\)</span> and <span class="math inline">\(z
@@ -116,7 +97,7 @@ this data.</p>
 )
 #&gt; Separation found in 1 observation(s)
 #&gt; Formula: y ~ x1 + x2 + x3 + x4
-#&gt; &lt;environment: 0x5641baf3db40&gt;
+#&gt; &lt;environment: 0x563bd9a00518&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -139,7 +120,7 @@ this data.</p>
 #&gt; Number of Fisher Scoring iterations: 5</code></pre>
 </div>
 <div id="example-2" class="section level2">
-<h2>Example 2</h2>
+<h2 id="example-2">Example 2</h2>
 <p>The table below shows a different dataset with 12 observations and
 four regressors. Observations 2, 3, 6, 7 and 8 are separated because
 <span class="math inline">\(y=0\)</span> and <span class="math inline">\(z &gt; x_2 - x_1\)</span> is positive in those
@@ -188,7 +169,7 @@ model on this data.</p>
 )
 #&gt; Separation found in 6 observation(s)
 #&gt; Formula: y ~ x1 + x2 + x3 + x4
-#&gt; &lt;environment: 0x5641baf3db40&gt;
+#&gt; &lt;environment: 0x563bd9a00518&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -211,7 +192,7 @@ model on this data.</p>
 #&gt; Number of Fisher Scoring iterations: 25</code></pre>
 </div>
 <div id="example-3-fixed-effects" class="section level2">
-<h2>Example 3 (fixed effects)</h2>
+<h2 id="example-3-fixed-effects">Example 3 (fixed effects)</h2>
 <p>Base R shall not give a warning when estimating a Poisson model with
 fixed effects on the dataset below. The separation in this case is less
 clear, which motivates why capybara uses linear programming to detect
@@ -266,7 +247,7 @@ fixed effects on this data.</p>
 )
 #&gt; Separation found in 4 observation(s)
 #&gt; Formula: y ~ x1 + x2 | i + j
-#&gt; &lt;environment: 0x5641baf3db40&gt;
+#&gt; &lt;environment: 0x563bd9a00518&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -335,7 +316,7 @@ fepoisson(
 )
 #&gt; Separation found in 4 observation(s)
 #&gt; Formula: y ~ x1 + x2 | i + j | pair
-#&gt; &lt;environment: 0x5641baf3db40&gt;
+#&gt; &lt;environment: 0x563bd9a00518&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
@@ -367,7 +348,7 @@ match ‘alpaca’ and ‘fixest’ results.</p>
   control = list(check_separation = FALSE)
 )
 #&gt; Formula: y ~ x1 + x2 | i + j
-#&gt; &lt;environment: 0x5641baf3db40&gt;
+#&gt; &lt;environment: 0x563bd9a00518&gt;
 #&gt;
 #&gt; Family: Poisson
 #&gt;
