@@ -526,7 +526,8 @@ inline void compute_bias_corr_binomial(InferenceGLM &result, const mat &X,
 
   // Add ridge regularization for numerical stability across platforms
   // Mac's Accelerate BLAS can have different floating-point behavior (FMA)
-  // Use larger regularization factor to ensure stability even on ARM/Apple Silicon
+  // Use larger regularization factor to ensure stability even on ARM/Apple
+  // Silicon
   const double diag_mean = mean(abs(H_scaled.diag()));
   // Increased initial ridge for cross-platform robustness (was 1e-8, now 1e-7)
   const double ridge_base = std::max(diag_mean, 1.0) * 1e-7;
@@ -551,7 +552,8 @@ inline void compute_bias_corr_binomial(InferenceGLM &result, const mat &X,
     solve_ok = solve(bias_term, H_reg, -b, solve_opts::likely_sympd);
   }
 
-  // Final fallback with aggressive regularization for extreme cases on FMA systems
+  // Final fallback with aggressive regularization for extreme cases on FMA
+  // systems
   if (!solve_ok || !bias_term.is_finite()) {
     const double ridge_extreme = std::max(diag_mean, 1.0) * 1e-3;
     H_reg = H_scaled;
