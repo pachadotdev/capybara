@@ -328,8 +328,12 @@ standard Poisson PML, and <code>expectile = 0.9</code> estimates the 90th expect
 <td>
 tolerance level for the stopping condition of the expectile iteration algorithm.
 
-<p>The convergence criterion is based on the quadratic form <code class="reqn">(b - b_{old})' V^{-1} (b - b_{old})</code>,
-where <code class="reqn">b</code> are the current coefficients and <code class="reqn">V</code> is the variance-covariance matrix.
+<p>The convergence criterion uses a hybrid approach: the algorithm converges when the squared norm
+of coefficient changes <code class="reqn">\|b - b_{old}\|^2</code> is below a threshold computed as the maximum of
+an absolute floor (<code>1e-14</code>) and a relative tolerance scaled by the L2 norm of coefficients.
+Specifically: <code class="reqn">\text{threshold} = \max(10^{-14}, (\text{tol} \cdot \|b\|_2)^2)</code>.
+This hybrid criterion ensures numerical robustness across different compiler optimizations
+(e.g., FMA on macOS) and handles both cases with small and large coefficients appropriately.
 The default is <code>1.0e-12</code>.
 </p></td></tr><tr><td><code id="expectile_iter_max">expectile_iter_max</code></td>
 <td>

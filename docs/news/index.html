@@ -73,6 +73,11 @@
 <ul><li>Capybara now offers different variance-covariance estimators that do not require to call <code>summary()</code>
 (e.g., this differens from Alpaca). I added a vignette replicating Cameron and Miller (2014)
 to show how to use 1-way, 2-way, and dyadic clustering.</li>
+<li>Improved numerical robustness of convergence criteria across all fitting functions (<code>fepoisson_asymmetric()</code>,
+<code>feglm_fit()</code>, <code>fenegbin_fit()</code>) to handle FMA (Fused Multiply-Add) compiler optimizations on macOS and ARM.
+Convergence checks now use hybrid absolute + relative tolerance thresholds that scale appropriately, and
+bias correction now uses stronger ridge regularization for numerical stability. This eliminates intermittent
+convergence failures across different platforms and compiler configurations.</li>
 <li>Besides vcov estimation, capybara now allows to update formulas, which is explained in the vcov
 vignette. tldr; you can use <code>fml &lt;- mpg ~ wt | am</code> followed by
 <code>felm(update(fml, . ~ . | cyl), data = mtcars</code> and variations of (same for <code>feglm()</code> and cluster
@@ -104,6 +109,10 @@ to weight positive/negative residuals. This is based on â€œThe Tails of Gravityâ
 number of inner GLM iterations per APPML step. Setting it to <code>1L</code> updates asymmetric weights at every
 Newton step instead of only after the inner GLM converges, which typically reduces total iterations needed.</li>
 <li>The <code>summary_table()</code> function now accepts positioning arguments for LaTeX.</li>
+<li>Improved numerical robustness of convergence criteria across all fitting functions (<code>fepoisson_asymmetric()</code>,
+<code>feglm_fit()</code>, <code>fenegbin_fit()</code>) to handle FMA (Fused Multiply-Add) compiler optimizations on macOS and ARM.
+Convergence checks now use hybrid absolute + relative tolerance thresholds that scale appropriately,
+eliminating intermittent convergence failures across different platforms and compiler configurations.</li>
 </ul></div>
 <div id="capybara-1.8.1" class="section level1">
 <h1>capybara 1.8.1</h1>

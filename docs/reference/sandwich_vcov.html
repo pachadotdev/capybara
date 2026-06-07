@@ -82,8 +82,7 @@ re-fitting the model, provided the model was fit with <code>keep_tx = TRUE</code
   object,
   cluster1 = NULL,
   cluster2 = NULL,
-  type = c("hetero", "HC0", "clustered", "m-estimator", "two-way", "dyadic",
-    "m-estimator-dyadic"),
+  type = c("hetero", "clustered", "m-estimator", "dyadic", "m-estimator-dyadic"),
   ...
 )
 </code></pre>
@@ -97,23 +96,20 @@ a fitted model object of class <code>"feglm"</code> or <code>"felm"</code>.
 </td></tr><tr><td><code id="cluster1">cluster1</code></td>
 <td>
 a vector or factor for the first clustering variable. Required for
-<code>"clustered"</code>, <code>"two-way"</code>, and <code>"dyadic"</code> types.
+<code>"clustered"</code> and <code>"dyadic"</code> types.
 </td></tr><tr><td><code id="cluster2">cluster2</code></td>
 <td>
 a vector or factor for the second clustering variable. Required for
-<code>"two-way"</code> and <code>"dyadic"</code> types.
+<code>"dyadic"</code> type.
 </td></tr><tr><td><code id="type">type</code></td>
 <td>
 character string specifying the covariance type. One of:
 
 
-<ul><li> <p><code>"hetero"</code> or <code>"HC0"</code>: heteroskedasticity-robust (no clustering)
+<ul><li> <p><code>"hetero"</code>: heteroskedasticity-robust (no clustering, also known as <code>"HC0"</code>)
 </p>
 </li>
 <li> <p><code>"clustered"</code> or <code>"m-estimator"</code>: one-way cluster-robust
-</p>
-</li>
-<li> <p><code>"two-way"</code>: two-way cluster-robust (Cameron-Gelbach-Miller)
 </p>
 </li>
 <li> <p><code>"dyadic"</code> or <code>"m-estimator-dyadic"</code>: dyadic cluster-robust for network/trade data
@@ -183,11 +179,15 @@ mod &lt;- fepoisson(
 # Heteroskedastic-robust HC0 sandwich (no cluster variable needed)
 sandwich_vcov(mod, type = "hetero")
 
+#' One-way and two-way cluster
+sandwich_vcov(mod, cluster1 = mtcars$am, type = "clustered")
+sandwich_vcov(mod, cluster1 = mtcars$am, cluster2 = mtcars$gear, type = "clustered")
+
 # One-way M-estimator sandwich (cluster variable required)
 sandwich_vcov(mod, cluster1 = mtcars$am, type = "m-estimator")
 
-# Two-way Cameron-Miller sandwich (two cluster variables required)
-sandwich_vcov(mod, cluster1 = mtcars$am, cluster2 = mtcars$gear, type = "two-way")
+# Dyadic Cameron-Miller sandwich (two cluster variables required)
+sandwich_vcov(mod, cluster1 = mtcars$am, cluster2 = mtcars$gear, type = "dyadic")
 
 </code></pre>
 
