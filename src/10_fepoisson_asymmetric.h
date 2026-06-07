@@ -38,6 +38,11 @@ appml_iterate(const mat &X, const vec &y, const vec &w, const FlatFEMap &fe_map,
   const uword max_iter = params.expectile_iter_max;
   const bool trace = params.expectile_trace;
 
+  // Hybrid convergence criterion: relative tolerance scaled by coefficient
+  // magnitude, with absolute floor to handle FMA rounding differences across
+  // platforms (especially macOS)
+  const double abs_tol_floor = 1e-14;
+
   InferenceAPPML result(n, p);
   result.expectile = tau;
 
@@ -151,7 +156,14 @@ appml_iterate(const mat &X, const vec &y, const vec &w, const FlatFEMap &fe_map,
                      static_cast<unsigned long>(iter + 1), cv);
     }
 
-    if (cv <= tol) {
+    // Hybrid convergence criterion: relative to coefficient scale, with
+    // absolute floor
+    double beta_scale = std::max(norm(beta_coef, 2), 1.0);
+    double cv_threshold =
+        std::max(abs_tol_floor * abs_tol_floor,
+                 (tol * beta_scale) * (tol * beta_scale));
+
+    if (cv <= cv_threshold) {
       // Converged - do final fit with vcov
       GlmWorkspace final_ws;
       final_ws.ensure_size(n, p);

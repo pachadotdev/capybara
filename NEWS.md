@@ -34,6 +34,10 @@
   number of inner GLM iterations per APPML step. Setting it to `1L` updates asymmetric weights at every
   Newton step instead of only after the inner GLM converges, which typically reduces total iterations needed.
 * The `summary_table()` function now accepts positioning arguments for LaTeX.
+* Improved numerical robustness of convergence criteria across all fitting functions (`fepoisson_asymmetric()`,
+  `feglm_fit()`, `fenegbin_fit()`) to handle FMA (Fused Multiply-Add) compiler optimizations on macOS and ARM.
+  Convergence checks now use hybrid absolute + relative tolerance thresholds that scale appropriately,
+  eliminating intermittent convergence failures across different platforms and compiler configurations.
 
 # capybara 1.8.1
 

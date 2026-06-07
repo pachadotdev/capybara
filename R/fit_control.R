@@ -149,8 +149,12 @@ NULL
 #'  standard Poisson PML, and \code{expectile = 0.9} estimates the 90th expectile.
 #' @param expectile_tol tolerance level for the stopping condition of the expectile iteration algorithm.
 #'
-#'  The convergence criterion is based on the quadratic form \eqn{(b - b_{old})' V^{-1} (b - b_{old})},
-#'  where \eqn{b} are the current coefficients and \eqn{V} is the variance-covariance matrix.
+#'  The convergence criterion uses a hybrid approach: the algorithm converges when the squared norm
+#'  of coefficient changes \eqn{\|b - b_{old}\|^2} is below a threshold computed as the maximum of
+#'  an absolute floor (\code{1e-14}) and a relative tolerance scaled by the L2 norm of coefficients.
+#'  Specifically: \eqn{\text{threshold} = \max(10^{-14}, (\text{tol} \cdot \|b\|_2)^2)}.
+#'  This hybrid criterion ensures numerical robustness across different compiler optimizations
+#'  (e.g., FMA on macOS) and handles both cases with small and large coefficients appropriately.
 #'  The default is \code{1.0e-12}.
 #' @param expectile_iter_max integer indicating the maximum number of iterations for the expectile
 #'  reweighting algorithm. The default is \code{50L}.

@@ -158,7 +158,16 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
         std::abs(theta_new - theta_prev) <=
         datum::eps * std::max(std::abs(theta_prev), 1.0);
 
-    if (beta_crit <= tol && (theta_crit <= tol || theta_at_machine_eps)) {
+    // Hybrid convergence criterion for cross-platform stability.
+    // Add absolute floor (1e-13) to handle FMA rounding on Mac/ARM:
+    // Platform buffer prevents false non-convergence when relative changes
+    // oscillate just above/below the threshold due to floating-point differences.
+    const double abs_tol_floor_negbin = 1e-13;
+    const double beta_threshold = std::max(abs_tol_floor_negbin, tol);
+    const double theta_threshold = std::max(abs_tol_floor_negbin, tol);
+
+    if (beta_crit <= beta_threshold &&
+        (theta_crit <= theta_threshold || theta_at_machine_eps)) {
       // Converged - do one final full fit (run_from_negbin=false) to
       // compute Hessian, vcov, FE recovery, SE/z/p, R-sq, etc.
       beta_coef = glm_fit.coef_table.col(0);

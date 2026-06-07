@@ -1361,12 +1361,18 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       conv_change = eta_change;
     }
 
-    // Convergence check with small epsilon buffer for cross-platform
-    // floating-point stability Mac's sqrt() and dot() can produce slightly
-    // different rounding, so we add a tiny buffer (1e-10 relative tolerance) to
-    // prevent false non-convergence
-    const double eps_buffer = 1.0 + 1e-10;
-    if (conv_change < params.dev_tol * eps_buffer) {
+    // Hybrid convergence criterion for cross-platform stability.
+    // On Mac/ARM with FMA, dot() and sqrt() can round differently, causing
+    // convergence to oscillate at the threshold. We use a hybrid criterion:
+    // threshold = max(absolute_floor, relative_to_tolerance)
+    // Since conv_change is already relative (normalized by ||beta||),
+    // we compare it against dev_tol * (1 + platform_buffer)
+    const double abs_tol_floor_glm = 1e-12;
+    const double platform_buffer = 1e-9; // Tolerance for FMA rounding differences
+    const double conv_threshold =
+        std::max(abs_tol_floor_glm,
+                 params.dev_tol * (1.0 + platform_buffer));
+    if (conv_change < conv_threshold) {
       conv = true;
       break;
     }
@@ -1759,10 +1765,15 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
       adaptive_tol = params.center_tol;
     }
 
-    // Convergence check with epsilon buffer for cross-platform floating-point
-    // stability (Mac's sqrt() can produce slightly different rounding)
-    const double eps_buffer = 1.0 + 1e-10;
-    if (eta_change < params.dev_tol * eps_buffer) {
+    // Hybrid convergence criterion for offset-only fitting (cross-platform).
+    // Same approach as main GLM loop: hybrid absolute + relative tolerance
+    // for robust handling of FMA rounding differences on Mac/ARM.
+    const double abs_tol_floor_offset = 1e-12;
+    const double platform_buffer_offset = 1e-9;
+    const double conv_threshold_offset =
+        std::max(abs_tol_floor_offset,
+                 params.dev_tol * (1.0 + platform_buffer_offset));
+    if (eta_change < conv_threshold_offset) {
       break;
     }
 
