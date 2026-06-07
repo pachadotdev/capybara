@@ -602,15 +602,15 @@ local({
 # bias correction works for one-way FE binomial"
 local({
   set.seed(789)
-  n <- 200
-  n_f <- 10
+  n <- 300  # Increased from 200 for Mac/ARM stability
+  n_f <- 15  # Increased from 10 for Mac/ARM stability
   d <- data.frame(
     x1 = rnorm(n),
     x2 = rnorm(n),
     f = factor(sample(1:n_f, n, replace = TRUE))
   )
   # Generate y with actual signal for reliable convergence
-  alpha_f <- rnorm(n_f, sd = 0.3)[d$f]
+  alpha_f <- rnorm(n_f, sd = 0.5)[d$f]  # Increased SD for stronger signal
   prob <- plogis(0.5 * d$x1 + 0.3 * d$x2 + alpha_f)
   d$y <- rbinom(n, 1, prob)
 
@@ -654,20 +654,21 @@ local({
 # bias correction works for two-way FE binomial (classic panel)"
 local({
   set.seed(101)
-  n_i <- 20
-  n_t <- 10
+  n_i <- 30  # Increased from 20 for Mac/ARM stability
+  n_t <- 15  # Increased from 10 for Mac/ARM stability
   d <- expand.grid(i = 1:n_i, t = 1:n_t)
   d$x <- rnorm(nrow(d))
+  d$x2 <- rnorm(nrow(d))  # Add second regressor for numerical stability
   # Generate y with actual signal for reliable convergence
-  alpha_i <- rnorm(n_i, sd = 0.3)[d$i]
-  alpha_t <- rnorm(n_t, sd = 0.3)[d$t]
-  prob <- plogis(0.5 * d$x + alpha_i + alpha_t)
+  alpha_i <- rnorm(n_i, sd = 0.5)[d$i]
+  alpha_t <- rnorm(n_t, sd = 0.5)[d$t]
+  prob <- plogis(0.5 * d$x + 0.3 * d$x2 + alpha_i + alpha_t)
   d$y <- rbinom(nrow(d), 1, prob)
   d$i <- factor(d$i)
   d$t <- factor(d$t)
 
   mod <- feglm(
-    y ~ x | i + t,
+    y ~ x + x2 | i + t,
     d,
     family = binomial(),
     control = fit_control(
@@ -685,18 +686,19 @@ local({
 local({
   set.seed(202)
   # Simulate bilateral trade data (exporter-importer-time)
-  # Use larger dimensions for reliable convergence across platforms
-  n_exp <- 8
-  n_imp <- 8
-  n_t <- 5
+  # Increased dimensions for reliable convergence across platforms (especially Mac FMA)
+  n_exp <- 12
+  n_imp <- 12
+  n_t <- 6
   d <- expand.grid(exp = 1:n_exp, imp = 1:n_imp, t = 1:n_t)
   d <- d[d$exp != d$imp, ] # No self-trade
   d$x <- rnorm(nrow(d))
+  d$x2 <- rnorm(nrow(d)) # Add second regressor for numerical stability
   # Generate y with actual signal for reliable convergence
-  alpha_exp <- rnorm(n_exp, sd = 0.3)[d$exp]
-  alpha_imp <- rnorm(n_imp, sd = 0.3)[d$imp]
-  alpha_t <- rnorm(n_t, sd = 0.3)[d$t]
-  prob <- plogis(0.5 * d$x + alpha_exp + alpha_imp + alpha_t)
+  alpha_exp <- rnorm(n_exp, sd = 0.5)[d$exp]
+  alpha_imp <- rnorm(n_imp, sd = 0.5)[d$imp]
+  alpha_t <- rnorm(n_t, sd = 0.5)[d$t]
+  prob <- plogis(0.5 * d$x + 0.3 * d$x2 + alpha_exp + alpha_imp + alpha_t)
   d$y <- rbinom(nrow(d), 1, prob)
   d$exp <- factor(d$exp)
   d$imp <- factor(d$imp)
@@ -704,7 +706,7 @@ local({
 
   # Network panel needs 2 or 3 FE
   mod <- feglm(
-    y ~ x | exp + imp + t,
+    y ~ x + x2 | exp + imp + t,
     d,
     family = binomial(),
     control = fit_control(

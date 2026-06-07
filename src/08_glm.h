@@ -525,11 +525,12 @@ inline void compute_bias_corr_binomial(InferenceGLM &result, const mat &X,
   }
 
   // Add ridge regularization for numerical stability across platforms
-  // Mac's Accelerate BLAS can have different floating-point behavior
-  // Use larger regularization factor to ensure stability
+  // Mac's Accelerate BLAS can have different floating-point behavior (FMA)
+  // Use larger regularization factor to ensure stability even on ARM/Apple Silicon
   const double diag_mean = mean(abs(H_scaled.diag()));
-  const double ridge_base = std::max(diag_mean, 1.0) * 1e-8;
-  const double ridge = std::max(ridge_base, datum::eps * 1000);
+  // Increased initial ridge for cross-platform robustness (was 1e-8, now 1e-7)
+  const double ridge_base = std::max(diag_mean, 1.0) * 1e-7;
+  const double ridge = std::max(ridge_base, datum::eps * 10000);
   mat H_reg = H_scaled;
   H_reg.diag() += ridge;
   // Symmetrize explicitly: ARM FMA units can introduce tiny asymmetry in
@@ -542,10 +543,19 @@ inline void compute_bias_corr_binomial(InferenceGLM &result, const mat &X,
 
   // Fallback strategies if solve fails
   if (!solve_ok || !bias_term.is_finite()) {
-    // Try with stronger regularization
-    const double ridge_strong = std::max(diag_mean, 1.0) * 1e-6;
+    // Try with much stronger regularization (was 1e-6, now 1e-5) for Mac/ARM
+    const double ridge_strong = std::max(diag_mean, 1.0) * 1e-5;
     H_reg = H_scaled;
     H_reg.diag() += ridge_strong;
+    H_reg = (H_reg + H_reg.t()) / 2.0;
+    solve_ok = solve(bias_term, H_reg, -b, solve_opts::likely_sympd);
+  }
+
+  // Final fallback with aggressive regularization for extreme cases on FMA systems
+  if (!solve_ok || !bias_term.is_finite()) {
+    const double ridge_extreme = std::max(diag_mean, 1.0) * 1e-3;
+    H_reg = H_scaled;
+    H_reg.diag() += ridge_extreme;
     H_reg = (H_reg + H_reg.t()) / 2.0;
     solve_ok = solve(bias_term, H_reg, -b, solve_opts::likely_sympd);
   }

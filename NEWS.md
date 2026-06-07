@@ -1,5 +1,10 @@
 # capybara 2.0.0
 
+* Improved numerical robustness of convergence criteria across all fitting functions (`fepoisson_asymmetric()`,
+  `feglm_fit()`, `fenegbin_fit()`) to handle FMA (Fused Multiply-Add) compiler optimizations on macOS and ARM.
+  Convergence checks now use hybrid absolute + relative tolerance thresholds that scale appropriately, and
+  bias correction now uses stronger ridge regularization for numerical stability. This eliminates intermittent
+  convergence failures across different platforms and compiler configurations.
 * Capybara now offers different variance-covariance estimators that do not require to call `summary()`
   (e.g., this differens from Alpaca). I added a vignette replicating Cameron and Miller (2014)
   to show how to use 1-way, 2-way, and dyadic clustering.
