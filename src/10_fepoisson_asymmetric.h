@@ -159,9 +159,8 @@ appml_iterate(const mat &X, const vec &y, const vec &w, const FlatFEMap &fe_map,
     // Hybrid convergence criterion: relative to coefficient scale, with
     // absolute floor
     double beta_scale = std::max(norm(beta_coef, 2), 1.0);
-    double cv_threshold =
-        std::max(abs_tol_floor * abs_tol_floor,
-                 (tol * beta_scale) * (tol * beta_scale));
+    double cv_threshold = std::max(abs_tol_floor * abs_tol_floor,
+                                   (tol * beta_scale) * (tol * beta_scale));
 
     if (cv <= cv_threshold) {
       // Converged - do final fit with vcov

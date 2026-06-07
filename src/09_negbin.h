@@ -161,7 +161,8 @@ InferenceNegBin fenegbin_fit(mat &X, const vec &y, const vec &w,
     // Hybrid convergence criterion for cross-platform stability.
     // Add absolute floor (1e-13) to handle FMA rounding on Mac/ARM:
     // Platform buffer prevents false non-convergence when relative changes
-    // oscillate just above/below the threshold due to floating-point differences.
+    // oscillate just above/below the threshold due to floating-point
+    // differences.
     const double abs_tol_floor_negbin = 1e-13;
     const double beta_threshold = std::max(abs_tol_floor_negbin, tol);
     const double theta_threshold = std::max(abs_tol_floor_negbin, tol);

@@ -1368,10 +1368,10 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     // Since conv_change is already relative (normalized by ||beta||),
     // we compare it against dev_tol * (1 + platform_buffer)
     const double abs_tol_floor_glm = 1e-12;
-    const double platform_buffer = 1e-9; // Tolerance for FMA rounding differences
+    const double platform_buffer =
+        1e-9; // Tolerance for FMA rounding differences
     const double conv_threshold =
-        std::max(abs_tol_floor_glm,
-                 params.dev_tol * (1.0 + platform_buffer));
+        std::max(abs_tol_floor_glm, params.dev_tol * (1.0 + platform_buffer));
     if (conv_change < conv_threshold) {
       conv = true;
       break;
@@ -1770,9 +1770,8 @@ vec feglm_offset_fit(vec &eta, const vec &y, const vec &offset, const vec &w,
     // for robust handling of FMA rounding differences on Mac/ARM.
     const double abs_tol_floor_offset = 1e-12;
     const double platform_buffer_offset = 1e-9;
-    const double conv_threshold_offset =
-        std::max(abs_tol_floor_offset,
-                 params.dev_tol * (1.0 + platform_buffer_offset));
+    const double conv_threshold_offset = std::max(
+        abs_tol_floor_offset, params.dev_tol * (1.0 + platform_buffer_offset));
     if (eta_change < conv_threshold_offset) {
       break;
     }
