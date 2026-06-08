@@ -141,22 +141,6 @@ struct CapybaraParameters {
   // Variance-covariance estimator type
   std::string vcov_type;
 
-  // Average Partial Effects computation
-  bool compute_apes;
-  size_t ape_n_pop;                // 0 = no finite population correction
-  std::string ape_panel_structure; // "classic" or "network"
-  std::string ape_sampling_fe;     // "independence" or "unrestricted"
-  bool ape_weak_exo;
-
-  // Bias correction (Fernandez-Val & Weidner 2016)
-  bool compute_bias_corr;
-  size_t bias_corr_bandwidth;            // L parameter (0 = strict exogeneity)
-  std::string bias_corr_panel_structure; // "classic" or "network"
-
-  // Tobit censoring bounds
-  double tobit_lower; // Left censoring bound (-Inf for none)
-  double tobit_upper; // Right censoring bound (Inf for none)
-
   // Expectile (APPML) parameters
   double expectile;          // Expectile value (0 < tau < 1), 0 = not used
   double expectile_tol;      // Convergence tolerance for expectile iteration
@@ -216,80 +200,6 @@ struct CapybaraParameters {
       vcov_type = as_cpp<std::string>(vcov_type_sexp);
     } else {
       vcov_type = "";
-    }
-
-    // Extract compute_apes (optional, default false)
-    SEXP compute_apes_sexp = control["compute_apes"];
-    if (compute_apes_sexp != R_NilValue) {
-      compute_apes = as_cpp<bool>(compute_apes_sexp);
-    } else {
-      compute_apes = false;
-    }
-
-    // Extract APE variance parameters
-    SEXP ape_n_pop_sexp = control["ape_n_pop"];
-    if (ape_n_pop_sexp != R_NilValue && !Rf_isNull(ape_n_pop_sexp)) {
-      ape_n_pop = as_cpp<size_t>(ape_n_pop_sexp);
-    } else {
-      ape_n_pop = 0; // no finite population correction
-    }
-
-    SEXP ape_panel_sexp = control["ape_panel_structure"];
-    if (ape_panel_sexp != R_NilValue) {
-      ape_panel_structure = as_cpp<std::string>(ape_panel_sexp);
-    } else {
-      ape_panel_structure = "classic";
-    }
-
-    SEXP ape_sampling_sexp = control["ape_sampling_fe"];
-    if (ape_sampling_sexp != R_NilValue) {
-      ape_sampling_fe = as_cpp<std::string>(ape_sampling_sexp);
-    } else {
-      ape_sampling_fe = "independence";
-    }
-
-    SEXP ape_weak_sexp = control["ape_weak_exo"];
-    if (ape_weak_sexp != R_NilValue) {
-      ape_weak_exo = as_cpp<bool>(ape_weak_sexp);
-    } else {
-      ape_weak_exo = false;
-    }
-
-    // Extract bias correction parameters
-    SEXP compute_bias_corr_sexp = control["compute_bias_corr"];
-    if (compute_bias_corr_sexp != R_NilValue) {
-      compute_bias_corr = as_cpp<bool>(compute_bias_corr_sexp);
-    } else {
-      compute_bias_corr = false;
-    }
-
-    SEXP bias_corr_bw_sexp = control["bias_corr_bandwidth"];
-    if (bias_corr_bw_sexp != R_NilValue) {
-      bias_corr_bandwidth = as_cpp<size_t>(bias_corr_bw_sexp);
-    } else {
-      bias_corr_bandwidth = 0;
-    }
-
-    SEXP bias_corr_panel_sexp = control["bias_corr_panel_structure"];
-    if (bias_corr_panel_sexp != R_NilValue) {
-      bias_corr_panel_structure = as_cpp<std::string>(bias_corr_panel_sexp);
-    } else {
-      bias_corr_panel_structure = "classic";
-    }
-
-    // Extract tobit parameters (R sends tobit_lb/tobit_ub)
-    SEXP tobit_lower_sexp = control["tobit_lb"];
-    if (tobit_lower_sexp != R_NilValue) {
-      tobit_lower = as_cpp<double>(tobit_lower_sexp);
-    } else {
-      tobit_lower = -std::numeric_limits<double>::infinity();
-    }
-
-    SEXP tobit_upper_sexp = control["tobit_ub"];
-    if (tobit_upper_sexp != R_NilValue) {
-      tobit_upper = as_cpp<double>(tobit_upper_sexp);
-    } else {
-      tobit_upper = std::numeric_limits<double>::infinity();
     }
 
     // Extract expectile parameters
@@ -1363,19 +1273,6 @@ feglm_fit_(const std::string &formula_str, SEXP df, const doubles &beta_r,
         {"working_residuals"_nm = as_doubles(fm.y - result.fitted_values)});
   }
 
-  if (result.has_apes && result.ape_delta.n_elem > 0) {
-    out.push_back({"ape_delta"_nm = as_doubles(result.ape_delta)});
-    out.push_back({"ape_vcov"_nm = as_doubles_matrix(result.ape_vcov)});
-    out.push_back({"ape_binary"_nm = as_integers(result.ape_binary)});
-    out.push_back({"has_apes"_nm = writable::logicals({true})});
-  }
-
-  if (result.has_bias_corr && result.beta_corrected.n_elem > 0) {
-    out.push_back({"beta_corrected"_nm = as_doubles(result.beta_corrected)});
-    out.push_back({"bias_term"_nm = as_doubles(result.bias_term)});
-    out.push_back({"has_bias_corr"_nm = writable::logicals({true})});
-  }
-
   // Add term names
   size_t p = fm.term_names.size();
   writable::strings term_names_r(p);
@@ -1772,19 +1669,6 @@ feglm_fit_(const std::string &formula_str, SEXP df, const doubles &beta_r,
     // Store working residuals for vcov recomputation without needing keep_data
     out.push_back(
         {"working_residuals"_nm = as_doubles(y_clean - result.fitted_values)});
-  }
-
-  if (result.has_apes && result.ape_delta.n_elem > 0) {
-    out.push_back({"ape_delta"_nm = as_doubles(result.ape_delta)});
-    out.push_back({"ape_vcov"_nm = as_doubles_matrix(result.ape_vcov)});
-    out.push_back({"ape_binary"_nm = as_integers(result.ape_binary)});
-    out.push_back({"has_apes"_nm = writable::logicals({true})});
-  }
-
-  if (result.has_bias_corr && result.beta_corrected.n_elem > 0) {
-    out.push_back({"beta_corrected"_nm = as_doubles(result.beta_corrected)});
-    out.push_back({"bias_term"_nm = as_doubles(result.bias_term)});
-    out.push_back({"has_bias_corr"_nm = writable::logicals({true})});
   }
 
   // Add term names

@@ -35,22 +35,15 @@ struct GlmWorkspace {
 // Function pointer types for family-specific operations
 // Avoids repeated switch statements in hot loops
 using MuFromEta = void (*)(vec &mu, const vec &eta);
+
 using WorkingWtsNu = void (*)(vec &w_working, vec &nu, const vec &w,
                               const vec &mu, const vec &y, const vec &eta,
                               double theta);
 
 // Link inverse functions (mu from eta)
 inline void mu_gaussian(vec &mu, const vec &eta) { mu = eta; }
+
 inline void mu_poisson(vec &mu, const vec &eta) { mu = exp(eta); }
-inline void mu_binomial(vec &mu, const vec &eta) {
-  mu = 1.0 / (1.0 + exp(-eta));
-}
-inline void mu_probit(vec &mu, const vec &eta) {
-  // mu = Phi(eta) = standard normal CDF
-  mu = normcdf(eta);
-}
-inline void mu_gamma(vec &mu, const vec &eta) { mu = 1.0 / eta; }
-inline void mu_invgaussian(vec &mu, const vec &eta) { mu = 1.0 / sqrt(eta); }
 
 // Working weights and working residuals (nu) - vectorized
 inline void ww_nu_gaussian(vec &w_working, vec &nu, const vec &w, const vec &mu,
@@ -65,177 +58,20 @@ inline void ww_nu_poisson(vec &w_working, vec &nu, const vec &w, const vec &mu,
   nu = (y - mu) / mu;
 }
 
-inline void ww_nu_binomial(vec &w_working, vec &nu, const vec &w, const vec &mu,
-                           const vec &y, const vec &, double) {
-  const vec var = mu % (1.0 - mu);
-  w_working = w % var;
-  nu = (y - mu) / var;
-}
-
-inline void ww_nu_probit(vec &w_working, vec &nu, const vec &w, const vec &mu,
-                         const vec &y, const vec &eta, double) {
-  // For probit: mu = Phi(eta), d(mu)/d(eta) = phi(eta)
-  // Variance = mu * (1 - mu)
-  // Working weight = w * [phi(eta)]^2 / [mu * (1 - mu)]
-  // Working residual = (y - mu) / phi(eta)
-  const vec phi_eta = normpdf(eta);
-  const vec var = mu % (1.0 - mu);
-  // Clamp to avoid division by zero at extremes
-  const vec phi_safe = clamp(phi_eta, datum::eps, datum::inf);
-  const vec var_safe = clamp(var, datum::eps, datum::inf);
-  w_working = w % square(phi_safe) / var_safe;
-  nu = (y - mu) / phi_safe;
-}
-
-inline void ww_nu_gamma(vec &w_working, vec &nu, const vec &w, const vec &mu,
-                        const vec &y, const vec &, double) {
-  const vec m2 = square(mu);
-  w_working = w % m2;
-  nu = -(y - mu) / m2;
-}
-
-inline void ww_nu_invgaussian(vec &w_working, vec &nu, const vec &w,
-                              const vec &mu, const vec &y, const vec &,
-                              double) {
-  const vec m3 = pow(mu, 3);
-  w_working = 0.25 * (w % m3);
-  nu = -2.0 * (y - mu) / m3;
-}
-
 inline void ww_nu_negbin(vec &w_working, vec &nu, const vec &w, const vec &mu,
                          const vec &y, const vec &, double theta) {
   w_working = (w % mu) / (1.0 + mu / theta);
   nu = (y - mu) / mu;
 }
 
-// Tobit working weights with censoring and scale parameter
-// Uses the Inverse Mills Ratio for censored observations
-// lower/upper: censoring bounds (-Inf/Inf for no censoring)
-// sigma: scale parameter (estimated in IRLS loop)
-inline void ww_nu_tobit(vec &w_working, vec &nu, const vec &w, const vec &mu,
-                        const vec &y, double sigma, double lower,
-                        double upper) {
-  const uword n = y.n_elem;
-  const double eps = datum::eps;
-  const double sigma_safe = std::max(sigma, eps);
-  const double sigma2_inv = 1.0 / (sigma_safe * sigma_safe);
-
-  w_working.set_size(n);
-  nu.set_size(n);
-
-  for (uword i = 0; i < n; ++i) {
-    const double yi = y(i);
-    const double mui = mu(i);
-    const double wi = w(i);
-    const double resid = yi - mui;
-
-    // Check censoring status
-    const bool is_left_censored =
-        std::isfinite(lower) && std::fabs(yi - lower) < eps;
-    const bool is_right_censored =
-        std::isfinite(upper) && std::fabs(yi - upper) < eps;
-
-    if (is_left_censored) {
-      // Left-censored: y = lower
-      // a = (lower - mu) / sigma (typically negative when mu > lower)
-      const double a = (lower - mui) / sigma_safe;
-      // Phi(a) = P(Z < a)
-      const double Phi_a = 0.5 * std::erfc(-a * M_SQRT1_2);
-      const double phi_a =
-          std::exp(-0.5 * a * a) * M_2_SQRTPI * 0.5 * M_SQRT1_2;
-      // Inverse Mills Ratio: lambda = phi(a) / Phi(a)
-      const double Phi_safe = std::max(Phi_a, eps);
-      const double lambda = phi_a / Phi_safe;
-      // Working weight: w * lambda * (lambda + a) / sigma^2
-      // This is the information contribution from censored observations
-      const double delta = lambda * (lambda + a);
-      const double delta_safe = std::max(delta, eps);
-      w_working(i) = wi * delta_safe * sigma2_inv;
-      // Working residual: score / weight = (-lambda/sigma) / (delta/sigma^2)
-      //                 = -lambda * sigma / delta
-      nu(i) = -lambda * sigma_safe / delta_safe;
-    } else if (is_right_censored) {
-      // Right-censored: y = upper
-      // b = (upper - mu) / sigma
-      const double b = (upper - mui) / sigma_safe;
-      // 1 - Phi(b) = P(Z > b)
-      const double Phi_neg_b = 0.5 * std::erfc(b * M_SQRT1_2);
-      const double phi_b =
-          std::exp(-0.5 * b * b) * M_2_SQRTPI * 0.5 * M_SQRT1_2;
-      // IMR for right censoring: lambda = phi(b) / (1 - Phi(b))
-      const double Phi_safe = std::max(Phi_neg_b, eps);
-      const double lambda = phi_b / Phi_safe;
-      // Working weight: w * lambda * (lambda - b) / sigma^2
-      const double delta = lambda * (lambda - b);
-      const double delta_safe = std::max(delta, eps);
-      w_working(i) = wi * delta_safe * sigma2_inv;
-      // Working residual: score / weight = (lambda/sigma) / (delta/sigma^2)
-      //                 = lambda * sigma / delta
-      nu(i) = lambda * sigma_safe / delta_safe;
-    } else {
-      // Uncensored observation
-      // Standard Gaussian working weight: w / sigma^2
-      w_working(i) = wi * sigma2_inv;
-      // Working residual: (y - mu)
-      nu(i) = resid;
-    }
-  }
-}
-
-// Estimate sigma for Tobit model
-// Uses uncensored observations only (consistent but not fully efficient)
-// This is a robust approach that avoids numerical issues with the full MLE
-inline double estimate_tobit_sigma(const vec &y, const vec &mu, double lower,
-                                   double upper, double current_sigma) {
-  const uword n = y.n_elem;
-  const double eps = datum::eps;
-  double sum_sq = 0.0;
-  uword n_uncensored = 0;
-
-  for (uword i = 0; i < n; ++i) {
-    const double yi = y(i);
-    const double mui = mu(i);
-    const double resid = yi - mui;
-
-    const bool is_left_censored =
-        std::isfinite(lower) && std::fabs(yi - lower) < eps;
-    const bool is_right_censored =
-        std::isfinite(upper) && std::fabs(yi - upper) < eps;
-
-    if (!is_left_censored && !is_right_censored) {
-      // Uncensored: contributes (y - mu)^2
-      sum_sq += resid * resid;
-      n_uncensored++;
-    }
-  }
-
-  // If no uncensored observations, return current sigma
-  if (n_uncensored == 0) {
-    return current_sigma;
-  }
-
-  // sigma^2 = sum_sq / n_uncensored
-  const double sigma_sq = sum_sq / static_cast<double>(n_uncensored);
-  return std::sqrt(std::max(sigma_sq, eps));
-}
-
 // Get function pointers for a family (called once, not in loop)
 inline MuFromEta get_mu_fn(Family family_type) {
   switch (family_type) {
   case GAUSSIAN:
-  case TOBIT:
     return mu_gaussian;
   case POISSON:
   case NEG_BIN:
     return mu_poisson;
-  case BINOMIAL:
-    return mu_binomial;
-  case PROBIT:
-    return mu_probit;
-  case GAMMA:
-    return mu_gamma;
-  case INV_GAUSSIAN:
-    return mu_invgaussian;
   default:
     return mu_gaussian;
   }
@@ -244,18 +80,9 @@ inline MuFromEta get_mu_fn(Family family_type) {
 inline WorkingWtsNu get_ww_nu_fn(Family family_type) {
   switch (family_type) {
   case GAUSSIAN:
-  case TOBIT:
     return ww_nu_gaussian;
   case POISSON:
     return ww_nu_poisson;
-  case BINOMIAL:
-    return ww_nu_binomial;
-  case PROBIT:
-    return ww_nu_probit;
-  case GAMMA:
-    return ww_nu_gamma;
-  case INV_GAUSSIAN:
-    return ww_nu_invgaussian;
   case NEG_BIN:
     return ww_nu_negbin;
   default:
@@ -439,334 +266,6 @@ inline void expand_separation_result(InferenceGLM &result,
   if (separated_coefs != nullptr && separated_coefs->n_elem > 0) {
     result.separated_coefs = *separated_coefs;
   }
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Average Partial Effects (APE) and Bias Correction for binomial models
-// Based on Cruz-Gonzalez, Fernandez-Val, and Weidner (2017)
-// and Fernandez-Val & Weidner (2016)
-// Following R implementations in biasCorr.R and getAPEs.R
-///////////////////////////////////////////////////////////////////////////
-
-// Second-order partial derivative of mu w.r.t. eta
-// For logit: d^2mu/deta^2 = mu*(1-mu)*(1-2*mu)
-inline vec partial_mu_eta_2(const vec &mu) {
-  return mu % (1.0 - mu) % (1.0 - 2.0 * mu);
-}
-
-// Third-order partial derivative for APE bias correction
-// For logit: d^3mu/deta^3 = mu*(1-mu)*(1-6*mu*(1-mu))
-inline vec partial_mu_eta_3(const vec &mu) {
-  return mu % (1.0 - mu) % (1.0 - 6.0 * mu % (1.0 - mu));
-}
-
-// Compute bias correction for binomial models
-// Follows biasCorr.R structure
-inline void compute_bias_corr_binomial(InferenceGLM &result, const mat &X,
-                                       const vec &beta, const vec &eta,
-                                       const vec &mu, const vec &wt,
-                                       const mat &H, const mat &MX,
-                                       const uword n, const FlatFEMap &fe_map,
-                                       const CapybaraParameters &params) {
-  const uword K = fe_map.K;
-  const uword p = beta.n_elem;
-
-  if (K == 0 || p == 0) {
-    result.has_bias_corr = false;
-    return;
-  }
-
-  // Validate panel structure (classic: 1-2 way FE, network: 2-3 way FE)
-  const bool is_classic = (params.bias_corr_panel_structure == "classic");
-  if (is_classic && K > 2) {
-    result.has_bias_corr = false;
-    return;
-  }
-  if (!is_classic && K < 2) {
-    result.has_bias_corr = false;
-    return;
-  }
-
-  // Compute derivatives (following R: mu.eta, w, z)
-  // mu.eta = dmu/deta = mu*(1-mu) for logit
-  const vec mu_eta = mu % (1.0 - mu);
-
-  // w = wt * mu.eta (working weights)
-  const vec w = wt % mu_eta;
-
-  // z = wt * partial_mu_eta_2 (second derivative weight)
-  const vec z = wt % partial_mu_eta_2(mu);
-
-  // MX * z (element-wise scaling of each column)
-  mat MXz = MX.each_col() % z;
-
-  // Compute bias terms: b = sum_k groupSums(MX*z, w, k) / (2*n)
-  vec b(p, fill::zeros);
-
-  if (is_classic) {
-    // Classic panel: use FE dimensions 0 and 1
-    b = group_sums(MXz, w, fe_map, 0) / (2.0 * n);
-    if (K > 1) {
-      b += group_sums(MXz, w, fe_map, 1) / (2.0 * n);
-    }
-  } else {
-    // Network panel: use all FE dimensions
-    for (uword k = 0; k < K; ++k) {
-      b += group_sums(MXz, w, fe_map, k) / (2.0 * n);
-    }
-  }
-
-  // Solve: bias_term = solve(H/n, -b)
-  const mat H_scaled = H / static_cast<double>(n);
-
-  if (!H_scaled.is_finite() || !b.is_finite()) {
-    result.has_bias_corr = false;
-    return;
-  }
-
-  // Add ridge regularization for numerical stability across platforms
-  // Mac's Accelerate BLAS can have different floating-point behavior (FMA)
-  // Use larger regularization factor to ensure stability even on ARM/Apple
-  // Silicon
-  const double diag_mean = mean(abs(H_scaled.diag()));
-  // Increased initial ridge for cross-platform robustness (was 1e-8, now 1e-7)
-  const double ridge_base = std::max(diag_mean, 1.0) * 1e-7;
-  const double ridge = std::max(ridge_base, datum::eps * 10000);
-  mat H_reg = H_scaled;
-  H_reg.diag() += ridge;
-  // Symmetrize explicitly: ARM FMA units can introduce tiny asymmetry in
-  // crossprod(), causing Accelerate's Cholesky-based solver to reject the
-  // matrix as non-SPD even though the mathematical result is symmetric.
-  H_reg = (H_reg + H_reg.t()) / 2.0;
-
-  vec bias_term;
-  bool solve_ok = solve(bias_term, H_reg, -b, solve_opts::likely_sympd);
-
-  // Fallback strategies if solve fails
-  if (!solve_ok || !bias_term.is_finite()) {
-    // Try with much stronger regularization (was 1e-6, now 1e-5) for Mac/ARM
-    const double ridge_strong = std::max(diag_mean, 1.0) * 1e-5;
-    H_reg = H_scaled;
-    H_reg.diag() += ridge_strong;
-    H_reg = (H_reg + H_reg.t()) / 2.0;
-    solve_ok = solve(bias_term, H_reg, -b, solve_opts::likely_sympd);
-  }
-
-  // Final fallback with aggressive regularization for extreme cases on FMA
-  // systems
-  if (!solve_ok || !bias_term.is_finite()) {
-    const double ridge_extreme = std::max(diag_mean, 1.0) * 1e-3;
-    H_reg = H_scaled;
-    H_reg.diag() += ridge_extreme;
-    H_reg = (H_reg + H_reg.t()) / 2.0;
-    solve_ok = solve(bias_term, H_reg, -b, solve_opts::likely_sympd);
-  }
-
-  if (!solve_ok || !bias_term.is_finite()) {
-    mat H_inv;
-    if (!inv_sympd(H_inv, H_reg) && !pinv(H_inv, H_reg)) {
-      result.has_bias_corr = false;
-      return;
-    }
-    bias_term = H_inv * (-b);
-  }
-
-  if (!bias_term.is_finite()) {
-    result.has_bias_corr = false;
-    return;
-  }
-
-  result.beta_corrected = beta - bias_term;
-  result.bias_term = bias_term;
-  result.has_bias_corr = true;
-}
-
-// Compute Average Partial Effects for binomial models
-// Follows getAPEs.R structure
-inline void compute_apes_binomial(InferenceGLM &result, const mat &X,
-                                  const vec &beta, const vec &eta,
-                                  const vec &mu, const vec &wt, const mat &H,
-                                  const mat &MX, const uword n,
-                                  const FlatFEMap &fe_map,
-                                  const CapybaraParameters &params,
-                                  bool biascorr = false) {
-  const uword p = X.n_cols;
-  const uword K = fe_map.K;
-
-  if (p == 0)
-    return;
-
-  // Finite population adjustment factor
-  double adj = 0.0;
-  if (params.ape_n_pop > 0 && params.ape_n_pop >= n) {
-    adj = static_cast<double>(params.ape_n_pop - n) /
-          static_cast<double>(params.ape_n_pop - 1);
-  }
-
-  const bool is_classic = (params.ape_panel_structure == "classic");
-  const bool is_independence = (params.ape_sampling_fe == "independence");
-
-  // Detect binary regressors
-  uvec is_binary(p);
-  for (uword j = 0; j < p; ++j) {
-    is_binary(j) = all(X.col(j) == 0.0 || X.col(j) == 1.0) ? 1 : 0;
-  }
-
-  // Compute derivatives (following R)
-  const vec mu_eta = mu % (1.0 - mu);
-  const vec w = wt % mu_eta;
-  const vec z = wt % partial_mu_eta_2(mu);
-
-  // Delta (partial effects) and Delta1 (derivatives of Delta)
-  mat Delta(n, p);
-  mat Delta1(n, p);
-
-  for (uword j = 0; j < p; ++j) {
-    if (is_binary(j) == 1) {
-      // Binary regressor: Delta = mu(eta1) - mu(eta0)
-      const vec eta0 = eta - X.col(j) * beta(j);
-      const vec eta1 = eta0 + beta(j);
-      const vec mu0 = 1.0 / (1.0 + exp(-eta0));
-      const vec mu1 = 1.0 / (1.0 + exp(-eta1));
-      Delta.col(j) = mu1 - mu0;
-      Delta1.col(j) = mu1 % (1.0 - mu1) - mu0 % (1.0 - mu0);
-    } else {
-      // Continuous regressor: Delta = beta * mu.eta
-      Delta.col(j) = beta(j) * mu_eta;
-      Delta1.col(j) = beta(j) * partial_mu_eta_2(mu);
-    }
-  }
-
-  // APE = mean(Delta)
-  vec delta = mean(Delta, 0).t();
-
-  // Center Delta for variance: (Delta - delta) / n
-  mat Delta_centered = (Delta.each_row() - delta.t()) / static_cast<double>(n);
-
-  // Jacobian J (following R getAPEs.R structure)
-  mat J(p, p, fill::zeros);
-  const mat PX = X - MX;
-  const double n_d = static_cast<double>(n);
-
-  for (uword j = 0; j < p; ++j) {
-    if (is_binary(j) == 1) {
-      const vec eta0 = eta - X.col(j) * beta(j);
-      const vec eta1 = eta0 + beta(j);
-      const vec mu1 = 1.0 / (1.0 + exp(-eta1));
-      const vec mu_eta_1 = mu1 % (1.0 - mu1);
-
-      // J[, j] = -colSums(PX * Delta1[,j]) / n
-      J.col(j) = -PX.t() * Delta1.col(j) / n_d;
-      // J[j, j] += sum(mu.eta(eta1)) / n
-      J(j, j) += accu(mu_eta_1) / n_d;
-      // J[-j, j] += colSums(X[,-j] * Delta1[,j]) / n
-      for (uword k = 0; k < p; ++k) {
-        if (k != j) {
-          J(k, j) += dot(X.col(k), Delta1.col(j)) / n_d;
-        }
-      }
-    } else {
-      // J[, j] = colSums(MX * Delta1[,j]) / n
-      J.col(j) = MX.t() * Delta1.col(j) / n_d;
-      // J[j, j] += sum(mu.eta) / n
-      J(j, j) += accu(mu_eta) / n_d;
-    }
-  }
-
-  // Psi = -Delta1 / w, MPsi = center(Psi), PPsi = Psi - MPsi
-  mat Psi = -Delta1;
-  Psi.each_col() /= w;
-  mat MPsi = Psi; // Will be centered in-place
-  // Note: For APE variance we need centered Psi, but full centering is
-  // expensive Here we use the approximation that PPsi ~= Psi for variance
-  // computation The R code uses: PPsi <- Psi - MPsi
-
-  // Bias correction for APEs (if biascorr and bandwith info available)
-  if (biascorr) {
-    // Compute Delta2 (second-order partial derivatives)
-    mat Delta2(n, p);
-    for (uword j = 0; j < p; ++j) {
-      if (is_binary(j) == 1) {
-        const vec eta0 = eta - X.col(j) * beta(j);
-        const vec eta1 = eta0 + beta(j);
-        const vec mu0 = 1.0 / (1.0 + exp(-eta0));
-        const vec mu1 = 1.0 / (1.0 + exp(-eta1));
-        Delta2.col(j) = partial_mu_eta_2(mu1) - partial_mu_eta_2(mu0);
-      } else {
-        Delta2.col(j) = beta(j) * partial_mu_eta_3(mu);
-      }
-    }
-
-    // Compute bias terms: b = sum_k groupSums(Delta2 + PPsi*z, w, k) / (2*n)
-    // Using Psi as approximation for PPsi
-    mat bias_mat = Delta2 + Psi.each_col() % z;
-    vec b(p, fill::zeros);
-
-    if (is_classic) {
-      b = group_sums(bias_mat, w, fe_map, 0) / (2.0 * n);
-      if (K > 1) {
-        b += group_sums(bias_mat, w, fe_map, 1) / (2.0 * n);
-      }
-    } else {
-      for (uword k = 0; k < K; ++k) {
-        b += group_sums(bias_mat, w, fe_map, k) / (2.0 * n);
-      }
-    }
-
-    delta -= b;
-  }
-
-  // Variance computation: V = crossprod(Gamma)
-  // where Gamma = (MX * WinvJ - PPsi) * v / n
-  // WinvJ = solve(H/n, J)
-  const mat H_scaled = H / n_d;
-
-  // Add small ridge regularization for numerical stability on ARM
-  const double ridge = std::max(H_scaled.max() * 1e-10, datum::eps * 100);
-  mat H_reg = H_scaled;
-  H_reg.diag() += ridge;
-
-  mat WinvJ;
-  if (!solve(WinvJ, H_reg, J, solve_opts::likely_sympd)) {
-    mat H_inv;
-    if (!inv_sympd(H_inv, H_reg)) {
-      pinv(H_inv, H_reg);
-    }
-    WinvJ = H_inv * J;
-  }
-
-  // v = wt * (y - mu), but we don't have y here
-  // For variance, use working residuals approximation from mu
-  // Gamma = (MX * WinvJ) / n (simplified without residual weighting)
-  mat Gamma = (MX * WinvJ) / n_d;
-
-  mat V = Gamma.t() * Gamma;
-
-  // Finite population correction
-  if (adj > 0.0 && K > 0 && is_independence) {
-    V += adj * group_sums_var(Delta_centered, fe_map, 0);
-
-    if (K > 1) {
-      V += adj * (group_sums_var(Delta_centered, fe_map, 1) -
-                  Delta_centered.t() * Delta_centered);
-    }
-    if (!is_classic && K > 2) {
-      V += adj * (group_sums_var(Delta_centered, fe_map, 2) -
-                  Delta_centered.t() * Delta_centered);
-    }
-
-    // Weak exogeneity correction
-    if (params.ape_weak_exo) {
-      const uword k_exo = is_classic ? 0 : (K > 2 ? K - 1 : 0);
-      mat C = group_sums_cov(Delta_centered, Gamma, fe_map, k_exo);
-      V += adj * (C + C.t());
-    }
-  }
-
-  result.ape_delta = delta;
-  result.ape_vcov = V;
-  result.ape_binary = is_binary;
-  result.has_apes = true;
 }
 
 InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
@@ -1018,19 +517,6 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     eta.set_size(n);
     // Use family-appropriate initialization based on y
     switch (family_type) {
-    case BINOMIAL: {
-      // For binomial, use logit of clipped mean
-      double y_mean = std::clamp(mean(y), 0.01, 0.99);
-      eta.fill(std::log(y_mean / (1.0 - y_mean))); // logit link
-      break;
-    }
-    case GAMMA:
-    case INV_GAUSSIAN: {
-      // For Gamma/inverse.gaussian, use log of mean(y)
-      double y_mean = std::max(mean(y), datum::eps);
-      eta.fill(std::log(y_mean));
-      break;
-    }
     case POISSON:
     case NEG_BIN: {
       // For Poisson/NegBin, use log(mean(y) + 0.1) to handle zeros
@@ -1066,16 +552,6 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 
   // Initial mu from eta
   mu_(mu, eta);
-
-  // Tobit-specific: initialize scale parameter (sigma)
-  // Initial estimate: standard deviation of y (rough approximation)
-  double tobit_sigma = 1.0;
-  if (family_type == TOBIT) {
-    tobit_sigma = stddev(y);
-    if (tobit_sigma < datum::eps) {
-      tobit_sigma = 1.0;
-    }
-  }
 
   // Deviance computations
   double dev = dev_resids(y, mu, theta, w, family_type);
@@ -1136,16 +612,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     auto twwnu0 = std::chrono::high_resolution_clock::now();
 #endif
 
-    // Tobit uses special working weights with censoring and sigma estimation
-    if (family_type == TOBIT) {
-      // Update sigma estimate before computing working weights
-      tobit_sigma = estimate_tobit_sigma(y, mu, params.tobit_lower,
-                                         params.tobit_upper, tobit_sigma);
-      ww_nu_tobit(w_working, nu, w, mu, y, tobit_sigma, params.tobit_lower,
-                  params.tobit_upper);
-    } else {
-      ww_nu_(w_working, nu, w, mu, y, eta, theta);
-    }
+    ww_nu_(w_working, nu, w, mu, y, eta, theta);
 
     // Working response z = eta + nu - offset (reuses workspace buffer)
     z = eta + nu;
@@ -1597,20 +1064,6 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       result.TX = MX;
       result.has_tx = true;
     }
-
-    // Compute Average Partial Effects for binomial models if requested
-    if (params.compute_apes && family_type == BINOMIAL) {
-      compute_apes_binomial(result, X, beta, result.eta, result.fitted_values,
-                            w, result.hessian, MX, n, fe_map, params,
-                            params.compute_bias_corr);
-    }
-
-    // Compute bias correction for binomial models if requested
-    if (params.compute_bias_corr && family_type == BINOMIAL) {
-      compute_bias_corr_binomial(result, X, beta, result.eta,
-                                 result.fitted_values, w, result.hessian, MX, n,
-                                 fe_map, params);
-    }
   } else {
     // Non-convergence: still populate result vectors for R-side diagnostics
     result.eta = std::move(eta);
@@ -1644,30 +1097,6 @@ inline void offset_ww_yadj_poisson(vec &w_working, vec &yadj, const vec &w,
   yadj = (y - mu) / mu + eta - offset;
 }
 
-inline void offset_ww_yadj_binomial(vec &w_working, vec &yadj, const vec &w,
-                                    const vec &mu, const vec &y, const vec &eta,
-                                    const vec &offset) {
-  const vec var = mu % (1.0 - mu);
-  w_working = w % var;
-  yadj = (y - mu) / var + eta - offset;
-}
-
-inline void offset_ww_yadj_gamma(vec &w_working, vec &yadj, const vec &w,
-                                 const vec &mu, const vec &y, const vec &eta,
-                                 const vec &offset) {
-  const vec m2 = square(mu);
-  w_working = w % m2;
-  yadj = -(y - mu) / m2 + eta - offset;
-}
-
-inline void offset_ww_yadj_invgaussian(vec &w_working, vec &yadj, const vec &w,
-                                       const vec &mu, const vec &y,
-                                       const vec &eta, const vec &offset) {
-  const vec m3 = pow(mu, 3);
-  w_working = 0.25 * (w % m3);
-  yadj = -2.0 * (y - mu) / m3 + eta - offset;
-}
-
 inline OffsetWwYadj get_offset_ww_yadj_fn(Family family_type) {
   switch (family_type) {
   case GAUSSIAN:
@@ -1675,12 +1104,6 @@ inline OffsetWwYadj get_offset_ww_yadj_fn(Family family_type) {
   case POISSON:
   case NEG_BIN:
     return offset_ww_yadj_poisson;
-  case BINOMIAL:
-    return offset_ww_yadj_binomial;
-  case GAMMA:
-    return offset_ww_yadj_gamma;
-  case INV_GAUSSIAN:
-    return offset_ww_yadj_invgaussian;
   default:
     return offset_ww_yadj_gaussian;
   }

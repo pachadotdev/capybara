@@ -15,13 +15,12 @@ inline SeparationResult check_group_separation(const vec &y, const vec &w,
   result.num_separated = 0;
   result.converged = true;
 
-  // Only applicable for Poisson, NegBin, Binomial, and Probit with fixed
-  // effects
+  // Only applicable for Poisson/NegBin with fixed effects
   if (fe_map.K == 0) {
     return result;
   }
-  const bool is_binary = (family_type == BINOMIAL || family_type == PROBIT);
-  if (!is_binary && family_type != POISSON && family_type != NEG_BIN) {
+
+  if (family_type != POISSON && family_type != NEG_BIN) {
     return result;
   }
 
@@ -116,13 +115,9 @@ inline SeparationResult check_group_separation(const vec &y, const vec &w,
         const double grp_mean = sum_ptr[g] / wt_ptr[g];
 
         bool is_separated = false;
-        if (is_binary) {
-          // Groups where mean(y) <= 0 or mean(y) >= 1 => perfect prediction
-          is_separated = (grp_mean <= 0.0 || grp_mean >= 1.0);
-        } else {
-          // Poisson/NegBin: groups where mean(y) <= 0 => all zeros
-          is_separated = (grp_mean <= 0.0);
-        }
+
+        // Poisson/NegBin: groups where mean(y) <= 0 => all zeros
+        is_separated = (grp_mean <= 0.0);
 
         if (is_separated) {
           // Mark all members of this degenerate group
