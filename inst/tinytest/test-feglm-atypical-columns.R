@@ -3,7 +3,7 @@
 #' @noRd
 NULL
 
-# feglm handles unit-type columns"
+# feglm handles unit-type columns
 local({
   if (!requireNamespace("units", quietly = TRUE)) {
     return(NULL)

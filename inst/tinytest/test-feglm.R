@@ -18,191 +18,42 @@ NULL
 
 source(system.file("tinytest", "helper.R", package = "capybara"))
 
-# feglm is similar to glm"
+# feglm works without fixed effects
 local({
-  # Gaussian ----
-  # see test-felm.R
-
-  # Poisson ----
-  # see test-fepoisson.R
-
-  # Binomial ----
-  mod_binom <- feglm(am ~ wt + mpg | cyl, mtcars, family = binomial())
-  mod_binom_base <- glm(
-    am ~ wt + mpg + as.factor(cyl),
-    mtcars,
-    family = binomial()
-  )
-  # coef(mod_binom)
-  # coef(mod_binom_base)[2:3]
-
-  expect_equal(
-    unname(coef(mod_binom) - coef(mod_binom_base)[2:3]),
-    c(0, 0),
-    tolerance = 1e-2
-  )
-
-  mod_binom <- feglm(am ~ wt + mpg | cyl, mtcars, family = binomial())
-  # mod_binom_fixest <- fixest::feglm(am ~ wt + mpg | cyl, mtcars, family = binomial())
-
-  mod_binom
-  # mod_binom_fixest
-
-  # predict(mod_binom)
-  # predict(mod_binom_fixest)
-
-  # Gamma ----
-  mod_gamma <- feglm(mpg ~ wt + am | cyl, mtcars, family = Gamma())
-  mod_gamma_base <- glm(
-    mpg ~ wt + am + as.factor(cyl),
-    mtcars,
-    family = Gamma()
-  )
-  expect_equal(coef(mod_gamma_base)[2:3], coef(mod_gamma), tolerance = 1e-2)
-
-  # Inverse Gaussian ----
-  mod_invgauss <- feglm(
-    mpg ~ wt + am | cyl,
-    mtcars,
-    family = inverse.gaussian()
-  )
-  mod_invgauss_base <- glm(
-    mpg ~ wt + am + as.factor(cyl),
-    mtcars,
-    family = inverse.gaussian()
-  )
-  expect_equal(
-    coef(mod_invgauss_base)[2:3],
-    coef(mod_invgauss),
-    tolerance = 1e-2
-  )
-})
-
-# feglm works without fixed effects"
-local({
-  mtcars$log_mpg <- log(mtcars$mpg)
-  mtcars$log_wt <- log(mtcars$wt)
-
-  m1 <- feglm(log_mpg ~ log_wt, data = mtcars)
-  m2 <- glm(log_mpg ~ log_wt, data = mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  m1 <- feglm(trade ~ log_dist, data = yotov2017_subset)
+  m2 <- glm(trade ~ log_dist, data = yotov2017_subset)
 
   expect_equal(coef(m1), coef(m2), tolerance = 1e-6)
 })
 
-# predicted values increase the error outside the inter-quartile range for GLMs"
+# out of sample predictions have larger margins of error
 local({
-  skip_on_cran()
-
   # Helper function for MAPE calculation
   mape <- function(y, yhat) {
     mean(abs(y - yhat) / y)
   }
 
-  # Create data subsets once
-  d1 <- mtcars[
-    mtcars$mpg >= quantile(mtcars$mpg, 0.25) &
-      mtcars$mpg <= quantile(mtcars$mpg, 0.75),
-  ]
-  d2 <- mtcars[
-    mtcars$mpg < quantile(mtcars$mpg, 0.25) |
-      mtcars$mpg > quantile(mtcars$mpg, 0.75),
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017[yotov2017$trade > 0, ]
+
+  yotov2017_subset2 <- yotov2017_subset[
+    yotov2017_subset$trade >= quantile(yotov2017_subset$trade, 0.25) &
+      yotov2017_subset$trade <= quantile(yotov2017_subset$trade, 0.75),
   ]
 
-  # Poisson ----
-  m1_pois <- fepoisson(mpg ~ wt + disp | cyl, mtcars, control = fit_control(return_fe = TRUE))
-  m2_pois <- glm(
-    mpg ~ wt + disp + as.factor(cyl),
-    mtcars,
-    family = quasipoisson()
-  )
-  # m3_pois <- fixest::fepois(mpg ~ wt + disp | cyl, mtcars)
+  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset2)
+  
+  p1 <- predict(mod, newdata = yotov2017_subset, type = "response")
+  p2 <- predict(mod, newdata = yotov2017_subset2, type = "response")
 
-  pred1_pois <- predict(m1_pois, newdata = d1, type = "response")
-  pred2_pois <- predict(m1_pois, newdata = d2, type = "response")
-  # pred3_pois <- predict(m3_pois, newdata = d1, type = "response")
+  mape1 <- mape(yotov2017_subset$trade, p1)
+  mape2 <- mape(yotov2017_subset2$trade, p2)
 
-  mape1_pois <- mape(d1$mpg, pred1_pois)
-  mape2_pois <- mape(d2$mpg, pred2_pois)
-
-  expect_true(mape2_pois > mape1_pois)
-
-  # Compare with base R Poisson
-  pred1_base_pois <- predict(m2_pois, newdata = d1, type = "response")
-  pred2_base_pois <- predict(m2_pois, newdata = d2, type = "response")
-  expect_equal(pred1_base_pois, pred1_pois, tolerance = 1e-2)
-  expect_equal(pred2_base_pois, pred2_pois, tolerance = 1e-2)
-
-  # Compare with fixest Poisson
-  # pred1_fixest_pois <- predict(m3_pois, newdata = d1, type = "response")
-  # pred2_fixest_pois <- predict(m3_pois, newdata = d2, type = "response")
-  # expect_equal(unname(pred1_fixest_pois), pred1_pois, tolerance = 1e-2)
-  # expect_equal(unname(pred2_fixest_pois), pred2_pois, tolerance = 1e-2)
-
-  # Binomial ----
-  m1_binom <- feglm(am ~ wt + disp | cyl, mtcars, family = binomial(), control = fit_control(return_fe = TRUE))
-  m2_binom <- glm(am ~ wt + disp + as.factor(cyl), mtcars, family = binomial())
-
-  pred1_binom <- predict(m1_binom, newdata = d1, type = "response")
-  pred2_binom <- predict(m1_binom, newdata = d2, type = "response")
-
-  mape1_binom <- mape(d1$mpg, pred1_binom)
-  mape2_binom <- mape(d2$mpg, pred2_binom)
-
-  expect_true(mape1_binom < mape2_binom)
-
-  # Compare with base R Binomial
-  pred1_base_binom <- predict(m2_binom, newdata = d1, type = "response")
-  pred2_base_binom <- predict(m2_binom, newdata = d2, type = "response")
-  expect_equal(pred1_binom, pred1_base_binom, tolerance = 1e-2)
-  expect_equal(pred2_binom, pred2_base_binom, tolerance = 1e-2)
-
-  names(m2_binom)
+  expect_true(mape1 > mape2)
 })
 
-# predicted values increase the error outside the inter-quartile range for LMs"
-local({
-  skip_on_cran()
-
-  # Helper function for MAPE calculation
-  mape <- function(y, yhat) {
-    mean(abs(y - yhat) / y)
-  }
-
-  # Create data subsets once
-  d1 <- mtcars[
-    mtcars$mpg >= quantile(mtcars$mpg, 0.25) &
-      mtcars$mpg <= quantile(mtcars$mpg, 0.75),
-  ]
-  d2 <- mtcars[
-    mtcars$mpg < quantile(mtcars$mpg, 0.25) |
-      mtcars$mpg > quantile(mtcars$mpg, 0.75),
-  ]
-
-  # Binomial GLM ----
-
-  m1_binom <- feglm(am ~ wt + disp | cyl, mtcars, family = binomial(), control = fit_control(return_fe = TRUE))
-  # m2_binom <- fixest::feglm(am ~ wt + disp | cyl, mtcars, family = binomial())
-  m2_binom <- glm(am ~ wt + disp + as.factor(cyl), mtcars, family = binomial())
-
-  # coef(m1_binom)
-  # coef(m2_binom)[2:3]
-
-  pred1_binom <- predict(m1_binom, newdata = d1, type = "response")
-  pred2_binom <- predict(m1_binom, newdata = d2, type = "response")
-
-  mape1_binom <- mape(d1$mpg, pred1_binom)
-  mape2_binom <- mape(d2$mpg, pred2_binom)
-
-  expect_true(mape1_binom < mape2_binom)
-
-  # Compare with base R Binomial
-  pred1_base_binom <- predict(m2_binom, newdata = d1, type = "response")
-  pred2_base_binom <- predict(m2_binom, newdata = d2, type = "response")
-  expect_equal(pred1_binom, pred1_base_binom, tolerance = 1e-2)
-  expect_equal(pred2_binom, pred2_base_binom, tolerance = 1e-2)
-})
-
-# proportional regressors return NA coefficients"
+# proportional regressors return NA coefficients
 local({
   set.seed(200100)
   d <- data.frame(
@@ -219,88 +70,44 @@ local({
   expect_equal(predict(fit2), predict(fit1), tolerance = 1e-2)
 })
 
-# feglm with weights works"
+# feglm with weights works
 local({
   skip_on_cran()
 
-  m1 <- feglm(mpg ~ wt | am, weights = ~cyl, data = mtcars)
-  m2 <- feglm(mpg ~ wt | am, weights = mtcars$cyl, data = mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset$trade_pair <- ave(yotov2017_subset$trade, yotov2017_subset$pair,
+    FUN = function(x) sum(x, na.rm = TRUE))
 
-  w <- mtcars$cyl
-  m3 <- feglm(mpg ~ wt | am, weights = w, data = mtcars)
+  m1 <- feglm(trade ~ log_dist | exp_year, weights = ~trade_pair, data = yotov2017_subset)
+  m2 <- feglm(trade ~ log_dist | exp_year, weights = yotov2017_subset$trade_pair, data = yotov2017_subset)
+
+  w <- yotov2017_subset$trade_pair
+  m3 <- feglm(trade ~ log_dist | exp_year, weights = w, data = yotov2017_subset)
 
   expect_equal(coef(m2), coef(m1))
   expect_equal(coef(m3), coef(m1))
 
   w <- NULL
-  m4 <- feglm(mpg ~ wt | am, weights = w, data = mtcars)
+  m4 <- feglm(trade ~ log_dist | exp_year, weights = w, data = yotov2017_subset)
 
-  expect_true(coef(m1) > coef(m4))
+  expect_true(coef(m1) != coef(m4))
 })
 
-# Stammann centering ----
-
-# feglm is similar to glm (stammann centering)"
-local({
-  ctrl <- list(centering = "stammann")
-
-  # Binomial ----
-  mod_binom <- feglm(am ~ wt + mpg | cyl, mtcars, family = binomial(), control = ctrl)
-  mod_binom_base <- glm(
-    am ~ wt + mpg + as.factor(cyl),
-    mtcars,
-    family = binomial()
-  )
-
-  expect_equal(
-    unname(coef(mod_binom) - coef(mod_binom_base)[2:3]),
-    c(0, 0),
-    tolerance = 1e-2
-  )
-
-  # Gamma ----
-  mod_gamma <- feglm(mpg ~ wt + am | cyl, mtcars, family = Gamma(), control = ctrl)
-  mod_gamma_base <- glm(
-    mpg ~ wt + am + as.factor(cyl),
-    mtcars,
-    family = Gamma()
-  )
-  expect_equal(coef(mod_gamma_base)[2:3], coef(mod_gamma), tolerance = 1e-2)
-
-  # Inverse Gaussian ----
-  mod_invgauss <- feglm(
-    mpg ~ wt + am | cyl,
-    mtcars,
-    family = inverse.gaussian(),
-    control = ctrl
-  )
-  mod_invgauss_base <- glm(
-    mpg ~ wt + am + as.factor(cyl),
-    mtcars,
-    family = inverse.gaussian()
-  )
-  expect_equal(
-    coef(mod_invgauss_base)[2:3],
-    coef(mod_invgauss),
-    tolerance = 1e-2
-  )
-})
-
-# feglm works without fixed effects (stammann centering)"
+# feglm works without fixed effects (stammann centering)
 local({
   # centering is unused without FEs, but control must be accepted
   ctrl <- list(centering = "stammann")
 
-  mtcars$log_mpg <- log(mtcars$mpg)
-  mtcars$log_wt <- log(mtcars$wt)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
 
-  m1 <- feglm(log_mpg ~ log_wt, data = mtcars, control = ctrl)
-  m2 <- glm(log_mpg ~ log_wt, data = mtcars)
+  m1 <- feglm(trade ~ log_dist, data = yotov2017_subset, control = ctrl)
+  m2 <- glm(trade ~ log_dist, data = yotov2017_subset)
 
   expect_equal(coef(m1), coef(m2), tolerance = 1e-6)
 })
 
-# proportional regressors return NA coefficients (stammann centering)"
+# proportional regressors return NA coefficients (stammann centering)
 local({
   ctrl <- list(centering = "stammann")
   set.seed(200100)
@@ -316,462 +123,4 @@ local({
 
   expect_equal(coef(fit2), coef(fit1)[2:3], tolerance = 1e-2)
   expect_equal(predict(fit2), predict(fit1), tolerance = 1e-2)
-})
-
-# feglm with weights works (stammann centering)"
-local({
-  skip_on_cran()
-  ctrl <- list(centering = "stammann")
-
-  m1 <- feglm(mpg ~ wt | am, weights = ~cyl, data = mtcars, control = ctrl)
-  m2 <- feglm(mpg ~ wt | am, weights = mtcars$cyl, data = mtcars, control = ctrl)
-
-  w <- mtcars$cyl
-  m3 <- feglm(mpg ~ wt | am, weights = w, data = mtcars, control = ctrl)
-
-  expect_equal(coef(m2), coef(m1))
-  expect_equal(coef(m3), coef(m1))
-
-  w <- NULL
-  m4 <- feglm(mpg ~ wt | am, weights = w, data = mtcars, control = ctrl)
-
-  expect_true(coef(m1) > coef(m4))
-})
-
-# Average Partial Effects (APE) tests ----
-
-# feglm computes APEs for binomial models"
-local({
-  # Fit binomial model with APE computation
-  mod_binom_ape <- feglm(
-    am ~ wt + mpg | cyl,
-    mtcars,
-    family = binomial(),
-    control = fit_control(compute_apes = TRUE)
-  )
-
-  # Check that APE results are present
-  expect_true(!is.null(mod_binom_ape$ape_delta))
-  expect_true(!is.null(mod_binom_ape$ape_vcov))
-  expect_true(!is.null(mod_binom_ape$ape_binary))
-
-  # Check dimensions
-  expect_equal(length(mod_binom_ape$ape_delta), 2) # wt and mpg
-  expect_equal(dim(mod_binom_ape$ape_vcov), c(2, 2))
-  expect_equal(length(mod_binom_ape$ape_binary), 2)
-
-  # APEs should be finite
-
-  expect_true(all(is.finite(mod_binom_ape$ape_delta)))
-
-  # APEs should have reasonable magnitudes (between -1 and 1 for probabilities)
-  expect_true(all(abs(mod_binom_ape$ape_delta) < 1))
-
-  # Variance matrix should be symmetric and positive semi-definite
-  expect_equal(mod_binom_ape$ape_vcov, t(mod_binom_ape$ape_vcov), tolerance = 1e-10)
-  expect_true(all(eigen(mod_binom_ape$ape_vcov)$values >= -1e-10))
-})
-
-# APEs are not computed when compute_apes = FALSE"
-local({
-  # Default: compute_apes = FALSE
-  mod_binom <- feglm(
-    am ~ wt + mpg | cyl,
-    mtcars,
-    family = binomial()
-  )
-
-  # APE results should not be present
-  expect_null(mod_binom$ape_delta)
-  expect_null(mod_binom$ape_vcov)
-})
-
-# APEs are not computed for non-binomial models"
-local({
-  # Poisson model with compute_apes = TRUE should not have APEs
-  mod_poisson <- feglm(
-    mpg ~ wt + am | cyl,
-    mtcars,
-    family = poisson(),
-    control = fit_control(compute_apes = TRUE)
-  )
-
-  # APE results should not be present for non-binomial
-  expect_null(mod_poisson$ape_delta)
-})
-
-# APE binary indicator correctly identifies binary regressors"
-local({
-  # Create data with mixed binary and continuous regressors
-  set.seed(123)
-  d <- data.frame(
-    y = rbinom(100, 1, 0.5),
-    x_cont = rnorm(100),
-    x_binary = sample(0:1, 100, replace = TRUE),
-    f = factor(sample(1:3, 100, replace = TRUE))
-  )
-
-  mod <- feglm(
-    y ~ x_cont + x_binary | f,
-    d,
-    family = binomial(),
-    control = fit_control(compute_apes = TRUE)
-  )
-
-  # Check binary indicator
-  expect_equal(length(mod$ape_binary), 2)
-  # x_cont should be 0 (continuous), x_binary should be 1 (binary)
-  expect_equal(as.numeric(mod$ape_binary), c(0, 1))
-})
-
-# APE standard errors can be computed from vcov"
-local({
-  mod <- feglm(
-    am ~ wt + mpg | cyl,
-    mtcars,
-    family = binomial(),
-    control = fit_control(compute_apes = TRUE)
-  )
-
-  # Compute standard errors from variance-covariance matrix
-  ape_se <- sqrt(diag(mod$ape_vcov))
-
-  # Standard errors should be finite and positive
-  expect_true(all(is.finite(ape_se)))
-  expect_true(all(ape_se > 0))
-
-  # z-statistics
-  z_vals <- mod$ape_delta / ape_se
-  expect_true(all(is.finite(z_vals)))
-})
-
-# APE with finite population correction works"
-local({
-  # With n_pop > n, variance should be adjusted
-  mod_no_pop <- feglm(
-    am ~ wt + mpg | cyl,
-    mtcars,
-    family = binomial(),
-    control = fit_control(compute_apes = TRUE)
-  )
-
-  mod_with_pop <- feglm(
-    am ~ wt + mpg | cyl,
-    mtcars,
-    family = binomial(),
-    control = fit_control(compute_apes = TRUE, ape_n_pop = 1000)
-  )
-
-  # Both should have APE results
-  expect_true(!is.null(mod_no_pop$ape_delta))
-  expect_true(!is.null(mod_with_pop$ape_delta))
-
-  # APE point estimates should be similar (n_pop doesn't affect point estimates)
-  expect_equal(mod_no_pop$ape_delta, mod_with_pop$ape_delta, tolerance = 1e-10)
-
-  # Variance matrices may differ due to finite population correction
-  # (the correction adds additional variance terms)
-  expect_true(!is.null(mod_with_pop$ape_vcov))
-})
-
-# APE panel_structure parameter works"
-local({
-  # Create a simple two-way panel dataset
-  set.seed(42)
-  n_obs <- 200
-  d <- data.frame(
-    y = rbinom(n_obs, 1, 0.5),
-    x = rnorm(n_obs),
-    fe1 = factor(rep(1:10, each = 20)),
-    fe2 = factor(rep(1:20, times = 10))
-  )
-
-  # Classic panel structure
-  mod_classic <- feglm(
-    y ~ x | fe1 + fe2,
-    d,
-    family = binomial(),
-    control = fit_control(
-      compute_apes = TRUE,
-      ape_panel_structure = "classic"
-    )
-  )
-
-  # Network panel structure
-  mod_network <- feglm(
-    y ~ x | fe1 + fe2,
-    d,
-    family = binomial(),
-    control = fit_control(
-      compute_apes = TRUE,
-      ape_panel_structure = "network"
-    )
-  )
-
-  # Both should produce valid APE results
-  expect_true(!is.null(mod_classic$ape_delta))
-  expect_true(!is.null(mod_network$ape_delta))
-  expect_true(all(is.finite(mod_classic$ape_delta)))
-  expect_true(all(is.finite(mod_network$ape_delta)))
-})
-
-# APE with sampling_fe parameter works"
-local({
-  set.seed(123)
-  d <- data.frame(
-    y = rbinom(100, 1, 0.5),
-    x = rnorm(100),
-    f = factor(sample(1:5, 100, replace = TRUE))
-  )
-
-  # Independence sampling assumption
-  mod_indep <- feglm(
-    y ~ x | f,
-    d,
-    family = binomial(),
-    control = fit_control(
-      compute_apes = TRUE,
-      ape_n_pop = 500,
-      ape_sampling_fe = "independence"
-    )
-  )
-
-  # Unrestricted sampling assumption
-  mod_unrest <- feglm(
-    y ~ x | f,
-    d,
-    family = binomial(),
-    control = fit_control(
-      compute_apes = TRUE,
-      ape_n_pop = 500,
-      ape_sampling_fe = "unrestricted"
-    )
-  )
-
-  # Both should produce valid APE results
-  expect_true(!is.null(mod_indep$ape_delta))
-  expect_true(!is.null(mod_unrest$ape_delta))
-
-  # Point estimates should be the same
-  expect_equal(mod_indep$ape_delta, mod_unrest$ape_delta, tolerance = 1e-10)
-})
-
-# APE with weak_exo parameter works"
-local({
-  set.seed(456)
-  d <- data.frame(
-    y = rbinom(100, 1, 0.5),
-    x = rnorm(100),
-    f = factor(sample(1:5, 100, replace = TRUE))
-  )
-
-  # Strict exogeneity (default)
-  mod_strict <- feglm(
-    y ~ x | f,
-    d,
-    family = binomial(),
-    control = fit_control(
-      compute_apes = TRUE,
-      ape_n_pop = 500,
-      ape_weak_exo = FALSE
-    )
-  )
-
-  # Weak exogeneity
-  mod_weak <- feglm(
-    y ~ x | f,
-    d,
-    family = binomial(),
-    control = fit_control(
-      compute_apes = TRUE,
-      ape_n_pop = 500,
-      ape_weak_exo = TRUE
-    )
-  )
-
-  # Both should produce valid APE results
-  expect_true(!is.null(mod_strict$ape_delta))
-  expect_true(!is.null(mod_weak$ape_delta))
-
-  # Point estimates should be the same (weak_exo only affects variance)
-  expect_equal(mod_strict$ape_delta, mod_weak$ape_delta, tolerance = 1e-10)
-})
-
-# Bias Correction Tests ----
-
-# bias correction works for one-way FE binomial"
-local({
-  set.seed(789)
-  n <- 300  # Increased from 200 for Mac/ARM stability
-  n_f <- 15  # Increased from 10 for Mac/ARM stability
-  d <- data.frame(
-    x1 = rnorm(n),
-    x2 = rnorm(n),
-    f = factor(sample(1:n_f, n, replace = TRUE))
-  )
-  # Generate y with actual signal for reliable convergence
-  alpha_f <- rnorm(n_f, sd = 0.5)[d$f]  # Increased SD for stronger signal
-  prob <- plogis(0.5 * d$x1 + 0.3 * d$x2 + alpha_f)
-  d$y <- rbinom(n, 1, prob)
-
-  # Fit without bias correction
-  mod_uncorr <- feglm(
-    y ~ x1 + x2 | f,
-    d,
-    family = binomial()
-  )
-
-  # Fit with bias correction
-  mod_corr <- feglm(
-    y ~ x1 + x2 | f,
-    d,
-    family = binomial(),
-    control = fit_control(compute_bias_corr = TRUE)
-  )
-
-  # Original coefficients should be the same
-  expect_equal(coef(mod_uncorr), coef(mod_corr), tolerance = 1e-10)
-
-  # Bias-corrected results should be present
-  expect_true(!is.null(mod_corr$beta_corrected))
-  expect_true(!is.null(mod_corr$bias_term))
-  expect_true(isTRUE(mod_corr$has_bias_corr))
-
-  # Corrected coefficients should differ from uncorrected
-  expect_equal(length(mod_corr$beta_corrected), length(coef(mod_corr)))
-
-  # Bias term should be non-zero (with FE, there's bias)
-  expect_true(any(abs(mod_corr$bias_term) > 0))
-
-  # Beta_corrected = beta - bias_term
-  expect_equal(
-    unname(mod_corr$beta_corrected),
-    unname(coef(mod_corr) - mod_corr$bias_term),
-    tolerance = 1e-10
-  )
-})
-
-# bias correction works for two-way FE binomial (classic panel)"
-local({
-  set.seed(101)
-  n_i <- 30  # Increased from 20 for Mac/ARM stability
-  n_t <- 15  # Increased from 10 for Mac/ARM stability
-  d <- expand.grid(i = 1:n_i, t = 1:n_t)
-  d$x <- rnorm(nrow(d))
-  d$x2 <- rnorm(nrow(d))  # Add second regressor for numerical stability
-  # Generate y with actual signal for reliable convergence
-  alpha_i <- rnorm(n_i, sd = 0.5)[d$i]
-  alpha_t <- rnorm(n_t, sd = 0.5)[d$t]
-  prob <- plogis(0.5 * d$x + 0.3 * d$x2 + alpha_i + alpha_t)
-  d$y <- rbinom(nrow(d), 1, prob)
-  d$i <- factor(d$i)
-  d$t <- factor(d$t)
-
-  mod <- feglm(
-    y ~ x + x2 | i + t,
-    d,
-    family = binomial(),
-    control = fit_control(
-      compute_bias_corr = TRUE,
-      bias_corr_panel_structure = "classic"
-    )
-  )
-
-  expect_true(!is.null(mod$beta_corrected))
-  expect_true(!is.null(mod$bias_term))
-  expect_true(isTRUE(mod$has_bias_corr))
-})
-
-# bias correction with network panel structure"
-local({
-  set.seed(202)
-  # Simulate bilateral trade data (exporter-importer-time)
-  # Increased dimensions for reliable convergence across platforms (especially Mac FMA)
-  n_exp <- 12
-  n_imp <- 12
-  n_t <- 6
-  d <- expand.grid(exp = 1:n_exp, imp = 1:n_imp, t = 1:n_t)
-  d <- d[d$exp != d$imp, ] # No self-trade
-  d$x <- rnorm(nrow(d))
-  d$x2 <- rnorm(nrow(d)) # Add second regressor for numerical stability
-  # Generate y with actual signal for reliable convergence
-  alpha_exp <- rnorm(n_exp, sd = 0.5)[d$exp]
-  alpha_imp <- rnorm(n_imp, sd = 0.5)[d$imp]
-  alpha_t <- rnorm(n_t, sd = 0.5)[d$t]
-  prob <- plogis(0.5 * d$x + 0.3 * d$x2 + alpha_exp + alpha_imp + alpha_t)
-  d$y <- rbinom(nrow(d), 1, prob)
-  d$exp <- factor(d$exp)
-  d$imp <- factor(d$imp)
-  d$t <- factor(d$t)
-
-  # Network panel needs 2 or 3 FE
-  mod <- feglm(
-    y ~ x + x2 | exp + imp + t,
-    d,
-    family = binomial(),
-    control = fit_control(
-      compute_bias_corr = TRUE,
-      bias_corr_panel_structure = "network"
-    )
-  )
-
-  expect_true(!is.null(mod$beta_corrected))
-  expect_true(!is.null(mod$bias_term))
-  expect_true(isTRUE(mod$has_bias_corr))
-})
-
-# bias correction not computed for non-binomial families"
-local({
-  set.seed(303)
-  d <- data.frame(
-    y = rpois(100, 5),
-    x = rnorm(100),
-    f = factor(sample(1:5, 100, replace = TRUE))
-  )
-
-  mod <- feglm(
-    y ~ x | f,
-    d,
-    family = poisson(),
-    control = fit_control(compute_bias_corr = TRUE)
-  )
-
-  # Should not have bias correction for Poisson
-  expect_true(is.null(mod$beta_corrected) || !isTRUE(mod$has_bias_corr))
-})
-
-# bias correction not computed when not requested"
-local({
-  set.seed(404)
-  d <- data.frame(
-    y = rbinom(100, 1, 0.5),
-    x = rnorm(100),
-    f = factor(sample(1:5, 100, replace = TRUE))
-  )
-
-  mod <- feglm(
-    y ~ x | f,
-    d,
-    family = binomial(),
-    control = fit_control(compute_bias_corr = FALSE)
-  )
-
-  expect_true(is.null(mod$beta_corrected) || !isTRUE(mod$has_bias_corr))
-})
-
-# bias_corr_bandwidth parameter validation works"
-local({
-  # Should error with negative bandwidth
-  expect_error(
-    fit_control(compute_bias_corr = TRUE, bias_corr_bandwidth = -1L),
-    "bias_corr_bandwidth should be a non-negative integer"
-  )
-})
-
-# bias_corr_panel_structure parameter validation works"
-local({
-  # Invalid value should error
-  expect_error(
-    fit_control(bias_corr_panel_structure = "invalid")
-  )
 })

@@ -103,6 +103,32 @@ fi
 # Add the detected standard to CXXFLAGS
 CXXFLAGS="$CXXFLAGS $STD_FLAG"
 
+# Detect compiler type (Clang vs GCC)
+COMPILER_TYPE="unknown"
+if $CXX --version 2>/dev/null | grep -q "clang"; then
+    COMPILER_TYPE="clang"
+elif $CXX --version 2>/dev/null | grep -q "gcc"; then
+    COMPILER_TYPE="gcc"
+fi
+
+# Compiler-specific warning flags
+WARN_FLAGS=""
+case "$COMPILER_TYPE" in
+    clang)
+        # Suppress Clang-specific warnings (e.g., from Armadillo headers)
+        for flag in -Wno-nan-infinity-disabled -Wno-unknown-warning-option; do
+            if test_flag "$flag"; then
+                WARN_FLAGS="$WARN_FLAGS $flag"
+            fi
+        done
+        ;;
+    gcc)
+        # GCC-specific warning handling (add as needed)
+        ;;
+esac
+
+CXXFLAGS="$CXXFLAGS $WARN_FLAGS"
+
 # High-performance optimization flags
 OPTFLAGS=""
 if [ "$CAPYBARA_OPTIMIZATIONS" = "yes" ]; then
@@ -149,6 +175,21 @@ if [ "$CAPYBARA_OPTIMIZATIONS" = "yes" ]; then
     fi
   done
   
+  # Compiler-specific optimizations
+  case "$COMPILER_TYPE" in
+    clang)
+      # Clang-specific vectorization flags
+      for flag in -fvectorize -fslp-vectorize; do
+        if test_flag "$flag"; then
+          OPTFLAGS="$OPTFLAGS $flag"
+        fi
+      done
+      ;;
+    gcc)
+      # GCC-specific optimizations (already handled above via generic flags)
+      ;;
+  esac
+  
   # Link-time optimization
   if test_flag "-flto"; then
     OPTFLAGS="$OPTFLAGS -flto"
@@ -167,7 +208,7 @@ if [ -n "$BLAS_LIBS" ]; then
 fi
 
 # Disable sparse matrix wrappers if requested
-if [ "${CAPYBARA_NO_SPARSE:-}" = "yes" ]; then
+if [ "${CAPYBARA_SKIP_SPARSE:-}" = "yes" ]; then
   ARMA_FLAGS="$ARMA_FLAGS -DARMADILLO4R_NO_SPARSE"
 fi
 
@@ -208,6 +249,7 @@ cat <<EOF
 Capybara configuration summary
 
   C++ Compiler:           $CXX
+  Compiler Type:          $COMPILER_TYPE
   C++ Standard:           $CXX_STD
   OpenMP Support:         $OPENMP_SUPPORT
   OpenMP Threads:         $num_cores
@@ -215,7 +257,7 @@ Capybara configuration summary
   BLAS:                   $BLAS_LIBS
   LAPACK:                 $LAPACK_LIBS
   No Armadillo Wrapper:   $WRAPPER_STATUS
-  No Sparse Matrices:     ${CAPYBARA_NO_SPARSE:-no}
+  No Sparse Matrices:     ${CAPYBARA_SKIP_SPARSE:-no}
   High-Performance Mode:  ${CAPYBARA_OPTIMIZATIONS:-no}
   Optimization Flags:     $OPTFLAGS
   Debug Flags:            $DEBUG_FLAGS
@@ -231,9 +273,9 @@ fi
 echo " Change thread count:"
 echo " export CAPYBARA_NCORES=<number>"
 echo " "
-if [ "${CAPYBARA_NO_SPARSE:-no}" != "yes" ]; then
+if [ "${CAPYBARA_SKIP_SPARSE:-no}" != "yes" ]; then
   echo " Disable sparse matrix support (faster compile):"
-  echo " export CAPYBARA_NO_SPARSE=yes"
+  echo " export CAPYBARA_SKIP_SPARSE=yes"
   echo " "
 fi
 echo " Then reinstall the package"

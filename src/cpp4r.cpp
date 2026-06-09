@@ -64,18 +64,17 @@ extern "C" SEXP _capybara_compute_sandwich_vcov_(SEXP MX_r, SEXP resid_r, SEXP H
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
-    {"_capybara_center_variables_",         (DL_FUNC) &_capybara_center_variables_,          6},
-    {"_capybara_compute_sandwich_vcov_",    (DL_FUNC) &_capybara_compute_sandwich_vcov_,     6},
-    {"_capybara_feglm_fit_",                (DL_FUNC) &_capybara_feglm_fit_,                 9},
-    {"_capybara_feglm_fit_matrix_",         (DL_FUNC) &_capybara_feglm_fit_matrix_,         14},
-    {"_capybara_feglm_offset_fit_",         (DL_FUNC) &_capybara_feglm_offset_fit_,          7},
-    {"_capybara_felm_fit_",                 (DL_FUNC) &_capybara_felm_fit_,                  4},
-    {"_capybara_fenegbin_fit_",             (DL_FUNC) &_capybara_fenegbin_fit_,              9},
-    {"_capybara_fepoisson_asymmetric_fit_", (DL_FUNC) &_capybara_fepoisson_asymmetric_fit_,  7},
+    {"_capybara_center_variables_", (DL_FUNC) &_capybara_center_variables_, 6},
+    {"_capybara_felm_fit_", (DL_FUNC) &_capybara_felm_fit_, 4},
+    {"_capybara_feglm_fit_", (DL_FUNC) &_capybara_feglm_fit_, 9},
+    {"_capybara_feglm_fit_matrix_", (DL_FUNC) &_capybara_feglm_fit_matrix_, 14},
+    {"_capybara_feglm_offset_fit_", (DL_FUNC) &_capybara_feglm_offset_fit_, 7},
+    {"_capybara_fenegbin_fit_", (DL_FUNC) &_capybara_fenegbin_fit_, 9},
+    {"_capybara_fepoisson_asymmetric_fit_", (DL_FUNC) &_capybara_fepoisson_asymmetric_fit_, 7},
+    {"_capybara_compute_sandwich_vcov_", (DL_FUNC) &_capybara_compute_sandwich_vcov_, 6},
     {NULL, NULL, 0}
 };
 }
-
 extern "C" attribute_visible void R_init_capybara(DllInfo* dll){
   R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
   R_useDynamicSymbols(dll, FALSE);

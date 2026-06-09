@@ -480,7 +480,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     const mat XtX = use_weights ? crossprod(X, w) : crossprod(X);
     mat R_rank;
     uvec excl;
-    uword rank;
+    uword rank; // required output parameter; value not used by caller
     chol_rank(R_rank, excl, rank, XtX, "upper", params.collin_tol);
 
     if (any(excl)) {
@@ -569,10 +569,7 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   const double center_tol_loose = params.center_tol * 10.0;
   double adaptive_center_tol = center_tol_loose;
 
-  double last_beta_change = datum::inf;
-  uword convergence_count = 0;
-  double conv_change =
-      datum::inf; // hoisted: readable after loop for post-loop check
+  double conv_change = datum::inf;
 
   // Persistent felm workspace
   FelmWorkspace felm_workspace;
@@ -814,15 +811,6 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
       adaptive_center_tol =
           center_tol_loose * std::pow(params.center_tol / center_tol_loose, t);
     }
-
-    // Early convergence detection: eta-driven, since eta reflects the overall
-    // fit progress across all n observations.
-    if (eta_change < last_beta_change * 0.5) {
-      ++convergence_count;
-    } else {
-      convergence_count = 0;
-    }
-    last_beta_change = eta_change;
 
     // Outer convergence criterion:
     // - When structural regressors are present (p_working > 0): use relative

@@ -10,7 +10,7 @@ NULL
 
 source(system.file("tinytest", "helper.R", package = "capybara"))
 
-# error conditions in GLMs"
+# error conditions in GLMs
 local({
   trade_short <- yotov2017[yotov2017$year == 2002, ]
   trade_short$trade_200 <- ifelse(trade_short$trade >= 100, 1, 0)
@@ -65,7 +65,7 @@ local({
   )
 })
 
-# error conditions in helpers"
+# error conditions in helpers
 local({
   trade_short <- yotov2017[yotov2017$year == 2002, ]
   trade_short$trade_200 <- ifelse(trade_short$trade >= 100, 1, 0)
@@ -137,50 +137,6 @@ local({
     "use 'fenegbin' instead"
   )
 
-  # incorrect data + link = bad response
-
-  expect_error(
-    feglm(
-      trade ~ log_dist | rta,
-      data = trade_short,
-      family = binomial()
-    ),
-    "Model response must be within"
-  )
-
-  # incorrect data + link = bad response
-
-  expect_error(
-    feglm(
-      trade_200_100 ~ log_dist | rta,
-      data = trade_short,
-      family = binomial()
-    ),
-    "response has to be binary"
-  )
-
-  # incorrect data + link = bad response
-
-  expect_error(
-    feglm(
-      trade_1_minus1 ~ log_dist | rta,
-      data = trade_short,
-      family = Gamma()
-    ),
-    "response has to be positive"
-  )
-
-  # incorrect data + link = bad response
-
-  expect_error(
-    feglm(
-      trade_1_minus1 ~ log_dist | rta,
-      data = trade_short,
-      family = inverse.gaussian()
-    ),
-    "response has to be positive"
-  )
-
   # incorrect beta
 
   expect_error(
@@ -230,44 +186,53 @@ local({
 
 # ---- Additional error tests ----
 
-# model errors on missing data"
+# model errors on missing data
 local({
   expect_error(
-    fepoisson(mpg ~ wt | cyl),
+    fepoisson(trade ~ log_dist | exp_year),
     "data"
   )
 })
 
-# model errors on invalid formula"
+# model errors on invalid formula
 local({
   expect_error(
-    fepoisson(~ wt | cyl, mtcars),
+    fepoisson(~ log_dist | exp_year, yotov2017),
     "formula"
   )
 })
 
-# model errors on non-existent variables"
+# model errors on non-existent variables
 local({
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+
   expect_error(
-    fepoisson(mpg ~ nonexistent | cyl, mtcars),
+    fepoisson(trade ~ nonexistent | exp_year, yotov2017_subset),
     "undefined columns"
   )
 })
 
-# model errors on empty fixed effects"
+# model errors on empty fixed effects
 local({
   skip_on_cran()
 
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
   # This should work - no FE is valid
-  mod <- fepoisson(mpg ~ wt, mtcars)
+  mod <- fepoisson(trade ~ log_dist, yotov2017_subset)
   expect_true(inherits(mod, "feglm"))
 })
 
-# predict errors on missing newdata variables"
+# predict errors on missing newdata variables
 local({
-  mod <- fepoisson(mpg ~ wt + hp | cyl, mtcars, control = fit_control(return_fe = TRUE))
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
 
-  newdata <- data.frame(wt = c(2.5, 3.0)) # Missing hp and cyl
+  mod <- fepoisson(trade ~ log_dist + cntg | exp_year, yotov2017_subset, control = fit_control(return_fe = TRUE))
+
+  newdata <- data.frame(log_dist = c(7, 8)) # Missing cntg and exp_year
 
   expect_error(
     predict(mod, newdata = newdata),
@@ -275,55 +240,66 @@ local({
   )
 })
 
-# vcov works correctly"
+# vcov works correctly
 local({
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
   v <- vcov(mod)
 
   expect_true(is.matrix(v))
   expect_equal(dim(v), c(1, 1))
 })
 
-# summary works for all model types"
+# summary works for all model types
 local({
-  mod_felm <- felm(mpg ~ wt | cyl, mtcars)
-  mod_feglm <- fepoisson(mpg ~ wt | cyl, mtcars)
-  mod_fenegbin <- fenegbin(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod_felm <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
+  mod_feglm <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
+  mod_fenegbin <- fenegbin(trade ~ log_dist | exp_year, yotov2017_subset)
 
   expect_true(inherits(summary(mod_felm), "summary.felm"))
   expect_true(inherits(summary(mod_feglm), "summary.feglm"))
   expect_true(inherits(summary(mod_fenegbin), "summary.feglm"))
 })
 
-# coef extraction works"
+# coef extraction works
 local({
-  mod <- fepoisson(mpg ~ wt + hp | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- fepoisson(trade ~ log_dist + cntg | exp_year, yotov2017_subset)
   cf <- coef(mod)
 
   expect_equal(length(cf), 2)
-  expect_true(all(names(cf) %in% c("wt", "hp")))
+  expect_true(all(names(cf) %in% c("log_dist", "cntg")))
 })
 
-# model handles zero counts in Poisson"
+# model handles zero counts in Poisson
 local({
   skip_on_cran()
 
-  mtcars2 <- mtcars
-  mtcars2$mpg[1:3] <- 0
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  yotov2017_subset$trade[1:3] <- 0
 
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars2)
+  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
 
   expect_true(inherits(mod, "feglm"))
 })
 
-# model handles extreme values"
+# model handles extreme values
 local({
   skip_on_cran()
 
-  mtcars2 <- mtcars
-  mtcars2$wt_large <- mtcars2$wt * 1000
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  yotov2017_subset$log_dist[1:3] <- Inf
 
-  mod <- felm(mpg ~ wt_large | cyl, mtcars2)
+  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
 
   expect_true(inherits(mod, "felm"))
 })

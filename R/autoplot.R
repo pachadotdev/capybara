@@ -40,7 +40,7 @@ NULL
 #' @return A ggplot object with the estimated coefficients and their confidence intervals.
 #'
 #' @examples
-#' mod <- fepoisson(mpg ~ wt + drat | cyl, mtcars)
+#' mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017[yotov2017$year == 2006, ])
 #' autoplot(mod, conf_level = 0.99)
 #'
 #' @export
@@ -106,15 +106,14 @@ autoplot.feglm <- function(object, ...) {
 
 #' @title Autoplot method for felm objects
 #'
-#' @description Extracts the estimated coefficients and their confidence
-#'
+#' @description Extracts the estimated coefficients and their confidence intervals.
 #' @rdname autoplot
 #'
 #' @return A ggplot object with the estimated coefficients and their confidence intervals.
 #'
 #' @examples
-#' mod <- felm(mpg ~ wt + drat | cyl, mtcars)
-#' autoplot(mod, conf_level = 0.90)
+#' mod <- felm(trade ~ log_dist | exp_year, yotov2017[yotov2017$year == 2006, ])
+#' autoplot(mod, conf_level = 0.99)
 #'
 #' @export
 autoplot.felm <- function(object, ...) {

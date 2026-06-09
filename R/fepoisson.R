@@ -85,7 +85,7 @@ NULL
 #'
 #' @examples
 #' # check the feglm examples for the details about clustered standard errors
-#' mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+#' mod <- fepoisson(trade ~ log_dist, yotov2017[yotov2017$year == 2006, ])
 #' summary(mod)
 #'
 #' @return A named list of class \code{"feglm"}.

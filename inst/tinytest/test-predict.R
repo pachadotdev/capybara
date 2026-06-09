@@ -7,19 +7,25 @@ NULL
 
 # ---- predict.feglm tests ----
 
-# predict.feglm works with default type (response)"
+# predict.feglm works with default type (response)
 local({
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
 
   preds <- predict(mod)
 
-  expect_equal(length(preds), nrow(mtcars))
+  expect_equal(length(preds), nrow(yotov2017_subset))
   expect_true(all(preds > 0))
 })
 
-# predict.feglm works with type = 'link'"
+# predict.feglm works with type = 'link'
 local({
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
 
   preds_link <- predict(mod, type = "link")
   preds_response <- predict(mod, type = "response")
@@ -31,13 +37,16 @@ local({
   expect_equal(exp(preds_link), preds_response, tolerance = 1e-6)
 })
 
-# predict.feglm works with newdata"
+# predict.feglm works with newdata
 local({
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars, control = fit_control(return_fe = TRUE))
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset, control = fit_control(return_fe = TRUE))
 
   newdata <- data.frame(
-    wt = c(2.5, 3.0, 3.5),
-    cyl = c(4, 6, 8)
+    log_dist = c(7, 8, 9),
+    exp_year = c(2006, 2006, 2006)
   )
 
   preds <- predict(mod, newdata = newdata)
@@ -47,51 +56,37 @@ local({
 
   expect_error(
     predict(
-      fepoisson(mpg ~ wt | cyl, mtcars, control = fit_control(return_fe = FALSE)),
+      fepoisson(trade ~ log_dist | exp_year, yotov2017_subset, control = fit_control(return_fe = FALSE)),
       newdata = newdata
     ),
     "Model has fixed effects but they were not stored."
   )
 })
 
-# predict.feglm works with binomial"
-local({
-  mod <- feglm(am ~ wt | cyl, mtcars, family = binomial())
-
-  preds <- predict(mod, type = "response")
-
-  expect_equal(length(preds), nrow(mtcars))
-  expect_true(all(preds >= 0 & preds <= 1))
-})
-
-# predict.feglm link type gives different results than response"
-local({
-  mod <- feglm(am ~ wt | cyl, mtcars, family = binomial())
-
-  preds_link <- predict(mod, type = "link")
-  preds_response <- predict(mod, type = "response")
-
-  expect_false(all(preds_link == preds_response))
-})
-
 # ---- predict.felm tests ----
 
-# predict.felm works with default type"
+# predict.felm works with default type
 local({
-  mod <- felm(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
 
   preds <- predict(mod)
 
-  expect_equal(length(preds), nrow(mtcars))
+  expect_equal(length(preds), nrow(yotov2017_subset))
 })
 
-# predict.felm works with newdata"
+# predict.felm works with newdata
 local({
-  mod <- felm(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
 
   newdata <- data.frame(
-    wt = c(2.5, 3.0, 3.5),
-    cyl = c(4, 6, 8)
+    log_dist = c(7, 8, 9),
+    exp_year = c(2006, 2006, 2006)
   )
 
   preds <- predict(mod, newdata = newdata)
@@ -99,9 +94,12 @@ local({
   expect_equal(length(preds), 3)
 })
 
-# predict.felm with type='response' works"
+# predict.felm with type='response' works
 local({
-  mod <- felm(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
 
   preds_response <- predict(mod, type = "response")
   preds_default <- predict(mod)
@@ -112,23 +110,29 @@ local({
 
 # ---- predict with multiple fixed effects ----
 
-# predict works with multiple fixed effects"
+# predict works with multiple fixed effects
 local({
-  mod <- fepoisson(mpg ~ wt | cyl + am, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- fepoisson(trade ~ log_dist | exp_year + imp_year, yotov2017_subset)
 
   preds <- predict(mod)
 
-  expect_equal(length(preds), nrow(mtcars))
+  expect_equal(length(preds), nrow(yotov2017_subset))
 })
 
-# predict with newdata handles multiple FEs"
+# predict with newdata handles multiple FEs
 local({
-  mod <- felm(mpg ~ wt | cyl + am, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- felm(trade ~ log_dist | exp_year + imp_year, yotov2017_subset)
 
   newdata <- data.frame(
-    wt = c(2.5, 3.0),
-    cyl = c(4, 6),
-    am = c(0, 1)
+    log_dist = c(7, 8),
+    exp_year = c(2006, 2006),
+    imp_year = c(2006, 2006)
   )
 
   preds <- predict(mod, newdata = newdata)
@@ -138,20 +142,26 @@ local({
 
 # ---- predict with model without FE ----
 
-# predict works for model without fixed effects"
+# predict works for model without fixed effects
 local({
-  mod <- fepoisson(mpg ~ wt, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- fepoisson(trade ~ log_dist, yotov2017_subset)
 
   preds <- predict(mod)
 
-  expect_equal(length(preds), nrow(mtcars))
+  expect_equal(length(preds), nrow(yotov2017_subset))
 })
 
-# predict with newdata works for model without FE"
+# predict with newdata works for model without FE
 local({
-  mod <- felm(mpg ~ wt, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- felm(trade ~ log_dist, yotov2017_subset)
 
-  newdata <- data.frame(wt = c(2.5, 3.0, 3.5))
+  newdata <- data.frame(log_dist = c(7, 8, 9))
 
   preds <- predict(mod, newdata = newdata)
 
@@ -160,25 +170,28 @@ local({
 
 # ---- predict with offset ----
 
-# predict works with offset"
+# predict works with offset
 local({
-  mtcars2 <- mtcars
-  mtcars2$offset_var <- log(mtcars2$hp)
-
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars2, offset = ~ log(hp))
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset, offset = ~ log(dist))
 
   preds <- predict(mod)
 
-  expect_equal(length(preds), nrow(mtcars2))
+  expect_equal(length(preds), nrow(yotov2017_subset))
 })
 
-# predict handles NA in newdata gracefully"
+# predict handles NA in newdata gracefully
 local({
-  mod <- felm(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
 
   newdata <- data.frame(
-    wt = c(2.5, NA, 3.5),
-    cyl = c(4, 6, 8)
+    log_dist = c(7, NA, 9),
+    exp_year = c(2006, 2006, 2006)
   )
 
   preds <- predict(mod, newdata = newdata)
@@ -190,35 +203,44 @@ local({
   expect_false(is.na(preds[3]))
 })
 
-# predict returns same length as input for newdata"
+# predict returns same length as input for newdata
 local({
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars, control = fit_control(return_fe = TRUE))
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset, control = fit_control(return_fe = TRUE))
 
   newdata <- data.frame(
-    wt = c(2.5, 3.0, 3.5, 4.0),
-    cyl = c(4, 6, 8, 6)
+    log_dist = c(7, 8, 9, 8.5),
+    exp_year = c(2006, 2006, 2006, 2006)
   )
 
   preds <- predict(mod, newdata = newdata)
   expect_equal(length(preds), nrow(newdata))
 })
 
-# predict works with type='terms' for felm"
+# predict works with type='terms' for felm
 local({
-  mod <- felm(mpg ~ wt + hp | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- felm(trade ~ log_dist + cntg | exp_year, yotov2017_subset)
 
   preds_terms <- predict(mod, type = "terms")
 
   expect_true(is.matrix(preds_terms) || is.numeric(preds_terms))
 })
 
-# predict maintains order for newdata"
+# predict maintains order for newdata
 local({
-  mod <- felm(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
 
   newdata <- data.frame(
-    wt = c(3.5, 2.5, 4.0),
-    cyl = c(8, 4, 6)
+    log_dist = c(9, 7, 8.5),
+    exp_year = c(2006, 2006, 2006)
   )
 
   preds <- predict(mod, newdata = newdata)

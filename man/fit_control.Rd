@@ -34,16 +34,6 @@ fit_control(
   check_separation = TRUE,
   init_theta = 0,
   vcov_type = NULL,
-  tobit_lb = -Inf,
-  tobit_ub = Inf,
-  compute_apes = FALSE,
-  ape_n_pop = NULL,
-  ape_panel_structure = "classic",
-  ape_sampling_fe = "independence",
-  ape_weak_exo = FALSE,
-  compute_bias_corr = FALSE,
-  bias_corr_bandwidth = 0L,
-  bias_corr_panel_structure = "classic",
   expectile = NULL,
   expectile_tol = 1e-12,
   expectile_iter_max = 50L,
@@ -147,60 +137,6 @@ present, or a clustered sandwich when one is. Other values:
 \code{"m-estimator"} - one-way M-estimator sandwich (cluster variable required);
 \code{"m-estimator-dyadic"} - dyadic-robust Cameron-Miller sandwich (two entity columns required in the
 third part of the formula like \code{z ~ x + y | fe | cl1 + cl2}).}
-
-\item{tobit_lb}{numeric indicating the lower censoring bound for Tobit models. Observations with
-\code{y <= tobit_lb} are treated as left-censored. Default is \code{-Inf} (no left censoring).}
-
-\item{tobit_ub}{numeric indicating the upper censoring bound for Tobit models. Observations with
-\code{y >= tobit_ub} are treated as right-censored. Default is \code{Inf} (no right censoring).}
-
-\item{compute_apes}{logical indicating whether to compute Average Partial Effects (APEs) for binomial models.
-When \code{TRUE}, the model returns APE estimates and their covariance matrix alongside the standard output.
-APEs represent the average marginal effect of each regressor on the probability of the outcome.
-For continuous regressors, this is \code{avg(beta * mu * (1-mu))} for logit link.
-For binary regressors, this is \code{avg(F(eta+beta) - F(eta-X*beta))} where \code{F} is the link inverse.
-The default is \code{FALSE}.}
-
-\item{ape_n_pop}{unsigned integer indicating a finite population correction for the estimation of the
-covariance matrix of the average partial effects, proposed by Cruz-Gonzalez, Fernandez-Val, and
-Weidner (2017). The correction factor is computed as: \code{(n_pop - n) / (n_pop - 1)}, where
-\code{n_pop} is the population size and \code{n} is the sample size. Default is \code{NULL} (no correction,
-covariance obtained by delta method only).}
-
-\item{ape_panel_structure}{character string equal to \code{"classic"} or \code{"network"} which
-determines the structure of the panel used for APE variance computation. \code{"classic"} denotes
-panel structures where the same cross-sectional units are observed several times (includes pseudo panels).
-\code{"network"} denotes panel structures where bilateral flows are observed for several time periods
-(e.g., trade data). Default is \code{"classic"}.}
-
-\item{ape_sampling_fe}{character string equal to \code{"independence"} or \code{"unrestricted"} which
-imposes sampling assumptions about the unobserved effects for APE variance computation.
-\code{"independence"} imposes that all unobserved effects are independent sequences.
-\code{"unrestricted"} does not impose any sampling assumptions. This option only affects the
-optional finite population correction. Default is \code{"independence"}.}
-
-\item{ape_weak_exo}{logical indicating if some of the regressors are assumed to be weakly exogenous
-(e.g., predetermined) for APE variance computation. When \code{TRUE}, additional covariance terms
-are included in the variance calculation. Default is \code{FALSE} (all regressors strictly exogenous).}
-
-\item{compute_bias_corr}{logical indicating whether to compute analytical bias correction for binomial
-models. When \code{TRUE}, the model returns bias-corrected coefficient estimates alongside the
-standard (uncorrected) coefficients. The bias correction follows Fernandez-Val and Weidner (2016)
-and Hinz, Stammann, and Wanner (2020). Currently restricted to binomial family with 1-3 way fixed
-effects. Default is \code{FALSE}.}
-
-\item{bias_corr_bandwidth}{unsigned integer indicating a bandwidth for the estimation of spectral
-densities proposed by Hahn and Kuersteiner (2011). Default is \code{0L}, which should be used if
-all regressors are assumed to be strictly exogenous with respect to the idiosyncratic error term.
-In the presence of weakly exogenous regressors (e.g., lagged outcome variables), Fernandez-Val and
-Weidner (2016, 2018) suggest choosing a bandwidth between one and four. Note that the order of
-factors to be partialed out is important for bandwidths larger than zero.}
-
-\item{bias_corr_panel_structure}{character string equal to \code{"classic"} or \code{"network"} which
-determines the structure of the panel used for bias correction. \code{"classic"} denotes panel
-structures where the same cross-sectional units are observed several times (requires 1-2 way FE).
-\code{"network"} denotes panel structures where bilateral flows are observed for several time
-periods, e.g., trade data (requires 2-3 way FE). Default is \code{"classic"}.}
 
 \item{expectile}{numeric value between 0 and 1 (exclusive) specifying the expectile for asymmetric
 Poisson pseudo-maximum likelihood (APPML) estimation. When \code{NULL} (default), standard symmetric

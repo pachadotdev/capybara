@@ -129,32 +129,25 @@ NULL
 #'   \emph{Econometrica}, 55(4), 819-847.
 #'
 #' @examples
-#' # Standard PPML (expectile = 0.5)
-#' mod_ppml <- fepoisson_asymmetric(
-#'   mpg ~ wt | cyl, mtcars,
-#'   control = fit_control(expectile = 0.5)
-#' )
-#' summary(mod_ppml)
-#'
 #' # Lower expectile (10th) - more weight on negative residuals
+#' yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
 #' mod_low <- fepoisson_asymmetric(
-#'   mpg ~ wt | cyl, mtcars,
+#'   trade ~ log_dist | exp_year, yotov2017_subset,
 #'   control = fit_control(expectile = 0.1)
 #' )
 #'
 #' # Upper expectile (90th) - more weight on positive residuals
 #' mod_high <- fepoisson_asymmetric(
-#'   mpg ~ wt | cyl, mtcars,
+#'   trade ~ log_dist | exp_year, yotov2017_subset,
 #'   control = fit_control(expectile = 0.9)
 #' )
 #'
 #' # Compare coefficients across expectiles
 #' cbind(
 #'   low = coef(mod_low),
-#'   median = coef(mod_ppml),
 #'   high = coef(mod_high)
 #' )
-#'
+#' 
 #' @seealso \link{fepoisson}, \link{feglm}, \link{fit_control}
 #'
 #' @export

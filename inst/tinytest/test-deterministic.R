@@ -9,7 +9,7 @@
 #' @noRd
 NULL
 
-# deterministic relations"
+# deterministic relations
 local({
   set.seed(123)
   d <- data.frame(

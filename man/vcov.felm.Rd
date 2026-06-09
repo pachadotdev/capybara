@@ -20,13 +20,11 @@ The covariance is computed during model fitting - either the inverse Hessian (de
 cluster variables are specified in the formula.
 }
 \examples{
-# Model without clustering - returns inverse Hessian covariance
-mod <- felm(mpg ~ wt | cyl, mtcars)
-round(vcov(mod), 5)
-
 # Model with clustering - returns sandwich covariance
-mod_cl <- felm(mpg ~ wt | cyl | am, mtcars)
-round(vcov(mod_cl), 5)
+yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+mod_cl <- felm(trade ~ log_dist | exp_year | year, yotov2017_subset)
+vcov(mod_cl)
 
 }
 \references{

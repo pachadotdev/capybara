@@ -7,7 +7,7 @@
 
 source(system.file("tinytest", "helper.R", package = "capybara"))
 
-# check_separation works as expected"
+# check_separation works as expected
 local({
   skip_on_cran()
 
@@ -26,7 +26,7 @@ local({
   expect_true(fit2[2] < 0)
 })
 
-# fepoisson_asymmetric slopes change with/without separation check"
+# fepoisson_asymmetric slopes change with/without separation check
 local({
   skip_on_cran()
 

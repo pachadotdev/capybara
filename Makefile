@@ -32,10 +32,10 @@ check-%:
 	@./check-docker/check.sh $*
 
 clean:
-	@Rscript -e 'devtools::clean_dll(".");'
+	@Rscript --vanilla -e 'devtools::clean_dll(".");'
 
 install:
-	@Rscript -e 'devtools::install(".", upgrade = FALSE)'
+	@Rscript --vanilla -e 'devtools::install(".", upgrade = FALSE)'
 
 build:
 	clear
@@ -49,5 +49,5 @@ nonascii:
 
 clang_format=`which clang-format-21`
 
-format: $(shell find . -not -path './check-docker/*' -not -path './src/vendor/*' -name '*.h') $(shell find . -not -path './check-docker/*' -not -path './src/vendor/*' -name '*.hpp') $(shell find . -not -path './check-docker/*' -not -path './src/vendor/*' -name '*.cpp')
+format: $(shell find . -not -path './check-docker/*' -name '*.h') $(shell find . -not -path './check-docker/*' -name '*.hpp') $(shell find . -not -path './check-docker/*' -name '*.cpp')
 	@${clang_format} -i $?

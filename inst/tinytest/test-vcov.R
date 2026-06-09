@@ -8,12 +8,15 @@ NULL
 
 source(system.file("tinytest", "helper.R", package = "capybara"))
 
-# vcov returns correct structure for feglm"
+# vcov returns correct structure for feglm
 local({
   skip_on_cran()
 
   # Model without clustering - returns inverse Hessian
-  m1 <- fepoisson(mpg ~ wt + disp | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+
+  m1 <- fepoisson(trade ~ log_dist + cntg | exp_year, yotov2017_subset)
 
   v1 <- vcov(m1)
   expect_true(is.matrix(v1))
@@ -22,7 +25,7 @@ local({
   expect_true(all(is.finite(v1)))
 
   # Model with clustering - returns sandwich vcov
-  m2 <- fepoisson(mpg ~ wt + disp | cyl | carb, mtcars)
+  m2 <- fepoisson(trade ~ log_dist + cntg | exp_year | imp_year, yotov2017_subset)
 
   v2 <- vcov(m2)
   expect_true(is.matrix(v2))
@@ -31,24 +34,30 @@ local({
   expect_true(all(is.finite(v2)))
 })
 
-# vcov is precomputed during fitting"
+# vcov is precomputed during fitting
 local({
   skip_on_cran()
 
   # Model without clustering
-  m1 <- fepoisson(mpg ~ wt + disp | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  m1 <- fepoisson(trade ~ log_dist + cntg | exp_year, yotov2017_subset)
   expect_true(!is.null(m1$vcov))
 
   # Model with clustering
-  m2 <- fepoisson(mpg ~ wt + disp | cyl | carb, mtcars)
+  m2 <- fepoisson(trade ~ log_dist + cntg | exp_year | imp_year, yotov2017_subset)
   expect_true(!is.null(m2$vcov))
 })
 
-# sandwich vcov is symmetric and positive semi-definite"
+# sandwich vcov is symmetric and positive semi-definite
 local({
   skip_on_cran()
 
-  m <- fepoisson(mpg ~ wt + disp | cyl | carb, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  m <- fepoisson(trade ~ log_dist + cntg | exp_year | imp_year, yotov2017_subset)
   v <- vcov(m)
 
   # Should be symmetric
@@ -59,7 +68,7 @@ local({
   expect_true(all(eigen_vals >= -1e-10)) # Allow small numerical error
 })
 
-# clustered SEs are larger with positive within-cluster correlation"
+# clustered SEs are larger with positive within-cluster correlation
 local({
   skip_on_cran()
 
@@ -111,13 +120,16 @@ local({
   expect_true(all(se_sandwich >= se_hessian * 0.99)) # Allow tiny numerical tolerance
 })
 
-# clustered vs non-clustered vcov give different results"
+# clustered vs non-clustered vcov give different results
 local({
   skip_on_cran()
 
   # Fit same model with and without clustering
-  m_no_cluster <- fepoisson(mpg ~ wt + disp | cyl, mtcars)
-  m_clustered <- fepoisson(mpg ~ wt + disp | cyl | carb, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  m_no_cluster <- fepoisson(trade ~ log_dist + cntg | exp_year, yotov2017_subset)
+  m_clustered <- fepoisson(trade ~ log_dist + cntg | exp_year | imp_year, yotov2017_subset)
 
   v_hessian <- vcov(m_no_cluster)
   v_sandwich <- vcov(m_clustered)
@@ -130,11 +142,14 @@ local({
   )))
 })
 
-# vcov works for felm models"
+# vcov works for felm models
 local({
   skip_on_cran()
 
-  m <- felm(mpg ~ wt + disp | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  m <- felm(trade ~ log_dist + cntg | exp_year, yotov2017_subset)
   v <- vcov(m)
 
   expect_true(is.matrix(v))
@@ -143,11 +158,14 @@ local({
   expect_true(all(is.finite(v)))
 })
 
-# vcov works for felm with clustering"
+# vcov works for felm with clustering
 local({
   skip_on_cran()
 
-  m <- felm(mpg ~ wt + disp | cyl | carb, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  m <- felm(trade ~ log_dist + cntg | exp_year | imp_year, yotov2017_subset)
   v <- vcov(m)
 
   expect_true(is.matrix(v))
@@ -156,22 +174,28 @@ local({
   expect_true(all(is.finite(v)))
 })
 
-# vcov has correct row and column names"
+# vcov has correct row and column names
 local({
   skip_on_cran()
 
-  m <- fepoisson(mpg ~ wt + disp | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  m <- fepoisson(trade ~ log_dist + cntg | exp_year, yotov2017_subset)
   v <- vcov(m)
 
-  expect_equal(rownames(v), c("wt", "disp"))
-  expect_equal(colnames(v), c("wt", "disp"))
+  expect_equal(rownames(v), c("log_dist", "cntg"))
+  expect_equal(colnames(v), c("log_dist", "cntg"))
 })
 
-# vcov works with single predictor"
+# vcov works with single predictor
 local({
   skip_on_cran()
 
-  m <- fepoisson(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  m <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
   v <- vcov(m)
 
   expect_true(is.matrix(v))
@@ -179,23 +203,15 @@ local({
   expect_equal(ncol(v), 1L)
 })
 
-# vcov works for binomial feglm"
+# vcov works for fenegbin
 local({
   skip_on_cran()
 
-  m <- feglm(am ~ wt + disp | cyl, mtcars, family = binomial())
-  v <- vcov(m)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  yotov2017_subset$log_dist <- log(yotov2017_subset$dist)
 
-  expect_true(is.matrix(v))
-  expect_equal(nrow(v), 2L)
-  expect_equal(ncol(v), 2L)
-})
-
-# vcov works for fenegbin"
-local({
-  skip_on_cran()
-
-  m <- fenegbin(mpg ~ wt | cyl, mtcars)
+  m <- fenegbin(trade ~ log_dist | exp_year, yotov2017_subset)
   v <- vcov(m)
 
   expect_true(is.matrix(v))
@@ -204,12 +220,15 @@ local({
 
 # Stammann centering ----
 
-# vcov returns correct structure for feglm (stammann centering)"
+# vcov returns correct structure for feglm (stammann centering)
 local({
   skip_on_cran()
   ctrl <- list(centering = "stammann")
 
-  m1 <- fepoisson(mpg ~ wt + disp | cyl, mtcars, control = ctrl)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  m1 <- fepoisson(trade ~ log_dist + cntg | exp_year, yotov2017_subset, control = ctrl)
 
   v1 <- vcov(m1)
   expect_true(is.matrix(v1))
@@ -217,7 +236,7 @@ local({
   expect_equal(ncol(v1), 2L)
   expect_true(all(is.finite(v1)))
 
-  m2 <- fepoisson(mpg ~ wt + disp | cyl | carb, mtcars, control = ctrl)
+  m2 <- fepoisson(trade ~ log_dist + cntg | exp_year | imp_year, yotov2017_subset, control = ctrl)
 
   v2 <- vcov(m2)
   expect_true(is.matrix(v2))
@@ -226,12 +245,15 @@ local({
   expect_true(all(is.finite(v2)))
 })
 
-# vcov works for felm (stammann centering)"
+# vcov works for felm (stammann centering)
 local({
   skip_on_cran()
   ctrl <- list(centering = "stammann")
 
-  m <- felm(mpg ~ wt + disp | cyl, mtcars, control = ctrl)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  m <- felm(trade ~ log_dist + cntg | exp_year, yotov2017_subset, control = ctrl)
   v <- vcov(m)
 
   expect_true(is.matrix(v))
@@ -240,12 +262,15 @@ local({
   expect_true(all(is.finite(v)))
 })
 
-# vcov works for felm with clustering (stammann centering)"
+# vcov works for felm with clustering (stammann centering)
 local({
   skip_on_cran()
   ctrl <- list(centering = "stammann")
 
-  m <- felm(mpg ~ wt + disp | cyl | carb, mtcars, control = ctrl)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  m <- felm(trade ~ log_dist + cntg | exp_year | imp_year, yotov2017_subset, control = ctrl)
   v <- vcov(m)
 
   expect_true(is.matrix(v))
@@ -254,25 +279,16 @@ local({
   expect_true(all(is.finite(v)))
 })
 
-# vcov works for binomial feglm (stammann centering)"
+# vcov works for fenegbin (stammann centering)
 local({
   skip_on_cran()
   ctrl <- list(centering = "stammann")
 
-  m <- feglm(am ~ wt + disp | cyl, mtcars, family = binomial(), control = ctrl)
-  v <- vcov(m)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  yotov2017_subset$log_dist <- log(yotov2017_subset$dist)
 
-  expect_true(is.matrix(v))
-  expect_equal(nrow(v), 2L)
-  expect_equal(ncol(v), 2L)
-})
-
-# vcov works for fenegbin (stammann centering)"
-local({
-  skip_on_cran()
-  ctrl <- list(centering = "stammann")
-
-  m <- fenegbin(mpg ~ wt | cyl, mtcars, control = ctrl)
+  m <- fenegbin(trade ~ log_dist | exp_year, yotov2017_subset, control = ctrl)
   v <- vcov(m)
 
   expect_true(is.matrix(v))

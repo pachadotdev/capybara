@@ -24,13 +24,13 @@ A ggplot object with the estimated coefficients and their confidence intervals.
 Extracts the estimated coefficients and their confidence
 intervals.
 
-Extracts the estimated coefficients and their confidence
+Extracts the estimated coefficients and their confidence intervals.
 }
 \examples{
-mod <- fepoisson(mpg ~ wt + drat | cyl, mtcars)
+mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017[yotov2017$year == 2006, ])
 autoplot(mod, conf_level = 0.99)
 
-mod <- felm(mpg ~ wt + drat | cyl, mtcars)
-autoplot(mod, conf_level = 0.90)
+mod <- felm(trade ~ log_dist | exp_year, yotov2017[yotov2017$year == 2006, ])
+autoplot(mod, conf_level = 0.99)
 
 }

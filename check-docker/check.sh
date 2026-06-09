@@ -16,7 +16,7 @@ CACHE_DIR="$(pwd)/check-docker/cache/${IMAGE}"
 
 mkdir -p "$LOG_DIR"
 mkdir -p "$CACHE_DIR"
-trap 'rm -rf "$CHECK_DIR"' EXIT
+trap 'rm -rf "$CHECK_DIR"; rm -f "${CAPYBARA_TARBALL:-}" "${ARMADILLO4R_TARBALL:-}" "${CPP4R_TARBALL:-}"' EXIT
 
 echo "==============================="
 echo "Docker check: $IMAGE"
@@ -56,14 +56,20 @@ else
 fi
 
 echo "Building package tarballs..."
-Rscript -e 'cpp4r::register(".")'
-Rscript -e 'devtools::document(".")'
+Rscript -e 'cpp4r::register(".")' 2>/dev/null
+Rscript -e 'tinydev::pkg_document(".")' 2>/dev/null
 
-REDATAM_TARBALL=$(Rscript -e 'cat(devtools::build(".", quiet = TRUE))')
+CPP4R_TARBALL=$(Rscript -e 'out <- tinydev::pkg_build("../cpp4r"); cat(out)' 2>/dev/null | grep -o '[^ ]*\.tar\.gz$' | tail -1)
+ARMADILLO4R_TARBALL=$(Rscript -e 'out <- tinydev::pkg_build("../armadillo4r"); cat(out)' 2>/dev/null | grep -o '[^ ]*\.tar\.gz$' | tail -1)
+CAPYBARA_TARBALL=$(Rscript -e 'out <- tinydev::pkg_build("."); cat(out)' 2>/dev/null | grep -o '[^ ]*\.tar\.gz$' | tail -1)
 
-REDATAM_FILE=$(basename "$REDATAM_TARBALL")
+CPP4R_FILE=$(basename "$CPP4R_TARBALL")
+ARMADILLO4R_FILE=$(basename "$ARMADILLO4R_TARBALL")
+CAPYBARA_FILE=$(basename "$CAPYBARA_TARBALL")
 
-cp "$REDATAM_TARBALL" "$CHECK_DIR/"
+cp "$CPP4R_TARBALL" "$CHECK_DIR/"
+cp "$ARMADILLO4R_TARBALL" "$CHECK_DIR/"
+cp "$CAPYBARA_TARBALL" "$CHECK_DIR/"
 
 # Create a minimal R script that installs an explicit list of packages when run inside the container
 cat > "$CHECK_DIR/install_required.R" <<'R_EOF'
@@ -80,27 +86,24 @@ if (nzchar(repos_snapshot_env)) {
   options(repos = c(CRAN = 'https://cloud.r-project.org'))
 }
 
-if (!requireNamespace('remotes', quietly = TRUE)) {
-  install.packages('remotes', lib = user_lib)
+if (!requireNamespace('tinytest', quietly = TRUE)) {
+  install.packages('tinytest', lib = user_lib)
 }
 
-has_cpp23 <- tryCatch({
-  cxx23 <- tryCatch(
-    system("R CMD config CXX23", intern = TRUE, ignore.stderr = TRUE),
-    error = function(e) system("R CMD config CXX", intern = TRUE, ignore.stderr = TRUE)
-  )
-  system(paste(cxx23, "-std=gnu++23 -x c++ /dev/null -fsyntax-only"),
-         ignore.stdout = TRUE, ignore.stderr = TRUE) == 0
-}, error = function(e) FALSE)
-
-if (has_cpp23) {
-  remotes::install_github("pachadotdev/testthat", lib = user_lib, upgrade = 'never')
-} else if (!requireNamespace('testthat', quietly = TRUE)) {
-  install.packages('testthat', lib = user_lib)
+if (!requireNamespace('Formula', quietly = TRUE)) {
+  install.packages('Formula', lib = user_lib)
 }
 
-if (!requireNamespace('xml2', quietly = TRUE)) {
-  install.packages('xml2', lib = user_lib)
+if (!requireNamespace('generics', quietly = TRUE)) {
+  install.packages('generics', lib = user_lib)
+}
+
+if (!requireNamespace('ggplot2', quietly = TRUE)) {
+  install.packages('ggplot2', lib = user_lib)
+}
+
+if (!requireNamespace('broom', quietly = TRUE)) {
+  install.packages('broom', lib = user_lib)
 }
 
 if (!requireNamespace('knitr', quietly = TRUE)) {
@@ -111,14 +114,8 @@ if (!requireNamespace('rmarkdown', quietly = TRUE)) {
   install.packages('rmarkdown', lib = user_lib)
 }
 
-# Install Depends/Imports/LinkingTo for each tarball (no Suggests)
-pkgs <- list.files('/check', pattern = '\\.(tar\\.gz|tar|tgz)$', full.names = TRUE)
-for (p in pkgs) {
-  message('remotes::install_local(', p, ')')
-  tryCatch(
-    remotes::install_local(p, dependencies = c('Depends','Imports','LinkingTo'), upgrade = 'never', lib = user_lib),
-    error = function(e) message('install_local failed: ', conditionMessage(e))
-  )
+if (!requireNamespace('units', quietly = TRUE)) {
+  install.packages('units', lib = user_lib)
 }
 R_EOF
 # Create a helper script to configure yum and install system build deps inside the container
@@ -135,9 +132,9 @@ docker run --rm \
     set -euo pipefail
     show_logs_and_fix_perms() {
       echo '=== 00install.out ==='
-      cat /check/redatam.Rcheck/00install.out || true
+      cat /check/capybara.Rcheck/00install.out || true
       echo '=== 00check.log ==='
-      cat /check/redatam.Rcheck/00check.log || true
+      cat /check/capybara.Rcheck/00check.log || true
       chmod -R a+rwX /check
     }
     trap show_logs_and_fix_perms EXIT
@@ -147,7 +144,7 @@ docker run --rm \
     if command -v apt-get >/dev/null 2>&1; then
       export DEBIAN_FRONTEND=noninteractive
       apt-get update -qq || true
-      apt-get install -y --no-install-recommends libuv1-dev libxml2-dev pkg-config pandoc || true
+      apt-get install -y --no-install-recommends libuv1-dev libxml2-dev pkg-config || true
     elif command -v dnf >/dev/null 2>&1 || command -v yum >/dev/null 2>&1; then
       PKG_MGR=dnf
       if command -v yum >/dev/null 2>&1; then PKG_MGR=yum; fi
@@ -158,26 +155,23 @@ docker run --rm \
 
     # Run minimal missing-package installer if present
     if [ -f /check/install_required.R ]; then Rscript /check/install_required.R || true; fi
-    # Remove stale locks and old redatam before reinstalling
-    rm -rf /cache/R_libs/00LOCK-* /cache/R_libs/redatam
-    R CMD INSTALL --library=/cache/R_libs /check/${REDATAM_FILE}
-    # Fall back to gnu++2b if the compiler does not support gnu++23
-    CXX=\$(R CMD config CXX23 2>/dev/null || R CMD config CXX)
-    if ! \$CXX -std=gnu++23 -x c++ /dev/null -fsyntax-only 2>/dev/null; then
-      mkdir -p ~/.R
-      echo 'CXX23STD = -std=gnu++2b' >> ~/.R/Makevars
-    fi
+    # Remove stale locks and old capybara before reinstalling
+    rm -rf /cache/R_libs/00LOCK-* /cache/R_libs/capybara
+    R CMD INSTALL --library=/cache/R_libs /check/${CPP4R_FILE}
+    R CMD INSTALL --library=/cache/R_libs /check/${ARMADILLO4R_FILE}
+    R CMD INSTALL --library=/cache/R_libs /check/${CAPYBARA_FILE}
     cd /check
     export _R_CHECK_FORCE_SUGGESTS_=false
-    R CMD check --as-cran --no-manual ${REDATAM_FILE}
+    export _R_CHECK_CRAN_INCOMING_REMOTE_=false
+    R CMD check --as-cran --no-manual ${CAPYBARA_FILE}
   " 2>&1 | grep -v 'readelf: Warning:' | tee "${CHECK_DIR}/docker.log" || DOCKER_RC="${PIPESTATUS[0]}"
 
 cp "${CHECK_DIR}/docker.log" "$LOG"
 
-if [ -d "${CHECK_DIR}/redatam.Rcheck" ]; then
-  RCHECK_DEST="${LOG_DIR}/${IMAGE}-redatam.Rcheck"
+if [ -d "${CHECK_DIR}/capybara.Rcheck" ]; then
+  RCHECK_DEST="${LOG_DIR}/${IMAGE}-capybara.Rcheck"
   rm -rf "$RCHECK_DEST"
-  cp -r "${CHECK_DIR}/redatam.Rcheck" "$RCHECK_DEST"
+  cp -r "${CHECK_DIR}/capybara.Rcheck" "$RCHECK_DEST"
   echo "Rcheck directory saved to: ${RCHECK_DEST}"
 fi
 

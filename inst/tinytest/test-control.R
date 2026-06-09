@@ -6,7 +6,7 @@ NULL
 
 source(system.file("tinytest", "helper.R", package = "capybara"))
 
-# fit_control validates positive tolerance parameters"
+# fit_control validates positive tolerance parameters
 local({
   expect_error(
     fit_control(dev_tol = -0.01),
@@ -24,7 +24,7 @@ local({
   )
 })
 
-# fit_control validates iteration parameters"
+# fit_control validates iteration parameters
 local({
   expect_error(
     fit_control(iter_max = 0L),
@@ -37,7 +37,7 @@ local({
   )
 })
 
-# fit_control validates logical parameters"
+# fit_control validates logical parameters
 local({
   expect_error(
     fit_control(return_fe = NA),
@@ -50,7 +50,7 @@ local({
   )
 })
 
-# fit_control validates step_halving_memory"
+# fit_control validates step_halving_memory
 local({
   expect_error(
     fit_control(step_halving_memory = 0),
@@ -68,7 +68,7 @@ local({
   )
 })
 
-# fit_control validates max_step_halving"
+# fit_control validates max_step_halving
 local({
   expect_error(
     fit_control(max_step_halving = -1L),
@@ -76,7 +76,7 @@ local({
   )
 })
 
-# fit_control validates start_inner_tol"
+# fit_control validates start_inner_tol
 local({
   expect_error(
     fit_control(start_inner_tol = 0),
@@ -89,7 +89,7 @@ local({
   )
 })
 
-# fit_control validates centering"
+# fit_control validates centering
 local({
   expect_error(
     fit_control(centering = "invalid_option"),
@@ -97,7 +97,7 @@ local({
   )
 })
 
-# fit_control returns correct structure"
+# fit_control returns correct structure
 local({
   ctrl <- fit_control()
 
@@ -108,7 +108,7 @@ local({
   expect_true("keep_tx" %in% names(ctrl))
 })
 
-# fit_control accepts valid custom parameters"
+# fit_control accepts valid custom parameters
 local({
   ctrl <- fit_control(
     dev_tol = 1e-10,
@@ -125,7 +125,7 @@ local({
   expect_false(ctrl$return_fe)
 })
 
-# fit_control coerces integers correctly"
+# fit_control coerces integers correctly
 local({
   ctrl <- fit_control(
     iter_max = 100, # Not explicitly integer
@@ -136,7 +136,7 @@ local({
   expect_true(is.integer(ctrl$iter_center_max))
 })
 
-# fit_control has sensible defaults"
+# fit_control has sensible defaults
 local({
   ctrl <- fit_control()
 
@@ -147,26 +147,32 @@ local({
   expect_true(is.logical(ctrl$keep_tx))
 })
 
-# fit_control works with models"
+# fit_control works with models
 local({
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
   ctrl <- list(dev_tol = 1e-10)
 
-  mod <- felm(mpg ~ wt | cyl, mtcars, control = ctrl)
+  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset, control = ctrl)
 
   expect_true(inherits(mod, "felm"))
 })
 
-# different control settings affect convergence"
+# different control settings affect convergence
 local({
   skip_on_cran()
 
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
   # Tight tolerance
   ctrl_tight <- list(dev_tol = 1e-12, center_tol = 1e-12)
-  mod_tight <- felm(mpg ~ wt | cyl, mtcars, control = ctrl_tight)
+  mod_tight <- felm(trade ~ log_dist | exp_year, yotov2017_subset, control = ctrl_tight)
 
   # Loose tolerance
   ctrl_loose <- list(dev_tol = 1e-4, center_tol = 1e-4)
-  mod_loose <- felm(mpg ~ wt | cyl, mtcars, control = ctrl_loose)
+  mod_loose <- felm(trade ~ log_dist | exp_year, yotov2017_subset, control = ctrl_loose)
 
   # Both should converge
   expect_true(inherits(mod_tight, "felm"))
@@ -176,13 +182,16 @@ local({
   expect_equal(coef(mod_tight), coef(mod_loose), tolerance = 1e-3)
 })
 
-# init_theta parameter works for fenegbin"
+# init_theta parameter works for fenegbin
 local({
   skip_on_cran()
 
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
   ctrl <- list(init_theta = 0.5)
 
-  mod <- fenegbin(mpg ~ wt | cyl, mtcars, control = ctrl)
+  mod <- fenegbin(trade ~ log_dist | exp_year, yotov2017_subset, control = ctrl)
 
   expect_true(inherits(mod, "feglm"))
   expect_true(mod$theta > 0)

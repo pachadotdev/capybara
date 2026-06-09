@@ -43,7 +43,8 @@ A formatted fixed effects table of class \code{summary_table}.
 Generate fixed effects tables
 }
 \examples{
-m1 <- felm(mpg ~ wt | cyl, mtcars, control = list(return_fe = TRUE))
-m2 <- fepoisson(mpg ~ wt | cyl, mtcars, control = list(return_fe = TRUE))
+yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+m1 <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
+m2 <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
 fe_table(m1, m2, model_names = c("Linear", "Poisson"))
 }

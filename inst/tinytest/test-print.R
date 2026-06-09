@@ -7,40 +7,52 @@ NULL
 
 # ---- print.feglm tests ----
 
-# print.feglm shows coefficients"
+# print.feglm shows coefficients
 local({
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
 
   output <- capture.output(print(mod))
 
-  expect_true(any(grepl("wt", output)))
+  expect_true(any(grepl("log_dist", output)))
 })
 
 # ---- print.felm tests ----
 
-# print.felm shows coefficients"
+# print.felm shows coefficients
 local({
-  mod <- felm(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
 
   output <- capture.output(print(mod))
 
-  expect_true(any(grepl("wt", output)))
+  expect_true(any(grepl("log_dist", output)))
 })
 
 # ---- print.summary.feglm tests ----
 
-# summary.feglm shows formula"
+# summary.feglm shows formula
 local({
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
 
   output <- capture.output(print(summary(mod)))
 
   expect_true(any(grepl("Formula", output)))
 })
 
-# summary.feglm shows family"
+# summary.feglm shows family
 local({
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
 
   output <- capture.output(print(summary(mod)))
 
@@ -49,18 +61,24 @@ local({
   ))
 })
 
-# summary.feglm shows estimates"
+# summary.feglm shows estimates
 local({
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
 
   output <- capture.output(print(summary(mod)))
 
   expect_true(any(grepl("Estimate", output)))
 })
 
-# summary.feglm shows significance codes"
+# summary.feglm shows significance codes
 local({
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
 
   output <- capture.output(print(summary(mod)))
 
@@ -69,9 +87,12 @@ local({
 
 # ---- print.summary.felm tests ----
 
-# summary.felm shows R-squared"
+# summary.felm shows R-squared
 local({
-  mod <- felm(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
 
   output <- capture.output(print(summary(mod)))
 
@@ -80,13 +101,15 @@ local({
 
 # ---- print with multiple predictors ----
 
-# print shows multiple predictors"
+# print shows multiple predictors
 local({
-  mod <- felm(mpg ~ wt + hp + qsec | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- felm(trade ~ log_dist + cntg | exp_year, yotov2017_subset)
 
   output <- capture.output(print(summary(mod)))
 
-  expect_true(any(grepl("wt", output)))
-  expect_true(any(grepl("hp", output)))
-  expect_true(any(grepl("qsec", output)))
+  expect_true(any(grepl("log_dist", output)))
+  expect_true(any(grepl("cntg", output)))
 })

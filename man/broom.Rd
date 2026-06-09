@@ -45,7 +45,8 @@ The provided \code{broom} methods do the following:
 }
 }
 \examples{
-mod <- fepoisson(mpg ~ wt | cyl, mtcars, control = fit_control(keep_data = TRUE))
+yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+mod <- fepoisson(trade ~ log_dist, yotov2017_subset, control = fit_control(keep_data = TRUE))
 broom::augment(mod)
 broom::glance(mod)
 broom::tidy(mod)

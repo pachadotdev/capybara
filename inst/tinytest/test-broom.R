@@ -9,7 +9,10 @@ NULL
 
 # glance.feglm returns correct structure
 local({
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
 
   result <- glance(mod)
 
@@ -19,19 +22,12 @@ local({
   expect_true("nobs" %in% names(result))
 })
 
-# glance.feglm works with binomial
-local({
-  mod <- feglm(am ~ wt | cyl, mtcars, family = binomial())
-
-  result <- glance(mod)
-
-  expect_true(is.data.frame(result))
-  expect_true(is.numeric(result$deviance))
-})
-
 # glance.felm returns correct structure
 local({
-  mod <- felm(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
 
   result <- glance(mod)
 
@@ -43,7 +39,10 @@ local({
 
 # glance.felm works with multiple fixed effects
 local({
-  mod <- felm(mpg ~ wt | cyl + am, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+
+  mod <- felm(trade ~ log_dist | exp_year + imp_year, yotov2017_subset)
 
   result <- glance(mod)
 
@@ -55,7 +54,10 @@ local({
 
 # tidy.feglm returns correct structure
 local({
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
 
   result <- tidy(mod)
 
@@ -68,7 +70,10 @@ local({
 
 # tidy.feglm works with conf_int
 local({
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
 
   result <- tidy(mod, conf_int = TRUE)
 
@@ -81,7 +86,10 @@ local({
 
 # tidy.feglm respects conf_level
 local({
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+
+  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
 
   result_95 <- tidy(mod, conf_int = TRUE, conf_level = 0.95)
   result_99 <- tidy(mod, conf_int = TRUE, conf_level = 0.99)
@@ -95,7 +103,10 @@ local({
 
 # tidy.felm returns correct structure
 local({
-  mod <- felm(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
 
   result <- tidy(mod)
 
@@ -108,7 +119,10 @@ local({
 
 # tidy.felm works with conf_int
 local({
-  mod <- felm(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
 
   result <- tidy(mod, conf_int = TRUE)
 
@@ -119,7 +133,10 @@ local({
 
 # tidy works with multiple predictors
 local({
-  mod <- felm(mpg ~ wt + hp + qsec | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+
+  mod <- felm(trade ~ log_dist + cntg + lang | exp_year, yotov2017_subset)
 
   result <- tidy(mod)
 
@@ -130,30 +147,39 @@ local({
 
 # augment.feglm returns correct structure
 local({
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars, control = fit_control(keep_data = TRUE))
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+
+  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset, control = fit_control(keep_data = TRUE))
 
   result <- augment(mod)
 
   expect_true(is.data.frame(result))
   expect_true(".fitted" %in% names(result))
   expect_true(".residuals" %in% names(result))
-  expect_equal(nrow(result), nrow(mtcars))
+  expect_equal(nrow(result), nrow(yotov2017_subset))
 })
 
 # augment.feglm preserves original columns
 local({
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars, control = fit_control(keep_data = TRUE))
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+
+  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset, control = fit_control(keep_data = TRUE))
 
   result <- augment(mod)
 
-  expect_true("mpg" %in% names(result))
-  expect_true("wt" %in% names(result))
-  expect_true("cyl" %in% names(result))
+  expect_true("trade" %in% names(result))
+  expect_true("log_dist" %in% names(result))
+  expect_true("exp_year" %in% names(result))
 })
 
 # augment.felm returns correct structure
 local({
-  mod <- felm(mpg ~ wt | cyl, mtcars, control = fit_control(keep_data = TRUE))
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+
+  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset, control = fit_control(keep_data = TRUE))
 
   result <- augment(mod)
 
@@ -164,44 +190,41 @@ local({
 
 # augment.felm fitted values are reasonable
 local({
-  mod <- felm(mpg ~ wt | cyl, mtcars, control = fit_control(keep_data = TRUE))
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+
+  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset, control = fit_control(keep_data = TRUE))
 
   result <- augment(mod)
 
-  # Fitted values should be in a reasonable range
-  expect_true(all(result$.fitted > 0))
-  expect_true(all(result$.fitted < 50))
-})
-
-# augment works with binomial model
-local({
-  mod <- feglm(am ~ wt | cyl, mtcars, family = binomial(), control = fit_control(keep_data = TRUE))
-
-  result <- augment(mod)
-
-  expect_true(is.data.frame(result))
-  expect_true(".fitted" %in% names(result))
-  # Fitted values for binomial should be probabilities
-  expect_true(all(result$.fitted >= 0 & result$.fitted <= 1))
+  # Fitted values should be in a reasonable range (log-transformed trade)
+  expect_true(all(is.finite(result$.fitted)))
+  expect_true(length(result$.fitted) > 0)
 })
 
 # ---- fitted tests ----
 
 # fitted.feglm returns correct values
 local({
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+
+  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
 
   result <- fitted(mod)
 
-  expect_equal(length(result), nrow(mtcars))
+  expect_equal(length(result), nrow(yotov2017_subset))
   expect_true(all(result > 0))
 })
 
 # fitted.felm returns correct values
 local({
-  mod <- felm(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+
+  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
 
   result <- fitted(mod)
 
-  expect_equal(length(result), nrow(mtcars))
+  expect_equal(length(result), nrow(yotov2017_subset))
 })

@@ -69,7 +69,7 @@ A routine that uses the same internals as \link{feglm}.
 }
 \examples{
 # check the feglm examples for the details about clustered standard errors
-mod <- fenegbin(mpg ~ wt | cyl, mtcars)
+mod <- fenegbin(trade ~ log_dist | exp_year, yotov2017[yotov2017$year == 2006, ])
 summary(mod)
 
 }

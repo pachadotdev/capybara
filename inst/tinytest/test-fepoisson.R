@@ -12,17 +12,21 @@ NULL
 
 source(system.file("tinytest", "helper.R", package = "capybara"))
 
-# fepoisson is similar to base"
+# fepoisson is similar to base
 local({
   skip_on_cran()
 
+  # Setup
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
   # K = 1
 
-  mod <- fepoisson(mpg ~ wt | cyl | am, mtcars, control = fit_control(return_fe = TRUE))
+  mod <- fepoisson(trade ~ log_dist | exp_year | imp_year, yotov2017_subset, control = fit_control(return_fe = TRUE))
 
   mod_base <- glm(
-    mpg ~ wt + as.factor(cyl),
-    mtcars,
+    trade ~ log_dist + as.factor(exp_year),
+    yotov2017_subset,
     family = quasipoisson(link = "log")
   )
 
@@ -40,8 +44,8 @@ local({
   expect_equal(length(coef(mod)), 1)
 
   # expect_equal(
-  #   unname(fes[["cyl"]][1]),
-  #   unname(coef(glm(mpg ~ wt + as.factor(cyl), mtcars, family = quasipoisson(link = "log")))[1]),
+  #   unname(fes[["exp_year"]][1]),
+  #   unname(coef(glm(trade ~ log_dist + as.factor(exp_year), yotov2017_subset, family = quasipoisson(link = "log")))[1]),
   #   tolerance = 1e-2
   # )
 
@@ -51,11 +55,11 @@ local({
 
   # K = 2
 
-  mod <- fepoisson(mpg ~ wt | cyl + am, mtcars, control = fit_control(return_fe = TRUE))
+  mod <- fepoisson(trade ~ log_dist | exp_year + imp_year, yotov2017_subset, control = fit_control(return_fe = TRUE))
 
   mod_base <- glm(
-    mpg ~ wt + as.factor(cyl) + as.factor(am),
-    mtcars,
+    trade ~ log_dist + as.factor(exp_year) + as.factor(imp_year),
+    yotov2017_subset,
     family = quasipoisson(link = "log")
   )
 
@@ -70,11 +74,11 @@ local({
 
   # K = 3
 
-  mod <- fepoisson(mpg ~ wt | cyl + am + carb, mtcars, control = fit_control(return_fe = TRUE))
+  mod <- fepoisson(trade ~ log_dist | exp_year + imp_year + year, yotov2017_subset, control = fit_control(return_fe = TRUE))
 
   mod_base <- glm(
-    mpg ~ wt + as.factor(cyl) + as.factor(am) + as.factor(carb),
-    mtcars,
+    trade ~ log_dist + as.factor(exp_year) + as.factor(imp_year) + as.factor(year),
+    yotov2017_subset,
     family = quasipoisson(link = "log")
   )
 
@@ -98,31 +102,34 @@ local({
   expect_equal(pred_mod, pred_mod_base, tolerance = 1e-2)
   expect_equal(pred_mod_link, pred_mod_base_link, tolerance = 1e-2)
 
-  pred_mod <- predict(mod, type = "response", newdata = mtcars[1:10, ])
-  pred_mod_base <- predict(mod_base, type = "response", newdata = mtcars[1:10, ])
+  pred_mod <- predict(mod, type = "response", newdata = yotov2017_subset[1:10, ])
+  pred_mod_base <- predict(mod_base, type = "response", newdata = yotov2017_subset[1:10, ])
 
-  pred_mod_link <- predict(mod, type = "link", newdata = mtcars[1:10, ])
-  pred_mod_base_link <- predict(mod_base, type = "link", newdata = mtcars[1:10, ])
+  pred_mod_link <- predict(mod, type = "link", newdata = yotov2017_subset[1:10, ])
+  pred_mod_base_link <- predict(mod_base, type = "link", newdata = yotov2017_subset[1:10, ])
 
   expect_equal(unname(pred_mod), unname(pred_mod_base), tolerance = 1e-2)
   expect_equal(unname(pred_mod_link), unname(pred_mod_base_link), tolerance = 1e-2)
 })
 
-# fepoisson estimation is the same adding noise to the data"
+# fepoisson estimation is the same adding noise to the data
 local({
   set.seed(123)
-  d <- mtcars[, c("mpg", "wt", "cyl")]
-  d$wt2 <- d$wt + pmax(rnorm(nrow(d)), 0) * .Machine$double.eps
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  d <- yotov2017_subset[, c("trade", "log_dist", "exp_year")]
+  d$log_dist2 <- d$log_dist + pmax(rnorm(nrow(d)), 0) * .Machine$double.eps
 
-  m1 <- fepoisson(mpg ~ wt | cyl, d)
-  m2 <- fepoisson(mpg ~ wt2 | cyl, d)
+  m1 <- fepoisson(trade ~ log_dist | exp_year, d)
+  m2 <- fepoisson(trade ~ log_dist2 | exp_year, d)
 
   expect_equal(unname(coef(m1)), unname(coef(m2)))
   expect_equal(m1$fixed.effects, m2$fixed.effects)
 })
 
 
-# proportional regressors return NA coefficients"
+# proportional regressors return NA coefficients
 local({
   set.seed(200100)
   d <- data.frame(
@@ -142,22 +149,28 @@ local({
 
 # Stammann centering ----
 
-# fepoisson is similar to base (stammann centering)"
+# fepoisson is similar to base (stammann centering)
 local({
   skip_on_cran()
   ctrl <- fit_control(centering = "stammann", return_fe = TRUE)
 
+  # Setup
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
   # K = 1
 
-  mod <- fepoisson(mpg ~ wt | cyl | am, mtcars, control = ctrl)
+  mod <- fepoisson(trade ~ log_dist | exp_year | imp_year, yotov2017_subset, control = ctrl)
 
   mod_base <- glm(
-    mpg ~ wt + as.factor(cyl),
-    mtcars,
+    trade ~ log_dist + as.factor(exp_year),
+    yotov2017_subset,
     family = quasipoisson(link = "log")
   )
 
-  dist_variation <- unname(abs(
+  dist_variation <- unname(abs((coef(mod)[1] - coef(mod_base)[2]) / coef(mod)[1]))
+
+  expect_equal(dist_variation, 0.0, tolerance = 1e-2)
     (coef(mod)[1] - coef(mod_base)[2]) / coef(mod)[1]
   ))
 
@@ -170,11 +183,11 @@ local({
 
   # K = 2
 
-  mod <- fepoisson(mpg ~ wt | cyl + am, mtcars, control = ctrl)
+  mod <- fepoisson(trade ~ log_dist | exp_year + imp_year, yotov2017_subset, control = ctrl)
 
   mod_base <- glm(
-    mpg ~ wt + as.factor(cyl) + as.factor(am),
-    mtcars,
+    trade ~ log_dist + as.factor(exp_year) + as.factor(imp_year),
+    yotov2017_subset,
     family = quasipoisson(link = "log")
   )
 
@@ -184,11 +197,11 @@ local({
 
   # K = 3
 
-  mod <- fepoisson(mpg ~ wt | cyl + am + carb, mtcars, control = ctrl)
+  mod <- fepoisson(trade ~ log_dist | exp_year + imp_year + year, yotov2017_subset, control = ctrl)
 
   mod_base <- glm(
-    mpg ~ wt + as.factor(cyl) + as.factor(am) + as.factor(carb),
-    mtcars,
+    trade ~ log_dist + as.factor(exp_year) + as.factor(imp_year) + as.factor(year),
+    yotov2017_subset,
     family = quasipoisson(link = "log")
   )
 
@@ -202,26 +215,29 @@ local({
   pred_mod_base <- predict(mod_base, type = "response")
   expect_equal(pred_mod, pred_mod_base, tolerance = 1e-2)
 
-  pred_mod <- predict(mod, type = "response", newdata = mtcars[1:10, ])
-  pred_mod_base <- predict(mod_base, type = "response", newdata = mtcars[1:10, ])
+  pred_mod <- predict(mod, type = "response", newdata = yotov2017_subset[1:10, ])
+  pred_mod_base <- predict(mod_base, type = "response", newdata = yotov2017_subset[1:10, ])
   expect_equal(unname(pred_mod), unname(pred_mod_base), tolerance = 1e-2)
 })
 
-# fepoisson estimation is the same adding noise to the data (stammann centering)"
+# fepoisson estimation is the same adding noise to the data (stammann centering)
 local({
   ctrl <- list(centering = "stammann")
   set.seed(123)
-  d <- mtcars[, c("mpg", "wt", "cyl")]
-  d$wt2 <- d$wt + pmax(rnorm(nrow(d)), 0) * .Machine$double.eps
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  d <- yotov2017_subset[, c("trade", "log_dist", "exp_year")]
+  d$log_dist2 <- d$log_dist + pmax(rnorm(nrow(d)), 0) * .Machine$double.eps
 
-  m1 <- fepoisson(mpg ~ wt | cyl, d, control = ctrl)
-  m2 <- fepoisson(mpg ~ wt2 | cyl, d, control = ctrl)
+  m1 <- fepoisson(trade ~ log_dist | exp_year, d, control = ctrl)
+  m2 <- fepoisson(trade ~ log_dist2 | exp_year, d, control = ctrl)
 
   expect_equal(unname(coef(m1)), unname(coef(m2)))
   expect_equal(m1$fixed.effects, m2$fixed.effects)
 })
 
-# proportional regressors return NA coefficients (stammann centering)"
+# proportional regressors return NA coefficients (stammann centering)
 local({
   ctrl <- list(centering = "stammann")
   set.seed(200100)

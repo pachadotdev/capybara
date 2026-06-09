@@ -52,39 +52,32 @@ the full dyadic correlation structure including cross-entity correlations.
 \examples{
 # Refitting models
 
+yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+
 fepoisson(
-  mpg ~ wt | cyl,
-  mtcars,
-  control = fit_control(vcov_type = "hetero")
+ trade ~ log_dist | exp_year, yotov2017_subset,
+ control = fit_control(vcov_type = "hetero")
 )
 
 fepoisson(
-  mpg ~ wt | cyl | am,
-  mtcars,
-  control = fit_control(vcov_type = "m-estimator")
+ trade ~ log_dist | exp_year, yotov2017_subset,
+ control = fit_control(vcov_type = "m-estimator")
 )
 
 # Reusing models
 
 # Store required components
 mod <- fepoisson(
-  mpg ~ wt | cyl,
-  mtcars,
+  trade ~ log_dist | exp_year, yotov2017_subset,
   control = fit_control(keep_tx = TRUE, return_hessian = TRUE)
 )
 
 # Heteroskedastic-robust HC0 sandwich (no cluster variable needed)
 sandwich_vcov(mod, type = "hetero")
 
-#' One-way and two-way cluster
-sandwich_vcov(mod, cluster1 = mtcars$am, type = "clustered")
-sandwich_vcov(mod, cluster1 = mtcars$am, cluster2 = mtcars$gear, type = "clustered")
-
-# One-way M-estimator sandwich (cluster variable required)
-sandwich_vcov(mod, cluster1 = mtcars$am, type = "m-estimator")
-
-# Dyadic Cameron-Miller sandwich (two cluster variables required)
-sandwich_vcov(mod, cluster1 = mtcars$am, cluster2 = mtcars$gear, type = "dyadic")
+#' One-way cluster
+sandwich_vcov(mod, cluster1 = yotov2017_subset$year, type = "clustered")
 
 }
 \references{

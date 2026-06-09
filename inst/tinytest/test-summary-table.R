@@ -5,9 +5,12 @@
 #' @noRd
 NULL
 
-# summary_table works with single model"
+# summary_table works with single model
 local({
-  m1 <- felm(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  m1 <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
 
   result <- summary_table(m1)
 
@@ -16,10 +19,13 @@ local({
   expect_true("content" %in% names(result))
 })
 
-# summary_table works with multiple models"
+# summary_table works with multiple models
 local({
-  m1 <- felm(mpg ~ wt | cyl, mtcars)
-  m2 <- fepoisson(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+
+  m1 <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
+  m2 <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
 
   result <- summary_table(m1, m2)
 
@@ -27,10 +33,13 @@ local({
   expect_true(is.list(result))
 })
 
-# summary_table works with custom model names"
+# summary_table works with custom model names
 local({
-  m1 <- felm(mpg ~ wt | cyl, mtcars)
-  m2 <- fepoisson(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  m1 <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
+  m2 <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
 
   result <- summary_table(m1, m2, model_names = c("OLS", "Poisson"))
 
@@ -39,9 +48,12 @@ local({
   expect_true(grepl("Poisson", result$content))
 })
 
-# summary_table works with latex output"
+# summary_table works with latex output
 local({
-  m1 <- felm(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+
+  m1 <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
 
   result <- summary_table(m1, latex = TRUE)
 
@@ -50,9 +62,12 @@ local({
   expect_true(grepl("tabular", result$content))
 })
 
-# summary_table works with latex caption and label"
+# summary_table works with latex caption and label
 local({
-  m1 <- felm(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+
+  m1 <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
 
   result <- summary_table(
     m1,
@@ -66,9 +81,12 @@ local({
   expect_true(grepl("label", result$content))
 })
 
-# summary_table works without stars"
+# summary_table works without stars
 local({
-  m1 <- felm(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+
+  m1 <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
 
   result <- summary_table(m1, stars = FALSE)
 
@@ -76,9 +94,12 @@ local({
   expect_false(grepl("\\*", result$content))
 })
 
-# summary_table respects digit settings"
+# summary_table respects digit settings
 local({
-  m1 <- felm(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+
+  m1 <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
 
   result <- summary_table(m1, coef_digits = 5, se_digits = 5)
 
@@ -86,16 +107,19 @@ local({
   expect_true(is.list(result))
 })
 
-# summary_table errors on invalid input"
+# summary_table errors on invalid input
 local({
   expect_error(summary_table(1L), "not a felm or feglm")
-  expect_error(summary_table(lm(mpg ~ wt, mtcars)), "not a felm or feglm")
+  expect_error(summary_table(lm(y ~ x, data.frame(x = 1:10, y = 1:10))), "not a felm or feglm")
 })
 
-# summary_table errors on mismatched model_names length"
+# summary_table errors on mismatched model_names length
 local({
-  m1 <- felm(mpg ~ wt | cyl, mtcars)
-  m2 <- fepoisson(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+
+  m1 <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
+  m2 <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
 
   expect_error(
     summary_table(m1, m2, model_names = c("Only One")),
@@ -103,10 +127,13 @@ local({
   )
 })
 
-# summary_table works with models without fixed effects"
+# summary_table works with models without fixed effects
 local({
-  m1 <- felm(mpg ~ wt, mtcars)
-  m2 <- fepoisson(mpg ~ wt, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+
+  m1 <- felm(trade ~ log_dist, yotov2017_subset)
+  m2 <- fepoisson(trade ~ log_dist, yotov2017_subset)
 
   result <- summary_table(m1, m2)
 
@@ -114,23 +141,16 @@ local({
   expect_true(is.list(result))
 })
 
-# summary_table handles models with different variables"
+# summary_table handles models with different variables
 local({
-  m1 <- felm(mpg ~ wt | cyl, mtcars)
-  m2 <- felm(mpg ~ wt + hp | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+
+  m1 <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
+  m2 <- felm(trade ~ log_dist + cntg | exp_year, yotov2017_subset)
 
   result <- summary_table(m1, m2)
 
   expect_true(inherits(result, "summary_table"))
-  expect_true(grepl("hp", result$content))
-})
-
-# summary_table works with feglm binomial"
-local({
-  m1 <- feglm(am ~ wt | cyl, mtcars, family = binomial())
-
-  result <- summary_table(m1)
-
-  expect_true(inherits(result, "summary_table"))
-  expect_true(is.list(result))
+  expect_true(grepl("cntg", result$content))
 })

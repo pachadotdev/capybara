@@ -6,62 +6,62 @@ NULL
 # these tests are a formality but an important one to check NA/Inf/NaN handling
 # this is justified provided that I am not using base R's model.matrix
 
-# NAs on the lhs"
+# NAs on the lhs
 local({
-  mtcars2 <- mtcars
-  mtcars2$mpg[c(1, 3, 5)] <- NA
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  yotov2017_subset$trade[c(1, 3, 5)] <- NA
 
-  m1 <- felm(mpg ~ hp | cyl, data = mtcars2)
-  m2 <- lm(mpg ~ 0 + hp + as.factor(cyl), data = mtcars2)
+  m1 <- felm(trade ~ log_dist | exp_year, data = yotov2017_subset)
+  m2 <- lm(trade ~ 0 + log_dist + as.factor(exp_year), data = yotov2017_subset)
 
   expect_equal(coef(m1), coef(m2)[1])
 })
 
-# NAs on the rhs"
+# NAs on the rhs
 local({
-  mtcars2 <- mtcars
-  mtcars2$cyl[c(1, 3, 5)] <- NA
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  yotov2017_subset$exp_year[c(1, 3, 5)] <- NA
 
-  m1 <- felm(mpg ~ hp | cyl, data = mtcars2)
-  m2 <- lm(mpg ~ 0 + hp + as.factor(cyl), data = mtcars2)
+  m1 <- felm(trade ~ log_dist | exp_year, data = yotov2017_subset)
+  m2 <- lm(trade ~ 0 + log_dist + as.factor(exp_year), data = yotov2017_subset)
 
   expect_equal(coef(m1), coef(m2)[1])
 })
 
-# 0+log on the lhs"
+# 0+log on the rhs
 local({
-  mtcars2 <- mtcars
-  mtcars2$mpg[c(1, 3, 5)] <- 0
-  mtcars2$log_mpg <- log(mtcars2$mpg)
-  mtcars2$log_hp <- log(mtcars2$hp)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  yotov2017_subset$trade[c(1, 3, 5)] <- 0
 
   # we need a subset to avoid breaking lm!
   # otherwise
   # Error in lm.fit(x, y, offset = offset, singular.ok = singular.ok, ...) :
   # NA/NaN/Inf in 'y'
-  mtcars2_subset <- mtcars2[-c(1, 3, 5), ]
+  yotov2017_subset_subset <- yotov2017_subset[-c(1, 3, 5), ]
 
-  m1 <- felm(log_mpg ~ log_hp | cyl, data = mtcars2)
-  m2 <- lm(log_mpg ~ 0 + log_hp + as.factor(cyl), data = mtcars2_subset)
+  m1 <- felm(trade ~ log_dist | exp_year, data = yotov2017_subset)
+  m2 <- lm(trade ~ 0 + log_dist + as.factor(exp_year), data = yotov2017_subset_subset)
 
   expect_equal(coef(m1), coef(m2)[1])
 })
 
-# 0+log on the rhs"
+# 0+log on the rhs
 local({
-  mtcars2 <- mtcars
-  mtcars2$hp[c(1, 3, 5)] <- 0
-  mtcars2$log_mpg <- log(mtcars2$mpg)
-  mtcars2$log_hp <- log(mtcars2$hp)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  yotov2017_subset$log_dist[c(1, 3, 5)] <- 0
 
   # we need a subset to avoid breaking lm!
   # otherwise
   # Error in lm.fit(x, y, offset = offset, singular.ok = singular.ok, ...) :
   # NA/NaN/Inf in 'y'
-  mtcars2_subset <- mtcars2[-c(1, 3, 5), ]
+  yotov2017_subset_subset <- yotov2017_subset[-c(1, 3, 5), ]
 
-  m1 <- felm(log_mpg ~ log_hp | cyl, data = mtcars2)
-  m2 <- lm(log_mpg ~ 0 + log_hp + as.factor(cyl), data = mtcars2_subset)
+  m1 <- felm(trade ~ log_dist | exp_year, data = yotov2017_subset)
+  m2 <- lm(trade ~ 0 + log_dist + as.factor(exp_year), data = yotov2017_subset_subset)
 
   expect_equal(coef(m1), coef(m2)[1])
 })

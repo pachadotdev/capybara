@@ -3,8 +3,8 @@
 #'  (Stammann, 2018). The reference is Stammann (2018) <https://arxiv.org/abs/1707.01815> for GLMs, and also Gaure
 #'  (2013) <https://dx.doi.org/10.1016/j.csda.2013.03.024> for LMs.
 #' @srrstats {G1.2} This describes the current and anticipated future states of development.
-#' @srrstats {G1.3} For fixed effects, I mean the "c" coeffients in the model mpg_i = a + b * wt_i + c * cyl_i + e_i
-#'  with the variables from the mtcars dataset. The model notation for this example is mpg ~ wt | cyl.
+#' @srrstats {G1.3} For fixed effects, I mean the "c" coeffients in the model y_i = a + b * x_i + c * z_i + e_i
+#'  with the variables from the mtcars dataset. The model notation for this example is y ~ x | z.
 #' @srrstats {G1.4} The package uses roxygen2.
 #' @srrstats {G1.4a} All internal (non-exported) functions are documented. See the `*_helpers.R` files.
 #' @srrstats {G1.5} The test include examples to verify the speed gains in this implementation compare to base R.
@@ -36,11 +36,9 @@ NULL
 #' @description Provides a routine to partial out factors with many levels during the optimization of the log-likelihood
 #' function of the corresponding GLM. The package is based on the algorithm described in Stammann (2018). It also offers
 #' an efficient algorithm to recover estimates of the fixed effects in a post-estimation routine and includes robust and
-#' multi-way clustered standard errors. Further the package provides analytical bias corrections for binary choice
-#' models derived by Fernandez-Val and Weidner (2016) and Hinz, Stammann, and Wanner (2020). This package is a ground up
-#' rewrite with multiple refactors, optimizations, and new features compared to the original package `alpaca`. In its
-#' current state, the package is stable and future changes will be limited to bug fixes and improvements, but not to
-#' altering the functions' arguments or outputs.
+#' multi-way clustered standard errors. This package is a ground up rewrite with multiple refactors, optimizations, and
+#' new features compared to the original package `alpaca`. In its current state, the package is stable and future changes
+#' will be limited to bug fixes and improvements, but not to altering the functions' arguments or outputs.
 #'
 #' @name capybara-package
 #' @importFrom Formula Formula as.Formula

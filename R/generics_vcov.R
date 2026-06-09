@@ -53,13 +53,11 @@ vcov.apes <- function(object, ...) {
 #' @seealso \link{feglm}
 #'
 #' @examples
-#' # Model without clustering - returns inverse Hessian covariance
-#' mod <- fepoisson(mpg ~ wt | cyl, mtcars)
-#' round(vcov(mod), 5)
-#'
 #' # Model with clustering - returns sandwich covariance
-#' mod_cl <- fepoisson(mpg ~ wt | cyl | am, mtcars)
-#' round(vcov(mod_cl), 5)
+#' yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+#' yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+#' mod_cl <- fepoisson(trade ~ log_dist + cntg | exp_year | year, yotov2017_subset)
+#' vcov(mod_cl)
 #'
 #' @export
 vcov.feglm <- function(object, ...) {
@@ -97,14 +95,12 @@ vcov.feglm <- function(object, ...) {
 #'
 #' @seealso \link{felm}
 #'
-#' @examples
-#' # Model without clustering - returns inverse Hessian covariance
-#' mod <- felm(mpg ~ wt | cyl, mtcars)
-#' round(vcov(mod), 5)
-#'
+#' @examples 
 #' # Model with clustering - returns sandwich covariance
-#' mod_cl <- felm(mpg ~ wt | cyl | am, mtcars)
-#' round(vcov(mod_cl), 5)
+#' yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+#' yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+#' mod_cl <- felm(trade ~ log_dist | exp_year | year, yotov2017_subset)
+#' vcov(mod_cl)
 #'
 #' @export
 vcov.felm <- function(object, ...) {
@@ -167,39 +163,32 @@ vcov.felm <- function(object, ...) {
 #' @examples
 #' # Refitting models
 #'
+#' yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+#' yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+#' 
 #' fepoisson(
-#'   mpg ~ wt | cyl,
-#'   mtcars,
-#'   control = fit_control(vcov_type = "hetero")
+#'  trade ~ log_dist | exp_year, yotov2017_subset,
+#'  control = fit_control(vcov_type = "hetero")
 #' )
 #'
 #' fepoisson(
-#'   mpg ~ wt | cyl | am,
-#'   mtcars,
-#'   control = fit_control(vcov_type = "m-estimator")
+#'  trade ~ log_dist | exp_year, yotov2017_subset,
+#'  control = fit_control(vcov_type = "m-estimator")
 #' )
 #'
 #' # Reusing models
 #'
 #' # Store required components
 #' mod <- fepoisson(
-#'   mpg ~ wt | cyl,
-#'   mtcars,
+#'   trade ~ log_dist | exp_year, yotov2017_subset,
 #'   control = fit_control(keep_tx = TRUE, return_hessian = TRUE)
 #' )
 #'
 #' # Heteroskedastic-robust HC0 sandwich (no cluster variable needed)
 #' sandwich_vcov(mod, type = "hetero")
 #'
-#' #' One-way and two-way cluster
-#' sandwich_vcov(mod, cluster1 = mtcars$am, type = "clustered")
-#' sandwich_vcov(mod, cluster1 = mtcars$am, cluster2 = mtcars$gear, type = "clustered")
-#' 
-#' # One-way M-estimator sandwich (cluster variable required)
-#' sandwich_vcov(mod, cluster1 = mtcars$am, type = "m-estimator")
-#'
-#' # Dyadic Cameron-Miller sandwich (two cluster variables required)
-#' sandwich_vcov(mod, cluster1 = mtcars$am, cluster2 = mtcars$gear, type = "dyadic")
+#' #' One-way cluster
+#' sandwich_vcov(mod, cluster1 = yotov2017_subset$year, type = "clustered")
 #'
 #' @export
 sandwich_vcov <- function(object, cluster1 = NULL, cluster2 = NULL,

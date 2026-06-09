@@ -97,50 +97,6 @@ NULL
 #'  \code{"m-estimator"} - one-way M-estimator sandwich (cluster variable required);
 #'  \code{"m-estimator-dyadic"} - dyadic-robust Cameron-Miller sandwich (two entity columns required in the
 #'  third part of the formula like \code{z ~ x + y | fe | cl1 + cl2}).
-#' @param tobit_lb numeric indicating the lower censoring bound for Tobit models. Observations with
-#'  \code{y <= tobit_lb} are treated as left-censored. Default is \code{-Inf} (no left censoring).
-#' @param tobit_ub numeric indicating the upper censoring bound for Tobit models. Observations with
-#'  \code{y >= tobit_ub} are treated as right-censored. Default is \code{Inf} (no right censoring).
-#' @param compute_apes logical indicating whether to compute Average Partial Effects (APEs) for binomial models.
-#'  When \code{TRUE}, the model returns APE estimates and their covariance matrix alongside the standard output.
-#'  APEs represent the average marginal effect of each regressor on the probability of the outcome.
-#'  For continuous regressors, this is \code{avg(beta * mu * (1-mu))} for logit link.
-#'  For binary regressors, this is \code{avg(F(eta+beta) - F(eta-X*beta))} where \code{F} is the link inverse.
-#'  The default is \code{FALSE}.
-#' @param ape_n_pop unsigned integer indicating a finite population correction for the estimation of the
-#'  covariance matrix of the average partial effects, proposed by Cruz-Gonzalez, Fernandez-Val, and
-#'  Weidner (2017). The correction factor is computed as: \code{(n_pop - n) / (n_pop - 1)}, where
-#'  \code{n_pop} is the population size and \code{n} is the sample size. Default is \code{NULL} (no correction,
-#'  covariance obtained by delta method only).
-#' @param ape_panel_structure character string equal to \code{"classic"} or \code{"network"} which
-#'  determines the structure of the panel used for APE variance computation. \code{"classic"} denotes
-#'  panel structures where the same cross-sectional units are observed several times (includes pseudo panels).
-#'  \code{"network"} denotes panel structures where bilateral flows are observed for several time periods
-#'  (e.g., trade data). Default is \code{"classic"}.
-#' @param ape_sampling_fe character string equal to \code{"independence"} or \code{"unrestricted"} which
-#'  imposes sampling assumptions about the unobserved effects for APE variance computation.
-#'  \code{"independence"} imposes that all unobserved effects are independent sequences.
-#'  \code{"unrestricted"} does not impose any sampling assumptions. This option only affects the
-#'  optional finite population correction. Default is \code{"independence"}.
-#' @param ape_weak_exo logical indicating if some of the regressors are assumed to be weakly exogenous
-#'  (e.g., predetermined) for APE variance computation. When \code{TRUE}, additional covariance terms
-#'  are included in the variance calculation. Default is \code{FALSE} (all regressors strictly exogenous).
-#' @param compute_bias_corr logical indicating whether to compute analytical bias correction for binomial
-#'  models. When \code{TRUE}, the model returns bias-corrected coefficient estimates alongside the
-#'  standard (uncorrected) coefficients. The bias correction follows Fernandez-Val and Weidner (2016)
-#'  and Hinz, Stammann, and Wanner (2020). Currently restricted to binomial family with 1-3 way fixed
-#'  effects. Default is \code{FALSE}.
-#' @param bias_corr_bandwidth unsigned integer indicating a bandwidth for the estimation of spectral
-#'  densities proposed by Hahn and Kuersteiner (2011). Default is \code{0L}, which should be used if
-#'  all regressors are assumed to be strictly exogenous with respect to the idiosyncratic error term.
-#'  In the presence of weakly exogenous regressors (e.g., lagged outcome variables), Fernandez-Val and
-#'  Weidner (2016, 2018) suggest choosing a bandwidth between one and four. Note that the order of
-#'  factors to be partialed out is important for bandwidths larger than zero.
-#' @param bias_corr_panel_structure character string equal to \code{"classic"} or \code{"network"} which
-#'  determines the structure of the panel used for bias correction. \code{"classic"} denotes panel
-#'  structures where the same cross-sectional units are observed several times (requires 1-2 way FE).
-#'  \code{"network"} denotes panel structures where bilateral flows are observed for several time
-#'  periods, e.g., trade data (requires 2-3 way FE). Default is \code{"classic"}.
 #' @param expectile numeric value between 0 and 1 (exclusive) specifying the expectile for asymmetric
 #'  Poisson pseudo-maximum likelihood (APPML) estimation. When \code{NULL} (default), standard symmetric
 #'  estimation is performed. Values below 0.5 give more weight to negative residuals (lower quantiles),
@@ -217,16 +173,6 @@ fit_control <- function(
   check_separation = TRUE,
   init_theta = 0.0,
   vcov_type = NULL,
-  tobit_lb = -Inf,
-  tobit_ub = Inf,
-  compute_apes = FALSE,
-  ape_n_pop = NULL,
-  ape_panel_structure = "classic",
-  ape_sampling_fe = "independence",
-  ape_weak_exo = FALSE,
-  compute_bias_corr = FALSE,
-  bias_corr_bandwidth = 0L,
-  bias_corr_panel_structure = "classic",
   expectile = NULL,
   expectile_tol = 1.0e-12,
   expectile_iter_max = 50L,
@@ -279,44 +225,13 @@ fit_control <- function(
   sep_use_relu <- as.logical(sep_use_relu)
   sep_use_simplex <- as.logical(sep_use_simplex)
   sep_use_mu <- as.logical(sep_use_mu)
-  compute_apes <- as.logical(compute_apes)
-  ape_weak_exo <- as.logical(ape_weak_exo)
-  compute_bias_corr <- as.logical(compute_bias_corr)
   if (is.na(return_fe) || is.na(keep_tx) || is.na(keep_data) || is.na(return_hessian) ||
     is.na(check_separation) || is.na(sep_use_relu) || is.na(sep_use_simplex) ||
-    is.na(sep_use_mu) || is.na(compute_apes) || is.na(ape_weak_exo) || is.na(compute_bias_corr)) {
+    is.na(sep_use_mu)) {
     stop(
       "All logical parameters should be TRUE or FALSE.",
       call. = FALSE
     )
-  }
-
-  # Check validity of APE parameters
-  if (!is.null(ape_n_pop)) {
-    ape_n_pop <- as.integer(ape_n_pop)
-    if (ape_n_pop < 1L) {
-      stop("ape_n_pop should be a positive integer or NULL.", call. = FALSE)
-    }
-  }
-  ape_panel_structure <- match.arg(ape_panel_structure, c("classic", "network"))
-  ape_sampling_fe <- match.arg(ape_sampling_fe, c("independence", "unrestricted"))
-
-  # Check validity of bias correction parameters
-  bias_corr_bandwidth <- as.integer(bias_corr_bandwidth)
-  if (bias_corr_bandwidth < 0L) {
-    stop("bias_corr_bandwidth should be a non-negative integer.", call. = FALSE)
-  }
-  bias_corr_panel_structure <- match.arg(bias_corr_panel_structure, c("classic", "network"))
-
-  # Check validity of tobit parameters
-  if (!is.numeric(tobit_lb) || length(tobit_lb) != 1L) {
-    stop("tobit_lb should be a single numeric value.", call. = FALSE)
-  }
-  if (!is.numeric(tobit_ub) || length(tobit_ub) != 1L) {
-    stop("tobit_ub should be a single numeric value.", call. = FALSE)
-  }
-  if (is.finite(tobit_lb) && is.finite(tobit_ub) && tobit_lb >= tobit_ub) {
-    stop("tobit_lb must be less than tobit_ub.", call. = FALSE)
   }
 
   # Check validity of integer parameters for acceleration
@@ -421,16 +336,6 @@ fit_control <- function(
     check_separation = check_separation,
     init_theta = init_theta,
     vcov_type = vcov_type,
-    compute_apes = compute_apes,
-    ape_n_pop = ape_n_pop,
-    ape_panel_structure = ape_panel_structure,
-    ape_sampling_fe = ape_sampling_fe,
-    ape_weak_exo = ape_weak_exo,
-    compute_bias_corr = compute_bias_corr,
-    bias_corr_bandwidth = bias_corr_bandwidth,
-    bias_corr_panel_structure = bias_corr_panel_structure,
-    tobit_lb = tobit_lb,
-    tobit_ub = tobit_ub,
     expectile = expectile,
     expectile_tol = expectile_tol,
     expectile_iter_max = expectile_iter_max,

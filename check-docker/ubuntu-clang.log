@@ -1,0 +1,1593 @@
+Reading package lists...
+Building dependency tree...
+Reading state information...
+pkg-config is already the newest version (0.29.2-1ubuntu3).
+libxml2-dev is already the newest version (2.9.13+dfsg-1ubuntu0.11).
+libxml2-dev set to manually installed.
+The following additional packages will be installed:
+  libuv1
+The following NEW packages will be installed:
+  libuv1 libuv1-dev
+0 upgraded, 2 newly installed, 0 to remove and 10 not upgraded.
+Need to get 223 kB of archives.
+After this operation, 906 kB of additional disk space will be used.
+Get:1 http://archive.ubuntu.com/ubuntu jammy-updates/main amd64 libuv1 amd64 1.43.0-1ubuntu0.1 [92.7 kB]
+Get:2 http://archive.ubuntu.com/ubuntu jammy-updates/main amd64 libuv1-dev amd64 1.43.0-1ubuntu0.1 [130 kB]
+debconf: delaying package configuration, since apt-utils is not installed
+Fetched 223 kB in 0s (2585 kB/s)
+Selecting previously unselected package libuv1:amd64.
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 27283 files and directories currently installed.)
+Preparing to unpack .../libuv1_1.43.0-1ubuntu0.1_amd64.deb ...
+Unpacking libuv1:amd64 (1.43.0-1ubuntu0.1) ...
+Selecting previously unselected package libuv1-dev:amd64.
+Preparing to unpack .../libuv1-dev_1.43.0-1ubuntu0.1_amd64.deb ...
+Unpacking libuv1-dev:amd64 (1.43.0-1ubuntu0.1) ...
+Setting up libuv1:amd64 (1.43.0-1ubuntu0.1) ...
+Setting up libuv1-dev:amd64 (1.43.0-1ubuntu0.1) ...
+Processing triggers for libc-bin (2.35-0ubuntu3.13) ...
+also installing the dependencies ‘evaluate’, ‘highr’, ‘xfun’, ‘yaml’
+
+trying URL 'https://cloud.r-project.org/src/contrib/evaluate_1.0.5.tar.gz'
+trying URL 'https://cloud.r-project.org/src/contrib/highr_0.12.tar.gz'
+trying URL 'https://cloud.r-project.org/src/contrib/xfun_0.58.tar.gz'
+trying URL 'https://cloud.r-project.org/src/contrib/yaml_2.3.12.tar.gz'
+trying URL 'https://cloud.r-project.org/src/contrib/knitr_1.51.tar.gz'
+* installing *source* package ‘evaluate’ ...
+** this is package ‘evaluate’ version ‘1.0.5’
+** package ‘evaluate’ successfully unpacked and MD5 sums checked
+** using staged installation
+** R
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+** building package indices
+** testing if installed package can be loaded from temporary location
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (evaluate)
+* installing *source* package ‘xfun’ ...
+** this is package ‘xfun’ version ‘0.58’
+** package ‘xfun’ successfully unpacked and MD5 sums checked
+** using staged installation
+** libs
+using C compiler: ‘Ubuntu clang version 15.0.7’
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG   -I/usr/local/include    -fpic  -g -O2  -c base64.c -o base64.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG   -I/usr/local/include    -fpic  -g -O2  -c init.c -o init.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG   -I/usr/local/include    -fpic  -g -O2  -c rand_lcg.c -o rand_lcg.o
+clang-15 -shared -L/opt/R/devel/lib/R/lib -L/usr/local/lib -o xfun.so base64.o init.o rand_lcg.o -L/opt/R/devel/lib/R/lib -lR
+installing to /cache/R_libs/00LOCK-xfun/00new/xfun/libs
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+** building package indices
+** installing vignettes
+** testing if installed package can be loaded from temporary location
+** checking absolute paths in shared objects and dynamic libraries
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (xfun)
+* installing *source* package ‘yaml’ ...
+** this is package ‘yaml’ version ‘2.3.12’
+** package ‘yaml’ successfully unpacked and MD5 sums checked
+** using staged installation
+** libs
+using C compiler: ‘Ubuntu clang version 15.0.7’
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I. -DNDEBUG  -I/usr/local/include    -fpic  -g -O2  -c api.c -o api.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I. -DNDEBUG  -I/usr/local/include    -fpic  -g -O2  -c dumper.c -o dumper.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I. -DNDEBUG  -I/usr/local/include    -fpic  -g -O2  -c emitter.c -o emitter.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I. -DNDEBUG  -I/usr/local/include    -fpic  -g -O2  -c implicit.c -o implicit.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I. -DNDEBUG  -I/usr/local/include    -fpic  -g -O2  -c loader.c -o loader.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I. -DNDEBUG  -I/usr/local/include    -fpic  -g -O2  -c parser.c -o parser.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I. -DNDEBUG  -I/usr/local/include    -fpic  -g -O2  -c r_emit.c -o r_emit.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I. -DNDEBUG  -I/usr/local/include    -fpic  -g -O2  -c r_ext.c -o r_ext.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I. -DNDEBUG  -I/usr/local/include    -fpic  -g -O2  -c r_parse.c -o r_parse.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I. -DNDEBUG  -I/usr/local/include    -fpic  -g -O2  -c reader.c -o reader.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I. -DNDEBUG  -I/usr/local/include    -fpic  -g -O2  -c scanner.c -o scanner.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I. -DNDEBUG  -I/usr/local/include    -fpic  -g -O2  -c writer.c -o writer.o
+clang-15 -shared -L/opt/R/devel/lib/R/lib -L/usr/local/lib -o yaml.so api.o dumper.o emitter.o implicit.o loader.o parser.o r_emit.o r_ext.o r_parse.o reader.o scanner.o writer.o -L/opt/R/devel/lib/R/lib -lR
+installing to /cache/R_libs/00LOCK-yaml/00new/yaml/libs
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+** building package indices
+** installing vignettes
+** testing if installed package can be loaded from temporary location
+** checking absolute paths in shared objects and dynamic libraries
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (yaml)
+* installing *source* package ‘highr’ ...
+** this is package ‘highr’ version ‘0.12’
+** package ‘highr’ successfully unpacked and MD5 sums checked
+** using staged installation
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+** building package indices
+** installing vignettes
+** testing if installed package can be loaded from temporary location
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (highr)
+* installing *source* package ‘knitr’ ...
+** this is package ‘knitr’ version ‘1.51’
+** package ‘knitr’ successfully unpacked and MD5 sums checked
+** using staged installation
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+** building package indices
+** installing vignettes
+** testing if installed package can be loaded from temporary location
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (knitr)
+
+The downloaded source packages are in
+	‘/tmp/RtmpvHZVGz/downloaded_packages’
+also installing the dependencies ‘fs’, ‘rappdirs’, ‘base64enc’, ‘cachem’, ‘fastmap’, ‘memoise’, ‘mime’, ‘sass’, ‘digest’, ‘bslib’, ‘fontawesome’, ‘htmltools’, ‘jquerylib’, ‘jsonlite’, ‘tinytex’
+
+trying URL 'https://cloud.r-project.org/src/contrib/fs_2.1.0.tar.gz'
+trying URL 'https://cloud.r-project.org/src/contrib/rappdirs_0.3.4.tar.gz'
+trying URL 'https://cloud.r-project.org/src/contrib/base64enc_0.1-6.tar.gz'
+trying URL 'https://cloud.r-project.org/src/contrib/cachem_1.1.0.tar.gz'
+trying URL 'https://cloud.r-project.org/src/contrib/fastmap_1.2.0.tar.gz'
+trying URL 'https://cloud.r-project.org/src/contrib/memoise_2.0.1.tar.gz'
+trying URL 'https://cloud.r-project.org/src/contrib/mime_0.13.tar.gz'
+trying URL 'https://cloud.r-project.org/src/contrib/sass_0.4.10.tar.gz'
+trying URL 'https://cloud.r-project.org/src/contrib/digest_0.6.39.tar.gz'
+trying URL 'https://cloud.r-project.org/src/contrib/bslib_0.11.0.tar.gz'
+trying URL 'https://cloud.r-project.org/src/contrib/fontawesome_0.5.3.tar.gz'
+trying URL 'https://cloud.r-project.org/src/contrib/htmltools_0.5.9.tar.gz'
+trying URL 'https://cloud.r-project.org/src/contrib/jquerylib_0.1.4.tar.gz'
+trying URL 'https://cloud.r-project.org/src/contrib/jsonlite_2.0.0.tar.gz'
+trying URL 'https://cloud.r-project.org/src/contrib/tinytex_0.59.tar.gz'
+trying URL 'https://cloud.r-project.org/src/contrib/rmarkdown_2.31.tar.gz'
+* installing *source* package ‘fs’ ...
+** this is package ‘fs’ version ‘2.1.0’
+** package ‘fs’ successfully unpacked and MD5 sums checked
+** using staged installation
+Found pkg-config cflags and libs!
+Using PKG_CFLAGS=
+Using PKG_LIBS=-luv -lpthread -ldl -lrt
+** libs
+using C++ compiler: ‘Ubuntu clang version 15.0.7’
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.   -I/usr/local/include    -fpic  -g -O2   -c dir.cc -o dir.o
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.   -I/usr/local/include    -fpic  -g -O2   -c error.cc -o error.o
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.   -I/usr/local/include    -fpic  -g -O2   -c file.cc -o file.o
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.   -I/usr/local/include    -fpic  -g -O2   -c fs.cc -o fs.o
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.   -I/usr/local/include    -fpic  -g -O2   -c getmode.cc -o getmode.o
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.   -I/usr/local/include    -fpic  -g -O2   -c id.cc -o id.o
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.   -I/usr/local/include    -fpic  -g -O2   -c init.cc -o init.o
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.   -I/usr/local/include    -fpic  -g -O2   -c link.cc -o link.o
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.   -I/usr/local/include    -fpic  -g -O2   -c path.cc -o path.o
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.   -I/usr/local/include    -fpic  -g -O2   -c utils.cc -o utils.o
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.   -I/usr/local/include    -fpic  -g -O2   -c unix/getmode.cc -o unix/getmode.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.   -I/usr/local/include   -fvisibility=hidden -fpic  -g -O2  -c bsd/setmode.c -o bsd/setmode.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.   -I/usr/local/include   -fvisibility=hidden -fpic  -g -O2  -c bsd/strmode.c -o bsd/strmode.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.   -I/usr/local/include   -fvisibility=hidden -fpic  -g -O2  -c bsd/reallocarray.c -o bsd/reallocarray.o
+clang++-15 -std=gnu++20 -shared -L/opt/R/devel/lib/R/lib -L/usr/local/lib -o fs.so dir.o error.o file.o fs.o getmode.o id.o init.o link.o path.o utils.o unix/getmode.o bsd/setmode.o bsd/strmode.o bsd/reallocarray.o -luv -lpthread -ldl -lrt -L/opt/R/devel/lib/R/lib -lR
+installing to /cache/R_libs/00LOCK-fs/00new/fs/libs
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+*** copying figures
+** building package indices
+** installing vignettes
+** testing if installed package can be loaded from temporary location
+** checking absolute paths in shared objects and dynamic libraries
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (fs)
+* installing *source* package ‘rappdirs’ ...
+** this is package ‘rappdirs’ version ‘0.3.4’
+** package ‘rappdirs’ successfully unpacked and MD5 sums checked
+** using staged installation
+** libs
+using C compiler: ‘Ubuntu clang version 15.0.7’
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG   -I/usr/local/include    -fpic  -g -O2  -c init.c -o init.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG   -I/usr/local/include    -fpic  -g -O2  -c win-path.c -o win-path.o
+clang-15 -shared -L/opt/R/devel/lib/R/lib -L/usr/local/lib -o rappdirs.so init.o win-path.o -L/opt/R/devel/lib/R/lib -lR
+installing to /cache/R_libs/00LOCK-rappdirs/00new/rappdirs/libs
+** R
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+** building package indices
+** testing if installed package can be loaded from temporary location
+** checking absolute paths in shared objects and dynamic libraries
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (rappdirs)
+* installing *source* package ‘base64enc’ ...
+** this is package ‘base64enc’ version ‘0.1-6’
+** package ‘base64enc’ successfully unpacked and MD5 sums checked
+** using staged installation
+** libs
+using C compiler: ‘Ubuntu clang version 15.0.7’
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG   -I/usr/local/include    -fpic  -g -O2  -c base64.c -o base64.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG   -I/usr/local/include    -fpic  -g -O2  -c dummy.c -o dummy.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG   -I/usr/local/include    -fpic  -g -O2  -c uriencode.c -o uriencode.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG   -I/usr/local/include    -fpic  -g -O2  -c utf8.c -o utf8.o
+clang-15 -shared -L/opt/R/devel/lib/R/lib -L/usr/local/lib -o base64enc.so base64.o dummy.o uriencode.o utf8.o -L/opt/R/devel/lib/R/lib -lR
+installing to /cache/R_libs/00LOCK-base64enc/00new/base64enc/libs
+** R
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+** building package indices
+** testing if installed package can be loaded from temporary location
+** checking absolute paths in shared objects and dynamic libraries
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (base64enc)
+* installing *source* package ‘fastmap’ ...
+** this is package ‘fastmap’ version ‘1.2.0’
+** package ‘fastmap’ successfully unpacked and MD5 sums checked
+** using staged installation
+** libs
+using C compiler: ‘Ubuntu clang version 15.0.7’
+using C++ compiler: ‘Ubuntu clang version 15.0.7’
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Ilib/  -I/usr/local/include   -DR_NO_REMAP -fpic  -g -O2   -c fastmap.cpp -o fastmap.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Ilib/  -I/usr/local/include    -fpic  -g -O2  -c init.c -o init.o
+clang++-15 -std=gnu++20 -shared -L/opt/R/devel/lib/R/lib -L/usr/local/lib -o fastmap.so fastmap.o init.o -L/opt/R/devel/lib/R/lib -lR
+installing to /cache/R_libs/00LOCK-fastmap/00new/fastmap/libs
+** R
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+** building package indices
+** testing if installed package can be loaded from temporary location
+** checking absolute paths in shared objects and dynamic libraries
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (fastmap)
+* installing *source* package ‘mime’ ...
+** this is package ‘mime’ version ‘0.13’
+** package ‘mime’ successfully unpacked and MD5 sums checked
+** using staged installation
+** libs
+using C compiler: ‘Ubuntu clang version 15.0.7’
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG   -I/usr/local/include    -fpic  -g -O2  -c init.c -o init.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG   -I/usr/local/include    -fpic  -g -O2  -c rawmatch.c -o rawmatch.o
+clang-15 -shared -L/opt/R/devel/lib/R/lib -L/usr/local/lib -o mime.so init.o rawmatch.o -L/opt/R/devel/lib/R/lib -lR
+installing to /cache/R_libs/00LOCK-mime/00new/mime/libs
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+** building package indices
+** testing if installed package can be loaded from temporary location
+** checking absolute paths in shared objects and dynamic libraries
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (mime)
+* installing *source* package ‘digest’ ...
+** this is package ‘digest’ version ‘0.6.39’
+** package ‘digest’ successfully unpacked and MD5 sums checked
+** using staged installation
+** libs
+using C compiler: ‘Ubuntu clang version 15.0.7’
+using C++ compiler: ‘Ubuntu clang version 15.0.7’
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.  -I/usr/local/include    -fpic  -g -O2   -c SpookyV2.cpp -o SpookyV2.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.  -I/usr/local/include    -fpic  -g -O2  -c aes.c -o aes.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.  -I/usr/local/include    -fpic  -g -O2  -c blake3.c -o blake3.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.  -I/usr/local/include    -fpic  -g -O2  -c blake3_dispatch.c -o blake3_dispatch.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.  -I/usr/local/include    -fpic  -g -O2  -c blake3_portable.c -o blake3_portable.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.  -I/usr/local/include    -fpic  -g -O2  -c crc32.c -o crc32.o
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.  -I/usr/local/include    -fpic  -g -O2   -c crc32c.cpp -o crc32c.o
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.  -I/usr/local/include    -fpic  -g -O2   -c crc32c_portable.cpp -o crc32c_portable.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.  -I/usr/local/include    -fpic  -g -O2  -c digest.c -o digest.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.  -I/usr/local/include    -fpic  -g -O2  -c digest2int.c -o digest2int.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.  -I/usr/local/include    -fpic  -g -O2  -c init.c -o init.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.  -I/usr/local/include    -fpic  -g -O2  -c md5.c -o md5.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.  -I/usr/local/include    -fpic  -g -O2  -c pmurhash.c -o pmurhash.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.  -I/usr/local/include    -fpic  -g -O2  -c raes.c -o raes.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.  -I/usr/local/include    -fpic  -g -O2  -c sha1.c -o sha1.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.  -I/usr/local/include    -fpic  -g -O2  -c sha2.c -o sha2.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.  -I/usr/local/include    -fpic  -g -O2  -c sha256.c -o sha256.o
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.  -I/usr/local/include    -fpic  -g -O2   -c spooky_serialize.cpp -o spooky_serialize.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I.  -I/usr/local/include    -fpic  -g -O2  -c xxhash.c -o xxhash.o
+clang++-15 -std=gnu++20 -shared -L/opt/R/devel/lib/R/lib -L/usr/local/lib -o digest.so SpookyV2.o aes.o blake3.o blake3_dispatch.o blake3_portable.o crc32.o crc32c.o crc32c_portable.o digest.o digest2int.o init.o md5.o pmurhash.o raes.o sha1.o sha2.o sha256.o spooky_serialize.o xxhash.o -L/opt/R/devel/lib/R/lib -lR
+installing to /cache/R_libs/00LOCK-digest/00new/digest/libs
+** R
+** demo
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+** building package indices
+** installing vignettes
+** testing if installed package can be loaded from temporary location
+** checking absolute paths in shared objects and dynamic libraries
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (digest)
+* installing *source* package ‘jsonlite’ ...
+** this is package ‘jsonlite’ version ‘2.0.0’
+** package ‘jsonlite’ successfully unpacked and MD5 sums checked
+** using staged installation
+** libs
+using C compiler: ‘Ubuntu clang version 15.0.7’
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Iyajl/api  -I/usr/local/include   -fvisibility=hidden  -fpic  -g -O2  -c base64.c -o base64.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Iyajl/api  -I/usr/local/include   -fvisibility=hidden  -fpic  -g -O2  -c collapse_array.c -o collapse_array.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Iyajl/api  -I/usr/local/include   -fvisibility=hidden  -fpic  -g -O2  -c collapse_object.c -o collapse_object.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Iyajl/api  -I/usr/local/include   -fvisibility=hidden  -fpic  -g -O2  -c collapse_pretty.c -o collapse_pretty.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Iyajl/api  -I/usr/local/include   -fvisibility=hidden  -fpic  -g -O2  -c escape_chars.c -o escape_chars.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Iyajl/api  -I/usr/local/include   -fvisibility=hidden  -fpic  -g -O2  -c integer64_to_na.c -o integer64_to_na.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Iyajl/api  -I/usr/local/include   -fvisibility=hidden  -fpic  -g -O2  -c is_datelist.c -o is_datelist.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Iyajl/api  -I/usr/local/include   -fvisibility=hidden  -fpic  -g -O2  -c is_recordlist.c -o is_recordlist.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Iyajl/api  -I/usr/local/include   -fvisibility=hidden  -fpic  -g -O2  -c is_scalarlist.c -o is_scalarlist.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Iyajl/api  -I/usr/local/include   -fvisibility=hidden  -fpic  -g -O2  -c modp_numtoa.c -o modp_numtoa.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Iyajl/api  -I/usr/local/include   -fvisibility=hidden  -fpic  -g -O2  -c null_to_na.c -o null_to_na.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Iyajl/api  -I/usr/local/include   -fvisibility=hidden  -fpic  -g -O2  -c num_to_char.c -o num_to_char.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Iyajl/api  -I/usr/local/include   -fvisibility=hidden  -fpic  -g -O2  -c parse.c -o parse.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Iyajl/api  -I/usr/local/include   -fvisibility=hidden  -fpic  -g -O2  -c prettify.c -o prettify.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Iyajl/api  -I/usr/local/include   -fvisibility=hidden  -fpic  -g -O2  -c push_parser.c -o push_parser.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Iyajl/api  -I/usr/local/include   -fvisibility=hidden  -fpic  -g -O2  -c r-base64.c -o r-base64.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Iyajl/api  -I/usr/local/include   -fvisibility=hidden  -fpic  -g -O2  -c register.c -o register.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Iyajl/api  -I/usr/local/include   -fvisibility=hidden  -fpic  -g -O2  -c row_collapse.c -o row_collapse.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Iyajl/api  -I/usr/local/include   -fvisibility=hidden  -fpic  -g -O2  -c transpose_list.c -o transpose_list.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Iyajl/api  -I/usr/local/include   -fvisibility=hidden  -fpic  -g -O2  -c validate.c -o validate.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Iyajl/api  -I/usr/local/include   -fvisibility=hidden  -fpic  -g -O2  -c yajl/yajl.c -o yajl/yajl.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Iyajl/api  -I/usr/local/include   -fvisibility=hidden  -fpic  -g -O2  -c yajl/yajl_alloc.c -o yajl/yajl_alloc.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Iyajl/api  -I/usr/local/include   -fvisibility=hidden  -fpic  -g -O2  -c yajl/yajl_buf.c -o yajl/yajl_buf.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Iyajl/api  -I/usr/local/include   -fvisibility=hidden  -fpic  -g -O2  -c yajl/yajl_encode.c -o yajl/yajl_encode.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Iyajl/api  -I/usr/local/include   -fvisibility=hidden  -fpic  -g -O2  -c yajl/yajl_gen.c -o yajl/yajl_gen.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Iyajl/api  -I/usr/local/include   -fvisibility=hidden  -fpic  -g -O2  -c yajl/yajl_lex.c -o yajl/yajl_lex.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Iyajl/api  -I/usr/local/include   -fvisibility=hidden  -fpic  -g -O2  -c yajl/yajl_parser.c -o yajl/yajl_parser.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -Iyajl/api  -I/usr/local/include   -fvisibility=hidden  -fpic  -g -O2  -c yajl/yajl_tree.c -o yajl/yajl_tree.o
+ar rcs yajl/libstatyajl.a yajl/yajl.o yajl/yajl_alloc.o yajl/yajl_buf.o yajl/yajl_encode.o yajl/yajl_gen.o yajl/yajl_lex.o yajl/yajl_parser.o yajl/yajl_tree.o
+clang-15 -shared -L/opt/R/devel/lib/R/lib -L/usr/local/lib -o jsonlite.so base64.o collapse_array.o collapse_object.o collapse_pretty.o escape_chars.o integer64_to_na.o is_datelist.o is_recordlist.o is_scalarlist.o modp_numtoa.o null_to_na.o num_to_char.o parse.o prettify.o push_parser.o r-base64.o register.o row_collapse.o transpose_list.o validate.o -Lyajl -lstatyajl -L/opt/R/devel/lib/R/lib -lR
+installing to /cache/R_libs/00LOCK-jsonlite/00new/jsonlite/libs
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+in method for ‘asJSON’ with signature ‘"AsIs"’: no definition for class “AsIs”
+in method for ‘asJSON’ with signature ‘"ITime"’: no definition for class “ITime”
+in method for ‘asJSON’ with signature ‘"hms"’: no definition for class “hms”
+in method for ‘asJSON’ with signature ‘"json"’: no definition for class “json”
+in method for ‘asJSON’ with signature ‘"integer64"’: no definition for class “integer64”
+in method for ‘asJSON’ with signature ‘"pairlist"’: no definition for class “pairlist”
+in method for ‘asJSON’ with signature ‘"blob"’: no definition for class “blob”
+in method for ‘asJSON’ with signature ‘"scalar"’: no definition for class “scalar”
+in method for ‘asJSON’ with signature ‘"sf"’: no definition for class “sf”
+in method for ‘asJSON’ with signature ‘"sfc"’: no definition for class “sfc”
+in method for ‘asJSON’ with signature ‘"vctrs_vctr"’: no definition for class “vctrs_vctr”
+** help
+*** installing help indices
+** building package indices
+** installing vignettes
+** testing if installed package can be loaded from temporary location
+** checking absolute paths in shared objects and dynamic libraries
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (jsonlite)
+* installing *source* package ‘tinytex’ ...
+** this is package ‘tinytex’ version ‘0.59’
+** package ‘tinytex’ successfully unpacked and MD5 sums checked
+** using staged installation
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+** building package indices
+** testing if installed package can be loaded from temporary location
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (tinytex)
+* installing *source* package ‘cachem’ ...
+** this is package ‘cachem’ version ‘1.1.0’
+** package ‘cachem’ successfully unpacked and MD5 sums checked
+** using staged installation
+** libs
+using C compiler: ‘Ubuntu clang version 15.0.7’
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG   -I/usr/local/include    -fpic  -g -O2  -c cache.c -o cache.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG   -I/usr/local/include    -fpic  -g -O2  -c init.c -o init.o
+clang-15 -shared -L/opt/R/devel/lib/R/lib -L/usr/local/lib -o cachem.so cache.o init.o -L/opt/R/devel/lib/R/lib -lR
+installing to /cache/R_libs/00LOCK-cachem/00new/cachem/libs
+** R
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+** building package indices
+** testing if installed package can be loaded from temporary location
+** checking absolute paths in shared objects and dynamic libraries
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (cachem)
+* installing *source* package ‘htmltools’ ...
+** this is package ‘htmltools’ version ‘0.5.9’
+** package ‘htmltools’ successfully unpacked and MD5 sums checked
+** using staged installation
+** libs
+using C compiler: ‘Ubuntu clang version 15.0.7’
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG   -I/usr/local/include    -fpic  -g -O2  -c init.c -o init.o
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG   -I/usr/local/include    -fpic  -g -O2  -c template.c -o template.o
+clang-15 -shared -L/opt/R/devel/lib/R/lib -L/usr/local/lib -o htmltools.so init.o template.o -L/opt/R/devel/lib/R/lib -lR
+installing to /cache/R_libs/00LOCK-htmltools/00new/htmltools/libs
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+*** copying figures
+** building package indices
+** testing if installed package can be loaded from temporary location
+** checking absolute paths in shared objects and dynamic libraries
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (htmltools)
+* installing *source* package ‘memoise’ ...
+** this is package ‘memoise’ version ‘2.0.1’
+** package ‘memoise’ successfully unpacked and MD5 sums checked
+** using staged installation
+** R
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+** building package indices
+** testing if installed package can be loaded from temporary location
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (memoise)
+* installing *source* package ‘sass’ ...
+** this is package ‘sass’ version ‘0.4.10’
+** package ‘sass’ successfully unpacked and MD5 sums checked
+** using staged installation
+** libs
+using C compiler: ‘Ubuntu clang version 15.0.7’
+using C++ compiler: ‘Ubuntu clang version 15.0.7’
+clang-15 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I./libsass/include  -I/usr/local/include    -fpic  -g -O2  -c compile.c -o compile.o
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I./libsass/include  -I/usr/local/include    -fpic  -g -O2   -c init.cpp -o init.o
+MAKEFLAGS= CC="clang-15" CFLAGS="-g -O2 " CXX="clang++-15 -std=gnu++20" AR="ar" LDFLAGS="-L/usr/local/lib" make -C libsass
+make[1]: Entering directory '/tmp/RtmpfoViLI/R.INSTALLaf438ee2e71/sass/src/libsass'
+clang-15 -g -O2  -O2 -I ./include  -fPIC -c -o src/cencode.o src/cencode.c
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/ast.o src/ast.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/ast_values.o src/ast_values.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/ast_supports.o src/ast_supports.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/ast_sel_cmp.o src/ast_sel_cmp.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/ast_sel_unify.o src/ast_sel_unify.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/ast_sel_super.o src/ast_sel_super.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/ast_sel_weave.o src/ast_sel_weave.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/ast_selectors.o src/ast_selectors.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/context.o src/context.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/constants.o src/constants.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/fn_utils.o src/fn_utils.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/fn_miscs.o src/fn_miscs.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/fn_maps.o src/fn_maps.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/fn_lists.o src/fn_lists.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/fn_colors.o src/fn_colors.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/fn_numbers.o src/fn_numbers.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/fn_strings.o src/fn_strings.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/fn_selectors.o src/fn_selectors.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/color_maps.o src/color_maps.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/environment.o src/environment.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/ast_fwd_decl.o src/ast_fwd_decl.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/bind.o src/bind.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/file.o src/file.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/util.o src/util.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/util_string.o src/util_string.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/json.o src/json.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/units.o src/units.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/values.o src/values.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/plugins.o src/plugins.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/source.o src/source.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/position.o src/position.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/lexer.o src/lexer.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/parser.o src/parser.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/parser_selectors.o src/parser_selectors.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/prelexer.o src/prelexer.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/eval.o src/eval.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/eval_selectors.o src/eval_selectors.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/expand.o src/expand.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/listize.o src/listize.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/cssize.o src/cssize.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/extender.o src/extender.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/extension.o src/extension.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/stylesheet.o src/stylesheet.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/output.o src/output.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/inspect.o src/inspect.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/emitter.o src/emitter.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/check_nesting.o src/check_nesting.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/remove_placeholders.o src/remove_placeholders.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/sass.o src/sass.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/sass_values.o src/sass_values.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/sass_context.o src/sass_context.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/sass_functions.o src/sass_functions.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/sass2scss.o src/sass2scss.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/backtrace.o src/backtrace.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/operators.o src/operators.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/ast2c.o src/ast2c.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/c2ast.o src/c2ast.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/to_value.o src/to_value.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/source_map.o src/source_map.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/error_handling.o src/error_handling.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/memory/allocator.o src/memory/allocator.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/memory/shared_ptr.o src/memory/shared_ptr.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/utf8_string.o src/utf8_string.cpp
+clang++-15 -std=gnu++20 -Wall -O2 -std=c++11 -I ./include  -fPIC -c -o src/base64vlq.o src/base64vlq.cpp
+mkdir lib
+ar rcvs lib/libsass.a src/cencode.o src/ast.o src/ast_values.o src/ast_supports.o src/ast_sel_cmp.o src/ast_sel_unify.o src/ast_sel_super.o src/ast_sel_weave.o src/ast_selectors.o src/context.o src/constants.o src/fn_utils.o src/fn_miscs.o src/fn_maps.o src/fn_lists.o src/fn_colors.o src/fn_numbers.o src/fn_strings.o src/fn_selectors.o src/color_maps.o src/environment.o src/ast_fwd_decl.o src/bind.o src/file.o src/util.o src/util_string.o src/json.o src/units.o src/values.o src/plugins.o src/source.o src/position.o src/lexer.o src/parser.o src/parser_selectors.o src/prelexer.o src/eval.o src/eval_selectors.o src/expand.o src/listize.o src/cssize.o src/extender.o src/extension.o src/stylesheet.o src/output.o src/inspect.o src/emitter.o src/check_nesting.o src/remove_placeholders.o src/sass.o src/sass_values.o src/sass_context.o src/sass_functions.o src/sass2scss.o src/backtrace.o src/operators.o src/ast2c.o src/c2ast.o src/to_value.o src/source_map.o src/error_handling.o src/memory/allocator.o src/memory/shared_ptr.o src/utf8_string.o src/base64vlq.o
+a - src/cencode.o
+a - src/ast.o
+a - src/ast_values.o
+a - src/ast_supports.o
+a - src/ast_sel_cmp.o
+a - src/ast_sel_unify.o
+a - src/ast_sel_super.o
+a - src/ast_sel_weave.o
+a - src/ast_selectors.o
+a - src/context.o
+a - src/constants.o
+a - src/fn_utils.o
+a - src/fn_miscs.o
+a - src/fn_maps.o
+a - src/fn_lists.o
+a - src/fn_colors.o
+a - src/fn_numbers.o
+a - src/fn_strings.o
+a - src/fn_selectors.o
+a - src/color_maps.o
+a - src/environment.o
+a - src/ast_fwd_decl.o
+a - src/bind.o
+a - src/file.o
+a - src/util.o
+a - src/util_string.o
+a - src/json.o
+a - src/units.o
+a - src/values.o
+a - src/plugins.o
+a - src/source.o
+a - src/position.o
+a - src/lexer.o
+a - src/parser.o
+a - src/parser_selectors.o
+a - src/prelexer.o
+a - src/eval.o
+a - src/eval_selectors.o
+a - src/expand.o
+a - src/listize.o
+a - src/cssize.o
+a - src/extender.o
+a - src/extension.o
+a - src/stylesheet.o
+a - src/output.o
+a - src/inspect.o
+a - src/emitter.o
+a - src/check_nesting.o
+a - src/remove_placeholders.o
+a - src/sass.o
+a - src/sass_values.o
+a - src/sass_context.o
+a - src/sass_functions.o
+a - src/sass2scss.o
+a - src/backtrace.o
+a - src/operators.o
+a - src/ast2c.o
+a - src/c2ast.o
+a - src/to_value.o
+a - src/source_map.o
+a - src/error_handling.o
+a - src/memory/allocator.o
+a - src/memory/shared_ptr.o
+a - src/utf8_string.o
+a - src/base64vlq.o
+make[1]: Leaving directory '/tmp/RtmpfoViLI/R.INSTALLaf438ee2e71/sass/src/libsass'
+clang++-15 -std=gnu++20 -shared -L/opt/R/devel/lib/R/lib -L/usr/local/lib -o sass.so compile.o init.o ./libsass/lib/libsass.a -L/opt/R/devel/lib/R/lib -lR
+rm -f libsass/lib/libsass.a
+installing to /cache/R_libs/00LOCK-sass/00new/sass/libs
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+*** copying figures
+** building package indices
+** installing vignettes
+** testing if installed package can be loaded from temporary location
+** checking absolute paths in shared objects and dynamic libraries
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (sass)
+* installing *source* package ‘fontawesome’ ...
+** this is package ‘fontawesome’ version ‘0.5.3’
+** package ‘fontawesome’ successfully unpacked and MD5 sums checked
+** using staged installation
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+*** copying figures
+** building package indices
+** testing if installed package can be loaded from temporary location
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (fontawesome)
+* installing *source* package ‘jquerylib’ ...
+** this is package ‘jquerylib’ version ‘0.1.4’
+** package ‘jquerylib’ successfully unpacked and MD5 sums checked
+** using staged installation
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+** building package indices
+** testing if installed package can be loaded from temporary location
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (jquerylib)
+* installing *source* package ‘bslib’ ...
+** this is package ‘bslib’ version ‘0.11.0’
+** package ‘bslib’ successfully unpacked and MD5 sums checked
+** using staged installation
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+*** copying figures
+** building package indices
+** testing if installed package can be loaded from temporary location
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (bslib)
+* installing *source* package ‘rmarkdown’ ...
+** this is package ‘rmarkdown’ version ‘2.31’
+** package ‘rmarkdown’ successfully unpacked and MD5 sums checked
+** using staged installation
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+*** copying figures
+** building package indices
+** installing vignettes
+** testing if installed package can be loaded from temporary location
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (rmarkdown)
+
+The downloaded source packages are in
+	‘/tmp/RtmpvHZVGz/downloaded_packages’
+also installing the dependency ‘Rcpp’
+
+trying URL 'https://cloud.r-project.org/src/contrib/Rcpp_1.1.1-1.1.tar.gz'
+trying URL 'https://cloud.r-project.org/src/contrib/units_1.0-1.tar.gz'
+* installing *source* package ‘Rcpp’ ...
+** this is package ‘Rcpp’ version ‘1.1.1-1.1’
+** package ‘Rcpp’ successfully unpacked and MD5 sums checked
+** using staged installation
+** libs
+using C++ compiler: ‘Ubuntu clang version 15.0.7’
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I../inst/include/  -I/usr/local/include    -fpic  -g -O2   -c api.cpp -o api.o
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I../inst/include/  -I/usr/local/include    -fpic  -g -O2   -c attributes.cpp -o attributes.o
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I../inst/include/  -I/usr/local/include    -fpic  -g -O2   -c barrier.cpp -o barrier.o
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I../inst/include/  -I/usr/local/include    -fpic  -g -O2   -c date.cpp -o date.o
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I../inst/include/  -I/usr/local/include    -fpic  -g -O2   -c module.cpp -o module.o
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG -I../inst/include/  -I/usr/local/include    -fpic  -g -O2   -c rcpp_init.cpp -o rcpp_init.o
+clang++-15 -std=gnu++20 -shared -L/opt/R/devel/lib/R/lib -L/usr/local/lib -o Rcpp.so api.o attributes.o barrier.o date.o module.o rcpp_init.o -L/opt/R/devel/lib/R/lib -lR
+installing to /cache/R_libs/00LOCK-Rcpp/00new/Rcpp/libs
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+** building package indices
+** installing vignettes
+** testing if installed package can be loaded from temporary location
+** checking absolute paths in shared objects and dynamic libraries
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (Rcpp)
+* installing *source* package ‘units’ ...
+** this is package ‘units’ version ‘1.0-1’
+** package ‘units’ successfully unpacked and MD5 sums checked
+** using staged installation
+configure: units: 1.0-1
+checking for default C++ standard... 202002
+checking whether the C++ compiler works... yes
+checking for C++ compiler default output file name... a.out
+checking for suffix of executables... 
+checking whether we are cross compiling... no
+checking for suffix of object files... o
+checking whether the compiler supports GNU C++... yes
+checking whether clang++-15 -std=gnu++20 accepts -g... yes
+checking for clang++-15 -std=gnu++20 option to enable C++11 features... -std=gnu++11
+checking for stdio.h... yes
+checking for stdlib.h... yes
+checking for string.h... yes
+checking for inttypes.h... yes
+checking for stdint.h... yes
+checking for strings.h... yes
+checking for sys/stat.h... yes
+checking for sys/types.h... yes
+checking for unistd.h... yes
+checking for _Bool... no
+checking for stdbool.h that conforms to C99 or later... yes
+checking for error_at_line... yes
+checking for gcc... clang-15
+checking whether the compiler supports GNU C... yes
+checking whether clang-15 accepts -g... yes
+checking for clang-15 option to enable C11 features... none needed
+checking for brew... no
+checking for XML_ParserCreate in -lexpat... no
+checking for udunits2.h... no
+checking for udunits2/udunits2.h... no
+checking for ut_read_xml in -ludunits2... no
+configure: error: in '/tmp/RtmpJFMrhC/R.INSTALLdcf1085824f/units':
+configure: error: 
+--------------------------------------------------------------------------------
+  Configuration failed because libudunits2.so was not found. Try installing:
+    * deb: libudunits2-dev (Debian, Ubuntu, ...)
+    * rpm: udunits2-devel (Fedora, EPEL, ...)
+    * brew: udunits (OSX)
+  If udunits2 is already installed in a non-standard location, use:
+    --configure-args='--with-udunits2-lib=/usr/local/lib'
+  if the library was not found, and/or:
+    --configure-args='--with-udunits2-include=/usr/include/udunits2'
+  if the header was not found, replacing paths with appropriate values.
+  You can alternatively set UDUNITS2_INCLUDE and UDUNITS2_LIBS manually.
+--------------------------------------------------------------------------------
+
+See 'config.log' for more details
+ERROR: configuration failed for package ‘units’
+* removing ‘/cache/R_libs/units’
+
+The downloaded source packages are in
+	‘/tmp/RtmpvHZVGz/downloaded_packages’
+Warning message:
+In install.packages("units", lib = user_lib) :
+  installation of package ‘units’ had non-zero exit status
+* installing *source* package ‘cpp4r’ ...
+** this is package ‘cpp4r’ version ‘1.0.0’
+** using staged installation
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+*** copying figures
+** building package indices
+** testing if installed package can be loaded from temporary location
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (cpp4r)
+* installing *source* package ‘armadillo4r’ ...
+** this is package ‘armadillo4r’ version ‘1.0.0’
+** using staged installation
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+*** copying figures
+** building package indices
+** testing if installed package can be loaded from temporary location
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (armadillo4r)
+* installing *source* package ‘capybara’ ...
+** this is package ‘capybara’ version ‘2.0.0’
+** using staged installation
+==========================================================================
+Capybara configuration summary
+
+  C++ Compiler:           clang++-15
+  Compiler Type:          clang
+  C++ Standard:           CXX20
+  OpenMP Support:         yes
+  OpenMP Threads:         4
+  SIMD Support:           AVX2
+  BLAS:                   -lblas
+  LAPACK:                 -llapack
+  No Armadillo Wrapper:   yes (direct BLAS/LAPACK)
+  No Sparse Matrices:     no
+  High-Performance Mode:  no
+  Optimization Flags:     
+  Debug Flags:            
+
+For faster computation
+ 
+ Enable high-performance optimizations:
+ export CAPYBARA_OPTIMIZATIONS=yes
+ 
+ Change thread count:
+ export CAPYBARA_NCORES=<number>
+ 
+ Disable sparse matrix support (faster compile):
+ export CAPYBARA_SKIP_SPARSE=yes
+ 
+ Then reinstall the package
+==========================================================================
+** libs
+specified C++20
+using C++ compiler: ‘Ubuntu clang version 15.0.7’
+using C++20
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG  -I'/cache/R_libs/armadillo4r/include' -I'/cache/R_libs/cpp4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2   -c capybara.cpp -o capybara.o
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG  -I'/cache/R_libs/armadillo4r/include' -I'/cache/R_libs/cpp4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2   -c cpp4r.cpp -o cpp4r.o
+clang++-15 -std=gnu++20 -shared -L/opt/R/devel/lib/R/lib -L/usr/local/lib -o capybara.so capybara.o cpp4r.o -fopenmp -llapack -lblas -lgfortran -lm -lquadmath -L/opt/R/devel/lib/R/lib -lR
+installing to /cache/R_libs/00LOCK-capybara/00new/capybara/libs
+** R
+** data
+*** moving datasets to lazyload DB
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+*** copying figures
+** building package indices
+** installing vignettes
+** testing if installed package can be loaded from temporary location
+** checking absolute paths in shared objects and dynamic libraries
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (capybara)
+* using log directory ‘/check/capybara.Rcheck’
+* using R Under development (unstable) (2026-05-14 r90050)
+* using platform: x86_64-pc-linux-gnu
+* R was compiled by
+    gcc (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+    GNU Fortran (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+* running under: Ubuntu 22.04.5 LTS
+* using session charset: UTF-8
+* current time: 2026-06-09 12:15:52 UTC
+* using options ‘--no-manual --as-cran’
+* checking for file ‘capybara/DESCRIPTION’ ... OK
+* checking extension type ... Package
+* this is package ‘capybara’ version ‘2.0.0’
+* package encoding: UTF-8
+* checking CRAN incoming feasibility ... [0s/0s] NOTE
+Maintainer: ‘Mauricio Vargas Sepulveda <m.vargas.sepulveda@gmail.com>’
+
+Checking URLs failed with message:
+  there is no package called ‘curl’
+* checking package namespace information ... OK
+* checking package dependencies ... INFO
+Package suggested but not available for checking: ‘units’
+* checking if this is a source package ... OK
+* checking if there is a namespace ... OK
+* checking for .dll and .exe files ... OK
+* checking for hidden files and directories ... OK
+* checking for portable file names ... OK
+* checking for sufficient/correct file permissions ... OK
+* checking whether package ‘capybara’ can be installed ... [49s/42s] OK
+* used C++ compiler: ‘Ubuntu clang version 15.0.7’
+* checking C++ specification ... INFO
+  specified C++20
+* checking package directory ... OK
+* checking for future file timestamps ... OK
+* checking ‘build’ directory ... OK
+* checking DESCRIPTION meta-information ... OK
+* checking top-level files ... NOTE
+Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ being installed.
+* checking for left-over files ... OK
+* checking index information ... OK
+* checking package subdirectories ... OK
+* checking code files for non-ASCII characters ... OK
+* checking R files for syntax errors ... OK
+* checking whether the package can be loaded ... [2s/1s] OK
+* checking whether the package can be loaded with stated dependencies ... [2s/1s] OK
+* checking whether the package can be unloaded cleanly ... [2s/1s] OK
+* checking whether the namespace can be loaded with stated dependencies ... [2s/1s] OK
+* checking whether the namespace can be unloaded cleanly ... [2s/1s] OK
+* checking loading without being on the library search path ... [2s/1s] OK
+* checking use of S3 registration ... OK
+* checking dependencies in R code ... OK
+* checking S3 generic/method consistency ... OK
+* checking replacement functions ... OK
+* checking foreign function calls ... OK
+* checking R code for possible problems ... [20s/10s] OK
+* checking Rd files ... [1s/0s] OK
+* checking Rd metadata ... OK
+* checking Rd line widths ... OK
+* checking Rd cross-references ... OK
+* checking for missing documentation entries ... OK
+* checking for code/documentation mismatches ... OK
+* checking Rd \usage sections ... OK
+* checking Rd contents ... OK
+* checking for unstated dependencies in examples ... OK
+* checking contents of ‘data’ directory ... OK
+* checking data for non-ASCII characters ... [1s/1s] OK
+* checking LazyData ... OK
+* checking data for ASCII and uncompressed saves ... OK
+* checking line endings in shell scripts ... OK
+* checking line endings in C/C++/Fortran sources/headers ... OK
+* checking line endings in Makefiles ... OK
+* checking compilation flags in Makevars ... OK
+* checking for GNU extensions in Makefiles ... OK
+* checking for portable use of $(BLAS_LIBS) and $(LAPACK_LIBS) ... OK
+* checking use of PKG_*FLAGS in Makefiles ... OK
+* checking use of SHLIB_OPENMP_*FLAGS in Makefiles ... OK
+* checking pragmas in C/C++ headers and code ... OK
+* checking compilation flags used ... OK
+* checking compiled code ... OK
+* checking installed files from ‘inst/doc’ ... OK
+* checking files in ‘vignettes’ ... OK
+* checking examples ... [12s/3s] ERROR
+Running examples in ‘capybara-Ex.R’ failed
+The error most likely occurred in:
+
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: vcov.feglm
+> ### Title: Covariance matrix for GLMs
+> ### Aliases: vcov.feglm
+> 
+> ### ** Examples
+> 
+> # Model with clustering - returns sandwich covariance
+> mod_cl <- fepoisson(trade ~ log_dist + cntg | exp_year | year, yotov2017_subset)
+Error: object 'yotov2017_subset' not found
+Execution halted
+* checking for unstated dependencies in ‘tests’ ... OK
+* checking tests ...
+  Running ‘tinytest.R’ [22s/5s]
+Running R code in ‘tinytest.R’ had CPU time 4.7 times elapsed time
+ [23s/5s] ERROR
+Running the tests in ‘tests/tinytest.R’ failed.
+Complete output:
+  > 
+  > if (requireNamespace("tinytest", quietly = TRUE)) {
+  +   tinytest::test_package("capybara")
+  + }
+  
+  test-autoplot.R...............    0 tests    
+  test-autoplot.R...............    5 tests OK 
+  test-autoplot.R...............    8 tests OK 
+  test-autoplot.R...............    9 tests OK 
+  test-autoplot.R...............   13 tests OK 
+  test-autoplot.R...............   15 tests OK 
+  test-autoplot.R...............   16 tests OK 
+  test-autoplot.R...............   18 tests OK 0.9s
+  
+  test-broom.R..................    0 tests    
+  test-broom.R..................    4 tests OK 
+  test-broom.R..................    6 tests OK 
+  test-broom.R..................   10 tests OK 
+  test-broom.R..................   12 tests OK 
+  test-broom.R..................   14 tests OK 
+  test-broom.R..................   19 tests OK 
+  test-broom.R..................   20 tests OK 
+  test-broom.R..................   22 tests OK 
+  test-broom.R..................   25 tests OK 
+  test-broom.R..................   26 tests OK 
+  test-broom.R..................   30 tests OK 
+  test-broom.R..................   33 tests OK 
+  test-broom.R..................   36 tests OK 
+  test-broom.R..................   38 tests OK 
+  test-broom.R..................   41 tests OK 
+  test-broom.R..................   43 tests OK 
+  test-broom.R..................   44 tests OK 0.1s
+  
+  test-confint.R................    0 tests    
+  test-confint.R................    5 tests OK 
+  test-confint.R................    6 tests OK 
+  test-confint.R................    8 tests OK 
+  test-confint.R................   12 tests OK 
+  test-confint.R................   14 tests OK 
+  test-confint.R................   16 tests OK 
+  test-confint.R................   18 tests OK 
+  test-confint.R................   19 tests OK 
+  test-confint.R................   21 tests OK 34ms
+  
+  test-control.R................    0 tests    
+  test-control.R................    0 tests    
+  test-control.R................    3 tests OK 
+  test-control.R................    5 tests OK 
+  test-control.R................    7 tests OK 
+  test-control.R................   10 tests OK 
+  test-control.R................   11 tests OK 
+  test-control.R................   13 tests OK 
+  test-control.R................   14 tests OK 
+  test-control.R................   19 tests OK 
+  test-control.R................   24 tests OK 
+  test-control.R................   26 tests OK 
+  test-control.R................   31 tests OK 
+  test-control.R................   32 tests OK 
+  test-control.R................   35 tests OK 
+  test-control.R................   37 tests 1 fails 31ms
+  
+  test-deterministic.R..........    0 tests    
+  test-deterministic.R..........    1 tests OK 4ms
+  
+  test-errors.R.................    0 tests    
+  test-errors.R.................    0 tests    
+  test-errors.R.................    4 tests OK 
+  test-errors.R.................   19 tests OK 
+  test-errors.R.................   20 tests OK 
+  test-errors.R.................   21 tests OK 
+  test-errors.R.................   22 tests OK 
+  test-errors.R.................   23 tests OK 
+  test-errors.R.................   24 tests OK 
+  test-errors.R.................   26 tests OK 
+  test-errors.R.................   29 tests OK 
+  test-errors.R.................   31 tests OK 
+  test-errors.R.................   32 tests OK 
+  test-errors.R.................   33 tests OK 66ms
+  
+  test-feglm-atypical-columns.R.    0 tests    
+  test-feglm-atypical-columns.R.    0 tests    2ms
+  
+  test-feglm.R..................    0 tests    
+  test-feglm.R..................    0 tests    
+  test-feglm.R..................    1 tests OK 
+  test-feglm.R..................    4 tests OK 
+  test-feglm.R..................    4 tests OK 
+  test-feglm.R..................    6 tests OK 
+  test-feglm.R..................    9 tests OK 
+  test-feglm.R..................   10 tests OK 
+  test-feglm.R..................   12 tests OK 
+  test-feglm.R..................   15 tests OK 62ms
+  
+  test-felm-extreme-values.R....    0 tests    
+  test-felm-extreme-values.R....    1 tests OK 
+  test-felm-extreme-values.R....    2 tests OK 
+  test-felm-extreme-values.R....    3 tests OK 
+  test-felm-extreme-values.R....    4 tests OK 17ms
+  
+  test-felm.R...................    0 tests    
+  test-felm.R...................    0 tests    
+  test-felm.R...................   16 tests OK 
+  test-felm.R...................   19 tests OK 
+  test-felm.R...................   22 tests OK 
+  test-felm.R...................   24 tests OK 
+  test-felm.R...................   27 tests OK 
+  test-felm.R...................   30 tests OK 
+  test-felm.R...................   46 tests OK 
+  test-felm.R...................   49 tests OK 
+  test-felm.R...................   51 tests OK 
+  test-felm.R...................   54 tests OK 
+  test-felm.R...................   57 tests OK 0.2s
+  
+  test-fenegbin.R...............    0 tests    
+  test-fenegbin.R...............    0 tests    
+  test-fenegbin.R...............    4 tests OK 
+  test-fenegbin.R...............    8 tests OK 1.0s
+  
+  test-fepoisson-asymmetric.R...    0 tests    
+  test-fepoisson-asymmetric.R...    0 tests    
+  test-fepoisson-asymmetric.R...    1 tests OK 0.5s
+  
+  test-fepoisson.R..............    0 tests    
+  test-fepoisson.R..............    0 tests    
+  test-fepoisson.R..............   12 tests OK 
+  test-fepoisson.R..............   14 tests OK 
+  test-fepoisson.R..............   16 tests OK 
+  test-fepoisson.R..............   25 tests OK 
+  test-fepoisson.R..............   27 tests OK 
+  test-fepoisson.R..............   29 tests OK 0.2s
+  
+  test-helpers.R................    0 tests    
+  test-helpers.R................    0 tests    
+  test-helpers.R................    3 tests OK 
+  test-helpers.R................    5 tests OK 
+  test-helpers.R................    6 tests OK 
+  test-helpers.R................    7 tests OK 
+  test-helpers.R................    9 tests OK 
+  test-helpers.R................   11 tests OK 
+  test-helpers.R................   12 tests OK 
+  test-helpers.R................   15 tests OK 
+  test-helpers.R................   17 tests OK 
+  test-helpers.R................   18 tests OK 
+  test-helpers.R................   20 tests OK 
+  test-helpers.R................   21 tests OK 
+  test-helpers.R................   23 tests OK 
+  test-helpers.R................   24 tests OK 
+  test-helpers.R................   25 tests OK 
+  test-helpers.R................   26 tests OK 
+  test-helpers.R................   29 tests OK 0.1s
+  
+  test-model-formulas.R.........    6 tests OK 30ms
+  
+  test-predict.R................    0 tests    
+  test-predict.R................    2 tests OK 
+  test-predict.R................    4 tests OK 
+  test-predict.R................    7 tests OK 
+  test-predict.R................    9 tests OK 
+  test-predict.R................   10 tests OK 
+  test-predict.R................   11 tests OK 
+  test-predict.R................   12 tests OK 
+  test-predict.R................   13 tests OK 
+  test-predict.R................   14 tests OK 
+  test-predict.R................   15 tests OK 
+  test-predict.R................   16 tests OK 
+  test-predict.R................   17 tests OK 
+  test-predict.R................   18 tests OK 
+  test-predict.R................   22 tests OK 
+  test-predict.R................   23 tests OK 
+  test-predict.R................   24 tests OK 
+  test-predict.R................   25 tests OK 0.1s
+  
+  test-print.R..................    0 tests    
+  test-print.R..................    1 tests OK 
+  test-print.R..................    2 tests OK 
+  test-print.R..................    3 tests OK 
+  test-print.R..................    4 tests OK 
+  test-print.R..................    5 tests OK 
+  test-print.R..................    6 tests OK 
+  test-print.R..................    7 tests OK 
+  test-print.R..................   10 tests OK 42ms
+  
+  test-separation.R.............    0 tests    Separation found in 4 observation(s)
+  
+  test-separation.R.............    2 tests OK 
+  test-separation.R.............    4 tests OK 16ms
+  
+  test-summary-table.R..........    0 tests    
+  test-summary-table.R..........    3 tests OK 
+  test-summary-table.R..........    5 tests OK 
+  test-summary-table.R..........    8 tests OK 
+  test-summary-table.R..........   11 tests OK 
+  test-summary-table.R..........   14 tests OK 
+  test-summary-table.R..........   16 tests OK 
+  test-summary-table.R..........   18 tests OK 
+  test-summary-table.R..........   20 tests OK 
+  test-summary-table.R..........   21 tests OK 
+  test-summary-table.R..........   23 tests OK 
+  test-summary-table.R..........   25 tests OK 
+  test-summary-table.R..........   27 tests OK 84ms
+  
+  test-vcov-sandwich.R..........    0 tests    
+  test-vcov-sandwich.R..........    0 tests    
+  test-vcov-sandwich.R..........    8 tests OK 33ms
+  
+  test-vcov.R...................    0 tests    
+  test-vcov.R...................    0 tests    
+  test-vcov.R...................    8 tests OK 
+  test-vcov.R...................   10 tests OK 
+  test-vcov.R...................   12 tests OK 
+  test-vcov.R...................   13 tests OK 
+  test-vcov.R...................   14 tests OK 
+  test-vcov.R...................   18 tests OK 
+  test-vcov.R...................   22 tests OK 
+  test-vcov.R...................   24 tests OK 
+  test-vcov.R...................   27 tests OK 
+  test-vcov.R...................   30 tests OK 
+  test-vcov.R...................   32 tests OK 
+  test-vcov.R...................   40 tests OK 
+  test-vcov.R...................   44 tests OK 
+  test-vcov.R...................   48 tests OK 
+  test-vcov.R...................   51 tests OK 
+  test-vcov.R...................   53 tests OK 74ms
+  ----- FAILED[data]: test-control.R<180--189>
+   call| expect_true(mod$theta > 0)
+   diff| Expected TRUE, got 'logical' of length 24
+  Error: 1 out of 430 tests failed
+  In addition: Warning messages:
+  1: In fenegbin(mpg ~ wt | cyl, mtcars) : Algorithm did not converge.
+  
+  2: In fepoisson_asymmetric(y ~ x1 + x2 + x3 + x4, data = correia2019$example1,  :
+    Algorithm did not converge.
+  
+  Execution halted
+* checking for unstated dependencies in vignettes ... OK
+* checking package vignettes ... OK
+* checking re-building of vignette outputs ... [7s/2s] NOTE
+Re-building vignettes had CPU time 2.8 times elapsed time
+* checking for non-standard things in the check directory ... OK
+* checking for detritus in the temp directory ... OK
+* DONE
+
+Status: 2 ERRORs, 3 NOTEs
+See
+  ‘/check/capybara.Rcheck/00check.log’
+for details.
+
+=== 00install.out ===
+* installing *source* package ‘capybara’ ...
+** this is package ‘capybara’ version ‘2.0.0’
+** using staged installation
+==========================================================================
+Capybara configuration summary
+
+  C++ Compiler:           clang++-15
+  Compiler Type:          clang
+  C++ Standard:           CXX20
+  OpenMP Support:         yes
+  OpenMP Threads:         4
+  SIMD Support:           AVX2
+  BLAS:                   -lblas
+  LAPACK:                 -llapack
+  No Armadillo Wrapper:   yes (direct BLAS/LAPACK)
+  No Sparse Matrices:     no
+  High-Performance Mode:  no
+  Optimization Flags:     
+  Debug Flags:            
+
+For faster computation
+ 
+ Enable high-performance optimizations:
+ export CAPYBARA_OPTIMIZATIONS=yes
+ 
+ Change thread count:
+ export CAPYBARA_NCORES=<number>
+ 
+ Disable sparse matrix support (faster compile):
+ export CAPYBARA_SKIP_SPARSE=yes
+ 
+ Then reinstall the package
+==========================================================================
+** libs
+specified C++20
+using C++ compiler: ‘Ubuntu clang version 15.0.7’
+using C++20
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG  -I'/cache/R_libs/armadillo4r/include' -I'/cache/R_libs/cpp4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2   -c capybara.cpp -o capybara.o
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG  -I'/cache/R_libs/armadillo4r/include' -I'/cache/R_libs/cpp4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2   -c cpp4r.cpp -o cpp4r.o
+clang++-15 -std=gnu++20 -shared -L/opt/R/devel/lib/R/lib -L/usr/local/lib -o capybara.so capybara.o cpp4r.o -fopenmp -llapack -lblas -lgfortran -lm -lquadmath -L/opt/R/devel/lib/R/lib -lR
+installing to /check/capybara.Rcheck/00LOCK-capybara/00new/capybara/libs
+** R
+** data
+*** moving datasets to lazyload DB
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+*** copying figures
+** building package indices
+** installing vignettes
+** testing if installed package can be loaded from temporary location
+** checking absolute paths in shared objects and dynamic libraries
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (capybara)
+=== 00check.log ===
+* using log directory ‘/check/capybara.Rcheck’
+* using R Under development (unstable) (2026-05-14 r90050)
+* using platform: x86_64-pc-linux-gnu
+* R was compiled by
+    gcc (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+    GNU Fortran (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+* running under: Ubuntu 22.04.5 LTS
+* using session charset: UTF-8
+* current time: 2026-06-09 12:15:52 UTC
+* using options ‘--no-manual --as-cran’
+* checking for file ‘capybara/DESCRIPTION’ ... OK
+* checking extension type ... Package
+* this is package ‘capybara’ version ‘2.0.0’
+* package encoding: UTF-8
+* checking CRAN incoming feasibility ... [0s/0s] NOTE
+Maintainer: ‘Mauricio Vargas Sepulveda <m.vargas.sepulveda@gmail.com>’
+
+Checking URLs failed with message:
+  there is no package called ‘curl’
+* checking package namespace information ... OK
+* checking package dependencies ... INFO
+Package suggested but not available for checking: ‘units’
+* checking if this is a source package ... OK
+* checking if there is a namespace ... OK
+* checking for .dll and .exe files ... OK
+* checking for hidden files and directories ... OK
+* checking for portable file names ... OK
+* checking for sufficient/correct file permissions ... OK
+* checking whether package ‘capybara’ can be installed ... [49s/42s] OK
+* used C++ compiler: ‘Ubuntu clang version 15.0.7’
+* checking C++ specification ... INFO
+  specified C++20
+* checking package directory ... OK
+* checking for future file timestamps ... OK
+* checking ‘build’ directory ... OK
+* checking DESCRIPTION meta-information ... OK
+* checking top-level files ... NOTE
+Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ being installed.
+* checking for left-over files ... OK
+* checking index information ... OK
+* checking package subdirectories ... OK
+* checking code files for non-ASCII characters ... OK
+* checking R files for syntax errors ... OK
+* checking whether the package can be loaded ... [2s/1s] OK
+* checking whether the package can be loaded with stated dependencies ... [2s/1s] OK
+* checking whether the package can be unloaded cleanly ... [2s/1s] OK
+* checking whether the namespace can be loaded with stated dependencies ... [2s/1s] OK
+* checking whether the namespace can be unloaded cleanly ... [2s/1s] OK
+* checking loading without being on the library search path ... [2s/1s] OK
+* checking use of S3 registration ... OK
+* checking dependencies in R code ... OK
+* checking S3 generic/method consistency ... OK
+* checking replacement functions ... OK
+* checking foreign function calls ... OK
+* checking R code for possible problems ... [20s/10s] OK
+* checking Rd files ... [1s/0s] OK
+* checking Rd metadata ... OK
+* checking Rd line widths ... OK
+* checking Rd cross-references ... OK
+* checking for missing documentation entries ... OK
+* checking for code/documentation mismatches ... OK
+* checking Rd \usage sections ... OK
+* checking Rd contents ... OK
+* checking for unstated dependencies in examples ... OK
+* checking contents of ‘data’ directory ... OK
+* checking data for non-ASCII characters ... [1s/1s] OK
+* checking LazyData ... OK
+* checking data for ASCII and uncompressed saves ... OK
+* checking line endings in shell scripts ... OK
+* checking line endings in C/C++/Fortran sources/headers ... OK
+* checking line endings in Makefiles ... OK
+* checking compilation flags in Makevars ... OK
+* checking for GNU extensions in Makefiles ... OK
+* checking for portable use of $(BLAS_LIBS) and $(LAPACK_LIBS) ... OK
+* checking use of PKG_*FLAGS in Makefiles ... OK
+* checking use of SHLIB_OPENMP_*FLAGS in Makefiles ... OK
+* checking pragmas in C/C++ headers and code ... OK
+* checking compilation flags used ... OK
+* checking compiled code ... OK
+* checking installed files from ‘inst/doc’ ... OK
+* checking files in ‘vignettes’ ... OK
+* checking examples ... [12s/3s] ERROR
+Running examples in ‘capybara-Ex.R’ failed
+The error most likely occurred in:
+
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: vcov.feglm
+> ### Title: Covariance matrix for GLMs
+> ### Aliases: vcov.feglm
+> 
+> ### ** Examples
+> 
+> # Model with clustering - returns sandwich covariance
+> mod_cl <- fepoisson(trade ~ log_dist + cntg | exp_year | year, yotov2017_subset)
+Error: object 'yotov2017_subset' not found
+Execution halted
+* checking for unstated dependencies in ‘tests’ ... OK
+* checking tests ... [23s/5s] ERROR
+  Running ‘tinytest.R’ [22s/5s]
+Running R code in ‘tinytest.R’ had CPU time 4.7 times elapsed time
+Running the tests in ‘tests/tinytest.R’ failed.
+Complete output:
+  > 
+  > if (requireNamespace("tinytest", quietly = TRUE)) {
+  +   tinytest::test_package("capybara")
+  + }
+  
+  test-autoplot.R...............    0 tests    
+  test-autoplot.R...............    5 tests OK 
+  test-autoplot.R...............    8 tests OK 
+  test-autoplot.R...............    9 tests OK 
+  test-autoplot.R...............   13 tests OK 
+  test-autoplot.R...............   15 tests OK 
+  test-autoplot.R...............   16 tests OK 
+  test-autoplot.R...............   18 tests OK 0.9s
+  
+  test-broom.R..................    0 tests    
+  test-broom.R..................    4 tests OK 
+  test-broom.R..................    6 tests OK 
+  test-broom.R..................   10 tests OK 
+  test-broom.R..................   12 tests OK 
+  test-broom.R..................   14 tests OK 
+  test-broom.R..................   19 tests OK 
+  test-broom.R..................   20 tests OK 
+  test-broom.R..................   22 tests OK 
+  test-broom.R..................   25 tests OK 
+  test-broom.R..................   26 tests OK 
+  test-broom.R..................   30 tests OK 
+  test-broom.R..................   33 tests OK 
+  test-broom.R..................   36 tests OK 
+  test-broom.R..................   38 tests OK 
+  test-broom.R..................   41 tests OK 
+  test-broom.R..................   43 tests OK 
+  test-broom.R..................   44 tests OK 0.1s
+  
+  test-confint.R................    0 tests    
+  test-confint.R................    5 tests OK 
+  test-confint.R................    6 tests OK 
+  test-confint.R................    8 tests OK 
+  test-confint.R................   12 tests OK 
+  test-confint.R................   14 tests OK 
+  test-confint.R................   16 tests OK 
+  test-confint.R................   18 tests OK 
+  test-confint.R................   19 tests OK 
+  test-confint.R................   21 tests OK 34ms
+  
+  test-control.R................    0 tests    
+  test-control.R................    0 tests    
+  test-control.R................    3 tests OK 
+  test-control.R................    5 tests OK 
+  test-control.R................    7 tests OK 
+  test-control.R................   10 tests OK 
+  test-control.R................   11 tests OK 
+  test-control.R................   13 tests OK 
+  test-control.R................   14 tests OK 
+  test-control.R................   19 tests OK 
+  test-control.R................   24 tests OK 
+  test-control.R................   26 tests OK 
+  test-control.R................   31 tests OK 
+  test-control.R................   32 tests OK 
+  test-control.R................   35 tests OK 
+  test-control.R................   37 tests 1 fails 31ms
+  
+  test-deterministic.R..........    0 tests    
+  test-deterministic.R..........    1 tests OK 4ms
+  
+  test-errors.R.................    0 tests    
+  test-errors.R.................    0 tests    
+  test-errors.R.................    4 tests OK 
+  test-errors.R.................   19 tests OK 
+  test-errors.R.................   20 tests OK 
+  test-errors.R.................   21 tests OK 
+  test-errors.R.................   22 tests OK 
+  test-errors.R.................   23 tests OK 
+  test-errors.R.................   24 tests OK 
+  test-errors.R.................   26 tests OK 
+  test-errors.R.................   29 tests OK 
+  test-errors.R.................   31 tests OK 
+  test-errors.R.................   32 tests OK 
+  test-errors.R.................   33 tests OK 66ms
+  
+  test-feglm-atypical-columns.R.    0 tests    
+  test-feglm-atypical-columns.R.    0 tests    2ms
+  
+  test-feglm.R..................    0 tests    
+  test-feglm.R..................    0 tests    
+  test-feglm.R..................    1 tests OK 
+  test-feglm.R..................    4 tests OK 
+  test-feglm.R..................    4 tests OK 
+  test-feglm.R..................    6 tests OK 
+  test-feglm.R..................    9 tests OK 
+  test-feglm.R..................   10 tests OK 
+  test-feglm.R..................   12 tests OK 
+  test-feglm.R..................   15 tests OK 62ms
+  
+  test-felm-extreme-values.R....    0 tests    
+  test-felm-extreme-values.R....    1 tests OK 
+  test-felm-extreme-values.R....    2 tests OK 
+  test-felm-extreme-values.R....    3 tests OK 
+  test-felm-extreme-values.R....    4 tests OK 17ms
+  
+  test-felm.R...................    0 tests    
+  test-felm.R...................    0 tests    
+  test-felm.R...................   16 tests OK 
+  test-felm.R...................   19 tests OK 
+  test-felm.R...................   22 tests OK 
+  test-felm.R...................   24 tests OK 
+  test-felm.R...................   27 tests OK 
+  test-felm.R...................   30 tests OK 
+  test-felm.R...................   46 tests OK 
+  test-felm.R...................   49 tests OK 
+  test-felm.R...................   51 tests OK 
+  test-felm.R...................   54 tests OK 
+  test-felm.R...................   57 tests OK 0.2s
+  
+  test-fenegbin.R...............    0 tests    
+  test-fenegbin.R...............    0 tests    
+  test-fenegbin.R...............    4 tests OK 
+  test-fenegbin.R...............    8 tests OK 1.0s
+  
+  test-fepoisson-asymmetric.R...    0 tests    
+  test-fepoisson-asymmetric.R...    0 tests    
+  test-fepoisson-asymmetric.R...    1 tests OK 0.5s
+  
+  test-fepoisson.R..............    0 tests    
+  test-fepoisson.R..............    0 tests    
+  test-fepoisson.R..............   12 tests OK 
+  test-fepoisson.R..............   14 tests OK 
+  test-fepoisson.R..............   16 tests OK 
+  test-fepoisson.R..............   25 tests OK 
+  test-fepoisson.R..............   27 tests OK 
+  test-fepoisson.R..............   29 tests OK 0.2s
+  
+  test-helpers.R................    0 tests    
+  test-helpers.R................    0 tests    
+  test-helpers.R................    3 tests OK 
+  test-helpers.R................    5 tests OK 
+  test-helpers.R................    6 tests OK 
+  test-helpers.R................    7 tests OK 
+  test-helpers.R................    9 tests OK 
+  test-helpers.R................   11 tests OK 
+  test-helpers.R................   12 tests OK 
+  test-helpers.R................   15 tests OK 
+  test-helpers.R................   17 tests OK 
+  test-helpers.R................   18 tests OK 
+  test-helpers.R................   20 tests OK 
+  test-helpers.R................   21 tests OK 
+  test-helpers.R................   23 tests OK 
+  test-helpers.R................   24 tests OK 
+  test-helpers.R................   25 tests OK 
+  test-helpers.R................   26 tests OK 
+  test-helpers.R................   29 tests OK 0.1s
+  
+  test-model-formulas.R.........    6 tests OK 30ms
+  
+  test-predict.R................    0 tests    
+  test-predict.R................    2 tests OK 
+  test-predict.R................    4 tests OK 
+  test-predict.R................    7 tests OK 
+  test-predict.R................    9 tests OK 
+  test-predict.R................   10 tests OK 
+  test-predict.R................   11 tests OK 
+  test-predict.R................   12 tests OK 
+  test-predict.R................   13 tests OK 
+  test-predict.R................   14 tests OK 
+  test-predict.R................   15 tests OK 
+  test-predict.R................   16 tests OK 
+  test-predict.R................   17 tests OK 
+  test-predict.R................   18 tests OK 
+  test-predict.R................   22 tests OK 
+  test-predict.R................   23 tests OK 
+  test-predict.R................   24 tests OK 
+  test-predict.R................   25 tests OK 0.1s
+  
+  test-print.R..................    0 tests    
+  test-print.R..................    1 tests OK 
+  test-print.R..................    2 tests OK 
+  test-print.R..................    3 tests OK 
+  test-print.R..................    4 tests OK 
+  test-print.R..................    5 tests OK 
+  test-print.R..................    6 tests OK 
+  test-print.R..................    7 tests OK 
+  test-print.R..................   10 tests OK 42ms
+  
+  test-separation.R.............    0 tests    Separation found in 4 observation(s)
+  
+  test-separation.R.............    2 tests OK 
+  test-separation.R.............    4 tests OK 16ms
+  
+  test-summary-table.R..........    0 tests    
+  test-summary-table.R..........    3 tests OK 
+  test-summary-table.R..........    5 tests OK 
+  test-summary-table.R..........    8 tests OK 
+  test-summary-table.R..........   11 tests OK 
+  test-summary-table.R..........   14 tests OK 
+  test-summary-table.R..........   16 tests OK 
+  test-summary-table.R..........   18 tests OK 
+  test-summary-table.R..........   20 tests OK 
+  test-summary-table.R..........   21 tests OK 
+  test-summary-table.R..........   23 tests OK 
+  test-summary-table.R..........   25 tests OK 
+  test-summary-table.R..........   27 tests OK 84ms
+  
+  test-vcov-sandwich.R..........    0 tests    
+  test-vcov-sandwich.R..........    0 tests    
+  test-vcov-sandwich.R..........    8 tests OK 33ms
+  
+  test-vcov.R...................    0 tests    
+  test-vcov.R...................    0 tests    
+  test-vcov.R...................    8 tests OK 
+  test-vcov.R...................   10 tests OK 
+  test-vcov.R...................   12 tests OK 
+  test-vcov.R...................   13 tests OK 
+  test-vcov.R...................   14 tests OK 
+  test-vcov.R...................   18 tests OK 
+  test-vcov.R...................   22 tests OK 
+  test-vcov.R...................   24 tests OK 
+  test-vcov.R...................   27 tests OK 
+  test-vcov.R...................   30 tests OK 
+  test-vcov.R...................   32 tests OK 
+  test-vcov.R...................   40 tests OK 
+  test-vcov.R...................   44 tests OK 
+  test-vcov.R...................   48 tests OK 
+  test-vcov.R...................   51 tests OK 
+  test-vcov.R...................   53 tests OK 74ms
+  ----- FAILED[data]: test-control.R<180--189>
+   call| expect_true(mod$theta > 0)
+   diff| Expected TRUE, got 'logical' of length 24
+  Error: 1 out of 430 tests failed
+  In addition: Warning messages:
+  1: In fenegbin(mpg ~ wt | cyl, mtcars) : Algorithm did not converge.
+  
+  2: In fepoisson_asymmetric(y ~ x1 + x2 + x3 + x4, data = correia2019$example1,  :
+    Algorithm did not converge.
+  
+  Execution halted
+* checking for unstated dependencies in vignettes ... OK
+* checking package vignettes ... OK
+* checking re-building of vignette outputs ... [7s/2s] NOTE
+Re-building vignettes had CPU time 2.8 times elapsed time
+* checking for non-standard things in the check directory ... OK
+* checking for detritus in the temp directory ... OK
+* DONE
+Status: 2 ERRORs, 3 NOTEs

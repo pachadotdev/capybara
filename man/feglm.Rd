@@ -79,26 +79,9 @@ If \link{feglm} does not converge this is often a sign of linear dependence betw
 regressors and a fixed effects category. In this case, you should carefully inspect your model specification.
 }
 \examples{
-# IID (default - no cluster in formula)
-mod <- feglm(mpg ~ wt | cyl, mtcars, family = poisson(link = "log"))
+yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+mod <- feglm(trade ~ log_dist | exp_year, yotov2017_subset, family = poisson())
 summary(mod)
-
-# Heteroskedastic-robust HC0
-mod_h <- feglm(mpg ~ wt | cyl, mtcars, family = poisson(link = "log"), vcov = "hetero")
-sqrt(diag(vcov(mod_h)))
-
-# One-way cluster sandwich
-mod_cl <- feglm(mpg ~ wt | cyl | am, mtcars,
-  family = poisson(link = "log"), vcov = "cluster"
-)
-summary(mod_cl)
-
-# Dyadic-robust (Cameron & Miller) - two entity columns in cluster part
-mod_dy <- feglm(mpg ~ wt | cyl | am + vs, mtcars,
-  family = poisson(link = "log"), vcov = "dyadic"
-)
-sqrt(diag(vcov(mod_dy)))
-
 }
 \references{
 Gaure, S. (2013). "OLS with Multiple High Dimensional Category Variables". Computational Statistics and

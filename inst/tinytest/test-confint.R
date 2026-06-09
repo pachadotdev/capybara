@@ -7,24 +7,27 @@ NULL
 
 # ---- confint tests ----
 
-# confint.feglm returns correct structure and values"
+# confint.feglm returns correct structure and values
 local({
-  mod1 <- fepoisson(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod1 <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
 
   res1 <- confint(mod1)
 
   # Check structure
   expect_equal(ncol(res1), 2)
   expect_equal(nrow(res1), 1)
-  expect_equal(rownames(res1), "wt")
+  expect_equal(rownames(res1), "log_dist")
 
   # Manually compute Wald CI to verify correctness
-  est <- mod1$coef_table["wt", "Estimate"]
-  se <- mod1$coef_table["wt", "Std. Error"]
+  est <- mod1$coef_table["log_dist", "Estimate"]
+  se <- mod1$coef_table["log_dist", "Std. Error"]
   z <- qnorm(0.975)
   expected_ci <- matrix(c(est - z * se, est + z * se), nrow = 1)
   colnames(expected_ci) <- c("2.5 %", "97.5 %")
-  rownames(expected_ci) <- "wt"
+  rownames(expected_ci) <- "log_dist"
 
   expect_equal(res1, expected_ci, tolerance = 1e-10)
 
@@ -33,9 +36,12 @@ local({
   expect_equal(midpoint, est, tolerance = 1e-10)
 })
 
-# confint.feglm respects level parameter"
+# confint.feglm respects level parameter
 local({
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
 
   ci_95 <- confint(mod, level = 0.95)
   ci_99 <- confint(mod, level = 0.99)
@@ -47,9 +53,12 @@ local({
   expect_true(all(width_99 > width_95))
 })
 
-# confint.felm returns correct structure"
+# confint.felm returns correct structure
 local({
-  mod <- felm(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
 
   result <- confint(mod)
 
@@ -57,9 +66,12 @@ local({
   expect_equal(nrow(result), length(coef(mod)))
 })
 
-# confint column names reflect confidence level"
+# confint column names reflect confidence level
 local({
-  mod <- felm(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
 
   ci_95 <- confint(mod, level = 0.95)
   ci_90 <- confint(mod, level = 0.90)
@@ -70,50 +82,51 @@ local({
   expect_true(grepl("95", colnames(ci_90)[2]))
 })
 
-# confint works with parm parameter"
+# confint works with multiple parm selection
 local({
-  mod <- felm(mpg ~ wt + hp + qsec | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- felm(trade ~ log_dist + cntg | exp_year, yotov2017_subset)
 
-  # Select specific parameters
-  ci_wt <- confint(mod, parm = "wt")
-
-  expect_equal(nrow(ci_wt), 1)
-  expect_equal(rownames(ci_wt), "wt")
-})
-
-# confint works with multiple parm selection"
-local({
-  mod <- felm(mpg ~ wt + hp + qsec | cyl, mtcars)
-
-  ci_subset <- confint(mod, parm = c("wt", "hp"))
+  ci_subset <- confint(mod, parm = c("log_dist", "cntg"))
 
   expect_equal(nrow(ci_subset), 2)
-  expect_equal(rownames(ci_subset), c("wt", "hp"))
+  expect_equal(rownames(ci_subset), c("log_dist", "cntg"))
 })
 
-# confint works with numeric parm indices"
+# confint works with numeric parm indices
 local({
-  mod <- felm(mpg ~ wt + hp + qsec | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- felm(trade ~ log_dist + cntg | exp_year, yotov2017_subset)
 
   ci_first <- confint(mod, parm = 1)
 
   expect_equal(nrow(ci_first), 1)
-  expect_equal(rownames(ci_first), "wt")
+  expect_equal(rownames(ci_first), "log_dist")
 })
 
-# confint for feglm works with parm"
+# confint for feglm works with parm
 local({
-  mod <- fepoisson(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
 
   ci_full <- confint(mod)
-  ci_parm <- confint(mod, parm = "wt")
+  ci_parm <- confint(mod, parm = "log_dist")
 
   expect_equal(ci_full, ci_parm)
 })
 
-# confint handles different confidence levels correctly"
+# confint handles different confidence levels correctly
 local({
-  mod <- felm(mpg ~ wt | cyl, mtcars)
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
 
   ci_50 <- confint(mod, level = 0.50)
   ci_90 <- confint(mod, level = 0.90)

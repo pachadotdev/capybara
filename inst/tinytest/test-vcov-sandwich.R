@@ -8,48 +8,51 @@ NULL
 
 source(system.file("tinytest", "helper.R", package = "capybara"))
 
-# vcov returns correct structure for feglm"
+# vcov returns correct structure for feglm
 local({
   skip_on_cran()
 
   # IID  (no cluster part in formula)
-  fml <- mpg ~ wt + disp | cyl
-  fit_iid <- felm(fml, data = mtcars, vcov = "iid")
+  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  
+  fml <- trade ~ log_dist + cntg | exp_year
+  fit_iid <- felm(fml, data = yotov2017_subset, vcov = "iid")
   vcov_iid <- vcov(fit_iid)
 
   # Heteroskedastic-robust (HC0)
-  fit_hetero <- felm(fml, data = mtcars, vcov = "hetero")
+  fit_hetero <- felm(fml, data = yotov2017_subset, vcov = "hetero")
   vcov_hetero <- vcov(fit_hetero)
 
   # One-way
-  fml2 <- update(Formula::as.Formula(fml), . ~ . | . | gear)
+  fml2 <- update(Formula::as.Formula(fml), . ~ . | . | imp_year)
 
-  fit_gear <- felm(fml2, data = mtcars, vcov = "cluster")
-  vcov_gear <- vcov(fit_gear)
+  fit_exp <- felm(fml2, data = yotov2017_subset, vcov = "cluster")
+  vcov_exp <- vcov(fit_exp)
 
-  fit_carb <- felm(update(fml2, . ~ . | . | carb), data = mtcars, vcov = "cluster")
-  vcov_carb <- vcov(fit_carb)
+  fit_imp <- felm(update(fml2, . ~ . | . | year), data = yotov2017_subset, vcov = "cluster")
+  vcov_imp <- vcov(fit_imp)
 
   # Dyadic-robust: Cameron-Miller (2014) sandwich with cross-dyad correlations
-  fit_dyadic <- felm(update(fml2, . ~ . | . | gear + carb), data = mtcars, vcov = "dyadic")
+  fit_dyadic <- felm(update(fml2, . ~ . | . | imp_year + year), data = yotov2017_subset, vcov = "dyadic")
   vcov_dyadic <- vcov(fit_dyadic)
 
   # the determinants must be different
   expect_true(det(vcov_iid) != det(vcov_hetero))
-  expect_true(det(vcov_iid) != det(vcov_gear))
-  expect_true(det(vcov_iid) != det(vcov_carb))
+  expect_true(det(vcov_iid) != det(vcov_exp))
+  expect_true(det(vcov_iid) != det(vcov_imp))
   expect_true(det(vcov_iid) != det(vcov_dyadic))
 
   # R re-computation
 
-  fit <- felm(fml, data = mtcars, control = fit_control(keep_tx = TRUE, return_hessian = TRUE))
+  fit <- felm(fml, data = yotov2017_subset, control = fit_control(keep_tx = TRUE, return_hessian = TRUE))
   vcov_hetero2 <- sandwich_vcov(fit, type = "hetero")
-  vcov_gear2 <- sandwich_vcov(fit, cluster1 = mtcars$gear, type = "clustered")
-  vcov_carb2 <- sandwich_vcov(fit, cluster1 = mtcars$carb, type = "clustered")
-  vcov_dyadic2 <- sandwich_vcov(fit, cluster1 = mtcars$gear, cluster2 = mtcars$carb, type = "dyadic")
+  vcov_exp2 <- sandwich_vcov(fit, cluster1 = yotov2017_subset$imp_year, type = "clustered")
+  vcov_imp2 <- sandwich_vcov(fit, cluster1 = yotov2017_subset$year, type = "clustered")
+  vcov_dyadic2 <- sandwich_vcov(fit, cluster1 = yotov2017_subset$imp_year, cluster2 = yotov2017_subset$year, type = "dyadic")
 
   expect_true(all.equal(vcov_hetero, vcov_hetero2))
-  expect_true(all.equal(vcov_gear, vcov_gear2))
-  expect_true(all.equal(vcov_carb, vcov_carb2))
+  expect_true(all.equal(vcov_exp, vcov_exp2))
+  expect_true(all.equal(vcov_imp, vcov_imp2))
   expect_true(all.equal(vcov_dyadic, vcov_dyadic2))
 })
