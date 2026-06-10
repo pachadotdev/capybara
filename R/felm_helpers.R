@@ -1,7 +1,5 @@
-#' srr_stats
-#' @srrstats {G1.0} Provides modular helper functions for computations in linear models with fixed effects.
-#' @noRd
-NULL
+# srr_stats
+# {G1.0} Provides modular helper functions for computations in linear models with fixed effects.
 
 #' @title Get score matrix
 #' @description Computes the score matrix

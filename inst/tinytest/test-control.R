@@ -1,8 +1,6 @@
-#' srr_stats (tests)
-#' @srrstats {G5.4} Tests for fit_control parameters
-#' @srrstats {G2.0} Tests parameter validation
-#' @noRd
-NULL
+# srr_stats (tests)
+# {G5.4} Tests for fit_control parameters
+# {G2.0} Tests parameter validation
 
 source(system.file("tinytest", "helper.R", package = "capybara"))
 

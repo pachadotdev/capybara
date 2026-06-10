@@ -232,10 +232,13 @@ fe_format_latex <- function(dim_data, model_names, caption, label, position) {
 
   in_quarto_tbl <- nzchar(Sys.getenv("QUARTO_BIN_PATH")) &&
     isTRUE(getOption("knitr.in.progress")) &&
-    tryCatch({
-      lbl <- knitr::opts_current$get("label")
-      !is.null(lbl) && nzchar(lbl) && grepl("^tbl-", lbl)
-    }, error = function(e) FALSE)
+    tryCatch(
+      {
+        lbl <- knitr::opts_current$get("label")
+        !is.null(lbl) && nzchar(lbl) && grepl("^tbl-", lbl)
+      },
+      error = function(e) FALSE
+    )
 
   content <- if (in_quarto_tbl) {
     paste0(

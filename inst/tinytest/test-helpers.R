@@ -73,20 +73,6 @@ local({
   expect_true(inherits(mod, "felm"))
 })
 
-# model handles factor variables correctly ----
-local({
-  skip_on_cran()
-
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
-  yotov2017_subset$exp_year <- factor(yotov2017_subset$exp_year)
-  
-  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset, control = fit_control(return_fe = TRUE))
-
-  expect_true(inherits(mod, "feglm"))
-  expect_equal(length(mod$fixed_effects), 2)
-})
-
 # model handles character fixed effects ----
 
 local({

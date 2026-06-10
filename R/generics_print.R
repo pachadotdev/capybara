@@ -1,19 +1,14 @@
-#' srr_stats
-#' @srrstats {G1.0} Implements `print` methods for various model objects (`apes`, `feglm`, `felm`) and their summaries.
-#' @srrstats {G2.1a} Ensures that input objects are of the expected class (`apes`, `feglm`, `felm`, or summaries of
-#'  these classes).
-#' @srrstats {G3.2} Provides detailed output, including coefficients, significance levels, and iteration counts,
-#'  tailored to the model type.
-#' @srrstats {G3.3} Includes well-structured significance indicators (`***`, `**`, `*`, `.`) for coefficient p-values.
-#' @srrstats {G5.2a} Outputs are formatted for clarity, with aligned columns and headers.
-#' @srrstats {G5.4a} Validates consistency of printed summaries across model types, ensuring uniform presentation.
-#' @srrstats {RE4.17} Specific default `print()` method for summaries and coefficients.
-#' @srrstats {RE5.0} Reduces cyclomatic complexity by modularizing summary and print methods.
-#' @srrstats {RE5.2} Facilitates easy interpretation of model summaries, including R-squared, deviance, and
-#'  fixed-effects estimates.
-#' @srrstats {RE5.3} Designed for extensibility to accommodate additional model types or summary elements.
-#' @noRd
-NULL
+# srr_stats
+# {G1.0} Implements `print` methods for various model objects (`apes`, `feglm`, `felm`) and their summaries.
+# {G2.1a} Ensures that input objects are of the expected class (`apes`, `feglm`, `felm`, or summaries of these classes).
+# {G3.2} Provides detailed output, including coefficients, significance levels, and iteration counts, tailored to the model type.
+# {G3.3} Includes well-structured significance indicators (`***`, `**`, `*`, `.`) for coefficient p-values.
+# {G5.2a} Outputs are formatted for clarity, with aligned columns and headers.
+# {G5.4a} Validates consistency of printed summaries across model types, ensuring uniform presentation.
+# {RE4.17} Specific default `print()` method for summaries and coefficients.
+# {RE5.0} Reduces cyclomatic complexity by modularizing summary and print methods.
+# {RE5.2} Facilitates easy interpretation of model summaries, including R-squared, deviance, and fixed-effects estimates.
+# {RE5.3} Designed for extensibility to accommodate additional model types or summary elements.
 
 #' @title Refactors for and 'feglm' summaries
 #' @description Reduces the cyclomatic complexity of print.summary.feglm
@@ -261,7 +256,9 @@ summary_nobs_ <- function(x) {
 summary_fixed_effects_ <- function(x) {
   fe_levels <- x[["fe_levels"]]
 
-  if (is.null(fe_levels) || length(fe_levels) == 0L) return(invisible(NULL))
+  if (is.null(fe_levels) || length(fe_levels) == 0L) {
+    return(invisible(NULL))
+  }
 
   cat("\nFixed effects:\n")
   for (k in seq_along(fe_levels)) {

@@ -1,13 +1,10 @@
-#' srr_stats (tests)
-#' @srrstats {G1.0} Implements unit testing for confidence intervals.
-#' @srrstats {G2.3} Tests compatibility with R generics conventions.
-#' @srrstats {RE3.1} Verifies the correctness of extracted model statistics.
-#' @noRd
-NULL
+# srr_stats (tests)
+# {G1.0} Implements unit testing for confidence intervals.
+# {G2.3} Tests compatibility with R generics conventions.
+# {RE3.1} Verifies the correctness of extracted model statistics.
 
-# ---- confint tests ----
+# confint.feglm returns correct structure and values ----
 
-# confint.feglm returns correct structure and values
 local({
   yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
   yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
@@ -36,7 +33,8 @@ local({
   expect_equal(midpoint, est, tolerance = 1e-10)
 })
 
-# confint.feglm respects level parameter
+# confint.feglm respects level parameter ----
+
 local({
   yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
   yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
@@ -53,7 +51,8 @@ local({
   expect_true(all(width_99 > width_95))
 })
 
-# confint.felm returns correct structure
+# confint.felm returns correct structure ----
+
 local({
   yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
   yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
@@ -66,7 +65,8 @@ local({
   expect_equal(nrow(result), length(coef(mod)))
 })
 
-# confint column names reflect confidence level
+# confint column names reflect confidence level ----
+
 local({
   yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
   yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
@@ -82,7 +82,8 @@ local({
   expect_true(grepl("95", colnames(ci_90)[2]))
 })
 
-# confint works with multiple parm selection
+# confint works with multiple parm selection ----
+
 local({
   yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
   yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
@@ -95,7 +96,8 @@ local({
   expect_equal(rownames(ci_subset), c("log_dist", "cntg"))
 })
 
-# confint works with numeric parm indices
+# confint works with numeric parm indices ----
+
 local({
   yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
   yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
@@ -108,7 +110,8 @@ local({
   expect_equal(rownames(ci_first), "log_dist")
 })
 
-# confint for feglm works with parm
+# confint for feglm works with parm ----
+
 local({
   yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
   yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
@@ -121,7 +124,8 @@ local({
   expect_equal(ci_full, ci_parm)
 })
 
-# confint handles different confidence levels correctly
+# confint handles different confidence levels correctly ----
+
 local({
   yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
   yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]

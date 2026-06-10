@@ -1,34 +1,20 @@
-#' srr_stats
-#' @srrstats {G1.1} The algorithm is a full refactor with memory and speed improvements for a previous R implementation
-#'  (Stammann, 2018). The reference is Stammann (2018) <https://arxiv.org/abs/1707.01815> for GLMs, and also Gaure
-#'  (2013) <https://dx.doi.org/10.1016/j.csda.2013.03.024> for LMs.
-#' @srrstats {G1.2} This describes the current and anticipated future states of development.
-#' @srrstats {G1.3} For fixed effects, I mean the "c" coeffients in the model y_i = a + b * x_i + c * z_i + e_i
-#'  with the variables from the mtcars dataset. The model notation for this example is y ~ x | z.
-#' @srrstats {G1.4} The package uses roxygen2.
-#' @srrstats {G1.4a} All internal (non-exported) functions are documented. See the `*_helpers.R` files.
-#' @srrstats {G1.5} The test include examples to verify the speed gains in this implementation compare to base R.
-#' @srrstats {G1.6} To keep dependencies minimal, we compare against base R in the tests. An alternative would be to
-#'  compare against alpaca.
-#' @srrstats {RE4.12} The link and inverse link functions are written in C++ to use those with the Armadillo library.
-#'  This is in the file `src/05_glm_fit.cpp`.
-#' @noRd
-NULL
+# srr_stats
+# {G1.1} The algorithm is a full refactor with memory and speed improvements for a previous R implementation (Stammann, 2018). The reference is Stammann (2018) <https://arxiv.org/abs/1707.01815> for GLMs, and also Gaure (2013) <https://dx.doi.org/10.1016/j.csda.2013.03.024> for LMs.
+# {G1.2} This describes the current and anticipated future states of development.
+# {G1.3} For fixed effects, I mean the "c" coeffients in the model y_i = a + b * x_i + c * z_i + e_i with the variables from the mtcars dataset. The model notation for this example is y ~ x | z.
+# {G1.4} The package uses roxygen2.
+# {G1.4a} All internal (non-exported) functions are documented. See the `*_helpers.R` files.
+# {G1.5} The test include examples to verify the speed gains in this implementation compare to base R.
+# {G1.6} To keep dependencies minimal, we compare against base R in the tests. An alternative would be to compare against alpaca.
+# {RE4.12} The link and inverse link functions are written in C++ to use those with the Armadillo library. This is in the file `src/05_glm_fit.cpp`.
 
-#' NA_standards
-#' @srrstatsNA {G2.6} Only some model parameters can be unidimensional. To fit a regression we need at least two
-#'  observations and two variables.
-#' @srrstatsNA {G5.6b} No randomness is needed for the in fixed effects estimation. With the model slopes, recovering
-#'  the fixed effects is a deterministic process.
-#' @srrstatsNA {G2.9} Conversion of variables from factor to character is not conducted and the original input data is
-#'  not modified.
-#' @srrstatsNA {G2.12} `data.frame`-like tabular objects which have list columns cannot be used as input data. This
-#'  behaviour should be tested.
-#' @srrstatsNA {G2.14c} Missing data is not replaced with imputed values.
-#' @srrstatsNA {G2.14c} Replacing data with imputed values bias the estimation. This is not done in the package, and it
-#'  is left to the user to decide when processing the data.
-#' @noRd
-NULL
+# NA_standards
+# {G2.6} Only some model parameters can be unidimensional. To fit a regression we need at least two observations and two variables.
+# {G5.6b} No randomness is needed for the in fixed effects estimation. With the model slopes, recovering the fixed effects is a deterministic process.
+# {G2.9} Conversion of variables from factor to character is not conducted and the original input data is not modified.
+# {G2.12} `data.frame`-like tabular objects which have list columns cannot be used as input data. This behaviour should be tested.
+# {G2.14c} Missing data is not replaced with imputed values.
+# {G2.14c} Replacing data with imputed values bias the estimation. This is not done in the package, and it is left to the user to decide when processing the data.
 
 #' @title Generalized Linear Models (GLMs) with high-dimensional k-way fixed
 #'  effects
@@ -50,7 +36,7 @@ NULL
 "_PACKAGE"
 
 #' srr_stats (tests)
-#' @srrstats {G5.1} The panel is exported and used in the package examples.
+# {G5.1} The panel is exported and used in the package examples.
 #' @noRd
 NULL
 

@@ -194,7 +194,7 @@ summary_table <- function(
   # Check if any model is a GLM
 
   r2_label <- ifelse(latex, "$R^2$", "R-squared")
-  
+
   r2_row <- c(
     r2_label,
     sapply(models, function(m) {
@@ -511,10 +511,13 @@ format_latex_table <- function(
   # tabular content and let Quarto supply the outer environment.
   in_quarto_tbl <- nzchar(Sys.getenv("QUARTO_BIN_PATH")) &&
     isTRUE(getOption("knitr.in.progress")) &&
-    tryCatch({
-      lbl <- knitr::opts_current$get("label")
-      !is.null(lbl) && nzchar(lbl) && grepl("^tbl-", lbl)
-    }, error = function(e) FALSE)
+    tryCatch(
+      {
+        lbl <- knitr::opts_current$get("label")
+        !is.null(lbl) && nzchar(lbl) && grepl("^tbl-", lbl)
+      },
+      error = function(e) FALSE
+    )
 
   footnotes_text <- if (stars) fill_tmpl(tmpl$footnotes, list(n_cols = n_cols)) else ""
 
@@ -531,7 +534,7 @@ format_latex_table <- function(
     )
   } else {
     caption_text <- if (is.null(caption)) "" else fill_tmpl(tmpl$caption, list(caption = caption))
-    label_text   <- if (is.null(label) || !nzchar(label)) "" else fill_tmpl(tmpl$label, list(label = label))
+    label_text <- if (is.null(label) || !nzchar(label)) "" else fill_tmpl(tmpl$label, list(label = label))
     fill_tmpl(tmpl$table, list(
       position  = position,
       caption   = caption_text,

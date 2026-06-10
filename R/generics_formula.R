@@ -40,7 +40,9 @@ split_formula_on_pipe_ <- function(fml_chr) {
 #' @param part Formula part string
 #' @noRd
 clean_formula_part_ <- function(part) {
-  if (!nzchar(part)) return(part)
+  if (!nzchar(part)) {
+    return(part)
+  }
 
   part <- trimws(part)
 
@@ -85,7 +87,6 @@ clean_formula_part_ <- function(part) {
 
   part
 }
-
 
 
 #' @title Split a |-separated felm / feglm formula into its string parts
@@ -168,7 +169,7 @@ update.felm <- function(object, formula. = . ~ ., vcov = NULL, ...) {
   # Convert to Formula object for proper multi-part formula handling
   old_fml <- Formula::as.Formula(object[["formula"]])
   new_fml <- update(old_fml, formula.)
-  
+
   felm(
     formula = new_fml,
     data    = object[["data"]],
@@ -194,7 +195,7 @@ update.feglm <- function(object, formula. = . ~ ., vcov = NULL, family = NULL, .
   # Convert to Formula object for proper multi-part formula handling
   old_fml <- Formula::as.Formula(object[["formula"]])
   new_fml <- update(old_fml, formula.)
-  
+
   feglm(
     formula = new_fml,
     data    = object[["data"]],
@@ -224,7 +225,7 @@ update.felm_formula <- function(object, formula., ...) {
   # Convert to Formula object, update, then restore felm_formula class
   fml <- Formula::as.Formula(object)
   updated_fml <- update(fml, formula.)
-  
+
   # Restore the felm_formula class
   environment(updated_fml) <- environment(object)
   structure(updated_fml, class = c("felm_formula", class(updated_fml)))

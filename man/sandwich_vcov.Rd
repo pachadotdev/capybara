@@ -56,13 +56,13 @@ yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
 yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
 
 fepoisson(
- trade ~ log_dist | exp_year, yotov2017_subset,
- control = fit_control(vcov_type = "hetero")
+  trade ~ log_dist | exp_year, yotov2017_subset,
+  control = fit_control(vcov_type = "hetero")
 )
 
 fepoisson(
- trade ~ log_dist | exp_year, yotov2017_subset,
- control = fit_control(vcov_type = "m-estimator")
+  trade ~ log_dist | exp_year, yotov2017_subset,
+  control = fit_control(vcov_type = "m-estimator")
 )
 
 # Reusing models

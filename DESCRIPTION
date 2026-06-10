@@ -45,5 +45,4 @@ Config/roxygen2/version: 8.0.0
 Encoding: UTF-8
 LazyData: true
 NeedsCompilation: yes
-Roxygen: list(markdown = TRUE, roclets = c("namespace", "rd",
-    "srr::srr_stats_roclet"))
+Roxygen: list(markdown = TRUE)

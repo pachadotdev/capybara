@@ -95,7 +95,7 @@ You can inspect convergence through the returned list elements:
 ```{r diag}
 cat("Outer loop converged:", mod_ppml$conv_outer, "\n")
 cat("Outer iterations:    ", mod_ppml$iter_outer, "\n")
-cat("Expectile used:      ", mod_ppml$expectile,  "\n")
+cat("Expectile used:      ", mod_ppml$expectile, "\n")
 ```
 
 ## References

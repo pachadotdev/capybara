@@ -2,21 +2,19 @@
 #' @export
 generics::augment
 
-#' srr_stats
-#' @srrstats {G1.0} Provides integration with the `broom` package for model output tidying.
-#' @srrstats {G2.1a} Ensures the input object is of the expected class (`feglm` or `felm`).
-#' @srrstats {G2.3a} Ensures compatibility with new data provided via the `newdata` argument.
-#' @srrstats {G3.1a} Outputs include fitted values and residuals in a tidy tibble format for interpretability.
-#' @srrstats {G3.1c} Supports additional columns in the output for confidence intervals if requested.
-#' @srrstats {G3.3} Handles the addition of multiple model outputs (`.fitted`, `.residuals`) to the data.
-#' @srrstats {G5.1} Provides robust error handling for missing or invalid input objects.
-#' @srrstats {RE4.10} The residuals are returned in a tidy data frame following the `broom` convention.
-#' @srrstats {RE4.11} The deviance and null deviance are returned in a tidy data frame following the `broom` convention.
-#' @srrstats {RE5.0} Optimized for integration with downstream analysis workflows.
-#' @srrstats {RE5.1} Maintains computational efficiency when augmenting large datasets.
-#' @srrstats {RE5.3} Supports additional data input (`newdata`) to enhance flexibility.
-#' @noRd
-NULL
+# srr_stats
+# {G1.0} Provides integration with the `broom` package for model output tidying.
+# {G2.1a} Ensures the input object is of the expected class (`feglm` or `felm`).
+# {G2.3a} Ensures compatibility with new data provided via the `newdata` argument.
+# {G3.1a} Outputs include fitted values and residuals in a tidy tibble format for interpretability.
+# {G3.1c} Supports additional columns in the output for confidence intervals if requested.
+# {G3.3} Handles the addition of multiple model outputs (`.fitted`, `.residuals`) to the data.
+# {G5.1} Provides robust error handling for missing or invalid input objects.
+# {RE4.10} The residuals are returned in a tidy data frame following the `broom` convention.
+# {RE4.11} The deviance and null deviance are returned in a tidy data frame following the `broom` convention.
+# {RE5.0} Optimized for integration with downstream analysis workflows.
+# {RE5.1} Maintains computational efficiency when augmenting large datasets.
+# {RE5.3} Supports additional data input (`newdata`) to enhance flexibility.
 
 #' @title Broom Integration
 #'

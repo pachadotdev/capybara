@@ -1,7 +1,7 @@
+# These tests are a formality but an important one to check NA/Inf/NaN handling. This is justified provided that I am not using base R's model.matrix
+
 # srr_stats (tests)
 # {RE5.5} Ensures accuracy of prediction methods with unseen data subsets, maintaining expected patterns of error.
-# these tests are a formality but an important one to check NA/Inf/NaN handling
-# this is justified provided that I am not using base R's model.matrix
 
 # NAs on the lhs ----
 

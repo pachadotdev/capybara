@@ -1,9 +1,7 @@
-#' srr_stats (tests)
-#' @srrstats {G1.0} Implements unit testing for broom generics (tidy, glance, augment).
-#' @srrstats {G2.3} Tests compatibility with broom package conventions.
-#' @srrstats {RE3.1} Verifies the correctness of extracted model statistics.
-#' @noRd
-NULL
+# srr_stats (tests)
+# {G1.0} Implements unit testing for broom generics (tidy, glance, augment).
+# {G2.3} Tests compatibility with broom package conventions.
+# {RE3.1} Verifies the correctness of extracted model statistics.
 
 # ---- glance tests ----
 

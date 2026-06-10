@@ -1,17 +1,14 @@
-#' srr_stats
-#' @srrstats {G1.0} Defines `coef` methods for extracting coefficients from various model objects.
-#' @srrstats {G2.1a} Ensures that the input object is of the expected class (`apes`, `feglm`, or `felm`).
-#' @srrstats {G3.1a} Outputs coefficients in a consistent format for interpretability.
-#' @srrstats {G3.1b} Supports multiple model object types, maintaining a standardized interface.
-#' @srrstats {G3.1c} Provides access to summary statistics (`coefficients`) where applicable.
-#' @srrstats {G5.1} Includes robust error handling for unsupported or invalid input objects.
-#' @srrstats {G5.4a} Includes tests for extracting coefficients from simple and complex model objects.
-#' @srrstats {RE4.2} Returns coefficients via a standard method for feglm-type objects and derived classes (i.e., felm,
-#'  apes, etc).
-#' @srrstats {RE5.0} Enables seamless integration with downstream analysis workflows.
-#' @srrstats {RE5.2} Maintains computational efficiency in coefficient extraction.
-#' @noRd
-NULL
+# srr_stats
+# {G1.0} Defines `coef` methods for extracting coefficients from various model objects.
+# {G2.1a} Ensures that the input object is of the expected class (`apes`, `feglm`, or `felm`).
+# {G3.1a} Outputs coefficients in a consistent format for interpretability.
+# {G3.1b} Supports multiple model object types, maintaining a standardized interface.
+# {G3.1c} Provides access to summary statistics (`coefficients`) where applicable.
+# {G5.1} Includes robust error handling for unsupported or invalid input objects.
+# {G5.4a} Includes tests for extracting coefficients from simple and complex model objects.
+# {RE4.2} Returns coefficients via a standard method for feglm-type objects and derived classes (i.e., felm, apes, etc).
+# {RE5.0} Enables seamless integration with downstream analysis workflows.
+# {RE5.2} Maintains computational efficiency in coefficient extraction.
 
 #' @export
 #' @noRd

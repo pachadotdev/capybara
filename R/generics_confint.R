@@ -1,16 +1,14 @@
-#' srr_stats
-#' @srrstats {G1.0} Implements `confint` methods for extracting confidence intervals for `feglm` and `felm` objects using Wald method.
-#' @srrstats {G2.1a} Ensures that the input object is of the expected class (`feglm` or `felm`).
-#' @srrstats {G2.3a} Validates the `level` parameter to ensure it is within the accepted range (0, 1).
-#' @srrstats {G3.1a} Outputs confidence intervals in a standardized format, making them easily interpretable.
-#' @srrstats {G3.1b} Supports multiple model types with consistent behavior.
-#' @srrstats {G3.1c} Provides Wald confidence intervals based on asymptotic normality.
-#' @srrstats {G5.1} Includes error handling for unsupported or invalid input objects and invalid `level` values.
-#' @srrstats {G5.4a} Includes tests to validate confidence interval calculations for edge cases and typical use cases.
-#' @srrstats {RE5.0} Designed for seamless integration with downstream analysis workflows.
-#' @srrstats {RE5.2} Maintains computational efficiency - uses Wald intervals to avoid expensive profile likelihood computation.
-#' @noRd
-NULL
+# srr_stats
+# {G1.0} Implements `confint` methods for extracting confidence intervals for `feglm` and `felm` objects using Wald method.
+# {G2.1a} Ensures that the input object is of the expected class (`feglm` or `felm`).
+# {G2.3a} Validates the `level` parameter to ensure it is within the accepted range (0, 1).
+# {G3.1a} Outputs confidence intervals in a standardized format, making them easily interpretable.
+# {G3.1b} Supports multiple model types with consistent behavior.
+# {G3.1c} Provides Wald confidence intervals based on asymptotic normality.
+# {G5.1} Includes error handling for unsupported or invalid input objects and invalid `level` values.
+# {G5.4a} Includes tests to validate confidence interval calculations for edge cases and typical use cases.
+# {RE5.0} Designed for seamless integration with downstream analysis workflows.
+# {RE5.2} Maintains computational efficiency - uses Wald intervals to avoid expensive profile likelihood computation.
 
 #' Confidence Intervals for Model Parameters
 #'
