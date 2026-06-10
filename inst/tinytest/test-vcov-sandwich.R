@@ -1,10 +1,8 @@
-#' srr_stats (tests)
-#' @srrstats {G5.2} Validates that covariance matrices align with theoretical expectations under different estimation methods.
-#' @srrstats {RE3.3} Ensures consistency of `vcov` results for sandwich and outer-product estimators.
-#' @srrstats {RE4.3} Confirms robustness of covariance matrix calculations under varied model specifications.
-#' @srrstats {RE6.0} Ensures that covariance estimations respond correctly to model clustering and input variations.
-#' @noRd
-NULL
+# srr_stats (tests)
+# {G5.2} Validates that covariance matrices align with theoretical expectations under different estimation methods.
+# {RE3.3} Ensures consistency of `vcov` results for sandwich and outer-product estimators.
+# {RE4.3} Confirms robustness of covariance matrix calculations under varied model specifications.
+# {RE6.0} Ensures that covariance estimations respond correctly to model clustering and input variations.
 
 source(system.file("tinytest", "helper.R", package = "capybara"))
 

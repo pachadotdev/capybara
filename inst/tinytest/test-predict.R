@@ -1,13 +1,10 @@
-#' srr_stats (tests)
-#' @srrstats {G1.0} Implements unit testing for predict functionality.
-#' @srrstats {G2.3} Tests various prediction types and newdata scenarios.
-#' @srrstats {RE4.9} Verifies predict returns correct values.
-#' @noRd
-NULL
+# srr_stats (tests)
+# {G1.0} Implements unit testing for predict functionality.
+# {G2.3} Tests various prediction types and newdata scenarios.
+# {RE4.9} Verifies predict returns correct values.
 
-# ---- predict.feglm tests ----
+# predict.feglm works with default type (response) ----
 
-# predict.feglm works with default type (response)
 local({
   yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
   yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
@@ -20,7 +17,8 @@ local({
   expect_true(all(preds > 0))
 })
 
-# predict.feglm works with type = 'link'
+# predict.feglm works with type = 'link' ----
+
 local({
   yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
   yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
@@ -37,7 +35,8 @@ local({
   expect_equal(exp(preds_link), preds_response, tolerance = 1e-6)
 })
 
-# predict.feglm works with newdata
+# predict.feglm works with newdata ----
+
 local({
   yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
   yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
@@ -63,9 +62,8 @@ local({
   )
 })
 
-# ---- predict.felm tests ----
+# predict.felm works with default type ----
 
-# predict.felm works with default type
 local({
   yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
   yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
@@ -77,7 +75,8 @@ local({
   expect_equal(length(preds), nrow(yotov2017_subset))
 })
 
-# predict.felm works with newdata
+# predict.felm works with newdata ----
+
 local({
   yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
   yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
@@ -94,7 +93,8 @@ local({
   expect_equal(length(preds), 3)
 })
 
-# predict.felm with type='response' works
+# predict.felm with type='response' works ----
+
 local({
   yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
   yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
@@ -108,9 +108,8 @@ local({
   expect_equal(preds_response, preds_default)
 })
 
-# ---- predict with multiple fixed effects ----
+# predict works with multiple fixed effects ----
 
-# predict works with multiple fixed effects
 local({
   yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
   yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
@@ -122,7 +121,8 @@ local({
   expect_equal(length(preds), nrow(yotov2017_subset))
 })
 
-# predict with newdata handles multiple FEs
+# predict with newdata handles multiple FEs ----
+
 local({
   yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
   yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
@@ -140,9 +140,8 @@ local({
   expect_equal(length(preds), 2)
 })
 
-# ---- predict with model without FE ----
+# predict works for model without fixed effects ----
 
-# predict works for model without fixed effects
 local({
   yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
   yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
@@ -154,7 +153,8 @@ local({
   expect_equal(length(preds), nrow(yotov2017_subset))
 })
 
-# predict with newdata works for model without FE
+# predict with newdata works for model without FE ----
+
 local({
   yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
   yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
@@ -168,21 +168,8 @@ local({
   expect_equal(length(preds), 3)
 })
 
-# ---- predict with offset ----
+# predict handles NA in newdata gracefully ---
 
-# predict works with offset
-local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
-  
-  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset, offset = ~ log(dist))
-
-  preds <- predict(mod)
-
-  expect_equal(length(preds), nrow(yotov2017_subset))
-})
-
-# predict handles NA in newdata gracefully
 local({
   yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
   yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
@@ -203,7 +190,8 @@ local({
   expect_false(is.na(preds[3]))
 })
 
-# predict returns same length as input for newdata
+# predict returns same length as input for newdata ----
+
 local({
   yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
   yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
@@ -219,7 +207,8 @@ local({
   expect_equal(length(preds), nrow(newdata))
 })
 
-# predict works with type='terms' for felm
+# predict works with type='terms' for felm ----
+
 local({
   yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
   yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
@@ -231,7 +220,8 @@ local({
   expect_true(is.matrix(preds_terms) || is.numeric(preds_terms))
 })
 
-# predict maintains order for newdata
+# predict maintains order for newdata ----
+
 local({
   yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
   yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]

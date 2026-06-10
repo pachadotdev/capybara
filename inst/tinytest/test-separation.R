@@ -1,9 +1,7 @@
-# #' srr_stats (tests)
-# #' @srrstats {G5.4} Tests for separation detection in GLMs
-# #' @srrstats {G5.4a} Tests edge cases and typical separation scenarios
-# #' @srrstats {RE4.6} Validates separation detection algorithm
-# #' @noRd
-# NULL
+# srr_stats (tests)
+# {G5.4} Tests for separation detection in GLMs
+# {G5.4a} Tests edge cases and typical separation scenarios
+# {RE4.6} Validates separation detection algorithm
 
 source(system.file("tinytest", "helper.R", package = "capybara"))
 

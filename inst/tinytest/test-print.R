@@ -1,9 +1,7 @@
-#' srr_stats (tests)
-#' @srrstats {G1.0} Implements unit testing for print functionality.
-#' @srrstats {G3.2} Verifies correct print output format.
-#' @srrstats {RE4.17} Validates default print methods for models and summaries.
-#' @noRd
-NULL
+# srr_stats (tests)
+# {G1.0} Implements unit testing for print functionality.
+# {G3.2} Verifies correct print output format.
+# {RE4.17} Validates default print methods for models and summaries.
 
 # ---- print.feglm tests ----
 

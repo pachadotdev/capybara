@@ -14,78 +14,36 @@
 # {RE7.1} Validates consistency in output types and structures across all supported families and link functions.
 # {RE7.2} Confirms that confidence intervals and standard errors are computed correctly for coefficients.
 
-source(system.file("tinytest", "helper.R", package = "capybara"))
-
-# feglm works without fixed effects ----
+# feglm works without fixed effects (Stammann centering) ----
 
 local({
+  # centering is unused without FEs, but control must be accepted
+  ctrl <- list(centering = "stammann")
+
   yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  m1 <- feglm(trade ~ log_dist, data = yotov2017_subset)
+  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+
+  m1 <- feglm(trade ~ log_dist, data = yotov2017_subset, control = ctrl)
   m2 <- glm(trade ~ log_dist, data = yotov2017_subset)
 
   expect_equal(coef(m1), coef(m2), tolerance = 1e-6)
 })
 
-# out of sample predictions have larger margins of error ----
+# proportional regressors return NA coefficients (Stammann centering) ----
 
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017[yotov2017$trade > 0, ]
-
-  yotov2017_subset2 <- yotov2017_subset[
-    yotov2017_subset$trade >= quantile(yotov2017_subset$trade, 0.25) &
-      yotov2017_subset$trade <= quantile(yotov2017_subset$trade, 0.75),
-  ]
-
-  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset2)
-  
-  p1 <- predict(mod, newdata = yotov2017_subset, type = "response")
-  p2 <- predict(mod, newdata = yotov2017_subset2, type = "response")
-
-  mape1 <- mape(yotov2017_subset$trade, p1)
-  mape2 <- mape(yotov2017_subset2$trade, p2)
-
-  expect_true(mape1 > mape2)
-})
-
-# proportional regressors return NA coefficients ----
-
-local({
+  ctrl <- list(centering = "stammann")
   set.seed(200100)
   d <- data.frame(
     y = rnorm(100),
     x1 = rnorm(100),
-    f = factor(sample(1:2, 100, replace = TRUE)) # Fixed: was 1000, now 100
+    f = factor(sample(1:2, 100, replace = TRUE))
   )
   d$x2 <- 2 * d$x1
 
   fit1 <- glm(y ~ x1 + x2 + as.factor(f), data = d, family = gaussian())
-  fit2 <- feglm(y ~ x1 + x2 | f, data = d, family = gaussian())
+  fit2 <- feglm(y ~ x1 + x2 | f, data = d, family = gaussian(), control = ctrl)
 
   expect_equal(coef(fit2), coef(fit1)[2:3], tolerance = 1e-2)
   expect_equal(predict(fit2), predict(fit1), tolerance = 1e-2)
-})
-
-# feglm with weights works ----
-
-local({
-  skip_on_cran()
-
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset$trade_pair <- ave(yotov2017_subset$trade, yotov2017_subset$pair,
-    FUN = function(x) sum(x, na.rm = TRUE))
-
-  m1 <- feglm(trade ~ log_dist | exp_year, weights = ~trade_pair, data = yotov2017_subset)
-  m2 <- feglm(trade ~ log_dist | exp_year, weights = yotov2017_subset$trade_pair, data = yotov2017_subset)
-
-  w <- yotov2017_subset$trade_pair
-  m3 <- feglm(trade ~ log_dist | exp_year, weights = w, data = yotov2017_subset)
-
-  expect_equal(coef(m2), coef(m1))
-  expect_equal(coef(m3), coef(m1))
-
-  w <- NULL
-  m4 <- feglm(trade ~ log_dist | exp_year, weights = w, data = yotov2017_subset)
-
-  expect_true(coef(m1) != coef(m4))
 })

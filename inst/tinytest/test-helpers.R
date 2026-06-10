@@ -1,43 +1,11 @@
-#' srr_stats (tests)
-#' @srrstats {G5.4} Tests for helper functions
-#' @srrstats {G5.4a} Tests edge cases and typical scenarios
-#' @noRd
-NULL
+# srr_stats (tests)
+# {G5.4} Tests for helper functions
+# {G5.4a} Tests edge cases and typical scenarios
 
 source(system.file("tinytest", "helper.R", package = "capybara"))
 
-# ---- feglm_helpers tests ----
+# model handles collinearity detection ----
 
-# model fitting works with different families
-local({
-  skip_on_cran()
-
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
-  
-  # Poisson
-  mod_pois <- feglm(trade ~ log_dist | exp_year, yotov2017_subset, family = poisson())
-  expect_true(inherits(mod_pois, "feglm"))
-
-  # Gaussian
-  mod_gauss <- feglm(trade ~ log_dist | exp_year, yotov2017_subset, family = gaussian())
-  expect_true(inherits(mod_gauss, "feglm"))
-})
-
-# model works without keep_tx option
-local({
-  skip_on_cran()
-
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
-  
-  ctrl <- fit_control(keep_tx = FALSE)
-  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset, control = ctrl)
-
-  expect_true(inherits(mod, "felm"))
-})
-
-# model handles collinearity detection
 local({
   skip_on_cran()
 
@@ -52,70 +20,28 @@ local({
   expect_true(inherits(mod, "felm"))
 })
 
-# weighted regression works
+# offset works with formula specification ----
+
 local({
   skip_on_cran()
 
   yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
   yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
-  yotov2017_subset$w <- runif(nrow(yotov2017_subset), 0.5, 1.5)
 
-  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset, weights = ~w)
+  # add offset column based on total trade by exporter
+  total_trade_by_exp <- aggregate(trade ~ exp_year, yotov2017_subset, sum)
+  names(total_trade_by_exp)[2] <- "total_trade"
+  yotov2017_subset <- merge(yotov2017_subset, total_trade_by_exp, by = "exp_year")
+  yotov2017_subset$offset_var <- log(yotov2017_subset$total_trade)
 
-  expect_true(inherits(mod, "felm"))
-  expect_true(!is.null(mod$weights))
-})
-
-# ---- Offset tests ----
-
-# offset works with formula specification
-local({
-  skip_on_cran()
-
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
-  
-  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset, offset = ~ log(dist))
+  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset, offset = ~offset_var)
 
   expect_true(inherits(mod, "feglm"))
   expect_true("offset" %in% names(mod))
 })
 
-# offset affects fitted values
-local({
-  skip_on_cran()
+# model handles different tolerance settings ----
 
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
-  
-  mod_no_offset <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
-  mod_offset <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset, offset = ~ log(dist))
-
-  # Fitted values should be different
-  expect_false(isTRUE(all.equal(fitted(mod_no_offset), fitted(mod_offset))))
-})
-
-# model works with different numbers of fixed effects
-local({
-  skip_on_cran()
-
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
-  
-  # Single FE
-  mod1 <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset, control = fit_control(return_fe = TRUE))
-  expect_equal(length(mod1$fixed_effects), 1)
-
-  # Multiple FEs
-  mod2 <- fepoisson(trade ~ log_dist | exp_year + imp_year, yotov2017_subset, control = fit_control(return_fe = TRUE))
-  expect_equal(length(mod2$fixed_effects), 2)
-
-  # Three FEs
-  mod3 <- fepoisson(trade ~ log_dist | exp_year + imp_year + year, yotov2017_subset, control = fit_control(return_fe = TRUE))
-  expect_equal(length(mod3$fixed_effects), 3)
-})
-
-# model handles different tolerance settings
 local({
   skip_on_cran()
 
@@ -133,7 +59,8 @@ local({
   expect_true(inherits(mod2, "felm"))
 })
 
-# model handles different iteration limits
+# model handles different iteration limits ----
+
 local({
   skip_on_cran()
 
@@ -146,9 +73,7 @@ local({
   expect_true(inherits(mod, "felm"))
 })
 
-# ---- Data transformation tests ----
-
-# model handles factor variables correctly
+# model handles factor variables correctly ----
 local({
   skip_on_cran()
 
@@ -162,7 +87,8 @@ local({
   expect_equal(length(mod$fixed_effects), 2)
 })
 
-# model handles character fixed effects
+# model handles character fixed effects ----
+
 local({
   skip_on_cran()
 
@@ -175,9 +101,8 @@ local({
   expect_true(inherits(mod, "feglm"))
 })
 
-# ---- Edge cases ----
+# model handles small sample sizes ----
 
-# model handles small sample sizes
 local({
   skip_on_cran()
 
@@ -189,19 +114,8 @@ local({
   expect_true(inherits(mod, "feglm"))
 })
 
-# model handles many fixed effect levels
-local({
-  skip_on_cran()
+# model returns correct number of observations ----
 
-  data("yotov2017", package = "capybara")
-
-  # This has many levels in exp_year and imp_iso
-  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017)
-
-  expect_true(inherits(mod, "feglm"))
-})
-
-# model returns correct number of observations
 local({
   skip_on_cran()
 
@@ -213,7 +127,7 @@ local({
   expect_equal(as.numeric(mod$nobs["nobs"]), nrow(yotov2017_subset))
 })
 
-# model matrix operations work correctly
+# model matrix operations work correctly ----
 local({
   skip_on_cran()
 

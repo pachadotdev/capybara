@@ -1,7 +1,5 @@
-#' srr_stats (tests)
-#' @srrstats {G2.11} Tests for `data.frame`-like tabular objects with unit-type columns.
-#' @noRd
-NULL
+# srr_stats (tests)
+# {G2.11} Tests for `data.frame`-like tabular objects with unit-type columns.
 
 # feglm handles unit-type columns
 local({

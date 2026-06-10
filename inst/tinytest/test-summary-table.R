@@ -1,9 +1,7 @@
-#' srr_stats (tests)
-#' @srrstats {G1.0} Implements unit testing for summary_table functionality.
-#' @srrstats {G2.3} Tests various output formats and model combinations.
-#' @srrstats {RE3.1} Verifies the correctness of formatted regression tables.
-#' @noRd
-NULL
+# srr_stats (tests)
+# {G1.0} Implements unit testing for summary_table functionality.
+# {G2.3} Tests various output formats and model combinations.
+# {RE3.1} Verifies the correctness of formatted regression tables.
 
 # summary_table works with single model
 local({

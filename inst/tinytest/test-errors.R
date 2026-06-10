@@ -1,12 +1,10 @@
-#' srr_stats (tests)
-#' @srrstats {RE2.1} Ensures that models throw meaningful error messages when input parameters or data are invalid.
-#' @srrstats {RE5.1} Validates appropriate error handling for omitted arguments, such as missing formula or data.
-#' @srrstats {RE5.2} Confirms that incorrect control settings result in appropriate error messages.
-#' @srrstats {RE5.3} Verifies that the function stops execution when given unsupported model families or inappropriate responses.
-#' @srrstats {RE5.4} Ensures that the model gracefully handles invalid starting values for beta, eta, or theta.
-#' @srrstats {RE6.0} Implements robust testing for invalid combinations of fixed effects or missing parameters in APEs and GLMs.
-#' @noRd
-NULL
+# srr_stats (tests)
+# {RE2.1} Ensures that models throw meaningful error messages when input parameters or data are invalid.
+# {RE5.1} Validates appropriate error handling for omitted arguments, such as missing formula or data.
+# {RE5.2} Confirms that incorrect control settings result in appropriate error messages.
+# {RE5.3} Verifies that the function stops execution when given unsupported model families or inappropriate responses.
+# {RE5.4} Ensures that the model gracefully handles invalid starting values for beta, eta, or theta.
+# {RE6.0} Implements robust testing for invalid combinations of fixed effects or missing parameters in APEs and GLMs.
 
 source(system.file("tinytest", "helper.R", package = "capybara"))
 
