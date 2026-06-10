@@ -14,7 +14,7 @@
 #'   is \code{"htbp"}.
 #' @examples
 #' ross2004_subset <- ross2004[ross2004$year == 1999, ]
-#' ross2004_subset <- ross2004[ross2004$ltrade > 0, ]
+#' ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 #' 
 #' m1 <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
 #' m2 <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)

@@ -21,10 +21,12 @@ cluster variables are specified in the formula.
 }
 \examples{
 # Model with clustering - returns sandwich covariance
-yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
-mod_cl <- felm(trade ~ log_dist | exp_year | year, yotov2017_subset)
-vcov(mod_cl)
+ross2004_subset <- ross2004[ross2004$year \%in\% c(1994, 1999), ]
+ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
+
+fit <- felm(ltrade ~ ldist | ctry1 | year, ross2004_subset)
+
+vcov(fit)
 
 }
 \references{

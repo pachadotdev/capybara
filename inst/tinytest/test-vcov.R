@@ -12,10 +12,10 @@ local({
   skip_on_cran()
 
   # Model without clustering - returns inverse Hessian
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-  m1 <- fepoisson(trade ~ log_dist + cntg | exp_year, yotov2017_subset)
+  m1 <- fepoisson(ltrade ~ ldist + border | ctry1, ross2004_subset)
 
   v1 <- vcov(m1)
   expect_true(is.matrix(v1))
@@ -24,7 +24,7 @@ local({
   expect_true(all(is.finite(v1)))
 
   # Model with clustering - returns sandwich vcov
-  m2 <- fepoisson(trade ~ log_dist + cntg | exp_year | imp_year, yotov2017_subset)
+  m2 <- fepoisson(ltrade ~ ldist + border | ctry1 | ctry2, ross2004_subset)
 
   v2 <- vcov(m2)
   expect_true(is.matrix(v2))
@@ -38,10 +38,10 @@ local({
 local({
   skip_on_cran()
 
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  m <- fepoisson(trade ~ log_dist + cntg | exp_year | imp_year, yotov2017_subset)
+  m <- fepoisson(ltrade ~ ldist + border | ctry1 | ctry2, ross2004_subset)
   v <- vcov(m)
 
   # Should be symmetric
@@ -111,11 +111,11 @@ local({
   skip_on_cran()
 
   # Fit same model with and without clustering
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  m_no_cluster <- fepoisson(trade ~ log_dist + cntg | exp_year, yotov2017_subset)
-  m_clustered <- fepoisson(trade ~ log_dist + cntg | exp_year | imp_year, yotov2017_subset)
+  m_no_cluster <- fepoisson(ltrade ~ ldist + border | ctry1, ross2004_subset)
+  m_clustered <- fepoisson(ltrade ~ ldist + border | ctry1 | ctry2, ross2004_subset)
 
   v_hessian <- vcov(m_no_cluster)
   v_sandwich <- vcov(m_clustered)
@@ -133,10 +133,10 @@ local({
 local({
   skip_on_cran()
 
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  m <- felm(trade ~ log_dist + cntg | exp_year, yotov2017_subset)
+  m <- felm(ltrade ~ ldist + border | ctry1, ross2004_subset)
   v <- vcov(m)
 
   expect_true(is.matrix(v))
@@ -150,10 +150,10 @@ local({
 local({
   skip_on_cran()
 
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  m <- felm(trade ~ log_dist + cntg | exp_year | imp_year, yotov2017_subset)
+  m <- felm(ltrade ~ ldist + border | ctry1 | ctry2, ross2004_subset)
   v <- vcov(m)
 
   expect_true(is.matrix(v))
@@ -167,14 +167,14 @@ local({
 local({
   skip_on_cran()
 
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  m <- fepoisson(trade ~ log_dist + cntg | exp_year, yotov2017_subset)
+  m <- fepoisson(ltrade ~ ldist + border | ctry1, ross2004_subset)
   v <- vcov(m)
 
-  expect_equal(rownames(v), c("log_dist", "cntg"))
-  expect_equal(colnames(v), c("log_dist", "cntg"))
+  expect_equal(rownames(v), c("ldist", "border"))
+  expect_equal(colnames(v), c("ldist", "border"))
 })
 
 # vcov works with single predictor ----
@@ -182,10 +182,10 @@ local({
 local({
   skip_on_cran()
 
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  m <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
+  m <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
   v <- vcov(m)
 
   expect_true(is.matrix(v))
@@ -198,10 +198,10 @@ local({
 local({
   skip_on_cran()
 
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  m <- fenegbin(trade ~ log_dist | exp_year, yotov2017_subset)
+  m <- fenegbin(ltrade ~ ldist | ctry1, ross2004_subset)
   v <- vcov(m)
 
   expect_true(is.matrix(v))

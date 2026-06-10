@@ -186,11 +186,11 @@ By default, \code{fit_control()} returns "thin" model objects with minimal memor
 }
 
 \examples{
-# Default
-fit_control()
+ross2004_subset <- ross2004[ross2004$year == 1999, ]
+ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-# Custom tolerances
-fit_control(dev_tol = 1e-10, center_tol = 1e-10)
+felm(ltrade ~ ldist | ctry1, ross2004_subset,
+ control = fit_control(dev_tol = 1e-10, center_tol = 1e-10))
 
 }
 \seealso{

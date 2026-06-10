@@ -19,9 +19,9 @@ source(system.file("tinytest", "helper.R", package = "capybara"))
 # feglm works without fixed effects ----
 
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  m1 <- feglm(trade ~ log_dist, data = yotov2017_subset)
-  m2 <- glm(trade ~ log_dist, data = yotov2017_subset)
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  m1 <- feglm(ltrade ~ ldist, data = ross2004_subset)
+  m2 <- glm(ltrade ~ ldist, data = ross2004_subset)
 
   expect_equal(coef(m1), coef(m2), tolerance = 1e-6)
 })
@@ -29,21 +29,21 @@ local({
 # out of sample predictions have larger margins of error ----
 
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017[yotov2017$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004[ross2004$ltrade > 0, ]
 
-  yotov2017_subset2 <- yotov2017_subset[
-    yotov2017_subset$trade >= quantile(yotov2017_subset$trade, 0.25) &
-      yotov2017_subset$trade <= quantile(yotov2017_subset$trade, 0.75),
+  ross2004_subset2 <- ross2004_subset[
+    ross2004_subset$ltrade >= quantile(ross2004_subset$ltrade, 0.25) &
+      ross2004_subset$ltrade <= quantile(ross2004_subset$ltrade, 0.75),
   ]
 
-  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset2)
+  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset2)
   
-  p1 <- predict(mod, newdata = yotov2017_subset, type = "response")
-  p2 <- predict(mod, newdata = yotov2017_subset2, type = "response")
+  p1 <- predict(mod, newdata = ross2004_subset, type = "response")
+  p2 <- predict(mod, newdata = ross2004_subset2, type = "response")
 
-  mape1 <- mape(yotov2017_subset$trade, p1)
-  mape2 <- mape(yotov2017_subset2$trade, p2)
+  mape1 <- mape(ross2004_subset$ltrade, p1)
+  mape2 <- mape(ross2004_subset2$ltrade, p2)
 
   expect_true(mape1 > mape2)
 })
@@ -71,21 +71,21 @@ local({
 local({
   skip_on_cran()
 
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset$trade_pair <- ave(yotov2017_subset$trade, yotov2017_subset$pair,
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset$trade_pair <- ave(ross2004_subset$ltrade, ross2004_subset$pair,
     FUN = function(x) sum(x, na.rm = TRUE))
 
-  m1 <- feglm(trade ~ log_dist | exp_year, weights = ~trade_pair, data = yotov2017_subset)
-  m2 <- feglm(trade ~ log_dist | exp_year, weights = yotov2017_subset$trade_pair, data = yotov2017_subset)
+  m1 <- feglm(ltrade ~ ldist | ctry1, weights = ~trade_pair, data = ross2004_subset)
+  m2 <- feglm(ltrade ~ ldist | ctry1, weights = ross2004_subset$trade_pair, data = ross2004_subset)
 
-  w <- yotov2017_subset$trade_pair
-  m3 <- feglm(trade ~ log_dist | exp_year, weights = w, data = yotov2017_subset)
+  w <- ross2004_subset$trade_pair
+  m3 <- feglm(ltrade ~ ldist | ctry1, weights = w, data = ross2004_subset)
 
   expect_equal(coef(m2), coef(m1))
   expect_equal(coef(m3), coef(m1))
 
   w <- NULL
-  m4 <- feglm(trade ~ log_dist | exp_year, weights = w, data = yotov2017_subset)
+  m4 <- feglm(ltrade ~ ldist | ctry1, weights = w, data = ross2004_subset)
 
   expect_true(coef(m1) != coef(m4))
 })

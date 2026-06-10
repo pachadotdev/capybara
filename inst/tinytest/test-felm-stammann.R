@@ -16,22 +16,22 @@ source(system.file("tinytest", "helper.R", package = "capybara"))
 local({
   ctrl <- list(centering = "stammann")
 
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-  m1 <- felm(formula = trade ~ log_dist | exp_year, data = yotov2017_subset, control = ctrl)
-  m2 <- lm(trade ~ log_dist + as.factor(exp_year), yotov2017_subset)
+  m1 <- felm(formula = ltrade ~ ldist | ctry1, data = ross2004_subset, control = ctrl)
+  m2 <- lm(ltrade ~ ldist + as.factor(ctry1), ross2004_subset)
 
   expect_equal(coef(m1), coef(m2)[2], tolerance = 1e-2)
 
-  n <- nrow(yotov2017_subset)
+  n <- nrow(ross2004_subset)
   expect_equal(length(fitted(m1)), n)
   expect_equal(length(predict(m1)), n)
   expect_equal(length(coef(m1)), 1)
   expect_equal(length(coef(summary(m1))), 4)
 
-  m1 <- felm(trade ~ log_dist + cntg | exp_year, yotov2017_subset, control = ctrl)
-  m2 <- lm(trade ~ log_dist + cntg + as.factor(exp_year), yotov2017_subset)
+  m1 <- felm(ltrade ~ ldist + border | ctry1, ross2004_subset, control = ctrl)
+  m2 <- lm(ltrade ~ ldist + border + as.factor(ctry1), ross2004_subset)
 
   expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-2)
 })
@@ -41,11 +41,11 @@ local({
 local({
     ctrl <- list(centering = "stammann")
 
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  m1 <- felm(trade ~ log_dist + cntg | exp_year + imp_year, yotov2017_subset, control = ctrl)
-  m2 <- lm(trade ~ log_dist + cntg + as.factor(exp_year) + as.factor(imp_year), yotov2017_subset)
+  m1 <- felm(ltrade ~ ldist + border | ctry1 + ctry2, ross2004_subset, control = ctrl)
+  m2 <- lm(ltrade ~ ldist + border + as.factor(ctry1) + as.factor(ctry2), ross2004_subset)
 
   expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-2)
 
@@ -55,11 +55,11 @@ local({
   expect_equal(s1$r_squared, s2$r.squared, tolerance = 1e-2)
   expect_equal(s1$adj_r_squared, s2$adj.r.squared, tolerance = 1e-2)
 
-  yotov2017_subset2 <- yotov2017_subset
-  yotov2017_subset2$log_dist[2] <- NA
+  ross2004_subset2 <- ross2004_subset
+  ross2004_subset2$ldist[2] <- NA
 
-  m1 <- felm(trade ~ log_dist + cntg | exp_year + imp_year, yotov2017_subset2, control = ctrl)
-  m2 <- lm(trade ~ log_dist + cntg + as.factor(exp_year) + as.factor(imp_year), yotov2017_subset2)
+  m1 <- felm(ltrade ~ ldist + border | ctry1 + ctry2, ross2004_subset2, control = ctrl)
+  m2 <- lm(ltrade ~ ldist + border + as.factor(ctry1) + as.factor(ctry2), ross2004_subset2)
 
   expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-2)
 
@@ -69,7 +69,7 @@ local({
   expect_equal(s1$r_squared, s2$r.squared, tolerance = 1e-2)
   expect_equal(s1$adj_r_squared, s2$adj.r.squared, tolerance = 1e-2)
 
-  m1 <- felm(trade ~ log_dist + cntg | exp_year + imp_year | year, yotov2017_subset, control = ctrl)
+  m1 <- felm(ltrade ~ ldist + border | ctry1 + ctry2 | year, ross2004_subset, control = ctrl)
 
   expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-2)
 })
@@ -79,13 +79,13 @@ local({
 local({
     ctrl <- list(centering = "stammann")
 
-  yotov2017_subset <- yotov2017[yotov2017$year %in% c(2002, 2006), ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year %in% c(1994, 1999), ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-  m1 <- felm(trade ~ log_dist + cntg | exp_year + imp_year + year, yotov2017_subset, control = ctrl)
+  m1 <- felm(ltrade ~ ldist + border | ctry1 + ctry2 + year, ross2004_subset, control = ctrl)
   m2 <- lm(
-    trade ~ log_dist + cntg + as.factor(exp_year) + as.factor(imp_year) + as.factor(year),
-    yotov2017_subset
+    ltrade ~ ldist + border + as.factor(ctry1) + as.factor(ctry2) + as.factor(year),
+    ross2004_subset
   )
 
   expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-2)
@@ -120,25 +120,25 @@ local({
 local({
   ctrl <- list(centering = "stammann")
 
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  d1 <- yotov2017_subset[
-    yotov2017_subset$trade >= quantile(yotov2017_subset$trade, 0.25) &
-      yotov2017_subset$trade <= quantile(yotov2017_subset$trade, 0.75),
+  d1 <- ross2004_subset[
+    ross2004_subset$ltrade >= quantile(ross2004_subset$ltrade, 0.25) &
+      ross2004_subset$ltrade <= quantile(ross2004_subset$ltrade, 0.75),
   ]
-  d2 <- yotov2017_subset[
-    yotov2017_subset$trade < quantile(yotov2017_subset$trade, 0.25) |
-      yotov2017_subset$trade > quantile(yotov2017_subset$trade, 0.75),
+  d2 <- ross2004_subset[
+    ross2004_subset$ltrade < quantile(ross2004_subset$ltrade, 0.25) |
+      ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75),
   ]
 
-  m1_lm <- felm(trade ~ log_dist + cntg | exp_year, yotov2017_subset, control = ctrl)
-  m2_lm <- lm(trade ~ log_dist + cntg + as.factor(exp_year), yotov2017_subset)
+  m1_lm <- felm(ltrade ~ ldist + border | ctry1, ross2004_subset, control = ctrl)
+  m2_lm <- lm(ltrade ~ ldist + border + as.factor(ctry1), ross2004_subset)
 
   pred1_lm <- predict(m1_lm, newdata = d1)
   pred2_lm <- predict(m1_lm, newdata = d2)
 
-  expect_true(mape(d1$trade, pred1_lm) < mape(d2$trade, pred2_lm))
+  expect_true(mape(d1$ltrade, pred1_lm) < mape(d2$ltrade, pred2_lm))
   expect_equal(pred1_lm, predict(m2_lm, newdata = d1), tolerance = 1e-2)
   expect_equal(pred2_lm, predict(m2_lm, newdata = d2), tolerance = 1e-2)
 })
@@ -149,22 +149,22 @@ local({
   skip_on_cran()
   ctrl <- list(centering = "stammann")
 
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
-  yotov2017_subset$trade_pair <- ave(yotov2017_subset$trade, yotov2017_subset$pair,
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
+  ross2004_subset$trade_pair <- ave(ross2004_subset$ltrade, ross2004_subset$pair,
     FUN = function(x) sum(x, na.rm = TRUE))
 
-  m1 <- felm(trade ~ log_dist | exp_year, weights = ~trade_pair, data = yotov2017_subset, control = ctrl)
-  m2 <- felm(trade ~ log_dist | exp_year, weights = yotov2017_subset$trade_pair, data = yotov2017_subset, control = ctrl)
+  m1 <- felm(ltrade ~ ldist | ctry1, weights = ~trade_pair, data = ross2004_subset, control = ctrl)
+  m2 <- felm(ltrade ~ ldist | ctry1, weights = ross2004_subset$trade_pair, data = ross2004_subset, control = ctrl)
 
-  w <- yotov2017_subset$trade_pair
-  m3 <- felm(trade ~ log_dist | exp_year, weights = w, data = yotov2017_subset, control = ctrl)
+  w <- ross2004_subset$trade_pair
+  m3 <- felm(ltrade ~ ldist | ctry1, weights = w, data = ross2004_subset, control = ctrl)
 
   expect_equal(coef(m2), coef(m1))
   expect_equal(coef(m3), coef(m1))
 
   w <- NULL
-  m4 <- felm(trade ~ log_dist | exp_year, weights = w, data = yotov2017_subset, control = ctrl)
+  m4 <- felm(ltrade ~ ldist | ctry1, weights = w, data = ross2004_subset, control = ctrl)
 
   expect_true(coef(m1) != coef(m4))
 })

@@ -10,11 +10,11 @@ local({
   skip_on_cran()
 
   # Create data with collinear variables
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
-  yotov2017_subset$log_dist2 <- yotov2017_subset$log_dist * 2 # Perfect collinearity
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
+  ross2004_subset$ldist2 <- ross2004_subset$ldist * 2 # Perfect collinearity
 
-  mod <- felm(trade ~ log_dist + log_dist2 | exp_year, yotov2017_subset)
+  mod <- felm(ltrade ~ ldist + ldist2 | ctry1, ross2004_subset)
 
   # Should still fit, dropping collinear variables
   expect_true(inherits(mod, "felm"))
@@ -25,16 +25,16 @@ local({
 local({
   skip_on_cran()
 
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-  # add offset column based on total trade by exporter
-  total_trade_by_exp <- aggregate(trade ~ exp_year, yotov2017_subset, sum)
+  # add offset column based on total ltrade by exporter
+  total_trade_by_exp <- aggregate(ltrade ~ ctry1, ross2004_subset, sum)
   names(total_trade_by_exp)[2] <- "total_trade"
-  yotov2017_subset <- merge(yotov2017_subset, total_trade_by_exp, by = "exp_year")
-  yotov2017_subset$offset_var <- log(yotov2017_subset$total_trade)
+  ross2004_subset <- merge(ross2004_subset, total_trade_by_exp, by = "ctry1")
+  ross2004_subset$offset_var <- log(ross2004_subset$total_trade)
 
-  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset, offset = ~offset_var)
+  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset, offset = ~offset_var)
 
   expect_true(inherits(mod, "feglm"))
   expect_true("offset" %in% names(mod))
@@ -45,14 +45,14 @@ local({
 local({
   skip_on_cran()
 
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
   ctrl1 <- fit_control(dev_tol = 1e-6, center_tol = 1e-6)
-  mod1 <- felm(trade ~ log_dist | exp_year, yotov2017_subset, control = ctrl1)
+  mod1 <- felm(ltrade ~ ldist | ctry1, ross2004_subset, control = ctrl1)
 
   ctrl2 <- fit_control(dev_tol = 1e-10, center_tol = 1e-10)
-  mod2 <- felm(trade ~ log_dist | exp_year, yotov2017_subset, control = ctrl2)
+  mod2 <- felm(ltrade ~ ldist | ctry1, ross2004_subset, control = ctrl2)
 
   # Both should converge but potentially to slightly different values
   expect_true(inherits(mod1, "felm"))
@@ -64,11 +64,11 @@ local({
 local({
   skip_on_cran()
 
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
   ctrl <- fit_control(iter_max = 100L, iter_center_max = 5000L)
-  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset, control = ctrl)
+  mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset, control = ctrl)
 
   expect_true(inherits(mod, "felm"))
 })
@@ -78,11 +78,11 @@ local({
 local({
   skip_on_cran()
 
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
-  yotov2017_subset$exp_year <- as.character(yotov2017_subset$exp_year)
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
+  ross2004_subset$ctry1 <- as.character(ross2004_subset$ctry1)
 
-  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
+  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
 
   expect_true(inherits(mod, "feglm"))
 })
@@ -92,10 +92,10 @@ local({
 local({
   skip_on_cran()
 
-  small_data <- yotov2017[yotov2017$year %in% c(2002, 2006), ]
+  small_data <- ross2004[ross2004$year %in% c(1994, 1999), ]
   small_data <- do.call(rbind, lapply(split(small_data, small_data$year), head, 100))
 
-  mod <- fepoisson(trade ~ log_dist | year, small_data)
+  mod <- fepoisson(ltrade ~ ldist | year, small_data)
 
   expect_true(inherits(mod, "feglm"))
 })
@@ -105,22 +105,22 @@ local({
 local({
   skip_on_cran()
 
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
+  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
 
-  expect_equal(as.numeric(mod$nobs["nobs"]), nrow(yotov2017_subset))
+  expect_equal(as.numeric(mod$nobs["nobs"]), nrow(ross2004_subset))
 })
 
 # model matrix operations work correctly ----
 local({
   skip_on_cran()
 
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  mod <- felm(trade ~ log_dist + trade + cntg | exp_year, yotov2017_subset)
+  mod <- felm(ltrade ~ ldist + ltrade + border | ctry1, ross2004_subset)
 
   # Check dimensions
   expect_equal(length(coef(mod)), 3)

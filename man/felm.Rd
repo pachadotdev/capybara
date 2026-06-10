@@ -48,15 +48,20 @@ procedure is based on unconditional maximum likelihood and can be interpreted as
 approach.
 }
 \examples{
+ross2004_subset <- ross2004[ross2004$year == 1999, ]
+ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
+
 # Model with fixed effects
-yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
-summary(mod)
+fit <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
+summary(fit)
+
+ross2004_subset <- ross2004[ross2004$year \%in\% c(1994, 1999), ]
+ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
 # Model without fixed effects but with clustered standard errors
 # Note: Use 0 to indicate no fixed effects when specifying clusters
-mod <- felm(trade ~ log_dist | 0 | exp_year, yotov2017_subset)
-summary(mod)
+fit <- felm(ltrade ~ ldist | 0 | year, ross2004_subset)
+summary(fit)
 
 }
 \references{

@@ -8,23 +8,15 @@
 
 source(system.file("tinytest", "helper.R", package = "capybara"))
 
-# error conditions in GLMs
-local({
-  trade_short <- yotov2017[yotov2017$year == 2002, ]
-  trade_short$trade_200 <- ifelse(trade_short$trade >= 100, 1, 0)
-  trade_short$trade_200_100 <- as.factor(ifelse(
-    trade_short$trade >= 200,
-    1,
-    ifelse(trade_short$trade >= 100, 0.5, 0)
-  ))
-  trade_short$trade_1_minus1 <- ifelse(trade_short$trade >= 100, 1, -1)
+# error conditions in GLMs ----
 
+local({
   # 0 rows in the data
 
   expect_error(
     fepoisson(
-      trade ~ log_dist | rta,
-      data = trade_short[trade_short$year == 3000, ]
+      ltrade ~ ldist | ctry1,
+      data = ross2004[ross2004$year == 3000, ]
     ),
     "zero observations"
   )
@@ -33,8 +25,8 @@ local({
 
   expect_error(
     fepoisson(
-      trade ~ log_dist | rta,
-      data = trade_short,
+      ltrade ~ ldist | ctry1,
+      data = ross2004,
       control = list(dev_tol = -1.0)
     ),
     "greater than zero"
@@ -44,8 +36,8 @@ local({
 
   expect_error(
     fepoisson(
-      trade ~ log_dist | rta,
-      data = trade_short,
+      ltrade ~ ldist | ctry1,
+      data = ross2004,
       control = list(iter_max = 0)
     ),
     "greater than zero"
@@ -55,35 +47,27 @@ local({
 
   expect_error(
     fepoisson(
-      trade ~ log_dist | rta,
-      data = trade_short,
+      ltrade ~ ldist | ctry1,
+      data = ross2004,
       control = list(iter_max = 0)
     ),
     "greater than zero"
   )
 })
 
-# error conditions in helpers
-local({
-  trade_short <- yotov2017[yotov2017$year == 2002, ]
-  trade_short$trade_200 <- ifelse(trade_short$trade >= 100, 1, 0)
-  trade_short$trade_200_100 <- as.factor(ifelse(
-    trade_short$trade >= 200,
-    1,
-    ifelse(trade_short$trade >= 100, 0.5, 0)
-  ))
-  trade_short$trade_1_minus1 <- ifelse(trade_short$trade >= 100, 1, -1)
+# error conditions in helpers ----
 
+local({
   # no formula
 
-  expect_error(feglm(data = trade_short), "'formula' has to be specified")
+  expect_error(feglm(data = ross2004), "'formula' has to be specified")
 
   # incorrect formula
 
   expect_error(
     feglm(
       formula = "a ~ b",
-      data = trade_short
+      data = ross2004
     ),
     "'formula' has to be of class 'formula'"
   )
@@ -91,14 +75,14 @@ local({
   # null data
 
   expect_error(
-    fepoisson(trade ~ log_dist | rta, data = NULL),
+    fepoisson(ltrade ~ ldist | ctry1, data = NULL),
     "'data' must be specified"
   )
 
   # empty data
 
   expect_error(
-    fepoisson(trade ~ log_dist | rta, data = list()),
+    fepoisson(ltrade ~ ldist | ctry1, data = list()),
     "'data' must be a data.frame"
   )
 
@@ -106,8 +90,8 @@ local({
 
   expect_error(
     fepoisson(
-      trade ~ log_dist | rta,
-      data = trade_short,
+      ltrade ~ ldist | ctry1,
+      data = ross2004,
       control = c(1, 2)
     ),
     "'control' has to be a list"
@@ -117,8 +101,8 @@ local({
 
   expect_error(
     feglm(
-      trade ~ log_dist | rta,
-      data = trade_short,
+      ltrade ~ ldist | ctry1,
+      data = ross2004,
       family = quasipoisson()
     ),
     "should be one of"
@@ -128,8 +112,8 @@ local({
 
   expect_error(
     feglm(
-      trade ~ log_dist | rta,
-      data = trade_short,
+      ltrade ~ ldist | ctry1,
+      data = ross2004,
       family = MASS::neg.bin(theta = 1)
     ),
     "use 'fenegbin' instead"
@@ -139,8 +123,8 @@ local({
 
   expect_error(
     feglm(
-      trade ~ log_dist | rta,
-      data = trade_short,
+      ltrade ~ ldist | ctry1,
+      data = ross2004,
       beta_start = NA # not allowed
     ),
     "Invalid input type"
@@ -150,9 +134,9 @@ local({
 
   expect_error(
     feglm(
-      trade ~ log_dist | rta,
-      data = trade_short,
-      eta_start = rep(NA, nrow(trade_short))
+      ltrade ~ ldist | ctry1,
+      data = ross2004,
+      eta_start = rep(NA, nrow(ross2004))
     ),
     "Invalid input type"
   )
@@ -161,8 +145,8 @@ local({
 
   expect_error(
     fenegbin(
-      trade ~ log_dist | rta,
-      data = trade_short,
+      ltrade ~ ldist | ctry1,
+      data = ross2004,
       init_theta = -1 # not allowed
     ),
     "positive scalar"
@@ -170,12 +154,12 @@ local({
 
   # intentionally break the data with unusable weights
 
-  trade_short$bad_weights <- NA
+  ross2004$bad_weights <- NA
 
   expect_error(
     feglm(
-      trade ~ log_dist | rta,
-      data = trade_short,
+      ltrade ~ ldist | ctry1,
+      data = ross2004,
       weights = "bad_weights"
     ),
     "Weights must be numeric"
@@ -187,7 +171,7 @@ local({
 # model errors on missing data
 local({
   expect_error(
-    fepoisson(trade ~ log_dist | exp_year),
+    fepoisson(ltrade ~ ldist | ctry1),
     "data"
   )
 })
@@ -195,18 +179,18 @@ local({
 # model errors on invalid formula
 local({
   expect_error(
-    fepoisson(~ log_dist | exp_year, yotov2017),
+    fepoisson(~ ldist | ctry1, ross2004),
     "formula"
   )
 })
 
 # model errors on non-existent variables
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
   expect_error(
-    fepoisson(trade ~ nonexistent | exp_year, yotov2017_subset),
+    fepoisson(ltrade ~ nonexistent | ctry1, ross2004_subset),
     "undefined columns"
   )
 })
@@ -215,22 +199,22 @@ local({
 local({
   skip_on_cran()
 
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
   # This should work - no FE is valid
-  mod <- fepoisson(trade ~ log_dist, yotov2017_subset)
+  mod <- fepoisson(ltrade ~ ldist, ross2004_subset)
   expect_true(inherits(mod, "feglm"))
 })
 
 # predict errors on missing newdata variables
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-  mod <- fepoisson(trade ~ log_dist + cntg | exp_year, yotov2017_subset, control = fit_control(return_fe = TRUE))
+  mod <- fepoisson(ltrade ~ ldist + border | ctry1, ross2004_subset, control = fit_control(return_fe = TRUE))
 
-  newdata <- data.frame(log_dist = c(7, 8)) # Missing cntg and exp_year
+  newdata <- data.frame(ldist = c(7, 8)) # Missing border and ctry1
 
   expect_error(
     predict(mod, newdata = newdata),
@@ -240,10 +224,10 @@ local({
 
 # vcov works correctly
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
+  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
   v <- vcov(mod)
 
   expect_true(is.matrix(v))
@@ -252,12 +236,12 @@ local({
 
 # summary works for all model types
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  mod_felm <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
-  mod_feglm <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
-  mod_fenegbin <- fenegbin(trade ~ log_dist | exp_year, yotov2017_subset)
+  mod_felm <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
+  mod_feglm <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
+  mod_fenegbin <- fenegbin(ltrade ~ ldist | ctry1, ross2004_subset)
 
   expect_true(inherits(summary(mod_felm), "summary.felm"))
   expect_true(inherits(summary(mod_feglm), "summary.feglm"))
@@ -266,25 +250,25 @@ local({
 
 # coef extraction works
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  mod <- fepoisson(trade ~ log_dist + cntg | exp_year, yotov2017_subset)
+  mod <- fepoisson(ltrade ~ ldist + border | ctry1, ross2004_subset)
   cf <- coef(mod)
 
   expect_equal(length(cf), 2)
-  expect_true(all(names(cf) %in% c("log_dist", "cntg")))
+  expect_true(all(names(cf) %in% c("ldist", "border")))
 })
 
 # model handles zero counts in Poisson
 local({
   skip_on_cran()
 
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
-  yotov2017_subset$trade[1:3] <- 0
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
+  ross2004_subset$ltrade[1:3] <- 0
 
-  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
+  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
 
   expect_true(inherits(mod, "feglm"))
 })
@@ -293,11 +277,11 @@ local({
 local({
   skip_on_cran()
 
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
-  yotov2017_subset$log_dist[1:3] <- Inf
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
+  ross2004_subset$ldist[1:3] <- Inf
 
-  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
+  mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
 
   expect_true(inherits(mod, "felm"))
 })

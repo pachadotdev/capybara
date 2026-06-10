@@ -52,32 +52,32 @@ the full dyadic correlation structure including cross-entity correlations.
 \examples{
 # Refitting models
 
-yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+ross2004_subset <- ross2004[ross2004$year == 1999, ]
+ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
 fepoisson(
-  trade ~ log_dist | exp_year, yotov2017_subset,
+  ltrade ~ ldist | ctry1, ross2004_subset,
   control = fit_control(vcov_type = "hetero")
 )
 
 fepoisson(
-  trade ~ log_dist | exp_year, yotov2017_subset,
+  ltrade ~ ldist | ctry1, ross2004_subset,
   control = fit_control(vcov_type = "m-estimator")
 )
 
 # Reusing models
 
 # Store required components
-mod <- fepoisson(
-  trade ~ log_dist | exp_year, yotov2017_subset,
+fit <- fepoisson(
+  ltrade ~ ldist | ctry1, ross2004_subset,
   control = fit_control(keep_tx = TRUE, return_hessian = TRUE)
 )
 
 # Heteroskedastic-robust HC0 sandwich (no cluster variable needed)
-sandwich_vcov(mod, type = "hetero")
+sandwich_vcov(fit, type = "hetero")
 
 #' One-way cluster
-sandwich_vcov(mod, cluster1 = yotov2017_subset$year, type = "clustered")
+sandwich_vcov(fit, cluster1 = ross2004_subset$year, type = "clustered")
 
 }
 \references{

@@ -8,10 +8,10 @@
 
 # autoplot works for felm
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
+  mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
 
   expect_true(inherits(autoplot(mod, conf_level = 0.99), "ggplot2::ggplot"))
   expect_true(inherits(autoplot(mod), "ggplot2::ggplot"))
@@ -23,10 +23,10 @@ local({
 
 # autoplot works for feglm/fepoisson
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
+  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
 
   expect_true(inherits(autoplot(mod), "ggplot2::ggplot"))
   expect_true(inherits(autoplot(mod, conf_level = 0.90), "ggplot2::ggplot"))
@@ -35,10 +35,10 @@ local({
 
 # autoplot errors on invalid conf_level
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
+  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
 
   expect_error(autoplot(mod, conf_level = 0))
   expect_error(autoplot(mod, conf_level = 1))
@@ -48,10 +48,10 @@ local({
 
 # autoplot errors on wrong class
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  mod_lm <- lm(trade ~ log_dist, yotov2017_subset)
+  mod_lm <- lm(ltrade ~ ldist, ross2004_subset)
 
   expect_error(autoplot.feglm(mod_lm))
   expect_error(autoplot.felm(mod_lm))
@@ -59,10 +59,10 @@ local({
 
 # autoplot works with multiple predictors
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-  mod <- feglm(trade ~ log_dist + cntg | exp_year, yotov2017_subset)
+  mod <- feglm(ltrade ~ ldist + border | ctry1, ross2004_subset)
 
   p <- autoplot(mod)
 
@@ -71,10 +71,10 @@ local({
 
 # autoplot default conf_level is 0.95
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
+  mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
 
   # Both should work without error (default is 0.95)
   p1 <- autoplot(mod)

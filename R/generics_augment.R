@@ -35,7 +35,7 @@ generics::augment
 #'
 #' @examples
 #' ross2004_subset <- ross2004[ross2004$year == 1999, ]
-#' ross2004_subset <- ross2004[ross2004$ltrade > 0, ]
+#' ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 #' 
 #' fit <- fepoisson(ltrade ~ ldist, ross2004_subset, control = fit_control(keep_data = TRUE))
 #' 

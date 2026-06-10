@@ -14,15 +14,15 @@ source(system.file("tinytest", "helper.R", package = "capybara"))
 local({
   skip_on_cran()
 
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
 
   mod1 <- fepoisson_asymmetric(
-    trade ~ log_dist | exp_year, yotov2017_subset,
+    ltrade ~ ldist | ctry1, ross2004_subset,
     control = fit_control(expectile = 0.25, return_fe = TRUE)
   )
 
   mod2 <- fepoisson(
-    trade ~ log_dist | exp_year, yotov2017_subset,
+    ltrade ~ ldist | ctry1, ross2004_subset,
     control = fit_control(return_fe = TRUE)
   )
 

@@ -100,7 +100,7 @@
 #'
 #' @examples
 #' ross2004_subset <- ross2004[ross2004$year == 1999, ]
-#' ross2004_subset <- ross2004[ross2004$ltrade > 0, ]
+#' ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 #' 
 #' # Lower expectile (10th) - more weight on negative residuals
 #' fit10 <- fepoisson_asymmetric(
@@ -108,17 +108,7 @@
 #'   control = fit_control(expectile = 0.1)
 #' )
 #'
-#' # Upper expectile (90th) - more weight on positive residuals
-#' mod_high <- fepoisson_asymmetric(
-#'   #'   ltrade ~ ldist | ctry1, ross2004_subset,
-#'   control = fit_control(expectile = 0.9)
-#' )
-#'
-#' # Compare coefficients across expectiles
-#' cbind(
-#'   low = coef(mod_low),
-#'   high = coef(mod_high)
-#' )
+#' summary(fit10)
 #'
 #' @seealso \link{fepoisson}, \link{feglm}, \link{fit_control}
 #'

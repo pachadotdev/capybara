@@ -5,10 +5,10 @@
 
 # summary_table works with single model
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  m1 <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
+  m1 <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
 
   result <- summary_table(m1)
 
@@ -19,11 +19,11 @@ local({
 
 # summary_table works with multiple models
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-  m1 <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
-  m2 <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
+  m1 <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
+  m2 <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
 
   result <- summary_table(m1, m2)
 
@@ -33,11 +33,11 @@ local({
 
 # summary_table works with custom model names
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  m1 <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
-  m2 <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
+  m1 <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
+  m2 <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
 
   result <- summary_table(m1, m2, model_names = c("OLS", "Poisson"))
 
@@ -48,10 +48,10 @@ local({
 
 # summary_table works with latex output
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-  m1 <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
+  m1 <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
 
   result <- summary_table(m1, latex = TRUE)
 
@@ -62,10 +62,10 @@ local({
 
 # summary_table works with latex caption and label
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-  m1 <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
+  m1 <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
 
   result <- summary_table(
     m1,
@@ -81,10 +81,10 @@ local({
 
 # summary_table works without stars
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-  m1 <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
+  m1 <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
 
   result <- summary_table(m1, stars = FALSE)
 
@@ -94,10 +94,10 @@ local({
 
 # summary_table respects digit settings
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-  m1 <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
+  m1 <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
 
   result <- summary_table(m1, coef_digits = 5, se_digits = 5)
 
@@ -113,11 +113,11 @@ local({
 
 # summary_table errors on mismatched model_names length
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-  m1 <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
-  m2 <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
+  m1 <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
+  m2 <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
 
   expect_error(
     summary_table(m1, m2, model_names = c("Only One")),
@@ -127,11 +127,11 @@ local({
 
 # summary_table works with models without fixed effects
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-  m1 <- felm(trade ~ log_dist, yotov2017_subset)
-  m2 <- fepoisson(trade ~ log_dist, yotov2017_subset)
+  m1 <- felm(ltrade ~ ldist, ross2004_subset)
+  m2 <- fepoisson(ltrade ~ ldist, ross2004_subset)
 
   result <- summary_table(m1, m2)
 
@@ -141,14 +141,14 @@ local({
 
 # summary_table handles models with different variables
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-  m1 <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
-  m2 <- felm(trade ~ log_dist + cntg | exp_year, yotov2017_subset)
+  m1 <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
+  m2 <- felm(ltrade ~ ldist + border | ctry1, ross2004_subset)
 
   result <- summary_table(m1, m2)
 
   expect_true(inherits(result, "summary_table"))
-  expect_true(grepl("cntg", result$content))
+  expect_true(grepl("border", result$content))
 })

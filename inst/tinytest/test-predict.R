@@ -6,24 +6,24 @@
 # predict.feglm works with default type (response) ----
 
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
+  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
 
   preds <- predict(mod)
 
-  expect_equal(length(preds), nrow(yotov2017_subset))
+  expect_equal(length(preds), nrow(ross2004_subset))
   expect_true(all(preds > 0))
 })
 
 # predict.feglm works with type = 'link' ----
 
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
+  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
 
   preds_link <- predict(mod, type = "link")
   preds_response <- predict(mod, type = "response")
@@ -38,14 +38,14 @@ local({
 # predict.feglm works with newdata ----
 
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset, control = fit_control(return_fe = TRUE))
+  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset, control = fit_control(return_fe = TRUE))
 
   newdata <- data.frame(
-    log_dist = c(7, 8, 9),
-    exp_year = c(2006, 2006, 2006)
+    ldist = c(7, 8, 9),
+    ctry1 = c(1999, 1999, 1999)
   )
 
   preds <- predict(mod, newdata = newdata)
@@ -55,7 +55,7 @@ local({
 
   expect_error(
     predict(
-      fepoisson(trade ~ log_dist | exp_year, yotov2017_subset, control = fit_control(return_fe = FALSE)),
+      fepoisson(ltrade ~ ldist | ctry1, ross2004_subset, control = fit_control(return_fe = FALSE)),
       newdata = newdata
     ),
     "Model has fixed effects but they were not stored."
@@ -65,27 +65,27 @@ local({
 # predict.felm works with default type ----
 
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
+  mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
 
   preds <- predict(mod)
 
-  expect_equal(length(preds), nrow(yotov2017_subset))
+  expect_equal(length(preds), nrow(ross2004_subset))
 })
 
 # predict.felm works with newdata ----
 
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
+  mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
 
   newdata <- data.frame(
-    log_dist = c(7, 8, 9),
-    exp_year = c(2006, 2006, 2006)
+    ldist = c(7, 8, 9),
+    ctry1 = c(1999, 1999, 1999)
   )
 
   preds <- predict(mod, newdata = newdata)
@@ -96,10 +96,10 @@ local({
 # predict.felm with type='response' works ----
 
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
+  mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
 
   preds_response <- predict(mod, type = "response")
   preds_default <- predict(mod)
@@ -111,28 +111,28 @@ local({
 # predict works with multiple fixed effects ----
 
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  mod <- fepoisson(trade ~ log_dist | exp_year + imp_year, yotov2017_subset)
+  mod <- fepoisson(ltrade ~ ldist | ctry1 + ctry2, ross2004_subset)
 
   preds <- predict(mod)
 
-  expect_equal(length(preds), nrow(yotov2017_subset))
+  expect_equal(length(preds), nrow(ross2004_subset))
 })
 
 # predict with newdata handles multiple FEs ----
 
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  mod <- felm(trade ~ log_dist | exp_year + imp_year, yotov2017_subset)
+  mod <- felm(ltrade ~ ldist | ctry1 + ctry2, ross2004_subset)
 
   newdata <- data.frame(
-    log_dist = c(7, 8),
-    exp_year = c(2006, 2006),
-    imp_year = c(2006, 2006)
+    ldist = c(7, 8),
+    ctry1 = c(1999, 1999),
+    ctry2 = c(1999, 1999)
   )
 
   preds <- predict(mod, newdata = newdata)
@@ -143,25 +143,25 @@ local({
 # predict works for model without fixed effects ----
 
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  mod <- fepoisson(trade ~ log_dist, yotov2017_subset)
+  mod <- fepoisson(ltrade ~ ldist, ross2004_subset)
 
   preds <- predict(mod)
 
-  expect_equal(length(preds), nrow(yotov2017_subset))
+  expect_equal(length(preds), nrow(ross2004_subset))
 })
 
 # predict with newdata works for model without FE ----
 
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  mod <- felm(trade ~ log_dist, yotov2017_subset)
+  mod <- felm(ltrade ~ ldist, ross2004_subset)
 
-  newdata <- data.frame(log_dist = c(7, 8, 9))
+  newdata <- data.frame(ldist = c(7, 8, 9))
 
   preds <- predict(mod, newdata = newdata)
 
@@ -171,14 +171,14 @@ local({
 # predict handles NA in newdata gracefully ---
 
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
+  mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
 
   newdata <- data.frame(
-    log_dist = c(7, NA, 9),
-    exp_year = c(2006, 2006, 2006)
+    ldist = c(7, NA, 9),
+    ctry1 = c(1999, 1999, 1999)
   )
 
   preds <- predict(mod, newdata = newdata)
@@ -193,14 +193,14 @@ local({
 # predict returns same length as input for newdata ----
 
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset, control = fit_control(return_fe = TRUE))
+  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset, control = fit_control(return_fe = TRUE))
 
   newdata <- data.frame(
-    log_dist = c(7, 8, 9, 8.5),
-    exp_year = c(2006, 2006, 2006, 2006)
+    ldist = c(7, 8, 9, 8.5),
+    ctry1 = c(1999, 1999, 1999, 1999)
   )
 
   preds <- predict(mod, newdata = newdata)
@@ -210,10 +210,10 @@ local({
 # predict works with type='terms' for felm ----
 
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  mod <- felm(trade ~ log_dist + cntg | exp_year, yotov2017_subset)
+  mod <- felm(ltrade ~ ldist + border | ctry1, ross2004_subset)
 
   preds_terms <- predict(mod, type = "terms")
 
@@ -223,14 +223,14 @@ local({
 # predict maintains order for newdata ----
 
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
+  mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
 
   newdata <- data.frame(
-    log_dist = c(9, 7, 8.5),
-    exp_year = c(2006, 2006, 2006)
+    ldist = c(9, 7, 8.5),
+    ctry1 = c(1999, 1999, 1999)
   )
 
   preds <- predict(mod, newdata = newdata)

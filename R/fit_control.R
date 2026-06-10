@@ -124,7 +124,7 @@
 #'
 #' @examples
 #' ross2004_subset <- ross2004[ross2004$year == 1999, ]
-#' ross2004_subset <- ross2004[ross2004$ltrade > 0, ]
+#' ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 #' 
 #' felm(ltrade ~ ldist | ctry1, ross2004_subset,
 #'  control = fit_control(dev_tol = 1e-10, center_tol = 1e-10))

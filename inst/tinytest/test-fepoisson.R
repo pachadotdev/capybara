@@ -15,14 +15,14 @@ source(system.file("tinytest", "helper.R", package = "capybara"))
 local({  
   # K = 1
 
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-  mod <- fepoisson(trade ~ log_dist | exp_year | imp_year, yotov2017_subset, control = fit_control(return_fe = TRUE))
+  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset, control = fit_control(return_fe = TRUE))
 
   mod_base <- glm(
-    trade ~ log_dist + as.factor(exp_year),
-    yotov2017_subset,
+    ltrade ~ ldist + as.factor(ctry1),
+    ross2004_subset,
     family = quasipoisson(link = "log")
   )
 
@@ -44,11 +44,11 @@ local({
 
   # K = 2
 
-  mod <- fepoisson(trade ~ log_dist | exp_year + imp_year, yotov2017_subset, control = fit_control(return_fe = TRUE))
+  mod <- fepoisson(ltrade ~ ldist | ctry1 + ctry2, ross2004_subset, control = fit_control(return_fe = TRUE))
 
   mod_base <- glm(
-    trade ~ log_dist + as.factor(exp_year) + as.factor(imp_year),
-    yotov2017_subset,
+    ltrade ~ ldist + as.factor(ctry1) + as.factor(ctry2),
+    ross2004_subset,
     family = quasipoisson(link = "log")
   )
 
@@ -64,14 +64,14 @@ local({
 local({
   skip_on_cran()
 
-  yotov2017_subset <- yotov2017[yotov2017$year %in% c(2002, 2006), ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year %in% c(1994, 1999), ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-  mod <- fepoisson(trade ~ log_dist | exp_year + imp_year + year, yotov2017_subset, control = fit_control(return_fe = TRUE))
+  mod <- fepoisson(ltrade ~ ldist | ctry1 + ctry2 + year, ross2004_subset, control = fit_control(return_fe = TRUE))
 
   mod_base <- glm(
-    trade ~ log_dist + as.factor(exp_year) + as.factor(imp_year) + as.factor(year),
-    yotov2017_subset,
+    ltrade ~ ldist + as.factor(ctry1) + as.factor(ctry2) + as.factor(year),
+    ross2004_subset,
     family = quasipoisson(link = "log")
   )
 
@@ -92,11 +92,11 @@ local({
   expect_equal(pred_mod, pred_mod_base, tolerance = 1e-2)
   expect_equal(pred_mod_link, pred_mod_base_link, tolerance = 1e-2)
 
-  pred_mod <- predict(mod, type = "response", newdata = yotov2017_subset[1:10, ])
-  pred_mod_base <- predict(mod_base, type = "response", newdata = yotov2017_subset[1:10, ])
+  pred_mod <- predict(mod, type = "response", newdata = ross2004_subset[1:10, ])
+  pred_mod_base <- predict(mod_base, type = "response", newdata = ross2004_subset[1:10, ])
 
-  pred_mod_link <- predict(mod, type = "link", newdata = yotov2017_subset[1:10, ])
-  pred_mod_base_link <- predict(mod_base, type = "link", newdata = yotov2017_subset[1:10, ])
+  pred_mod_link <- predict(mod, type = "link", newdata = ross2004_subset[1:10, ])
+  pred_mod_base_link <- predict(mod_base, type = "link", newdata = ross2004_subset[1:10, ])
 
   expect_equal(unname(pred_mod), unname(pred_mod_base), tolerance = 1e-2)
   expect_equal(unname(pred_mod_link), unname(pred_mod_base_link), tolerance = 1e-2)
@@ -106,14 +106,14 @@ local({
 
 local({
   set.seed(123)
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  d <- yotov2017_subset[, c("trade", "log_dist", "exp_year")]
-  d$log_dist2 <- d$log_dist + pmax(rnorm(nrow(d)), 0) * .Machine$double.eps
+  d <- ross2004_subset[, c("ltrade", "ldist", "ctry1")]
+  d$ldist2 <- d$ldist + pmax(rnorm(nrow(d)), 0) * .Machine$double.eps
 
-  m1 <- fepoisson(trade ~ log_dist | exp_year, d)
-  m2 <- fepoisson(trade ~ log_dist2 | exp_year, d)
+  m1 <- fepoisson(ltrade ~ ldist | ctry1, d)
+  m2 <- fepoisson(ltrade ~ ldist2 | ctry1, d)
 
   expect_equal(unname(coef(m1)), unname(coef(m2)))
   expect_equal(m1$fixed.effects, m2$fixed.effects)

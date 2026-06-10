@@ -147,12 +147,12 @@ local({
 
 # fit_control works with models
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
   ctrl <- list(dev_tol = 1e-10)
 
-  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset, control = ctrl)
+  mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset, control = ctrl)
 
   expect_true(inherits(mod, "felm"))
 })
@@ -161,16 +161,16 @@ local({
 local({
   skip_on_cran()
 
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
   # Tight tolerance
   ctrl_tight <- list(dev_tol = 1e-12, center_tol = 1e-12)
-  mod_tight <- felm(trade ~ log_dist | exp_year, yotov2017_subset, control = ctrl_tight)
+  mod_tight <- felm(ltrade ~ ldist | ctry1, ross2004_subset, control = ctrl_tight)
 
   # Loose tolerance
   ctrl_loose <- list(dev_tol = 1e-4, center_tol = 1e-4)
-  mod_loose <- felm(trade ~ log_dist | exp_year, yotov2017_subset, control = ctrl_loose)
+  mod_loose <- felm(ltrade ~ ldist | ctry1, ross2004_subset, control = ctrl_loose)
 
   # Both should converge
   expect_true(inherits(mod_tight, "felm"))
@@ -184,12 +184,12 @@ local({
 local({
   skip_on_cran()
 
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
   ctrl <- list(init_theta = 0.5)
 
-  mod <- fenegbin(trade ~ log_dist | exp_year, yotov2017_subset, control = ctrl)
+  mod <- fenegbin(ltrade ~ ldist | ctry1, ross2004_subset, control = ctrl)
 
   expect_true(inherits(mod, "feglm"))
   expect_true(mod$theta > 0)

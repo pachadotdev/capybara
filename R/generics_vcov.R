@@ -47,10 +47,10 @@ vcov.apes <- function(object, ...) {
 #'
 #' @examples
 #' # Model with clustering - returns sandwich covariance
-#' ross2004_subset <- ross2004[ross2004$year == 1999, ]
-#' ross2004_subset <- ross2004_subset[ross2004_subset$trade > 0, ]
+#' ross2004_subset <- ross2004[ross2004$year %in% c(1994, 1999), ]
+#' ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 #' 
-#' fit <- fepoisson(trade ~ log_dist + cntg | exp_year | year, ross2004_subset)
+#' fit <- fepoisson(ltrade ~ ldist + border | ctry1 | year, ross2004_subset)
 #' 
 #' vcov(fit)
 #'
@@ -92,10 +92,10 @@ vcov.feglm <- function(object, ...) {
 #'
 #' @examples
 #' # Model with clustering - returns sandwich covariance
-#' ross2004_subset <- ross2004[ross2004$year == 1999, ]
-#' ross2004_subset <- ross2004_subset[ross2004_subset$trade > 0, ]
+#' ross2004_subset <- ross2004[ross2004$year %in% c(1994, 1999), ]
+#' ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 #' 
-#' fit <- felm(trade ~ log_dist | exp_year | year, ross2004_subset)
+#' fit <- felm(ltrade ~ ldist | ctry1 | year, ross2004_subset)
 #' 
 #' vcov(fit)
 #'
@@ -161,15 +161,15 @@ vcov.felm <- function(object, ...) {
 #' # Refitting models
 #'
 #' ross2004_subset <- ross2004[ross2004$year == 1999, ]
-#' ross2004_subset <- ross2004_subset[ross2004_subset$trade > 0, ]
+#' ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 #'
 #' fepoisson(
-#'   trade ~ log_dist | exp_year, ross2004_subset,
+#'   ltrade ~ ldist | ctry1, ross2004_subset,
 #'   control = fit_control(vcov_type = "hetero")
 #' )
 #'
 #' fepoisson(
-#'   trade ~ log_dist | exp_year, ross2004_subset,
+#'   ltrade ~ ldist | ctry1, ross2004_subset,
 #'   control = fit_control(vcov_type = "m-estimator")
 #' )
 #'
@@ -177,7 +177,7 @@ vcov.felm <- function(object, ...) {
 #'
 #' # Store required components
 #' fit <- fepoisson(
-#'   trade ~ log_dist | exp_year, ross2004_subset,
+#'   ltrade ~ ldist | ctry1, ross2004_subset,
 #'   control = fit_control(keep_tx = TRUE, return_hessian = TRUE)
 #' )
 #'

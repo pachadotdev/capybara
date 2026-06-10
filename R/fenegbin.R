@@ -64,7 +64,7 @@
 #' # check the felm examples for the details about clustered standard errors
 #' 
 #' ross2004_subset <- ross2004[ross2004$year == 1999, ]
-#' ross2004_subset <- ross2004[ross2004$ltrade > 0, ]
+#' ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 #' 
 #' fit <- fenegbin(ltrade ~ ldist | ctry1, ross2004_subset)
 #' 

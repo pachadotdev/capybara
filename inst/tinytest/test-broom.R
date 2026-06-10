@@ -7,10 +7,10 @@
 
 # glance.feglm returns correct structure
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
+  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
 
   result <- glance(mod)
 
@@ -22,10 +22,10 @@ local({
 
 # glance.felm returns correct structure
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
+  mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
 
   result <- glance(mod)
 
@@ -37,10 +37,10 @@ local({
 
 # glance.felm works with multiple fixed effects
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-  mod <- felm(trade ~ log_dist | exp_year + imp_year, yotov2017_subset)
+  mod <- felm(ltrade ~ ldist | ctry1 + ctry2, ross2004_subset)
 
   result <- glance(mod)
 
@@ -52,10 +52,10 @@ local({
 
 # tidy.feglm returns correct structure
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
+  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
 
   result <- tidy(mod)
 
@@ -68,10 +68,10 @@ local({
 
 # tidy.feglm works with conf_int
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
+  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
 
   result <- tidy(mod, conf_int = TRUE)
 
@@ -84,10 +84,10 @@ local({
 
 # tidy.feglm respects conf_level
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
+  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
 
   result_95 <- tidy(mod, conf_int = TRUE, conf_level = 0.95)
   result_99 <- tidy(mod, conf_int = TRUE, conf_level = 0.99)
@@ -101,10 +101,10 @@ local({
 
 # tidy.felm returns correct structure
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
+  mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
 
   result <- tidy(mod)
 
@@ -117,10 +117,10 @@ local({
 
 # tidy.felm works with conf_int
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   
-  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
+  mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
 
   result <- tidy(mod, conf_int = TRUE)
 
@@ -131,10 +131,10 @@ local({
 
 # tidy works with multiple predictors
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-  mod <- felm(trade ~ log_dist + cntg + lang | exp_year, yotov2017_subset)
+  mod <- felm(ltrade ~ ldist + border + comlang | ctry1, ross2004_subset)
 
   result <- tidy(mod)
 
@@ -145,39 +145,39 @@ local({
 
 # augment.feglm returns correct structure
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset, control = fit_control(keep_data = TRUE))
+  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset, control = fit_control(keep_data = TRUE))
 
   result <- augment(mod)
 
   expect_true(is.data.frame(result))
   expect_true(".fitted" %in% names(result))
   expect_true(".residuals" %in% names(result))
-  expect_equal(nrow(result), nrow(yotov2017_subset))
+  expect_equal(nrow(result), nrow(ross2004_subset))
 })
 
 # augment.feglm preserves original columns
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset, control = fit_control(keep_data = TRUE))
+  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset, control = fit_control(keep_data = TRUE))
 
   result <- augment(mod)
 
-  expect_true("trade" %in% names(result))
-  expect_true("log_dist" %in% names(result))
-  expect_true("exp_year" %in% names(result))
+  expect_true("ltrade" %in% names(result))
+  expect_true("ldist" %in% names(result))
+  expect_true("ctry1" %in% names(result))
 })
 
 # augment.felm returns correct structure
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset, control = fit_control(keep_data = TRUE))
+  mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset, control = fit_control(keep_data = TRUE))
 
   result <- augment(mod)
 
@@ -188,14 +188,14 @@ local({
 
 # augment.felm fitted values are reasonable
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset, control = fit_control(keep_data = TRUE))
+  mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset, control = fit_control(keep_data = TRUE))
 
   result <- augment(mod)
 
-  # Fitted values should be in a reasonable range (log-transformed trade)
+  # Fitted values should be in a reasonable range (log-transformed ltrade)
   expect_true(all(is.finite(result$.fitted)))
   expect_true(length(result$.fitted) > 0)
 })
@@ -204,25 +204,25 @@ local({
 
 # fitted.feglm returns correct values
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-  mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
+  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
 
   result <- fitted(mod)
 
-  expect_equal(length(result), nrow(yotov2017_subset))
+  expect_equal(length(result), nrow(ross2004_subset))
   expect_true(all(result > 0))
 })
 
 # fitted.felm returns correct values
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-  mod <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
+  mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
 
   result <- fitted(mod)
 
-  expect_equal(length(result), nrow(yotov2017_subset))
+  expect_equal(length(result), nrow(ross2004_subset))
 })

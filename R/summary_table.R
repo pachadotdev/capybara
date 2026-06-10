@@ -12,10 +12,10 @@
 #'   \code{"htbp"}.
 #' @examples
 #' ross2004_subset <- ross2004[ross2004$year == 1999, ]
-#' ross2004_subset <- ross2004[ross2004$ltrade > 0, ]
+#' ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 #' 
-#' m1 <- felm(trade ~ log_dist | exp_year, ross2004_subset)
-#' m2 <- fepoisson(trade ~ log_dist | exp_year, ross2004_subset)
+#' m1 <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
+#' m2 <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
 #' 
 #' summary_table(m1, m2, model_names = c("Linear", "Poisson"))
 #' @return A formatted table

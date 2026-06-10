@@ -68,8 +68,13 @@ perfectly predicted observations}
 A routine that uses the same internals as \link{feglm}.
 }
 \examples{
-# check the feglm examples for the details about clustered standard errors
-mod <- fenegbin(trade ~ log_dist | exp_year, yotov2017[yotov2017$year == 2006, ])
-summary(mod)
+# check the felm examples for the details about clustered standard errors
+
+ross2004_subset <- ross2004[ross2004$year == 1999, ]
+ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
+
+fit <- fenegbin(ltrade ~ ldist | ctry1, ross2004_subset)
+
+summary(fit)
 
 }

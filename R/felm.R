@@ -81,14 +81,14 @@
 #'
 #' @examples
 #' ross2004_subset <- ross2004[ross2004$year == 1999, ]
-#' ross2004_subset <- ross2004[ross2004$ltrade > 0, ]
+#' ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 #' 
 #' # Model with fixed effects
 #' fit <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
 #' summary(fit)
 #'
 #' ross2004_subset <- ross2004[ross2004$year %in% c(1994, 1999), ]
-#' ross2004_subset <- ross2004[ross2004$ltrade > 0, ]
+#' ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 #' 
 #' # Model without fixed effects but with clustered standard errors
 #' # Note: Use 0 to indicate no fixed effects when specifying clusters

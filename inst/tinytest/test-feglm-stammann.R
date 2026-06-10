@@ -20,11 +20,11 @@ local({
   # centering is unused without FEs, but control must be accepted
   ctrl <- list(centering = "stammann")
 
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
 
-  m1 <- feglm(trade ~ log_dist, data = yotov2017_subset, control = ctrl)
-  m2 <- glm(trade ~ log_dist, data = yotov2017_subset)
+  m1 <- feglm(ltrade ~ ldist, data = ross2004_subset, control = ctrl)
+  m2 <- glm(ltrade ~ ldist, data = ross2004_subset)
 
   expect_equal(coef(m1), coef(m2), tolerance = 1e-6)
 })

@@ -9,9 +9,7 @@ source(system.file("tinytest", "helper.R", package = "capybara"))
 local({
   skip_on_cran()
 
-  # Test with a different dataset
-  data("yotov2017", package = "capybara")
-  mod <- fenegbin(trade ~ log_dist | exp_year, yotov2017)
+  mod <- fenegbin(ltrade ~ ldist | ctry1, ross2004)
 
   expect_true(inherits(mod, "feglm"))
   expect_true(!is.null(mod$coef_table))
@@ -26,8 +24,8 @@ local({
   skip_on_cran()
 
   # Test with a different dataset
-  data("yotov2017", package = "capybara")
-  mod <- fenegbin(trade ~ log_dist | exp_year, yotov2017,
+  data("ross2004", package = "capybara")
+  mod <- fenegbin(ltrade ~ ldist | ctry1, ross2004,
     control = fit_control(centering = "stammann"))
 
   expect_true(inherits(mod, "feglm"))

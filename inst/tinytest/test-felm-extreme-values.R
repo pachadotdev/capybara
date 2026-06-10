@@ -6,12 +6,12 @@
 # NAs on the lhs ----
 
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
-  yotov2017_subset$trade[c(1, 3, 5)] <- NA
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
+  ross2004_subset$ltrade[c(1, 3, 5)] <- NA
 
-  m1 <- felm(trade ~ log_dist | exp_year, data = yotov2017_subset)
-  m2 <- lm(trade ~ 0 + log_dist + as.factor(exp_year), data = yotov2017_subset)
+  m1 <- felm(ltrade ~ ldist | ctry1, data = ross2004_subset)
+  m2 <- lm(ltrade ~ 0 + ldist + as.factor(ctry1), data = ross2004_subset)
 
   expect_equal(coef(m1), coef(m2)[1])
 })
@@ -19,12 +19,12 @@ local({
 # NAs on the rhs ----
 
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
-  yotov2017_subset$exp_year[c(1, 3, 5)] <- NA
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
+  ross2004_subset$ctry1[c(1, 3, 5)] <- NA
 
-  m1 <- felm(trade ~ log_dist | exp_year, data = yotov2017_subset)
-  m2 <- lm(trade ~ 0 + log_dist + as.factor(exp_year), data = yotov2017_subset)
+  m1 <- felm(ltrade ~ ldist | ctry1, data = ross2004_subset)
+  m2 <- lm(ltrade ~ 0 + ldist + as.factor(ctry1), data = ross2004_subset)
 
   expect_equal(coef(m1), coef(m2)[1])
 })
@@ -32,18 +32,18 @@ local({
 # 0+log on the rhs ----
 
 local({
-  yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-  yotov2017_subset <- yotov2017_subset[yotov2017_subset$trade > 0, ]
-  yotov2017_subset$trade[c(1, 3, 5)] <- 0
+  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
+  ross2004_subset$ltrade[c(1, 3, 5)] <- 0
 
   # we need a subset to avoid breaking lm!
   # otherwise
   # Error in lm.fit(x, y, offset = offset, singular.ok = singular.ok, ...) :
   # NA/NaN/Inf in 'y'
-  yotov2017_subset_subset <- yotov2017_subset[-c(1, 3, 5), ]
+  ross2004_subset_subset <- ross2004_subset[-c(1, 3, 5), ]
 
-  m1 <- felm(trade ~ log_dist | exp_year, data = yotov2017_subset)
-  m2 <- lm(trade ~ 0 + log_dist + as.factor(exp_year), data = yotov2017_subset_subset)
+  m1 <- felm(ltrade ~ ldist | ctry1, data = ross2004_subset)
+  m2 <- lm(ltrade ~ 0 + ldist + as.factor(ctry1), data = ross2004_subset_subset)
 
   expect_equal(coef(m1), coef(m2)[1], tolerance = 1e-2)
 })
