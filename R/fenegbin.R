@@ -61,9 +61,14 @@
 #'  linear predictor. If a formula, it should be of the form \code{~ variable}.
 #'
 #' @examples
-#' # check the feglm examples for the details about clustered standard errors
-#' mod <- fenegbin(trade ~ log_dist | exp_year, yotov2017[yotov2017$year == 2006, ])
-#' summary(mod)
+#' # check the felm examples for the details about clustered standard errors
+#' 
+#' ross2004_subset <- ross2004[ross2004$year == 1999, ]
+#' ross2004_subset <- ross2004[ross2004$ltrade > 0, ]
+#' 
+#' fit <- fenegbin(ltrade ~ ldist | ctry1, ross2004_subset)
+#' 
+#' summary(fit)
 #'
 #' @return A named list of class \code{"feglm"}. The list contains the following
 #'  eighteen elements:

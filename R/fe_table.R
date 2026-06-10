@@ -13,9 +13,12 @@
 #' @param position LaTeX float position specifier (LaTeX only). The default
 #'   is \code{"htbp"}.
 #' @examples
-#' yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-#' m1 <- felm(trade ~ log_dist | exp_year, yotov2017_subset)
-#' m2 <- fepoisson(trade ~ log_dist | exp_year, yotov2017_subset)
+#' ross2004_subset <- ross2004[ross2004$year == 1999, ]
+#' ross2004_subset <- ross2004[ross2004$ltrade > 0, ]
+#' 
+#' m1 <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
+#' m2 <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
+#' 
 #' fe_table(m1, m2, model_names = c("Linear", "Poisson"))
 #' @return A formatted fixed effects table of class \code{summary_table}.
 #' @export

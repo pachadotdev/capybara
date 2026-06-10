@@ -32,8 +32,12 @@ ggplot2::autoplot
 #' @return A ggplot object with the estimated coefficients and their confidence intervals.
 #'
 #' @examples
-#' mod <- fepoisson(trade ~ log_dist | exp_year, yotov2017[yotov2017$year == 2006, ])
-#' autoplot(mod, conf_level = 0.99)
+#' ross2004_subset <- ross2004[ross2004$year == 1999, ]
+#' ross2004_subset <- ross2004[ross2004$ltrade > 0, ]
+#' 
+#' fit <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
+#' 
+#' autoplot(fit, conf_level = 0.99)
 #'
 #' @export
 autoplot.feglm <- function(object, ...) {
@@ -104,8 +108,8 @@ autoplot.feglm <- function(object, ...) {
 #' @return A ggplot object with the estimated coefficients and their confidence intervals.
 #'
 #' @examples
-#' mod <- felm(trade ~ log_dist | exp_year, yotov2017[yotov2017$year == 2006, ])
-#' autoplot(mod, conf_level = 0.99)
+#' fit <- felm(ltrade ~ ldist | ctry1, ross2004[ross2004$year == 1999, ])
+#' autoplot(fit, conf_level = 0.99)
 #'
 #' @export
 autoplot.felm <- function(object, ...) {

@@ -99,16 +99,18 @@
 #'   \emph{Econometrica}, 55(4), 819-847.
 #'
 #' @examples
+#' ross2004_subset <- ross2004[ross2004$year == 1999, ]
+#' ross2004_subset <- ross2004[ross2004$ltrade > 0, ]
+#' 
 #' # Lower expectile (10th) - more weight on negative residuals
-#' yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-#' mod_low <- fepoisson_asymmetric(
-#'   trade ~ log_dist | exp_year, yotov2017_subset,
+#' fit10 <- fepoisson_asymmetric(
+#'   ltrade ~ ldist | ctry1, ross2004_subset,
 #'   control = fit_control(expectile = 0.1)
 #' )
 #'
 #' # Upper expectile (90th) - more weight on positive residuals
 #' mod_high <- fepoisson_asymmetric(
-#'   trade ~ log_dist | exp_year, yotov2017_subset,
+#'   #'   ltrade ~ ldist | ctry1, ross2004_subset,
 #'   control = fit_control(expectile = 0.9)
 #' )
 #'

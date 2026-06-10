@@ -55,8 +55,13 @@
 #'
 #' @examples
 #' # check the feglm examples for the details about clustered standard errors
-#' mod <- fepoisson(trade ~ log_dist, yotov2017[yotov2017$year == 2006, ])
-#' summary(mod)
+#' 
+#' ross2004_subset <- ross2004[ross2004$year == 1999, ]
+#' ross2004_subset <- ross2004[ross2004$ltrade > 0, ]
+#' 
+#' fit <- fepoisson(ltrade ~ ldist, ross2004_subset)
+#' 
+#' summary(fit)
 #'
 #' @return A named list of class \code{"feglm"}.
 #'

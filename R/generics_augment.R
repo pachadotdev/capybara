@@ -34,11 +34,14 @@ generics::augment
 #' @rdname broom
 #'
 #' @examples
-#' yotov2017_subset <- yotov2017[yotov2017$year == 2006, ]
-#' mod <- fepoisson(trade ~ log_dist, yotov2017_subset, control = fit_control(keep_data = TRUE))
-#' broom::augment(mod)
-#' broom::glance(mod)
-#' broom::tidy(mod)
+#' ross2004_subset <- ross2004[ross2004$year == 1999, ]
+#' ross2004_subset <- ross2004[ross2004$ltrade > 0, ]
+#' 
+#' fit <- fepoisson(ltrade ~ ldist, ross2004_subset, control = fit_control(keep_data = TRUE))
+#' 
+#' broom::augment(fit)
+#' broom::glance(fit)
+#' broom::tidy(fit)
 #'
 #' @export
 augment.feglm <- function(x, newdata = NULL, ...) {
