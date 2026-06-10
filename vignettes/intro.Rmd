@@ -24,12 +24,9 @@ cluster the standard errors by exporter-importer pairs.
 
 The PPML especification corresponds to:
 \begin{align}
-X_{ij,t} =& \:\exp\left[\beta_1 \log(DIST)_{i,j} + \beta_2 CNTG_{i,j} +\right.\\
-\text{ }& \:\left.\beta_3 LANG_{i,j} + \beta_4 CLNY_{i,j} + \pi_{i,t} + \chi_{i,t}\right] \times \varepsilon_{ij,t}.
+X_{ij,t} =& \:\exp\left[\beta_1 \log(DIST)_{i,j} + \beta_2 BORDER_{i,j} +\right.\\
+\text{ }& \:\left.\beta_3 COMLANG_{i,j} + \beta_4 COLONY_{i,j} + \pi_{i,t} + \chi_{i,t}\right] \times \varepsilon_{ij,t}.
 \end{align}
-
-We use `dplyr` to obtain the log of the distance. This model excludes
-domestic flows, therefore we need to subset the data also with `dplyr`.
 
 Required packages:
 
@@ -43,36 +40,44 @@ and we add the fixed effects as `| exp_year + imp_year` in the formula.
 Model estimation:
 
 ```r
+ross2004_subset <- ross2004[ross2004$year %in% seq(1989, 1999, 5), ]
+ross2004_subset$trade <- exp(ross2004_subset$ltrade)
+ross2004_subset$exp_year <- paste0(ross2004_subset$ctry1, ross2004_subset$year)
+ross2004_subset$imp_year <- paste0(ross2004_subset$ctry2, ross2004_subset$year)
+
 fit <- fepoisson(
-  trade ~ log_dist + cntg + lang + clny + rta | exp_year + imp_year,
-  data = yotov2017
+  trade ~ ldist + border + comlang + colony | exp_year + imp_year,
+  data = ross2004_subset
 )
 
 summary(fit)
 ```
 
 ```r
-Formula: trade ~ log_dist + cntg + lang + clny + rta | exp_year + imp_year
+Formula: trade ~ ldist + border + comlang + colony | exp_year + imp_year
 
 Family: Poisson
 
 Estimates:
 
-|          | Estimate | Std. Error | z value    | Pr(>|z|)   |
-|----------|----------|------------|------------|------------|
-| log_dist |  -0.8216 |     0.0004 | -2194.0448 | 0.0000 *** |
-| cntg     |   0.4155 |     0.0009 |   476.0613 | 0.0000 *** |
-| lang     |   0.2499 |     0.0008 |   296.8884 | 0.0000 *** |
-| clny     |  -0.2054 |     0.0010 |  -206.3476 | 0.0000 *** |
-| rta      |   0.1907 |     0.0010 |   191.0964 | 0.0000 *** |
+|         | Estimate | Std. Error | z value     | Pr(>|z|)  |
+|---------|----------|------------|-------------|-----------|
+| ldist   |  -0.9800 |     0.0000 | -90771.8020 | 0.0000 ** |
+| border  |   0.3200 |     0.0000 |  13707.7154 | 0.0000 ** |
+| comlang |   0.2852 |     0.0000 |  12315.8981 | 0.0000 ** |
+| colony  |   0.3958 |     0.0000 |  12508.5396 | 0.0000 ** |
 
-Significance codes: *** 99.9%; ** 99%; * 95%; . 90%
+Significance codes: ** p < 0.01; * p < 0.05; + p < 0.10
 
-Pseudo R-squared: 0.587 
+Pseudo R-squared: 0.9591 
 
-Number of observations: Full 28152; Missing 0; Perfect classification 0 
+Fixed effects:
+  exp_year: 457
+  imp_year: 457
 
-Number of Fisher Scoring iterations: 11
+Number of observations: Full 21450; Missing 0; Perfect classification 0 
+
+Number of Fisher Scoring iterations: 10 
 ```
 
 The coefficients are almost identical to those in Table 3 from
@@ -82,40 +87,42 @@ uses the demeaning algorithm proposed by @stammann2018fast.
 
 ```r
 fit <- fepoisson(
-  trade ~ log_dist + cntg + lang + clny + rta | exp_year + imp_year | pair,
-  data = yotov2017
+  trade ~ ldist + border + comlang + colony | exp_year + imp_year | pair,
+  data = ross2004_subset
 )
 
 summary(fit, type = "clustered")
 ```
 
 ```r
-Formula: trade ~ log_dist + cntg + lang + clny + rta | exp_year + imp_year | 
+Formula: trade ~ ldist + border + comlang + colony | exp_year + imp_year | 
     pair
 
 Family: Poisson
 
 Estimates:
 
-|          | Estimate | Std. Error | z value | Pr(>|z|)   |
-|----------|----------|------------|---------|------------|
-| log_dist |  -0.8216 |     0.1567 | -5.2437 | 0.0000 *** |
-| cntg     |   0.4155 |     0.4568 |  0.9097 | 0.3630     |
-| lang     |   0.2499 |     0.3997 |  0.6252 | 0.5319     |
-| clny     |  -0.2054 |     0.3287 | -0.6250 | 0.5320     |
-| rta      |   0.1907 |     0.7657 |  0.2491 | 0.8033     |
+|         | Estimate | Std. Error | z value  | Pr(>|z|)  |
+|---------|----------|------------|----------|-----------|
+| ldist   |  -0.9800 |     0.0476 | -20.5747 | 0.0000 ** |
+| border  |   0.3200 |     0.1077 |   2.9719 | 0.0030 ** |
+| comlang |   0.2852 |     0.0881 |   3.2362 | 0.0012 ** |
+| colony  |   0.3958 |     0.1032 |   3.8344 | 0.0001 ** |
 
-Significance codes: *** 99.9%; ** 99%; * 95%; . 90%
+Significance codes: ** p < 0.01; * p < 0.05; + p < 0.10
 
-Pseudo R-squared: 0.587 
+Pseudo R-squared: 0.9591 
 
-Number of observations: Full 28152; Missing 0; Perfect classification 0 
+Fixed effects:
+  exp_year: 457
+  imp_year: 457
 
-Number of Fisher Scoring iterations: 11
+Number of observations: Full 21450; Missing 0; Perfect classification 0 
+
+Number of Fisher Scoring iterations: 10
 ```
 
-The result is similar and the numerical difference comes fom the 
-variance-covariance matrix estimation method. Capybara clustering
+The slopes are identical but the standard errors differ from the previous exampke. Capybara clustering
 algorithm is based on @cameron2011robust.
 
 # References
