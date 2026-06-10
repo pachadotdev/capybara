@@ -39,10 +39,7 @@ install:
 
 build:
 	clear
-	@cp DESCRIPTION DESCRIPTION.bak
-	@awk '/^Remotes:/ {skip=1} /^Roxygen:/ {skip=1} skip && NF==0 {skip=0; next} !skip' DESCRIPTION.bak > DESCRIPTION
-	@Rscript -e 'tinydev::pkg_build(".", FALSE)'
-	@mv DESCRIPTION.bak DESCRIPTION
+	@Rscript -e 'tinydev::pkg_build(".")'
 
 nonascii:
 	@find R/ src/ -type f -exec grep -P -H -n "[^\x00-\x7F]" {} + || true
