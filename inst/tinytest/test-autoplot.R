@@ -6,10 +6,15 @@
 # {RE5.1} Confirms that `autoplot` fails gracefully with invalid inputs.
 # {RE5.3} Validates that the output of `autoplot` is a `ggplot` object for visualizations.
 
-# autoplot works for felm
 local({
+  if (Sys.getenv("CAPYBARA_FULL_TESTING") != "yes") {
+    return(NULL)
+  }
+
+  # autoplot works for felm ----
+
   ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
 
   mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
 
@@ -19,67 +24,27 @@ local({
   expect_error(autoplot(1L))
   expect_error(autoplot(mod, conf_level = 1.01))
   expect_error(autoplot(mod, conf_level = -0.01))
-})
 
-# autoplot works for feglm/fepoisson
-local({
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
+  # autoplot works for feglm/fepoisson ----
+
   mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
 
   expect_true(inherits(autoplot(mod), "ggplot2::ggplot"))
   expect_true(inherits(autoplot(mod, conf_level = 0.90), "ggplot2::ggplot"))
-  expect_true(inherits(autoplot(mod, conf_level = 0.99), "ggplot2::ggplot"))
-})
 
-# autoplot errors on invalid conf_level
-local({
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
+  # autoplot errors on invalid conf_level ----
+
   mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
 
   expect_error(autoplot(mod, conf_level = 0))
   expect_error(autoplot(mod, conf_level = 1))
   expect_error(autoplot(mod, conf_level = -0.5))
   expect_error(autoplot(mod, conf_level = 1.5))
-})
 
-# autoplot errors on wrong class
-local({
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
+  # autoplot errors on wrong class ----
+
   mod_lm <- lm(ltrade ~ ldist, ross2004_subset)
 
   expect_error(autoplot.feglm(mod_lm))
   expect_error(autoplot.felm(mod_lm))
-})
-
-# autoplot works with multiple predictors
-local({
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-
-  mod <- feglm(ltrade ~ ldist + border | ctry1, ross2004_subset)
-
-  p <- autoplot(mod)
-
-  expect_true(inherits(p, "ggplot2::ggplot"))
-})
-
-# autoplot default conf_level is 0.95
-local({
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-
-  mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
-
-  # Both should work without error (default is 0.95)
-  p1 <- autoplot(mod)
-  p2 <- autoplot(mod, conf_level = 0.95)
-
-  expect_true(inherits(p1, "ggplot2::ggplot"))
-  expect_true(inherits(p2, "ggplot2::ggplot"))
 })

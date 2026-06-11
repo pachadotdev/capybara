@@ -14,24 +14,24 @@
 # {RE7.1} Validates consistency in output types and structures across all supported families and link functions.
 # {RE7.2} Confirms that confidence intervals and standard errors are computed correctly for coefficients.
 
-# feglm works without fixed effects (Stammann centering) ----
-
 local({
-  # centering is unused without FEs, but control must be accepted
+  if (Sys.getenv("CAPYBARA_FULL_TESTING") != "yes") {
+    return(NULL)
+  }
+
+  # centering is unused without FEs, but control must be accepted ---
   ctrl <- list(centering = "stammann")
 
   ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
 
   m1 <- feglm(ltrade ~ ldist, data = ross2004_subset, control = ctrl)
   m2 <- glm(ltrade ~ ldist, data = ross2004_subset)
 
   expect_equal(coef(m1), coef(m2), tolerance = 1e-6)
-})
 
-# proportional regressors return NA coefficients (Stammann centering) ----
+  # proportional regressors return NA coefficients (Stammann centering) ----
 
-local({
   ctrl <- list(centering = "stammann")
   set.seed(200100)
   d <- data.frame(

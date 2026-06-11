@@ -3,26 +3,28 @@
 # {G2.3} Tests various prediction types and newdata scenarios.
 # {RE4.9} Verifies predict returns correct values.
 
-# predict.feglm works with default type (response) ----
-
 local({
+  if (Sys.getenv("CAPYBARA_FULL_TESTING") != "yes") {
+    return(NULL)
+  }
+
+  # predict.feglm works with default type (response) ----
+
   ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+
   mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
 
   preds <- predict(mod)
 
   expect_equal(length(preds), nrow(ross2004_subset))
   expect_true(all(preds > 0))
-})
 
-# predict.feglm works with type = 'link' ----
+  # predict.feglm works with type = 'link' ----
 
-local({
   ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+
   mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
 
   preds_link <- predict(mod, type = "link")
@@ -33,14 +35,12 @@ local({
 
   # For Poisson with log link, exp(link) = response
   expect_equal(exp(preds_link), preds_response, tolerance = 1e-6)
-})
 
-# predict.feglm works with newdata ----
+  # predict.feglm works with newdata ----
 
-local({
   ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+
   mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset, control = fit_control(return_fe = TRUE))
 
   newdata <- data.frame(
@@ -60,27 +60,23 @@ local({
     ),
     "Model has fixed effects but they were not stored."
   )
-})
 
-# predict.felm works with default type ----
+  # predict.felm works with default type ----
 
-local({
   ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+
   mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
 
   preds <- predict(mod)
 
   expect_equal(length(preds), nrow(ross2004_subset))
-})
 
-# predict.felm works with newdata ----
+  # predict.felm works with newdata ----
 
-local({
   ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+
   mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
 
   newdata <- data.frame(
@@ -91,14 +87,12 @@ local({
   preds <- predict(mod, newdata = newdata)
 
   expect_equal(length(preds), 3)
-})
 
-# predict.felm with type='response' works ----
+  # predict.felm with type='response' works ----
 
-local({
   ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+
   mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
 
   preds_response <- predict(mod, type = "response")
@@ -106,27 +100,23 @@ local({
 
   # For linear models, response is the default
   expect_equal(preds_response, preds_default)
-})
 
-# predict works with multiple fixed effects ----
+  # predict works with multiple fixed effects ----
 
-local({
   ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+
   mod <- fepoisson(ltrade ~ ldist | ctry1 + ctry2, ross2004_subset)
 
   preds <- predict(mod)
 
   expect_equal(length(preds), nrow(ross2004_subset))
-})
 
-# predict with newdata handles multiple FEs ----
+  # predict with newdata handles multiple FEs ----
 
-local({
   ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+
   mod <- felm(ltrade ~ ldist | ctry1 + ctry2, ross2004_subset)
 
   newdata <- data.frame(
@@ -138,27 +128,23 @@ local({
   preds <- predict(mod, newdata = newdata)
 
   expect_equal(length(preds), 2)
-})
 
-# predict works for model without fixed effects ----
+  # predict works for model without fixed effects ----
 
-local({
   ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+
   mod <- fepoisson(ltrade ~ ldist, ross2004_subset)
 
   preds <- predict(mod)
 
   expect_equal(length(preds), nrow(ross2004_subset))
-})
 
-# predict with newdata works for model without FE ----
+  # predict with newdata works for model without FE ----
 
-local({
   ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+
   mod <- felm(ltrade ~ ldist, ross2004_subset)
 
   newdata <- data.frame(ldist = c(7, 8, 9))
@@ -166,14 +152,12 @@ local({
   preds <- predict(mod, newdata = newdata)
 
   expect_equal(length(preds), 3)
-})
 
-# predict handles NA in newdata gracefully ---
+  # predict handles NA in newdata gracefully ---
 
-local({
   ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+
   mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
 
   newdata <- data.frame(
@@ -188,14 +172,12 @@ local({
   expect_true(is.na(preds[2]))
   expect_false(is.na(preds[1]))
   expect_false(is.na(preds[3]))
-})
 
-# predict returns same length as input for newdata ----
+  # predict returns same length as input for newdata ----
 
-local({
   ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+
   mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset, control = fit_control(return_fe = TRUE))
 
   newdata <- data.frame(
@@ -205,27 +187,23 @@ local({
 
   preds <- predict(mod, newdata = newdata)
   expect_equal(length(preds), nrow(newdata))
-})
 
-# predict works with type='terms' for felm ----
+  # predict works with type='terms' for felm ----
 
-local({
   ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+
   mod <- felm(ltrade ~ ldist + border | ctry1, ross2004_subset)
 
   preds_terms <- predict(mod, type = "terms")
 
   expect_true(is.matrix(preds_terms) || is.numeric(preds_terms))
-})
 
-# predict maintains order for newdata ----
+  # predict maintains order for newdata ----
 
-local({
   ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+
   mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
 
   newdata <- data.frame(

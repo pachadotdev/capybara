@@ -3,12 +3,16 @@
 # {G2.3} Tests compatibility with R generics conventions.
 # {RE3.1} Verifies the correctness of extracted model statistics.
 
-# confint.feglm returns correct structure and values ----
-
 local({
+  if (Sys.getenv("CAPYBARA_FULL_TESTING") != "yes") {
+    return(NULL)
+  }
+
+  # confint.feglm returns correct structure and values ----
+
   ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+
   mod1 <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
 
   res1 <- confint(mod1)
@@ -31,14 +35,9 @@ local({
   # Check that CI is symmetric around estimate
   midpoint <- (res1[1, 1] + res1[1, 2]) / 2
   expect_equal(midpoint, est, tolerance = 1e-10)
-})
 
-# confint.feglm respects level parameter ----
+  # confint.feglm respects level parameter ----
 
-local({
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
   mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
 
   ci_95 <- confint(mod, level = 0.95)
@@ -49,28 +48,18 @@ local({
   width_99 <- ci_99[, 2] - ci_99[, 1]
 
   expect_true(all(width_99 > width_95))
-})
 
-# confint.felm returns correct structure ----
+  # confint.felm returns correct structure ----
 
-local({
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
   mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
 
   result <- confint(mod)
 
   expect_equal(ncol(result), 2)
   expect_equal(nrow(result), length(coef(mod)))
-})
 
-# confint column names reflect confidence level ----
+  # confint column names reflect confidence level ----
 
-local({
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
   mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
 
   ci_95 <- confint(mod, level = 0.95)
@@ -80,56 +69,36 @@ local({
   expect_true(grepl("97.5", colnames(ci_95)[2]))
   expect_true(grepl("5", colnames(ci_90)[1]))
   expect_true(grepl("95", colnames(ci_90)[2]))
-})
 
-# confint works with multiple parm selection ----
+  # confint works with multiple parm selection ----
 
-local({
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
   mod <- felm(ltrade ~ ldist + border | ctry1, ross2004_subset)
 
   ci_subset <- confint(mod, parm = c("ldist", "border"))
 
   expect_equal(nrow(ci_subset), 2)
   expect_equal(rownames(ci_subset), c("ldist", "border"))
-})
 
-# confint works with numeric parm indices ----
+  # confint works with numeric parm indices ----
 
-local({
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
   mod <- felm(ltrade ~ ldist + border | ctry1, ross2004_subset)
 
   ci_first <- confint(mod, parm = 1)
 
   expect_equal(nrow(ci_first), 1)
   expect_equal(rownames(ci_first), "ldist")
-})
 
-# confint for feglm works with parm ----
+  # confint for feglm works with parm ----
 
-local({
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
   mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
 
   ci_full <- confint(mod)
   ci_parm <- confint(mod, parm = "ldist")
 
   expect_equal(ci_full, ci_parm)
-})
 
-# confint handles different confidence levels correctly ----
+  # confint handles different confidence levels correctly ----
 
-local({
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
   mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
 
   ci_50 <- confint(mod, level = 0.50)

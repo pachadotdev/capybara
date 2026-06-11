@@ -35,10 +35,13 @@ generics::augment
 #'
 #' @examples
 #' ross2004_subset <- ross2004[ross2004$year == 1999, ]
-#' ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-#' 
-#' fit <- fepoisson(ltrade ~ ldist, ross2004_subset, control = fit_control(keep_data = TRUE))
-#' 
+#' ross2004_subset <- ross2004_subset[ross2004_subset$ltrade >
+#'   quantile(ross2004_subset$ltrade, 0.75), ]
+#'
+#' fit <- fepoisson(ltrade ~ ldist, ross2004_subset,
+#'   control = fit_control(keep_data = TRUE)
+#' )
+#'
 #' broom::augment(fit)
 #' broom::glance(fit)
 #' broom::tidy(fit)

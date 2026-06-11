@@ -1209,7 +1209,7 @@ feglm_fit_(const std::string &formula_str, SEXP df, const doubles &beta_r,
        "coef_table"_nm = as_doubles_matrix(result.coef_table),
        "deviance"_nm = writable::doubles({result.deviance}),
        "null_deviance"_nm = writable::doubles({result.null_deviance}),
-       "conv"_nm = writable::logicals({result.conv}),
+       "conv"_nm = writable::logicals({cpp4r::r_bool(result.conv)}),
        "iter"_nm = writable::integers({static_cast<int>(result.iter + 1)})});
 
   if (params.return_hessian) {
@@ -1221,7 +1221,7 @@ feglm_fit_(const std::string &formula_str, SEXP df, const doubles &beta_r,
   }
 
   if (result.has_separation) {
-    out.push_back({"has_separation"_nm = writable::logicals({true})});
+    out.push_back({"has_separation"_nm = writable::logicals({cpp4r::r_bool(true)})});
     vec separated_obs_r(result.separated_obs.n_elem);
     for (size_t i = 0; i < result.separated_obs.n_elem; ++i) {
       separated_obs_r(i) = static_cast<double>(result.separated_obs(i) + 1);
@@ -1608,7 +1608,7 @@ feglm_fit_(const std::string &formula_str, SEXP df, const doubles &beta_r,
        "coef_table"_nm = as_doubles_matrix(result.coef_table),
        "deviance"_nm = writable::doubles({result.deviance}),
        "null_deviance"_nm = writable::doubles({result.null_deviance}),
-       "conv"_nm = writable::logicals({result.conv}),
+       "conv"_nm = writable::logicals({cpp4r::r_bool(result.conv)}),
        "iter"_nm = writable::integers({static_cast<int>(result.iter + 1)})});
 
   if (params.return_hessian) {
@@ -1620,7 +1620,7 @@ feglm_fit_(const std::string &formula_str, SEXP df, const doubles &beta_r,
   }
 
   if (result.has_separation) {
-    out.push_back({"has_separation"_nm = writable::logicals({true})});
+    out.push_back({"has_separation"_nm = writable::logicals({cpp4r::r_bool(true)})});
     vec separated_obs_r2(result.separated_obs.n_elem);
     for (size_t i = 0; i < result.separated_obs.n_elem; ++i) {
       separated_obs_r2(i) = static_cast<double>(result.separated_obs(i) + 1);
@@ -1812,7 +1812,7 @@ fenegbin_fit_(const std::string &formula_str, SEXP df, const doubles &w_r,
        "coef_table"_nm = as_doubles_matrix(result.coef_table),
        "deviance"_nm = writable::doubles({result.deviance}),
        "null_deviance"_nm = writable::doubles({result.null_deviance}),
-       "conv"_nm = writable::logicals({result.conv}),
+       "conv"_nm = writable::logicals({cpp4r::r_bool(result.conv)}),
        "iter"_nm = writable::integers({static_cast<int>(result.iter + 1)}),
        "theta"_nm = writable::doubles({result.theta}),
        "iter.outer"_nm =
@@ -1987,7 +1987,7 @@ fepoisson_asymmetric_fit_(const std::string &formula_str, SEXP df,
        "coef_table"_nm = as_doubles_matrix(result.coef_table),
        "deviance"_nm = writable::doubles({result.deviance}),
        "null_deviance"_nm = writable::doubles({result.null_deviance}),
-       "conv"_nm = writable::logicals({result.conv}),
+       "conv"_nm = writable::logicals({cpp4r::r_bool(result.conv)}),
        "iter"_nm = writable::integers({static_cast<int>(result.iter + 1)}),
        "expectile"_nm = writable::doubles({result.expectile}),
        "iter_outer"_nm =
@@ -2005,7 +2005,7 @@ fepoisson_asymmetric_fit_(const std::string &formula_str, SEXP df,
 
   // Add separation info
   if (result.has_separation) {
-    out.push_back({"has_separation"_nm = writable::logicals({true})});
+    out.push_back({"has_separation"_nm = writable::logicals({cpp4r::r_bool(true)})});
     out.push_back({"num_separated"_nm = writable::integers(
                        {static_cast<int>(result.num_separated)})});
   }

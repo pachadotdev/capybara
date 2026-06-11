@@ -2,94 +2,48 @@ Reading package lists...
 Building dependency tree...
 Reading state information...
 pkg-config is already the newest version (1.8.1-2build1).
+The following additional packages will be installed:
+  libudunits2-0 libudunits2-data libuv1t64
 The following NEW packages will be installed:
-  libuv1-dev libuv1t64 libxml2-dev
-0 upgraded, 3 newly installed, 0 to remove and 13 not upgraded.
-Need to get 1,015 kB of archives.
-After this operation, 4,271 kB of additional disk space will be used.
+  libudunits2-0 libudunits2-data libudunits2-dev libuv1-dev libuv1t64
+  libxml2-dev
+0 upgraded, 6 newly installed, 0 to remove and 13 not upgraded.
+Need to get 1,448 kB of archives.
+After this operation, 5,307 kB of additional disk space will be used.
 Get:1 http://archive.ubuntu.com/ubuntu noble/main amd64 libuv1t64 amd64 1.48.0-1.1build1 [97.3 kB]
-Get:2 http://archive.ubuntu.com/ubuntu noble/main amd64 libuv1-dev amd64 1.48.0-1.1build1 [136 kB]
-Get:3 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libxml2-dev amd64 2.9.14+dfsg-1.3ubuntu3.7 [782 kB]
+Get:2 http://archive.ubuntu.com/ubuntu noble/universe amd64 libudunits2-data all 2.2.28-7build1 [19.4 kB]
+Get:3 http://archive.ubuntu.com/ubuntu noble/universe amd64 libudunits2-0 amd64 2.2.28-7build1 [54.1 kB]
+Get:4 http://archive.ubuntu.com/ubuntu noble/universe amd64 libudunits2-dev amd64 2.2.28-7build1 [359 kB]
+Get:5 http://archive.ubuntu.com/ubuntu noble/main amd64 libuv1-dev amd64 1.48.0-1.1build1 [136 kB]
+Get:6 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libxml2-dev amd64 2.9.14+dfsg-1.3ubuntu3.7 [782 kB]
 debconf: delaying package configuration, since apt-utils is not installed
-Fetched 1,015 kB in 0s (6,011 kB/s)
+Fetched 1,448 kB in 0s (6,386 kB/s)
 Selecting previously unselected package libuv1t64:amd64.
 (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 19926 files and directories currently installed.)
-Preparing to unpack .../libuv1t64_1.48.0-1.1build1_amd64.deb ...
+Preparing to unpack .../0-libuv1t64_1.48.0-1.1build1_amd64.deb ...
 Unpacking libuv1t64:amd64 (1.48.0-1.1build1) ...
+Selecting previously unselected package libudunits2-data.
+Preparing to unpack .../1-libudunits2-data_2.2.28-7build1_all.deb ...
+Unpacking libudunits2-data (2.2.28-7build1) ...
+Selecting previously unselected package libudunits2-0.
+Preparing to unpack .../2-libudunits2-0_2.2.28-7build1_amd64.deb ...
+Unpacking libudunits2-0 (2.2.28-7build1) ...
+Selecting previously unselected package libudunits2-dev.
+Preparing to unpack .../3-libudunits2-dev_2.2.28-7build1_amd64.deb ...
+Unpacking libudunits2-dev (2.2.28-7build1) ...
 Selecting previously unselected package libuv1-dev:amd64.
-Preparing to unpack .../libuv1-dev_1.48.0-1.1build1_amd64.deb ...
+Preparing to unpack .../4-libuv1-dev_1.48.0-1.1build1_amd64.deb ...
 Unpacking libuv1-dev:amd64 (1.48.0-1.1build1) ...
 Selecting previously unselected package libxml2-dev:amd64.
-Preparing to unpack .../libxml2-dev_2.9.14+dfsg-1.3ubuntu3.7_amd64.deb ...
+Preparing to unpack .../5-libxml2-dev_2.9.14+dfsg-1.3ubuntu3.7_amd64.deb ...
 Unpacking libxml2-dev:amd64 (2.9.14+dfsg-1.3ubuntu3.7) ...
 Setting up libuv1t64:amd64 (1.48.0-1.1build1) ...
 Setting up libxml2-dev:amd64 (2.9.14+dfsg-1.3ubuntu3.7) ...
+Setting up libudunits2-data (2.2.28-7build1) ...
 Setting up libuv1-dev:amd64 (1.48.0-1.1build1) ...
+Setting up libudunits2-0 (2.2.28-7build1) ...
+Setting up libudunits2-dev (2.2.28-7build1) ...
 Processing triggers for libc-bin (2.39-0ubuntu8.7) ...
-trying URL 'https://cloud.r-project.org/src/contrib/units_1.0-1.tar.gz'
-Content type 'application/x-gzip' length 369348 bytes (360 KB)
-==================================================
-downloaded 360 KB
-
-* installing *source* package ‘units’ ...
-** this is package ‘units’ version ‘1.0-1’
-** package ‘units’ successfully unpacked and MD5 sums checked
-** using staged installation
-configure: units: 1.0-1
-checking for default C++ standard... 202002
-checking whether the C++ compiler works... yes
-checking for C++ compiler default output file name... a.out
-checking for suffix of executables... 
-checking whether we are cross compiling... no
-checking for suffix of object files... o
-checking whether the compiler supports GNU C++... yes
-checking whether g++ -std=gnu++20 accepts -g... yes
-checking for g++ -std=gnu++20 option to enable C++11 features... -std=gnu++11
-checking for stdio.h... yes
-checking for stdlib.h... yes
-checking for string.h... yes
-checking for inttypes.h... yes
-checking for stdint.h... yes
-checking for strings.h... yes
-checking for sys/stat.h... yes
-checking for sys/types.h... yes
-checking for unistd.h... yes
-checking for _Bool... no
-checking for stdbool.h that conforms to C99 or later... yes
-checking for error_at_line... yes
-checking for gcc... gcc -std=gnu2x
-checking whether the compiler supports GNU C... yes
-checking whether gcc -std=gnu2x accepts -g... yes
-checking for gcc -std=gnu2x option to enable C11 features... none needed
-checking for brew... no
-checking for XML_ParserCreate in -lexpat... no
-checking for udunits2.h... no
-checking for udunits2/udunits2.h... no
-checking for ut_read_xml in -ludunits2... no
-configure: error: in '/tmp/RtmpiCDTWm/R.INSTALLcc5294b41e/units':
-configure: error: 
---------------------------------------------------------------------------------
-  Configuration failed because libudunits2.so was not found. Try installing:
-    * deb: libudunits2-dev (Debian, Ubuntu, ...)
-    * rpm: udunits2-devel (Fedora, EPEL, ...)
-    * brew: udunits (OSX)
-  If udunits2 is already installed in a non-standard location, use:
-    --configure-args='--with-udunits2-lib=/usr/local/lib'
-  if the library was not found, and/or:
-    --configure-args='--with-udunits2-include=/usr/include/udunits2'
-  if the header was not found, replacing paths with appropriate values.
-  You can alternatively set UDUNITS2_INCLUDE and UDUNITS2_LIBS manually.
---------------------------------------------------------------------------------
-
-See 'config.log' for more details
-ERROR: configuration failed for package ‘units’
-* removing ‘/cache/R_libs/units’
-
-The downloaded source packages are in
-	‘/tmp/Rtmpkqqksj/downloaded_packages’
-Warning message:
-In install.packages("units", lib = user_lib) :
-  installation of package ‘units’ had non-zero exit status
 * installing *source* package ‘cpp4r’ ...
 ** this is package ‘cpp4r’ version ‘1.0.0’
 ** using staged installation
@@ -182,7 +136,7 @@ installing to /cache/R_libs/00LOCK-capybara/00new/capybara/libs
     GNU Fortran (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
 * running under: Ubuntu 24.04.4 LTS
 * using session charset: UTF-8
-* current time: 2026-06-10 09:42:49 UTC
+* current time: 2026-06-11 11:12:05 UTC
 * using options ‘--no-manual --as-cran’
 * checking for file ‘capybara/DESCRIPTION’ ... OK
 * checking extension type ... Package
@@ -194,15 +148,14 @@ Maintainer: ‘Mauricio Vargas Sepulveda <m.vargas.sepulveda@gmail.com>’
 Checking URLs failed with message:
   there is no package called ‘curl’
 * checking package namespace information ... OK
-* checking package dependencies ... INFO
-Package suggested but not available for checking: ‘units’
+* checking package dependencies ... OK
 * checking if this is a source package ... OK
 * checking if there is a namespace ... OK
 * checking for .dll and .exe files ... OK
 * checking for hidden files and directories ... OK
 * checking for portable file names ... OK
 * checking for sufficient/correct file permissions ... OK
-* checking whether package ‘capybara’ can be installed ... [81s/76s] OK
+* checking whether package ‘capybara’ can be installed ... [69s/64s] OK
 * used C++ compiler: ‘g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0’
 * checking C++ specification ... INFO
   specified C++20
@@ -228,7 +181,7 @@ Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ be
 * checking S3 generic/method consistency ... OK
 * checking replacement functions ... OK
 * checking foreign function calls ... OK
-* checking R code for possible problems ... [21s/11s] OK
+* checking R code for possible problems ... [20s/11s] OK
 * checking Rd files ... [1s/0s] OK
 * checking Rd metadata ... OK
 * checking Rd line widths ... OK
@@ -255,24 +208,20 @@ Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ be
 * checking compiled code ... OK
 * checking installed files from ‘inst/doc’ ... OK
 * checking files in ‘vignettes’ ... OK
-* checking examples ... [8s/3s] NOTE
-Examples with CPU time > 2.5 times elapsed time
-       user system elapsed ratio
-broom 0.837  0.445   0.259  4.95
+* checking examples ... [5s/3s] OK
 * checking for unstated dependencies in ‘tests’ ... OK
 * checking tests ...
-  Running ‘tinytest.R’ [45s/10s]
-Running R code in ‘tinytest.R’ had CPU time 4.5 times elapsed time
- [46s/10s] NOTE
+  Running ‘tinytest.R’ [3s/2s]
+ [4s/2s] OK
 * checking for unstated dependencies in vignettes ... OK
 * checking package vignettes ... OK
-* checking re-building of vignette outputs ... [7s/2s] NOTE
-Re-building vignettes had CPU time 3.2 times elapsed time
+* checking re-building of vignette outputs ... [6s/2s] NOTE
+Re-building vignettes had CPU time 2.6 times elapsed time
 * checking for non-standard things in the check directory ... OK
 * checking for detritus in the temp directory ... OK
 * DONE
 
-Status: 5 NOTEs
+Status: 3 NOTEs
 See
   ‘/check/capybara.Rcheck/00check.log’
 for details.
@@ -343,7 +292,7 @@ installing to /check/capybara.Rcheck/00LOCK-capybara/00new/capybara/libs
     GNU Fortran (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
 * running under: Ubuntu 24.04.4 LTS
 * using session charset: UTF-8
-* current time: 2026-06-10 09:42:49 UTC
+* current time: 2026-06-11 11:12:05 UTC
 * using options ‘--no-manual --as-cran’
 * checking for file ‘capybara/DESCRIPTION’ ... OK
 * checking extension type ... Package
@@ -355,15 +304,14 @@ Maintainer: ‘Mauricio Vargas Sepulveda <m.vargas.sepulveda@gmail.com>’
 Checking URLs failed with message:
   there is no package called ‘curl’
 * checking package namespace information ... OK
-* checking package dependencies ... INFO
-Package suggested but not available for checking: ‘units’
+* checking package dependencies ... OK
 * checking if this is a source package ... OK
 * checking if there is a namespace ... OK
 * checking for .dll and .exe files ... OK
 * checking for hidden files and directories ... OK
 * checking for portable file names ... OK
 * checking for sufficient/correct file permissions ... OK
-* checking whether package ‘capybara’ can be installed ... [81s/76s] OK
+* checking whether package ‘capybara’ can be installed ... [69s/64s] OK
 * used C++ compiler: ‘g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0’
 * checking C++ specification ... INFO
   specified C++20
@@ -389,7 +337,7 @@ Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ be
 * checking S3 generic/method consistency ... OK
 * checking replacement functions ... OK
 * checking foreign function calls ... OK
-* checking R code for possible problems ... [21s/11s] OK
+* checking R code for possible problems ... [20s/11s] OK
 * checking Rd files ... [1s/0s] OK
 * checking Rd metadata ... OK
 * checking Rd line widths ... OK
@@ -416,19 +364,15 @@ Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ be
 * checking compiled code ... OK
 * checking installed files from ‘inst/doc’ ... OK
 * checking files in ‘vignettes’ ... OK
-* checking examples ... [8s/3s] NOTE
-Examples with CPU time > 2.5 times elapsed time
-       user system elapsed ratio
-broom 0.837  0.445   0.259  4.95
+* checking examples ... [5s/3s] OK
 * checking for unstated dependencies in ‘tests’ ... OK
-* checking tests ... [46s/10s] NOTE
-  Running ‘tinytest.R’ [45s/10s]
-Running R code in ‘tinytest.R’ had CPU time 4.5 times elapsed time
+* checking tests ... [4s/2s] OK
+  Running ‘tinytest.R’ [3s/2s]
 * checking for unstated dependencies in vignettes ... OK
 * checking package vignettes ... OK
-* checking re-building of vignette outputs ... [7s/2s] NOTE
-Re-building vignettes had CPU time 3.2 times elapsed time
+* checking re-building of vignette outputs ... [6s/2s] NOTE
+Re-building vignettes had CPU time 2.6 times elapsed time
 * checking for non-standard things in the check directory ... OK
 * checking for detritus in the temp directory ... OK
 * DONE
-Status: 5 NOTEs
+Status: 3 NOTEs

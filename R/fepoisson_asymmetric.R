@@ -100,8 +100,9 @@
 #'
 #' @examples
 #' ross2004_subset <- ross2004[ross2004$year == 1999, ]
-#' ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-#' 
+#' ross2004_subset <- ross2004_subset[ross2004_subset$ltrade >
+#'   quantile(ross2004_subset$ltrade, 0.75), ]
+#'
 #' # Lower expectile (10th) - more weight on negative residuals
 #' fit10 <- fepoisson_asymmetric(
 #'   ltrade ~ ldist | ctry1, ross2004_subset,

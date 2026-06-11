@@ -33,10 +33,11 @@ ggplot2::autoplot
 #'
 #' @examples
 #' ross2004_subset <- ross2004[ross2004$year == 1999, ]
-#' ross2004_subset <- ross2004[ross2004$ltrade > 0, ]
-#' 
+#' ross2004_subset <- ross2004_subset[ross2004_subset$ltrade >
+#'   quantile(ross2004_subset$ltrade, 0.75), ]
+#'
 #' fit <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
-#' 
+#'
 #' autoplot(fit, conf_level = 0.99)
 #'
 #' @export
@@ -108,7 +109,12 @@ autoplot.feglm <- function(object, ...) {
 #' @return A ggplot object with the estimated coefficients and their confidence intervals.
 #'
 #' @examples
-#' fit <- felm(ltrade ~ ldist | ctry1, ross2004[ross2004$year == 1999, ])
+#' ross2004_subset <- ross2004[ross2004$year == 1999, ]
+#' ross2004_subset <- ross2004_subset[ross2004_subset$ltrade >
+#'   quantile(ross2004_subset$ltrade, 0.75), ]
+#'
+#' fit <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
+#'
 #' autoplot(fit, conf_level = 0.99)
 #'
 #' @export

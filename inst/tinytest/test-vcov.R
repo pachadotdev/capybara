@@ -6,14 +6,16 @@
 
 source(system.file("tinytest", "helper.R", package = "capybara"))
 
-# vcov returns correct structure for feglm ----
-
 local({
-  skip_on_cran()
+  if (Sys.getenv("CAPYBARA_FULL_TESTING") != "yes") {
+    return(NULL)
+  }
+
+  # vcov returns correct structure for feglm ----
 
   # Model without clustering - returns inverse Hessian
   ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
 
   m1 <- fepoisson(ltrade ~ ldist + border | ctry1, ross2004_subset)
 
@@ -31,16 +33,12 @@ local({
   expect_equal(nrow(v2), 2L)
   expect_equal(ncol(v2), 2L)
   expect_true(all(is.finite(v2)))
-})
 
-# sandwich vcov is symmetric and positive semi-definite ----
-
-local({
-  skip_on_cran()
+  # sandwich vcov is symmetric and positive semi-definite ----
 
   ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+
   m <- fepoisson(ltrade ~ ldist + border | ctry1 | ctry2, ross2004_subset)
   v <- vcov(m)
 
@@ -50,12 +48,8 @@ local({
   # Should be positive semi-definite (all eigenvalues >= 0)
   eigen_vals <- eigen(v, symmetric = TRUE, only.values = TRUE)$values
   expect_true(all(eigen_vals >= -1e-10)) # Allow small numerical error
-})
 
-# clustered SEs are larger with positive within-cluster correlation ----
-
-local({
-  skip_on_cran()
+  # clustered SEs are larger with positive within-cluster correlation ----
 
   # Simulate panel data with strong positive within-cluster correlation
   # In this case, sandwich SEs should be larger than model-based SEs
@@ -103,17 +97,9 @@ local({
   se_sandwich <- sqrt(diag(v_sandwich))
 
   expect_true(all(se_sandwich >= se_hessian * 0.99)) # Allow tiny numerical tolerance
-})
 
-# clustered vs non-clustered vcov give different results ----
+  # clustered vs non-clustered vcov give different results ----
 
-local({
-  skip_on_cran()
-
-  # Fit same model with and without clustering
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
   m_no_cluster <- fepoisson(ltrade ~ ldist + border | ctry1, ross2004_subset)
   m_clustered <- fepoisson(ltrade ~ ldist + border | ctry1 | ctry2, ross2004_subset)
 
@@ -126,16 +112,9 @@ local({
     v_sandwich,
     check.attributes = FALSE
   )))
-})
 
-# vcov works for felm models ----
+  # vcov works for felm models ----
 
-local({
-  skip_on_cran()
-
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
   m <- felm(ltrade ~ ldist + border | ctry1, ross2004_subset)
   v <- vcov(m)
 
@@ -143,16 +122,9 @@ local({
   expect_equal(nrow(v), 2L)
   expect_equal(ncol(v), 2L)
   expect_true(all(is.finite(v)))
-})
 
-# vcov works for felm with clustering ----
+  # vcov works for felm with clustering ----
 
-local({
-  skip_on_cran()
-
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
   m <- felm(ltrade ~ ldist + border | ctry1 | ctry2, ross2004_subset)
   v <- vcov(m)
 
@@ -160,47 +132,26 @@ local({
   expect_equal(nrow(v), 2L)
   expect_equal(ncol(v), 2L)
   expect_true(all(is.finite(v)))
-})
 
-# vcov has correct row and column names ----
+  # vcov has correct row and column names ----
 
-local({
-  skip_on_cran()
-
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
   m <- fepoisson(ltrade ~ ldist + border | ctry1, ross2004_subset)
   v <- vcov(m)
 
   expect_equal(rownames(v), c("ldist", "border"))
   expect_equal(colnames(v), c("ldist", "border"))
-})
 
-# vcov works with single predictor ----
+  # vcov works with single predictor ----
 
-local({
-  skip_on_cran()
-
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
   m <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
   v <- vcov(m)
 
   expect_true(is.matrix(v))
   expect_equal(nrow(v), 1L)
   expect_equal(ncol(v), 1L)
-})
 
-# vcov works for fenegbin ----
+  # vcov works for fenegbin ----
 
-local({
-  skip_on_cran()
-
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
   m <- fenegbin(ltrade ~ ldist | ctry1, ross2004_subset)
   v <- vcov(m)
 

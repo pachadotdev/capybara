@@ -12,7 +12,9 @@ source(system.file("tinytest", "helper.R", package = "capybara"))
 
 # fepoisson_asymmetric slopes are smaller than fepoisson at 25% expectile
 local({
-  skip_on_cran()
+  if (Sys.getenv("CAPYBARA_FULL_TESTING") != "yes") {
+    return(NULL)
+  }
 
   ross2004_subset <- ross2004[ross2004$year == 1999, ]
 

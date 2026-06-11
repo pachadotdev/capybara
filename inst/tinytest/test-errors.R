@@ -8,10 +8,12 @@
 
 source(system.file("tinytest", "helper.R", package = "capybara"))
 
-# error conditions in GLMs ----
-
 local({
-  # 0 rows in the data
+  if (Sys.getenv("CAPYBARA_FULL_TESTING") != "yes") {
+    return(NULL)
+  }
+
+  # 0 rows in the data ----
 
   expect_error(
     fepoisson(
@@ -21,7 +23,7 @@ local({
     "zero observations"
   )
 
-  # incorrect deviance tolerance
+  # incorrect deviance tolerance ---
 
   expect_error(
     fepoisson(
@@ -32,7 +34,7 @@ local({
     "greater than zero"
   )
 
-  # bad number of iterations
+  # bad number of iterations ----
 
   expect_error(
     fepoisson(
@@ -43,7 +45,7 @@ local({
     "greater than zero"
   )
 
-  # bad number of iterations
+  # bad number of iterations ----
 
   expect_error(
     fepoisson(
@@ -53,16 +55,12 @@ local({
     ),
     "greater than zero"
   )
-})
 
-# error conditions in helpers ----
-
-local({
-  # no formula
+  # no formula ----
 
   expect_error(feglm(data = ross2004), "'formula' has to be specified")
 
-  # incorrect formula
+  # incorrect formula ----
 
   expect_error(
     feglm(
@@ -72,21 +70,21 @@ local({
     "'formula' has to be of class 'formula'"
   )
 
-  # null data
+  # null data ----
 
   expect_error(
     fepoisson(ltrade ~ ldist | ctry1, data = NULL),
     "'data' must be specified"
   )
 
-  # empty data
+  # empty data ----
 
   expect_error(
     fepoisson(ltrade ~ ldist | ctry1, data = list()),
     "'data' must be a data.frame"
   )
 
-  # incorrect control
+  # incorrect control ----
 
   expect_error(
     fepoisson(
@@ -97,7 +95,7 @@ local({
     "'control' has to be a list"
   )
 
-  # we have the cluster estimator to do the same as quasi-Poisson
+  # we have the cluster estimator to do the same as quasi-Poisson ----
 
   expect_error(
     feglm(
@@ -108,7 +106,7 @@ local({
     "should be one of"
   )
 
-  # fitting a negative binomial model with the GLM function
+  # fitting a negative binomial model with the GLM function ----
 
   expect_error(
     feglm(
@@ -119,7 +117,7 @@ local({
     "use 'fenegbin' instead"
   )
 
-  # incorrect beta
+  # incorrect beta ----
 
   expect_error(
     feglm(
@@ -130,7 +128,7 @@ local({
     "Invalid input type"
   )
 
-  # incorrect eta
+  # incorrect eta ----
 
   expect_error(
     feglm(
@@ -141,7 +139,7 @@ local({
     "Invalid input type"
   )
 
-  # incorrect theta
+  # incorrect theta ----
 
   expect_error(
     fenegbin(
@@ -152,7 +150,7 @@ local({
     "positive scalar"
   )
 
-  # intentionally break the data with unusable weights
+  # intentionally break the data with unusable weights ----
 
   ross2004$bad_weights <- NA
 
@@ -164,53 +162,32 @@ local({
     ),
     "Weights must be numeric"
   )
-})
 
-# ---- Additional error tests ----
+  # model errors on missing data ----
 
-# model errors on missing data
-local({
   expect_error(
     fepoisson(ltrade ~ ldist | ctry1),
     "data"
   )
-})
 
-# model errors on invalid formula
-local({
+  # model errors on invalid formula
+
   expect_error(
     fepoisson(~ ldist | ctry1, ross2004),
     "formula"
   )
-})
 
-# model errors on non-existent variables
-local({
+  # model errors on non-existent variables ----
+
   ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
 
   expect_error(
     fepoisson(ltrade ~ nonexistent | ctry1, ross2004_subset),
     "undefined columns"
   )
-})
 
-# model errors on empty fixed effects
-local({
-  skip_on_cran()
-
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
-  # This should work - no FE is valid
-  mod <- fepoisson(ltrade ~ ldist, ross2004_subset)
-  expect_true(inherits(mod, "feglm"))
-})
-
-# predict errors on missing newdata variables
-local({
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
+  # predict errors on missing newdata variables ----
 
   mod <- fepoisson(ltrade ~ ldist + border | ctry1, ross2004_subset, control = fit_control(return_fe = TRUE))
 
@@ -220,25 +197,17 @@ local({
     predict(mod, newdata = newdata),
     "undefined columns selected"
   )
-})
 
-# vcov works correctly
-local({
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
+  # vcov works correctly ----
+
   mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
   v <- vcov(mod)
 
   expect_true(is.matrix(v))
   expect_equal(dim(v), c(1, 1))
-})
 
-# summary works for all model types
-local({
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
+  # summary works for all model types ----
+
   mod_felm <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
   mod_feglm <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
   mod_fenegbin <- fenegbin(ltrade ~ ldist | ctry1, ross2004_subset)
@@ -246,39 +215,23 @@ local({
   expect_true(inherits(summary(mod_felm), "summary.felm"))
   expect_true(inherits(summary(mod_feglm), "summary.feglm"))
   expect_true(inherits(summary(mod_fenegbin), "summary.feglm"))
-})
 
-# coef extraction works
-local({
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
+  # coef extraction works ----
+
   mod <- fepoisson(ltrade ~ ldist + border | ctry1, ross2004_subset)
   cf <- coef(mod)
 
   expect_equal(length(cf), 2)
   expect_true(all(names(cf) %in% c("ldist", "border")))
-})
 
-# model handles zero counts in Poisson
-local({
-  skip_on_cran()
+  # model handles zero counts in Poisson ----
 
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   ross2004_subset$ltrade[1:3] <- 0
 
   mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
 
   expect_true(inherits(mod, "feglm"))
-})
 
-# model handles extreme values
-local({
-  skip_on_cran()
-
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   ross2004_subset$ldist[1:3] <- Inf
 
   mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)

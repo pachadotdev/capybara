@@ -187,10 +187,12 @@ By default, \code{fit_control()} returns "thin" model objects with minimal memor
 
 \examples{
 ross2004_subset <- ross2004[ross2004$year == 1999, ]
-ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
+ross2004_subset <- ross2004_subset[ross2004_subset$ltrade >
+  quantile(ross2004_subset$ltrade, 0.75), ]
 
 felm(ltrade ~ ldist | ctry1, ross2004_subset,
- control = fit_control(dev_tol = 1e-10, center_tol = 1e-10))
+  control = fit_control(dev_tol = 1e-10, center_tol = 1e-10)
+)
 
 }
 \seealso{

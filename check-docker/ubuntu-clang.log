@@ -5,90 +5,41 @@ pkg-config is already the newest version (0.29.2-1ubuntu3).
 libxml2-dev is already the newest version (2.9.13+dfsg-1ubuntu0.11).
 libxml2-dev set to manually installed.
 The following additional packages will be installed:
-  libuv1
+  libudunits2-0 libudunits2-data libuv1
 The following NEW packages will be installed:
-  libuv1 libuv1-dev
-0 upgraded, 2 newly installed, 0 to remove and 12 not upgraded.
-Need to get 223 kB of archives.
-After this operation, 906 kB of additional disk space will be used.
+  libudunits2-0 libudunits2-data libudunits2-dev libuv1 libuv1-dev
+0 upgraded, 5 newly installed, 0 to remove and 12 not upgraded.
+Need to get 656 kB of archives.
+After this operation, 1970 kB of additional disk space will be used.
 Get:1 http://archive.ubuntu.com/ubuntu jammy-updates/main amd64 libuv1 amd64 1.43.0-1ubuntu0.1 [92.7 kB]
-Get:2 http://archive.ubuntu.com/ubuntu jammy-updates/main amd64 libuv1-dev amd64 1.43.0-1ubuntu0.1 [130 kB]
+Get:2 http://archive.ubuntu.com/ubuntu jammy/universe amd64 libudunits2-data all 2.2.28-3 [19.0 kB]
+Get:3 http://archive.ubuntu.com/ubuntu jammy/universe amd64 libudunits2-0 amd64 2.2.28-3 [50.3 kB]
+Get:4 http://archive.ubuntu.com/ubuntu jammy/universe amd64 libudunits2-dev amd64 2.2.28-3 [364 kB]
+Get:5 http://archive.ubuntu.com/ubuntu jammy-updates/main amd64 libuv1-dev amd64 1.43.0-1ubuntu0.1 [130 kB]
 debconf: delaying package configuration, since apt-utils is not installed
-Fetched 223 kB in 0s (2597 kB/s)
+Fetched 656 kB in 0s (4862 kB/s)
 Selecting previously unselected package libuv1:amd64.
 (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 27283 files and directories currently installed.)
 Preparing to unpack .../libuv1_1.43.0-1ubuntu0.1_amd64.deb ...
 Unpacking libuv1:amd64 (1.43.0-1ubuntu0.1) ...
+Selecting previously unselected package libudunits2-data.
+Preparing to unpack .../libudunits2-data_2.2.28-3_all.deb ...
+Unpacking libudunits2-data (2.2.28-3) ...
+Selecting previously unselected package libudunits2-0.
+Preparing to unpack .../libudunits2-0_2.2.28-3_amd64.deb ...
+Unpacking libudunits2-0 (2.2.28-3) ...
+Selecting previously unselected package libudunits2-dev.
+Preparing to unpack .../libudunits2-dev_2.2.28-3_amd64.deb ...
+Unpacking libudunits2-dev (2.2.28-3) ...
 Selecting previously unselected package libuv1-dev:amd64.
 Preparing to unpack .../libuv1-dev_1.43.0-1ubuntu0.1_amd64.deb ...
 Unpacking libuv1-dev:amd64 (1.43.0-1ubuntu0.1) ...
 Setting up libuv1:amd64 (1.43.0-1ubuntu0.1) ...
+Setting up libudunits2-data (2.2.28-3) ...
 Setting up libuv1-dev:amd64 (1.43.0-1ubuntu0.1) ...
+Setting up libudunits2-0 (2.2.28-3) ...
+Setting up libudunits2-dev (2.2.28-3) ...
 Processing triggers for libc-bin (2.35-0ubuntu3.13) ...
-trying URL 'https://cloud.r-project.org/src/contrib/units_1.0-1.tar.gz'
-Content type 'application/x-gzip' length 369348 bytes (360 KB)
-==================================================
-downloaded 360 KB
-
-* installing *source* package ‘units’ ...
-** this is package ‘units’ version ‘1.0-1’
-** package ‘units’ successfully unpacked and MD5 sums checked
-** using staged installation
-configure: units: 1.0-1
-checking for default C++ standard... 202002
-checking whether the C++ compiler works... yes
-checking for C++ compiler default output file name... a.out
-checking for suffix of executables... 
-checking whether we are cross compiling... no
-checking for suffix of object files... o
-checking whether the compiler supports GNU C++... yes
-checking whether clang++-15 -std=gnu++20 accepts -g... yes
-checking for clang++-15 -std=gnu++20 option to enable C++11 features... -std=gnu++11
-checking for stdio.h... yes
-checking for stdlib.h... yes
-checking for string.h... yes
-checking for inttypes.h... yes
-checking for stdint.h... yes
-checking for strings.h... yes
-checking for sys/stat.h... yes
-checking for sys/types.h... yes
-checking for unistd.h... yes
-checking for _Bool... no
-checking for stdbool.h that conforms to C99 or later... yes
-checking for error_at_line... yes
-checking for gcc... clang-15
-checking whether the compiler supports GNU C... yes
-checking whether clang-15 accepts -g... yes
-checking for clang-15 option to enable C11 features... none needed
-checking for brew... no
-checking for XML_ParserCreate in -lexpat... no
-checking for udunits2.h... no
-checking for udunits2/udunits2.h... no
-checking for ut_read_xml in -ludunits2... no
-configure: error: in '/tmp/RtmpxJkZJS/R.INSTALL11066caaa7c/units':
-configure: error: 
---------------------------------------------------------------------------------
-  Configuration failed because libudunits2.so was not found. Try installing:
-    * deb: libudunits2-dev (Debian, Ubuntu, ...)
-    * rpm: udunits2-devel (Fedora, EPEL, ...)
-    * brew: udunits (OSX)
-  If udunits2 is already installed in a non-standard location, use:
-    --configure-args='--with-udunits2-lib=/usr/local/lib'
-  if the library was not found, and/or:
-    --configure-args='--with-udunits2-include=/usr/include/udunits2'
-  if the header was not found, replacing paths with appropriate values.
-  You can alternatively set UDUNITS2_INCLUDE and UDUNITS2_LIBS manually.
---------------------------------------------------------------------------------
-
-See 'config.log' for more details
-ERROR: configuration failed for package ‘units’
-* removing ‘/cache/R_libs/units’
-
-The downloaded source packages are in
-	‘/tmp/RtmpydGrtn/downloaded_packages’
-Warning message:
-In install.packages("units", lib = user_lib) :
-  installation of package ‘units’ had non-zero exit status
 * installing *source* package ‘cpp4r’ ...
 ** this is package ‘cpp4r’ version ‘1.0.0’
 ** using staged installation
@@ -155,34 +106,13 @@ specified C++20
 using C++ compiler: ‘Ubuntu clang version 15.0.7’
 using C++20
 clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG  -I'/cache/R_libs/armadillo4r/include' -I'/cache/R_libs/cpp4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2   -c capybara.cpp -o capybara.o
-capybara.cpp:1212:39: warning: braces around scalar initializer [-Wbraced-scalar-init]
-       "conv"_nm = writable::logicals({result.conv}),
-                                      ^~~~~~~~~~~~~
-capybara.cpp:1224:61: warning: braces around scalar initializer [-Wbraced-scalar-init]
-    out.push_back({"has_separation"_nm = writable::logicals({true})});
-                                                            ^~~~~~
-capybara.cpp:1611:39: warning: braces around scalar initializer [-Wbraced-scalar-init]
-       "conv"_nm = writable::logicals({result.conv}),
-                                      ^~~~~~~~~~~~~
-capybara.cpp:1623:61: warning: braces around scalar initializer [-Wbraced-scalar-init]
-    out.push_back({"has_separation"_nm = writable::logicals({true})});
-                                                            ^~~~~~
-capybara.cpp:1815:39: warning: braces around scalar initializer [-Wbraced-scalar-init]
-       "conv"_nm = writable::logicals({result.conv}),
-                                      ^~~~~~~~~~~~~
 capybara.cpp:1820:45: warning: braces around scalar initializer [-Wbraced-scalar-init]
        "conv_outer"_nm = writable::logicals({result.conv_outer})});
                                             ^~~~~~~~~~~~~~~~~~~
-capybara.cpp:1990:39: warning: braces around scalar initializer [-Wbraced-scalar-init]
-       "conv"_nm = writable::logicals({result.conv}),
-                                      ^~~~~~~~~~~~~
 capybara.cpp:1995:45: warning: braces around scalar initializer [-Wbraced-scalar-init]
        "conv_outer"_nm = writable::logicals({result.conv_outer}),
                                             ^~~~~~~~~~~~~~~~~~~
-capybara.cpp:2008:61: warning: braces around scalar initializer [-Wbraced-scalar-init]
-    out.push_back({"has_separation"_nm = writable::logicals({true})});
-                                                            ^~~~~~
-9 warnings generated.
+2 warnings generated.
 clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG  -I'/cache/R_libs/armadillo4r/include' -I'/cache/R_libs/cpp4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2   -c cpp4r.cpp -o cpp4r.o
 clang++-15 -std=gnu++20 -shared -L/opt/R/devel/lib/R/lib -L/usr/local/lib -o capybara.so capybara.o cpp4r.o -fopenmp -llapack -lblas -lgfortran -lm -lquadmath -L/opt/R/devel/lib/R/lib -lR
 installing to /cache/R_libs/00LOCK-capybara/00new/capybara/libs
@@ -209,7 +139,7 @@ installing to /cache/R_libs/00LOCK-capybara/00new/capybara/libs
     GNU Fortran (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
 * running under: Ubuntu 22.04.5 LTS
 * using session charset: UTF-8
-* current time: 2026-06-10 09:32:04 UTC
+* current time: 2026-06-11 11:01:41 UTC
 * using options ‘--no-manual --as-cran’
 * checking for file ‘capybara/DESCRIPTION’ ... OK
 * checking extension type ... Package
@@ -221,15 +151,14 @@ Maintainer: ‘Mauricio Vargas Sepulveda <m.vargas.sepulveda@gmail.com>’
 Checking URLs failed with message:
   there is no package called ‘curl’
 * checking package namespace information ... OK
-* checking package dependencies ... INFO
-Package suggested but not available for checking: ‘units’
+* checking package dependencies ... OK
 * checking if this is a source package ... OK
 * checking if there is a namespace ... OK
 * checking for .dll and .exe files ... OK
 * checking for hidden files and directories ... OK
 * checking for portable file names ... OK
 * checking for sufficient/correct file permissions ... OK
-* checking whether package ‘capybara’ can be installed ... [47s/40s] OK
+* checking whether package ‘capybara’ can be installed ... [58s/52s] OK
 * used C++ compiler: ‘Ubuntu clang version 15.0.7’
 * checking C++ specification ... INFO
   specified C++20
@@ -255,7 +184,7 @@ Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ be
 * checking S3 generic/method consistency ... OK
 * checking replacement functions ... OK
 * checking foreign function calls ... OK
-* checking R code for possible problems ... [20s/9s] OK
+* checking R code for possible problems ... [21s/11s] OK
 * checking Rd files ... [1s/0s] OK
 * checking Rd metadata ... OK
 * checking Rd line widths ... OK
@@ -282,25 +211,19 @@ Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ be
 * checking compiled code ... OK
 * checking installed files from ‘inst/doc’ ... OK
 * checking files in ‘vignettes’ ... OK
-* checking examples ... [11s/3s] NOTE
-Examples with CPU time > 2.5 times elapsed time
-          user system elapsed ratio
-broom    1.086  0.391   0.289 5.111
-autoplot 1.790  0.053   0.580 3.178
+* checking examples ... [9s/4s] OK
 * checking for unstated dependencies in ‘tests’ ... OK
 * checking tests ...
-  Running ‘tinytest.R’ [43s/9s]
-Running R code in ‘tinytest.R’ had CPU time 4.7 times elapsed time
- [44s/9s] NOTE
+  Running ‘tinytest.R’ [5s/2s]
+ [6s/3s] OK
 * checking for unstated dependencies in vignettes ... OK
 * checking package vignettes ... OK
-* checking re-building of vignette outputs ... [7s/2s] NOTE
-Re-building vignettes had CPU time 3.1 times elapsed time
+* checking re-building of vignette outputs ... [6s/3s] OK
 * checking for non-standard things in the check directory ... OK
 * checking for detritus in the temp directory ... OK
 * DONE
 
-Status: 5 NOTEs
+Status: 2 NOTEs
 See
   ‘/check/capybara.Rcheck/00check.log’
 for details.
@@ -344,34 +267,13 @@ specified C++20
 using C++ compiler: ‘Ubuntu clang version 15.0.7’
 using C++20
 clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG  -I'/cache/R_libs/armadillo4r/include' -I'/cache/R_libs/cpp4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2   -c capybara.cpp -o capybara.o
-capybara.cpp:1212:39: warning: braces around scalar initializer [-Wbraced-scalar-init]
-       "conv"_nm = writable::logicals({result.conv}),
-                                      ^~~~~~~~~~~~~
-capybara.cpp:1224:61: warning: braces around scalar initializer [-Wbraced-scalar-init]
-    out.push_back({"has_separation"_nm = writable::logicals({true})});
-                                                            ^~~~~~
-capybara.cpp:1611:39: warning: braces around scalar initializer [-Wbraced-scalar-init]
-       "conv"_nm = writable::logicals({result.conv}),
-                                      ^~~~~~~~~~~~~
-capybara.cpp:1623:61: warning: braces around scalar initializer [-Wbraced-scalar-init]
-    out.push_back({"has_separation"_nm = writable::logicals({true})});
-                                                            ^~~~~~
-capybara.cpp:1815:39: warning: braces around scalar initializer [-Wbraced-scalar-init]
-       "conv"_nm = writable::logicals({result.conv}),
-                                      ^~~~~~~~~~~~~
 capybara.cpp:1820:45: warning: braces around scalar initializer [-Wbraced-scalar-init]
        "conv_outer"_nm = writable::logicals({result.conv_outer})});
                                             ^~~~~~~~~~~~~~~~~~~
-capybara.cpp:1990:39: warning: braces around scalar initializer [-Wbraced-scalar-init]
-       "conv"_nm = writable::logicals({result.conv}),
-                                      ^~~~~~~~~~~~~
 capybara.cpp:1995:45: warning: braces around scalar initializer [-Wbraced-scalar-init]
        "conv_outer"_nm = writable::logicals({result.conv_outer}),
                                             ^~~~~~~~~~~~~~~~~~~
-capybara.cpp:2008:61: warning: braces around scalar initializer [-Wbraced-scalar-init]
-    out.push_back({"has_separation"_nm = writable::logicals({true})});
-                                                            ^~~~~~
-9 warnings generated.
+2 warnings generated.
 clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG  -I'/cache/R_libs/armadillo4r/include' -I'/cache/R_libs/cpp4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2   -c cpp4r.cpp -o cpp4r.o
 clang++-15 -std=gnu++20 -shared -L/opt/R/devel/lib/R/lib -L/usr/local/lib -o capybara.so capybara.o cpp4r.o -fopenmp -llapack -lblas -lgfortran -lm -lquadmath -L/opt/R/devel/lib/R/lib -lR
 installing to /check/capybara.Rcheck/00LOCK-capybara/00new/capybara/libs
@@ -399,7 +301,7 @@ installing to /check/capybara.Rcheck/00LOCK-capybara/00new/capybara/libs
     GNU Fortran (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
 * running under: Ubuntu 22.04.5 LTS
 * using session charset: UTF-8
-* current time: 2026-06-10 09:32:04 UTC
+* current time: 2026-06-11 11:01:41 UTC
 * using options ‘--no-manual --as-cran’
 * checking for file ‘capybara/DESCRIPTION’ ... OK
 * checking extension type ... Package
@@ -411,15 +313,14 @@ Maintainer: ‘Mauricio Vargas Sepulveda <m.vargas.sepulveda@gmail.com>’
 Checking URLs failed with message:
   there is no package called ‘curl’
 * checking package namespace information ... OK
-* checking package dependencies ... INFO
-Package suggested but not available for checking: ‘units’
+* checking package dependencies ... OK
 * checking if this is a source package ... OK
 * checking if there is a namespace ... OK
 * checking for .dll and .exe files ... OK
 * checking for hidden files and directories ... OK
 * checking for portable file names ... OK
 * checking for sufficient/correct file permissions ... OK
-* checking whether package ‘capybara’ can be installed ... [47s/40s] OK
+* checking whether package ‘capybara’ can be installed ... [58s/52s] OK
 * used C++ compiler: ‘Ubuntu clang version 15.0.7’
 * checking C++ specification ... INFO
   specified C++20
@@ -445,7 +346,7 @@ Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ be
 * checking S3 generic/method consistency ... OK
 * checking replacement functions ... OK
 * checking foreign function calls ... OK
-* checking R code for possible problems ... [20s/9s] OK
+* checking R code for possible problems ... [21s/11s] OK
 * checking Rd files ... [1s/0s] OK
 * checking Rd metadata ... OK
 * checking Rd line widths ... OK
@@ -472,20 +373,14 @@ Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ be
 * checking compiled code ... OK
 * checking installed files from ‘inst/doc’ ... OK
 * checking files in ‘vignettes’ ... OK
-* checking examples ... [11s/3s] NOTE
-Examples with CPU time > 2.5 times elapsed time
-          user system elapsed ratio
-broom    1.086  0.391   0.289 5.111
-autoplot 1.790  0.053   0.580 3.178
+* checking examples ... [9s/4s] OK
 * checking for unstated dependencies in ‘tests’ ... OK
-* checking tests ... [44s/9s] NOTE
-  Running ‘tinytest.R’ [43s/9s]
-Running R code in ‘tinytest.R’ had CPU time 4.7 times elapsed time
+* checking tests ... [6s/3s] OK
+  Running ‘tinytest.R’ [5s/2s]
 * checking for unstated dependencies in vignettes ... OK
 * checking package vignettes ... OK
-* checking re-building of vignette outputs ... [7s/2s] NOTE
-Re-building vignettes had CPU time 3.1 times elapsed time
+* checking re-building of vignette outputs ... [6s/3s] OK
 * checking for non-standard things in the check directory ... OK
 * checking for detritus in the temp directory ... OK
 * DONE
-Status: 5 NOTEs
+Status: 2 NOTEs

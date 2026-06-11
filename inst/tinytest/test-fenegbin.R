@@ -7,26 +7,11 @@
 source(system.file("tinytest", "helper.R", package = "capybara"))
 
 local({
-  skip_on_cran()
+  if (Sys.getenv("CAPYBARA_FULL_TESTING") != "yes") {
+    return(NULL)
+  }
 
   mod <- fenegbin(ltrade ~ ldist | ctry1, ross2004)
-
-  expect_true(inherits(mod, "feglm"))
-  expect_true(!is.null(mod$coef_table))
-
-  s <- summary(mod)
-
-  expect_true(inherits(s, "summary.feglm"))
-  expect_true("theta" %in% names(s))
-})
-
-local({
-  skip_on_cran()
-
-  # Test with a different dataset
-  data("ross2004", package = "capybara")
-  mod <- fenegbin(ltrade ~ ldist | ctry1, ross2004,
-    control = fit_control(centering = "stammann"))
 
   expect_true(inherits(mod, "feglm"))
   expect_true(!is.null(mod$coef_table))

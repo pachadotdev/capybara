@@ -11,13 +11,17 @@
 
 source(system.file("tinytest", "helper.R", package = "capybara"))
 
-# 1FE Stammann centering ----
-
 local({
+  if (Sys.getenv("CAPYBARA_FULL_TESTING") != "yes") {
+    return(NULL)
+  }
+
+  # 1FE Stammann centering ----
+
   ctrl <- list(centering = "stammann")
 
   ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
 
   m1 <- felm(formula = ltrade ~ ldist | ctry1, data = ross2004_subset, control = ctrl)
   m2 <- lm(ltrade ~ ldist + as.factor(ctry1), ross2004_subset)
@@ -34,16 +38,9 @@ local({
   m2 <- lm(ltrade ~ ldist + border + as.factor(ctry1), ross2004_subset)
 
   expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-2)
-})
 
-# 2FE Stammann centering ----
+  # 2FE Stammann centering ----
 
-local({
-    ctrl <- list(centering = "stammann")
-
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
   m1 <- felm(ltrade ~ ldist + border | ctry1 + ctry2, ross2004_subset, control = ctrl)
   m2 <- lm(ltrade ~ ldist + border + as.factor(ctry1) + as.factor(ctry2), ross2004_subset)
 
@@ -72,15 +69,11 @@ local({
   m1 <- felm(ltrade ~ ldist + border | ctry1 + ctry2 | year, ross2004_subset, control = ctrl)
 
   expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-2)
-})
 
-# 3FE Stammann centering ----
-
-local({
-    ctrl <- list(centering = "stammann")
+  # 3FE Stammann centering ----
 
   ross2004_subset <- ross2004[ross2004$year %in% c(1994, 1999), ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
 
   m1 <- felm(ltrade ~ ldist + border | ctry1 + ctry2 + year, ross2004_subset, control = ctrl)
   m2 <- lm(
@@ -94,12 +87,9 @@ local({
   s2 <- summary(m2)
   expect_equal(s1$r_squared, s2$r.squared, tolerance = 1e-2)
   expect_equal(s1$adj_r_squared, s2$adj.r.squared, tolerance = 1e-2)
-})
 
-# proportional regressors return NA coefficients (stammann centering) ----
+  # proportional regressors return NA coefficients (stammann centering) ----
 
-local({
-  ctrl <- list(centering = "stammann")
   set.seed(200100)
   d <- data.frame(
     y = rnorm(100),
@@ -113,16 +103,9 @@ local({
 
   expect_equal(coef(fit2), coef(fit1)[2:3], tolerance = 1e-2)
   expect_equal(predict(fit2), predict(fit1), tolerance = 1e-2)
-})
 
-# felm correctly predicts values outside the inter-quartile range (Stammann centering) ----
+  # felm correctly predicts values outside the inter-quartile range (Stammann centering) ----
 
-local({
-  ctrl <- list(centering = "stammann")
-
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
   d1 <- ross2004_subset[
     ross2004_subset$ltrade >= quantile(ross2004_subset$ltrade, 0.25) &
       ross2004_subset$ltrade <= quantile(ross2004_subset$ltrade, 0.75),
@@ -141,18 +124,12 @@ local({
   expect_true(mape(d1$ltrade, pred1_lm) < mape(d2$ltrade, pred2_lm))
   expect_equal(pred1_lm, predict(m2_lm, newdata = d1), tolerance = 1e-2)
   expect_equal(pred2_lm, predict(m2_lm, newdata = d2), tolerance = 1e-2)
-})
 
-# felm with weights works (Stammann centering) ----
+  # felm with weights works (Stammann centering) ----
 
-local({
-  skip_on_cran()
-  ctrl <- list(centering = "stammann")
-
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   ross2004_subset$trade_pair <- ave(ross2004_subset$ltrade, ross2004_subset$pair,
-    FUN = function(x) sum(x, na.rm = TRUE))
+    FUN = function(x) sum(x, na.rm = TRUE)
+  )
 
   m1 <- felm(ltrade ~ ldist | ctry1, weights = ~trade_pair, data = ross2004_subset, control = ctrl)
   m2 <- felm(ltrade ~ ldist | ctry1, weights = ross2004_subset$trade_pair, data = ross2004_subset, control = ctrl)

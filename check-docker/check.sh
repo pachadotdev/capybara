@@ -139,12 +139,13 @@ docker run --rm \
     }
     trap show_logs_and_fix_perms EXIT
     export R_LIBS_USER=/cache/R_libs
+    export CAPYBARA_FULL_TESTING="yes"
     mkdir -p /cache/R_libs
     # Install minimal system build deps needed by R packages (libuv for 'fs')
     if command -v apt-get >/dev/null 2>&1; then
       export DEBIAN_FRONTEND=noninteractive
       apt-get update -qq || true
-      apt-get install -y --no-install-recommends libuv1-dev libxml2-dev pkg-config || true
+      apt-get install -y --no-install-recommends libuv1-dev libxml2-dev pkg-config libudunits2-dev pandoc || true
     elif command -v dnf >/dev/null 2>&1 || command -v yum >/dev/null 2>&1; then
       PKG_MGR=dnf
       if command -v yum >/dev/null 2>&1; then PKG_MGR=yum; fi

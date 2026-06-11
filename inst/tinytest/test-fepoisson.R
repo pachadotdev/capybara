@@ -10,13 +10,17 @@
 
 source(system.file("tinytest", "helper.R", package = "capybara"))
 
-# fepoisson is similar to base for K=1,2 ----
+local({
+  if (Sys.getenv("CAPYBARA_FULL_TESTING") != "yes") {
+    return(NULL)
+  }
 
-local({  
+  # fepoisson is similar to base for K=1,2 ----
+
   # K = 1
 
   ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
 
   mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset, control = fit_control(return_fe = TRUE))
 
@@ -33,7 +37,7 @@ local({
   expect_equal(dist_variation, 0.0, tolerance = 1e-2)
 
   n <- unname(mod[["nobs"]]["nobs_full"])
-  
+
   expect_equal(length(fitted(mod)), n)
   expect_equal(length(predict(mod)), n)
   expect_equal(length(coef(mod)), 1)
@@ -57,15 +61,11 @@ local({
   dist_variation <- abs((coef(mod)[1] - coef_dist_base) / coef(mod)[1])
 
   expect_true(dist_variation < 0.05)
-})
 
-# fepoisson is similar to base for K=3 ----
-
-local({
-  skip_on_cran()
+  # fepoisson is similar to base for K=3 ----
 
   ross2004_subset <- ross2004[ross2004$year %in% c(1994, 1999), ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
 
   mod <- fepoisson(ltrade ~ ldist | ctry1 + ctry2 + year, ross2004_subset, control = fit_control(return_fe = TRUE))
 
@@ -100,15 +100,13 @@ local({
 
   expect_equal(unname(pred_mod), unname(pred_mod_base), tolerance = 1e-2)
   expect_equal(unname(pred_mod_link), unname(pred_mod_base_link), tolerance = 1e-2)
-})
 
-# fepoisson estimation is the same adding noise to the data ----
+  # fepoisson estimation is the same adding noise to the data ----
 
-local({
   set.seed(123)
   ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+
   d <- ross2004_subset[, c("ltrade", "ldist", "ctry1")]
   d$ldist2 <- d$ldist + pmax(rnorm(nrow(d)), 0) * .Machine$double.eps
 

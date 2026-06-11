@@ -5,9 +5,12 @@
 
 source(system.file("tinytest", "helper.R", package = "capybara"))
 
-# check_separation works as expected
 local({
-  skip_on_cran()
+  if (Sys.getenv("CAPYBARA_FULL_TESTING") != "yes") {
+    return(NULL)
+  }
+
+  # check_separation works as expected ----
 
   fit1 <- coef(fepoisson(
     y ~ x1 + x2 | i + j,
@@ -22,11 +25,8 @@ local({
 
   expect_true(is.na(fit1[2]))
   expect_true(fit2[2] < 0)
-})
 
-# fepoisson_asymmetric slopes change with/without separation check
-local({
-  skip_on_cran()
+  # fepoisson_asymmetric slopes change with/without separation check ----
 
   mod1 <- fepoisson_asymmetric(
     y ~ x1 + x2 + x3 + x4,

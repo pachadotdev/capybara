@@ -48,3 +48,7 @@ clang_format=`which clang-format-21`
 
 format: $(shell find . -not -path './check-docker/*' -name '*.h') $(shell find . -not -path './check-docker/*' -name '*.hpp') $(shell find . -not -path './check-docker/*' -name '*.cpp')
 	@${clang_format} -i $?
+
+style:
+	@Rscript --vanilla -e 'styler::style_pkg(exclude_dirs = "check-docker")'
+	@Rscript --vanilla -e 'styler::style_dir("inst/tinytest")'

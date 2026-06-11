@@ -16,21 +16,18 @@
 
 source(system.file("tinytest", "helper.R", package = "capybara"))
 
-# feglm works without fixed effects ----
-
 local({
+  # feglm works without fixed effects ----
+
   ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+
   m1 <- feglm(ltrade ~ ldist, data = ross2004_subset)
   m2 <- glm(ltrade ~ ldist, data = ross2004_subset)
 
   expect_equal(coef(m1), coef(m2), tolerance = 1e-6)
-})
 
-# out of sample predictions have larger margins of error ----
-
-local({
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004[ross2004$ltrade > 0, ]
+  # out of sample predictions have larger margins of error ----
 
   ross2004_subset2 <- ross2004_subset[
     ross2004_subset$ltrade >= quantile(ross2004_subset$ltrade, 0.25) &
@@ -38,7 +35,7 @@ local({
   ]
 
   mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset2)
-  
+
   p1 <- predict(mod, newdata = ross2004_subset, type = "response")
   p2 <- predict(mod, newdata = ross2004_subset2, type = "response")
 
@@ -46,11 +43,9 @@ local({
   mape2 <- mape(ross2004_subset2$ltrade, p2)
 
   expect_true(mape1 > mape2)
-})
 
-# proportional regressors return NA coefficients ----
+  # proportional regressors return NA coefficients ----
 
-local({
   set.seed(200100)
   d <- data.frame(
     y = rnorm(100),
@@ -64,16 +59,13 @@ local({
 
   expect_equal(coef(fit2), coef(fit1)[2:3], tolerance = 1e-2)
   expect_equal(predict(fit2), predict(fit1), tolerance = 1e-2)
-})
 
-# feglm with weights works ----
-
-local({
-  skip_on_cran()
+  # feglm with weights works ----
 
   ross2004_subset <- ross2004[ross2004$year == 1999, ]
   ross2004_subset$trade_pair <- ave(ross2004_subset$ltrade, ross2004_subset$pair,
-    FUN = function(x) sum(x, na.rm = TRUE))
+    FUN = function(x) sum(x, na.rm = TRUE)
+  )
 
   m1 <- feglm(ltrade ~ ldist | ctry1, weights = ~trade_pair, data = ross2004_subset)
   m2 <- feglm(ltrade ~ ldist | ctry1, weights = ross2004_subset$trade_pair, data = ross2004_subset)

@@ -6,7 +6,7 @@ local({
   if (!requireNamespace("units", quietly = TRUE)) {
     return(NULL)
   }
-  
+
   set.seed(123)
 
   # F = m * a

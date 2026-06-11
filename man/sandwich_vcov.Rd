@@ -52,8 +52,15 @@ the full dyadic correlation structure including cross-entity correlations.
 \examples{
 # Refitting models
 
-ross2004_subset <- ross2004[ross2004$year == 1999, ]
-ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
+ross2004_s1 <- ross2004[ross2004$year == 1994, ]
+ross2004_s1 <- ross2004_s1[ross2004_s1$ltrade >
+  quantile(ross2004_s1$ltrade, 0.75), ]
+
+ross2004_s2 <- ross2004[ross2004$year == 1999, ]
+ross2004_s2 <- ross2004_s2[ross2004_s2$ltrade >
+  quantile(ross2004_s2$ltrade, 0.75), ]
+
+ross2004_subset <- rbind(ross2004_s1, ross2004_s2)
 
 fepoisson(
   ltrade ~ ldist | ctry1, ross2004_subset,

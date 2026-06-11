@@ -6,14 +6,17 @@
 
 source(system.file("tinytest", "helper.R", package = "capybara"))
 
-# vcov returns correct structure for feglm
 local({
-  skip_on_cran()
+  if (Sys.getenv("CAPYBARA_FULL_TESTING") != "yes") {
+    return(NULL)
+  }
+
+  # vcov returns correct structure for feglm ----
 
   # IID  (no cluster part in formula)
   ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+
   fml <- ltrade ~ ldist + border | ctry1
   fit_iid <- felm(fml, data = ross2004_subset, vcov = "iid")
   vcov_iid <- vcov(fit_iid)

@@ -11,13 +11,16 @@
 
 source(system.file("tinytest", "helper.R", package = "capybara"))
 
-# felm 1-FE ----
-
 local({
-  # Setup ross2004 data
+  if (Sys.getenv("CAPYBARA_FULL_TESTING") != "yes") {
+    return(NULL)
+  }
+
+  # felm 1-FE ----
+
   ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+
   m1 <- felm(formula = ltrade ~ ldist | ctry1, data = ross2004_subset)
   m2 <- lm(ltrade ~ ldist + as.factor(ctry1), ross2004_subset)
 
@@ -33,12 +36,8 @@ local({
   m2 <- lm(ltrade ~ ldist + border + as.factor(ctry1), ross2004_subset)
 
   expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-2)
-})
 
-# felm 2-FE ----
-local({
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
+  # felm 2-FE ----
 
   m1 <- felm(ltrade ~ ldist + border | ctry1 + ctry2, ross2004_subset)
 
@@ -69,12 +68,11 @@ local({
   m1 <- felm(ltrade ~ ldist + border | ctry1 + ctry2 | year, ross2004_subset)
 
   expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-2)
-})
 
-# felm 3-FE ----
-local({
+  # felm 3-FE ----
+
   ross2004_subset <- ross2004[ross2004$year %in% c(1994, 1999), ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
+  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
 
   m1 <- felm(ltrade ~ ldist + border | ctry1 + ctry2 + year, ross2004_subset)
   m2 <- lm(
@@ -88,14 +86,9 @@ local({
   s2 <- summary(m2)
   expect_equal(s1$r_squared, s2$r.squared, tolerance = 1e-2)
   expect_equal(s1$adj_r_squared, s2$adj.r.squared, tolerance = 1e-2)
-})
 
-# felm is correct without fixed effects ----
+  # felm is correct without fixed effects ----
 
-local({
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
   m1 <- felm(ltrade ~ ldist, ross2004_subset)
   m2 <- lm(ltrade ~ ldist, ross2004_subset)
 
@@ -105,14 +98,9 @@ local({
 
   expect_equal(m1$r_squared, s2$r.squared, tolerance = 1e-2)
   expect_equal(m1$adj_r_squared, s2$adj.r.squared, tolerance = 1e-2)
-})
 
-# felm time is the minimally affected when adding noise to the data ----
+  # felm time is the minimally affected when adding noise to the data ----
 
-local({
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
   ross2004_subset2 <- ross2004_subset[, c("ltrade", "ldist", "ctry1")]
   set.seed(200100)
   ross2004_subset2$ltrade <- ross2004_subset2$ltrade + rbinom(nrow(ross2004_subset2), 1, 0.5) * .Machine$double.eps
@@ -135,11 +123,9 @@ local({
     t2[i] <- b - a
   }
   expect_true(abs(median(t1) - median(t2)) < 0.05)
-})
 
-# proportional regressors return NA coefficients ----
+  # proportional regressors return NA coefficients ----
 
-local({
   set.seed(200100)
   d <- data.frame(
     y = rnorm(100),
@@ -153,15 +139,9 @@ local({
 
   expect_equal(coef(fit2), coef(fit1)[2:3], tolerance = 1e-2)
   expect_equal(predict(fit2), predict(fit1), tolerance = 1e-2)
-})
 
-# felm correctly predicts values outside the inter-quartile range ----
+  # felm correctly predicts values outside the inter-quartile range ----
 
-local({
-  # Create data subset once
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
-  
   d1 <- ross2004_subset[
     ross2004_subset$ltrade >= quantile(ross2004_subset$ltrade, 0.25) &
       ross2004_subset$ltrade <= quantile(ross2004_subset$ltrade, 0.75),
@@ -188,17 +168,12 @@ local({
 
   expect_equal(pred1_lm, pred1_base_lm, tolerance = 1e-2)
   expect_equal(pred2_lm, pred2_base_lm, tolerance = 1e-2)
-})
 
-# felm with weights works ----
+  # felm with weights works ----
 
-local({
-  skip_on_cran()
-
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > 0, ]
   ross2004_subset$trade_pair <- ave(ross2004_subset$ltrade, ross2004_subset$pair,
-    FUN = function(x) sum(x, na.rm = TRUE))
+    FUN = function(x) sum(x, na.rm = TRUE)
+  )
 
   m1 <- felm(ltrade ~ ldist | ctry1, weights = ~trade_pair, data = ross2004_subset)
   m2 <- felm(ltrade ~ ldist | ctry1, weights = ross2004_subset$trade_pair, data = ross2004_subset)
