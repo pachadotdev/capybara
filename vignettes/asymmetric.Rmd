@@ -1,0 +1,182 @@
+---
+title: "Asymmetric Poisson Pseudo-Maximum Likelihood (APPML)"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Asymmetric Poisson Pseudo-Maximum Likelihood (APPML)}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```r
+library(capybara)
+```
+
+## Overview
+
+Standard Poisson Pseudo-Maximum Likelihood (PPML) estimates the conditional mean of the outcome
+variable. `fepoisson_asymmetric()` extends this by fitting conditional expectiles — a
+generalization that lets you examine different parts of the conditional distribution with the
+same efficiency gains of high-dimensional fixed effects.
+
+The implementation follows Bergstrand et al. (2025): instead of minimizing a symmetric loss, the
+estimator minimizes an *asymmetric* weighted loss controlled by a single parameter `expectile`
+($\tau \in (0, 1)$):
+
+- $\tau = 0.5$ — standard PPML (symmetric, estimates the conditional mean).
+- $\tau < 0.5$ — places more weight on observations with *negative* residuals, pulling estimates
+  toward the lower part of the distribution.
+- $\tau > 0.5$ — places more weight on observations with *positive* residuals, shifting estimates
+  toward the upper part of the distribution.
+
+The `expectile` is set through `fit_control()` and defaults to `0.5`, so if you don't specify it,
+`fepoisson_asymmetric()` will behave like standard PPML.
+
+## Estimating lower and upper expectiles
+
+Shifting `expectile` away from 0.5 lets you trace how the entire conditional distribution
+of `mpg` varies with `wt`, after absorbing the `cyl` fixed effects.
+
+```r
+ross2004_subset <- ross2004[ross2004$year %in% seq(1989, 1999, 5), ]
+ross2004_subset$trade <- exp(ross2004_subset$ltrade)
+ross2004_subset$exp_year <- paste0(ross2004_subset$ctry1, ross2004_subset$year)
+ross2004_subset$imp_year <- paste0(ross2004_subset$ctry2, ross2004_subset$year)
+
+# 10th expectile — sensitive to small values of mpg
+fit10 <- fepoisson_asymmetric(
+  trade ~ ldist + border + comlang + colony | exp_year + imp_year,
+  data    = ross2004_subset,
+  control = fit_control(expectile = 0.1)
+)
+
+summary(fit10)
+```
+
+```r
+Formula: trade ~ ldist + border + comlang + colony | exp_year + imp_year
+
+Family: Poisson
+
+Estimates:
+
+|         | Estimate | Std. Error | z value     | Pr(>|z|)  |
+|---------|----------|------------|-------------|-----------|
+| ldist   |  -1.0916 |     0.0000 | -39358.0438 | 0.0000 ** |
+| border  |   0.3419 |     0.0001 |   5729.9222 | 0.0000 ** |
+| comlang |   0.3352 |     0.0001 |   5700.9311 | 0.0000 ** |
+| colony  |   0.3942 |     0.0001 |   5416.8894 | 0.0000 ** |
+
+Significance codes: ** p < 0.01; * p < 0.05; + p < 0.10
+
+Fixed effects:
+  exp_year: 457
+  imp_year: 457
+
+Number of observations: Full 21450; Missing 0; Perfect classification 0 
+
+Number of Fisher Scoring iterations: 17
+```
+
+```r
+# 90th expectile — sensitive to large values of mpg
+fit90 <- fepoisson_asymmetric(
+  trade ~ ldist + border + comlang + colony | exp_year + imp_year,
+  data    = ross2004_subset,
+  control = fit_control(expectile = 0.9)
+)
+
+summary(fit90)
+```
+
+```r
+Formula: trade ~ ldist + border + comlang + colony | exp_year + imp_year
+
+Family: Poisson
+
+Estimates:
+
+|         | Estimate | Std. Error | z value     | Pr(>|z|)  |
+|---------|----------|------------|-------------|-----------|
+| ldist   |  -0.9096 |     0.0000 | -45409.0443 | 0.0000 ** |
+| border  |   0.3160 |     0.0000 |   7382.8698 | 0.0000 ** |
+| comlang |   0.1897 |     0.0000 |   4789.5546 | 0.0000 ** |
+| colony  |   0.4657 |     0.0001 |   7910.0068 | 0.0000 ** |
+
+Significance codes: ** p < 0.01; * p < 0.05; + p < 0.10
+
+Fixed effects:
+  exp_year: 457
+  imp_year: 457
+
+Number of observations: Full 21450; Missing 0; Perfect classification 0 
+
+Number of Fisher Scoring iterations: 18
+```
+
+## Comparing coefficients across expectiles
+
+A natural use-case is comparing how the effect of a regressor changes across the distribution.
+The table below collects the coefficient on `wt` at the three expectile levels:
+
+```r
+summary_table(
+  fit10, fit90,
+  model_names = c("10th expectile", "90th expectile")
+)
+```
+
+```r
+|     Variable     |   10th expectile   |   90th expectile   |
+|------------------|--------------------|--------------------|
+| ldist            |           -1.092** |           -0.910** |
+|                  |            (0.000) |            (0.000) |
+| border           |            0.342** |            0.316** |
+|                  |            (0.000) |            (0.000) |
+| comlang          |            0.335** |            0.190** |
+|                  |            (0.000) |            (0.000) |
+| colony           |            0.394** |            0.466** |
+|                  |            (0.000) |            (0.000) |
+|                  |                    |                    |
+| Fixed effects    |                    |                    |
+| exp_year         |                Yes |                Yes |
+| imp_year         |                Yes |                Yes |
+|                  |                    |                    |
+| N                |             21,450 |             21,450 |
+
+Standard errors in parenthesis
+Significance levels: ** p < 0.01; * p < 0.05; + p < 0.10
+```
+
+The log-distance coefficient shrinks in magnitude from `fit10` to `fit90`, which indicates that
+trade much less with each other at the top of the distribution compared to the bottom of the
+distribution.
+
+## Convergence diagnostics
+
+The outer APPML loop updates observation weights until the coefficient vector stops changing.
+You can inspect convergence through the returned list elements:
+
+```r
+cat("Outer loop converged:", fit10$conv_outer, "\n")
+cat("Outer iterations:    ", fit10$iter_outer, "\n")
+cat("Expectile used:      ", fit10$expectile, "\n")
+```
+
+```r
+Outer loop converged: TRUE 
+Outer iterations:     4 
+Expectile used:       0.1
+```
+
+## References
+
+Bergstrand, Jeffrey H., Matthew W. Clance, and JMC Santos Silva. "The tails of gravity: Using
+expectiles to quantify the trade-margins effects of economic integration agreements."
+*Journal of International Economics* (2025): 104145.

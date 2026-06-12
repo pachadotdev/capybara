@@ -1,0 +1,438 @@
+Reading package lists...
+Building dependency tree...
+Reading state information...
+pkg-config is already the newest version (1.8.1-2build1).
+wget is already the newest version (1.21.4-1ubuntu4.1).
+The following additional packages will be installed:
+  libudunits2-0 libudunits2-data libuv1t64
+Suggested packages:
+  libcurl4-doc libidn-dev libkrb5-dev libldap2-dev librtmp-dev libssh2-1-dev
+  libssl-dev
+The following NEW packages will be installed:
+  libcurl4-openssl-dev libudunits2-0 libudunits2-data libudunits2-dev
+  libuv1-dev libuv1t64 libxml2-dev
+0 upgraded, 7 newly installed, 0 to remove and 13 not upgraded.
+Need to get 1,894 kB of archives.
+After this operation, 7,270 kB of additional disk space will be used.
+Get:1 http://archive.ubuntu.com/ubuntu noble/main amd64 libuv1t64 amd64 1.48.0-1.1build1 [97.3 kB]
+Get:2 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libcurl4-openssl-dev amd64 8.5.0-2ubuntu10.9 [446 kB]
+Get:3 http://archive.ubuntu.com/ubuntu noble/universe amd64 libudunits2-data all 2.2.28-7build1 [19.4 kB]
+Get:4 http://archive.ubuntu.com/ubuntu noble/universe amd64 libudunits2-0 amd64 2.2.28-7build1 [54.1 kB]
+Get:5 http://archive.ubuntu.com/ubuntu noble/universe amd64 libudunits2-dev amd64 2.2.28-7build1 [359 kB]
+Get:6 http://archive.ubuntu.com/ubuntu noble/main amd64 libuv1-dev amd64 1.48.0-1.1build1 [136 kB]
+Get:7 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libxml2-dev amd64 2.9.14+dfsg-1.3ubuntu3.7 [782 kB]
+debconf: delaying package configuration, since apt-utils is not installed
+Fetched 1,894 kB in 0s (7,057 kB/s)
+Selecting previously unselected package libuv1t64:amd64.
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 19926 files and directories currently installed.)
+Preparing to unpack .../0-libuv1t64_1.48.0-1.1build1_amd64.deb ...
+Unpacking libuv1t64:amd64 (1.48.0-1.1build1) ...
+Selecting previously unselected package libcurl4-openssl-dev:amd64.
+Preparing to unpack .../1-libcurl4-openssl-dev_8.5.0-2ubuntu10.9_amd64.deb ...
+Unpacking libcurl4-openssl-dev:amd64 (8.5.0-2ubuntu10.9) ...
+Selecting previously unselected package libudunits2-data.
+Preparing to unpack .../2-libudunits2-data_2.2.28-7build1_all.deb ...
+Unpacking libudunits2-data (2.2.28-7build1) ...
+Selecting previously unselected package libudunits2-0.
+Preparing to unpack .../3-libudunits2-0_2.2.28-7build1_amd64.deb ...
+Unpacking libudunits2-0 (2.2.28-7build1) ...
+Selecting previously unselected package libudunits2-dev.
+Preparing to unpack .../4-libudunits2-dev_2.2.28-7build1_amd64.deb ...
+Unpacking libudunits2-dev (2.2.28-7build1) ...
+Selecting previously unselected package libuv1-dev:amd64.
+Preparing to unpack .../5-libuv1-dev_1.48.0-1.1build1_amd64.deb ...
+Unpacking libuv1-dev:amd64 (1.48.0-1.1build1) ...
+Selecting previously unselected package libxml2-dev:amd64.
+Preparing to unpack .../6-libxml2-dev_2.9.14+dfsg-1.3ubuntu3.7_amd64.deb ...
+Unpacking libxml2-dev:amd64 (2.9.14+dfsg-1.3ubuntu3.7) ...
+Setting up libuv1t64:amd64 (1.48.0-1.1build1) ...
+Setting up libxml2-dev:amd64 (2.9.14+dfsg-1.3ubuntu3.7) ...
+Setting up libcurl4-openssl-dev:amd64 (8.5.0-2ubuntu10.9) ...
+Setting up libudunits2-data (2.2.28-7build1) ...
+Setting up libuv1-dev:amd64 (1.48.0-1.1build1) ...
+Setting up libudunits2-0 (2.2.28-7build1) ...
+Setting up libudunits2-dev (2.2.28-7build1) ...
+Processing triggers for libc-bin (2.39-0ubuntu8.7) ...
+Selecting previously unselected package pandoc.
+(Reading database ... 20068 files and directories currently installed.)
+Preparing to unpack /tmp/pandoc.deb ...
+Unpacking pandoc (3.1.1-1) ...
+Setting up pandoc (3.1.1-1) ...
+trying URL 'https://cloud.r-project.org/src/contrib/curl_7.1.0.tar.gz'
+Content type 'application/x-gzip' length 717725 bytes (700 KB)
+==================================================
+downloaded 700 KB
+
+* installing *source* package ‘curl’ ...
+** this is package ‘curl’ version ‘7.1.0’
+** package ‘curl’ successfully unpacked and MD5 sums checked
+** using staged installation
+Found pkg-config cflags and libs!
+Using PKG_CFLAGS=-I/usr/include/x86_64-linux-gnu 
+Using PKG_LIBS=-lcurl 
+** libs
+using C compiler: ‘gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0’
+gcc -std=gnu2x -I"/opt/R/next/lib/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP  -I/usr/local/include   -fvisibility=hidden -fpic  -g -O2  -c callbacks.c -o callbacks.o
+gcc -std=gnu2x -I"/opt/R/next/lib/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP  -I/usr/local/include   -fvisibility=hidden -fpic  -g -O2  -c curl.c -o curl.o
+gcc -std=gnu2x -I"/opt/R/next/lib/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP  -I/usr/local/include   -fvisibility=hidden -fpic  -g -O2  -c download.c -o download.o
+gcc -std=gnu2x -I"/opt/R/next/lib/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP  -I/usr/local/include   -fvisibility=hidden -fpic  -g -O2  -c dryrun.c -o dryrun.o
+gcc -std=gnu2x -I"/opt/R/next/lib/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP  -I/usr/local/include   -fvisibility=hidden -fpic  -g -O2  -c escape.c -o escape.o
+gcc -std=gnu2x -I"/opt/R/next/lib/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP  -I/usr/local/include   -fvisibility=hidden -fpic  -g -O2  -c fetch.c -o fetch.o
+gcc -std=gnu2x -I"/opt/R/next/lib/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP  -I/usr/local/include   -fvisibility=hidden -fpic  -g -O2  -c findport.c -o findport.o
+gcc -std=gnu2x -I"/opt/R/next/lib/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP  -I/usr/local/include   -fvisibility=hidden -fpic  -g -O2  -c form.c -o form.o
+gcc -std=gnu2x -I"/opt/R/next/lib/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP  -I/usr/local/include   -fvisibility=hidden -fpic  -g -O2  -c getdate.c -o getdate.o
+gcc -std=gnu2x -I"/opt/R/next/lib/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP  -I/usr/local/include   -fvisibility=hidden -fpic  -g -O2  -c handle.c -o handle.o
+gcc -std=gnu2x -I"/opt/R/next/lib/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP  -I/usr/local/include   -fvisibility=hidden -fpic  -g -O2  -c ieproxy.c -o ieproxy.o
+gcc -std=gnu2x -I"/opt/R/next/lib/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP  -I/usr/local/include   -fvisibility=hidden -fpic  -g -O2  -c init.c -o init.o
+gcc -std=gnu2x -I"/opt/R/next/lib/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP  -I/usr/local/include   -fvisibility=hidden -fpic  -g -O2  -c interrupt.c -o interrupt.o
+gcc -std=gnu2x -I"/opt/R/next/lib/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP  -I/usr/local/include   -fvisibility=hidden -fpic  -g -O2  -c multi.c -o multi.o
+gcc -std=gnu2x -I"/opt/R/next/lib/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP  -I/usr/local/include   -fvisibility=hidden -fpic  -g -O2  -c nslookup.c -o nslookup.o
+gcc -std=gnu2x -I"/opt/R/next/lib/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP  -I/usr/local/include   -fvisibility=hidden -fpic  -g -O2  -c options.c -o options.o
+gcc -std=gnu2x -I"/opt/R/next/lib/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP  -I/usr/local/include   -fvisibility=hidden -fpic  -g -O2  -c reflist.c -o reflist.o
+gcc -std=gnu2x -I"/opt/R/next/lib/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP  -I/usr/local/include   -fvisibility=hidden -fpic  -g -O2  -c split.c -o split.o
+gcc -std=gnu2x -I"/opt/R/next/lib/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP  -I/usr/local/include   -fvisibility=hidden -fpic  -g -O2  -c ssl.c -o ssl.o
+gcc -std=gnu2x -I"/opt/R/next/lib/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP  -I/usr/local/include   -fvisibility=hidden -fpic  -g -O2  -c typechecking.c -o typechecking.o
+gcc -std=gnu2x -I"/opt/R/next/lib/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP  -I/usr/local/include   -fvisibility=hidden -fpic  -g -O2  -c urlparser.c -o urlparser.o
+gcc -std=gnu2x -I"/opt/R/next/lib/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP  -I/usr/local/include   -fvisibility=hidden -fpic  -g -O2  -c utils.c -o utils.o
+gcc -std=gnu2x -I"/opt/R/next/lib/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP  -I/usr/local/include   -fvisibility=hidden -fpic  -g -O2  -c version.c -o version.o
+gcc -std=gnu2x -I"/opt/R/next/lib/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP  -I/usr/local/include   -fvisibility=hidden -fpic  -g -O2  -c winidn.c -o winidn.o
+gcc -std=gnu2x -I"/opt/R/next/lib/R/include" -DNDEBUG -I/usr/include/x86_64-linux-gnu  -DSTRICT_R_HEADERS -DR_NO_REMAP  -I/usr/local/include   -fvisibility=hidden -fpic  -g -O2  -c writer.c -o writer.o
+gcc -std=gnu2x -shared -L/opt/R/next/lib/R/lib -L/usr/local/lib -o curl.so callbacks.o curl.o download.o dryrun.o escape.o fetch.o findport.o form.o getdate.o handle.o ieproxy.o init.o interrupt.o multi.o nslookup.o options.o reflist.o split.o ssl.o typechecking.o urlparser.o utils.o version.o winidn.o writer.o -lcurl -L/opt/R/next/lib/R/lib -lR
+installing to /cache/R_libs/00LOCK-curl/00new/curl/libs
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+** building package indices
+** installing vignettes
+** testing if installed package can be loaded from temporary location
+** checking absolute paths in shared objects and dynamic libraries
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (curl)
+
+The downloaded source packages are in
+	‘/tmp/Rtmps4KAsz/downloaded_packages’
+* installing *source* package ‘cpp4r’ ...
+** this is package ‘cpp4r’ version ‘1.0.0’
+** using staged installation
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+*** copying figures
+** building package indices
+** testing if installed package can be loaded from temporary location
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (cpp4r)
+* installing *source* package ‘armadillo4r’ ...
+** this is package ‘armadillo4r’ version ‘1.0.0’
+** using staged installation
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+*** copying figures
+** building package indices
+** testing if installed package can be loaded from temporary location
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (armadillo4r)
+* installing *source* package ‘capybara’ ...
+** this is package ‘capybara’ version ‘2.0.0’
+** using staged installation
+==========================================================================
+Capybara configuration summary
+
+  C++ Compiler:           g++
+  Compiler Type:          unknown
+  C++ Standard:           CXX20
+  OpenMP Support:         yes
+  OpenMP Threads:         4
+  SIMD Support:           AVX2
+  BLAS:                   -lblas
+  LAPACK:                 -llapack
+  No Armadillo Wrapper:   yes (direct BLAS/LAPACK)
+  No Sparse Matrices:     no
+  High-Performance Mode:  no
+  Optimization Flags:     
+  Debug Flags:            
+
+For faster computation
+ 
+ Enable high-performance optimizations:
+ export CAPYBARA_OPTIMIZATIONS=yes
+ 
+ Change thread count:
+ export CAPYBARA_NCORES=<number>
+ 
+ Disable sparse matrix support (faster compile):
+ export CAPYBARA_SKIP_SPARSE=yes
+ 
+ Then reinstall the package
+==========================================================================
+** libs
+specified C++20
+using C++ compiler: ‘g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0’
+using C++20
+g++ -std=gnu++20 -I"/opt/R/next/lib/R/include" -DNDEBUG  -I'/cache/R_libs/armadillo4r/include' -I'/cache/R_libs/cpp4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2   -c capybara.cpp -o capybara.o
+g++ -std=gnu++20 -I"/opt/R/next/lib/R/include" -DNDEBUG  -I'/cache/R_libs/armadillo4r/include' -I'/cache/R_libs/cpp4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2   -c cpp4r.cpp -o cpp4r.o
+g++ -std=gnu++20 -shared -L/opt/R/next/lib/R/lib -L/usr/local/lib -o capybara.so capybara.o cpp4r.o -fopenmp -llapack -lblas -lgfortran -lm -lquadmath -L/opt/R/next/lib/R/lib -lR
+installing to /cache/R_libs/00LOCK-capybara/00new/capybara/libs
+** R
+** data
+*** moving datasets to lazyload DB
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+*** copying figures
+** building package indices
+** installing vignettes
+** testing if installed package can be loaded from temporary location
+** checking absolute paths in shared objects and dynamic libraries
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (capybara)
+* using log directory ‘/check/capybara.Rcheck’
+* using R version 4.6.0 Patched (2026-05-11 r90050)
+* using platform: x86_64-pc-linux-gnu
+* R was compiled by
+    gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+    GNU Fortran (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+* running under: Ubuntu 24.04.4 LTS
+* using session charset: UTF-8
+* current time: 2026-06-11 16:34:15 UTC
+* using options ‘--no-manual --as-cran’
+* checking for file ‘capybara/DESCRIPTION’ ... OK
+* checking extension type ... Package
+* this is package ‘capybara’ version ‘2.0.0’
+* package encoding: UTF-8
+* checking CRAN incoming feasibility ... [0s/0s] OK
+* checking package namespace information ... OK
+* checking package dependencies ... OK
+* checking if this is a source package ... OK
+* checking if there is a namespace ... OK
+* checking for .dll and .exe files ... OK
+* checking for hidden files and directories ... OK
+* checking for portable file names ... OK
+* checking for sufficient/correct file permissions ... OK
+* checking whether package ‘capybara’ can be installed ... [66s/60s] OK
+* used C++ compiler: ‘g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0’
+* checking C++ specification ... INFO
+  specified C++20
+* checking package directory ... OK
+* checking for future file timestamps ... OK
+* checking ‘build’ directory ... OK
+* checking DESCRIPTION meta-information ... OK
+* checking top-level files ... OK
+* checking for left-over files ... OK
+* checking index information ... OK
+* checking package subdirectories ... OK
+* checking code files for non-ASCII characters ... OK
+* checking R files for syntax errors ... OK
+* checking whether the package can be loaded ... [2s/1s] OK
+* checking whether the package can be loaded with stated dependencies ... [2s/1s] OK
+* checking whether the package can be unloaded cleanly ... [2s/1s] OK
+* checking whether the namespace can be loaded with stated dependencies ... [2s/1s] OK
+* checking whether the namespace can be unloaded cleanly ... [2s/1s] OK
+* checking loading without being on the library search path ... [2s/1s] OK
+* checking use of S3 registration ... OK
+* checking dependencies in R code ... OK
+* checking S3 generic/method consistency ... OK
+* checking replacement functions ... OK
+* checking foreign function calls ... OK
+* checking R code for possible problems ... [20s/10s] OK
+* checking Rd files ... [1s/0s] OK
+* checking Rd metadata ... OK
+* checking Rd line widths ... OK
+* checking Rd cross-references ... OK
+* checking for missing documentation entries ... OK
+* checking for code/documentation mismatches ... OK
+* checking Rd \usage sections ... OK
+* checking Rd contents ... OK
+* checking for unstated dependencies in examples ... OK
+* checking contents of ‘data’ directory ... OK
+* checking data for non-ASCII characters ... [1s/1s] OK
+* checking LazyData ... OK
+* checking data for ASCII and uncompressed saves ... OK
+* checking line endings in shell scripts ... OK
+* checking line endings in C/C++/Fortran sources/headers ... OK
+* checking line endings in Makefiles ... OK
+* checking compilation flags in Makevars ... OK
+* checking for GNU extensions in Makefiles ... OK
+* checking for portable use of $(BLAS_LIBS) and $(LAPACK_LIBS) ... OK
+* checking use of PKG_*FLAGS in Makefiles ... OK
+* checking use of SHLIB_OPENMP_*FLAGS in Makefiles ... OK
+* checking pragmas in C/C++ headers and code ... OK
+* checking compilation flags used ... OK
+* checking compiled code ... OK
+* checking installed files from ‘inst/doc’ ... OK
+* checking files in ‘vignettes’ ... OK
+* checking examples ... [4s/3s] OK
+* checking for unstated dependencies in ‘tests’ ... OK
+* checking tests ...
+  Running ‘tinytest.R’ [45s/9s]
+Running R code in ‘tinytest.R’ had CPU time 4.7 times elapsed time
+ [46s/10s] NOTE
+* checking for unstated dependencies in vignettes ... OK
+* checking package vignettes ... OK
+* checking re-building of vignette outputs ... [8s/4s] OK
+* checking for non-standard things in the check directory ... OK
+* checking for detritus in the temp directory ... OK
+* DONE
+
+Status: 1 NOTE
+See
+  ‘/check/capybara.Rcheck/00check.log’
+for details.
+
+=== 00install.out ===
+* installing *source* package ‘capybara’ ...
+** this is package ‘capybara’ version ‘2.0.0’
+** using staged installation
+==========================================================================
+Capybara configuration summary
+
+  C++ Compiler:           g++
+  Compiler Type:          unknown
+  C++ Standard:           CXX20
+  OpenMP Support:         yes
+  OpenMP Threads:         4
+  SIMD Support:           AVX2
+  BLAS:                   -lblas
+  LAPACK:                 -llapack
+  No Armadillo Wrapper:   yes (direct BLAS/LAPACK)
+  No Sparse Matrices:     no
+  High-Performance Mode:  no
+  Optimization Flags:     
+  Debug Flags:            
+
+For faster computation
+ 
+ Enable high-performance optimizations:
+ export CAPYBARA_OPTIMIZATIONS=yes
+ 
+ Change thread count:
+ export CAPYBARA_NCORES=<number>
+ 
+ Disable sparse matrix support (faster compile):
+ export CAPYBARA_SKIP_SPARSE=yes
+ 
+ Then reinstall the package
+==========================================================================
+** libs
+specified C++20
+using C++ compiler: ‘g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0’
+using C++20
+g++ -std=gnu++20 -I"/opt/R/next/lib/R/include" -DNDEBUG  -I'/cache/R_libs/armadillo4r/include' -I'/cache/R_libs/cpp4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2   -c capybara.cpp -o capybara.o
+g++ -std=gnu++20 -I"/opt/R/next/lib/R/include" -DNDEBUG  -I'/cache/R_libs/armadillo4r/include' -I'/cache/R_libs/cpp4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2   -c cpp4r.cpp -o cpp4r.o
+g++ -std=gnu++20 -shared -L/opt/R/next/lib/R/lib -L/usr/local/lib -o capybara.so capybara.o cpp4r.o -fopenmp -llapack -lblas -lgfortran -lm -lquadmath -L/opt/R/next/lib/R/lib -lR
+installing to /check/capybara.Rcheck/00LOCK-capybara/00new/capybara/libs
+** R
+** data
+*** moving datasets to lazyload DB
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+*** copying figures
+** building package indices
+** installing vignettes
+** testing if installed package can be loaded from temporary location
+** checking absolute paths in shared objects and dynamic libraries
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (capybara)
+=== 00check.log ===
+* using log directory ‘/check/capybara.Rcheck’
+* using R version 4.6.0 Patched (2026-05-11 r90050)
+* using platform: x86_64-pc-linux-gnu
+* R was compiled by
+    gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+    GNU Fortran (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+* running under: Ubuntu 24.04.4 LTS
+* using session charset: UTF-8
+* current time: 2026-06-11 16:34:15 UTC
+* using options ‘--no-manual --as-cran’
+* checking for file ‘capybara/DESCRIPTION’ ... OK
+* checking extension type ... Package
+* this is package ‘capybara’ version ‘2.0.0’
+* package encoding: UTF-8
+* checking CRAN incoming feasibility ... [0s/0s] OK
+* checking package namespace information ... OK
+* checking package dependencies ... OK
+* checking if this is a source package ... OK
+* checking if there is a namespace ... OK
+* checking for .dll and .exe files ... OK
+* checking for hidden files and directories ... OK
+* checking for portable file names ... OK
+* checking for sufficient/correct file permissions ... OK
+* checking whether package ‘capybara’ can be installed ... [66s/60s] OK
+* used C++ compiler: ‘g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0’
+* checking C++ specification ... INFO
+  specified C++20
+* checking package directory ... OK
+* checking for future file timestamps ... OK
+* checking ‘build’ directory ... OK
+* checking DESCRIPTION meta-information ... OK
+* checking top-level files ... OK
+* checking for left-over files ... OK
+* checking index information ... OK
+* checking package subdirectories ... OK
+* checking code files for non-ASCII characters ... OK
+* checking R files for syntax errors ... OK
+* checking whether the package can be loaded ... [2s/1s] OK
+* checking whether the package can be loaded with stated dependencies ... [2s/1s] OK
+* checking whether the package can be unloaded cleanly ... [2s/1s] OK
+* checking whether the namespace can be loaded with stated dependencies ... [2s/1s] OK
+* checking whether the namespace can be unloaded cleanly ... [2s/1s] OK
+* checking loading without being on the library search path ... [2s/1s] OK
+* checking use of S3 registration ... OK
+* checking dependencies in R code ... OK
+* checking S3 generic/method consistency ... OK
+* checking replacement functions ... OK
+* checking foreign function calls ... OK
+* checking R code for possible problems ... [20s/10s] OK
+* checking Rd files ... [1s/0s] OK
+* checking Rd metadata ... OK
+* checking Rd line widths ... OK
+* checking Rd cross-references ... OK
+* checking for missing documentation entries ... OK
+* checking for code/documentation mismatches ... OK
+* checking Rd \usage sections ... OK
+* checking Rd contents ... OK
+* checking for unstated dependencies in examples ... OK
+* checking contents of ‘data’ directory ... OK
+* checking data for non-ASCII characters ... [1s/1s] OK
+* checking LazyData ... OK
+* checking data for ASCII and uncompressed saves ... OK
+* checking line endings in shell scripts ... OK
+* checking line endings in C/C++/Fortran sources/headers ... OK
+* checking line endings in Makefiles ... OK
+* checking compilation flags in Makevars ... OK
+* checking for GNU extensions in Makefiles ... OK
+* checking for portable use of $(BLAS_LIBS) and $(LAPACK_LIBS) ... OK
+* checking use of PKG_*FLAGS in Makefiles ... OK
+* checking use of SHLIB_OPENMP_*FLAGS in Makefiles ... OK
+* checking pragmas in C/C++ headers and code ... OK
+* checking compilation flags used ... OK
+* checking compiled code ... OK
+* checking installed files from ‘inst/doc’ ... OK
+* checking files in ‘vignettes’ ... OK
+* checking examples ... [4s/3s] OK
+* checking for unstated dependencies in ‘tests’ ... OK
+* checking tests ... [46s/10s] NOTE
+  Running ‘tinytest.R’ [45s/9s]
+Running R code in ‘tinytest.R’ had CPU time 4.7 times elapsed time
+* checking for unstated dependencies in vignettes ... OK
+* checking package vignettes ... OK
+* checking re-building of vignette outputs ... [8s/4s] OK
+* checking for non-standard things in the check directory ... OK
+* checking for detritus in the temp directory ... OK
+* DONE
+Status: 1 NOTE

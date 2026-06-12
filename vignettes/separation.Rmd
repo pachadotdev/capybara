@@ -1,0 +1,445 @@
+---
+title: "Nonexistence of estimates of Poisson models"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Nonexistence of estimates of Poisson models}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+This vignette is adapted from https://github.com/sergiocorreia/ppmlhdfe/blob/master/guides/nonexistence_benchmarks.md#r-packages.
+
+## Example 1
+
+```r
+library(capybara)
+```
+
+The table below shows a dataset with 12 observations and four regressors. Observations 5 is separated
+because $y=0$ and $z \neq x_2 - x_1$ is positive in those observations, and zero otherwise.
+
+```r
+correia2019$example1
+which(correia2019$example1$x2 - correia2019$example1$x1 != 0 & correia2019$example1$y == 0)
+```
+
+```
+# A tibble: 12 × 5
+       y    x1    x2    x3    x4
+   <dbl> <dbl> <dbl> <dbl> <dbl>
+ 1     0     0     0     2    10
+ 2     0     0     0     0    -2
+ 3     0     0     0     0     6
+ 4     0     0     0     4     5
+ 5     0     1     0     0     3
+ 6     2     0     0     0     3
+ 7     2     0     0     0     4
+ 8     2     0     0    -2    15
+ 9     2     0     0     0    -7
+10     4     0     0    -3    15
+11     6    -3    -3     0     4
+12     6     0     0     0     4
+[1] 5
+```
+
+Base R shall not give a warning when estimating a Poisson model on this data.
+
+```r
+glm(
+  y ~ x1 + x2 + x3 + x4,
+  data = correia2019$example1,
+  family = poisson()
+)
+```
+
+```r
+Call:  glm(formula = y ~ x1 + x2 + x3 + x4, family = poisson(), data = correia2019$example1)
+
+Coefficients:
+(Intercept)           x1           x2           x3           x4  
+    0.59095    -17.78017     17.32952     -0.47085     -0.03779  
+
+Degrees of Freedom: 11 Total (i.e. Null);  7 Residual
+Null Deviance:      31.91 
+Residual Deviance: 15.96        AIC: 46.99
+```
+
+Capybara will detect separation on this dataset.
+
+```r
+fepoisson(
+  y ~ x1 + x2 + x3 + x4,
+  data = correia2019$example1
+)
+```
+
+```r
+Separation found in 1 observation(s)
+Formula: y ~ x1 + x2 + x3 + x4
+
+Family: Poisson
+
+Estimates:
+
+|             | Estimate | Std. Error | z value | Pr(>|z|)  |
+|-------------|----------|------------|---------|-----------|
+| (Intercept) |   0.5910 |     0.3029 |  1.9510 | 0.0511 +  |
+| x1          |  -0.4507 |     0.1648 | -2.7352 | 0.0062 ** |
+| x2          |       NA |         NA |      NA | NA        |
+| x3          |  -0.4708 |     0.2311 | -2.0367 | 0.0417 *  |
+| x4          |  -0.0378 |     0.0438 | -0.8634 | 0.3879    |
+
+Significance codes: ** p < 0.01; * p < 0.05; + p < 0.10
+
+Pseudo R-squared: 0.4813 
+
+Number of observations: Full 12; Separated 1; Perfect classification 0 
+
+Number of Fisher Scoring iterations: 5
+```
+
+## Example 2
+
+The table below shows a different dataset with 12 observations and four regressors. Observations 2, 3, 6, 7 and 8 are
+separated because $y=0$ and $z > x_2 - x_1$ is positive in those observations, and zero otherwise.
+
+```r
+correia2019$example2
+which(correia2019$example2$x2 - correia2019$example2$x1 > 0 & correia2019$example2$y == 0)
+```
+
+```r
+# A tibble: 12 × 5
+       y    x1    x2    x3    x4
+   <dbl> <dbl> <dbl> <dbl> <dbl>
+ 1     0    14     4     0   -12
+ 2     0     0    35    34    12
+ 3     0     0     3     0    17
+ 4     0     0     0     0     1
+ 5     0     0     0    -2     7
+ 6     0     0    25     0    12
+ 7     0     0    13     0    60
+ 8     0     0    15     0     7
+ 9     0     1     0     7   -24
+10     9     0     0     0    18
+11     4     2     0     6    -1
+12     2     1     0     0    -7
+[1] 2 3 6 7 8
+```
+
+Base R shall give a convergence warning when estimating a Poisson model on this data.
+
+```r
+glm(
+  y ~ x1 + x2 + x3 + x4,
+  data = correia2019$example2,
+  family = poisson()
+)
+```
+
+```
+Call:  glm(formula = y ~ x1 + x2 + x3 + x4, family = poisson(), data = correia2019$example2)
+
+Coefficients:
+(Intercept)           x1           x2           x3           x4  
+    -367.83       512.42     -1644.86      -105.85        20.56  
+
+Degrees of Freedom: 11 Total (i.e. Null);  7 Residual
+Null Deviance:      46.72 
+Residual Deviance: 9.672e-06    AIC: 19.93
+Warning messages:
+1: glm.fit: algorithm did not converge 
+2: glm.fit: fitted rates numerically 0 occurred
+```
+
+Capybara will detect separation on this dataset.
+
+```r
+fepoisson(
+  y ~ x1 + x2 + x3 + x4,
+  data = correia2019$example2
+)
+```
+
+```r
+Separation found in 6 observation(s)
+Formula: y ~ x1 + x2 + x3 + x4
+
+Family: Poisson
+
+Estimates:
+
+|             | Estimate  | Std. Error | z value | Pr(>|z|) |
+|-------------|-----------|------------|---------|----------|
+| (Intercept) | -239.2049 |  1134.4711 | -0.2109 |   0.8330 |
+| x1          |  333.7767 |  1575.6630 |  0.2118 |   0.8322 |
+| x2          |        NA |         NA |      NA |   NA     |
+| x3          |  -68.9251 |   325.6385 | -0.2117 |   0.8324 |
+| x4          |   13.4112 |    63.0263 |  0.2128 |   0.8315 |
+
+Significance codes: ** p < 0.01; * p < 0.05; + p < 0.10
+
+Pseudo R-squared: 1.00 
+
+Number of observations: Full 12; Separated 6; Perfect classification 0 
+
+Number of Fisher Scoring iterations: 25
+```
+
+## Example 3 (fixed effects)
+
+Base R shall not give a warning when estimating a Poisson model with fixed effects on the dataset below. The separation
+in this case is less clear, which motivates why capybara uses linear programming to detect separation in Poisson models.
+
+```r
+correia2019$fe1
+```
+
+```
+# A tibble: 18 × 5
+       y    x1    x2     i     j
+   <dbl> <dbl> <dbl> <dbl> <dbl>
+ 1     2     0     0     2     1
+ 2     0     0     0     4     2
+ 3     0     0     0     1     1
+ 4     1     1     0     4     3
+ 5     0     0     1     2     2
+ 6     0     0     0     2     2
+ 7     1     0     0     5     4
+ 8     0     1     2     2     3
+ 9     1     0     0     1     1
+10     0     0     0     2     2
+11     0     2     0     1     3
+12     0     0     0     1     3
+13     0     1     0     2     2
+14     0     0     1     5     2
+15     0     0     1     2     4
+16     0     0     0     1     2
+17     0     0     0     1     1
+18     2     0     0     1     2
+```
+
+Base R shall not give a warning when estimating a Poisson model with fixed effects on this data.
+
+```r
+glm(
+  y ~ x1 + x2 + factor(i) + factor(j),
+  data = correia2019$fe1,
+  family = poisson()
+)
+```
+
+```r
+Call:  glm(formula = y ~ x1 + x2 + factor(i) + factor(j), family = poisson(), 
+    data = correia2019$fe1)
+
+Coefficients:
+(Intercept)           x1           x2   factor(i)2   factor(i)4   factor(i)5  
+    -0.4114      -0.4845     -18.5226       0.4233       0.7375       0.9101  
+ factor(j)2   factor(j)3   factor(j)4  
+    -0.9854      -0.5696      -0.4986  
+
+Degrees of Freedom: 17 Total (i.e. Null);  9 Residual
+Null Deviance:      18.77 
+Residual Deviance: 13.36        AIC: 42.59
+Warning message:
+glm.fit: fitted rates numerically 0 occurred
+```
+
+Capybara will detect separation when estimating Poisson models.
+
+```r
+fepoisson(
+  y ~ x1 + x2 | i + j,
+  data = correia2019$fe1
+)
+```
+
+```
+Separation found in 4 observation(s)
+Formula: y ~ x1 + x2 | i + j
+
+Family: Poisson
+
+Estimates:
+
+|    | Estimate | Std. Error | z value | Pr(>|z|) |
+|----|----------|------------|---------|----------|
+| x1 |  -0.4811 |     1.2419 | -0.3874 |   0.6984 |
+| x2 |       NA |         NA |      NA |   NA     |
+
+Significance codes: ** p < 0.01; * p < 0.05; + p < 0.10
+
+Pseudo R-squared: 0.1874 
+
+Fixed effects:
+  i: 4
+  j: 4
+
+Number of observations: Full 18; Separated 4; Perfect classification 0 
+
+Number of Fisher Scoring iterations: 4
+```
+
+'correia2019' (Stata) will also detect separation when estimating Poisson models with fixed effects.
+
+```stata
+. correia2019 y x1 x2, a(i j)
+(simplex method dropped 4 separated observations)
+(dropped 1 singleton observations)
+note: 1 variable omitted because of collinearity: x2
+ $$ Stopping (no negative residuals); separation found in 0 observations (1 iterations and 732 subiterations)
+Iteration 1:   deviance = 1.4149e+01  eps = .         iters = 4    tol = 1.0e-04                                                                            
+...
+Iteration 6:   deviance = 1.3364e+01  eps = 1.85e-16  iters = 3    tol = 1.0e-07                                                                            
+-------------------------------------------------------------------------------
+(legend: p: exact partial-out   s: exact solver   h: step-halving   o: epsilon 
+> below tolerance)
+Converged in 6 iterations and 21 HDFE sub-iterations (tol = 1.0e-08)
+
+HDFE PPML regression                              No. of obs      =         13
+Absorbing 2 HDFE groups                           Residual df     =          7
+                                                  Wald chi2(1)    =       0.53
+Deviance             =  13.36443052               Prob > chi2     =     0.4686
+Log pseudolikelihood =  -11.2959209               Pseudo R2       =     0.0607
+------------------------------------------------------------------------------
+             |               Robust
+           y |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+          x1 |  -.4845469   .6685201    -0.72   0.469    -1.794822    .8257284
+          x2 |          0  (omitted)
+       _cons |  -.5708466   .4604099    -1.24   0.215    -1.473233    .3315402
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+           i |         3           0           3     |
+           j |         3           1           2     |
+-----------------------------------------------------+
+```
+
+A difference with respect to Stata's 'correia2019' is that capybara requires an explicit cluster term in the formula
+to compute robust standard errors using a sandwich operation.
+
+```r
+correia2019$fe1$pair <- paste0(correia2019$fe1$i, correia2019$fe1$j)
+
+fepoisson(
+  y ~ x1 + x2 | i + j | pair,
+  data = correia2019$fe1
+)
+```
+
+```r
+Separation found in 4 observation(s)
+Formula: y ~ x1 + x2 | i + j | pair
+
+Family: Poisson
+
+Estimates:
+
+|    | Estimate | Std. Error | z value | Pr(>|z|) |
+|----|----------|------------|---------|----------|
+| x1 |  -0.4811 |     0.3101 | -1.5514 |   0.1208 |
+| x2 |       NA |         NA |      NA |   NA     |
+
+Significance codes: ** p < 0.01; * p < 0.05; + p < 0.10
+
+Pseudo R-squared: 0.1874 
+
+Fixed effects:
+  i: 4
+  j: 4
+
+Number of observations: Full 18; Separated 4; Perfect classification 0 
+
+Number of Fisher Scoring iterations: 4
+```
+
+Other R packages may not detect separation in Poisson models with fixed effects. By disabling the separation check in
+Capybara, we can match 'alpaca' and 'fixest' results.
+
+Capybara without checking separation (incorrect $\beta_2$):
+
+```r
+fepoisson(
+  y ~ x1 + x2 | i + j,
+  data = correia2019$fe1,
+  control = list(check_separation = FALSE)
+)
+```
+
+```r
+Formula: y ~ x1 + x2 | i + j
+
+Family: Poisson
+
+Estimates:
+
+|    | Estimate | Std. Error | z value | Pr(>|z|) |
+|----|----------|------------|---------|----------|
+| x1 |  -0.4845 |     1.2439 | -0.3895 |   0.6969 |
+| x2 | -12.3711 |   383.1463 | -0.0323 |   0.9742 |
+
+Significance codes: ** p < 0.01; * p < 0.05; + p < 0.10
+
+Pseudo R-squared: 0.2614 
+
+Fixed effects:
+  i: 4
+  j: 4
+
+Number of observations: Full 18; Missing 0; Perfect classification 0 
+
+Number of Fisher Scoring iterations: 14
+```
+
+Alpaca:
+
+```r
+alpaca::feglm(
+  y ~ x1 + x2 | i + j,
+  data = correia2019$fe1,
+  family = poisson()
+)
+```
+
+```r
+poisson - log link, l= [4, 4]
+
+      x1       x2 
+ -0.4845 -17.3711 
+```
+
+Fixest:
+
+```r
+fixest::feglm(
+  y ~ x1 + x2 | i + j,
+  data = correia2019$fe1,
+  family = poisson()
+)
+```
+
+```r
+GLM estimation, family = poisson, Dep. Var.: y
+Observations: 18
+Fixed-effects: i: 4,  j: 4
+Standard-errors: IID 
+     Estimate Std. Error   z value Pr(>|z|) 
+x1  -0.484547    1.70957 -0.283432  0.77685 
+x2 -18.514805 6880.80328 -0.002691  0.99785 
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+Log-Likelihood: -12.3   Adj. Pseudo R2: -0.353285
+           BIC:  50.6     Squared Cor.:  0.261426
+```

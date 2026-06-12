@@ -1,0 +1,377 @@
+Reading package lists...
+Building dependency tree...
+Reading state information...
+pkg-config is already the newest version (0.29.2-1ubuntu3).
+libxml2-dev is already the newest version (2.9.13+dfsg-1ubuntu0.11).
+libxml2-dev set to manually installed.
+wget is already the newest version (1.21.2-2ubuntu1.1).
+Suggested packages:
+  libcurl4-doc libidn11-dev libkrb5-dev libldap2-dev librtmp-dev libssh2-1-dev
+  libssl-dev
+The following NEW packages will be installed:
+  libcurl4-openssl-dev libudunits2-0 libudunits2-data libudunits2-dev libuv1
+  libuv1-dev
+0 upgraded, 6 newly installed, 0 to remove and 12 not upgraded.
+Need to get 1043 kB of archives.
+After this operation, 3673 kB of additional disk space will be used.
+Get:1 http://archive.ubuntu.com/ubuntu jammy-updates/main amd64 libuv1 amd64 1.43.0-1ubuntu0.1 [92.7 kB]
+Get:2 http://archive.ubuntu.com/ubuntu jammy-updates/main amd64 libcurl4-openssl-dev amd64 7.81.0-1ubuntu1.24 [387 kB]
+Get:3 http://archive.ubuntu.com/ubuntu jammy/universe amd64 libudunits2-data all 2.2.28-3 [19.0 kB]
+Get:4 http://archive.ubuntu.com/ubuntu jammy/universe amd64 libudunits2-0 amd64 2.2.28-3 [50.3 kB]
+Get:5 http://archive.ubuntu.com/ubuntu jammy/universe amd64 libudunits2-dev amd64 2.2.28-3 [364 kB]
+Get:6 http://archive.ubuntu.com/ubuntu jammy-updates/main amd64 libuv1-dev amd64 1.43.0-1ubuntu0.1 [130 kB]
+debconf: delaying package configuration, since apt-utils is not installed
+Fetched 1043 kB in 0s (5398 kB/s)
+Selecting previously unselected package libuv1:amd64.
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 27283 files and directories currently installed.)
+Preparing to unpack .../0-libuv1_1.43.0-1ubuntu0.1_amd64.deb ...
+Unpacking libuv1:amd64 (1.43.0-1ubuntu0.1) ...
+Selecting previously unselected package libcurl4-openssl-dev:amd64.
+Preparing to unpack .../1-libcurl4-openssl-dev_7.81.0-1ubuntu1.24_amd64.deb ...
+Unpacking libcurl4-openssl-dev:amd64 (7.81.0-1ubuntu1.24) ...
+Selecting previously unselected package libudunits2-data.
+Preparing to unpack .../2-libudunits2-data_2.2.28-3_all.deb ...
+Unpacking libudunits2-data (2.2.28-3) ...
+Selecting previously unselected package libudunits2-0.
+Preparing to unpack .../3-libudunits2-0_2.2.28-3_amd64.deb ...
+Unpacking libudunits2-0 (2.2.28-3) ...
+Selecting previously unselected package libudunits2-dev.
+Preparing to unpack .../4-libudunits2-dev_2.2.28-3_amd64.deb ...
+Unpacking libudunits2-dev (2.2.28-3) ...
+Selecting previously unselected package libuv1-dev:amd64.
+Preparing to unpack .../5-libuv1-dev_1.43.0-1ubuntu0.1_amd64.deb ...
+Unpacking libuv1-dev:amd64 (1.43.0-1ubuntu0.1) ...
+Setting up libuv1:amd64 (1.43.0-1ubuntu0.1) ...
+Setting up libcurl4-openssl-dev:amd64 (7.81.0-1ubuntu1.24) ...
+Setting up libudunits2-data (2.2.28-3) ...
+Setting up libuv1-dev:amd64 (1.43.0-1ubuntu0.1) ...
+Setting up libudunits2-0 (2.2.28-3) ...
+Setting up libudunits2-dev (2.2.28-3) ...
+Processing triggers for libc-bin (2.35-0ubuntu3.13) ...
+Selecting previously unselected package pandoc.
+(Reading database ... 27373 files and directories currently installed.)
+Preparing to unpack /tmp/pandoc.deb ...
+Unpacking pandoc (3.1.1-1) ...
+Setting up pandoc (3.1.1-1) ...
+* installing *source* package ‘cpp4r’ ...
+** this is package ‘cpp4r’ version ‘1.0.0’
+** using staged installation
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+*** copying figures
+** building package indices
+** testing if installed package can be loaded from temporary location
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (cpp4r)
+* installing *source* package ‘armadillo4r’ ...
+** this is package ‘armadillo4r’ version ‘1.0.0’
+** using staged installation
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+*** copying figures
+** building package indices
+** testing if installed package can be loaded from temporary location
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (armadillo4r)
+* installing *source* package ‘capybara’ ...
+** this is package ‘capybara’ version ‘2.0.0’
+** using staged installation
+==========================================================================
+Capybara configuration summary
+
+  C++ Compiler:           clang++-15
+  Compiler Type:          clang
+  C++ Standard:           CXX20
+  OpenMP Support:         yes
+  OpenMP Threads:         4
+  SIMD Support:           AVX2
+  BLAS:                   -lblas
+  LAPACK:                 -llapack
+  No Armadillo Wrapper:   yes (direct BLAS/LAPACK)
+  No Sparse Matrices:     no
+  High-Performance Mode:  no
+  Optimization Flags:     
+  Debug Flags:            
+
+For faster computation
+ 
+ Enable high-performance optimizations:
+ export CAPYBARA_OPTIMIZATIONS=yes
+ 
+ Change thread count:
+ export CAPYBARA_NCORES=<number>
+ 
+ Disable sparse matrix support (faster compile):
+ export CAPYBARA_SKIP_SPARSE=yes
+ 
+ Then reinstall the package
+==========================================================================
+** libs
+specified C++20
+using C++ compiler: ‘Ubuntu clang version 15.0.7’
+using C++20
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG  -I'/cache/R_libs/armadillo4r/include' -I'/cache/R_libs/cpp4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2   -c capybara.cpp -o capybara.o
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG  -I'/cache/R_libs/armadillo4r/include' -I'/cache/R_libs/cpp4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2   -c cpp4r.cpp -o cpp4r.o
+clang++-15 -std=gnu++20 -shared -L/opt/R/devel/lib/R/lib -L/usr/local/lib -o capybara.so capybara.o cpp4r.o -fopenmp -llapack -lblas -lgfortran -lm -lquadmath -L/opt/R/devel/lib/R/lib -lR
+installing to /cache/R_libs/00LOCK-capybara/00new/capybara/libs
+** R
+** data
+*** moving datasets to lazyload DB
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+*** copying figures
+** building package indices
+** installing vignettes
+** testing if installed package can be loaded from temporary location
+** checking absolute paths in shared objects and dynamic libraries
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (capybara)
+* using log directory ‘/check/capybara.Rcheck’
+* using R Under development (unstable) (2026-05-14 r90050)
+* using platform: x86_64-pc-linux-gnu
+* R was compiled by
+    gcc (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+    GNU Fortran (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+* running under: Ubuntu 22.04.5 LTS
+* using session charset: UTF-8
+* current time: 2026-06-11 16:12:56 UTC
+* using options ‘--no-manual --as-cran’
+* checking for file ‘capybara/DESCRIPTION’ ... OK
+* checking extension type ... Package
+* this is package ‘capybara’ version ‘2.0.0’
+* package encoding: UTF-8
+* checking CRAN incoming feasibility ... [0s/0s] OK
+* checking package namespace information ... OK
+* checking package dependencies ... OK
+* checking if this is a source package ... OK
+* checking if there is a namespace ... OK
+* checking for .dll and .exe files ... OK
+* checking for hidden files and directories ... OK
+* checking for portable file names ... OK
+* checking for sufficient/correct file permissions ... OK
+* checking whether package ‘capybara’ can be installed ... [51s/45s] OK
+* used C++ compiler: ‘Ubuntu clang version 15.0.7’
+* checking C++ specification ... INFO
+  specified C++20
+* checking package directory ... OK
+* checking for future file timestamps ... OK
+* checking ‘build’ directory ... OK
+* checking DESCRIPTION meta-information ... OK
+* checking top-level files ... OK
+* checking for left-over files ... OK
+* checking index information ... OK
+* checking package subdirectories ... OK
+* checking code files for non-ASCII characters ... OK
+* checking R files for syntax errors ... OK
+* checking whether the package can be loaded ... [2s/1s] OK
+* checking whether the package can be loaded with stated dependencies ... [2s/1s] OK
+* checking whether the package can be unloaded cleanly ... [2s/1s] OK
+* checking whether the namespace can be loaded with stated dependencies ... [2s/1s] OK
+* checking whether the namespace can be unloaded cleanly ... [2s/1s] OK
+* checking loading without being on the library search path ... [2s/1s] OK
+* checking use of S3 registration ... OK
+* checking dependencies in R code ... OK
+* checking S3 generic/method consistency ... OK
+* checking replacement functions ... OK
+* checking foreign function calls ... OK
+* checking R code for possible problems ... [21s/10s] OK
+* checking Rd files ... [1s/0s] OK
+* checking Rd metadata ... OK
+* checking Rd line widths ... OK
+* checking Rd cross-references ... OK
+* checking for missing documentation entries ... OK
+* checking for code/documentation mismatches ... OK
+* checking Rd \usage sections ... OK
+* checking Rd contents ... OK
+* checking for unstated dependencies in examples ... OK
+* checking contents of ‘data’ directory ... OK
+* checking data for non-ASCII characters ... [1s/1s] OK
+* checking LazyData ... OK
+* checking data for ASCII and uncompressed saves ... OK
+* checking line endings in shell scripts ... OK
+* checking line endings in C/C++/Fortran sources/headers ... OK
+* checking line endings in Makefiles ... OK
+* checking compilation flags in Makevars ... OK
+* checking for GNU extensions in Makefiles ... OK
+* checking for portable use of $(BLAS_LIBS) and $(LAPACK_LIBS) ... OK
+* checking use of PKG_*FLAGS in Makefiles ... OK
+* checking use of SHLIB_OPENMP_*FLAGS in Makefiles ... OK
+* checking pragmas in C/C++ headers and code ... OK
+* checking compilation flags used ... OK
+* checking compiled code ... OK
+* checking installed files from ‘inst/doc’ ... OK
+* checking files in ‘vignettes’ ... OK
+* checking examples ... [10s/4s] OK
+* checking for unstated dependencies in ‘tests’ ... OK
+* checking tests ...
+  Running ‘tinytest.R’ [47s/10s]
+Running R code in ‘tinytest.R’ had CPU time 4.8 times elapsed time
+ [48s/10s] NOTE
+* checking for unstated dependencies in vignettes ... OK
+* checking package vignettes ... OK
+* checking re-building of vignette outputs ... [9s/4s] OK
+* checking for non-standard things in the check directory ... OK
+* checking for detritus in the temp directory ... OK
+* DONE
+
+Status: 1 NOTE
+See
+  ‘/check/capybara.Rcheck/00check.log’
+for details.
+
+=== 00install.out ===
+* installing *source* package ‘capybara’ ...
+** this is package ‘capybara’ version ‘2.0.0’
+** using staged installation
+==========================================================================
+Capybara configuration summary
+
+  C++ Compiler:           clang++-15
+  Compiler Type:          clang
+  C++ Standard:           CXX20
+  OpenMP Support:         yes
+  OpenMP Threads:         4
+  SIMD Support:           AVX2
+  BLAS:                   -lblas
+  LAPACK:                 -llapack
+  No Armadillo Wrapper:   yes (direct BLAS/LAPACK)
+  No Sparse Matrices:     no
+  High-Performance Mode:  no
+  Optimization Flags:     
+  Debug Flags:            
+
+For faster computation
+ 
+ Enable high-performance optimizations:
+ export CAPYBARA_OPTIMIZATIONS=yes
+ 
+ Change thread count:
+ export CAPYBARA_NCORES=<number>
+ 
+ Disable sparse matrix support (faster compile):
+ export CAPYBARA_SKIP_SPARSE=yes
+ 
+ Then reinstall the package
+==========================================================================
+** libs
+specified C++20
+using C++ compiler: ‘Ubuntu clang version 15.0.7’
+using C++20
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG  -I'/cache/R_libs/armadillo4r/include' -I'/cache/R_libs/cpp4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2   -c capybara.cpp -o capybara.o
+clang++-15 -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG  -I'/cache/R_libs/armadillo4r/include' -I'/cache/R_libs/cpp4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2   -c cpp4r.cpp -o cpp4r.o
+clang++-15 -std=gnu++20 -shared -L/opt/R/devel/lib/R/lib -L/usr/local/lib -o capybara.so capybara.o cpp4r.o -fopenmp -llapack -lblas -lgfortran -lm -lquadmath -L/opt/R/devel/lib/R/lib -lR
+installing to /check/capybara.Rcheck/00LOCK-capybara/00new/capybara/libs
+** R
+** data
+*** moving datasets to lazyload DB
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+*** copying figures
+** building package indices
+** installing vignettes
+** testing if installed package can be loaded from temporary location
+** checking absolute paths in shared objects and dynamic libraries
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (capybara)
+=== 00check.log ===
+* using log directory ‘/check/capybara.Rcheck’
+* using R Under development (unstable) (2026-05-14 r90050)
+* using platform: x86_64-pc-linux-gnu
+* R was compiled by
+    gcc (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+    GNU Fortran (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+* running under: Ubuntu 22.04.5 LTS
+* using session charset: UTF-8
+* current time: 2026-06-11 16:12:56 UTC
+* using options ‘--no-manual --as-cran’
+* checking for file ‘capybara/DESCRIPTION’ ... OK
+* checking extension type ... Package
+* this is package ‘capybara’ version ‘2.0.0’
+* package encoding: UTF-8
+* checking CRAN incoming feasibility ... [0s/0s] OK
+* checking package namespace information ... OK
+* checking package dependencies ... OK
+* checking if this is a source package ... OK
+* checking if there is a namespace ... OK
+* checking for .dll and .exe files ... OK
+* checking for hidden files and directories ... OK
+* checking for portable file names ... OK
+* checking for sufficient/correct file permissions ... OK
+* checking whether package ‘capybara’ can be installed ... [51s/45s] OK
+* used C++ compiler: ‘Ubuntu clang version 15.0.7’
+* checking C++ specification ... INFO
+  specified C++20
+* checking package directory ... OK
+* checking for future file timestamps ... OK
+* checking ‘build’ directory ... OK
+* checking DESCRIPTION meta-information ... OK
+* checking top-level files ... OK
+* checking for left-over files ... OK
+* checking index information ... OK
+* checking package subdirectories ... OK
+* checking code files for non-ASCII characters ... OK
+* checking R files for syntax errors ... OK
+* checking whether the package can be loaded ... [2s/1s] OK
+* checking whether the package can be loaded with stated dependencies ... [2s/1s] OK
+* checking whether the package can be unloaded cleanly ... [2s/1s] OK
+* checking whether the namespace can be loaded with stated dependencies ... [2s/1s] OK
+* checking whether the namespace can be unloaded cleanly ... [2s/1s] OK
+* checking loading without being on the library search path ... [2s/1s] OK
+* checking use of S3 registration ... OK
+* checking dependencies in R code ... OK
+* checking S3 generic/method consistency ... OK
+* checking replacement functions ... OK
+* checking foreign function calls ... OK
+* checking R code for possible problems ... [21s/10s] OK
+* checking Rd files ... [1s/0s] OK
+* checking Rd metadata ... OK
+* checking Rd line widths ... OK
+* checking Rd cross-references ... OK
+* checking for missing documentation entries ... OK
+* checking for code/documentation mismatches ... OK
+* checking Rd \usage sections ... OK
+* checking Rd contents ... OK
+* checking for unstated dependencies in examples ... OK
+* checking contents of ‘data’ directory ... OK
+* checking data for non-ASCII characters ... [1s/1s] OK
+* checking LazyData ... OK
+* checking data for ASCII and uncompressed saves ... OK
+* checking line endings in shell scripts ... OK
+* checking line endings in C/C++/Fortran sources/headers ... OK
+* checking line endings in Makefiles ... OK
+* checking compilation flags in Makevars ... OK
+* checking for GNU extensions in Makefiles ... OK
+* checking for portable use of $(BLAS_LIBS) and $(LAPACK_LIBS) ... OK
+* checking use of PKG_*FLAGS in Makefiles ... OK
+* checking use of SHLIB_OPENMP_*FLAGS in Makefiles ... OK
+* checking pragmas in C/C++ headers and code ... OK
+* checking compilation flags used ... OK
+* checking compiled code ... OK
+* checking installed files from ‘inst/doc’ ... OK
+* checking files in ‘vignettes’ ... OK
+* checking examples ... [10s/4s] OK
+* checking for unstated dependencies in ‘tests’ ... OK
+* checking tests ... [48s/10s] NOTE
+  Running ‘tinytest.R’ [47s/10s]
+Running R code in ‘tinytest.R’ had CPU time 4.8 times elapsed time
+* checking for unstated dependencies in vignettes ... OK
+* checking package vignettes ... OK
+* checking re-building of vignette outputs ... [9s/4s] OK
+* checking for non-standard things in the check directory ... OK
+* checking for detritus in the temp directory ... OK
+* DONE
+Status: 1 NOTE

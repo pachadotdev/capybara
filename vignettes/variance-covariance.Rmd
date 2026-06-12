@@ -1,0 +1,218 @@
+---
+title: "Different Variance-Covariance Estimators"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Different Variance-Covariance Estimators}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```r
+library(capybara)
+```
+
+A very quick verification of Ross (2004) is to obtain the coefficients for the OLS model from table 1:
+
+```r
+felm(ltrade ~ bothin + onein + gsp + ldist + lrgdp + lrgdppc + regional +
+  custrict + comlang + border + landl + island + lareap + comcol +
+  curcol + colony + comctry | year, data = ross2004)
+```
+
+```r
+Formula: ltrade ~ bothin + onein + gsp + ldist + lrgdp + lrgdppc + regional + 
+    custrict + comlang + border + landl + island + lareap + comcol + 
+    curcol + colony + comctry | year
+
+Estimates:
+
+|          | Estimate | Std. Error | z value   | Pr(>|z|)  |
+|----------|----------|------------|-----------|-----------|
+| bothin   |  -0.0423 |     0.0159 |   -2.6540 | 0.0080 ** |
+| onein    |  -0.0583 |     0.0154 |   -3.7722 | 0.0002 ** |
+| gsp      |   0.8585 |     0.0111 |   77.0829 | 0.0000 ** |
+| ldist    |  -1.1190 |     0.0061 | -183.0863 | 0.0000 ** |
+| lrgdp    |   0.9159 |     0.0026 |  355.9087 | 0.0000 ** |
+| lrgdppc  |   0.3214 |     0.0039 |   83.2804 | 0.0000 ** |
+| regional |   1.1988 |     0.0360 |   33.2956 | 0.0000 ** |
+| custrict |   1.1181 |     0.0374 |   29.8774 | 0.0000 ** |
+| comlang  |   0.3125 |     0.0110 |   28.3085 | 0.0000 ** |
+| border   |   0.5257 |     0.0266 |   19.7328 | 0.0000 ** |
+| landl    |  -0.2706 |     0.0093 |  -29.0310 | 0.0000 ** |
+| island   |   0.0419 |     0.0095 |    4.4335 | 0.0000 ** |
+| lareap   |  -0.0967 |     0.0020 |  -47.5692 | 0.0000 ** |
+| comcol   |   0.5846 |     0.0162 |   36.1094 | 0.0000 ** |
+| curcol   |   1.0751 |     0.1067 |   10.0763 | 0.0000 ** |
+| colony   |   1.1638 |     0.0312 |   37.3391 | 0.0000 ** |
+| comctry  |  -0.0163 |     0.2623 |   -0.0622 | 0.9504    |
+
+Significance codes: ** p < 0.01; * p < 0.05; + p < 0.10
+
+R-squared     : 0.648 
+Adj. R-squared: 0.6479 
+
+Fixed effects:
+  year: 52
+
+Number of observations: Full 234597; Missing 0; Perfect classification 0
+```
+
+This does not involve many fixed effects. However, capybara will be particularly useful to
+obtain different standard errors for the same functional form, which is the main focus of
+table 4B in Cameron & Miller (2014).
+
+Table 4B shows the following clustering methods that we can replicate with the third part of the
+model formula (e.g. `y ~ x1 + x2 + ... | fe1 + fe2 | cl1 + cl2`)  and using the `vcov` argument
+to select how the clustering variables are used:
+
+| `vcov` value     | Description                                    |
+|:-----------------|:-----------------------------------------------|
+| `"iid"`          | Default OLS (i.i.d. errors)                    |
+| `"hetero"`       | Heteroskedastic-robust (HC0)                   |
+| `"cluster"`      | One-way cluster sandwich                       |
+| `"m-estimator"`  | One-way M-estimator sandwich                   |
+| `"dyadic"`       | Dyadic-robust (Cameron & Miller, 2014)         |
+
+Capybara provides an `update()` method to easily modify the formula for each model, as we need
+to change the clustering variables for each model, which avoids error-prone copy-pasting of the full
+formula every time.
+
+## IID  (no cluster part in formula)
+
+```r
+fml <- ltrade ~ bothin + onein + gsp + ldist + lrgdp + lrgdppc + regional +
+  custrict + comlang + border + landl + island + lareap + comcol +
+  curcol + colony + comctry | year
+
+fit_iid <- felm(
+  fml,
+  data = ross2004, vcov = "iid"
+)
+```
+
+## Heteroskedastic-robust (HC0)
+
+```r
+fit_hetero <- felm(
+  fml,
+  data = ross2004, vcov = "hetero"
+)
+```
+
+## One-way: cluster on country-pair (g,h)
+
+Note that multi-part formulas (e.g., `y ~ x | fe | cl`) are handled by the Formula package. Therefore,
+updating those needs an explicit `Formula::as.Formula()` call if the formula type was not specified initially.
+
+```r
+fml2 <- update(Formula::as.Formula(fml), . ~ . | . | pair)
+
+fit_pairs <- felm(
+  fml2,
+  data = ross2004, vcov = "cluster"
+)
+```
+
+## One-way: cluster on country 1 (g)
+
+```r
+fit_ctry1 <- felm(
+  update(fml2, . ~ . | . | ctry1),
+  data = ross2004, vcov = "cluster"
+)
+```
+
+## One-way: cluster on country 2 (h)
+
+```r
+fit_ctry2 <- felm(
+  update(fml2, . ~ . | . | ctry2),
+  data = ross2004, vcov = "cluster"
+)
+```
+
+## Two-way: cluster on (g) and (h) simultaneously
+
+```r
+fit_2way <- felm(
+  update(fml2, . ~ . | . | ctry1 + ctry2),
+  data = ross2004, vcov = "cluster"
+)
+```
+
+## Dyadic-robust: Cameron-Miller (2014) sandwich with cross-dyad correlations
+
+```r
+fit_dyadic <- felm(
+  update(fml2, . ~ . | . | ctry1 + ctry2),
+  data = ross2004, vcov = "dyadic"
+)
+```
+
+With the above models, we can replicate Table 4B from Cameron & Miller (2014) using
+`summary_table()`, another convenience function in capybara to display multiple models side-by-side.
+This completely avoids calling `summary()` on each model and then conducting post-processing to
+extract the relevant information for the table.
+
+```r
+summary_table(
+  fit_iid, fit_hetero, fit_pairs, fit_ctry1, fit_ctry2, fit_2way, fit_dyadic,
+  model_names = c("IID", "Hetero", "Pairs", "Country 1", "Country 2", "2-Way", "Dyadic")
+)
+```
+
+```r
+|     Variable     |        IID         |          Hetero          |       Pairs        |     Country 1      |     Country 2      |       2-Way        |       Dyadic       |
+|------------------|--------------------|--------------------------|--------------------|--------------------|--------------------|--------------------|--------------------|
+| bothin           |           -0.042** |                  -0.042* |             -0.042 |             -0.042 |             -0.042 |             -0.042 |             -0.042 |
+|                  |            (0.016) |                  (0.018) |            (0.053) |            (0.122) |            (0.107) |            (0.122) |            (0.186) |
+| onein            |           -0.058** |                 -0.058** |             -0.058 |             -0.058 |             -0.058 |             -0.058 |             -0.058 |
+|                  |            (0.015) |                  (0.018) |            (0.049) |            (0.095) |            (0.071) |            (0.095) |            (0.126) |
+| gsp              |            0.859** |                  0.859** |            0.859** |            0.859** |            0.859** |            0.859** |            0.859** |
+|                  |            (0.011) |                  (0.009) |            (0.032) |            (0.098) |            (0.074) |            (0.098) |            (0.131) |
+| ldist            |           -1.119** |                 -1.119** |           -1.119** |           -1.119** |           -1.119** |           -1.119** |           -1.119** |
+|                  |            (0.006) |                  (0.006) |            (0.022) |            (0.051) |            (0.050) |            (0.051) |            (0.078) |
+| lrgdp            |            0.916** |                  0.916** |            0.916** |            0.916** |            0.916** |            0.916** |            0.916** |
+|                  |            (0.003) |                  (0.003) |            (0.010) |            (0.024) |            (0.028) |            (0.024) |            (0.043) |
+| lrgdppc          |            0.321** |                  0.321** |            0.321** |            0.321** |            0.321** |            0.321** |            0.321** |
+|                  |            (0.004) |                  (0.004) |            (0.014) |            (0.033) |            (0.038) |            (0.033) |            (0.052) |
+| regional         |            1.199** |                  1.199** |            1.199** |            1.199** |            1.199** |            1.199** |            1.199** |
+|                  |            (0.036) |                  (0.029) |            (0.106) |            (0.222) |            (0.185) |            (0.222) |            (0.333) |
+| custrict         |            1.118** |                  1.118** |            1.118** |            1.118** |            1.118** |            1.118** |            1.118** |
+|                  |            (0.037) |                  (0.035) |            (0.122) |            (0.165) |            (0.176) |            (0.165) |            (0.235) |
+| comlang          |            0.313** |                  0.313** |            0.313** |            0.313** |            0.313** |            0.313** |            0.313** |
+|                  |            (0.011) |                  (0.011) |            (0.040) |            (0.081) |            (0.065) |            (0.081) |            (0.111) |
+| border           |            0.526** |                  0.526** |            0.526** |            0.526** |            0.526** |            0.526** |             0.526* |
+|                  |            (0.027) |                  (0.026) |            (0.111) |            (0.148) |            (0.150) |            (0.148) |            (0.207) |
+| landl            |           -0.271** |                 -0.271** |           -0.271** |           -0.271** |           -0.271** |           -0.271** |            -0.271* |
+|                  |            (0.009) |                  (0.010) |            (0.031) |            (0.069) |            (0.079) |            (0.069) |            (0.110) |
+| island           |            0.042** |                  0.042** |              0.042 |              0.042 |              0.042 |              0.042 |              0.042 |
+|                  |            (0.009) |                  (0.009) |            (0.036) |            (0.105) |            (0.083) |            (0.105) |            (0.154) |
+| lareap           |           -0.097** |                 -0.097** |           -0.097** |           -0.097** |           -0.097** |           -0.097** |            -0.097* |
+|                  |            (0.002) |                  (0.002) |            (0.008) |            (0.025) |            (0.025) |            (0.025) |            (0.043) |
+| comcol           |            0.585** |                  0.585** |            0.585** |            0.585** |            0.585** |            0.585** |            0.585** |
+|                  |            (0.016) |                  (0.019) |            (0.067) |            (0.126) |            (0.108) |            (0.126) |            (0.178) |
+| curcol           |            1.075** |                  1.075** |            1.075** |             1.075* |            1.075** |             1.075* |             1.075* |
+|                  |            (0.107) |                  (0.070) |            (0.235) |            (0.462) |            (0.256) |            (0.462) |            (0.480) |
+| colony           |            1.164** |                  1.164** |            1.164** |            1.164** |            1.164** |            1.164** |            1.164** |
+|                  |            (0.031) |                  (0.023) |            (0.117) |            (0.193) |            (0.115) |            (0.193) |            (0.209) |
+| comctry          |             -0.016 |                   -0.016 |             -0.016 |             -0.016 |             -0.016 |             -0.016 |             -0.016 |
+|                  |            (0.262) |                  (0.205) |            (1.081) |            (0.884) |            (1.077) |            (0.884) |            (0.859) |
+|                  |                    |                          |                    |                    |                    |                    |                    |
+| Fixed effects    |                    |                          |                    |                    |                    |                    |                    |
+| year             |                Yes |                      Yes |                Yes |                Yes |                Yes |                Yes |                Yes |
+|                  |                    |                          |                    |                    |                    |                    |                    |
+| N                |            234,597 |                  234,597 |            234,597 |            234,597 |            234,597 |            234,597 |            234,597 |
+| R-squared        |              0.648 |                    0.648 |              0.648 |              0.648 |              0.648 |              0.648 |              0.648 |
+| SE type          |                IID |   Heteroskedastic-robust |     Cluster-robust |     Cluster-robust |     Cluster-robust |     Cluster-robust |      Dyadic-robust |
+
+Standard errors in parenthesis
+Significance levels: ** p < 0.01; * p < 0.05; + p < 0.10
+```

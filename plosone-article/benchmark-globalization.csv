@@ -1,0 +1,5 @@
+package,median,mem_alloc,rel_median,rel_mem_alloc
+Alpaca,6.398,572.719,0.09,4.671
+Fixest,0.181,78.349,0.003,0.639
+Capybara,0.708,24.374,0.01,0.199
+Base R,7112.223,12260.948,100,100

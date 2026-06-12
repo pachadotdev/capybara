@@ -1,0 +1,128 @@
+---
+title: "Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors"
+output: rmarkdown::html_vignette
+bibliography: "references.bib"
+vignette: >
+  %\VignetteIndexEntry{Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+We will estimate a Poisson Pseudo-Maximum Likelihood (PPML) model using the
+data available in this package with the idea of replicating the PPML results
+from Table 3 in @yotov2016advanced.
+
+This requires to include exporter-time and importer-time fixed effects, and to
+cluster the standard errors by exporter-importer pairs.
+
+The PPML especification corresponds to:
+\begin{align}
+X_{ij,t} =& \:\exp\left[\beta_1 \log(DIST)_{i,j} + \beta_2 BORDER_{i,j} +\right.\\
+\text{ }& \:\left.\beta_3 COMLANG_{i,j} + \beta_4 COLONY_{i,j} + \pi_{i,t} + \chi_{i,t}\right] \times \varepsilon_{ij,t}.
+\end{align}
+
+Required packages:
+
+```r
+library(capybara)
+```
+
+We can use the `fepoisson()` function to obtain the estimated coefficients
+and we add the fixed effects as `| exp_year + imp_year` in the formula.
+
+Model estimation:
+
+```r
+ross2004_subset <- ross2004[ross2004$year %in% seq(1989, 1999, 5), ]
+ross2004_subset$trade <- exp(ross2004_subset$ltrade)
+ross2004_subset$exp_year <- paste0(ross2004_subset$ctry1, ross2004_subset$year)
+ross2004_subset$imp_year <- paste0(ross2004_subset$ctry2, ross2004_subset$year)
+
+fit <- fepoisson(
+  trade ~ ldist + border + comlang + colony | exp_year + imp_year,
+  data = ross2004_subset
+)
+
+summary(fit)
+```
+
+```r
+Formula: trade ~ ldist + border + comlang + colony | exp_year + imp_year
+
+Family: Poisson
+
+Estimates:
+
+|         | Estimate | Std. Error | z value     | Pr(>|z|)  |
+|---------|----------|------------|-------------|-----------|
+| ldist   |  -0.9800 |     0.0000 | -90771.8020 | 0.0000 ** |
+| border  |   0.3200 |     0.0000 |  13707.7154 | 0.0000 ** |
+| comlang |   0.2852 |     0.0000 |  12315.8981 | 0.0000 ** |
+| colony  |   0.3958 |     0.0000 |  12508.5396 | 0.0000 ** |
+
+Significance codes: ** p < 0.01; * p < 0.05; + p < 0.10
+
+Pseudo R-squared: 0.9591 
+
+Fixed effects:
+  exp_year: 457
+  imp_year: 457
+
+Number of observations: Full 21450; Missing 0; Perfect classification 0 
+
+Number of Fisher Scoring iterations: 10 
+```
+
+The coefficients are almost identical to those in Table 3 from
+@yotov2016advanced that were obtained with Stata. The difference is attributed
+to the different fitting algorithms used by the software. Capybara
+uses the demeaning algorithm proposed by @stammann2018fast.
+
+```r
+fit <- fepoisson(
+  trade ~ ldist + border + comlang + colony | exp_year + imp_year | pair,
+  data = ross2004_subset
+)
+
+summary(fit, type = "clustered")
+```
+
+```r
+Formula: trade ~ ldist + border + comlang + colony | exp_year + imp_year | 
+    pair
+
+Family: Poisson
+
+Estimates:
+
+|         | Estimate | Std. Error | z value  | Pr(>|z|)  |
+|---------|----------|------------|----------|-----------|
+| ldist   |  -0.9800 |     0.0476 | -20.5747 | 0.0000 ** |
+| border  |   0.3200 |     0.1077 |   2.9719 | 0.0030 ** |
+| comlang |   0.2852 |     0.0881 |   3.2362 | 0.0012 ** |
+| colony  |   0.3958 |     0.1032 |   3.8344 | 0.0001 ** |
+
+Significance codes: ** p < 0.01; * p < 0.05; + p < 0.10
+
+Pseudo R-squared: 0.9591 
+
+Fixed effects:
+  exp_year: 457
+  imp_year: 457
+
+Number of observations: Full 21450; Missing 0; Perfect classification 0 
+
+Number of Fisher Scoring iterations: 10
+```
+
+The slopes are identical but the standard errors differ from the previous exampke. Capybara clustering
+algorithm is based on @cameron2011robust.
+
+# References

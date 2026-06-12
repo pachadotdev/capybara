@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors • capybara</title><link rel="stylesheet" href="../menu.css"><link rel="stylesheet" href="../content.css"><!-- MathJax Configuration --><script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        processEscapes: true,
+        processEnvironments: true,
+        packages: {'[+]': ['ams', 'newcommand', 'configmacros']}
+      },
+      options: {
+        ignoreHtmlClass: 'tex2jax_ignore',
+        processHtmlClass: 'tex2jax_process'
+      }
+    };
+  </script><script id="MathJax-script" async src="../js/tex-svg.js"></script></head><body>
+<div class="main-container">
+<div id="menu">
+  <div>
+    <img src="../man/figures/logo.svg" align="center" height="139" alt="capybara logo"></div>
+
+  <div class="search-container">
+    <input type="text" id="search-box" placeholder="Search..."></div>
+
+  <div class="search-container">
+    <button id="theme-toggle" title="Toggle dark mode" aria-label="Toggle dark mode">Toggle theme</button>
+    <button id="font-decrease" title="Decrease font size" aria-label="Decrease font size">A-</button>
+    <button id="font-increase" title="Increase font size" aria-label="Increase font size">A+</button>
+  </div>
+
+  <div class="submenu">
+    <label style="border-bottom: 0;"><a style="padding-left: 0;" href="../index.html">Home 🏠</a></label>
+  </div>
+
+  <div class="submenu">
+    <label>On this page</label>
+    <a href="#references" class="toc-level-1">References</a>
+  </div>
+
+</div>
+<div id="content">
+<div class="content-wrapper">
+        <div class="content-main">
+          <h1>Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors</h1>
+
+
+
+<p>We will estimate a Poisson Pseudo-Maximum Likelihood (PPML) model
+using the data available in this package with the idea of replicating
+the PPML results from Table 3 in <span class="citation">Yotov et al.
+(2016)</span>.</p>
+<p>This requires to include exporter-time and importer-time fixed
+effects, and to cluster the standard errors by exporter-importer
+pairs.</p>
+<p>The PPML especification corresponds to: <span class="math display">\[\begin{align}
+X_{ij,t} =&amp; \:\exp\left[\beta_1 \log(DIST)_{i,j} + \beta_2
+BORDER_{i,j} +\right.\\
+\text{ }&amp; \:\left.\beta_3 COMLANG_{i,j} + \beta_4 COLONY_{i,j} +
+\pi_{i,t} + \chi_{i,t}\right] \times \varepsilon_{ij,t}.
+\end{align}\]</span></p>
+<p>Required packages:</p>
+<pre class="r"><code>library(capybara)</code></pre>
+<p>We can use the <code>fepoisson()</code> function to obtain the
+estimated coefficients and we add the fixed effects as
+<code>| exp_year + imp_year</code> in the formula.</p>
+<p>Model estimation:</p>
+<pre class="r"><code>ross2004_subset &lt;- ross2004[ross2004$year %in% seq(1989, 1999, 5), ]
+ross2004_subset$trade &lt;- exp(ross2004_subset$ltrade)
+ross2004_subset$exp_year &lt;- paste0(ross2004_subset$ctry1, ross2004_subset$year)
+ross2004_subset$imp_year &lt;- paste0(ross2004_subset$ctry2, ross2004_subset$year)
+
+fit &lt;- fepoisson(
+  trade ~ ldist + border + comlang + colony | exp_year + imp_year,
+  data = ross2004_subset
+)
+
+summary(fit)</code></pre>
+<pre class="r"><code>Formula: trade ~ ldist + border + comlang + colony | exp_year + imp_year
+
+Family: Poisson
+
+Estimates:
+
+|         | Estimate | Std. Error | z value     | Pr(&gt;|z|)  |
+|---------|----------|------------|-------------|-----------|
+| ldist   |  -0.9800 |     0.0000 | -90771.8020 | 0.0000 ** |
+| border  |   0.3200 |     0.0000 |  13707.7154 | 0.0000 ** |
+| comlang |   0.2852 |     0.0000 |  12315.8981 | 0.0000 ** |
+| colony  |   0.3958 |     0.0000 |  12508.5396 | 0.0000 ** |
+
+Significance codes: ** p &lt; 0.01; * p &lt; 0.05; + p &lt; 0.10
+
+Pseudo R-squared: 0.9591
+
+Fixed effects:
+  exp_year: 457
+  imp_year: 457
+
+Number of observations: Full 21450; Missing 0; Perfect classification 0
+
+Number of Fisher Scoring iterations: 10 </code></pre>
+<p>The coefficients are almost identical to those in Table 3 from <span class="citation">Yotov et al. (2016)</span> that were obtained with
+Stata. The difference is attributed to the different fitting algorithms
+used by the software. Capybara uses the demeaning algorithm proposed by
+<span class="citation">Stammann (2018)</span>.</p>
+<pre class="r"><code>fit &lt;- fepoisson(
+  trade ~ ldist + border + comlang + colony | exp_year + imp_year | pair,
+  data = ross2004_subset
+)
+
+summary(fit, type = "clustered")</code></pre>
+<pre class="r"><code>Formula: trade ~ ldist + border + comlang + colony | exp_year + imp_year |
+    pair
+
+Family: Poisson
+
+Estimates:
+
+|         | Estimate | Std. Error | z value  | Pr(&gt;|z|)  |
+|---------|----------|------------|----------|-----------|
+| ldist   |  -0.9800 |     0.0476 | -20.5747 | 0.0000 ** |
+| border  |   0.3200 |     0.1077 |   2.9719 | 0.0030 ** |
+| comlang |   0.2852 |     0.0881 |   3.2362 | 0.0012 ** |
+| colony  |   0.3958 |     0.1032 |   3.8344 | 0.0001 ** |
+
+Significance codes: ** p &lt; 0.01; * p &lt; 0.05; + p &lt; 0.10
+
+Pseudo R-squared: 0.9591
+
+Fixed effects:
+  exp_year: 457
+  imp_year: 457
+
+Number of observations: Full 21450; Missing 0; Perfect classification 0
+
+Number of Fisher Scoring iterations: 10</code></pre>
+<p>The slopes are identical but the standard errors differ from the
+previous exampke. Capybara clustering algorithm is based on <span class="citation">Cameron, Gelbach, and Miller (2011)</span>.</p>
+<div id="references" class="section level1 unnumbered">
+<h1 id="references" class="unnumbered">References</h1>
+<div id="refs" class="references csl-bib-body hanging-indent" entry-spacing="0">
+<div id="ref-cameron2011robust" class="csl-entry">
+Cameron, A Colin, Jonah B Gelbach, and Douglas L Miller. 2011.
+<span>“Robust Inference with Multiway Clustering.”</span> <em>Journal of
+Business &amp; Economic Statistics</em> 29 (2): 238–49.
+</div>
+<div id="ref-stammann2018fast" class="csl-entry">
+Stammann, Amrei. 2018. <span>“Fast and <span>Feasible</span>
+<span>Estimation</span> of <span>Generalized</span> <span>Linear</span>
+<span>Models</span> with <span>High</span>-<span>Dimensional</span>
+k-Way <span>Fixed</span> <span>Effects</span>.”</span> arXiv. <a href="https://doi.org/10.48550/arXiv.1707.01815">https://doi.org/10.48550/arXiv.1707.01815</a>.
+</div>
+<div id="ref-yotov2016advanced" class="csl-entry">
+Yotov, Yoto V, Roberta Piermartini, Mario Larch, et al. 2016. <em>An
+Advanced Guide to Trade Policy Analysis​: The Structural Gravity
+Model</em>. WTO iLibrary.
+</div>
+</div>
+</div>
+        </div>
+        <footer><p id="last-updated">Loading...</p>
+</footer><script src="../js/footer.js"></script><script src="../js/theme.js"></script><script src="../js/search.js"></script><script src="../js/fontsize.js"></script></div>
+</div>
+</div>
+</body></html>
+

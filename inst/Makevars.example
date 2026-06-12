@@ -1,0 +1,6 @@
+# Copy to ~/.R/Makevars if you want to override R's default optimization
+CXXFLAGS = -O3
+CXX11FLAGS = -O3
+CXX14FLAGS = -O3
+CXX17FLAGS = -O3
+CXX20FLAGS = -O3
