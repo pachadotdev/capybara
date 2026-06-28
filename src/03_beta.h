@@ -76,6 +76,44 @@ inline vec crossprod_Xy(const mat &X, const vec &w, const vec &y) {
   return X.t() * (w % y);
 }
 
+// Flag regressors that are (numerically) absorbed by the fixed effects.
+//
+// After FE-centering, a regressor whose retained weighted variation is a
+// negligible fraction of its original variation is collinear with the fixed
+// effects (e.g. a dyadic/pair-constant variable together with a pair fixed
+// effect). The normal equations for such a column are singular: solving them
+// returns a meaningless (exploding or denormalized) coefficient instead of NA.
+// Detecting this requires a *relative* test, since an absolute pivot tolerance
+// on the centered cross-product fails when several absorbed columns remain
+// mutually independent at the centering-noise level.
+//
+//   orig_ss(j)     = sum_i w_i * X(i,j)^2     (uncentered column)
+//   centered_ss(j) = sum_i w_i * Xc(i,j)^2    (FE-centered column)
+//   absorbed(j)    = orig_ss(j) <= 0 || centered_ss(j) / orig_ss(j) < tol
+//
+// X and Xc must have matching columns; `w` may be empty for the unweighted
+// case. Returns a 0/1 vector (1 = absorbed) of length X.n_cols.
+inline uvec flag_fe_absorbed(const mat &X, const mat &Xc, const vec &w,
+                             double tol) {
+  const uword p = X.n_cols;
+  uvec absorbed(p, fill::zeros);
+  const bool weighted = !w.is_empty();
+  for (uword j = 0; j < p; ++j) {
+    const double orig_ss =
+        weighted ? dot(w % X.col(j), X.col(j)) : dot(X.col(j), X.col(j));
+    if (orig_ss <= 0.0) {
+      absorbed(j) = 1; // zero/empty regressor is not estimable
+      continue;
+    }
+    const double cent_ss =
+        weighted ? dot(w % Xc.col(j), Xc.col(j)) : dot(Xc.col(j), Xc.col(j));
+    if (cent_ss / orig_ss < tol) {
+      absorbed(j) = 1;
+    }
+  }
+  return absorbed;
+}
+
 inline InferenceBeta get_beta(const mat &X, const vec &y, const vec &y_orig,
                               const vec &w,
                               const CollinearityResult &collin_result,

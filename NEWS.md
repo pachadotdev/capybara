@@ -1,3 +1,11 @@
+
+# capybara 2.1.0
+
+* Flag regressors that are (numerically) absorbed by the fixed effects. This correctly identifies
+  collinear terms, for example, with dyadic trade-like data where the structural regressors
+  (log_dist, lang, contig) are constant within an exporter-importer pair and are perfectly absorbed
+  by the `pair` fixed effect.
+
 # capybara 2.0.0
 
 * Capybara now offers different variance-covariance estimators that do not require to call `summary()`

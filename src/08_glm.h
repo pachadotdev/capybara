@@ -477,11 +477,47 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
   // Scope XtX and R_rank so they're deallocated immediately after use
   // (avoids holding P^2 memory through the entire IRLS loop)
   {
-    const mat XtX = use_weights ? crossprod(X, w) : crossprod(X);
-    mat R_rank;
     uvec excl;
-    uword rank; // required output parameter; value not used by caller
-    chol_rank(R_rank, excl, rank, XtX, "upper", params.collin_tol);
+    if (has_fixed_effects && X.n_cols > 0) {
+      // For fixed-effect models, run the collinearity check on the
+      // FE-centered design matrix. This catches regressors that are absorbed
+      // by the fixed effects (e.g. dyadic/pair-constant variables together
+      // with a pair fixed effect): after centering their variation is
+      // numerically zero, so they must be dropped (reported as NA). Detecting
+      // collinearity on the raw, uncentered X would miss this and the
+      // near-singular weighted least squares solve in the IRLS loop would
+      // return meaningless (exploding or denormalized) coefficients.
+      const vec w_c = use_weights ? w : vec(n, fill::ones);
+      mat Xc = X;
+      FlatFEMap fe_map_collin = fe_map;
+      fe_map_collin.update_weights(w_c);
+      center_variables(Xc, w_c, fe_map_collin, params.center_tol,
+                       params.iter_center_max, params.grand_acc_period);
+
+      // Columns whose retained variation is a negligible fraction of their
+      // original variation are absorbed by the fixed effects.
+      const uvec absorbed = flag_fe_absorbed(X, Xc, w_c, params.collin_tol);
+      const uvec absorbed_idx = find(absorbed);
+
+      // Zero the absorbed columns before the rank check so they cannot
+      // contaminate the Cholesky factor used to detect mutual collinearity
+      // among the remaining columns.
+      if (!absorbed_idx.is_empty()) {
+        Xc.cols(absorbed_idx).zeros();
+      }
+
+      // Detect any remaining mutual collinearity among the centered columns.
+      const mat XtX = crossprod(Xc, w_c);
+      mat R_rank;
+      uword rank; // required output parameter; value not used by caller
+      chol_rank(R_rank, excl, rank, XtX, "upper", params.collin_tol);
+      excl.elem(absorbed_idx).ones();
+    } else {
+      const mat XtX = use_weights ? crossprod(X, w) : crossprod(X);
+      mat R_rank;
+      uword rank; // required output parameter; value not used by caller
+      chol_rank(R_rank, excl, rank, XtX, "upper", params.collin_tol);
+    }
 
     if (any(excl)) {
       collin_result.has_collinearity = true;

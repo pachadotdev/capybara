@@ -413,6 +413,24 @@ felm_fit(const mat &X, const vec &y, const vec &w, const FlatFEMap &fe_map,
 
   // Scope XtX and R_rank so they're deallocated immediately after solving
   {
+    // Drop regressors absorbed by the fixed effects before forming the normal
+    // equations. Their FE-centered variation is a negligible fraction of their
+    // original variation, so the normal equations are singular and would yield
+    // meaningless (exploding or denormalized) coefficients instead of NA. This
+    // complements chol_rank, which uses an absolute pivot tolerance and can
+    // miss absorbed columns whose centering residual is small but not tiny.
+    // Zeroing the centered columns up front (rather than excluding them after
+    // factorization) keeps the absorbed columns from contaminating the
+    // Cholesky factor of the retained columns.
+    if (has_fixed_effects && P > 0) {
+      const uvec absorbed = flag_fe_absorbed(
+          X, ws->X_centered, use_weights ? w_work : vec(), params.collin_tol);
+      const uvec absorbed_idx = find(absorbed);
+      if (!absorbed_idx.is_empty()) {
+        ws->X_centered.cols(absorbed_idx).zeros();
+      }
+    }
+
     mat XtX;
     vec XtY_vec;
 

@@ -41,7 +41,8 @@ The `expectile` is set through `fit_control()` and defaults to `0.5`, so if you 
 ## Estimating lower and upper expectiles
 
 Shifting `expectile` away from 0.5 lets you trace how the entire conditional distribution
-of `mpg` varies with `wt`, after absorbing the `cyl` fixed effects.
+of `trade` varies with `ldist` and other predictors, after absorbing the exporter-year and
+importer-year fixed effects.
 
 ```r
 ross2004_subset <- ross2004[ross2004$year %in% seq(1989, 1999, 5), ]
@@ -49,7 +50,7 @@ ross2004_subset$trade <- exp(ross2004_subset$ltrade)
 ross2004_subset$exp_year <- paste0(ross2004_subset$ctry1, ross2004_subset$year)
 ross2004_subset$imp_year <- paste0(ross2004_subset$ctry2, ross2004_subset$year)
 
-# 10th expectile — sensitive to small values of mpg
+# 10th expectile — sensitive to small values of trade
 fit10 <- fepoisson_asymmetric(
   trade ~ ldist + border + comlang + colony | exp_year + imp_year,
   data    = ross2004_subset,
@@ -85,7 +86,7 @@ Number of Fisher Scoring iterations: 17
 ```
 
 ```r
-# 90th expectile — sensitive to large values of mpg
+# 90th expectile — sensitive to large values of trade
 fit90 <- fepoisson_asymmetric(
   trade ~ ldist + border + comlang + colony | exp_year + imp_year,
   data    = ross2004_subset,
