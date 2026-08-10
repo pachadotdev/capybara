@@ -1,3 +1,6 @@
+# capybara 2.2.0
+
+* I removed `broom` integration and replaced `ggplot2` coefficient plots with `tinyplot`.
 
 # capybara 2.1.0
 

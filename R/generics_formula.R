@@ -164,6 +164,7 @@ felm_formula_ <- function(base, fe = NULL, cluster = NULL) {
 #' @param ... Additional arguments forwarded to [felm()].
 #'
 #' @return A refitted `felm` object.
+#' @exportS3Method
 #' @export
 update.felm <- function(object, formula. = . ~ ., vcov = NULL, ...) {
   # Convert to Formula object for proper multi-part formula handling
@@ -190,6 +191,7 @@ update.felm <- function(object, formula. = . ~ ., vcov = NULL, ...) {
 #' @param family Optional new family (e.g. `binomial()`).  If omitted the
 #'   original family is reused.
 #' @return A refitted `feglm` object.
+#' @exportS3Method
 #' @export
 update.feglm <- function(object, formula. = . ~ ., vcov = NULL, family = NULL, ...) {
   # Convert to Formula object for proper multi-part formula handling
@@ -220,6 +222,7 @@ update.feglm <- function(object, formula. = . ~ ., vcov = NULL, family = NULL, .
 #' @param ... Ignored.
 #'
 #' @return A new `felm_formula` object.
+#' @exportS3Method
 #' @export
 update.felm_formula <- function(object, formula., ...) {
   # Convert to Formula object, update, then restore felm_formula class

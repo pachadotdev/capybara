@@ -16,8 +16,11 @@
 
 #' @title Predict method for 'feglm' objects
 #' @description Similar to the 'predict' method for 'glm' objects but returns response predictions as default.
-#' @export
-#' @noRd
+#' @param object 'feglm' object
+#' @param newdata 'data.frame' to obtain new predictions
+#' @param type 'response' or 'link'
+#' @param ... additional arguments for S3 compliance (unused)
+#' @exportS3Method
 predict.feglm <- function(
   object,
   newdata = NULL,
@@ -188,8 +191,11 @@ predict.feglm <- function(
 
 #' @title Predict method for 'felm' objects
 #' @description Similar to the 'predict' method for 'lm' objects
-#' @export
-#' @noRd
+#' @param object 'felm' object
+#' @param newdata 'data.frame' to obtain new predictions
+#' @param type 'response' or 'terms'
+#' @param ... additional arguments for S3 compliance (unused)
+#' @exportS3Method
 predict.felm <- function(
   object,
   newdata = NULL,

@@ -2,8 +2,8 @@
 # The C++ structs already return all the necessary components to print the equivalent of glm() + summary()
 
 # srr_stats
-# {G1.0} Implements `summary` methods for various model objects (`apes`, `feglm`, `felm`) to provide detailed post-estimation statistics.
-# {G2.1a} Ensures that input objects are of the expected class (`apes`, `feglm`, `felm`).
+# {G1.0} Implements `summary` methods for various model objects (`feglm`, `felm`) to provide detailed post-estimation statistics.
+# {G2.1a} Ensures that input objects are of the expected class (`feglm`, `felm`).
 # {G2.3} Accurately computes standard errors, z-values, and p-values for model coefficients.
 # {G3.1} Includes residual statistics, deviance measures, and (where applicable) R-squared values for Poisson models.
 # {G5.2a} Outputs include well-structured coefficient matrices with appropriate column headers and row names.
@@ -14,28 +14,20 @@
 # {RE5.0} Reduces cyclomatic complexity through modular functions for computing summary components.
 # {RE5.2} Facilitates interpretability of models by providing a unified and clear summary output format.
 
-#' @title Summary method for fixed effects APEs
-#' @inherit vcov.apes
-#' @export
-#' @noRd
-summary.apes <- function(object, ...) {
-  class(object) <- c("summary.apes", class(object))
-  object
-}
-
 #' @title Summary method for fixed effects GLMs
-#' @inherit vcov.feglm
-#' @export
-#' @noRd
+#' @param object 'feglm' object
+#' @param ... additional arguments for S3 compliance (unused)
+#' @exportS3Method
 summary.feglm <- function(object, ...) {
   class(object) <- c("summary.feglm", class(object))
   object
 }
 
 #' @title Summary method for fixed effects LMs
-#' @inherit vcov.felm
-#' @export
-#' @noRd
+#' @param object 'felm' object
+#' @param type 'hessian' (no other type works with 'felm')
+#' @param ... additional arguments for S3 compliance (unused)
+#' @exportS3Method
 summary.felm <- function(
   object,
   type = "hessian",

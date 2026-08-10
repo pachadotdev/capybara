@@ -28,21 +28,20 @@
 #'
 #' @name capybara-package
 #' @importFrom Formula Formula as.Formula
-#' @importFrom ggplot2 ggplot aes geom_point geom_errorbar labs theme_minimal coord_flip autoplot
 #' @importFrom MASS negative.binomial theta.ml
 #' @importFrom stats ave binomial coef complete.cases fitted.values Gamma gaussian inverse.gaussian model.frame model.matrix model.response na.omit na.pass pnorm poisson predict printCoefmat qnorm reformulate setNames terms update vcov
 #' @importFrom utils combn head
 #' @useDynLib capybara, .registration = TRUE
 "_PACKAGE"
 
-#' srr_stats (tests)
+# srr_stats (tests)
 # {G5.1} The panel is exported and used in the package examples.
-#' @noRd
-NULL
+# @noRd
+# NULL
 
-#' Subset of WTO data from Ross (2004)
+#' @title Subset of WTO data from Ross (2004)
 #'
-#' Data from Ross (2004) used to show the different variance-covariance estimators from
+#' @description Data from Ross (2004) used to show the different variance-covariance estimators from
 #' Cameron and Miller (2014).
 #'
 #' @format ## `ross2004`
@@ -75,9 +74,9 @@ NULL
 #' @source Do We Really Know That the WTO Increases Trade? (DOI: 10.1257/000282804322970724)
 "ross2004"
 
-#' Separation Example Datasets
+#' @title Separation Example Datasets
 #'
-#' Nonexistence of estimates of Poisson models across different statistical packages.
+#' @description Nonexistence of estimates of Poisson models across different statistical packages.
 #'
 #' @format ## `correia2019`
 #' A list of data frames with three elements:

@@ -10,56 +10,43 @@
 # {RE5.0} Enables seamless integration with downstream analysis workflows.
 # {RE5.2} Maintains computational efficiency in coefficient extraction.
 
-#' @export
-#' @noRd
-coef.apes <- function(object, ...) {
-  object[["delta"]]
-}
-
-#' @export
+#' @title Extract coefficients from 'feglm' object
+#' @description Similar to the 'coef' method for 'glm' objects.
+#' @param object 'feglm' object
+#' @param ... additional arguments for S3 compliance (unused)
+#' @exportS3Method
 #' @noRd
 coef.feglm <- function(object, ...) {
   ct <- object[["coef_table"]]
   setNames(ct[, 1], rownames(ct))
 }
 
-#' @export
-#' @noRd
+#' @title Extract coefficients from 'felm' object
+#' @description Similar to the 'coef' method for 'lm' objects.
+#' @param object 'felm' object
+#' @param ... additional arguments for S3 compliance (unused)
+#' @exportS3Method
 coef.felm <- function(object, ...) {
   ct <- object[["coef_table"]]
   setNames(ct[, 1], rownames(ct))
 }
 
-#' @export
-#' @noRd
-coef.summary.apes <- function(object, ...) {
-  # Use pre-computed coefficient table from C++
-  coefficients <- object[["vcov_table"]]
-  if (is.null(coefficients)) {
-    # Fallback: compute on-the-fly for backward compatibility
-    delta <- object[["delta"]]
-    se <- sqrt(diag(object[["vcov"]]))
-    coefficients <- cbind(
-      Estimate = delta,
-      `Std. Error` = se,
-      `z value` = delta / se,
-      `Pr(>|z|)` = 2.0 * pnorm(-abs(delta / se))
-    )
-    rownames(coefficients) <- names(delta)
-  }
-  coefficients
-}
-
-#' @export
-#' @noRd
+#' @title Extract coefficients from 'summary.feglm' object
+#' @description Similar to the 'coef' method for 'summary.glm' objects.
+#' @param object 'summary.feglm' object
+#' @param ... additional arguments for S3 compliance (unused)
+#' @exportS3Method
 coef.summary.feglm <- function(object, ...) {
   # coef_table already has row/column names from the model fitting
 
   object[["coef_table"]]
 }
 
-#' @export
-#' @noRd
+#' @title Extract coefficients from 'summary.felm' object
+#' @description Similar to the 'coef' method for 'summary.felm' objects.
+#' @param object 'summary.felm' object
+#' @param ... additional arguments for S3 compliance (unused)
+#' @exportS3Method
 coef.summary.felm <- function(object, ...) {
   # coef_table already has row/column names from the model fitting
   object[["coef_table"]]

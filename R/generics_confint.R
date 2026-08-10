@@ -10,8 +10,16 @@
 # {RE5.0} Designed for seamless integration with downstream analysis workflows.
 # {RE5.2} Maintains computational efficiency - uses Wald intervals to avoid expensive profile likelihood computation.
 
-#' Confidence Intervals for Model Parameters
+#' @title Confidence Intervals for Model Parameters
 #'
+#' @description
+#' This function computes Wald confidence intervals based on asymptotic normality.
+#' Unlike \code{stats::confint.glm}, this does not compute profile likelihood
+#' intervals, as the computational cost for high-dimensional fixed effects models
+#' would be prohibitive. The Wald intervals are computed as:
+#' \deqn{estimate \pm z_{\alpha/2} \times SE}
+#' where \eqn{z_{\alpha/2}} is the critical value from the standard normal distribution.
+#' 
 #' @param object An object of class \code{feglm} or \code{felm}
 #' @param parm A specification of which parameters are to be given confidence
 #'   intervals, either a vector of numbers or a vector of names. If missing,
@@ -19,19 +27,11 @@
 #' @param level The confidence level required (default 0.95)
 #' @param ... Additional arguments (currently unused)
 #'
-#' @details
-#' This function computes Wald confidence intervals based on asymptotic normality.
-#' Unlike \code{stats::confint.glm}, this does not compute profile likelihood
-#' intervals, as the computational cost for high-dimensional fixed effects models
-#' would be prohibitive. The Wald intervals are computed as:
-#' \deqn{estimate \pm z_{\alpha/2} \times SE}
-#' where \eqn{z_{\alpha/2}} is the critical value from the standard normal distribution.
-#'
 #' @return A matrix with columns giving lower and upper confidence limits for
 #'   each parameter.
 #'
-#' @export
-#' @noRd
+#' @rdname confint
+#' @exportS3Method
 confint.feglm <- function(object, parm, level = 0.95, ...) {
   estimates <- object$coef_table[, "Estimate"]
   std_errors <- object$coef_table[, "Std. Error"]
@@ -52,8 +52,8 @@ confint.feglm <- function(object, parm, level = 0.95, ...) {
   conf_int
 }
 
-#' @export
-#' @noRd
+#' @rdname confint
+#' @exportS3Method
 confint.felm <- function(object, parm, level = 0.95, ...) {
   confint.feglm(object, parm, level, ...)
 }

@@ -11,24 +11,6 @@
 # {RE5.2} Provides explicit errors for invalid or missing clustering variables in clustered covariance computation.
 # {RE6.1} Implements efficient matrix operations to handle large-scale data and high-dimensional models.
 
-#' @title Covariance matrix for APEs
-#'
-#' @description Covariance matrix for the estimator of the average partial effects from objects returned by \link{apes}.
-#'
-#' @param object an object of class \code{"apes"}.
-#' @param ... additional arguments.
-#'
-#' @return A named matrix of covariance estimates.
-#'
-#' @seealso \link{apes}
-#'
-#' @export
-#'
-#' @noRd
-vcov.apes <- function(object, ...) {
-  object[["vcov"]]
-}
-
 #' @title Covariance matrix for GLMs
 #'
 #' @description Covariance matrix for the estimator of the structural parameters from objects returned by \link{feglm}.
@@ -61,6 +43,7 @@ vcov.apes <- function(object, ...) {
 #'
 #' vcov(fit)
 #'
+#' @exportS3Method
 #' @export
 vcov.feglm <- function(object, ...) {
   v <- object[["vcov"]]
@@ -113,6 +96,7 @@ vcov.feglm <- function(object, ...) {
 #'
 #' vcov(fit)
 #'
+#' @exportS3Method
 #' @export
 vcov.felm <- function(object, ...) {
   v <- object[["vcov"]]

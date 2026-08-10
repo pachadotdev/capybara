@@ -10,15 +10,21 @@
 # {RE5.0} Designed for computational efficiency and ease of integration into workflows.
 # {RE5.2} Ensures compatibility with standard R generics and user expectations.
 
-#' @export
-#' @noRd
+#' @title Extract fitted values from 'feglm' object
+#' @description Similar to the 'fitted' method for 'glm' objects.
+#' @param object 'feglm' object
+#' @param ... additional arguments for S3 compliance (unused)
+#' @exportS3Method
 fitted.feglm <- function(object, ...) {
   fam <- object[["family"]]
   fam[["linkinv"]](object[["eta"]])
 }
 
-#' @export
-#' @noRd
+#' @title Extract fitted values from 'felm' object
+#' @description Similar to the 'fitted' method for 'lm' objects.
+#' @param object 'felm' object
+#' @param ... additional arguments for S3 compliance (unused)
+#' @exportS3Method
 fitted.felm <- function(object, ...) {
   object[["fitted_values"]]
 }

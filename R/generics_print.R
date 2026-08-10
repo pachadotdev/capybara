@@ -286,44 +286,12 @@ summary_fisher_ <- function(x, digits) {
   }
 }
 
-#' @title Print method for 'apes' objects (detailed output)
-#' @description Similar to the 'print' method for 'glm' objects
-#' @export
-#' @noRd
-print.apes <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
-  # Use pre-computed coefficient table from C++
-  coefficients <- x[["vcov_table"]]
-  if (is.null(coefficients)) {
-    # Fallback for backward compatibility
-    delta <- x[["delta"]]
-    se <- sqrt(diag(x[["vcov"]]))
-    coefficients <- cbind(
-      Estimate = delta,
-      `Std. Error` = se,
-      `z value` = delta / se,
-      `Pr(>|z|)` = 2.0 * pnorm(-abs(delta / se))
-    )
-    rownames(coefficients) <- names(delta)
-  }
-
-  # Skip printing if there are no slope coefficients
-  if (!is.null(coefficients) && nrow(coefficients) > 0) {
-    cat("Estimates:\n")
-    printCoefmat(
-      coefficients,
-      P.values = TRUE,
-      has.Pvalue = TRUE,
-      digits = digits
-    )
-  } else {
-    cat("No slope coefficients\n")
-  }
-  invisible(x)
-}
-
 #' @title Print method for 'feglm' objects (detailed output)
 #' @description Similar to the 'print' method for 'glm' objects
-#' @export
+#' @param x 'feglm' object
+#' @param digits how many digits to display
+#' @param ... additional arguments for S3 compliance (unused)
+#' @exportS3Method
 #' @noRd
 print.feglm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
   summary_formula_(x)
@@ -344,8 +312,11 @@ print.feglm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
 }
 
 #' @title Print method for 'summary.feglm' objects
-#' @description Print method for feglm summary objects
-#' @export
+#' @description Similar to the 'print' method for 'summary.glm' objects
+#' @param x 'summary.feglm' object
+#' @param digits how many digits to display
+#' @param ... additional arguments for S3 compliance (unused)
+#' @exportS3Method
 #' @noRd
 print.summary.feglm <- function(
   x,
@@ -357,8 +328,10 @@ print.summary.feglm <- function(
 
 #' @title Print method for 'felm' objects (detailed output)
 #' @description Similar to the 'print' method for 'lm' objects
-#' @export
-#' @noRd
+#' @param x 'felm' object
+#' @param digits how many digits to display
+#' @param ... additional arguments for S3 compliance (unused)
+#' @exportS3Method
 print.felm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
   summary_formula_(x)
 
@@ -374,9 +347,11 @@ print.felm <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
 }
 
 #' @title Print method for 'summary.felm' objects
-#' @description Print method for felm summary objects
-#' @export
-#' @noRd
+#' @description Similar to the 'print' method for 'summary.lm' objects
+#' @param x 'summary.felm' object
+#' @param digits how many digits to display
+#' @param ... additional arguments for S3 compliance (unused)
+#' @exportS3Method
 print.summary.felm <- function(
   x,
   digits = max(3L, getOption("digits") - 3L),
@@ -385,19 +360,19 @@ print.summary.felm <- function(
   print.felm(x, digits = digits, ...)
 }
 
-#' Print method for regression tables
+#' title Print method for regression tables
 #' @param x A summary_table object
-#' @param ... Additional arguments passed to other methods
-#' @export
-#' @noRd
+#' @param ... additional arguments for S3 compliance (unused)
+#' @exportS3Method
 print.summary_table <- function(x, ...) {
   cat(x$content, sep = "\n")
   invisible(x)
 }
 
-#' Print method for regression tables
-#' @export
-#' @noRd
+#' @title Print method for regression tables
+#' @param x 'feglm' object
+#' @param ... additional arguments for S3 compliance (unused)
+#' @exportS3Method
 print.capybara_separation <- function(x, ...) {
   cat("Separation Check Result\n")
   cat("-----------------------\n")
