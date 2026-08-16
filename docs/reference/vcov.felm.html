@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>autoplot • capybara</title><link rel="stylesheet" href="../menu.css"><link rel="stylesheet" href="../content.css"><!-- MathJax Configuration --><script>
+<html lang="en"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>vcov.felm • capybara</title><link rel="stylesheet" href="../menu.css"><link rel="stylesheet" href="../content.css"><!-- MathJax Configuration --><script>
     window.MathJax = {
       tex: {
         inlineMath: [['\\(', '\\)'], ['$', '$']],
@@ -17,7 +17,8 @@
 <div class="main-container">
 <div id="menu">
   <div>
-    <img src="../man/figures/logo.svg" align="center" height="139" alt="capybara logo"></div>
+    <h1 style="text-align:center;">capybara Documentation</h1>
+  </div>
 
   <div class="search-container">
     <input type="text" id="search-box" placeholder="Search..."></div>
@@ -63,19 +64,63 @@
 <div class="content-wrapper">
         <div class="content-main">
 
-<table style="width: 100%;"><tr><td>reexports {capybara}</td><td style="text-align: right;">R Documentation</td></tr></table><h2>Objects exported from other packages</h2>
+<table style="width: 100%;"><tr><td>vcov.felm {capybara}</td><td style="text-align: right;">R Documentation</td></tr></table><h2>Covariance matrix for LMs</h2>
 
 <h3>Description</h3>
 
-<p>These objects are imported from other packages. Follow the links
-below to see their documentation.
+<p>Covariance matrix for the estimator of the structural parameters from objects returned by felm.
+The covariance is computed during model fitting - either the inverse Hessian (default) or the sandwich estimator if
+cluster variables are specified in the formula.
 </p>
 
-<dl><dt>generics</dt><dd><p><code>augment()</code>, <code>glance()</code>, <code>tidy()</code></p>
-</dd>
-<dt>ggplot2</dt><dd><p><code>autoplot()</code></p>
-</dd>
-</dl></div>
+
+<h3>Usage</h3>
+
+<pre><code class="language-R">## S3 method for class 'felm'
+vcov(object, ...)
+</code></pre>
+
+
+<h3>Arguments</h3>
+
+<table role="presentation"><tr><td><code id="object">object</code></td>
+<td>
+an object of class <code>"felm"</code>.
+</td></tr><tr><td><code id="...">...</code></td>
+<td>
+additional arguments (currently ignored).
+</td></tr></table><h3>Value</h3>
+
+<p>A named matrix of covariance estimates.
+</p>
+
+
+<h3>See Also</h3>
+
+<p>felm
+</p>
+
+
+<h3>Examples</h3>
+
+<pre><code class="language-R"># Model with clustering - returns sandwich covariance
+ross2004_s1 &lt;- ross2004[ross2004$year == 1994, ]
+ross2004_s1 &lt;- ross2004_s1[ross2004_s1$ltrade &gt;
+  quantile(ross2004_s1$ltrade, 0.75), ]
+
+ross2004_s2 &lt;- ross2004[ross2004$year == 1999, ]
+ross2004_s2 &lt;- ross2004_s2[ross2004_s2$ltrade &gt;
+  quantile(ross2004_s2$ltrade, 0.75), ]
+
+ross2004_subset &lt;- rbind(ross2004_s1, ross2004_s2)
+
+fit &lt;- felm(ltrade ~ ldist | ctry1 | year, ross2004_subset)
+
+vcov(fit)
+</code></pre>
+
+
+</div>
         </div>
         <footer><p id="last-updated">Loading...</p>
 </footer><script src="../js/footer.js"></script><script src="../js/theme.js"></script><script src="../js/search.js"></script><script src="../js/fontsize.js"></script></div>

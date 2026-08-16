@@ -17,7 +17,8 @@
 <div class="main-container">
 <div id="menu">
   <div>
-    <img src="../man/figures/logo.svg" align="center" height="139" alt="capybara logo"></div>
+    <h1 style="text-align:center;">capybara Documentation</h1>
+  </div>
 
   <div class="search-container">
     <input type="text" id="search-box" placeholder="Search..."></div>
@@ -90,7 +91,17 @@ effects</h2>
 
 <h3>Arguments</h3>
 
-<table role="presentation"><tr><td><code id="formula">formula</code></td>
+<table role="presentation"><tr><td><code id="init_theta">init_theta</code></td>
+<td>
+an optional initial value for the theta parameter (see glm.nb).
+</td></tr><tr><td><code id="link">link</code></td>
+<td>
+the link function. Must be one of <code>"log"</code>, <code>"sqrt"</code>, or <code>"identity"</code>.
+</td></tr><tr><td><code id="offset">offset</code></td>
+<td>
+an optional formula or numeric vector specifying an a priori known component to be included in the
+linear predictor. If a formula, it should be of the form <code>~ variable</code>.
+</td></tr><tr><td><code id="formula">formula</code></td>
 <td>
 an object of class <code>"formula"</code>: a symbolic description of the model to be fitted. <code>formula</code>
 must be of type <code>response ~ slopes | fixed_effects | cluster</code>.
@@ -109,16 +120,6 @@ Default is <code class="reqn">\boldsymbol{\beta} = \mathbf{0}</code>.
 </td></tr><tr><td><code id="eta_start">eta_start</code></td>
 <td>
 an optional vector of starting values for the linear predictor.
-</td></tr><tr><td><code id="init_theta">init_theta</code></td>
-<td>
-an optional initial value for the theta parameter (see glm.nb).
-</td></tr><tr><td><code id="link">link</code></td>
-<td>
-the link function. Must be one of <code>"log"</code>, <code>"sqrt"</code>, or <code>"identity"</code>.
-</td></tr><tr><td><code id="offset">offset</code></td>
-<td>
-an optional formula or numeric vector specifying an a priori known component to be included in the
-linear predictor. If a formula, it should be of the form <code>~ variable</code>.
 </td></tr><tr><td><code id="control">control</code></td>
 <td>
 a named list of parameters for controlling the fitting process. See fit_control for details.
@@ -193,7 +194,6 @@ ross2004_subset &lt;- ross2004_subset[ross2004_subset$ltrade &gt;
 fit &lt;- fenegbin(ltrade ~ ldist | ctry1, ross2004_subset)
 
 summary(fit)
-
 </code></pre>
 
 

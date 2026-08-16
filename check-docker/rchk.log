@@ -3,14 +3,14 @@
 ==========================================================================
 Capybara configuration summary
 
-  C++ Compiler:           g++
-  Compiler Type:          unknown
+  C++ Compiler:           clang++ -stdlib=libc++
+  Compiler Type:          clang
   C++ Standard:           CXX20
-  OpenMP Support:         yes
+  OpenMP Support:         no
   OpenMP Threads:         4
   SIMD Support:           AVX2
-  BLAS:                   -lblas
-  LAPACK:                 -llapack
+  BLAS:                   -L/opt/R/devel-rchk/lib/R/lib -lRblas
+  LAPACK:                 -L/opt/R/devel-rchk/lib/R/lib -lRlapack
   No Armadillo Wrapper:   yes (direct BLAS/LAPACK)
   No Sparse Matrices:     no
   High-Performance Mode:  no
@@ -32,11 +32,18 @@ For faster computation
 ==========================================================================
 ** libs
 specified C++20
-using C++ compiler: ‘g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0’
+using C++ compiler: ‘Ubuntu clang version 14.0.0-1ubuntu1.1’
 using C++20
-g++ -std=gnu++20 -I"/opt/R/next/lib/R/include" -DNDEBUG  -I'/cache/R_libs/cpp4r/include' -I'/cache/R_libs/armadillo4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2   -c capybara.cpp -o capybara.o
-g++ -std=gnu++20 -I"/opt/R/next/lib/R/include" -DNDEBUG  -I'/cache/R_libs/cpp4r/include' -I'/cache/R_libs/armadillo4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2   -c cpp4r.cpp -o cpp4r.o
-g++ -std=gnu++20 -shared -L/opt/R/next/lib/R/lib -L/usr/local/lib -o capybara.so capybara.o cpp4r.o -fopenmp -llapack -lblas -lgfortran -lm -lquadmath -L/opt/R/next/lib/R/lib -lR
+clang++ -stdlib=libc++ -std=gnu++20 -I"/opt/R/devel-rchk/lib/R/include" -DNDEBUG  -I'/cache/R_libs/cpp4r/include' -I'/cache/R_libs/armadillo4r/include' -I/usr/local/include     -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -Wall -g -O0 -fPIC -I/usr/include/libcxxabi   -c capybara.cpp -o capybara.o
+In file included from capybara.cpp:8:
+In file included from /cache/R_libs/armadillo4r/include/armadillo4r.hpp:52:
+In file included from /cache/R_libs/armadillo4r/include/armadillo4r/armadillo.hpp:119:
+/cache/R_libs/armadillo4r/include/armadillo4r/armadillo/compiler_setup.hpp:377:11: warning: WARNING: use of OpenMP disabled; compiler support for OpenMP 4.0+ not detected [-W#pragma-messages]
+  #pragma message ("WARNING: use of OpenMP disabled; compiler support for OpenMP 4.0+ not detected")
+          ^
+1 warning generated.
+clang++ -stdlib=libc++ -std=gnu++20 -I"/opt/R/devel-rchk/lib/R/include" -DNDEBUG  -I'/cache/R_libs/cpp4r/include' -I'/cache/R_libs/armadillo4r/include' -I/usr/local/include     -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -Wall -g -O0 -fPIC -I/usr/include/libcxxabi   -c cpp4r.cpp -o cpp4r.o
+clang++ -stdlib=libc++ -std=gnu++20 -shared -L/usr/local/lib -o capybara.so capybara.o cpp4r.o -L/opt/R/devel-rchk/lib/R/lib -lRlapack -L/opt/R/devel-rchk/lib/R/lib -lRblas -lgfortran -lm -lquadmath
 installing to /cache/R_libs/00LOCK-capybara/00new/capybara/libs
 ** R
 ** data
@@ -53,20 +60,20 @@ installing to /cache/R_libs/00LOCK-capybara/00new/capybara/libs
 ** testing if installed package keeps a record of temporary installation path
 * DONE (capybara)
 * using log directory ‘/check/capybara.Rcheck’
-* using R version 4.6.0 Patched (2026-05-11 r90050)
+* using R Under development (unstable) (2026-05-15 r90061)
 * using platform: x86_64-pc-linux-gnu
 * R was compiled by
-    gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
-    GNU Fortran (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
-* running under: Ubuntu 24.04.4 LTS
+    Ubuntu clang version 14.0.0-1ubuntu1.1
+    GNU Fortran (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+* running under: Ubuntu 22.04.5 LTS
 * using session charset: UTF-8
-* current time: 2026-08-15 19:53:59 UTC
+* current time: 2026-08-15 21:58:22 UTC
 * using options ‘--no-manual --as-cran’
 * checking for file ‘capybara/DESCRIPTION’ ... OK
 * checking extension type ... Package
 * this is package ‘capybara’ version ‘2.2.0’
 * package encoding: UTF-8
-* checking CRAN incoming feasibility ... [5s/9s] OK
+* checking CRAN incoming feasibility ... [8s/13s] OK
 * checking package namespace information ... OK
 * checking package dependencies ... OK
 * checking if this is a source package ... OK
@@ -75,10 +82,15 @@ installing to /cache/R_libs/00LOCK-capybara/00new/capybara/libs
 * checking for hidden files and directories ... OK
 * checking for portable file names ... OK
 * checking for sufficient/correct file permissions ... OK
-* checking whether package ‘capybara’ can be installed ... [56s/50s] OK
-* used C++ compiler: ‘g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0’
+* checking whether package ‘capybara’ can be installed ... [19s/19s] OK
+* used C++ compiler: ‘Ubuntu clang version 14.0.0-1ubuntu1.1’
 * checking C++ specification ... INFO
   specified C++20
+* checking installed package size ... INFO
+  installed size is 11.2Mb
+  sub-directories of 1Mb or more:
+    data   2.8Mb
+    libs   7.8Mb
 * checking package directory ... OK
 * checking for future file timestamps ... OK
 * checking ‘build’ directory ... OK
@@ -90,19 +102,19 @@ Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ be
 * checking package subdirectories ... OK
 * checking code files for non-ASCII characters ... OK
 * checking R files for syntax errors ... OK
-* checking whether the package can be loaded ... [1s/0s] OK
-* checking whether the package can be loaded with stated dependencies ... [1s/0s] OK
-* checking whether the package can be unloaded cleanly ... [1s/0s] OK
-* checking whether the namespace can be loaded with stated dependencies ... [1s/0s] OK
-* checking whether the namespace can be unloaded cleanly ... [1s/0s] OK
-* checking loading without being on the library search path ... [1s/0s] OK
+* checking whether the package can be loaded ... OK
+* checking whether the package can be loaded with stated dependencies ... OK
+* checking whether the package can be unloaded cleanly ... OK
+* checking whether the namespace can be loaded with stated dependencies ... OK
+* checking whether the namespace can be unloaded cleanly ... OK
+* checking loading without being on the library search path ... OK
 * checking use of S3 registration ... OK
 * checking dependencies in R code ... OK
 * checking S3 generic/method consistency ... OK
 * checking replacement functions ... OK
 * checking foreign function calls ... OK
-* checking R code for possible problems ... [17s/7s] OK
-* checking Rd files ... [1s/0s] OK
+* checking R code for possible problems ... [12s/12s] OK
+* checking Rd files ... OK
 * checking Rd metadata ... OK
 * checking Rd line widths ... OK
 * checking Rd cross-references ... OK
@@ -112,7 +124,7 @@ Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ be
 * checking Rd contents ... OK
 * checking for unstated dependencies in examples ... OK
 * checking contents of ‘data’ directory ... OK
-* checking data for non-ASCII characters ... [1s/1s] OK
+* checking data for non-ASCII characters ... OK
 * checking LazyData ... OK
 * checking data for ASCII and uncompressed saves ... OK
 * checking line endings in shell scripts ... OK
@@ -128,21 +140,19 @@ Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ be
 * checking compiled code ... OK
 * checking installed files from ‘inst/doc’ ... OK
 * checking files in ‘vignettes’ ... OK
-* checking examples ... [3s/1s] OK
+* checking examples ... OK
 * checking for unstated dependencies in ‘tests’ ... OK
 * checking tests ...
-  Running ‘tinytest.R’ [2s/1s]
-Running R code in ‘tinytest.R’ had CPU time 2.5 times elapsed time
- [3s/1s] NOTE
+  Running ‘tinytest.R’
+ OK
 * checking for unstated dependencies in vignettes ... OK
 * checking package vignettes ... OK
-* checking re-building of vignette outputs ... [6s/2s] NOTE
-Re-building vignettes had CPU time 2.6 times elapsed time
+* checking re-building of vignette outputs ... OK
 * checking for non-standard things in the check directory ... OK
 * checking for detritus in the temp directory ... OK
 * DONE
 
-Status: 3 NOTEs
+Status: 1 NOTE
 See
   ‘/check/capybara.Rcheck/00check.log’
 for details.
@@ -154,14 +164,14 @@ for details.
 ==========================================================================
 Capybara configuration summary
 
-  C++ Compiler:           g++
-  Compiler Type:          unknown
+  C++ Compiler:           clang++ -stdlib=libc++
+  Compiler Type:          clang
   C++ Standard:           CXX20
-  OpenMP Support:         yes
+  OpenMP Support:         no
   OpenMP Threads:         4
   SIMD Support:           AVX2
-  BLAS:                   -lblas
-  LAPACK:                 -llapack
+  BLAS:                   -L/opt/R/devel-rchk/lib/R/lib -lRblas
+  LAPACK:                 -L/opt/R/devel-rchk/lib/R/lib -lRlapack
   No Armadillo Wrapper:   yes (direct BLAS/LAPACK)
   No Sparse Matrices:     no
   High-Performance Mode:  no
@@ -183,11 +193,18 @@ For faster computation
 ==========================================================================
 ** libs
 specified C++20
-using C++ compiler: ‘g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0’
+using C++ compiler: ‘Ubuntu clang version 14.0.0-1ubuntu1.1’
 using C++20
-g++ -std=gnu++20 -I"/opt/R/next/lib/R/include" -DNDEBUG  -I'/cache/R_libs/cpp4r/include' -I'/cache/R_libs/armadillo4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2   -c capybara.cpp -o capybara.o
-g++ -std=gnu++20 -I"/opt/R/next/lib/R/include" -DNDEBUG  -I'/cache/R_libs/cpp4r/include' -I'/cache/R_libs/armadillo4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2   -c cpp4r.cpp -o cpp4r.o
-g++ -std=gnu++20 -shared -L/opt/R/next/lib/R/lib -L/usr/local/lib -o capybara.so capybara.o cpp4r.o -fopenmp -llapack -lblas -lgfortran -lm -lquadmath -L/opt/R/next/lib/R/lib -lR
+clang++ -stdlib=libc++ -std=gnu++20 -I"/opt/R/devel-rchk/lib/R/include" -DNDEBUG  -I'/cache/R_libs/cpp4r/include' -I'/cache/R_libs/armadillo4r/include' -I/usr/local/include     -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -Wall -g -O0 -fPIC -I/usr/include/libcxxabi   -c capybara.cpp -o capybara.o
+In file included from capybara.cpp:8:
+In file included from /cache/R_libs/armadillo4r/include/armadillo4r.hpp:52:
+In file included from /cache/R_libs/armadillo4r/include/armadillo4r/armadillo.hpp:119:
+/cache/R_libs/armadillo4r/include/armadillo4r/armadillo/compiler_setup.hpp:377:11: warning: WARNING: use of OpenMP disabled; compiler support for OpenMP 4.0+ not detected [-W#pragma-messages]
+  #pragma message ("WARNING: use of OpenMP disabled; compiler support for OpenMP 4.0+ not detected")
+          ^
+1 warning generated.
+clang++ -stdlib=libc++ -std=gnu++20 -I"/opt/R/devel-rchk/lib/R/include" -DNDEBUG  -I'/cache/R_libs/cpp4r/include' -I'/cache/R_libs/armadillo4r/include' -I/usr/local/include     -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -Wall -g -O0 -fPIC -I/usr/include/libcxxabi   -c cpp4r.cpp -o cpp4r.o
+clang++ -stdlib=libc++ -std=gnu++20 -shared -L/usr/local/lib -o capybara.so capybara.o cpp4r.o -L/opt/R/devel-rchk/lib/R/lib -lRlapack -L/opt/R/devel-rchk/lib/R/lib -lRblas -lgfortran -lm -lquadmath
 installing to /check/capybara.Rcheck/00LOCK-capybara/00new/capybara/libs
 ** R
 ** data
@@ -205,20 +222,20 @@ installing to /check/capybara.Rcheck/00LOCK-capybara/00new/capybara/libs
 * DONE (capybara)
 === 00check.log ===
 * using log directory ‘/check/capybara.Rcheck’
-* using R version 4.6.0 Patched (2026-05-11 r90050)
+* using R Under development (unstable) (2026-05-15 r90061)
 * using platform: x86_64-pc-linux-gnu
 * R was compiled by
-    gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
-    GNU Fortran (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
-* running under: Ubuntu 24.04.4 LTS
+    Ubuntu clang version 14.0.0-1ubuntu1.1
+    GNU Fortran (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+* running under: Ubuntu 22.04.5 LTS
 * using session charset: UTF-8
-* current time: 2026-08-15 19:53:59 UTC
+* current time: 2026-08-15 21:58:22 UTC
 * using options ‘--no-manual --as-cran’
 * checking for file ‘capybara/DESCRIPTION’ ... OK
 * checking extension type ... Package
 * this is package ‘capybara’ version ‘2.2.0’
 * package encoding: UTF-8
-* checking CRAN incoming feasibility ... [5s/9s] OK
+* checking CRAN incoming feasibility ... [8s/13s] OK
 * checking package namespace information ... OK
 * checking package dependencies ... OK
 * checking if this is a source package ... OK
@@ -227,10 +244,15 @@ installing to /check/capybara.Rcheck/00LOCK-capybara/00new/capybara/libs
 * checking for hidden files and directories ... OK
 * checking for portable file names ... OK
 * checking for sufficient/correct file permissions ... OK
-* checking whether package ‘capybara’ can be installed ... [56s/50s] OK
-* used C++ compiler: ‘g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0’
+* checking whether package ‘capybara’ can be installed ... [19s/19s] OK
+* used C++ compiler: ‘Ubuntu clang version 14.0.0-1ubuntu1.1’
 * checking C++ specification ... INFO
   specified C++20
+* checking installed package size ... INFO
+  installed size is 11.2Mb
+  sub-directories of 1Mb or more:
+    data   2.8Mb
+    libs   7.8Mb
 * checking package directory ... OK
 * checking for future file timestamps ... OK
 * checking ‘build’ directory ... OK
@@ -242,19 +264,19 @@ Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ be
 * checking package subdirectories ... OK
 * checking code files for non-ASCII characters ... OK
 * checking R files for syntax errors ... OK
-* checking whether the package can be loaded ... [1s/0s] OK
-* checking whether the package can be loaded with stated dependencies ... [1s/0s] OK
-* checking whether the package can be unloaded cleanly ... [1s/0s] OK
-* checking whether the namespace can be loaded with stated dependencies ... [1s/0s] OK
-* checking whether the namespace can be unloaded cleanly ... [1s/0s] OK
-* checking loading without being on the library search path ... [1s/0s] OK
+* checking whether the package can be loaded ... OK
+* checking whether the package can be loaded with stated dependencies ... OK
+* checking whether the package can be unloaded cleanly ... OK
+* checking whether the namespace can be loaded with stated dependencies ... OK
+* checking whether the namespace can be unloaded cleanly ... OK
+* checking loading without being on the library search path ... OK
 * checking use of S3 registration ... OK
 * checking dependencies in R code ... OK
 * checking S3 generic/method consistency ... OK
 * checking replacement functions ... OK
 * checking foreign function calls ... OK
-* checking R code for possible problems ... [17s/7s] OK
-* checking Rd files ... [1s/0s] OK
+* checking R code for possible problems ... [12s/12s] OK
+* checking Rd files ... OK
 * checking Rd metadata ... OK
 * checking Rd line widths ... OK
 * checking Rd cross-references ... OK
@@ -264,7 +286,7 @@ Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ be
 * checking Rd contents ... OK
 * checking for unstated dependencies in examples ... OK
 * checking contents of ‘data’ directory ... OK
-* checking data for non-ASCII characters ... [1s/1s] OK
+* checking data for non-ASCII characters ... OK
 * checking LazyData ... OK
 * checking data for ASCII and uncompressed saves ... OK
 * checking line endings in shell scripts ... OK
@@ -280,16 +302,14 @@ Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ be
 * checking compiled code ... OK
 * checking installed files from ‘inst/doc’ ... OK
 * checking files in ‘vignettes’ ... OK
-* checking examples ... [3s/1s] OK
+* checking examples ... OK
 * checking for unstated dependencies in ‘tests’ ... OK
-* checking tests ... [3s/1s] NOTE
-  Running ‘tinytest.R’ [2s/1s]
-Running R code in ‘tinytest.R’ had CPU time 2.5 times elapsed time
+* checking tests ... OK
+  Running ‘tinytest.R’
 * checking for unstated dependencies in vignettes ... OK
 * checking package vignettes ... OK
-* checking re-building of vignette outputs ... [6s/2s] NOTE
-Re-building vignettes had CPU time 2.6 times elapsed time
+* checking re-building of vignette outputs ... OK
 * checking for non-standard things in the check directory ... OK
 * checking for detritus in the temp directory ... OK
 * DONE
-Status: 3 NOTEs
+Status: 1 NOTE

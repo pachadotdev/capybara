@@ -512,15 +512,18 @@ format_latex_table <- function(
   # the result is two nested floats: an empty "Table N" from Quarto and the real
   # "Table N+1: Caption" from us.  In that context we must output only the inner
   # tabular content and let Quarto supply the outer environment.
-  in_quarto_tbl <- nzchar(Sys.getenv("QUARTO_BIN_PATH")) &&
-    isTRUE(getOption("knitr.in.progress")) &&
-    tryCatch(
-      {
-        lbl <- knitr::opts_current$get("label")
-        !is.null(lbl) && nzchar(lbl) && grepl("^tbl-", lbl)
-      },
-      error = function(e) FALSE
-    )
+  
+  # in_quarto_tbl <- nzchar(Sys.getenv("QUARTO_BIN_PATH")) &&
+  #   isTRUE(getOption("knitr.in.progress")) &&
+  #   tryCatch(
+  #     {
+  #       lbl <- knitr::opts_current$get("label")
+  #       !is.null(lbl) && nzchar(lbl) && grepl("^tbl-", lbl)
+  #     },
+  #     error = function(e) FALSE
+  #   )
+
+  in_quarto_tbl <- nzchar(Sys.getenv("QUARTO_BIN_PATH")) && isTRUE(getOption("knitr.in.progress"))
 
   footnotes_text <- if (stars) fill_tmpl(tmpl$footnotes, list(n_cols = n_cols)) else ""
 

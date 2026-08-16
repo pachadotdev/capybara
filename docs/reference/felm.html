@@ -17,7 +17,8 @@
 <div class="main-container">
 <div id="menu">
   <div>
-    <img src="../man/figures/logo.svg" align="center" height="139" alt="capybara logo"></div>
+    <h1 style="text-align:center;">capybara Documentation</h1>
+  </div>
 
   <div class="search-container">
     <input type="text" id="search-box" placeholder="Search..."></div>
@@ -144,23 +145,7 @@ the data used in the model after dropping non-contributing observations
 </td></tr><tr><td><code>control</code></td>
 <td>
 the control list used in the model
-</td></tr></table><h3>References</h3>
-
-<p>Gaure, S. (2013). "OLS with Multiple High Dimensional Category Variables". Computational Statistics and
-Data Analysis, 66.
-</p>
-<p>Marschner, I. (2011). "glm2: Fitting generalized linear models with convergence problems". The R Journal,
-3(2).
-</p>
-<p>Stammann, A., F. Heiss, and D. McFadden (2016). "Estimating Fixed Effects Logit Models with Large Panel
-Data". Working paper.
-</p>
-<p>Stammann, A. (2018). "Fast and Feasible Estimation of Generalized Linear Models with High-Dimensional
-k-Way Fixed Effects". ArXiv e-prints.
-</p>
-
-
-<h3>Examples</h3>
+</td></tr></table><h3>Examples</h3>
 
 <pre><code class="language-R">ross2004_subset &lt;- ross2004[ross2004$year == 1999, ]
 ross2004_subset &lt;- ross2004_subset[ross2004_subset$ltrade &gt;
@@ -178,7 +163,6 @@ ross2004_subset &lt;- ross2004_subset[ross2004_subset$ltrade &gt;
 # Note: Use 0 to indicate no fixed effects when specifying clusters
 fit &lt;- felm(ltrade ~ ldist | 0 | year, ross2004_subset)
 summary(fit)
-
 </code></pre>
 
 

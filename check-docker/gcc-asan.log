@@ -1,0 +1,599 @@
+** this is package ‘capybara’ version ‘2.2.0’
+** using staged installation
+==========================================================================
+Capybara configuration summary
+
+  C++ Compiler:           g++ -fsanitize=address,undefined,bounds-strict -fno-omit-frame-pointer
+  Compiler Type:          unknown
+  C++ Standard:           CXX20
+  OpenMP Support:         yes
+  OpenMP Threads:         4
+  SIMD Support:           AVX2
+  BLAS:                   -lflexiblas
+  LAPACK:                 
+  No Armadillo Wrapper:   yes (direct BLAS/LAPACK)
+  No Sparse Matrices:     no
+  High-Performance Mode:  no
+  Optimization Flags:     
+  Debug Flags:            
+
+For faster computation
+ 
+ Enable high-performance optimizations:
+ export CAPYBARA_OPTIMIZATIONS=yes
+ 
+ Change thread count:
+ export CAPYBARA_NCORES=<number>
+ 
+ Disable sparse matrix support (faster compile):
+ export CAPYBARA_SKIP_SPARSE=yes
+ 
+ Then reinstall the package
+==========================================================================
+** libs
+specified C++20
+using C++ compiler: ‘g++ (GCC) 15.2.1 20260123 (Red Hat 15.2.1-7)’
+using C++20
+g++ -fsanitize=address,undefined,bounds-strict -fno-omit-frame-pointer  -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG  -I'/cache/R_libs/cpp4r/include' -I'/cache/R_libs/armadillo4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2 -Wall -pedantic -mtune=native -Wno-ignored-attributes -Wno-deprecated-declarations -Wno-stringop-truncation  -Wno-alloc-size-larger-than  -c capybara.cpp -o capybara.o
+In file included from /usr/include/c++/15/functional:61,
+                 from /cache/R_libs/armadillo4r/include/armadillo4r/armadillo.hpp:56,
+                 from /cache/R_libs/armadillo4r/include/armadillo4r.hpp:52,
+                 from capybara.cpp:8:
+In constructor ‘std::function<_Res(_ArgTypes ...)>::function(std::function<_Res(_ArgTypes ...)>&&) [with _Res = bool; _ArgTypes = {char}]’,
+    inlined from ‘std::__detail::_State<_Char_type>::_State(std::__detail::_State<_Char_type>&&) [with _Char_type = char]’ at /usr/include/c++/15/bits/regex_automaton.h:152:4,
+    inlined from ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_subexpr_begin() [with _TraitsT = std::__cxx11::regex_traits<char>]’ at /usr/include/c++/15/bits/regex_automaton.h:284:24:
+/usr/include/c++/15/bits/std_function.h:407:42: warning: ‘*(std::function<bool(char)>*)((char*)&__tmp + offsetof(std::__detail::_StateT, std::__detail::_State<char>::<unnamed>.std::__detail::_State_base::<unnamed>)).std::function<bool(char)>::_M_invoker’ may be used uninitialized [-Wmaybe-uninitialized]
+  407 |       : _Function_base(), _M_invoker(__x._M_invoker)
+      |                                      ~~~~^~~~~~~~~~
+In file included from /usr/include/c++/15/regex:67,
+                 from capybara.cpp:11:
+/usr/include/c++/15/bits/regex_automaton.h: In member function ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_subexpr_begin() [with _TraitsT = std::__cxx11::regex_traits<char>]’:
+/usr/include/c++/15/bits/regex_automaton.h:282:17: note: ‘__tmp’ declared here
+  282 |         _StateT __tmp(_S_opcode_subexpr_begin);
+      |                 ^~~~~
+In member function ‘bool std::_Function_base::_M_empty() const’,
+    inlined from ‘std::function<_Res(_ArgTypes ...)>::operator bool() const [with _Res = bool; _ArgTypes = {char}]’ at /usr/include/c++/15/bits/std_function.h:576:25,
+    inlined from ‘std::function<_Res(_ArgTypes ...)>::function(std::function<_Res(_ArgTypes ...)>&&) [with _Res = bool; _ArgTypes = {char}]’ at /usr/include/c++/15/bits/std_function.h:409:6,
+    inlined from ‘std::__detail::_State<_Char_type>::_State(std::__detail::_State<_Char_type>&&) [with _Char_type = char]’ at /usr/include/c++/15/bits/regex_automaton.h:152:4,
+    inlined from ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_subexpr_begin() [with _TraitsT = std::__cxx11::regex_traits<char>]’ at /usr/include/c++/15/bits/regex_automaton.h:284:24:
+/usr/include/c++/15/bits/std_function.h:249:37: warning: ‘*(const std::_Function_base*)((char*)&__tmp + offsetof(std::__detail::_StateT, std::__detail::_State<char>::<unnamed>.std::__detail::_State_base::<unnamed>)).std::_Function_base::_M_manager’ may be used uninitialized [-Wmaybe-uninitialized]
+  249 |     bool _M_empty() const { return !_M_manager; }
+      |                                     ^~~~~~~~~~
+/usr/include/c++/15/bits/regex_automaton.h: In member function ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_subexpr_begin() [with _TraitsT = std::__cxx11::regex_traits<char>]’:
+/usr/include/c++/15/bits/regex_automaton.h:282:17: note: ‘__tmp’ declared here
+  282 |         _StateT __tmp(_S_opcode_subexpr_begin);
+      |                 ^~~~~
+In constructor ‘std::function<_Res(_ArgTypes ...)>::function(std::function<_Res(_ArgTypes ...)>&&) [with _Res = bool; _ArgTypes = {char}]’,
+    inlined from ‘std::__detail::_State<_Char_type>::_State(std::__detail::_State<_Char_type>&&) [with _Char_type = char]’ at /usr/include/c++/15/bits/regex_automaton.h:152:4,
+    inlined from ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_subexpr_end() [with _TraitsT = std::__cxx11::regex_traits<char>]’ at /usr/include/c++/15/bits/regex_automaton.h:293:24:
+/usr/include/c++/15/bits/std_function.h:407:42: warning: ‘*(std::function<bool(char)>*)((char*)&__tmp + offsetof(std::__detail::_StateT, std::__detail::_State<char>::<unnamed>.std::__detail::_State_base::<unnamed>)).std::function<bool(char)>::_M_invoker’ may be used uninitialized [-Wmaybe-uninitialized]
+  407 |       : _Function_base(), _M_invoker(__x._M_invoker)
+      |                                      ~~~~^~~~~~~~~~
+/usr/include/c++/15/bits/regex_automaton.h: In member function ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_subexpr_end() [with _TraitsT = std::__cxx11::regex_traits<char>]’:
+/usr/include/c++/15/bits/regex_automaton.h:290:17: note: ‘__tmp’ declared here
+  290 |         _StateT __tmp(_S_opcode_subexpr_end);
+      |                 ^~~~~
+In member function ‘bool std::_Function_base::_M_empty() const’,
+    inlined from ‘std::function<_Res(_ArgTypes ...)>::operator bool() const [with _Res = bool; _ArgTypes = {char}]’ at /usr/include/c++/15/bits/std_function.h:576:25,
+    inlined from ‘std::function<_Res(_ArgTypes ...)>::function(std::function<_Res(_ArgTypes ...)>&&) [with _Res = bool; _ArgTypes = {char}]’ at /usr/include/c++/15/bits/std_function.h:409:6,
+    inlined from ‘std::__detail::_State<_Char_type>::_State(std::__detail::_State<_Char_type>&&) [with _Char_type = char]’ at /usr/include/c++/15/bits/regex_automaton.h:152:4,
+    inlined from ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_subexpr_end() [with _TraitsT = std::__cxx11::regex_traits<char>]’ at /usr/include/c++/15/bits/regex_automaton.h:293:24:
+/usr/include/c++/15/bits/std_function.h:249:37: warning: ‘*(const std::_Function_base*)((char*)&__tmp + offsetof(std::__detail::_StateT, std::__detail::_State<char>::<unnamed>.std::__detail::_State_base::<unnamed>)).std::_Function_base::_M_manager’ may be used uninitialized [-Wmaybe-uninitialized]
+  249 |     bool _M_empty() const { return !_M_manager; }
+      |                                     ^~~~~~~~~~
+/usr/include/c++/15/bits/regex_automaton.h: In member function ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_subexpr_end() [with _TraitsT = std::__cxx11::regex_traits<char>]’:
+/usr/include/c++/15/bits/regex_automaton.h:290:17: note: ‘__tmp’ declared here
+  290 |         _StateT __tmp(_S_opcode_subexpr_end);
+      |                 ^~~~~
+In constructor ‘std::function<_Res(_ArgTypes ...)>::function(std::function<_Res(_ArgTypes ...)>&&) [with _Res = bool; _ArgTypes = {char}]’,
+    inlined from ‘std::__detail::_State<_Char_type>::_State(std::__detail::_State<_Char_type>&&) [with _Char_type = char]’ at /usr/include/c++/15/bits/regex_automaton.h:152:4,
+    inlined from ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_backref(std::size_t) [with _TraitsT = std::__cxx11::regex_traits<char>]’ at /usr/include/c++/15/bits/regex_automaton.tcc:173:29:
+/usr/include/c++/15/bits/std_function.h:407:42: warning: ‘*(std::function<bool(char)>*)((char*)&__tmp + offsetof(std::__detail::_StateT, std::__detail::_State<char>::<unnamed>.std::__detail::_State_base::<unnamed>)).std::function<bool(char)>::_M_invoker’ may be used uninitialized [-Wmaybe-uninitialized]
+  407 |       : _Function_base(), _M_invoker(__x._M_invoker)
+      |                                      ~~~~^~~~~~~~~~
+In file included from /usr/include/c++/15/bits/regex_automaton.h:405:
+/usr/include/c++/15/bits/regex_automaton.tcc: In member function ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_backref(std::size_t) [with _TraitsT = std::__cxx11::regex_traits<char>]’:
+/usr/include/c++/15/bits/regex_automaton.tcc:171:15: note: ‘__tmp’ declared here
+  171 |       _StateT __tmp(_S_opcode_backref);
+      |               ^~~~~
+In member function ‘bool std::_Function_base::_M_empty() const’,
+    inlined from ‘std::function<_Res(_ArgTypes ...)>::operator bool() const [with _Res = bool; _ArgTypes = {char}]’ at /usr/include/c++/15/bits/std_function.h:576:25,
+    inlined from ‘std::function<_Res(_ArgTypes ...)>::function(std::function<_Res(_ArgTypes ...)>&&) [with _Res = bool; _ArgTypes = {char}]’ at /usr/include/c++/15/bits/std_function.h:409:6,
+    inlined from ‘std::__detail::_State<_Char_type>::_State(std::__detail::_State<_Char_type>&&) [with _Char_type = char]’ at /usr/include/c++/15/bits/regex_automaton.h:152:4,
+    inlined from ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_backref(std::size_t) [with _TraitsT = std::__cxx11::regex_traits<char>]’ at /usr/include/c++/15/bits/regex_automaton.tcc:173:29:
+/usr/include/c++/15/bits/std_function.h:249:37: warning: ‘*(const std::_Function_base*)((char*)&__tmp + offsetof(std::__detail::_StateT, std::__detail::_State<char>::<unnamed>.std::__detail::_State_base::<unnamed>)).std::_Function_base::_M_manager’ may be used uninitialized [-Wmaybe-uninitialized]
+  249 |     bool _M_empty() const { return !_M_manager; }
+      |                                     ^~~~~~~~~~
+/usr/include/c++/15/bits/regex_automaton.tcc: In member function ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_backref(std::size_t) [with _TraitsT = std::__cxx11::regex_traits<char>]’:
+/usr/include/c++/15/bits/regex_automaton.tcc:171:15: note: ‘__tmp’ declared here
+  171 |       _StateT __tmp(_S_opcode_backref);
+      |               ^~~~~
+In constructor ‘std::function<_Res(_ArgTypes ...)>::function(std::function<_Res(_ArgTypes ...)>&&) [with _Res = bool; _ArgTypes = {char}]’,
+    inlined from ‘std::__detail::_State<_Char_type>::_State(std::__detail::_State<_Char_type>&&) [with _Char_type = char]’ at /usr/include/c++/15/bits/regex_automaton.h:152:4,
+    inlined from ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_repeat(std::__detail::_StateIdT, std::__detail::_StateIdT, bool) [with _TraitsT = std::__cxx11::regex_traits<char>]’ at /usr/include/c++/15/bits/regex_automaton.h:266:24:
+/usr/include/c++/15/bits/std_function.h:407:42: warning: ‘*(std::function<bool(char)>*)((char*)&__tmp + offsetof(std::__detail::_StateT, std::__detail::_State<char>::<unnamed>.std::__detail::_State_base::<unnamed>)).std::function<bool(char)>::_M_invoker’ may be used uninitialized [-Wmaybe-uninitialized]
+  407 |       : _Function_base(), _M_invoker(__x._M_invoker)
+      |                                      ~~~~^~~~~~~~~~
+/usr/include/c++/15/bits/regex_automaton.h: In member function ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_repeat(std::__detail::_StateIdT, std::__detail::_StateIdT, bool) [with _TraitsT = std::__cxx11::regex_traits<char>]’:
+/usr/include/c++/15/bits/regex_automaton.h:260:17: note: ‘__tmp’ declared here
+  260 |         _StateT __tmp(_S_opcode_repeat);
+      |                 ^~~~~
+In member function ‘bool std::_Function_base::_M_empty() const’,
+    inlined from ‘std::function<_Res(_ArgTypes ...)>::operator bool() const [with _Res = bool; _ArgTypes = {char}]’ at /usr/include/c++/15/bits/std_function.h:576:25,
+    inlined from ‘std::function<_Res(_ArgTypes ...)>::function(std::function<_Res(_ArgTypes ...)>&&) [with _Res = bool; _ArgTypes = {char}]’ at /usr/include/c++/15/bits/std_function.h:409:6,
+    inlined from ‘std::__detail::_State<_Char_type>::_State(std::__detail::_State<_Char_type>&&) [with _Char_type = char]’ at /usr/include/c++/15/bits/regex_automaton.h:152:4,
+    inlined from ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_repeat(std::__detail::_StateIdT, std::__detail::_StateIdT, bool) [with _TraitsT = std::__cxx11::regex_traits<char>]’ at /usr/include/c++/15/bits/regex_automaton.h:266:24:
+/usr/include/c++/15/bits/std_function.h:249:37: warning: ‘*(const std::_Function_base*)((char*)&__tmp + offsetof(std::__detail::_StateT, std::__detail::_State<char>::<unnamed>.std::__detail::_State_base::<unnamed>)).std::_Function_base::_M_manager’ may be used uninitialized [-Wmaybe-uninitialized]
+  249 |     bool _M_empty() const { return !_M_manager; }
+      |                                     ^~~~~~~~~~
+/usr/include/c++/15/bits/regex_automaton.h: In member function ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_repeat(std::__detail::_StateIdT, std::__detail::_StateIdT, bool) [with _TraitsT = std::__cxx11::regex_traits<char>]’:
+/usr/include/c++/15/bits/regex_automaton.h:260:17: note: ‘__tmp’ declared here
+  260 |         _StateT __tmp(_S_opcode_repeat);
+      |                 ^~~~~
+In constructor ‘std::function<_Res(_ArgTypes ...)>::function(std::function<_Res(_ArgTypes ...)>&&) [with _Res = bool; _ArgTypes = {char}]’,
+    inlined from ‘std::__detail::_State<_Char_type>::_State(std::__detail::_State<_Char_type>&&) [with _Char_type = char]’ at /usr/include/c++/15/bits/regex_automaton.h:152:4,
+    inlined from ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_alt(std::__detail::_StateIdT, std::__detail::_StateIdT, bool) [with _TraitsT = std::__cxx11::regex_traits<char>]’ at /usr/include/c++/15/bits/regex_automaton.h:254:24,
+    inlined from ‘void std::__detail::_Compiler<_TraitsT>::_M_disjunction() [with _TraitsT = std::__cxx11::regex_traits<char>]’ at /usr/include/c++/15/bits/regex_compiler.tcc:106:18:
+/usr/include/c++/15/bits/std_function.h:407:42: warning: ‘*(std::function<bool(char)>*)((char*)&__tmp + offsetof(std::__detail::_StateT, std::__detail::_State<char>::<unnamed>.std::__detail::_State_base::<unnamed>)).std::function<bool(char)>::_M_invoker’ may be used uninitialized [-Wmaybe-uninitialized]
+  407 |       : _Function_base(), _M_invoker(__x._M_invoker)
+      |                                      ~~~~^~~~~~~~~~
+/usr/include/c++/15/bits/regex_automaton.h: In member function ‘void std::__detail::_Compiler<_TraitsT>::_M_disjunction() [with _TraitsT = std::__cxx11::regex_traits<char>]’:
+/usr/include/c++/15/bits/regex_automaton.h:249:17: note: ‘__tmp’ declared here
+  249 |         _StateT __tmp(_S_opcode_alternative);
+      |                 ^~~~~
+In member function ‘bool std::_Function_base::_M_empty() const’,
+    inlined from ‘std::function<_Res(_ArgTypes ...)>::operator bool() const [with _Res = bool; _ArgTypes = {char}]’ at /usr/include/c++/15/bits/std_function.h:576:25,
+    inlined from ‘std::function<_Res(_ArgTypes ...)>::function(std::function<_Res(_ArgTypes ...)>&&) [with _Res = bool; _ArgTypes = {char}]’ at /usr/include/c++/15/bits/std_function.h:409:6,
+    inlined from ‘std::__detail::_State<_Char_type>::_State(std::__detail::_State<_Char_type>&&) [with _Char_type = char]’ at /usr/include/c++/15/bits/regex_automaton.h:152:4,
+    inlined from ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_alt(std::__detail::_StateIdT, std::__detail::_StateIdT, bool) [with _TraitsT = std::__cxx11::regex_traits<char>]’ at /usr/include/c++/15/bits/regex_automaton.h:254:24,
+    inlined from ‘void std::__detail::_Compiler<_TraitsT>::_M_disjunction() [with _TraitsT = std::__cxx11::regex_traits<char>]’ at /usr/include/c++/15/bits/regex_compiler.tcc:106:18:
+/usr/include/c++/15/bits/std_function.h:249:37: warning: ‘*(const std::_Function_base*)((char*)&__tmp + offsetof(std::__detail::_StateT, std::__detail::_State<char>::<unnamed>.std::__detail::_State_base::<unnamed>)).std::_Function_base::_M_manager’ may be used uninitialized [-Wmaybe-uninitialized]
+  249 |     bool _M_empty() const { return !_M_manager; }
+      |                                     ^~~~~~~~~~
+/usr/include/c++/15/bits/regex_automaton.h: In member function ‘void std::__detail::_Compiler<_TraitsT>::_M_disjunction() [with _TraitsT = std::__cxx11::regex_traits<char>]’:
+/usr/include/c++/15/bits/regex_automaton.h:249:17: note: ‘__tmp’ declared here
+  249 |         _StateT __tmp(_S_opcode_alternative);
+      |                 ^~~~~
+g++ -fsanitize=address,undefined,bounds-strict -fno-omit-frame-pointer  -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG  -I'/cache/R_libs/cpp4r/include' -I'/cache/R_libs/armadillo4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2 -Wall -pedantic -mtune=native -Wno-ignored-attributes -Wno-deprecated-declarations -Wno-stringop-truncation  -Wno-alloc-size-larger-than  -c cpp4r.cpp -o cpp4r.o
+g++ -fsanitize=address,undefined,bounds-strict -fno-omit-frame-pointer -std=gnu++20 -shared -L/opt/R/devel/lib/R/lib -L/usr/local/lib -o capybara.so capybara.o cpp4r.o -fopenmp -lflexiblas -lgfortran -lm -lquadmath -L/opt/R/devel/lib/R/lib -lR
+installing to /cache/R_libs/00LOCK-capybara/00new/capybara/libs
+** R
+** data
+*** moving datasets to lazyload DB
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+  converting help for package ‘capybara’
+    finding HTML links ... done
+    capybara-package                        html  
+    coef.felm                               html  
+    coef.summary.feglm                      html  
+    coef.summary.felm                       html  
+    confint                                 html  
+    correia2019                             html  
+    fe_table                                html  
+    feglm                                   html  
+    felm                                    html  
+    fenegbin                                html  
+    fepoisson                               html  
+    fepoisson_asymmetric                    html  
+    fit_control                             html  
+    fitted.feglm                            html  
+    fitted.felm                             html  
+    plot.feglm                              html  
+    plot.felm                               html  
+    predict.feglm                           html  
+    predict.felm                            html  
+    print.capybara_separation               html  
+    print.felm                              html  
+    print.summary.felm                      html  
+    print.summary_table                     html  
+    ross2004                                html  
+    sandwich_vcov                           html  
+    summary.feglm                           html  
+    summary.felm                            html  
+    summary_table                           html  
+    update.feglm                            html  
+    update.felm                             html  
+    update.felm_formula                     html  
+    vcov.feglm                              html  
+    vcov.felm                               html  
+** building package indices
+** installing vignettes
+** testing if installed package can be loaded from temporary location
+** checking absolute paths in shared objects and dynamic libraries
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (capybara)
+* using log directory ‘/check/capybara.Rcheck’
+* using R Under development (unstable) (2026-05-15 r90061)
+* using platform: x86_64-pc-linux-gnu
+* R was compiled by
+    gcc (GCC) 15.2.1 20260123 (Red Hat 15.2.1-7)
+    GNU Fortran (GCC) 15.2.1 20260123 (Red Hat 15.2.1-7)
+* running under: Fedora Linux 42 (Container Image)
+* using session charset: UTF-8
+* current time: 2026-08-15 21:30:49 UTC
+* using options ‘--no-manual --as-cran’
+* checking for file ‘capybara/DESCRIPTION’ ... OK
+* checking extension type ... Package
+* this is package ‘capybara’ version ‘2.2.0’
+* package encoding: UTF-8
+* checking CRAN incoming feasibility ... [6s/12s] OK
+* checking package namespace information ... OK
+* checking package dependencies ... OK
+* checking if this is a source package ... OK
+* checking if there is a namespace ... OK
+* checking for .dll and .exe files ... OK
+* checking for hidden files and directories ... OK
+* checking for portable file names ... OK
+* checking for sufficient/correct file permissions ... OK
+* checking whether package ‘capybara’ can be installed ... [205s/207s] OK
+* used C++ compiler: ‘g++ (GCC) 15.2.1 20260123 (Red Hat 15.2.1-7)’
+* checking C++ specification ... INFO
+  specified C++20
+* checking package directory ... OK
+* checking for future file timestamps ... OK
+* checking ‘build’ directory ... OK
+* checking DESCRIPTION meta-information ... OK
+* checking top-level files ... NOTE
+Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ being installed.
+* checking for left-over files ... OK
+* checking index information ... OK
+* checking package subdirectories ... OK
+* checking code files for non-ASCII characters ... OK
+* checking R files for syntax errors ... OK
+* checking whether the package can be loaded ... OK
+* checking whether the package can be loaded with stated dependencies ... OK
+* checking whether the package can be unloaded cleanly ... OK
+* checking whether the namespace can be loaded with stated dependencies ... OK
+* checking whether the namespace can be unloaded cleanly ... OK
+* checking loading without being on the library search path ... OK
+* checking use of S3 registration ... OK
+* checking dependencies in R code ... OK
+* checking S3 generic/method consistency ... OK
+* checking replacement functions ... OK
+* checking foreign function calls ... OK
+* checking R code for possible problems ... OK
+* checking Rd files ... OK
+* checking Rd metadata ... OK
+* checking Rd line widths ... OK
+* checking Rd cross-references ... OK
+* checking for missing documentation entries ... OK
+* checking for code/documentation mismatches ... OK
+* checking Rd \usage sections ... OK
+* checking Rd contents ... OK
+* checking for unstated dependencies in examples ... OK
+* checking contents of ‘data’ directory ... OK
+* checking data for non-ASCII characters ... OK
+* checking LazyData ... OK
+* checking data for ASCII and uncompressed saves ... OK
+* checking line endings in shell scripts ... OK
+* checking line endings in C/C++/Fortran sources/headers ... OK
+* checking line endings in Makefiles ... OK
+* checking compilation flags in Makevars ... OK
+* checking for GNU extensions in Makefiles ... OK
+* checking for portable use of $(BLAS_LIBS) and $(LAPACK_LIBS) ... OK
+* checking use of PKG_*FLAGS in Makefiles ... OK
+* checking use of SHLIB_OPENMP_*FLAGS in Makefiles ... OK
+* checking pragmas in C/C++ headers and code ... OK
+* checking compilation flags used ... OK
+* checking compiled code ... OK
+* checking installed files from ‘inst/doc’ ... OK
+* checking files in ‘vignettes’ ... OK
+* checking examples ... OK
+* checking for unstated dependencies in ‘tests’ ... OK
+* checking tests ...
+  Running ‘tinytest.R’
+ OK
+* checking for unstated dependencies in vignettes ... OK
+* checking package vignettes ... OK
+* checking re-building of vignette outputs ... OK
+* checking for non-standard things in the check directory ... OK
+* checking for detritus in the temp directory ... OK
+* DONE
+
+Status: 1 NOTE
+See
+  ‘/check/capybara.Rcheck/00check.log’
+for details.
+
+=== 00install.out ===
+* installing *source* package ‘capybara’ ...
+** this is package ‘capybara’ version ‘2.2.0’
+** using staged installation
+==========================================================================
+Capybara configuration summary
+
+  C++ Compiler:           g++ -fsanitize=address,undefined,bounds-strict -fno-omit-frame-pointer
+  Compiler Type:          unknown
+  C++ Standard:           CXX20
+  OpenMP Support:         yes
+  OpenMP Threads:         4
+  SIMD Support:           AVX2
+  BLAS:                   -lflexiblas
+  LAPACK:                 
+  No Armadillo Wrapper:   yes (direct BLAS/LAPACK)
+  No Sparse Matrices:     no
+  High-Performance Mode:  no
+  Optimization Flags:     
+  Debug Flags:            
+
+For faster computation
+ 
+ Enable high-performance optimizations:
+ export CAPYBARA_OPTIMIZATIONS=yes
+ 
+ Change thread count:
+ export CAPYBARA_NCORES=<number>
+ 
+ Disable sparse matrix support (faster compile):
+ export CAPYBARA_SKIP_SPARSE=yes
+ 
+ Then reinstall the package
+==========================================================================
+** libs
+specified C++20
+using C++ compiler: ‘g++ (GCC) 15.2.1 20260123 (Red Hat 15.2.1-7)’
+using C++20
+g++ -fsanitize=address,undefined,bounds-strict -fno-omit-frame-pointer  -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG  -I'/cache/R_libs/cpp4r/include' -I'/cache/R_libs/armadillo4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2 -Wall -pedantic -mtune=native -Wno-ignored-attributes -Wno-deprecated-declarations -Wno-stringop-truncation  -Wno-alloc-size-larger-than  -c capybara.cpp -o capybara.o
+In file included from /usr/include/c++/15/functional:61,
+                 from /cache/R_libs/armadillo4r/include/armadillo4r/armadillo.hpp:56,
+                 from /cache/R_libs/armadillo4r/include/armadillo4r.hpp:52,
+                 from capybara.cpp:8:
+In constructor ‘std::function<_Res(_ArgTypes ...)>::function(std::function<_Res(_ArgTypes ...)>&&) [with _Res = bool; _ArgTypes = {char}]’,
+    inlined from ‘std::__detail::_State<_Char_type>::_State(std::__detail::_State<_Char_type>&&) [with _Char_type = char]’ at /usr/include/c++/15/bits/regex_automaton.h:152:4,
+    inlined from ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_subexpr_begin() [with _TraitsT = std::__cxx11::regex_traits<char>]’ at /usr/include/c++/15/bits/regex_automaton.h:284:24:
+/usr/include/c++/15/bits/std_function.h:407:42: warning: ‘*(std::function<bool(char)>*)((char*)&__tmp + offsetof(std::__detail::_StateT, std::__detail::_State<char>::<unnamed>.std::__detail::_State_base::<unnamed>)).std::function<bool(char)>::_M_invoker’ may be used uninitialized [-Wmaybe-uninitialized]
+  407 |       : _Function_base(), _M_invoker(__x._M_invoker)
+      |                                      ~~~~^~~~~~~~~~
+In file included from /usr/include/c++/15/regex:67,
+                 from capybara.cpp:11:
+/usr/include/c++/15/bits/regex_automaton.h: In member function ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_subexpr_begin() [with _TraitsT = std::__cxx11::regex_traits<char>]’:
+/usr/include/c++/15/bits/regex_automaton.h:282:17: note: ‘__tmp’ declared here
+  282 |         _StateT __tmp(_S_opcode_subexpr_begin);
+      |                 ^~~~~
+In member function ‘bool std::_Function_base::_M_empty() const’,
+    inlined from ‘std::function<_Res(_ArgTypes ...)>::operator bool() const [with _Res = bool; _ArgTypes = {char}]’ at /usr/include/c++/15/bits/std_function.h:576:25,
+    inlined from ‘std::function<_Res(_ArgTypes ...)>::function(std::function<_Res(_ArgTypes ...)>&&) [with _Res = bool; _ArgTypes = {char}]’ at /usr/include/c++/15/bits/std_function.h:409:6,
+    inlined from ‘std::__detail::_State<_Char_type>::_State(std::__detail::_State<_Char_type>&&) [with _Char_type = char]’ at /usr/include/c++/15/bits/regex_automaton.h:152:4,
+    inlined from ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_subexpr_begin() [with _TraitsT = std::__cxx11::regex_traits<char>]’ at /usr/include/c++/15/bits/regex_automaton.h:284:24:
+/usr/include/c++/15/bits/std_function.h:249:37: warning: ‘*(const std::_Function_base*)((char*)&__tmp + offsetof(std::__detail::_StateT, std::__detail::_State<char>::<unnamed>.std::__detail::_State_base::<unnamed>)).std::_Function_base::_M_manager’ may be used uninitialized [-Wmaybe-uninitialized]
+  249 |     bool _M_empty() const { return !_M_manager; }
+      |                                     ^~~~~~~~~~
+/usr/include/c++/15/bits/regex_automaton.h: In member function ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_subexpr_begin() [with _TraitsT = std::__cxx11::regex_traits<char>]’:
+/usr/include/c++/15/bits/regex_automaton.h:282:17: note: ‘__tmp’ declared here
+  282 |         _StateT __tmp(_S_opcode_subexpr_begin);
+      |                 ^~~~~
+In constructor ‘std::function<_Res(_ArgTypes ...)>::function(std::function<_Res(_ArgTypes ...)>&&) [with _Res = bool; _ArgTypes = {char}]’,
+    inlined from ‘std::__detail::_State<_Char_type>::_State(std::__detail::_State<_Char_type>&&) [with _Char_type = char]’ at /usr/include/c++/15/bits/regex_automaton.h:152:4,
+    inlined from ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_subexpr_end() [with _TraitsT = std::__cxx11::regex_traits<char>]’ at /usr/include/c++/15/bits/regex_automaton.h:293:24:
+/usr/include/c++/15/bits/std_function.h:407:42: warning: ‘*(std::function<bool(char)>*)((char*)&__tmp + offsetof(std::__detail::_StateT, std::__detail::_State<char>::<unnamed>.std::__detail::_State_base::<unnamed>)).std::function<bool(char)>::_M_invoker’ may be used uninitialized [-Wmaybe-uninitialized]
+  407 |       : _Function_base(), _M_invoker(__x._M_invoker)
+      |                                      ~~~~^~~~~~~~~~
+/usr/include/c++/15/bits/regex_automaton.h: In member function ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_subexpr_end() [with _TraitsT = std::__cxx11::regex_traits<char>]’:
+/usr/include/c++/15/bits/regex_automaton.h:290:17: note: ‘__tmp’ declared here
+  290 |         _StateT __tmp(_S_opcode_subexpr_end);
+      |                 ^~~~~
+In member function ‘bool std::_Function_base::_M_empty() const’,
+    inlined from ‘std::function<_Res(_ArgTypes ...)>::operator bool() const [with _Res = bool; _ArgTypes = {char}]’ at /usr/include/c++/15/bits/std_function.h:576:25,
+    inlined from ‘std::function<_Res(_ArgTypes ...)>::function(std::function<_Res(_ArgTypes ...)>&&) [with _Res = bool; _ArgTypes = {char}]’ at /usr/include/c++/15/bits/std_function.h:409:6,
+    inlined from ‘std::__detail::_State<_Char_type>::_State(std::__detail::_State<_Char_type>&&) [with _Char_type = char]’ at /usr/include/c++/15/bits/regex_automaton.h:152:4,
+    inlined from ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_subexpr_end() [with _TraitsT = std::__cxx11::regex_traits<char>]’ at /usr/include/c++/15/bits/regex_automaton.h:293:24:
+/usr/include/c++/15/bits/std_function.h:249:37: warning: ‘*(const std::_Function_base*)((char*)&__tmp + offsetof(std::__detail::_StateT, std::__detail::_State<char>::<unnamed>.std::__detail::_State_base::<unnamed>)).std::_Function_base::_M_manager’ may be used uninitialized [-Wmaybe-uninitialized]
+  249 |     bool _M_empty() const { return !_M_manager; }
+      |                                     ^~~~~~~~~~
+/usr/include/c++/15/bits/regex_automaton.h: In member function ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_subexpr_end() [with _TraitsT = std::__cxx11::regex_traits<char>]’:
+/usr/include/c++/15/bits/regex_automaton.h:290:17: note: ‘__tmp’ declared here
+  290 |         _StateT __tmp(_S_opcode_subexpr_end);
+      |                 ^~~~~
+In constructor ‘std::function<_Res(_ArgTypes ...)>::function(std::function<_Res(_ArgTypes ...)>&&) [with _Res = bool; _ArgTypes = {char}]’,
+    inlined from ‘std::__detail::_State<_Char_type>::_State(std::__detail::_State<_Char_type>&&) [with _Char_type = char]’ at /usr/include/c++/15/bits/regex_automaton.h:152:4,
+    inlined from ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_backref(std::size_t) [with _TraitsT = std::__cxx11::regex_traits<char>]’ at /usr/include/c++/15/bits/regex_automaton.tcc:173:29:
+/usr/include/c++/15/bits/std_function.h:407:42: warning: ‘*(std::function<bool(char)>*)((char*)&__tmp + offsetof(std::__detail::_StateT, std::__detail::_State<char>::<unnamed>.std::__detail::_State_base::<unnamed>)).std::function<bool(char)>::_M_invoker’ may be used uninitialized [-Wmaybe-uninitialized]
+  407 |       : _Function_base(), _M_invoker(__x._M_invoker)
+      |                                      ~~~~^~~~~~~~~~
+In file included from /usr/include/c++/15/bits/regex_automaton.h:405:
+/usr/include/c++/15/bits/regex_automaton.tcc: In member function ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_backref(std::size_t) [with _TraitsT = std::__cxx11::regex_traits<char>]’:
+/usr/include/c++/15/bits/regex_automaton.tcc:171:15: note: ‘__tmp’ declared here
+  171 |       _StateT __tmp(_S_opcode_backref);
+      |               ^~~~~
+In member function ‘bool std::_Function_base::_M_empty() const’,
+    inlined from ‘std::function<_Res(_ArgTypes ...)>::operator bool() const [with _Res = bool; _ArgTypes = {char}]’ at /usr/include/c++/15/bits/std_function.h:576:25,
+    inlined from ‘std::function<_Res(_ArgTypes ...)>::function(std::function<_Res(_ArgTypes ...)>&&) [with _Res = bool; _ArgTypes = {char}]’ at /usr/include/c++/15/bits/std_function.h:409:6,
+    inlined from ‘std::__detail::_State<_Char_type>::_State(std::__detail::_State<_Char_type>&&) [with _Char_type = char]’ at /usr/include/c++/15/bits/regex_automaton.h:152:4,
+    inlined from ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_backref(std::size_t) [with _TraitsT = std::__cxx11::regex_traits<char>]’ at /usr/include/c++/15/bits/regex_automaton.tcc:173:29:
+/usr/include/c++/15/bits/std_function.h:249:37: warning: ‘*(const std::_Function_base*)((char*)&__tmp + offsetof(std::__detail::_StateT, std::__detail::_State<char>::<unnamed>.std::__detail::_State_base::<unnamed>)).std::_Function_base::_M_manager’ may be used uninitialized [-Wmaybe-uninitialized]
+  249 |     bool _M_empty() const { return !_M_manager; }
+      |                                     ^~~~~~~~~~
+/usr/include/c++/15/bits/regex_automaton.tcc: In member function ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_backref(std::size_t) [with _TraitsT = std::__cxx11::regex_traits<char>]’:
+/usr/include/c++/15/bits/regex_automaton.tcc:171:15: note: ‘__tmp’ declared here
+  171 |       _StateT __tmp(_S_opcode_backref);
+      |               ^~~~~
+In constructor ‘std::function<_Res(_ArgTypes ...)>::function(std::function<_Res(_ArgTypes ...)>&&) [with _Res = bool; _ArgTypes = {char}]’,
+    inlined from ‘std::__detail::_State<_Char_type>::_State(std::__detail::_State<_Char_type>&&) [with _Char_type = char]’ at /usr/include/c++/15/bits/regex_automaton.h:152:4,
+    inlined from ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_repeat(std::__detail::_StateIdT, std::__detail::_StateIdT, bool) [with _TraitsT = std::__cxx11::regex_traits<char>]’ at /usr/include/c++/15/bits/regex_automaton.h:266:24:
+/usr/include/c++/15/bits/std_function.h:407:42: warning: ‘*(std::function<bool(char)>*)((char*)&__tmp + offsetof(std::__detail::_StateT, std::__detail::_State<char>::<unnamed>.std::__detail::_State_base::<unnamed>)).std::function<bool(char)>::_M_invoker’ may be used uninitialized [-Wmaybe-uninitialized]
+  407 |       : _Function_base(), _M_invoker(__x._M_invoker)
+      |                                      ~~~~^~~~~~~~~~
+/usr/include/c++/15/bits/regex_automaton.h: In member function ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_repeat(std::__detail::_StateIdT, std::__detail::_StateIdT, bool) [with _TraitsT = std::__cxx11::regex_traits<char>]’:
+/usr/include/c++/15/bits/regex_automaton.h:260:17: note: ‘__tmp’ declared here
+  260 |         _StateT __tmp(_S_opcode_repeat);
+      |                 ^~~~~
+In member function ‘bool std::_Function_base::_M_empty() const’,
+    inlined from ‘std::function<_Res(_ArgTypes ...)>::operator bool() const [with _Res = bool; _ArgTypes = {char}]’ at /usr/include/c++/15/bits/std_function.h:576:25,
+    inlined from ‘std::function<_Res(_ArgTypes ...)>::function(std::function<_Res(_ArgTypes ...)>&&) [with _Res = bool; _ArgTypes = {char}]’ at /usr/include/c++/15/bits/std_function.h:409:6,
+    inlined from ‘std::__detail::_State<_Char_type>::_State(std::__detail::_State<_Char_type>&&) [with _Char_type = char]’ at /usr/include/c++/15/bits/regex_automaton.h:152:4,
+    inlined from ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_repeat(std::__detail::_StateIdT, std::__detail::_StateIdT, bool) [with _TraitsT = std::__cxx11::regex_traits<char>]’ at /usr/include/c++/15/bits/regex_automaton.h:266:24:
+/usr/include/c++/15/bits/std_function.h:249:37: warning: ‘*(const std::_Function_base*)((char*)&__tmp + offsetof(std::__detail::_StateT, std::__detail::_State<char>::<unnamed>.std::__detail::_State_base::<unnamed>)).std::_Function_base::_M_manager’ may be used uninitialized [-Wmaybe-uninitialized]
+  249 |     bool _M_empty() const { return !_M_manager; }
+      |                                     ^~~~~~~~~~
+/usr/include/c++/15/bits/regex_automaton.h: In member function ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_repeat(std::__detail::_StateIdT, std::__detail::_StateIdT, bool) [with _TraitsT = std::__cxx11::regex_traits<char>]’:
+/usr/include/c++/15/bits/regex_automaton.h:260:17: note: ‘__tmp’ declared here
+  260 |         _StateT __tmp(_S_opcode_repeat);
+      |                 ^~~~~
+In constructor ‘std::function<_Res(_ArgTypes ...)>::function(std::function<_Res(_ArgTypes ...)>&&) [with _Res = bool; _ArgTypes = {char}]’,
+    inlined from ‘std::__detail::_State<_Char_type>::_State(std::__detail::_State<_Char_type>&&) [with _Char_type = char]’ at /usr/include/c++/15/bits/regex_automaton.h:152:4,
+    inlined from ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_alt(std::__detail::_StateIdT, std::__detail::_StateIdT, bool) [with _TraitsT = std::__cxx11::regex_traits<char>]’ at /usr/include/c++/15/bits/regex_automaton.h:254:24,
+    inlined from ‘void std::__detail::_Compiler<_TraitsT>::_M_disjunction() [with _TraitsT = std::__cxx11::regex_traits<char>]’ at /usr/include/c++/15/bits/regex_compiler.tcc:106:18:
+/usr/include/c++/15/bits/std_function.h:407:42: warning: ‘*(std::function<bool(char)>*)((char*)&__tmp + offsetof(std::__detail::_StateT, std::__detail::_State<char>::<unnamed>.std::__detail::_State_base::<unnamed>)).std::function<bool(char)>::_M_invoker’ may be used uninitialized [-Wmaybe-uninitialized]
+  407 |       : _Function_base(), _M_invoker(__x._M_invoker)
+      |                                      ~~~~^~~~~~~~~~
+/usr/include/c++/15/bits/regex_automaton.h: In member function ‘void std::__detail::_Compiler<_TraitsT>::_M_disjunction() [with _TraitsT = std::__cxx11::regex_traits<char>]’:
+/usr/include/c++/15/bits/regex_automaton.h:249:17: note: ‘__tmp’ declared here
+  249 |         _StateT __tmp(_S_opcode_alternative);
+      |                 ^~~~~
+In member function ‘bool std::_Function_base::_M_empty() const’,
+    inlined from ‘std::function<_Res(_ArgTypes ...)>::operator bool() const [with _Res = bool; _ArgTypes = {char}]’ at /usr/include/c++/15/bits/std_function.h:576:25,
+    inlined from ‘std::function<_Res(_ArgTypes ...)>::function(std::function<_Res(_ArgTypes ...)>&&) [with _Res = bool; _ArgTypes = {char}]’ at /usr/include/c++/15/bits/std_function.h:409:6,
+    inlined from ‘std::__detail::_State<_Char_type>::_State(std::__detail::_State<_Char_type>&&) [with _Char_type = char]’ at /usr/include/c++/15/bits/regex_automaton.h:152:4,
+    inlined from ‘std::__detail::_StateIdT std::__detail::_NFA<_TraitsT>::_M_insert_alt(std::__detail::_StateIdT, std::__detail::_StateIdT, bool) [with _TraitsT = std::__cxx11::regex_traits<char>]’ at /usr/include/c++/15/bits/regex_automaton.h:254:24,
+    inlined from ‘void std::__detail::_Compiler<_TraitsT>::_M_disjunction() [with _TraitsT = std::__cxx11::regex_traits<char>]’ at /usr/include/c++/15/bits/regex_compiler.tcc:106:18:
+/usr/include/c++/15/bits/std_function.h:249:37: warning: ‘*(const std::_Function_base*)((char*)&__tmp + offsetof(std::__detail::_StateT, std::__detail::_State<char>::<unnamed>.std::__detail::_State_base::<unnamed>)).std::_Function_base::_M_manager’ may be used uninitialized [-Wmaybe-uninitialized]
+  249 |     bool _M_empty() const { return !_M_manager; }
+      |                                     ^~~~~~~~~~
+/usr/include/c++/15/bits/regex_automaton.h: In member function ‘void std::__detail::_Compiler<_TraitsT>::_M_disjunction() [with _TraitsT = std::__cxx11::regex_traits<char>]’:
+/usr/include/c++/15/bits/regex_automaton.h:249:17: note: ‘__tmp’ declared here
+  249 |         _StateT __tmp(_S_opcode_alternative);
+      |                 ^~~~~
+g++ -fsanitize=address,undefined,bounds-strict -fno-omit-frame-pointer  -std=gnu++20 -I"/opt/R/devel/lib/R/include" -DNDEBUG  -I'/cache/R_libs/cpp4r/include' -I'/cache/R_libs/armadillo4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2 -Wall -pedantic -mtune=native -Wno-ignored-attributes -Wno-deprecated-declarations -Wno-stringop-truncation  -Wno-alloc-size-larger-than  -c cpp4r.cpp -o cpp4r.o
+g++ -fsanitize=address,undefined,bounds-strict -fno-omit-frame-pointer -std=gnu++20 -shared -L/opt/R/devel/lib/R/lib -L/usr/local/lib -o capybara.so capybara.o cpp4r.o -fopenmp -lflexiblas -lgfortran -lm -lquadmath -L/opt/R/devel/lib/R/lib -lR
+installing to /check/capybara.Rcheck/00LOCK-capybara/00new/capybara/libs
+** R
+** data
+*** moving datasets to lazyload DB
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+  converting help for package ‘capybara’
+    finding HTML links ... done
+    capybara-package                        html  
+    coef.felm                               html  
+    coef.summary.feglm                      html  
+    coef.summary.felm                       html  
+    confint                                 html  
+    correia2019                             html  
+    fe_table                                html  
+    feglm                                   html  
+    felm                                    html  
+    fenegbin                                html  
+    fepoisson                               html  
+    fepoisson_asymmetric                    html  
+    fit_control                             html  
+    fitted.feglm                            html  
+    fitted.felm                             html  
+    plot.feglm                              html  
+    plot.felm                               html  
+    predict.feglm                           html  
+    predict.felm                            html  
+    print.capybara_separation               html  
+    print.felm                              html  
+    print.summary.felm                      html  
+    print.summary_table                     html  
+    ross2004                                html  
+    sandwich_vcov                           html  
+    summary.feglm                           html  
+    summary.felm                            html  
+    summary_table                           html  
+    update.feglm                            html  
+    update.felm                             html  
+    update.felm_formula                     html  
+    vcov.feglm                              html  
+    vcov.felm                               html  
+** building package indices
+** installing vignettes
+** testing if installed package can be loaded from temporary location
+** checking absolute paths in shared objects and dynamic libraries
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (capybara)
+=== 00check.log ===
+* using log directory ‘/check/capybara.Rcheck’
+* using R Under development (unstable) (2026-05-15 r90061)
+* using platform: x86_64-pc-linux-gnu
+* R was compiled by
+    gcc (GCC) 15.2.1 20260123 (Red Hat 15.2.1-7)
+    GNU Fortran (GCC) 15.2.1 20260123 (Red Hat 15.2.1-7)
+* running under: Fedora Linux 42 (Container Image)
+* using session charset: UTF-8
+* current time: 2026-08-15 21:30:49 UTC
+* using options ‘--no-manual --as-cran’
+* checking for file ‘capybara/DESCRIPTION’ ... OK
+* checking extension type ... Package
+* this is package ‘capybara’ version ‘2.2.0’
+* package encoding: UTF-8
+* checking CRAN incoming feasibility ... [6s/12s] OK
+* checking package namespace information ... OK
+* checking package dependencies ... OK
+* checking if this is a source package ... OK
+* checking if there is a namespace ... OK
+* checking for .dll and .exe files ... OK
+* checking for hidden files and directories ... OK
+* checking for portable file names ... OK
+* checking for sufficient/correct file permissions ... OK
+* checking whether package ‘capybara’ can be installed ... [205s/207s] OK
+* used C++ compiler: ‘g++ (GCC) 15.2.1 20260123 (Red Hat 15.2.1-7)’
+* checking C++ specification ... INFO
+  specified C++20
+* checking package directory ... OK
+* checking for future file timestamps ... OK
+* checking ‘build’ directory ... OK
+* checking DESCRIPTION meta-information ... OK
+* checking top-level files ... NOTE
+Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ being installed.
+* checking for left-over files ... OK
+* checking index information ... OK
+* checking package subdirectories ... OK
+* checking code files for non-ASCII characters ... OK
+* checking R files for syntax errors ... OK
+* checking whether the package can be loaded ... OK
+* checking whether the package can be loaded with stated dependencies ... OK
+* checking whether the package can be unloaded cleanly ... OK
+* checking whether the namespace can be loaded with stated dependencies ... OK
+* checking whether the namespace can be unloaded cleanly ... OK
+* checking loading without being on the library search path ... OK
+* checking use of S3 registration ... OK
+* checking dependencies in R code ... OK
+* checking S3 generic/method consistency ... OK
+* checking replacement functions ... OK
+* checking foreign function calls ... OK
+* checking R code for possible problems ... OK
+* checking Rd files ... OK
+* checking Rd metadata ... OK
+* checking Rd line widths ... OK
+* checking Rd cross-references ... OK
+* checking for missing documentation entries ... OK
+* checking for code/documentation mismatches ... OK
+* checking Rd \usage sections ... OK
+* checking Rd contents ... OK
+* checking for unstated dependencies in examples ... OK
+* checking contents of ‘data’ directory ... OK
+* checking data for non-ASCII characters ... OK
+* checking LazyData ... OK
+* checking data for ASCII and uncompressed saves ... OK
+* checking line endings in shell scripts ... OK
+* checking line endings in C/C++/Fortran sources/headers ... OK
+* checking line endings in Makefiles ... OK
+* checking compilation flags in Makevars ... OK
+* checking for GNU extensions in Makefiles ... OK
+* checking for portable use of $(BLAS_LIBS) and $(LAPACK_LIBS) ... OK
+* checking use of PKG_*FLAGS in Makefiles ... OK
+* checking use of SHLIB_OPENMP_*FLAGS in Makefiles ... OK
+* checking pragmas in C/C++ headers and code ... OK
+* checking compilation flags used ... OK
+* checking compiled code ... OK
+* checking installed files from ‘inst/doc’ ... OK
+* checking files in ‘vignettes’ ... OK
+* checking examples ... OK
+* checking for unstated dependencies in ‘tests’ ... OK
+* checking tests ... OK
+  Running ‘tinytest.R’
+* checking for unstated dependencies in vignettes ... OK
+* checking package vignettes ... OK
+* checking re-building of vignette outputs ... OK
+* checking for non-standard things in the check directory ... OK
+* checking for detritus in the temp directory ... OK
+* DONE
+Status: 1 NOTE

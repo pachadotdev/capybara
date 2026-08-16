@@ -17,7 +17,8 @@
 <div class="main-container">
 <div id="menu">
   <div>
-    <img src="../man/figures/logo.svg" align="center" height="139" alt="capybara logo"></div>
+    <h1 style="text-align:center;">capybara Documentation</h1>
+  </div>
 
   <div class="search-container">
     <input type="text" id="search-box" placeholder="Search..."></div>
@@ -78,14 +79,15 @@ and defaults to <code>0.5</code>, so if you don’t specify it,
 <div id="estimating-lower-and-upper-expectiles" class="section level2">
 <h2 id="estimating-lower-and-upper-expectiles">Estimating lower and upper expectiles</h2>
 <p>Shifting <code>expectile</code> away from 0.5 lets you trace how the
-entire conditional distribution of <code>mpg</code> varies with
-<code>wt</code>, after absorbing the <code>cyl</code> fixed effects.</p>
+entire conditional distribution of <code>trade</code> varies with
+<code>ldist</code> and other predictors, after absorbing the
+exporter-year and importer-year fixed effects.</p>
 <pre class="r"><code>ross2004_subset &lt;- ross2004[ross2004$year %in% seq(1989, 1999, 5), ]
 ross2004_subset$trade &lt;- exp(ross2004_subset$ltrade)
 ross2004_subset$exp_year &lt;- paste0(ross2004_subset$ctry1, ross2004_subset$year)
 ross2004_subset$imp_year &lt;- paste0(ross2004_subset$ctry2, ross2004_subset$year)
 
-# 10th expectile — sensitive to small values of mpg
+# 10th expectile — sensitive to small values of trade
 fit10 &lt;- fepoisson_asymmetric(
   trade ~ ldist + border + comlang + colony | exp_year + imp_year,
   data    = ross2004_subset,
@@ -115,7 +117,7 @@ Fixed effects:
 Number of observations: Full 21450; Missing 0; Perfect classification 0
 
 Number of Fisher Scoring iterations: 17</code></pre>
-<pre class="r"><code># 90th expectile — sensitive to large values of mpg
+<pre class="r"><code># 90th expectile — sensitive to large values of trade
 fit90 &lt;- fepoisson_asymmetric(
   trade ~ ldist + border + comlang + colony | exp_year + imp_year,
   data    = ross2004_subset,

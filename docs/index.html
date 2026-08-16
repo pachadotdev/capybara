@@ -17,7 +17,8 @@
 <div class="main-container">
 <div id="menu">
   <div>
-    <img src="man/figures/logo.svg" align="center" height="139" alt="capybara logo"></div>
+    <h1 style="text-align:center;">capybara Documentation</h1>
+  </div>
 
   <div class="search-container">
     <input type="text" id="search-box" placeholder="Search..."></div>
@@ -67,25 +68,21 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 <div id="capybara" class="section level1">
-<h1>capybara <img src="/home/pacha/Documents/capybara/man/figures/logo.svg" align="right" height="139" alt=""></h1>
+<h1>capybara
+<img src="man/figures/logo.svg" align="right" height="139" alt=""></h1>
 <!-- badges: start -->
-<p><a href="https://github.com/pachadotdev/capybara/actions/workflows/R-CMD-check.yaml"><img src="https://github.com/pachadotdev/capybara/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a>
-<a href="https://buymeacoffee.com/pacha"><img src="https://raw.githubusercontent.com/pachadotdev/buymeacoffee-badges/main/bmc-donate-yellow.svg" alt="BuyMeACoffee"></a>
-<a href="https://lifecycle.r-lib.org/articles/stages.html#stable"><img src="https://img.shields.io/badge/lifecycle-stable-brightgreen.svg" alt="Lifecycle: stable"></a>
-<a href="https://CRAN.R-project.org/package=capybara"><img src="https://www.r-pkg.org/badges/version/capybara" alt="CRAN status"></a>
-<a href="https://github.com/pachadotdev/capybara/actions/workflows/test-coverage.yaml"><img src="https://raw.githubusercontent.com/pachadotdev/capybara/coverage/badges/coverage.svg" alt="Test coverage"></a>
-<!-- badges: end --></p>
+<p><a href="https://github.com/pachadotdev/capybara/actions/workflows/R-CMD-check.yaml"><img src="https://github.com/pachadotdev/capybara/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a> <a href="https://buymeacoffee.com/pacha"><img src="https://raw.githubusercontent.com/pachadotdev/buymeacoffee-badges/main/bmc-donate-yellow.svg" alt="BuyMeACoffee"></a> <a href="https://lifecycle.r-lib.org/articles/stages.html#stable"><img src="https://img.shields.io/badge/lifecycle-stable-brightgreen.svg" alt="Lifecycle: stable"></a> <a href="https://CRAN.R-project.org/package=capybara"><img src="https://www.r-pkg.org/badges/version/capybara" alt="CRAN status"></a> <a href="https://github.com/pachadotdev/capybara/actions/workflows/test-coverage.yaml"><img src="https://raw.githubusercontent.com/pachadotdev/capybara/coverage/badges/coverage.svg" alt="Test coverage"></a> <!-- badges: end --></p>
 <div id="about" class="section level2">
 <h2>About</h2>
-<p>Please read my article for the full details about capybara 1.x.y (Open
-Access):</p>
+<p>Please read my article for the full details about capybara 1.x.y
+(Open Access):</p>
 <blockquote>
 <p>Vargas Sepulveda, Mauricio. 2025. ‘Capybara: Efficient Estimation of
 Generalized Linear Models with High-Dimensional Fixed Effects’. <em>PLOS
 ONE</em> 20 (9): e0331178. <a href="https://doi.org/10.1371/journal.pone.0331178" class="uri">https://doi.org/10.1371/journal.pone.0331178</a>.</p>
 </blockquote>
-<p>I am preparing the manuscript for capybara 2.x.y that is about speed and
-memory improvements.</p>
+<p>I am preparing the manuscript for capybara 2.x.y that is about speed
+and memory improvements.</p>
 <p>If you have a 2-4GB dataset and you need to estimate a (generalized)
 linear model with a large number of fixed effects, this package is for
 you. It works with larger datasets as well and facilites computing
@@ -94,9 +91,9 @@ clustered standard errors.</p>
 efficient functions for demeaning variables before conducting a GLM
 estimation. This technique is particularly useful when estimating linear
 models with multiple group fixed effects. It is a fork of the excellent
-Alpaca package created and maintained by <a href="https://github.com/amrei-stammann">Dr. Amrei
-Stammann</a>. The software can estimate
-Exponential Family models (e.g., Poisson) and Negative Binomial models.</p>
+Alpaca package created and maintained by <a href="https://github.com/amrei-stammann">Dr. Amrei Stammann</a>. The
+software can estimate Exponential Family models (e.g., Poisson) and
+Negative Binomial models.</p>
 <p>Traditional QR estimation on the full design matrix can be unfeasible
 due to additional memory requirements. The method, which is based on
 Halperin (1962) vector projections offers important time and memory
@@ -106,14 +103,12 @@ process.</p>
 Berge (2018) works on OLS and GLM estimation with large fixed effects
 implemented in the ‘lfe’, ‘alpaca’ and ‘fixest’ packages. The
 differences are that ‘capybara’ does not use C nor Rcpp code, instead it
-uses cpp4r and
-<a href="https://github.com/pachadotdev/armadillo4r">armadillo4r</a>.</p>
+uses cpp4r and <a href="https://github.com/pachadotdev/armadillo4r">armadillo4r</a>.</p>
 <p>The summary tables borrow from Stata outputs. I have also provided
 integrations with ‘broom’ to facilitate the inclusion of statistical
 tables in Quarto/Jupyter notebooks.</p>
-<p>If this software is useful to you, please consider donating on <a href="https://buymeacoffee.com/pacha">Buy Me A
-Coffee</a>. All donations will be used to
-continue improving <code>capybara</code>.</p>
+<p>If this software is useful to you, please consider donating on <a href="https://buymeacoffee.com/pacha">Buy Me A Coffee</a>. All donations
+will be used to continue improving <code>capybara</code>.</p>
 </div>
 <div id="installation" class="section level2">
 <h2>Installation</h2>
@@ -125,8 +120,8 @@ continue improving <code>capybara</code>.</p>
 <div id="examples" class="section level2">
 <h2>Examples</h2>
 <p>See the documentation: <a href="https://pacha.dev/capybara/" class="uri">https://pacha.dev/capybara/</a>.</p>
-<p>Here is simple example of estimating a linear model and a Poisson model
-with fixed effects:</p>
+<p>Here is simple example of estimating a linear model and a Poisson
+model with fixed effects:</p>
 <pre class="r"><code>m1 &lt;- felm(mpg ~ wt | cyl, mtcars)
 m2 &lt;- fepoisson(mpg ~ wt | cyl, mtcars)
 summary_table(m1, m2, model_names = c("Linear", "Poisson"))
@@ -147,10 +142,10 @@ Significance levels: *** p &lt; 0.001; ** p &lt; 0.01; * p &lt; 0.05; . p &lt; 0
 </div>
 <div id="installing-with-compiler-optimizations" class="section level2">
 <h2>Installing with compiler optimizations</h2>
-<p>CRAN packages are built with the <code>-O2</code> compiler flag, which is
-sufficient for most packages, including capybara. However, if you want
-to use the maximum compiler optimizations, you can do so by setting the
-<code>-O3</code> compiler flag.</p>
+<p>CRAN packages are built with the <code>-O2</code> compiler flag,
+which is sufficient for most packages, including capybara. However, if
+you want to use the maximum compiler optimizations, you can do so by
+setting the <code>-O3</code> compiler flag.</p>
 <p>To do that, create a user Makevars file in your home directory
 (<code>~/.R/Makevars</code>) and add the following lines:</p>
 <pre class="makefile"><code># Copy to ~/.R/Makevars if you want to override R's default optimization
@@ -160,9 +155,10 @@ CXX14FLAGS = -O3
 CXX17FLAGS = -O3
 CXX20FLAGS = -O3</code></pre>
 <p>Additional optimizations can be enabled by setting the
-<code>CAPYBARA_OPTIMIZATIONS</code> environment variable to “yes” and choosing the
-number of cores to use for parallel processing (the default is to use
-50% of the available cores). You can do this in your R session like so:</p>
+<code>CAPYBARA_OPTIMIZATIONS</code> environment variable to “yes” and
+choosing the number of cores to use for parallel processing (the default
+is to use 50% of the available cores). You can do this in your R session
+like so:</p>
 <pre class="r"><code># Install local version
 
 Sys.setenv(CAPYBARA_OPTIMIZATIONS = "yes")
@@ -171,21 +167,20 @@ Sys.setenv(CAPYBARA_CORES = 4) # Set the number of cores to use (optional)
 install.packages(".", repos = NULL, type = "source")
 # or
 devtools::install()</code></pre>
-<p>This will determine if your hardware allows hardware-specific compiler
-flags that provide significant performance improvements (sometimes 2-4x
-faster than just using portable flags).</p>
+<p>This will determine if your hardware allows hardware-specific
+compiler flags that provide significant performance improvements
+(sometimes 2-4x faster than just using portable flags).</p>
 </div>
 <div id="code-of-conduct" class="section level2">
 <h2>Code of Conduct</h2>
 <p>Please note that the capybara project is released with a <a href="https://contributor-covenant.org/version/2/1/CODE_OF_CONDUCT.html">Contributor
-Code of
-Conduct</a>.
-By contributing to this project, you agree to abide by its terms.</p>
+Code of Conduct</a>. By contributing to this project, you agree to abide
+by its terms.</p>
 </div>
 <div id="acknowledgements" class="section level2">
 <h2>Acknowledgements</h2>
-<p>Thanks a lot to <a href="https://yotoyotov.com/">Prof. Yoto Yotov</a> for reviewing
-the summary functions.</p>
+<p>Thanks a lot to <a href="https://yotoyotov.com/">Prof. Yoto Yotov</a>
+for reviewing the summary functions.</p>
 </div>
 </div>
         </div>

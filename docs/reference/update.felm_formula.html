@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>glance • capybara</title><link rel="stylesheet" href="../menu.css"><link rel="stylesheet" href="../content.css"><!-- MathJax Configuration --><script>
+<html lang="en"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>update.felm_formula • capybara</title><link rel="stylesheet" href="../menu.css"><link rel="stylesheet" href="../content.css"><!-- MathJax Configuration --><script>
     window.MathJax = {
       tex: {
         inlineMath: [['\\(', '\\)'], ['$', '$']],
@@ -17,7 +17,8 @@
 <div class="main-container">
 <div id="menu">
   <div>
-    <img src="../man/figures/logo.svg" align="center" height="139" alt="capybara logo"></div>
+    <h1 style="text-align:center;">capybara Documentation</h1>
+  </div>
 
   <div class="search-container">
     <input type="text" id="search-box" placeholder="Search..."></div>
@@ -63,19 +64,45 @@
 <div class="content-wrapper">
         <div class="content-main">
 
-<table style="width: 100%;"><tr><td>reexports {capybara}</td><td style="text-align: right;">R Documentation</td></tr></table><h2>Objects exported from other packages</h2>
+<table style="width: 100%;"><tr><td>update.felm_formula {capybara}</td><td style="text-align: right;">R Documentation</td></tr></table><h2>Update a <code>felm_formula</code> object</h2>
 
 <h3>Description</h3>
 
-<p>These objects are imported from other packages. Follow the links
-below to see their documentation.
+<p>S3 method for [update()] on 'felm_formula' objects.  Uses
+[Formula::update.Formula()] to properly handle multi-part formulas with '|'.
+</p>
+<p>The '.' placeholder behaves as in [stats::update.formula()]:
+* '. ~ .' - keep current response and RHS unchanged.
+* Second '|' segment - replaces (or keeps with '.') the fixed effects.
+* Third '|' segment - replaces (or keeps with '.') the cluster variables.
 </p>
 
-<dl><dt>generics</dt><dd><p><code>augment()</code>, <code>glance()</code>, <code>tidy()</code></p>
-</dd>
-<dt>ggplot2</dt><dd><p><code>autoplot()</code></p>
-</dd>
-</dl></div>
+
+<h3>Usage</h3>
+
+<pre><code class="language-R">## S3 method for class 'felm_formula'
+update(object, formula., ...)
+</code></pre>
+
+
+<h3>Arguments</h3>
+
+<table role="presentation"><tr><td><code id="object">object</code></td>
+<td>
+A 'felm_formula' object.
+</td></tr><tr><td><code id="formula.">formula.</code></td>
+<td>
+Update specification, e.g. '. ~ . | . | ctry1 + ctry2'.
+</td></tr><tr><td><code id="...">...</code></td>
+<td>
+Ignored.
+</td></tr></table><h3>Value</h3>
+
+<p>A new 'felm_formula' object.
+</p>
+
+
+</div>
         </div>
         <footer><p id="last-updated">Loading...</p>
 </footer><script src="../js/footer.js"></script><script src="../js/theme.js"></script><script src="../js/search.js"></script><script src="../js/fontsize.js"></script></div>

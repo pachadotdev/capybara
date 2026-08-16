@@ -9,8 +9,8 @@ Capybara configuration summary
   OpenMP Support:         yes
   OpenMP Threads:         4
   SIMD Support:           AVX2
-  BLAS:                   -lblas
-  LAPACK:                 -llapack
+  BLAS:                   -L/opt/R/devel-valgrind/lib/R/lib -lRblas
+  LAPACK:                 -L/opt/R/devel-valgrind/lib/R/lib -lRlapack
   No Armadillo Wrapper:   yes (direct BLAS/LAPACK)
   No Sparse Matrices:     no
   High-Performance Mode:  no
@@ -32,11 +32,11 @@ For faster computation
 ==========================================================================
 ** libs
 specified C++20
-using C++ compiler: ‘g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0’
+using C++ compiler: ‘g++ (GCC) 15.2.1 20260123 (Red Hat 15.2.1-7)’
 using C++20
-g++ -std=gnu++20 -I"/opt/R/next/lib/R/include" -DNDEBUG  -I'/cache/R_libs/cpp4r/include' -I'/cache/R_libs/armadillo4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2   -c capybara.cpp -o capybara.o
-g++ -std=gnu++20 -I"/opt/R/next/lib/R/include" -DNDEBUG  -I'/cache/R_libs/cpp4r/include' -I'/cache/R_libs/armadillo4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2   -c cpp4r.cpp -o cpp4r.o
-g++ -std=gnu++20 -shared -L/opt/R/next/lib/R/lib -L/usr/local/lib -o capybara.so capybara.o cpp4r.o -fopenmp -llapack -lblas -lgfortran -lm -lquadmath -L/opt/R/next/lib/R/lib -lR
+g++ -std=gnu++20 -I"/opt/R/devel-valgrind/lib/R/include" -DNDEBUG  -I'/cache/R_libs/cpp4r/include' -I'/cache/R_libs/armadillo4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2 -Wall -pedantic -mtune=native   -c capybara.cpp -o capybara.o
+g++ -std=gnu++20 -I"/opt/R/devel-valgrind/lib/R/include" -DNDEBUG  -I'/cache/R_libs/cpp4r/include' -I'/cache/R_libs/armadillo4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2 -Wall -pedantic -mtune=native   -c cpp4r.cpp -o cpp4r.o
+g++ -std=gnu++20 -shared -L/opt/R/devel-valgrind/lib/R/lib -L/usr/local/lib -o capybara.so capybara.o cpp4r.o -fopenmp -L/opt/R/devel-valgrind/lib/R/lib -lRlapack -L/opt/R/devel-valgrind/lib/R/lib -lRblas -lgfortran -lm -lquadmath -L/opt/R/devel-valgrind/lib/R/lib -lR
 installing to /cache/R_libs/00LOCK-capybara/00new/capybara/libs
 ** R
 ** data
@@ -45,6 +45,41 @@ installing to /cache/R_libs/00LOCK-capybara/00new/capybara/libs
 ** byte-compile and prepare package for lazy loading
 ** help
 *** installing help indices
+    finding HTML links ...  converting help for package ‘capybara’
+ done
+    capybara-package                        html  
+    coef.felm                               html  
+    coef.summary.feglm                      html  
+    coef.summary.felm                       html  
+    confint                                 html  
+    correia2019                             html  
+    fe_table                                html  
+    feglm                                   html  
+    felm                                    html  
+    fenegbin                                html  
+    fepoisson                               html  
+    fepoisson_asymmetric                    html  
+    fit_control                             html  
+    fitted.feglm                            html  
+    fitted.felm                             html  
+    plot.feglm                              html  
+    plot.felm                               html  
+    predict.feglm                           html  
+    predict.felm                            html  
+    print.capybara_separation               html  
+    print.felm                              html  
+    print.summary.felm                      html  
+    print.summary_table                     html  
+    ross2004                                html  
+    sandwich_vcov                           html  
+    summary.feglm                           html  
+    summary.felm                            html  
+    summary_table                           html  
+    update.feglm                            html  
+    update.felm                             html  
+    update.felm_formula                     html  
+    vcov.feglm                              html  
+    vcov.felm                               html  
 ** building package indices
 ** installing vignettes
 ** testing if installed package can be loaded from temporary location
@@ -53,32 +88,37 @@ installing to /cache/R_libs/00LOCK-capybara/00new/capybara/libs
 ** testing if installed package keeps a record of temporary installation path
 * DONE (capybara)
 * using log directory ‘/check/capybara.Rcheck’
-* using R version 4.6.0 Patched (2026-05-11 r90050)
+* using R Under development (unstable) (2026-05-14 r90050)
 * using platform: x86_64-pc-linux-gnu
 * R was compiled by
-    gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
-    GNU Fortran (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
-* running under: Ubuntu 24.04.4 LTS
+    gcc (GCC) 15.2.1 20260123 (Red Hat 15.2.1-7)
+    GNU Fortran (GCC) 15.2.1 20260123 (Red Hat 15.2.1-7)
+* running under: Fedora Linux 42 (Container Image)
 * using session charset: UTF-8
-* current time: 2026-08-15 19:53:59 UTC
+* current time: 2026-08-15 22:02:44 UTC
 * using options ‘--no-manual --as-cran’
 * checking for file ‘capybara/DESCRIPTION’ ... OK
 * checking extension type ... Package
 * this is package ‘capybara’ version ‘2.2.0’
 * package encoding: UTF-8
-* checking CRAN incoming feasibility ... [5s/9s] OK
+* checking CRAN incoming feasibility ... OK
 * checking package namespace information ... OK
 * checking package dependencies ... OK
 * checking if this is a source package ... OK
 * checking if there is a namespace ... OK
-* checking for executable files ... OK
+* checking for .dll and .exe files ... OK
 * checking for hidden files and directories ... OK
 * checking for portable file names ... OK
 * checking for sufficient/correct file permissions ... OK
-* checking whether package ‘capybara’ can be installed ... [56s/50s] OK
-* used C++ compiler: ‘g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0’
+* checking whether package ‘capybara’ can be installed ... [52s/45s] OK
+* used C++ compiler: ‘g++ (GCC) 15.2.1 20260123 (Red Hat 15.2.1-7)’
 * checking C++ specification ... INFO
   specified C++20
+* checking installed package size ... INFO
+  installed size is 16.0Mb
+  sub-directories of 1Mb or more:
+    data   2.9Mb
+    libs  12.1Mb
 * checking package directory ... OK
 * checking for future file timestamps ... OK
 * checking ‘build’ directory ... OK
@@ -90,19 +130,19 @@ Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ be
 * checking package subdirectories ... OK
 * checking code files for non-ASCII characters ... OK
 * checking R files for syntax errors ... OK
-* checking whether the package can be loaded ... [1s/0s] OK
-* checking whether the package can be loaded with stated dependencies ... [1s/0s] OK
-* checking whether the package can be unloaded cleanly ... [1s/0s] OK
-* checking whether the namespace can be loaded with stated dependencies ... [1s/0s] OK
-* checking whether the namespace can be unloaded cleanly ... [1s/0s] OK
-* checking loading without being on the library search path ... [1s/0s] OK
+* checking whether the package can be loaded ... OK
+* checking whether the package can be loaded with stated dependencies ... OK
+* checking whether the package can be unloaded cleanly ... OK
+* checking whether the namespace can be loaded with stated dependencies ... OK
+* checking whether the namespace can be unloaded cleanly ... OK
+* checking loading without being on the library search path ... OK
 * checking use of S3 registration ... OK
 * checking dependencies in R code ... OK
 * checking S3 generic/method consistency ... OK
 * checking replacement functions ... OK
 * checking foreign function calls ... OK
-* checking R code for possible problems ... [17s/7s] OK
-* checking Rd files ... [1s/0s] OK
+* checking R code for possible problems ... OK
+* checking Rd files ... OK
 * checking Rd metadata ... OK
 * checking Rd line widths ... OK
 * checking Rd cross-references ... OK
@@ -112,7 +152,7 @@ Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ be
 * checking Rd contents ... OK
 * checking for unstated dependencies in examples ... OK
 * checking contents of ‘data’ directory ... OK
-* checking data for non-ASCII characters ... [1s/1s] OK
+* checking data for non-ASCII characters ... OK
 * checking LazyData ... OK
 * checking data for ASCII and uncompressed saves ... OK
 * checking line endings in shell scripts ... OK
@@ -128,21 +168,19 @@ Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ be
 * checking compiled code ... OK
 * checking installed files from ‘inst/doc’ ... OK
 * checking files in ‘vignettes’ ... OK
-* checking examples ... [3s/1s] OK
+* checking examples ... OK
 * checking for unstated dependencies in ‘tests’ ... OK
 * checking tests ...
-  Running ‘tinytest.R’ [2s/1s]
-Running R code in ‘tinytest.R’ had CPU time 2.5 times elapsed time
- [3s/1s] NOTE
+  Running ‘tinytest.R’
+ OK
 * checking for unstated dependencies in vignettes ... OK
 * checking package vignettes ... OK
-* checking re-building of vignette outputs ... [6s/2s] NOTE
-Re-building vignettes had CPU time 2.6 times elapsed time
+* checking re-building of vignette outputs ... OK
 * checking for non-standard things in the check directory ... OK
 * checking for detritus in the temp directory ... OK
 * DONE
 
-Status: 3 NOTEs
+Status: 1 NOTE
 See
   ‘/check/capybara.Rcheck/00check.log’
 for details.
@@ -160,8 +198,8 @@ Capybara configuration summary
   OpenMP Support:         yes
   OpenMP Threads:         4
   SIMD Support:           AVX2
-  BLAS:                   -lblas
-  LAPACK:                 -llapack
+  BLAS:                   -L/opt/R/devel-valgrind/lib/R/lib -lRblas
+  LAPACK:                 -L/opt/R/devel-valgrind/lib/R/lib -lRlapack
   No Armadillo Wrapper:   yes (direct BLAS/LAPACK)
   No Sparse Matrices:     no
   High-Performance Mode:  no
@@ -183,11 +221,11 @@ For faster computation
 ==========================================================================
 ** libs
 specified C++20
-using C++ compiler: ‘g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0’
+using C++ compiler: ‘g++ (GCC) 15.2.1 20260123 (Red Hat 15.2.1-7)’
 using C++20
-g++ -std=gnu++20 -I"/opt/R/next/lib/R/include" -DNDEBUG  -I'/cache/R_libs/cpp4r/include' -I'/cache/R_libs/armadillo4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2   -c capybara.cpp -o capybara.o
-g++ -std=gnu++20 -I"/opt/R/next/lib/R/include" -DNDEBUG  -I'/cache/R_libs/cpp4r/include' -I'/cache/R_libs/armadillo4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2   -c cpp4r.cpp -o cpp4r.o
-g++ -std=gnu++20 -shared -L/opt/R/next/lib/R/lib -L/usr/local/lib -o capybara.so capybara.o cpp4r.o -fopenmp -llapack -lblas -lgfortran -lm -lquadmath -L/opt/R/next/lib/R/lib -lR
+g++ -std=gnu++20 -I"/opt/R/devel-valgrind/lib/R/include" -DNDEBUG  -I'/cache/R_libs/cpp4r/include' -I'/cache/R_libs/armadillo4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2 -Wall -pedantic -mtune=native   -c capybara.cpp -o capybara.o
+g++ -std=gnu++20 -I"/opt/R/devel-valgrind/lib/R/include" -DNDEBUG  -I'/cache/R_libs/cpp4r/include' -I'/cache/R_libs/armadillo4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2 -Wall -pedantic -mtune=native   -c cpp4r.cpp -o cpp4r.o
+g++ -std=gnu++20 -shared -L/opt/R/devel-valgrind/lib/R/lib -L/usr/local/lib -o capybara.so capybara.o cpp4r.o -fopenmp -L/opt/R/devel-valgrind/lib/R/lib -lRlapack -L/opt/R/devel-valgrind/lib/R/lib -lRblas -lgfortran -lm -lquadmath -L/opt/R/devel-valgrind/lib/R/lib -lR
 installing to /check/capybara.Rcheck/00LOCK-capybara/00new/capybara/libs
 ** R
 ** data
@@ -196,6 +234,41 @@ installing to /check/capybara.Rcheck/00LOCK-capybara/00new/capybara/libs
 ** byte-compile and prepare package for lazy loading
 ** help
 *** installing help indices
+  converting help for package ‘capybara’
+    finding HTML links ... done
+    capybara-package                        html  
+    coef.felm                               html  
+    coef.summary.feglm                      html  
+    coef.summary.felm                       html  
+    confint                                 html  
+    correia2019                             html  
+    fe_table                                html  
+    feglm                                   html  
+    felm                                    html  
+    fenegbin                                html  
+    fepoisson                               html  
+    fepoisson_asymmetric                    html  
+    fit_control                             html  
+    fitted.feglm                            html  
+    fitted.felm                             html  
+    plot.feglm                              html  
+    plot.felm                               html  
+    predict.feglm                           html  
+    predict.felm                            html  
+    print.capybara_separation               html  
+    print.felm                              html  
+    print.summary.felm                      html  
+    print.summary_table                     html  
+    ross2004                                html  
+    sandwich_vcov                           html  
+    summary.feglm                           html  
+    summary.felm                            html  
+    summary_table                           html  
+    update.feglm                            html  
+    update.felm                             html  
+    update.felm_formula                     html  
+    vcov.feglm                              html  
+    vcov.felm                               html  
 ** building package indices
 ** installing vignettes
 ** testing if installed package can be loaded from temporary location
@@ -205,32 +278,37 @@ installing to /check/capybara.Rcheck/00LOCK-capybara/00new/capybara/libs
 * DONE (capybara)
 === 00check.log ===
 * using log directory ‘/check/capybara.Rcheck’
-* using R version 4.6.0 Patched (2026-05-11 r90050)
+* using R Under development (unstable) (2026-05-14 r90050)
 * using platform: x86_64-pc-linux-gnu
 * R was compiled by
-    gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
-    GNU Fortran (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
-* running under: Ubuntu 24.04.4 LTS
+    gcc (GCC) 15.2.1 20260123 (Red Hat 15.2.1-7)
+    GNU Fortran (GCC) 15.2.1 20260123 (Red Hat 15.2.1-7)
+* running under: Fedora Linux 42 (Container Image)
 * using session charset: UTF-8
-* current time: 2026-08-15 19:53:59 UTC
+* current time: 2026-08-15 22:02:44 UTC
 * using options ‘--no-manual --as-cran’
 * checking for file ‘capybara/DESCRIPTION’ ... OK
 * checking extension type ... Package
 * this is package ‘capybara’ version ‘2.2.0’
 * package encoding: UTF-8
-* checking CRAN incoming feasibility ... [5s/9s] OK
+* checking CRAN incoming feasibility ... OK
 * checking package namespace information ... OK
 * checking package dependencies ... OK
 * checking if this is a source package ... OK
 * checking if there is a namespace ... OK
-* checking for executable files ... OK
+* checking for .dll and .exe files ... OK
 * checking for hidden files and directories ... OK
 * checking for portable file names ... OK
 * checking for sufficient/correct file permissions ... OK
-* checking whether package ‘capybara’ can be installed ... [56s/50s] OK
-* used C++ compiler: ‘g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0’
+* checking whether package ‘capybara’ can be installed ... [52s/45s] OK
+* used C++ compiler: ‘g++ (GCC) 15.2.1 20260123 (Red Hat 15.2.1-7)’
 * checking C++ specification ... INFO
   specified C++20
+* checking installed package size ... INFO
+  installed size is 16.0Mb
+  sub-directories of 1Mb or more:
+    data   2.9Mb
+    libs  12.1Mb
 * checking package directory ... OK
 * checking for future file timestamps ... OK
 * checking ‘build’ directory ... OK
@@ -242,19 +320,19 @@ Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ be
 * checking package subdirectories ... OK
 * checking code files for non-ASCII characters ... OK
 * checking R files for syntax errors ... OK
-* checking whether the package can be loaded ... [1s/0s] OK
-* checking whether the package can be loaded with stated dependencies ... [1s/0s] OK
-* checking whether the package can be unloaded cleanly ... [1s/0s] OK
-* checking whether the namespace can be loaded with stated dependencies ... [1s/0s] OK
-* checking whether the namespace can be unloaded cleanly ... [1s/0s] OK
-* checking loading without being on the library search path ... [1s/0s] OK
+* checking whether the package can be loaded ... OK
+* checking whether the package can be loaded with stated dependencies ... OK
+* checking whether the package can be unloaded cleanly ... OK
+* checking whether the namespace can be loaded with stated dependencies ... OK
+* checking whether the namespace can be unloaded cleanly ... OK
+* checking loading without being on the library search path ... OK
 * checking use of S3 registration ... OK
 * checking dependencies in R code ... OK
 * checking S3 generic/method consistency ... OK
 * checking replacement functions ... OK
 * checking foreign function calls ... OK
-* checking R code for possible problems ... [17s/7s] OK
-* checking Rd files ... [1s/0s] OK
+* checking R code for possible problems ... OK
+* checking Rd files ... OK
 * checking Rd metadata ... OK
 * checking Rd line widths ... OK
 * checking Rd cross-references ... OK
@@ -264,7 +342,7 @@ Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ be
 * checking Rd contents ... OK
 * checking for unstated dependencies in examples ... OK
 * checking contents of ‘data’ directory ... OK
-* checking data for non-ASCII characters ... [1s/1s] OK
+* checking data for non-ASCII characters ... OK
 * checking LazyData ... OK
 * checking data for ASCII and uncompressed saves ... OK
 * checking line endings in shell scripts ... OK
@@ -280,16 +358,14 @@ Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ be
 * checking compiled code ... OK
 * checking installed files from ‘inst/doc’ ... OK
 * checking files in ‘vignettes’ ... OK
-* checking examples ... [3s/1s] OK
+* checking examples ... OK
 * checking for unstated dependencies in ‘tests’ ... OK
-* checking tests ... [3s/1s] NOTE
-  Running ‘tinytest.R’ [2s/1s]
-Running R code in ‘tinytest.R’ had CPU time 2.5 times elapsed time
+* checking tests ... OK
+  Running ‘tinytest.R’
 * checking for unstated dependencies in vignettes ... OK
 * checking package vignettes ... OK
-* checking re-building of vignette outputs ... [6s/2s] NOTE
-Re-building vignettes had CPU time 2.6 times elapsed time
+* checking re-building of vignette outputs ... OK
 * checking for non-standard things in the check directory ... OK
 * checking for detritus in the temp directory ... OK
 * DONE
-Status: 3 NOTEs
+Status: 1 NOTE

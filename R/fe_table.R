@@ -234,15 +234,17 @@ fe_format_latex <- function(dim_data, model_names, caption, label, position) {
 
   body_text <- paste(body, collapse = "\n")
 
-  in_quarto_tbl <- nzchar(Sys.getenv("QUARTO_BIN_PATH")) &&
-    isTRUE(getOption("knitr.in.progress")) &&
-    tryCatch(
-      {
-        lbl <- knitr::opts_current$get("label")
-        !is.null(lbl) && nzchar(lbl) && grepl("^tbl-", lbl)
-      },
-      error = function(e) FALSE
-    )
+  # in_quarto_tbl <- nzchar(Sys.getenv("QUARTO_BIN_PATH")) &&
+  #   isTRUE(getOption("knitr.in.progress")) &&
+  #   tryCatch(
+  #     {
+  #       lbl <- knitr::opts_current$get("label")
+  #       !is.null(lbl) && nzchar(lbl) && grepl("^tbl-", lbl)
+  #     },
+  #     error = function(e) FALSE
+  #   )
+  
+  in_quarto_tbl <- nzchar(Sys.getenv("QUARTO_BIN_PATH")) && isTRUE(getOption("knitr.in.progress"))
 
   content <- if (in_quarto_tbl) {
     paste0(

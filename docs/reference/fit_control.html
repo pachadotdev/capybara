@@ -17,7 +17,8 @@
 <div class="main-container">
 <div id="menu">
   <div>
-    <img src="../man/figures/logo.svg" align="center" height="139" alt="capybara logo"></div>
+    <h1 style="text-align:center;">capybara Documentation</h1>
+  </div>
 
   <div class="search-container">
     <input type="text" id="search-box" placeholder="Search..."></div>
@@ -119,7 +120,7 @@ conditions are similar to glm.
 <td>
 tolerance level for the first stopping condition of the maximization routine. The stopping condition
 is based on the relative change of the deviance in iteration <code class="reqn">r</code> and can be expressed as follows: <code class="reqn">|dev_{r}
-- dev_{r - 1}| / (0.1 + |dev_{r}|) &lt; tol</code>. The default is <code>1.0e-06</code>.
+ - dev_{r - 1}| / (0.1 + |dev_{r}|) &lt; tol</code>. The default is <code>1.0e-06</code>.
 </td></tr><tr><td><code id="center_tol">center_tol</code></td>
 <td>
 tolerance level for the stopping condition of the centering algorithm. The stopping condition is
@@ -128,13 +129,16 @@ based on the relative change of the centered variable similar to the <code>'lfe'
 </td></tr><tr><td><code id="collin_tol">collin_tol</code></td>
 <td>
 tolerance level for detecting collinearity. The default is <code>1.0e-08</code>.
+</td></tr><tr><td><code id="alpha_tol">alpha_tol</code></td>
+<td>
+tolerance for fixed effects (alpha) convergence. The default is <code>1.0e-05</code>.
+</td></tr><tr><td><code id="sep_tol">sep_tol</code></td>
+<td>
+tolerance for separation detection. The default is <code>1.0e-08</code>.
 </td></tr><tr><td><code id="step_halving_factor">step_halving_factor</code></td>
 <td>
 numeric indicating the factor by which the step size is halved to iterate towards
 convergence. This is used to control the step size during optimization. The default is <code>0.5</code>.
-</td></tr><tr><td><code id="alpha_tol">alpha_tol</code></td>
-<td>
-tolerance for fixed effects (alpha) convergence. The default is <code>1.0e-05</code>.
 </td></tr><tr><td><code id="iter_max">iter_max</code></td>
 <td>
 integer indicating the maximum number of iterations in the maximization routine. The default is
@@ -150,6 +154,31 @@ algorithm. The default is <code>50L</code>.
 </td></tr><tr><td><code id="iter_alpha_max">iter_alpha_max</code></td>
 <td>
 maximum iterations for fixed effects computation. The default is <code>10000L</code>.
+</td></tr><tr><td><code id="sep_max_iter">sep_max_iter</code></td>
+<td>
+maximum iterations for ReLU separation detection algorithm. The default is <code>200L</code>.
+</td></tr><tr><td><code id="sep_simplex_max_iter">sep_simplex_max_iter</code></td>
+<td>
+maximum iterations for simplex separation detection algorithm. The default is <code>2000L</code>.
+</td></tr><tr><td><code id="sep_zero_tol">sep_zero_tol</code></td>
+<td>
+tolerance for treating values as zero in separation detection. The default is <code>1.0e-08</code>.
+</td></tr><tr><td><code id="sep_mu_tol">sep_mu_tol</code></td>
+<td>
+tolerance for mu-based separation detection during IRLS iterations. Observations with
+<code>y == 0</code> and <code>eta &lt;= log(sep_mu_tol)</code> are flagged as separated. Based on ppmlhdfe's mu separation
+method. The default is <code>1.0e-06</code>.
+</td></tr><tr><td><code id="sep_use_relu">sep_use_relu</code></td>
+<td>
+logical indicating whether to use the ReLU algorithm for separation detection. The default is <code>TRUE</code>.
+</td></tr><tr><td><code id="sep_use_simplex">sep_use_simplex</code></td>
+<td>
+logical indicating whether to use the simplex algorithm for separation detection. The default is <code>TRUE</code>.
+</td></tr><tr><td><code id="sep_use_mu">sep_use_mu</code></td>
+<td>
+logical indicating whether to use mu-based separation detection during IRLS iterations.
+This catches observations where predicted values become extremely small (suggesting perfect prediction
+of zeros). Following ppmlhdfe methodology. The default is <code>TRUE</code>.
 </td></tr><tr><td><code id="step_halving_memory">step_halving_memory</code></td>
 <td>
 numeric memory factor for step-halving algorithm. Controls how much of the previous
@@ -175,34 +204,6 @@ acceleration on coefficient vectors. Each iteration updates each fixed-effect di
 into a single map <code class="reqn">F = f_T \circ f_I</code>, reducing the problem to finding <code class="reqn">\beta^* = F(\beta^*)</code>. The
 Irons and Tuck (1969) acceleration is then applied to the composed iteration. Both methods use warm-starting
 and grand acceleration.
-</td></tr><tr><td><code id="sep_tol">sep_tol</code></td>
-<td>
-tolerance for separation detection. The default is <code>1.0e-08</code>.
-</td></tr><tr><td><code id="sep_zero_tol">sep_zero_tol</code></td>
-<td>
-tolerance for treating values as zero in separation detection. The default is <code>1.0e-08</code>.
-</td></tr><tr><td><code id="sep_mu_tol">sep_mu_tol</code></td>
-<td>
-tolerance for mu-based separation detection during IRLS iterations. Observations with
-<code>y == 0</code> and <code>eta &lt;= log(sep_mu_tol)</code> are flagged as separated. Based on ppmlhdfe's mu separation
-method. The default is <code>1.0e-06</code>.
-</td></tr><tr><td><code id="sep_max_iter">sep_max_iter</code></td>
-<td>
-maximum iterations for ReLU separation detection algorithm. The default is <code>200L</code>.
-</td></tr><tr><td><code id="sep_simplex_max_iter">sep_simplex_max_iter</code></td>
-<td>
-maximum iterations for simplex separation detection algorithm. The default is <code>2000L</code>.
-</td></tr><tr><td><code id="sep_use_relu">sep_use_relu</code></td>
-<td>
-logical indicating whether to use the ReLU algorithm for separation detection. The default is <code>TRUE</code>.
-</td></tr><tr><td><code id="sep_use_simplex">sep_use_simplex</code></td>
-<td>
-logical indicating whether to use the simplex algorithm for separation detection. The default is <code>TRUE</code>.
-</td></tr><tr><td><code id="sep_use_mu">sep_use_mu</code></td>
-<td>
-logical indicating whether to use mu-based separation detection during IRLS iterations.
-This catches observations where predicted values become extremely small (suggesting perfect prediction
-of zeros). Following ppmlhdfe methodology. The default is <code>TRUE</code>.
 </td></tr><tr><td><code id="return_fe">return_fe</code></td>
 <td>
 logical indicating if the fixed effects should be returned. This can be useful when fitting general
@@ -280,23 +281,7 @@ estimation. The default is <code>FALSE</code>.
 </p>
 
 
-<h3>Memory-Efficient vs Full Models</h3>
-
-<p>By default, <code>fit_control()</code> returns "thin" model objects with minimal memory footprint:
-</p>
-
-<ul><li> <p><code>keep_data = FALSE</code> - data not stored
-</p>
-</li>
-<li> <p><code>return_fe = FALSE</code> - fixed effects not stored
-</p>
-</li>
-<li> <p><code>return_hessian = FALSE</code> - Hessian not stored
-</p>
-</li>
-<li> <p><code>keep_tx = FALSE</code> - centered matrix not stored
-</p>
-</li></ul><h3>See Also</h3>
+<h3>See Also</h3>
 
 <p>feglm, felm, and fenegbin
 </p>
@@ -311,7 +296,6 @@ ross2004_subset &lt;- ross2004_subset[ross2004_subset$ltrade &gt;
 felm(ltrade ~ ldist | ctry1, ross2004_subset,
   control = fit_control(dev_tol = 1e-10, center_tol = 1e-10)
 )
-
 </code></pre>
 
 

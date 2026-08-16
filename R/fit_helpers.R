@@ -361,7 +361,7 @@ extract_offset_ <- function(offset, data, nobs) {
 }
 
 #' @title Prepare data for fitting
-#' @description Subsets columns, handles units, removes NAs
+#' @description Subsets columns and removes NAs
 #' @param data Data frame
 #' @param needed_cols Character vector of column names to keep
 #' @param offset_vec Optional offset vector to subset in parallel
@@ -383,12 +383,6 @@ prepare_data_ <- function(data, needed_cols, offset_vec = NULL, weights_vec = NU
 
   lhs <- names(data)[[1L]]
   nobs_full <- nrow(data)
-
-  # Convert "units" columns to numeric
-  unit_cols <- names(data)[vapply(data, inherits, what = "units", logical(1))]
-  for (uc in unit_cols) {
-    data[[uc]] <- as.numeric(data[[uc]])
-  }
 
   # Remove NA rows early (before creating y, X)
   complete_idx <- which(complete.cases(data))

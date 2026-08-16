@@ -10,12 +10,9 @@
 ^cran-comments\.md$
 ^CRAN-SUBMISSION$
 ^dev$
-^doc$
 ^docs$
 ^LICENSE\.md$
+^scripts$
 ^Makefile$
-^Meta$
 ^plosone-article$
-^README\.Rmd$
-^README\.html$
 ^src/Makevars$

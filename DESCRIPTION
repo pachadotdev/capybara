@@ -24,21 +24,10 @@ URL: https://pacha.dev/capybara/, https://github.com/pachadotdev/capybara
 BugReports: https://github.com/pachadotdev/capybara/issues
 Depends: 
     R (>= 4.0.0)
-Imports: 
-    Formula,
-    MASS,
-    stats,
-    tinyplot
-Suggests: 
-    knitr,
-    rmarkdown,
-    tinytest,
-    units
-LinkingTo: 
-    armadillo4r,
-    cpp4r
-VignetteBuilder: 
-    knitr
+Imports: Formula, MASS, stats, tinyplot
+Suggests: tinytest, litedown, rbibutils
+LinkingTo: cpp4r, armadillo4r
+VignetteBuilder: litedown
 Config/roxygen2/version: 8.0.0
 Encoding: UTF-8
 LazyData: true

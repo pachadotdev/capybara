@@ -17,7 +17,8 @@
 <div class="main-container">
 <div id="menu">
   <div>
-    <img src="../man/figures/logo.svg" align="center" height="139" alt="capybara logo"></div>
+    <h1 style="text-align:center;">capybara Documentation</h1>
+  </div>
 
   <div class="search-container">
     <input type="text" id="search-box" placeholder="Search..."></div>
@@ -66,6 +67,17 @@
 
 
 
+<div id="capybara-2.2.0" class="section level1">
+<h1>capybara 2.2.0</h1>
+<ul><li>I removed <code>broom</code> integration and replaced <code>ggplot2</code> coefficient plots with <code>tinyplot</code>.</li>
+</ul></div>
+<div id="capybara-2.1.0" class="section level1">
+<h1>capybara 2.1.0</h1>
+<ul><li>Flag regressors that are (numerically) absorbed by the fixed effects. This correctly identifies
+collinear terms, for example, with dyadic trade-like data where the structural regressors
+(log_dist, lang, contig) are constant within an exporter-importer pair and are perfectly absorbed
+by the <code>pair</code> fixed effect.</li>
+</ul></div>
 <div id="capybara-2.0.0" class="section level1">
 <h1>capybara 2.0.0</h1>
 <ul><li>Capybara now offers different variance-covariance estimators that do not require to call <code>summary()</code>

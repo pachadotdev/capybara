@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>augment • capybara</title><link rel="stylesheet" href="../menu.css"><link rel="stylesheet" href="../content.css"><!-- MathJax Configuration --><script>
+<html lang="en"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>update.felm • capybara</title><link rel="stylesheet" href="../menu.css"><link rel="stylesheet" href="../content.css"><!-- MathJax Configuration --><script>
     window.MathJax = {
       tex: {
         inlineMath: [['\\(', '\\)'], ['$', '$']],
@@ -17,7 +17,8 @@
 <div class="main-container">
 <div id="menu">
   <div>
-    <img src="../man/figures/logo.svg" align="center" height="139" alt="capybara logo"></div>
+    <h1 style="text-align:center;">capybara Documentation</h1>
+  </div>
 
   <div class="search-container">
     <input type="text" id="search-box" placeholder="Search..."></div>
@@ -63,19 +64,56 @@
 <div class="content-wrapper">
         <div class="content-main">
 
-<table style="width: 100%;"><tr><td>reexports {capybara}</td><td style="text-align: right;">R Documentation</td></tr></table><h2>Objects exported from other packages</h2>
+<table style="width: 100%;"><tr><td>update.felm {capybara}</td><td style="text-align: right;">R Documentation</td></tr></table><h2>Update a fitted <code>felm</code> model</h2>
 
 <h3>Description</h3>
 
-<p>These objects are imported from other packages. Follow the links
-below to see their documentation.
+<p>S3 method for [update()] that understands the '|'-separated formula syntax
+used by [felm()].  R's built-in [stats::update.formula()] breaks on these
+formulas because the '|' parts look like factor arithmetic.  This method uses
+the [Formula::update.Formula()] method which correctly handles multi-part
+formulas.
+</p>
+<p>The '.' placeholder works as usual:
+* '. ~ .' - keep the current response and RHS regressors.
+* The second '|' segment replaces (or keeps, if '.') the fixed-effects.
+* The third '|' segment replaces (or keeps, if '.') the cluster variables.
 </p>
 
-<dl><dt>generics</dt><dd><p><code>augment()</code>, <code>glance()</code>, <code>tidy()</code></p>
-</dd>
-<dt>ggplot2</dt><dd><p><code>autoplot()</code></p>
-</dd>
-</dl></div>
+
+<h3>Usage</h3>
+
+<pre><code class="language-R">## S3 method for class 'felm'
+update(object, formula. = . ~ ., vcov = NULL, ...)
+</code></pre>
+
+
+<h3>Arguments</h3>
+
+<table role="presentation"><tr><td><code id="object">object</code></td>
+<td>
+A fitted 'felm' object.
+</td></tr><tr><td><code id="formula.">formula.</code></td>
+<td>
+Update formula; only the segments you want to change need to
+differ from '.'.  Examples:
+* '. ~ . | country + year' - change FE, keep regressors.
+* '. ~ . | . | ctry1 + ctry2' - keep FE, change cluster.
+* '. ~ . - bothin | year' - drop a regressor, keep FE.
+</td></tr><tr><td><code id="vcov">vcov</code></td>
+<td>
+Optional new 'vcov' value (e.g. '"cluster"').  If omitted the
+original value is reused.
+</td></tr><tr><td><code id="...">...</code></td>
+<td>
+Additional arguments forwarded to [felm()].
+</td></tr></table><h3>Value</h3>
+
+<p>A refitted 'felm' object.
+</p>
+
+
+</div>
         </div>
         <footer><p id="last-updated">Loading...</p>
 </footer><script src="../js/footer.js"></script><script src="../js/theme.js"></script><script src="../js/search.js"></script><script src="../js/fontsize.js"></script></div>

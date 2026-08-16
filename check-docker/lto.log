@@ -34,9 +34,11 @@ For faster computation
 specified C++20
 using C++ compiler: ‘g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0’
 using C++20
-g++ -std=gnu++20 -I"/opt/R/next/lib/R/include" -DNDEBUG  -I'/cache/R_libs/cpp4r/include' -I'/cache/R_libs/armadillo4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2   -c capybara.cpp -o capybara.o
-g++ -std=gnu++20 -I"/opt/R/next/lib/R/include" -DNDEBUG  -I'/cache/R_libs/cpp4r/include' -I'/cache/R_libs/armadillo4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2   -c cpp4r.cpp -o cpp4r.o
-g++ -std=gnu++20 -shared -L/opt/R/next/lib/R/lib -L/usr/local/lib -o capybara.so capybara.o cpp4r.o -fopenmp -llapack -lblas -lgfortran -lm -lquadmath -L/opt/R/next/lib/R/lib -lR
+g++ -std=gnu++20 -I"/opt/R/4.6.0/lib/R/include" -DNDEBUG  -I'/cache/R_libs/cpp4r/include' -I'/cache/R_libs/armadillo4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2 -flto  -c capybara.cpp -o capybara.o
+g++ -std=gnu++20 -I"/opt/R/4.6.0/lib/R/include" -DNDEBUG  -I'/cache/R_libs/cpp4r/include' -I'/cache/R_libs/armadillo4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2 -flto  -c cpp4r.cpp -o cpp4r.o
+g++ -std=gnu++20 -shared -L/opt/R/4.6.0/lib/R/lib -L/usr/local/lib -o capybara.so capybara.o cpp4r.o -fopenmp -llapack -lblas -lgfortran -lm -lquadmath -L/opt/R/4.6.0/lib/R/lib -lR
+lto-wrapper: warning: using serial compilation of 16 LTRANS jobs
+lto-wrapper: note: see the ‘-flto’ option documentation for more information
 installing to /cache/R_libs/00LOCK-capybara/00new/capybara/libs
 ** R
 ** data
@@ -53,14 +55,14 @@ installing to /cache/R_libs/00LOCK-capybara/00new/capybara/libs
 ** testing if installed package keeps a record of temporary installation path
 * DONE (capybara)
 * using log directory ‘/check/capybara.Rcheck’
-* using R version 4.6.0 Patched (2026-05-11 r90050)
+* using R version 4.6.0 (2026-04-24)
 * using platform: x86_64-pc-linux-gnu
 * R was compiled by
     gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
     GNU Fortran (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
 * running under: Ubuntu 24.04.4 LTS
 * using session charset: UTF-8
-* current time: 2026-08-15 19:53:59 UTC
+* current time: 2026-08-15 21:39:10 UTC
 * using options ‘--no-manual --as-cran’
 * checking for file ‘capybara/DESCRIPTION’ ... OK
 * checking extension type ... Package
@@ -75,7 +77,7 @@ installing to /cache/R_libs/00LOCK-capybara/00new/capybara/libs
 * checking for hidden files and directories ... OK
 * checking for portable file names ... OK
 * checking for sufficient/correct file permissions ... OK
-* checking whether package ‘capybara’ can be installed ... [56s/50s] OK
+* checking whether package ‘capybara’ can be installed ... [56s/49s] OK
 * used C++ compiler: ‘g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0’
 * checking C++ specification ... INFO
   specified C++20
@@ -101,7 +103,7 @@ Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ be
 * checking S3 generic/method consistency ... OK
 * checking replacement functions ... OK
 * checking foreign function calls ... OK
-* checking R code for possible problems ... [17s/7s] OK
+* checking R code for possible problems ... [18s/7s] OK
 * checking Rd files ... [1s/0s] OK
 * checking Rd metadata ... OK
 * checking Rd line widths ... OK
@@ -132,7 +134,7 @@ Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ be
 * checking for unstated dependencies in ‘tests’ ... OK
 * checking tests ...
   Running ‘tinytest.R’ [2s/1s]
-Running R code in ‘tinytest.R’ had CPU time 2.5 times elapsed time
+Running R code in ‘tinytest.R’ had CPU time 2.7 times elapsed time
  [3s/1s] NOTE
 * checking for unstated dependencies in vignettes ... OK
 * checking package vignettes ... OK
@@ -185,9 +187,11 @@ For faster computation
 specified C++20
 using C++ compiler: ‘g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0’
 using C++20
-g++ -std=gnu++20 -I"/opt/R/next/lib/R/include" -DNDEBUG  -I'/cache/R_libs/cpp4r/include' -I'/cache/R_libs/armadillo4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2   -c capybara.cpp -o capybara.o
-g++ -std=gnu++20 -I"/opt/R/next/lib/R/include" -DNDEBUG  -I'/cache/R_libs/cpp4r/include' -I'/cache/R_libs/armadillo4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2   -c cpp4r.cpp -o cpp4r.o
-g++ -std=gnu++20 -shared -L/opt/R/next/lib/R/lib -L/usr/local/lib -o capybara.so capybara.o cpp4r.o -fopenmp -llapack -lblas -lgfortran -lm -lquadmath -L/opt/R/next/lib/R/lib -lR
+g++ -std=gnu++20 -I"/opt/R/4.6.0/lib/R/include" -DNDEBUG  -I'/cache/R_libs/cpp4r/include' -I'/cache/R_libs/armadillo4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2 -flto  -c capybara.cpp -o capybara.o
+g++ -std=gnu++20 -I"/opt/R/4.6.0/lib/R/include" -DNDEBUG  -I'/cache/R_libs/cpp4r/include' -I'/cache/R_libs/armadillo4r/include' -I/usr/local/include   -fopenmp  -DARMA_NO_DEBUG -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_OPENMP -DARMA_OPENMP_THREADS=4 -DARMA_64BIT_WORD -DARMA_DONT_USE_WRAPPER -DCAPYBARA_DEFAULT_OMP_THREADS=4 -fpic  -g -O2 -flto  -c cpp4r.cpp -o cpp4r.o
+g++ -std=gnu++20 -shared -L/opt/R/4.6.0/lib/R/lib -L/usr/local/lib -o capybara.so capybara.o cpp4r.o -fopenmp -llapack -lblas -lgfortran -lm -lquadmath -L/opt/R/4.6.0/lib/R/lib -lR
+lto-wrapper: warning: using serial compilation of 16 LTRANS jobs
+lto-wrapper: note: see the ‘-flto’ option documentation for more information
 installing to /check/capybara.Rcheck/00LOCK-capybara/00new/capybara/libs
 ** R
 ** data
@@ -205,14 +209,14 @@ installing to /check/capybara.Rcheck/00LOCK-capybara/00new/capybara/libs
 * DONE (capybara)
 === 00check.log ===
 * using log directory ‘/check/capybara.Rcheck’
-* using R version 4.6.0 Patched (2026-05-11 r90050)
+* using R version 4.6.0 (2026-04-24)
 * using platform: x86_64-pc-linux-gnu
 * R was compiled by
     gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
     GNU Fortran (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
 * running under: Ubuntu 24.04.4 LTS
 * using session charset: UTF-8
-* current time: 2026-08-15 19:53:59 UTC
+* current time: 2026-08-15 21:39:10 UTC
 * using options ‘--no-manual --as-cran’
 * checking for file ‘capybara/DESCRIPTION’ ... OK
 * checking extension type ... Package
@@ -227,7 +231,7 @@ installing to /check/capybara.Rcheck/00LOCK-capybara/00new/capybara/libs
 * checking for hidden files and directories ... OK
 * checking for portable file names ... OK
 * checking for sufficient/correct file permissions ... OK
-* checking whether package ‘capybara’ can be installed ... [56s/50s] OK
+* checking whether package ‘capybara’ can be installed ... [56s/49s] OK
 * used C++ compiler: ‘g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0’
 * checking C++ specification ... INFO
   specified C++20
@@ -253,7 +257,7 @@ Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ be
 * checking S3 generic/method consistency ... OK
 * checking replacement functions ... OK
 * checking foreign function calls ... OK
-* checking R code for possible problems ... [17s/7s] OK
+* checking R code for possible problems ... [18s/7s] OK
 * checking Rd files ... [1s/0s] OK
 * checking Rd metadata ... OK
 * checking Rd line widths ... OK
@@ -284,7 +288,7 @@ Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ be
 * checking for unstated dependencies in ‘tests’ ... OK
 * checking tests ... [3s/1s] NOTE
   Running ‘tinytest.R’ [2s/1s]
-Running R code in ‘tinytest.R’ had CPU time 2.5 times elapsed time
+Running R code in ‘tinytest.R’ had CPU time 2.7 times elapsed time
 * checking for unstated dependencies in vignettes ... OK
 * checking package vignettes ... OK
 * checking re-building of vignette outputs ... [6s/2s] NOTE

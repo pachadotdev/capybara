@@ -1,19 +1,19 @@
 ---
 title: "Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors"
-output: rmarkdown::html_vignette
 bibliography: "references.bib"
+output:
+  litedown::html_format:
+    options:
+      toc: true
+      number_sections: true
 vignette: >
   %\VignetteIndexEntry{Poisson Pseudo-Maximum Likelihood (PPML) Model with Cluster-Robust Standard Errors}
-  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEngine{litedown::vignette}
   %\VignetteEncoding{UTF-8}
+editor:
+  markdown:
+    wrap: sentence
 ---
-
-```{r, include = FALSE}
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>"
-)
-```
 
 We will estimate a Poisson Pseudo-Maximum Likelihood (PPML) model using the
 data available in this package with the idea of replicating the PPML results

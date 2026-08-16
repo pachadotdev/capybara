@@ -1,18 +1,18 @@
 ---
 title: "Nonexistence of estimates of Poisson models"
-output: rmarkdown::html_vignette
+output:
+  litedown::html_format:
+    options:
+      toc: true
+      number_sections: true
 vignette: >
   %\VignetteIndexEntry{Nonexistence of estimates of Poisson models}
-  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEngine{litedown::vignette}
   %\VignetteEncoding{UTF-8}
+editor:
+  markdown:
+    wrap: sentence
 ---
-
-```{r, include = FALSE}
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>"
-)
-```
 
 This vignette is adapted from https://github.com/sergiocorreia/ppmlhdfe/blob/master/guides/nonexistence_benchmarks.md#r-packages.
 

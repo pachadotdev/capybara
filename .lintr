@@ -1,5 +1,4 @@
 exclusions: list(
-    "R/cpp11.R",
-    "R/srr-stats-standards.R",
+    "R/cpp4r.R",
     "tests/"
   )
