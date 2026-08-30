@@ -21,6 +21,7 @@ struct InferenceLM {
   mat TX; // Centered design matrix T(X)
   double r_squared;
   double adj_r_squared;
+  double df_residual; // N - (structural coefs + FE-absorbed parameters)
   bool has_tx = false;
 
   // Constructor uses fill::none for N-length vectors that are computed via
@@ -32,7 +33,9 @@ struct InferenceLM {
         residuals(n, fill::none), weights(n, fill::ones),
         hessian(p, p, fill::zeros), vcov(p, p, fill::zeros),
         coef_status(p, fill::ones), success(false), has_fe(false),
-        r_squared(0.0), adj_r_squared(0.0), has_tx(false) {}
+        r_squared(0.0), adj_r_squared(0.0),
+        df_residual(std::max(1.0, static_cast<double>(n) - static_cast<double>(p))),
+        has_tx(false) {}
 };
 
 struct FelmWorkspace {
@@ -220,11 +223,19 @@ inline void r_squared_(InferenceLM &result, const vec &y, const vec &residuals,
 
   result.r_squared = (tss > 1e-12) ? (1.0 - rss / tss) : 0.0;
 
-  // Count degrees of freedom for FE
+  // Count degrees of freedom for FE. K connected additive fixed effects
+  // (no separate intercept) span sum(levels) - (K-1) dimensions, not
+  // sum(levels - 1): shifting a constant between any two dimensions leaves
+  // fitted values unchanged, so only (K-1) directions are redundant overall,
+  // not one per dimension.
   uword k = n_coef;
   const uword K = fe_map.K;
-  for (uword j = 0; j < K; ++j) {
-    k += fe_map.n_groups[j] - 1;
+  if (K > 0) {
+    uword fe_levels_sum = 0;
+    for (uword j = 0; j < K; ++j) {
+      fe_levels_sum += fe_map.n_groups[j];
+    }
+    k += fe_levels_sum - (K - 1);
   }
 
   const double denom = std::max(1.0, static_cast<double>(N - k));
@@ -545,7 +556,20 @@ felm_fit(const mat &X, const vec &y, const vec &w, const FlatFEMap &fe_map,
       H_inv.fill(datum::inf);
     }
 
-    const double sigma2 = rss / std::max(1.0, static_cast<double>(N - P));
+    // Residual df must also charge for the FE parameters absorbed out of X
+    // (same convention as r_squared_'s adj_r_squared: K connected dimensions
+    // span sum(levels) - (K-1) dof, not sum(levels-1)), or sigma2 - and
+    // hence every SE/t-value below - comes out off vs. stats::lm.
+    uword fe_dof = 0;
+    if (fe_map.K > 0) {
+      for (uword j = 0; j < fe_map.K; ++j) {
+        fe_dof += fe_map.n_groups[j];
+      }
+      fe_dof -= (fe_map.K - 1);
+    }
+    const double resid_df = std::max(1.0, static_cast<double>(N) - static_cast<double>(P + fe_dof));
+    result.df_residual = resid_df;
+    const double sigma2 = rss / resid_df;
     vcov_reduced = sigma2 * H_inv;
   }
 

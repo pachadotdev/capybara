@@ -188,4 +188,13 @@ local({
   m4 <- felm(ltrade ~ ldist | ctry1, weights = w, data = ross2004_subset)
 
   expect_true(coef(m1) != coef(m4))
+
+  # rejected JSS manuscript: change z statistic to t with finite correction ----
+  s1 <- summary(felm(ltrade ~ ldist + border | ctry1 + ctry2 + year, ross2004_subset))
+  s2 <- summary(lm(
+    ltrade ~ ldist + border + as.factor(ctry1) + as.factor(ctry2) + as.factor(year),
+    ross2004_subset
+  ))
+
+  expect_equal(s1$coef_table[, "t value"], coef(s2)[c("ldist", "border"), "t value"])
 })

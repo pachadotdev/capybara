@@ -199,8 +199,16 @@ felm <- function(
     }
   }
 
+  # Finite-sample t-based inference (matches stats::lm), not asymptotic z ----
+  # C++ already used this same residual df (N - structural coefs - FE-absorbed
+  # parameters) to compute the standard errors, so reuse it here rather than
+  # deriving a second, possibly inconsistent, df in R.
+  resid_df <- fit[["df_residual"]]
+  t_values <- fit[["coef_table"]][, 3]
+  fit[["coef_table"]][, 4] <- 2 * stats::pt(-abs(t_values), df = resid_df)
+
   # Add names to outputs ----
-  dimnames(fit[["coef_table"]]) <- list(nms_sp, c("Estimate", "Std. Error", "z value", "Pr(>|z|)"))
+  dimnames(fit[["coef_table"]]) <- list(nms_sp, c("Estimate", "Std. Error", "t value", "Pr(>|t|)"))
   if (!is.null(fit[["hessian"]])) {
     dimnames(fit[["hessian"]]) <- list(nms_sp, nms_sp)
   }

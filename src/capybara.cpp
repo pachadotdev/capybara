@@ -952,6 +952,7 @@ center_variables_(const doubles_matrix<> &V_r, const doubles &w_r,
        "coef_table"_nm = as_doubles_matrix(result.coef_table),
        "r_squared"_nm = result.r_squared,
        "adj_r_squared"_nm = result.adj_r_squared,
+       "df_residual"_nm = result.df_residual,
        "coef_status"_nm = as_integers(result.coef_status),
        "success"_nm = result.success, "has_fe"_nm = result.has_fe});
 

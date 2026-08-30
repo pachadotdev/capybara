@@ -54,7 +54,7 @@ summary_estimates_ <- function(x, digits) {
   coef_width <- max(nchar(rownames(coefmat))) + 2L
   max_widths <- summary_estimates_max_width_(coefmat)
 
-  summary_estimates_header_(coef_width, max_widths)
+  summary_estimates_header_(coef_width, max_widths, colnames(coefficients))
   summary_estimates_dashes_(coef_width, max_widths)
   summary_estimates_print_rows_(coefmat, coef_width, max_widths)
 
@@ -133,12 +133,12 @@ summary_estimates_max_width_ <- function(coefmat) {
   )
 }
 
-summary_estimates_header_ <- function(coef_width, max_widths) {
+summary_estimates_header_ <- function(coef_width, max_widths, col_names) {
   header <- mapply(
     function(name, width) {
       sprintf("| %-*s", width, name)
     },
-    name = c("Estimate", "Std. Error", "z value", "Pr(>|z|)"),
+    name = col_names,
     width = max_widths + 1L
   )
 
