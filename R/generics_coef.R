@@ -10,23 +10,13 @@
 # {RE5.0} Enables seamless integration with downstream analysis workflows.
 # {RE5.2} Maintains computational efficiency in coefficient extraction.
 
-#' @title Extract coefficients from 'feglm' object
-#' @description Similar to the 'coef' method for 'glm' objects.
-#' @param object 'feglm' object
+#' @title Extract coefficients from a 'capybara_model' object
+#' @description Shared by 'feglm' and 'felm' objects (and their subclasses, e.g.
+#'  'fenegbin', 'fepoisson_asymmetric'), similar to the 'coef' method for 'glm'/'lm' objects.
+#' @param object a 'capybara_model' object
 #' @param ... additional arguments for S3 compliance (unused)
 #' @exportS3Method
-#' @noRd
-coef.feglm <- function(object, ...) {
-  ct <- object[["coef_table"]]
-  setNames(ct[, 1], rownames(ct))
-}
-
-#' @title Extract coefficients from 'felm' object
-#' @description Similar to the 'coef' method for 'lm' objects.
-#' @param object 'felm' object
-#' @param ... additional arguments for S3 compliance (unused)
-#' @exportS3Method
-coef.felm <- function(object, ...) {
+coef.capybara_model <- function(object, ...) {
   ct <- object[["coef_table"]]
   setNames(ct[, 1], rownames(ct))
 }

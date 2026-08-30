@@ -278,7 +278,7 @@ fepoisson_asymmetric <- function(
   fit[["control"]] <- control
   fit[["offset"]] <- offset_vec
 
-  structure(fit, class = c("feglm", "fepoisson_asymmetric"))
+  structure(fit, class = c("feglm", "fepoisson_asymmetric", "capybara_model"))
 }
 
 # Expectile validity check ----

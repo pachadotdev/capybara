@@ -254,5 +254,5 @@ felm <- function(
     }
   }
 
-  structure(fit, class = "felm")
+  structure(fit, class = c("felm", "capybara_model"))
 }

@@ -351,5 +351,5 @@ feglm <- function(
     }
   }
 
-  structure(fit, class = "feglm")
+  structure(fit, class = c("feglm", "capybara_model"))
 }

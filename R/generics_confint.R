@@ -32,7 +32,7 @@
 #'
 #' @rdname confint
 #' @exportS3Method
-confint.feglm <- function(object, parm, level = 0.95, ...) {
+confint.capybara_model <- function(object, parm, level = 0.95, ...) {
   estimates <- object$coef_table[, "Estimate"]
   std_errors <- object$coef_table[, "Std. Error"]
   crit_val <- qnorm(1 - (1 - level) / 2)
@@ -50,10 +50,4 @@ confint.feglm <- function(object, parm, level = 0.95, ...) {
   }
 
   conf_int
-}
-
-#' @rdname confint
-#' @exportS3Method
-confint.felm <- function(object, parm, level = 0.95, ...) {
-  confint.feglm(object, parm, level, ...)
 }
