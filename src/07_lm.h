@@ -34,7 +34,8 @@ struct InferenceLM {
         hessian(p, p, fill::zeros), vcov(p, p, fill::zeros),
         coef_status(p, fill::ones), success(false), has_fe(false),
         r_squared(0.0), adj_r_squared(0.0),
-        df_residual(std::max(1.0, static_cast<double>(n) - static_cast<double>(p))),
+        df_residual(
+            std::max(1.0, static_cast<double>(n) - static_cast<double>(p))),
         has_tx(false) {}
 };
 
@@ -567,7 +568,8 @@ felm_fit(const mat &X, const vec &y, const vec &w, const FlatFEMap &fe_map,
       }
       fe_dof -= (fe_map.K - 1);
     }
-    const double resid_df = std::max(1.0, static_cast<double>(N) - static_cast<double>(P + fe_dof));
+    const double resid_df =
+        std::max(1.0, static_cast<double>(N) - static_cast<double>(P + fe_dof));
     result.df_residual = resid_df;
     const double sigma2 = rss / resid_df;
     vcov_reduced = sigma2 * H_inv;
