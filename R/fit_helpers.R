@@ -270,6 +270,58 @@ process_vcov_ <- function(vcov, control) {
   list(vcov_label = vcov_label, control = control)
 }
 
+#' @title Subset a cluster vector to match a fitted model's observations
+#' @description Aligns a user-supplied cluster vector (e.g. passed to
+#'  \link{sandwich_vcov}) with the observations actually used in the fit.
+#'  Preference order: (1) \code{model_indices}, the original row numbers of
+#'  observations remaining after both NA-removal and separation-dropping -
+#'  this is the alignment used by \code{tx}/\code{working_residuals} and is
+#'  the only option that is correct when separation removed observations;
+#'  (2) \code{.rownames}, when the cluster vector is named; (3) truncation to
+#'  the first \code{n_obs} elements, with a warning, as a last resort.
+#' @param cluster_vec Cluster vector supplied by the user, or NULL
+#' @param label Character label used in warnings/errors (e.g. "cluster1")
+#' @param object Fitted model object
+#' @param n_obs Number of observations in the fitted model (nrow of tx)
+#' @return The subsetted cluster vector, or NULL
+#' @noRd
+subset_cluster_vec_ <- function(cluster_vec, label, object, n_obs) {
+  if (is.null(cluster_vec) || length(cluster_vec) == n_obs) {
+    return(cluster_vec)
+  }
+
+  model_indices <- object[["model_indices"]]
+  if (!is.null(model_indices) && length(cluster_vec) >= max(model_indices)) {
+    cluster_vec <- cluster_vec[model_indices]
+  } else {
+    # Try to subset using .rownames
+    rownames_used <- object[[".rownames"]]
+    if (!is.null(rownames_used) && !is.null(names(cluster_vec))) {
+      cluster_vec <- cluster_vec[rownames_used]
+    } else if (length(cluster_vec) > n_obs) {
+      warning(
+        sprintf("%s length mismatch - using first n_obs elements", label),
+        call. = FALSE
+      )
+      cluster_vec <- cluster_vec[seq_len(n_obs)]
+    }
+  }
+
+  if (length(cluster_vec) != n_obs) {
+    stop(
+      sprintf(
+        "'%s' has length %d after subsetting, but the model has %d observations. ",
+        label, length(cluster_vec), n_obs
+      ),
+      "Provide a cluster vector aligned with the original data (optionally named ",
+      "with the original row names) so it can be matched to the fitted observations.",
+      call. = FALSE
+    )
+  }
+
+  cluster_vec
+}
+
 #' @title Extract weight column name
 #' @description Extracts the weight column name from weights argument
 #' @param weights Weights specification (NULL, character, formula, or numeric)

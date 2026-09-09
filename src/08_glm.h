@@ -103,19 +103,118 @@ struct SeparationSubset {
   vec offset_sub;
   FlatFEMap fe_map_sub;
   field<uvec> cluster_groups_sub;
+  field<uvec> entity1_groups_sub;
+  field<uvec> entity2_groups_sub;
   uvec keep_idx;
   uword n_orig;
   uword n_kept;
   bool has_offset;
   bool has_cluster_groups;
+  bool has_entity1_groups;
+  bool has_entity2_groups;
 };
+
+// Remap a field of group-membership index vectors (e.g. cluster or entity
+// groups, where each element lists the original row indices belonging to
+// that group) onto a subset of observations identified by idx_map, and drop
+// any group left empty by the subsetting (e.g. a cluster entirely removed by
+// separation). Compacting empty groups away is required so that the
+// resulting group count G matches what a *fresh* build directly on the
+// surviving subset would produce - sandwich_vcov_mestimator_() applies a
+// G/(G-1) degrees-of-freedom correction, so a stale G that still counts
+// phantom empty clusters would silently bias that correction relative to
+// sandwich_vcov()'s post-hoc recomputation (which always builds groups fresh
+// from the already-subset data and therefore never has empty clusters).
+inline field<uvec> remap_groups_(const field<uvec> &orig_groups,
+                                 const uvec &idx_map, uword n_orig) {
+  std::vector<uvec> remapped;
+  remapped.reserve(orig_groups.n_elem);
+  for (uword c = 0; c < orig_groups.n_elem; ++c) {
+    const uvec &orig_group = orig_groups(c);
+    std::vector<uword> new_idx;
+    new_idx.reserve(orig_group.n_elem);
+    for (uword j = 0; j < orig_group.n_elem; ++j) {
+      uword old_i = orig_group(j);
+      if (idx_map(old_i) < n_orig) {
+        new_idx.push_back(idx_map(old_i));
+      }
+    }
+    if (!new_idx.empty()) {
+      remapped.push_back(uvec(new_idx));
+    }
+  }
+  field<uvec> out(remapped.size());
+  for (size_t c = 0; c < remapped.size(); ++c) {
+    out(c) = std::move(remapped[c]);
+  }
+  return out;
+}
+
+// Remap a pair of aligned entity-group fields (shared codebook, e.g. dyadic
+// entity1/entity2 groups where code e refers to the same real-world entity
+// in both fields) onto a subset of observations. An entity is dropped only
+// if it becomes empty in *both* fields after remapping, mirroring how
+// build_aligned_entity_groups() would build the codebook fresh from the
+// surviving subset alone: an entity that never appears in either column is
+// simply never added, while one appearing in only one of the two columns is
+// still a valid (partially empty) entity. Both fields are compacted using
+// the same kept-entity mask so the aligned codebook (entity1(e) <-> entity2
+// (e)) is preserved.
+inline void remap_entity_groups_paired_(const field<uvec> &orig_groups1,
+                                        const field<uvec> &orig_groups2,
+                                        const uvec &idx_map, uword n_orig,
+                                        field<uvec> &out_groups1,
+                                        field<uvec> &out_groups2) {
+  const uword G = orig_groups1.n_elem;
+  std::vector<uvec> remapped1(G), remapped2(G);
+  for (uword c = 0; c < G; ++c) {
+    std::vector<uword> new_idx1, new_idx2;
+    const uvec &g1 = orig_groups1(c);
+    new_idx1.reserve(g1.n_elem);
+    for (uword j = 0; j < g1.n_elem; ++j) {
+      uword old_i = g1(j);
+      if (idx_map(old_i) < n_orig) {
+        new_idx1.push_back(idx_map(old_i));
+      }
+    }
+    const uvec &g2 = orig_groups2(c);
+    new_idx2.reserve(g2.n_elem);
+    for (uword j = 0; j < g2.n_elem; ++j) {
+      uword old_i = g2(j);
+      if (idx_map(old_i) < n_orig) {
+        new_idx2.push_back(idx_map(old_i));
+      }
+    }
+    remapped1[c] = uvec(new_idx1);
+    remapped2[c] = uvec(new_idx2);
+  }
+
+  std::vector<uvec> kept1, kept2;
+  kept1.reserve(G);
+  kept2.reserve(G);
+  for (uword c = 0; c < G; ++c) {
+    if (remapped1[c].n_elem > 0 || remapped2[c].n_elem > 0) {
+      kept1.push_back(std::move(remapped1[c]));
+      kept2.push_back(std::move(remapped2[c]));
+    }
+  }
+
+  out_groups1.set_size(kept1.size());
+  out_groups2.set_size(kept2.size());
+  for (size_t c = 0; c < kept1.size(); ++c) {
+    out_groups1(c) = std::move(kept1[c]);
+    out_groups2(c) = std::move(kept2[c]);
+  }
+}
 
 // Subset data for separation handling (no recursive call)
 inline SeparationSubset
 subset_for_separation(const vec &beta, const vec &eta, const vec &y,
                       const mat &X, const vec &w, const FlatFEMap &fe_map,
                       const field<uvec> *cluster_groups, const vec *offset,
-                      const uvec &separated_obs) {
+                      const uvec &separated_obs,
+                      const field<uvec> *entity1_groups = nullptr,
+                      const field<uvec> *entity2_groups = nullptr) {
 
   SeparationSubset sub;
   sub.n_orig = y.n_elem;
@@ -156,28 +255,42 @@ subset_for_separation(const vec &beta, const vec &eta, const vec &y,
   // Subset FE map
   sub.fe_map_sub = fe_map.subset(sub.keep_idx);
 
-  // Remap cluster groups if present
   sub.has_cluster_groups =
       (cluster_groups != nullptr && cluster_groups->n_elem > 0);
-  if (sub.has_cluster_groups) {
-    // Build old-to-new index mapping
+  sub.has_entity1_groups =
+      (entity1_groups != nullptr && entity1_groups->n_elem > 0);
+  sub.has_entity2_groups =
+      (entity2_groups != nullptr && entity2_groups->n_elem > 0);
+
+  if (sub.has_cluster_groups || sub.has_entity1_groups ||
+      sub.has_entity2_groups) {
+    // Build old-to-new index mapping, shared across cluster/entity groups
     uvec idx_map(sub.n_orig);
     idx_map.fill(sub.n_orig); // invalid marker
     for (uword i = 0; i < sub.n_kept; ++i) {
       idx_map(sub.keep_idx(i)) = i;
     }
 
-    sub.cluster_groups_sub.set_size(cluster_groups->n_elem);
-    for (uword c = 0; c < cluster_groups->n_elem; ++c) {
-      const uvec &orig_cluster = (*cluster_groups)(c);
-      std::vector<uword> new_idx;
-      for (uword j = 0; j < orig_cluster.n_elem; ++j) {
-        uword old_i = orig_cluster(j);
-        if (idx_map(old_i) < sub.n_orig) {
-          new_idx.push_back(idx_map(old_i));
-        }
+    if (sub.has_cluster_groups) {
+      sub.cluster_groups_sub =
+          remap_groups_(*cluster_groups, idx_map, sub.n_orig);
+    }
+    if (sub.has_entity1_groups && sub.has_entity2_groups) {
+      // Paired/aligned codebook (dyadic/two-way clustering): drop an entity
+      // only if it becomes empty in BOTH roles, matching a fresh build on
+      // the surviving subset.
+      remap_entity_groups_paired_(*entity1_groups, *entity2_groups, idx_map,
+                                  sub.n_orig, sub.entity1_groups_sub,
+                                  sub.entity2_groups_sub);
+    } else {
+      if (sub.has_entity1_groups) {
+        sub.entity1_groups_sub =
+            remap_groups_(*entity1_groups, idx_map, sub.n_orig);
       }
-      sub.cluster_groups_sub(c) = uvec(new_idx);
+      if (sub.has_entity2_groups) {
+        sub.entity2_groups_sub =
+            remap_groups_(*entity2_groups, idx_map, sub.n_orig);
+      }
     }
   }
 
@@ -241,6 +354,14 @@ inline void expand_separation_result(InferenceGLM &result,
     result.fixed_effects = result_sub.fixed_effects;
   }
   result.has_fe = result_sub.has_fe;
+
+  // Separation refits the model on the non-separated observations. Preserve
+  // the centered design matrix so downstream covariance calculations use the
+  // same rows as the refit.
+  if (result_sub.has_tx) {
+    result.TX = result_sub.TX;
+    result.has_tx = true;
+  }
 
   // Copy APE results if computed
   if (result_sub.has_apes) {
@@ -410,17 +531,22 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 
       // Subset data, run recursive fit, expand results
       SeparationSubset sub = subset_for_separation(
-          beta, eta, y, X, w, fe_map, cluster_groups, offset, all_separated);
+          beta, eta, y, X, w, fe_map, cluster_groups, offset, all_separated,
+          entity1_groups, entity2_groups);
 
       const vec *offset_sub_ptr = sub.has_offset ? &sub.offset_sub : nullptr;
       const field<uvec> *cluster_sub_ptr =
           sub.has_cluster_groups ? &sub.cluster_groups_sub : nullptr;
+      const field<uvec> *entity1_sub_ptr =
+          sub.has_entity1_groups ? &sub.entity1_groups_sub : nullptr;
+      const field<uvec> *entity2_sub_ptr =
+          sub.has_entity2_groups ? &sub.entity2_groups_sub : nullptr;
 
-      InferenceGLM result_sub =
-          feglm_fit(sub.beta_sub, sub.eta_sub, sub.y_sub, sub.X_sub, sub.w_sub,
-                    theta, family_type, sub.fe_map_sub, params, nullptr,
-                    cluster_sub_ptr, offset_sub_ptr, true, nullptr, nullptr,
-                    run_from_negbin, suppress_intercept, intercept_in_X);
+      InferenceGLM result_sub = feglm_fit(
+          sub.beta_sub, sub.eta_sub, sub.y_sub, sub.X_sub, sub.w_sub, theta,
+          family_type, sub.fe_map_sub, params, nullptr, cluster_sub_ptr,
+          offset_sub_ptr, true, entity1_sub_ptr, entity2_sub_ptr,
+          run_from_negbin, suppress_intercept, intercept_in_X);
 
       InferenceGLM result_with_sep(sub.n_orig, result_sub.coef_table.n_rows,
                                    true);
@@ -435,19 +561,23 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
     }
   } else if (group_sep_result.num_separated > 0) {
     // Non-Poisson (Binomial, NegBin) with group separation only
-    SeparationSubset sub =
-        subset_for_separation(beta, eta, y, X, w, fe_map, cluster_groups,
-                              offset, group_sep_result.separated_obs);
+    SeparationSubset sub = subset_for_separation(
+        beta, eta, y, X, w, fe_map, cluster_groups, offset,
+        group_sep_result.separated_obs, entity1_groups, entity2_groups);
 
     const vec *offset_sub_ptr = sub.has_offset ? &sub.offset_sub : nullptr;
     const field<uvec> *cluster_sub_ptr =
         sub.has_cluster_groups ? &sub.cluster_groups_sub : nullptr;
+    const field<uvec> *entity1_sub_ptr =
+        sub.has_entity1_groups ? &sub.entity1_groups_sub : nullptr;
+    const field<uvec> *entity2_sub_ptr =
+        sub.has_entity2_groups ? &sub.entity2_groups_sub : nullptr;
 
-    InferenceGLM result_sub =
-        feglm_fit(sub.beta_sub, sub.eta_sub, sub.y_sub, sub.X_sub, sub.w_sub,
-                  theta, family_type, sub.fe_map_sub, params, nullptr,
-                  cluster_sub_ptr, offset_sub_ptr, true, nullptr, nullptr,
-                  run_from_negbin, suppress_intercept, intercept_in_X);
+    InferenceGLM result_sub = feglm_fit(
+        sub.beta_sub, sub.eta_sub, sub.y_sub, sub.X_sub, sub.w_sub, theta,
+        family_type, sub.fe_map_sub, params, nullptr, cluster_sub_ptr,
+        offset_sub_ptr, true, entity1_sub_ptr, entity2_sub_ptr, run_from_negbin,
+        suppress_intercept, intercept_in_X);
 
     InferenceGLM result_with_sep(sub.n_orig, result_sub.coef_table.n_rows,
                                  true);
@@ -907,19 +1037,24 @@ InferenceGLM feglm_fit(vec &beta, vec &eta, const vec &y, mat &X, const vec &w,
 #endif
       // Subset data and recursively fit without separated observations
       SeparationSubset sub = subset_for_separation(
-          beta, eta, y, X, w, fe_map, cluster_groups, offset, irls_sep_obs);
+          beta, eta, y, X, w, fe_map, cluster_groups, offset, irls_sep_obs,
+          entity1_groups, entity2_groups);
 
       const vec *offset_sub_ptr = sub.has_offset ? &sub.offset_sub : nullptr;
       const field<uvec> *cluster_sub_ptr =
           sub.has_cluster_groups ? &sub.cluster_groups_sub : nullptr;
+      const field<uvec> *entity1_sub_ptr =
+          sub.has_entity1_groups ? &sub.entity1_groups_sub : nullptr;
+      const field<uvec> *entity2_sub_ptr =
+          sub.has_entity2_groups ? &sub.entity2_groups_sub : nullptr;
 
       // Re-fit with subsetted data, skipping separation check (we already
       // handled it)
-      InferenceGLM result_sub =
-          feglm_fit(sub.beta_sub, sub.eta_sub, sub.y_sub, sub.X_sub, sub.w_sub,
-                    theta, family_type, sub.fe_map_sub, params, nullptr,
-                    cluster_sub_ptr, offset_sub_ptr, true, nullptr, nullptr,
-                    run_from_negbin, suppress_intercept, intercept_in_X);
+      InferenceGLM result_sub = feglm_fit(
+          sub.beta_sub, sub.eta_sub, sub.y_sub, sub.X_sub, sub.w_sub, theta,
+          family_type, sub.fe_map_sub, params, nullptr, cluster_sub_ptr,
+          offset_sub_ptr, true, entity1_sub_ptr, entity2_sub_ptr,
+          run_from_negbin, suppress_intercept, intercept_in_X);
 
       InferenceGLM result_with_sep(sub.n_orig, result_sub.coef_table.n_rows,
                                    true);

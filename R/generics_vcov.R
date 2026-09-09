@@ -252,29 +252,14 @@ sandwich_vcov <- function(object, cluster1 = NULL, cluster2 = NULL,
     resid <- as.numeric(y - mu)
   }
 
-  # Subset cluster variables to match model observations if needed
-  # data in fit object is already subset, so cluster vars should match n_obs
-  if (!is.null(cluster1) && length(cluster1) != n_obs) {
-    # Try to subset using .rownames
-    rownames_used <- object[[".rownames"]]
-    if (!is.null(rownames_used) && !is.null(names(cluster1))) {
-      cluster1 <- cluster1[rownames_used]
-    } else if (length(cluster1) > n_obs) {
-      # Assume sequential subset
-      warning("cluster1 length mismatch - using first n_obs elements")
-      cluster1 <- cluster1[seq_len(n_obs)]
-    }
-  }
-
-  if (!is.null(cluster2) && length(cluster2) != n_obs) {
-    rownames_used <- object[[".rownames"]]
-    if (!is.null(rownames_used) && !is.null(names(cluster2))) {
-      cluster2 <- cluster2[rownames_used]
-    } else if (length(cluster2) > n_obs) {
-      warning("cluster2 length mismatch - using first n_obs elements")
-      cluster2 <- cluster2[seq_len(n_obs)]
-    }
-  }
+  # Subset cluster variables to match model observations if needed.
+  # `model_indices` (set in feglm.R/felm.R) holds the *original* row numbers
+  # of the observations that survive both NA-removal and separation-dropping,
+  # i.e. exactly the rows backing `tx`/`working_residuals`. It must be used
+  # in preference to `.rownames`/truncation fallbacks whenever available,
+  # since those do not account for observations dropped due to separation.
+  cluster1 <- subset_cluster_vec_(cluster1, "cluster1", object, n_obs)
+  cluster2 <- subset_cluster_vec_(cluster2, "cluster2", object, n_obs)
 
   # Call C++ function
   v <- compute_sandwich_vcov_(

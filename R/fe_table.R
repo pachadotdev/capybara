@@ -243,7 +243,7 @@ fe_format_latex <- function(dim_data, model_names, caption, label, position) {
   #     },
   #     error = function(e) FALSE
   #   )
-  
+
   in_quarto_tbl <- nzchar(Sys.getenv("QUARTO_BIN_PATH")) && isTRUE(getOption("knitr.in.progress"))
 
   content <- if (in_quarto_tbl) {

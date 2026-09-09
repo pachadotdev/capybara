@@ -19,7 +19,7 @@
 #' would be prohibitive. The Wald intervals are computed as:
 #' \deqn{estimate \pm z_{\alpha/2} \times SE}
 #' where \eqn{z_{\alpha/2}} is the critical value from the standard normal distribution.
-#' 
+#'
 #' @param object An object of class \code{feglm} or \code{felm}
 #' @param parm A specification of which parameters are to be given confidence
 #'   intervals, either a vector of numbers or a vector of names. If missing,

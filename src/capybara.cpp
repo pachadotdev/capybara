@@ -1270,9 +1270,15 @@ feglm_fit_(const std::string &formula_str, SEXP df, const doubles &beta_r,
 
   if (params.keep_tx && result.has_tx) {
     out.push_back({"tx"_nm = as_doubles_matrix(result.TX)});
-    // Store working residuals for vcov recomputation without needing keep_data
-    out.push_back(
-        {"working_residuals"_nm = as_doubles(fm.y - result.fitted_values)});
+    // Keep residuals aligned with tx after separation removes observations.
+    uvec keep_flags(fm.y.n_elem, fill::ones);
+    if (result.separated_obs.n_elem > 0) {
+      keep_flags.elem(result.separated_obs).zeros();
+    }
+    uvec keep_idx = find(keep_flags);
+    out.push_back({"working_residuals"_nm =
+                       as_doubles(fm.y.elem(keep_idx) -
+                                  result.fitted_values.elem(keep_idx))});
   }
 
   // Add term names
@@ -1669,9 +1675,15 @@ feglm_fit_(const std::string &formula_str, SEXP df, const doubles &beta_r,
 
   if (params.keep_tx && result.has_tx) {
     out.push_back({"tx"_nm = as_doubles_matrix(result.TX)});
-    // Store working residuals for vcov recomputation without needing keep_data
-    out.push_back(
-        {"working_residuals"_nm = as_doubles(y_clean - result.fitted_values)});
+    // Keep residuals aligned with tx after separation removes observations.
+    uvec keep_flags(y_clean.n_elem, fill::ones);
+    if (result.separated_obs.n_elem > 0) {
+      keep_flags.elem(result.separated_obs).zeros();
+    }
+    uvec keep_idx = find(keep_flags);
+    out.push_back({"working_residuals"_nm =
+                       as_doubles(y_clean.elem(keep_idx) -
+                                  result.fitted_values.elem(keep_idx))});
   }
 
   // Add term names

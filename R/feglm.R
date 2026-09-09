@@ -318,11 +318,29 @@ feglm <- function(
   }
 
   # Add separation info if present ----
+  # model_indices tracks, in terms of the *original* data rows, exactly which
+  # observations remain in the final fit (i.e. after dropping both NAs and
+  # separated observations). This is the row alignment used by `tx` and
+  # `working_residuals`, so sandwich_vcov() must subset cluster vectors with
+  # this vector (not the pre-separation `obs_indices`).
+  separation_dropped <- integer(nobs_full)
+  model_indices <- fit[["obs_indices"]]
   if (isTRUE(fit$has_separation)) {
     message("Separation found in ", num_separated, " observation(s)")
     fit[["separated_obs"]] <- fit$separated_obs
     fit[["separation_support"]] <- fit$separation_support
+    if (length(fit[["separated_obs"]]) > 0L) {
+      # fit[["separated_obs"]] holds 1-based *positions* within obs_indices
+      # (i.e. positions among the non-NA rows), not original row numbers.
+      separation_dropped[
+        fit[["obs_indices"]][fit[["separated_obs"]]]
+      ] <- 1L
+      model_indices <- fit[["obs_indices"]][-fit[["separated_obs"]]]
+    }
   }
+  names(separation_dropped) <- orig_rownames
+  fit[["separation_dropped"]] <- separation_dropped
+  fit[["model_indices"]] <- model_indices
 
   # Clean up C++ internal fields ----
   fit[["obs_indices"]] <- NULL

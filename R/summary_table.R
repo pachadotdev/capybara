@@ -512,7 +512,7 @@ format_latex_table <- function(
   # the result is two nested floats: an empty "Table N" from Quarto and the real
   # "Table N+1: Caption" from us.  In that context we must output only the inner
   # tabular content and let Quarto supply the outer environment.
-  
+
   # in_quarto_tbl <- nzchar(Sys.getenv("QUARTO_BIN_PATH")) &&
   #   isTRUE(getOption("knitr.in.progress")) &&
   #   tryCatch(
