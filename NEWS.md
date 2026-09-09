@@ -1,3 +1,8 @@
+# capybara 2.3.0
+
+* Tracks dropped observations by the separation detection step, so now `sandwich_vcov`
+  works with models that dropped rows from the original dataset.
+
 # capybara 2.2.0
 
 * I removed `broom` integration and replaced `ggplot2` coefficient plots with `tinyplot`.

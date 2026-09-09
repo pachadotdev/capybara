@@ -44,7 +44,7 @@ build:
 nonascii:
 	@find R/ src/ -type f -exec grep -P -H -n "[^\x00-\x7F]" {} + || true
 
-clang_format=`which clang-format-21`
+clang_format=`which clang-format`
 
 format: $(shell find . -not -path './check-docker/*' -name '*.h') $(shell find . -not -path './check-docker/*' -name '*.hpp') $(shell find . -not -path './check-docker/*' -name '*.cpp')
 	@${clang_format} -i $?
