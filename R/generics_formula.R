@@ -165,7 +165,6 @@ felm_formula_ <- function(base, fe = NULL, cluster = NULL) {
 #'
 #' @return A refitted `felm` object.
 #' @exportS3Method
-#' @export
 update.felm <- function(object, formula. = . ~ ., vcov = NULL, ...) {
   # Convert to Formula object for proper multi-part formula handling
   old_fml <- Formula::as.Formula(object[["formula"]])
@@ -192,7 +191,6 @@ update.felm <- function(object, formula. = . ~ ., vcov = NULL, ...) {
 #'   original family is reused.
 #' @return A refitted `feglm` object.
 #' @exportS3Method
-#' @export
 update.feglm <- function(object, formula. = . ~ ., vcov = NULL, family = NULL, ...) {
   # Convert to Formula object for proper multi-part formula handling
   old_fml <- Formula::as.Formula(object[["formula"]])
@@ -223,7 +221,6 @@ update.feglm <- function(object, formula. = . ~ ., vcov = NULL, family = NULL, .
 #'
 #' @return A new `felm_formula` object.
 #' @exportS3Method
-#' @export
 update.felm_formula <- function(object, formula., ...) {
   # Convert to Formula object, update, then restore felm_formula class
   fml <- Formula::as.Formula(object)
