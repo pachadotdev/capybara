@@ -241,35 +241,35 @@ struct CapybaraParameters {
   }
 };
 
-#include "01_01_center_helpers.h"
-#include "01_02_center_acceleration.h"
-#include "01_03_center_stammann.h"
-#include "01_04_center_berge.h"
-#include "01_05_center.h"
+#include "modules/01_01_center_helpers.h"
+#include "modules/01_02_center_acceleration.h"
+#include "modules/01_03_center_stammann.h"
+#include "modules/01_04_center_berge.h"
+#include "modules/01_05_center.h"
 
-#include "02_chol.h"
-#include "03_beta.h"
-#include "04_alpha.h"
+#include "modules/02_chol.h"
+#include "modules/03_beta.h"
+#include "modules/04_alpha.h"
 
-#include "05_01_separation_helpers.h"
-#include "05_02_separation_relu.h"
-#include "05_03_separation_simplex.h"
-#include "05_04_separation.h"
+#include "modules/05_01_separation_helpers.h"
+#include "modules/05_02_separation_relu.h"
+#include "modules/05_03_separation_simplex.h"
+#include "modules/05_04_separation.h"
 
-#include "06_01_fit_helpers.h"
-#include "06_02_fit_deviance.h"
-#include "06_03_fit_links.h"
-#include "06_04_fit_drop.h"
-#include "06_05_fit_vcov.h"
-#include "06_06_fit_sums.h"
+#include "modules/06_01_fit_helpers.h"
+#include "modules/06_02_fit_deviance.h"
+#include "modules/06_03_fit_links.h"
+#include "modules/06_04_fit_drop.h"
+#include "modules/06_05_fit_vcov.h"
+#include "modules/06_06_fit_sums.h"
 
-#include "07_lm.h"
-#include "08_glm.h"
+#include "modules/07_lm.h"
+#include "modules/08_glm.h"
 
-#include "09_negbin.h"
-#include "10_fepoisson_asymmetric.h"
+#include "modules/09_negbin.h"
+#include "modules/10_fepoisson_asymmetric.h"
 
-#include "11_formula_parser.h"
+#include "modules/11_formula_parser.h"
 
 using LMResult = capybara::InferenceLM;
 using GLMResult = capybara::InferenceGLM;
