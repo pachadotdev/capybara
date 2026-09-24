@@ -44,7 +44,6 @@
 #' vcov(fit)
 #'
 #' @exportS3Method
-#' @export
 vcov.feglm <- function(object, ...) {
   v <- object[["vcov"]]
 
@@ -97,7 +96,6 @@ vcov.feglm <- function(object, ...) {
 #' vcov(fit)
 #'
 #' @exportS3Method
-#' @export
 vcov.felm <- function(object, ...) {
   v <- object[["vcov"]]
 

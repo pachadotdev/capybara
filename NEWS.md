@@ -1,3 +1,7 @@
+# capybara 2.4.0
+
+* Reorganized codebase to reduced the number of produced compiled binaries.
+
 # capybara 2.3.0
 
 * Tracks dropped observations by the separation detection step, so now `sandwich_vcov`
