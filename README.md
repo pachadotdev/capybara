@@ -136,7 +136,9 @@ devtools::install()
 
 This will determine if your hardware allows hardware-specific compiler
 flags that provide significant performance improvements (sometimes 2-4x
-faster than just using portable flags).
+faster than just using portable flags). The optimized build preserves
+IEEE-754 floating-point behavior so that numerical checks used by the
+IRLS/LAPACK routines remain reliable.
 
 ## Code of Conduct
 

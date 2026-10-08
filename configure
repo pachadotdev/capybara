@@ -136,8 +136,9 @@ CXXFLAGS="$CXXFLAGS $WARN_FLAGS"
 # High-performance optimization flags
 OPTFLAGS=""
 if [ "$CAPYBARA_OPTIMIZATIONS" = "yes" ]; then
-  # Core optimization flags
-  for flag in -O3 -ffast-math; do
+  # Keep IEEE-754 behavior intact. The IRLS/LAPACK path uses NaN/Inf checks
+  # for separation and rank deficiency, which -ffast-math can invalidate.
+  for flag in -O3; do
     if test_flag "$flag"; then
       OPTFLAGS="$OPTFLAGS $flag"
     fi
