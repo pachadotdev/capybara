@@ -248,12 +248,13 @@ fe_format_latex <- function(dim_data, model_names, caption, label, position) {
 
   content <- if (in_quarto_tbl) {
     paste0(
-      "\\centering\n",
+      "\\begin{center}\n",
       "\\begin{tabular}{", col_spec, "}\n",
       "\\toprule\n",
       body_text, "\n",
       "\\bottomrule\n",
-      "\\end{tabular}"
+      "\\end{tabular}\n",
+      "\\end{center}",
     )
   } else {
     caption_text <- if (is.null(caption)) {

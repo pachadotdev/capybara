@@ -530,13 +530,14 @@ format_latex_table <- function(
   content <- if (in_quarto_tbl) {
     # Emit only the tabular — Quarto wraps it with caption, label, and position.
     paste0(
-      "\\centering\n",
+      "\\begin{center}\n",
       "\\begin{tabular}{", col_spec, "}\n",
       "\\toprule\n",
       body_text, "\n",
       "\\bottomrule\n",
       if (nzchar(footnotes_text)) paste0(footnotes_text, "\n") else "",
-      "\\end{tabular}"
+      "\\end{tabular}\n",
+      "\\end{center}"
     )
   } else {
     caption_text <- if (is.null(caption)) "" else fill_tmpl(tmpl$caption, list(caption = caption))
