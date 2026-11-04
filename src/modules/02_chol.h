@@ -115,13 +115,17 @@ chol_rank(Mat<typename T1::elem_type> &out, Col<uword> &excluded,
       // We rely on zero-padding of excluded rows so we can iterate or vectorise
       if (sig == 'u') {
         if (j > p) {
-          const Col<eT> col_j = out.col(j).rows(p, j - 1);
-          R_jj -= dot(col_j, col_j);
+          for (uword k = p; k < j; ++k) {
+            const eT v = out(k, j);
+            R_jj -= v * v;
+          }
         }
       } else {
         if (j > p) {
-          const Row<eT> row_j = out.row(j).cols(p, j - 1);
-          R_jj -= dot(row_j, row_j);
+          for (uword k = p; k < j; ++k) {
+            const eT v = out(j, k);
+            R_jj -= v * v;
+          }
         }
       }
 
