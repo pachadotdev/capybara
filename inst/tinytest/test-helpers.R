@@ -5,6 +5,71 @@
 source(system.file("tinytest", "helper.R", package = "capybara"))
 
 local({
+  fit <- structure(list(fixed_effects = list(
+    exporter = c(A = 0, B = log(2)),
+    importer = c(X = log(3), Y = 0)
+  )), class = "feglm")
+  data <- data.frame(
+    exporter = factor(c("B", "A", "B", "new", NA), levels = c("new", "A", "B")),
+    importer = c("Y", "X", "X", "Y", NA),
+    row.names = c("r5", "r2", "r3", "r1", "r4")
+  )
+  before <- data
+  result <- add_fe_to_df(data, fit)
+  expect_identical(data, before)
+  expect_identical(result[names(data)], data)
+  expect_equal(result$exporter_fe, c(log(2), 0, log(2), NA, NA))
+  expect_equal(result$importer_fe, c(0, log(3), log(3), 0, NA))
+
+  result <- add_fe_to_df(
+    data, fit,
+    col_names = c(importer = "imp_fe", exporter = "exp_fe"),
+    transform = exp
+  )
+  expect_equal(result$exp_fe, c(2, 1, 2, NA, NA))
+  expect_equal(result$imp_fe, c(1, 3, 3, 1, NA))
+  expect_identical(names(result), c(names(data), "exp_fe", "imp_fe"))
+  result <- add_fe_to_df(result, fit, which = "importer", col_names = "imp_fe")
+  expect_equal(result$imp_fe, c(0, log(3), log(3), 0, NA))
+  expect_equal(result$exp_fe, c(2, 1, 2, NA, NA))
+  expect_identical(nrow(add_fe_to_df(data[FALSE, ], fit)), 0L)
+  expect_identical(add_fe_to_df(data, fit, which = character()), data)
+
+  expect_error(add_fe_to_df(list(), fit), "must be a data.frame")
+  expect_error(add_fe_to_df(data, list()), "not a felm or feglm")
+  expect_error(
+    add_fe_to_df(data, structure(list(), class = "felm")),
+    "return_fe = TRUE"
+  )
+  expect_error(add_fe_to_df(data, fit, which = "missing"), "dimensions")
+  expect_error(
+    add_fe_to_df(data["exporter"], fit), "missing fixed-effect columns"
+  )
+  expect_error(add_fe_to_df(data, fit, col_names = c("fe", "fe")), "distinct")
+  expect_error(
+    add_fe_to_df(data, fit, col_names = c(exporter = "fe", other = "fe2")),
+    "Names of"
+  )
+  expect_error(
+    add_fe_to_df(data, fit, col_names = c("exporter", "imp_fe")),
+    "cannot overwrite"
+  )
+  expect_error(add_fe_to_df(data, fit, transform = "exp"), "must be a function")
+  expect_error(add_fe_to_df(data, fit, transform = sum), "same length")
+
+  training <- data.frame(
+    group = rep(c("a", "b"), each = 4L),
+    x = rep(seq_len(4L), 2L),
+    y = rep(seq_len(4L), 2L) + rep(c(0, 3), each = 4L)
+  )
+  fit <- felm(y ~ x | group, training)
+  result <- add_fe_to_df(training[c(8L, 1L, 5L), ], fit)
+  expect_equal(
+    result$group_fe, unname(fixed_effects(fit, "group")[c("b", "a", "b")])
+  )
+})
+
+local({
   if (Sys.getenv("CAPYBARA_FULL_TESTING") != "yes") {
     return(NULL)
   }

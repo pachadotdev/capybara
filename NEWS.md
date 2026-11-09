@@ -1,6 +1,7 @@
 # capybara 2.4.0
 
 * Reorganized codebase to reduced the number of produced compiled binaries.
+* Adds a convenience function to add the fixed effects back to the model data.
 
 # capybara 2.3.0
 
