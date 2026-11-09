@@ -1,4 +1,0 @@
-exclusions: list(
-    "R/cpp4r.R",
-    "tests/"
-  )
