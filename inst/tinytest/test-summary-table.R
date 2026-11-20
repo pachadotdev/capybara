@@ -52,6 +52,26 @@ local({
   expect_equal(result$type, "latex")
   expect_true(grepl("tabular", result$content))
 
+  # fe_table emits a non-floating table for Quarto ----
+
+  quarto_bin_path <- Sys.getenv("QUARTO_BIN_PATH", unset = NA_character_)
+  knitr_options <- options(knitr.in.progress = TRUE)
+  Sys.setenv(QUARTO_BIN_PATH = "/quarto")
+  result <- tryCatch(
+    fe_table(m1, latex = TRUE),
+    finally = {
+      options(knitr_options)
+      if (is.na(quarto_bin_path)) {
+        Sys.unsetenv("QUARTO_BIN_PATH")
+      } else {
+        Sys.setenv(QUARTO_BIN_PATH = quarto_bin_path)
+      }
+    }
+  )
+
+  expect_true(grepl("\\begin{tabular}", result$content, fixed = TRUE))
+  expect_false(grepl("\\begin{table}", result$content, fixed = TRUE))
+
   # summary_table works with latex caption and label ----
 
   m1 <- felm(ltrade ~ ldist | ctry1, ross2004_subset)

@@ -254,7 +254,7 @@ fe_format_latex <- function(dim_data, model_names, caption, label, position) {
       body_text, "\n",
       "\\bottomrule\n",
       "\\end{tabular}\n",
-      "\\end{center}",
+      "\\end{center}"
     )
   } else {
     caption_text <- if (is.null(caption)) {
