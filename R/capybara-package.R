@@ -67,6 +67,8 @@
 #'   \item{comctry}{Binary variable which is unity if i and j remained part of the same nation during the sample (e.g., France and Guadeloupe)}
 #'   \item{ctry1}{Country 1 ISO-3 code}
 #'   \item{ctry2}{Country 2 ISO-3 code}
+#'   \item{imf1}{Country 1 IMF code}
+#'   \item{imf2}{Country 2 IMF code}
 #'   \item{pair}{Country pair undirected dyads}
 #'   \item{year}{Year of observation}
 #' }

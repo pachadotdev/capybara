@@ -1,3 +1,7 @@
+# capybara 2.4.1
+
+* Adds the IMF country codes to Ross (2004) data (useful to replicate the article).
+
 # capybara 2.4.0
 
 * Reorganized codebase to reduced the number of produced compiled binaries.
