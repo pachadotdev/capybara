@@ -1,6 +1,7 @@
 # capybara 2.4.1
 
 * Adds the IMF country codes to Ross (2004) data (useful to replicate the article).
+* Adds a workaround to report standard errors with collinear variables when using `felm()`.
 
 # capybara 2.4.0
 

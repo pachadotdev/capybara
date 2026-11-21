@@ -521,37 +521,51 @@ felm_fit(const mat &X, const vec &y, const vec &w, const FlatFEMap &fe_map,
   mat vcov_reduced;
   const double rss = dot(w_work % result.residuals, result.residuals);
 
+  // Collinear columns have no estimated covariance.  Form every covariance
+  // calculation with the retained columns only; passing the expanded full-size
+  // Hessian (whose excluded rows are NA) makes otherwise valid sandwich
+  // covariances propagate NaN.
+  mat MX_vcov = ws->X_centered;
+  mat H_vcov = result.hessian;
+  if (collin_result.has_collinearity) {
+    const uvec keep_idx = collin_result.non_collinear_cols;
+    if (keep_idx.n_elem > 0) {
+      MX_vcov = ws->X_centered.cols(keep_idx);
+      H_vcov = result.hessian.submat(keep_idx, keep_idx);
+    }
+  }
+
   if (params.vcov_type == "hetero") {
     // HC0: heteroskedastic-robust, no clustering needed
     const vec resid = ws->y_original - result.fitted_values;
-    vcov_reduced = sandwich_vcov_hetero_(ws->X_centered, resid, result.hessian);
+    vcov_reduced = sandwich_vcov_hetero_(MX_vcov, resid, H_vcov);
   } else if (params.vcov_type == "two-way" && entity1_groups != nullptr &&
              entity2_groups != nullptr) {
     // Two-way cluster (Cameron, Gelbach & Miller 2011): V1 + V2 - V12
-    vcov_reduced = sandwich_vcov_twoway_(ws->X_centered, ws->y_original,
-                                         result.fitted_values, result.hessian,
+    vcov_reduced = sandwich_vcov_twoway_(MX_vcov, ws->y_original,
+                                         result.fitted_values, H_vcov,
                                          *entity1_groups, *entity2_groups);
   } else if (params.vcov_type == "m-estimator-dyadic" &&
              entity1_groups != nullptr && entity2_groups != nullptr) {
     // Dyadic-robust: memory-efficient overload computes scores on-the-fly
     const vec resid = ws->y_original - result.fitted_values;
     vcov_reduced =
-        sandwich_vcov_mestimator_dyadic_(result.hessian, ws->X_centered, resid,
+        sandwich_vcov_mestimator_dyadic_(H_vcov, MX_vcov, resid,
                                          *entity1_groups, *entity2_groups);
   } else if (cluster_groups != nullptr && cluster_groups->n_elem > 0) {
     if (params.vcov_type == "m-estimator") {
       // Memory-efficient: computes scores on-the-fly
       const vec resid = ws->y_original - result.fitted_values;
-      vcov_reduced = sandwich_vcov_mestimator_(result.hessian, ws->X_centered,
+      vcov_reduced = sandwich_vcov_mestimator_(H_vcov, MX_vcov,
                                                resid, *cluster_groups);
     } else {
       vcov_reduced =
-          sandwich_vcov_(ws->X_centered, ws->y_original, result.fitted_values,
-                         result.hessian, *cluster_groups);
+          sandwich_vcov_(MX_vcov, ws->y_original, result.fitted_values,
+                         H_vcov, *cluster_groups);
     }
   } else {
     mat H_inv;
-    bool success = inv(H_inv, result.hessian);
+    bool success = inv(H_inv, H_vcov);
     if (!success) {
       H_inv.set_size(result.hessian.n_rows, result.hessian.n_cols);
       H_inv.fill(datum::inf);

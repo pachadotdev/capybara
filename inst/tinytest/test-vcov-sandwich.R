@@ -57,3 +57,23 @@ local({
   expect_true(all.equal(vcov_imp, vcov_imp2))
   expect_true(all.equal(vcov_dyadic, vcov_dyadic2))
 })
+
+local({
+  if (Sys.getenv("CAPYBARA_FULL_TESTING") != "yes") {
+    return(NULL)
+  }
+
+  d <- data.frame(
+    y = seq_len(40) + rep(c(-1, 1), 20),
+    x = rep(seq_len(20), each = 2),
+    f = factor(rep(seq_len(10), each = 4)),
+    g = factor(rep(seq_len(8), each = 5))
+  )
+  d$z <- 2 * d$x
+
+  fit <- felm(y ~ x + z | f | g, data = d)
+  v <- vcov(fit)
+
+  expect_true(any(is.na(coef(fit)) | is.nan(coef(fit))))
+  expect_true(all(is.finite(v[!is.na(coef(fit)), !is.na(coef(fit)), drop = FALSE])))
+})
