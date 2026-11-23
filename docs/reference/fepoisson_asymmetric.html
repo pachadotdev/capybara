@@ -17,8 +17,7 @@
 <div class="main-container">
 <div id="menu">
   <div>
-    <h1 style="text-align:center;">capybara Documentation</h1>
-  </div>
+    <img src="../man/figures/logo.svg" align="center" height="139" alt="capybara logo"></div>
 
   <div class="search-container">
     <input type="text" id="search-box" placeholder="Search..."></div>
@@ -36,6 +35,7 @@
 
   <div class="submenu">
     <label>Functions</label>
+    <a href="../reference/add_fe_to_df.html">add_fe_to_df</a>
     <a href="../reference/fe_table.html">fe_table</a>
     <a href="../reference/feglm.html">feglm</a>
     <a href="../reference/felm.html">felm</a>
@@ -43,6 +43,7 @@
     <a href="../reference/fepoisson_asymmetric.html">fepoisson_asymmetric</a>
     <a href="../reference/fepoisson.html">fepoisson</a>
     <a href="../reference/fit_control.html">fit_control</a>
+    <a href="../reference/fixed_effects.html">fixed_effects</a>
     <a href="../reference/sandwich_vcov.html">sandwich_vcov</a>
     <a href="../reference/summary_table.html">summary_table</a>
   </div>
@@ -219,13 +220,13 @@ the control list used in the model
 
 <h3>Examples</h3>
 
-<pre><code class="language-R">ross2004_subset &lt;- ross2004[ross2004$year == 1999, ]
-ross2004_subset &lt;- ross2004_subset[ross2004_subset$ltrade &gt;
-  quantile(ross2004_subset$ltrade, 0.75), ]
+<pre><code class="language-R">rose2004_subset &lt;- rose2004[rose2004$year == 1999, ]
+rose2004_subset &lt;- rose2004_subset[rose2004_subset$ltrade &gt;
+  quantile(rose2004_subset$ltrade, 0.75), ]
 
 # Lower expectile (10th) - more weight on negative residuals
 fit10 &lt;- fepoisson_asymmetric(
-  ltrade ~ ldist | ctry1, ross2004_subset,
+  ltrade ~ ldist | ctry1, rose2004_subset,
   control = fit_control(expectile = 0.1)
 )
 

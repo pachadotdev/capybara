@@ -45,13 +45,13 @@ Levels are matched by name, not row position. Missing or unestimated
 }
 
 \examples{
-ross2004_subset <- ross2004[ross2004$year == 1999, ]
-fit <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
-augmented <- add_fe_to_df(ross2004_subset, fit)
+rose2004_subset <- rose2004[rose2004$year == 1999, ]
+fit <- felm(ltrade ~ ldist | ctry1, rose2004_subset)
+augmented <- add_fe_to_df(rose2004_subset, fit)
 head(augmented$ctry1_fe)
 
 augmented <- add_fe_to_df(
-  ross2004_subset, fit, col_names = c(ctry1 = "exporter_fe"), transform = exp
+  rose2004_subset, fit, col_names = c(ctry1 = "exporter_fe"), transform = exp
 )
 }
 

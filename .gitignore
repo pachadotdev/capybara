@@ -20,7 +20,6 @@ dev/old-src/
 dev/bench_data.rds
 dev/tails-of-gravity.zip
 dev/tails-of-gravity
-dev/ross2004.dta
 dev/1-s2.0-S0022199625001023-main.pdf
 check-docker/cache
 check-docker/*.Rcheck

@@ -29,17 +29,17 @@ Covariance matrix for the estimator of the structural parameters from objects re
 
 \examples{
 # Model with clustering - returns sandwich covariance
-ross2004_s1 <- ross2004[ross2004$year == 1994, ]
-ross2004_s1 <- ross2004_s1[ross2004_s1$ltrade >
-  quantile(ross2004_s1$ltrade, 0.75), ]
+rose2004_s1 <- rose2004[rose2004$year == 1994, ]
+rose2004_s1 <- rose2004_s1[rose2004_s1$ltrade >
+  quantile(rose2004_s1$ltrade, 0.75), ]
 
-ross2004_s2 <- ross2004[ross2004$year == 1999, ]
-ross2004_s2 <- ross2004_s2[ross2004_s2$ltrade >
-  quantile(ross2004_s2$ltrade, 0.75), ]
+rose2004_s2 <- rose2004[rose2004$year == 1999, ]
+rose2004_s2 <- rose2004_s2[rose2004_s2$ltrade >
+  quantile(rose2004_s2$ltrade, 0.75), ]
 
-ross2004_subset <- rbind(ross2004_s1, ross2004_s2)
+rose2004_subset <- rbind(rose2004_s1, rose2004_s2)
 
-fit <- fepoisson(ltrade ~ ldist + border | ctry1 | year, ross2004_subset)
+fit <- fepoisson(ltrade ~ ldist + border | ctry1 | year, rose2004_subset)
 
 vcov(fit)
 }

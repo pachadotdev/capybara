@@ -183,11 +183,11 @@ Set and change parameters used for fitting \link{feglm}, \link{felm}, and \link{
 }
 
 \examples{
-ross2004_subset <- ross2004[ross2004$year == 1999, ]
-ross2004_subset <- ross2004_subset[ross2004_subset$ltrade >
-  quantile(ross2004_subset$ltrade, 0.75), ]
+rose2004_subset <- rose2004[rose2004$year == 1999, ]
+rose2004_subset <- rose2004_subset[rose2004_subset$ltrade >
+  quantile(rose2004_subset$ltrade, 0.75), ]
 
-felm(ltrade ~ ldist | ctry1, ross2004_subset,
+felm(ltrade ~ ldist | ctry1, rose2004_subset,
   control = fit_control(dev_tol = 1e-10, center_tol = 1e-10)
 )
 }

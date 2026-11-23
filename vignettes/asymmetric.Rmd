@@ -45,15 +45,15 @@ of `trade` varies with `ldist` and other predictors, after absorbing the exporte
 importer-year fixed effects.
 
 ```r
-ross2004_subset <- ross2004[ross2004$year %in% seq(1989, 1999, 5), ]
-ross2004_subset$trade <- exp(ross2004_subset$ltrade)
-ross2004_subset$exp_year <- paste0(ross2004_subset$ctry1, ross2004_subset$year)
-ross2004_subset$imp_year <- paste0(ross2004_subset$ctry2, ross2004_subset$year)
+rose2004_subset <- rose2004[rose2004$year %in% seq(1989, 1999, 5), ]
+rose2004_subset$trade <- exp(rose2004_subset$ltrade)
+rose2004_subset$exp_year <- paste0(rose2004_subset$ctry1, rose2004_subset$year)
+rose2004_subset$imp_year <- paste0(rose2004_subset$ctry2, rose2004_subset$year)
 
 # 10th expectile — sensitive to small values of trade
 fit10 <- fepoisson_asymmetric(
   trade ~ ldist + border + comlang + colony | exp_year + imp_year,
-  data    = ross2004_subset,
+  data    = rose2004_subset,
   control = fit_control(expectile = 0.1)
 )
 
@@ -89,7 +89,7 @@ Number of Fisher Scoring iterations: 17
 # 90th expectile — sensitive to large values of trade
 fit90 <- fepoisson_asymmetric(
   trade ~ ldist + border + comlang + colony | exp_year + imp_year,
-  data    = ross2004_subset,
+  data    = rose2004_subset,
   control = fit_control(expectile = 0.9)
 )
 

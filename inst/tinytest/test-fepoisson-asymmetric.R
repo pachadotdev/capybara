@@ -16,15 +16,15 @@ local({
     return(NULL)
   }
 
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
+  rose2004_subset <- rose2004[rose2004$year == 1999, ]
 
   mod1 <- fepoisson_asymmetric(
-    ltrade ~ ldist | ctry1, ross2004_subset,
+    ltrade ~ ldist | ctry1, rose2004_subset,
     control = fit_control(expectile = 0.25, return_fe = TRUE)
   )
 
   mod2 <- fepoisson(
-    ltrade ~ ldist | ctry1, ross2004_subset,
+    ltrade ~ ldist | ctry1, rose2004_subset,
     control = fit_control(return_fe = TRUE)
   )
 

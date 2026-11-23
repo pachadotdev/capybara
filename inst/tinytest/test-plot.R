@@ -13,10 +13,10 @@ local({
 
   # plot works for felm ----
 
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+  rose2004_subset <- rose2004[rose2004$year == 1999, ]
+  rose2004_subset <- rose2004_subset[rose2004_subset$ltrade > quantile(rose2004_subset$ltrade, 0.75), ]
 
-  mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
+  mod <- felm(ltrade ~ ldist | ctry1, rose2004_subset)
 
   expect_silent(plot(mod, conf_level = 0.99))
   expect_silent(plot(mod))
@@ -26,14 +26,14 @@ local({
 
   # plot works for feglm/fepoisson ----
 
-  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
+  mod <- fepoisson(ltrade ~ ldist | ctry1, rose2004_subset)
 
   expect_silent(plot(mod))
   expect_silent(plot(mod, conf_level = 0.90))
 
   # plot errors on invalid conf_level ----
 
-  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
+  mod <- fepoisson(ltrade ~ ldist | ctry1, rose2004_subset)
 
   expect_error(plot.feglm(mod, conf_level = 0))
   expect_error(plot.feglm(mod, conf_level = 1))
@@ -42,7 +42,7 @@ local({
 
   # plot errors on wrong class ----
 
-  mod_lm <- lm(ltrade ~ ldist, ross2004_subset)
+  mod_lm <- lm(ltrade ~ ldist, rose2004_subset)
 
   expect_error(plot.feglm(mod_lm))
   expect_error(plot.felm(mod_lm))

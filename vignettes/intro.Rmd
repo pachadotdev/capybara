@@ -40,14 +40,14 @@ and we add the fixed effects as `| exp_year + imp_year` in the formula.
 Model estimation:
 
 ```r
-ross2004_subset <- ross2004[ross2004$year %in% seq(1989, 1999, 5), ]
-ross2004_subset$trade <- exp(ross2004_subset$ltrade)
-ross2004_subset$exp_year <- paste0(ross2004_subset$ctry1, ross2004_subset$year)
-ross2004_subset$imp_year <- paste0(ross2004_subset$ctry2, ross2004_subset$year)
+rose2004_subset <- rose2004[rose2004$year %in% seq(1989, 1999, 5), ]
+rose2004_subset$trade <- exp(rose2004_subset$ltrade)
+rose2004_subset$exp_year <- paste0(rose2004_subset$ctry1, rose2004_subset$year)
+rose2004_subset$imp_year <- paste0(rose2004_subset$ctry2, rose2004_subset$year)
 
 fit <- fepoisson(
   trade ~ ldist + border + comlang + colony | exp_year + imp_year,
-  data = ross2004_subset
+  data = rose2004_subset
 )
 
 summary(fit)
@@ -88,7 +88,7 @@ uses the demeaning algorithm proposed by @stammann2018fast.
 ```r
 fit <- fepoisson(
   trade ~ ldist + border + comlang + colony | exp_year + imp_year | pair,
-  data = ross2004_subset
+  data = rose2004_subset
 )
 
 summary(fit, type = "clustered")

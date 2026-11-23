@@ -10,10 +10,10 @@ local({
 
   # confint.feglm returns correct structure and values ----
 
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+  rose2004_subset <- rose2004[rose2004$year == 1999, ]
+  rose2004_subset <- rose2004_subset[rose2004_subset$ltrade > quantile(rose2004_subset$ltrade, 0.75), ]
 
-  mod1 <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
+  mod1 <- fepoisson(ltrade ~ ldist | ctry1, rose2004_subset)
 
   res1 <- confint(mod1)
 
@@ -38,7 +38,7 @@ local({
 
   # confint.feglm respects level parameter ----
 
-  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
+  mod <- fepoisson(ltrade ~ ldist | ctry1, rose2004_subset)
 
   ci_95 <- confint(mod, level = 0.95)
   ci_99 <- confint(mod, level = 0.99)
@@ -51,7 +51,7 @@ local({
 
   # confint.felm returns correct structure ----
 
-  mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
+  mod <- felm(ltrade ~ ldist | ctry1, rose2004_subset)
 
   result <- confint(mod)
 
@@ -60,7 +60,7 @@ local({
 
   # confint column names reflect confidence level ----
 
-  mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
+  mod <- felm(ltrade ~ ldist | ctry1, rose2004_subset)
 
   ci_95 <- confint(mod, level = 0.95)
   ci_90 <- confint(mod, level = 0.90)
@@ -72,7 +72,7 @@ local({
 
   # confint works with multiple parm selection ----
 
-  mod <- felm(ltrade ~ ldist + border | ctry1, ross2004_subset)
+  mod <- felm(ltrade ~ ldist + border | ctry1, rose2004_subset)
 
   ci_subset <- confint(mod, parm = c("ldist", "border"))
 
@@ -81,7 +81,7 @@ local({
 
   # confint works with numeric parm indices ----
 
-  mod <- felm(ltrade ~ ldist + border | ctry1, ross2004_subset)
+  mod <- felm(ltrade ~ ldist + border | ctry1, rose2004_subset)
 
   ci_first <- confint(mod, parm = 1)
 
@@ -90,7 +90,7 @@ local({
 
   # confint for feglm works with parm ----
 
-  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
+  mod <- fepoisson(ltrade ~ ldist | ctry1, rose2004_subset)
 
   ci_full <- confint(mod)
   ci_parm <- confint(mod, parm = "ldist")
@@ -99,7 +99,7 @@ local({
 
   # confint handles different confidence levels correctly ----
 
-  mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
+  mod <- felm(ltrade ~ ldist | ctry1, rose2004_subset)
 
   ci_50 <- confint(mod, level = 0.50)
   ci_90 <- confint(mod, level = 0.90)

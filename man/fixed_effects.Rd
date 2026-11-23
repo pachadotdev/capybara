@@ -29,8 +29,8 @@ Accessor for the fixed-effect coefficients stored in a
 }
 
 \examples{
-ross2004_subset <- ross2004[ross2004$year == 1999, ]
-fit <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
+rose2004_subset <- rose2004[rose2004$year == 1999, ]
+fit <- felm(ltrade ~ ldist | ctry1, rose2004_subset)
 
 fixed_effects(fit, "ctry1")
 }

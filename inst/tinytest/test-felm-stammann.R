@@ -20,29 +20,29 @@ local({
 
   ctrl <- list(centering = "stammann")
 
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+  rose2004_subset <- rose2004[rose2004$year == 1999, ]
+  rose2004_subset <- rose2004_subset[rose2004_subset$ltrade > quantile(rose2004_subset$ltrade, 0.75), ]
 
-  m1 <- felm(formula = ltrade ~ ldist | ctry1, data = ross2004_subset, control = ctrl)
-  m2 <- lm(ltrade ~ ldist + as.factor(ctry1), ross2004_subset)
+  m1 <- felm(formula = ltrade ~ ldist | ctry1, data = rose2004_subset, control = ctrl)
+  m2 <- lm(ltrade ~ ldist + as.factor(ctry1), rose2004_subset)
 
   expect_equal(coef(m1), coef(m2)[2], tolerance = 1e-2)
 
-  n <- nrow(ross2004_subset)
+  n <- nrow(rose2004_subset)
   expect_equal(length(fitted(m1)), n)
   expect_equal(length(predict(m1)), n)
   expect_equal(length(coef(m1)), 1)
   expect_equal(length(coef(summary(m1))), 4)
 
-  m1 <- felm(ltrade ~ ldist + border | ctry1, ross2004_subset, control = ctrl)
-  m2 <- lm(ltrade ~ ldist + border + as.factor(ctry1), ross2004_subset)
+  m1 <- felm(ltrade ~ ldist + border | ctry1, rose2004_subset, control = ctrl)
+  m2 <- lm(ltrade ~ ldist + border + as.factor(ctry1), rose2004_subset)
 
   expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-2)
 
   # 2FE Stammann centering ----
 
-  m1 <- felm(ltrade ~ ldist + border | ctry1 + ctry2, ross2004_subset, control = ctrl)
-  m2 <- lm(ltrade ~ ldist + border + as.factor(ctry1) + as.factor(ctry2), ross2004_subset)
+  m1 <- felm(ltrade ~ ldist + border | ctry1 + ctry2, rose2004_subset, control = ctrl)
+  m2 <- lm(ltrade ~ ldist + border + as.factor(ctry1) + as.factor(ctry2), rose2004_subset)
 
   expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-2)
 
@@ -52,11 +52,11 @@ local({
   expect_equal(s1$r_squared, s2$r.squared, tolerance = 1e-2)
   expect_equal(s1$adj_r_squared, s2$adj.r.squared, tolerance = 1e-2)
 
-  ross2004_subset2 <- ross2004_subset
-  ross2004_subset2$ldist[2] <- NA
+  rose2004_subset2 <- rose2004_subset
+  rose2004_subset2$ldist[2] <- NA
 
-  m1 <- felm(ltrade ~ ldist + border | ctry1 + ctry2, ross2004_subset2, control = ctrl)
-  m2 <- lm(ltrade ~ ldist + border + as.factor(ctry1) + as.factor(ctry2), ross2004_subset2)
+  m1 <- felm(ltrade ~ ldist + border | ctry1 + ctry2, rose2004_subset2, control = ctrl)
+  m2 <- lm(ltrade ~ ldist + border + as.factor(ctry1) + as.factor(ctry2), rose2004_subset2)
 
   expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-2)
 
@@ -66,19 +66,19 @@ local({
   expect_equal(s1$r_squared, s2$r.squared, tolerance = 1e-2)
   expect_equal(s1$adj_r_squared, s2$adj.r.squared, tolerance = 1e-2)
 
-  m1 <- felm(ltrade ~ ldist + border | ctry1 + ctry2 | year, ross2004_subset, control = ctrl)
+  m1 <- felm(ltrade ~ ldist + border | ctry1 + ctry2 | year, rose2004_subset, control = ctrl)
 
   expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-2)
 
   # 3FE Stammann centering ----
 
-  ross2004_subset <- ross2004[ross2004$year %in% c(1994, 1999), ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+  rose2004_subset <- rose2004[rose2004$year %in% c(1994, 1999), ]
+  rose2004_subset <- rose2004_subset[rose2004_subset$ltrade > quantile(rose2004_subset$ltrade, 0.75), ]
 
-  m1 <- felm(ltrade ~ ldist + border | ctry1 + ctry2 + year, ross2004_subset, control = ctrl)
+  m1 <- felm(ltrade ~ ldist + border | ctry1 + ctry2 + year, rose2004_subset, control = ctrl)
   m2 <- lm(
     ltrade ~ ldist + border + as.factor(ctry1) + as.factor(ctry2) + as.factor(year),
-    ross2004_subset
+    rose2004_subset
   )
 
   expect_equal(coef(m1), coef(m2)[c(2, 3)], tolerance = 1e-2)
@@ -106,17 +106,17 @@ local({
 
   # felm correctly predicts values outside the inter-quartile range (Stammann centering) ----
 
-  d1 <- ross2004_subset[
-    ross2004_subset$ltrade >= quantile(ross2004_subset$ltrade, 0.25) &
-      ross2004_subset$ltrade <= quantile(ross2004_subset$ltrade, 0.75),
+  d1 <- rose2004_subset[
+    rose2004_subset$ltrade >= quantile(rose2004_subset$ltrade, 0.25) &
+      rose2004_subset$ltrade <= quantile(rose2004_subset$ltrade, 0.75),
   ]
-  d2 <- ross2004_subset[
-    ross2004_subset$ltrade < quantile(ross2004_subset$ltrade, 0.25) |
-      ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75),
+  d2 <- rose2004_subset[
+    rose2004_subset$ltrade < quantile(rose2004_subset$ltrade, 0.25) |
+      rose2004_subset$ltrade > quantile(rose2004_subset$ltrade, 0.75),
   ]
 
-  m1_lm <- felm(ltrade ~ ldist + border | ctry1, ross2004_subset, control = ctrl)
-  m2_lm <- lm(ltrade ~ ldist + border + as.factor(ctry1), ross2004_subset)
+  m1_lm <- felm(ltrade ~ ldist + border | ctry1, rose2004_subset, control = ctrl)
+  m2_lm <- lm(ltrade ~ ldist + border + as.factor(ctry1), rose2004_subset)
 
   pred1_lm <- predict(m1_lm, newdata = d1)
   pred2_lm <- predict(m1_lm, newdata = d2)
@@ -127,21 +127,21 @@ local({
 
   # felm with weights works (Stammann centering) ----
 
-  ross2004_subset$trade_pair <- ave(ross2004_subset$ltrade, ross2004_subset$pair,
+  rose2004_subset$trade_pair <- ave(rose2004_subset$ltrade, rose2004_subset$pair,
     FUN = function(x) sum(x, na.rm = TRUE)
   )
 
-  m1 <- felm(ltrade ~ ldist | ctry1, weights = ~trade_pair, data = ross2004_subset, control = ctrl)
-  m2 <- felm(ltrade ~ ldist | ctry1, weights = ross2004_subset$trade_pair, data = ross2004_subset, control = ctrl)
+  m1 <- felm(ltrade ~ ldist | ctry1, weights = ~trade_pair, data = rose2004_subset, control = ctrl)
+  m2 <- felm(ltrade ~ ldist | ctry1, weights = rose2004_subset$trade_pair, data = rose2004_subset, control = ctrl)
 
-  w <- ross2004_subset$trade_pair
-  m3 <- felm(ltrade ~ ldist | ctry1, weights = w, data = ross2004_subset, control = ctrl)
+  w <- rose2004_subset$trade_pair
+  m3 <- felm(ltrade ~ ldist | ctry1, weights = w, data = rose2004_subset, control = ctrl)
 
   expect_equal(coef(m2), coef(m1))
   expect_equal(coef(m3), coef(m1))
 
   w <- NULL
-  m4 <- felm(ltrade ~ ldist | ctry1, weights = w, data = ross2004_subset, control = ctrl)
+  m4 <- felm(ltrade ~ ldist | ctry1, weights = w, data = rose2004_subset, control = ctrl)
 
   expect_true(coef(m1) != coef(m4))
 })

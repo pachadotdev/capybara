@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>update.feglm • capybara</title><link rel="stylesheet" href="../menu.css"><link rel="stylesheet" href="../content.css"><!-- MathJax Configuration --><script>
+<html lang="en"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>fixed_effects • capybara</title><link rel="stylesheet" href="../menu.css"><link rel="stylesheet" href="../content.css"><!-- MathJax Configuration --><script>
     window.MathJax = {
       tex: {
         inlineMath: [['\\(', '\\)'], ['$', '$']],
@@ -17,8 +17,7 @@
 <div class="main-container">
 <div id="menu">
   <div>
-    <h1 style="text-align:center;">capybara Documentation</h1>
-  </div>
+    <img src="../man/figures/logo.svg" align="center" height="139" alt="capybara logo"></div>
 
   <div class="search-container">
     <input type="text" id="search-box" placeholder="Search..."></div>
@@ -36,6 +35,7 @@
 
   <div class="submenu">
     <label>Functions</label>
+    <a href="../reference/add_fe_to_df.html">add_fe_to_df</a>
     <a href="../reference/fe_table.html">fe_table</a>
     <a href="../reference/feglm.html">feglm</a>
     <a href="../reference/felm.html">felm</a>
@@ -43,6 +43,7 @@
     <a href="../reference/fepoisson_asymmetric.html">fepoisson_asymmetric</a>
     <a href="../reference/fepoisson.html">fepoisson</a>
     <a href="../reference/fit_control.html">fit_control</a>
+    <a href="../reference/fixed_effects.html">fixed_effects</a>
     <a href="../reference/sandwich_vcov.html">sandwich_vcov</a>
     <a href="../reference/summary_table.html">summary_table</a>
   </div>
@@ -64,20 +65,20 @@
 <div class="content-wrapper">
         <div class="content-main">
 
-<table style="width: 100%;"><tr><td>update.feglm {capybara}</td><td style="text-align: right;">R Documentation</td></tr></table><h2>Update a fitted <code>feglm</code> model</h2>
+<table style="width: 100%;"><tr><td>fixed_effects {capybara}</td><td style="text-align: right;">R Documentation</td></tr></table><h2>Extract fixed effects from a fitted model</h2>
 
 <h3>Description</h3>
 
-<p>S3 method for [update()] that understands the '|'-separated formula syntax
-used by [feglm()].  Uses [Formula::update.Formula()] for proper handling of
-multi-part formulas.  Identical semantics to [update.felm()].
+<p>Accessor for the fixed-effect coefficients stored in a
+<code>felm</code> or <code>feglm</code> object, so that they can be retrieved
+without reaching into the model object's internal list structure (e.g.
+<code>object$fixed_effects$dimension</code>).
 </p>
 
 
 <h3>Usage</h3>
 
-<pre><code class="language-R">## S3 method for class 'feglm'
-update(object, formula. = . ~ ., vcov = NULL, family = NULL, ...)
+<pre><code class="language-R">fixed_effects(object, which = NULL)
 </code></pre>
 
 
@@ -85,29 +86,27 @@ update(object, formula. = . ~ ., vcov = NULL, family = NULL, ...)
 
 <table role="presentation"><tr><td><code id="object">object</code></td>
 <td>
-A fitted 'feglm' object.
-</td></tr><tr><td><code id="family">family</code></td>
+A <code>felm</code> or <code>feglm</code> object fitted with
+<code>control = fit_control(return_fe = TRUE)</code> (the default).
+</td></tr><tr><td><code id="which">which</code></td>
 <td>
-Optional new family (e.g. 'binomial()').  If omitted the
-original family is reused.
-</td></tr><tr><td><code id="formula.">formula.</code></td>
-<td>
-Update formula; only the segments you want to change need to
-differ from '.'.  Examples:
-* '. ~ . | country + year' - change FE, keep regressors.
-* '. ~ . | . | ctry1 + ctry2' - keep FE, change cluster.
-* '. ~ . - bothin | year' - drop a regressor, keep FE.
-</td></tr><tr><td><code id="vcov">vcov</code></td>
-<td>
-Optional new 'vcov' value (e.g. '"cluster"').  If omitted the
-original value is reused.
-</td></tr><tr><td><code id="...">...</code></td>
-<td>
-Additional arguments forwarded to [felm()].
+Optional string with the name of a single fixed-effect
+dimension to extract (e.g. <code>"exp_year"</code>). If <code>NULL</code> (default),
+the full named list of fixed-effect vectors is returned.
 </td></tr></table><h3>Value</h3>
 
-<p>A refitted 'feglm' object.
+<p>A named numeric vector (single dimension) or a named list of
+numeric vectors (all dimensions).
 </p>
+
+
+<h3>Examples</h3>
+
+<pre><code class="language-R">rose2004_subset &lt;- rose2004[rose2004$year == 1999, ]
+fit &lt;- felm(ltrade ~ ldist | ctry1, rose2004_subset)
+
+fixed_effects(fit, "ctry1")
+</code></pre>
 
 
 </div>

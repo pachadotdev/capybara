@@ -14,10 +14,10 @@ local({
   # vcov returns correct structure for feglm ----
 
   # Model without clustering - returns inverse Hessian
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+  rose2004_subset <- rose2004[rose2004$year == 1999, ]
+  rose2004_subset <- rose2004_subset[rose2004_subset$ltrade > quantile(rose2004_subset$ltrade, 0.75), ]
 
-  m1 <- fepoisson(ltrade ~ ldist + border | ctry1, ross2004_subset)
+  m1 <- fepoisson(ltrade ~ ldist + border | ctry1, rose2004_subset)
 
   v1 <- vcov(m1)
   expect_true(is.matrix(v1))
@@ -26,7 +26,7 @@ local({
   expect_true(all(is.finite(v1)))
 
   # Model with clustering - returns sandwich vcov
-  m2 <- fepoisson(ltrade ~ ldist + border | ctry1 | ctry2, ross2004_subset)
+  m2 <- fepoisson(ltrade ~ ldist + border | ctry1 | ctry2, rose2004_subset)
 
   v2 <- vcov(m2)
   expect_true(is.matrix(v2))
@@ -36,10 +36,10 @@ local({
 
   # sandwich vcov is symmetric and positive semi-definite ----
 
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+  rose2004_subset <- rose2004[rose2004$year == 1999, ]
+  rose2004_subset <- rose2004_subset[rose2004_subset$ltrade > quantile(rose2004_subset$ltrade, 0.75), ]
 
-  m <- fepoisson(ltrade ~ ldist + border | ctry1 | ctry2, ross2004_subset)
+  m <- fepoisson(ltrade ~ ldist + border | ctry1 | ctry2, rose2004_subset)
   v <- vcov(m)
 
   # Should be symmetric
@@ -100,8 +100,8 @@ local({
 
   # clustered vs non-clustered vcov give different results ----
 
-  m_no_cluster <- fepoisson(ltrade ~ ldist + border | ctry1, ross2004_subset)
-  m_clustered <- fepoisson(ltrade ~ ldist + border | ctry1 | ctry2, ross2004_subset)
+  m_no_cluster <- fepoisson(ltrade ~ ldist + border | ctry1, rose2004_subset)
+  m_clustered <- fepoisson(ltrade ~ ldist + border | ctry1 | ctry2, rose2004_subset)
 
   v_hessian <- vcov(m_no_cluster)
   v_sandwich <- vcov(m_clustered)
@@ -115,7 +115,7 @@ local({
 
   # vcov works for felm models ----
 
-  m <- felm(ltrade ~ ldist + border | ctry1, ross2004_subset)
+  m <- felm(ltrade ~ ldist + border | ctry1, rose2004_subset)
   v <- vcov(m)
 
   expect_true(is.matrix(v))
@@ -125,7 +125,7 @@ local({
 
   # vcov works for felm with clustering ----
 
-  m <- felm(ltrade ~ ldist + border | ctry1 | ctry2, ross2004_subset)
+  m <- felm(ltrade ~ ldist + border | ctry1 | ctry2, rose2004_subset)
   v <- vcov(m)
 
   expect_true(is.matrix(v))
@@ -135,7 +135,7 @@ local({
 
   # vcov has correct row and column names ----
 
-  m <- fepoisson(ltrade ~ ldist + border | ctry1, ross2004_subset)
+  m <- fepoisson(ltrade ~ ldist + border | ctry1, rose2004_subset)
   v <- vcov(m)
 
   expect_equal(rownames(v), c("ldist", "border"))
@@ -143,7 +143,7 @@ local({
 
   # vcov works with single predictor ----
 
-  m <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
+  m <- fepoisson(ltrade ~ ldist | ctry1, rose2004_subset)
   v <- vcov(m)
 
   expect_true(is.matrix(v))
@@ -152,7 +152,7 @@ local({
 
   # vcov works for fenegbin ----
 
-  m <- fenegbin(ltrade ~ ldist | ctry1, ross2004_subset)
+  m <- fenegbin(ltrade ~ ldist | ctry1, rose2004_subset)
   v <- vcov(m)
 
   expect_true(is.matrix(v))

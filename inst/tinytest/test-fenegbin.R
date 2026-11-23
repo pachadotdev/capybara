@@ -11,7 +11,7 @@ local({
     return(NULL)
   }
 
-  mod <- fenegbin(ltrade ~ ldist | ctry1, ross2004)
+  mod <- fenegbin(ltrade ~ ldist | ctry1, rose2004)
 
   expect_true(inherits(mod, "feglm"))
   expect_true(!is.null(mod$coef_table))

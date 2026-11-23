@@ -11,10 +11,10 @@ local({
 
   # print.feglm shows coefficients ----
 
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+  rose2004_subset <- rose2004[rose2004$year == 1999, ]
+  rose2004_subset <- rose2004_subset[rose2004_subset$ltrade > quantile(rose2004_subset$ltrade, 0.75), ]
 
-  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
+  mod <- fepoisson(ltrade ~ ldist | ctry1, rose2004_subset)
 
   output <- capture.output(print(mod))
 
@@ -22,7 +22,7 @@ local({
 
   # print.felm shows coefficients ----
 
-  mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
+  mod <- felm(ltrade ~ ldist | ctry1, rose2004_subset)
 
   output <- capture.output(print(mod))
 
@@ -30,7 +30,7 @@ local({
 
   # summary.feglm shows formula ----
 
-  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
+  mod <- fepoisson(ltrade ~ ldist | ctry1, rose2004_subset)
 
   output <- capture.output(print(summary(mod)))
 
@@ -38,7 +38,7 @@ local({
 
   # summary.feglm shows family ----
 
-  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
+  mod <- fepoisson(ltrade ~ ldist | ctry1, rose2004_subset)
 
   output <- capture.output(print(summary(mod)))
 
@@ -48,7 +48,7 @@ local({
 
   # summary.feglm shows estimates ----
 
-  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
+  mod <- fepoisson(ltrade ~ ldist | ctry1, rose2004_subset)
 
   output <- capture.output(print(summary(mod)))
 
@@ -56,7 +56,7 @@ local({
 
   # summary.feglm shows significance codes ----
 
-  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
+  mod <- fepoisson(ltrade ~ ldist | ctry1, rose2004_subset)
 
   output <- capture.output(print(summary(mod)))
 
@@ -64,7 +64,7 @@ local({
 
   # summary.felm shows R-squared ----
 
-  mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
+  mod <- felm(ltrade ~ ldist | ctry1, rose2004_subset)
 
   output <- capture.output(print(summary(mod)))
 
@@ -72,7 +72,7 @@ local({
 
   # print shows multiple predictors ----
 
-  mod <- felm(ltrade ~ ldist + border | ctry1, ross2004_subset)
+  mod <- felm(ltrade ~ ldist + border | ctry1, rose2004_subset)
 
   output <- capture.output(print(summary(mod)))
 

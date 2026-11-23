@@ -10,10 +10,10 @@ local({
 
   # summary_table works with single model ----
 
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+  rose2004_subset <- rose2004[rose2004$year == 1999, ]
+  rose2004_subset <- rose2004_subset[rose2004_subset$ltrade > quantile(rose2004_subset$ltrade, 0.75), ]
 
-  m1 <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
+  m1 <- felm(ltrade ~ ldist | ctry1, rose2004_subset)
 
   result <- summary_table(m1)
 
@@ -23,8 +23,8 @@ local({
 
   # summary_table works with multiple models ----
 
-  m1 <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
-  m2 <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
+  m1 <- felm(ltrade ~ ldist | ctry1, rose2004_subset)
+  m2 <- fepoisson(ltrade ~ ldist | ctry1, rose2004_subset)
 
   result <- summary_table(m1, m2)
 
@@ -33,8 +33,8 @@ local({
 
   # summary_table works with custom model names ----
 
-  m1 <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
-  m2 <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
+  m1 <- felm(ltrade ~ ldist | ctry1, rose2004_subset)
+  m2 <- fepoisson(ltrade ~ ldist | ctry1, rose2004_subset)
 
   result <- summary_table(m1, m2, model_names = c("OLS", "Poisson"))
 
@@ -44,7 +44,7 @@ local({
 
   # summary_table works with latex output ----
 
-  m1 <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
+  m1 <- felm(ltrade ~ ldist | ctry1, rose2004_subset)
 
   result <- summary_table(m1, latex = TRUE)
 
@@ -74,7 +74,7 @@ local({
 
   # summary_table works with latex caption and label ----
 
-  m1 <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
+  m1 <- felm(ltrade ~ ldist | ctry1, rose2004_subset)
 
   result <- summary_table(
     m1,
@@ -89,7 +89,7 @@ local({
 
   # summary_table works without stars ----
 
-  m1 <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
+  m1 <- felm(ltrade ~ ldist | ctry1, rose2004_subset)
 
   result <- summary_table(m1, stars = FALSE)
 
@@ -98,7 +98,7 @@ local({
 
   # summary_table respects digit settings ----
 
-  m1 <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
+  m1 <- felm(ltrade ~ ldist | ctry1, rose2004_subset)
 
   result <- summary_table(m1, coef_digits = 5, se_digits = 5)
 
@@ -112,8 +112,8 @@ local({
 
   # summary_table errors on mismatched model_names length ----
 
-  m1 <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
-  m2 <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset)
+  m1 <- felm(ltrade ~ ldist | ctry1, rose2004_subset)
+  m2 <- fepoisson(ltrade ~ ldist | ctry1, rose2004_subset)
 
   expect_error(
     summary_table(m1, m2, model_names = c("Only One")),
@@ -122,8 +122,8 @@ local({
 
   # summary_table works with models without fixed effects ----
 
-  m1 <- felm(ltrade ~ ldist, ross2004_subset)
-  m2 <- fepoisson(ltrade ~ ldist, ross2004_subset)
+  m1 <- felm(ltrade ~ ldist, rose2004_subset)
+  m2 <- fepoisson(ltrade ~ ldist, rose2004_subset)
 
   result <- summary_table(m1, m2)
 
@@ -132,8 +132,8 @@ local({
 
   # summary_table handles models with different variables ----
 
-  m1 <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
-  m2 <- felm(ltrade ~ ldist + border | ctry1, ross2004_subset)
+  m1 <- felm(ltrade ~ ldist | ctry1, rose2004_subset)
+  m2 <- felm(ltrade ~ ldist + border | ctry1, rose2004_subset)
 
   result <- summary_table(m1, m2)
 

@@ -14,28 +14,28 @@ local({
   # vcov returns correct structure for feglm ----
 
   # IID  (no cluster part in formula)
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+  rose2004_subset <- rose2004[rose2004$year == 1999, ]
+  rose2004_subset <- rose2004_subset[rose2004_subset$ltrade > quantile(rose2004_subset$ltrade, 0.75), ]
 
   fml <- ltrade ~ ldist + border | ctry1
-  fit_iid <- felm(fml, data = ross2004_subset, vcov = "iid")
+  fit_iid <- felm(fml, data = rose2004_subset, vcov = "iid")
   vcov_iid <- vcov(fit_iid)
 
   # Heteroskedastic-robust (HC0)
-  fit_hetero <- felm(fml, data = ross2004_subset, vcov = "hetero")
+  fit_hetero <- felm(fml, data = rose2004_subset, vcov = "hetero")
   vcov_hetero <- vcov(fit_hetero)
 
   # One-way
   fml2 <- update(Formula::as.Formula(fml), . ~ . | . | ctry2)
 
-  fit_exp <- felm(fml2, data = ross2004_subset, vcov = "cluster")
+  fit_exp <- felm(fml2, data = rose2004_subset, vcov = "cluster")
   vcov_exp <- vcov(fit_exp)
 
-  fit_imp <- felm(update(fml2, . ~ . | . | year), data = ross2004_subset, vcov = "cluster")
+  fit_imp <- felm(update(fml2, . ~ . | . | year), data = rose2004_subset, vcov = "cluster")
   vcov_imp <- vcov(fit_imp)
 
   # Dyadic-robust: Cameron-Miller (2014) sandwich with cross-dyad correlations
-  fit_dyadic <- felm(update(fml2, . ~ . | . | ctry2 + year), data = ross2004_subset, vcov = "dyadic")
+  fit_dyadic <- felm(update(fml2, . ~ . | . | ctry2 + year), data = rose2004_subset, vcov = "dyadic")
   vcov_dyadic <- vcov(fit_dyadic)
 
   # the determinants must be different
@@ -46,11 +46,11 @@ local({
 
   # R re-computation
 
-  fit <- felm(fml, data = ross2004_subset, control = fit_control(keep_tx = TRUE, return_hessian = TRUE))
+  fit <- felm(fml, data = rose2004_subset, control = fit_control(keep_tx = TRUE, return_hessian = TRUE))
   vcov_hetero2 <- sandwich_vcov(fit, type = "hetero")
-  vcov_exp2 <- sandwich_vcov(fit, cluster1 = ross2004_subset$ctry2, type = "clustered")
-  vcov_imp2 <- sandwich_vcov(fit, cluster1 = ross2004_subset$year, type = "clustered")
-  vcov_dyadic2 <- sandwich_vcov(fit, cluster1 = ross2004_subset$ctry2, cluster2 = ross2004_subset$year, type = "dyadic")
+  vcov_exp2 <- sandwich_vcov(fit, cluster1 = rose2004_subset$ctry2, type = "clustered")
+  vcov_imp2 <- sandwich_vcov(fit, cluster1 = rose2004_subset$year, type = "clustered")
+  vcov_dyadic2 <- sandwich_vcov(fit, cluster1 = rose2004_subset$ctry2, cluster2 = rose2004_subset$year, type = "dyadic")
 
   expect_true(all.equal(vcov_hetero, vcov_hetero2))
   expect_true(all.equal(vcov_exp, vcov_exp2))

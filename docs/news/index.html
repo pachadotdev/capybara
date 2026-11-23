@@ -17,8 +17,7 @@
 <div class="main-container">
 <div id="menu">
   <div>
-    <h1 style="text-align:center;">capybara Documentation</h1>
-  </div>
+    <img src="../man/figures/logo.svg" align="center" height="139" alt="capybara logo"></div>
 
   <div class="search-container">
     <input type="text" id="search-box" placeholder="Search..."></div>
@@ -36,6 +35,7 @@
 
   <div class="submenu">
     <label>Functions</label>
+    <a href="../reference/add_fe_to_df.html">add_fe_to_df</a>
     <a href="../reference/fe_table.html">fe_table</a>
     <a href="../reference/feglm.html">feglm</a>
     <a href="../reference/felm.html">felm</a>
@@ -43,6 +43,7 @@
     <a href="../reference/fepoisson_asymmetric.html">fepoisson_asymmetric</a>
     <a href="../reference/fepoisson.html">fepoisson</a>
     <a href="../reference/fit_control.html">fit_control</a>
+    <a href="../reference/fixed_effects.html">fixed_effects</a>
     <a href="../reference/sandwich_vcov.html">sandwich_vcov</a>
     <a href="../reference/summary_table.html">summary_table</a>
   </div>
@@ -67,6 +68,21 @@
 
 
 
+<div id="capybara-2.4.1" class="section level1">
+<h1>capybara 2.4.1</h1>
+<ul><li>Adds the IMF country codes to Ross (2004) data (useful to replicate the article).</li>
+<li>Adds a workaround to report standard errors with collinear variables when using <code>felm()</code>.</li>
+</ul></div>
+<div id="capybara-2.4.0" class="section level1">
+<h1>capybara 2.4.0</h1>
+<ul><li>Reorganized codebase to reduced the number of produced compiled binaries.</li>
+<li>Adds a convenience function to add the fixed effects back to the model data.</li>
+</ul></div>
+<div id="capybara-2.3.0" class="section level1">
+<h1>capybara 2.3.0</h1>
+<ul><li>Tracks dropped observations by the separation detection step, so now <code>sandwich_vcov</code>
+works with models that dropped rows from the original dataset.</li>
+</ul></div>
 <div id="capybara-2.2.0" class="section level1">
 <h1>capybara 2.2.0</h1>
 <ul><li>I removed <code>broom</code> integration and replaced <code>ggplot2</code> coefficient plots with <code>tinyplot</code>.</li>

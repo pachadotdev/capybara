@@ -44,7 +44,7 @@
 #' @description Data from Ross (2004) used to show the different variance-covariance estimators from
 #' Cameron and Miller (2014).
 #'
-#' @format ## `ross2004`
+#' @format ## `rose2004`
 #' A data frame with 234,597 rows and 22 columns:
 #' \describe{
 #'   \item{ltrade}{Log of bilateral trade between i and j at time t}
@@ -74,7 +74,7 @@
 #' }
 #'
 #' @source Do We Really Know That the WTO Increases Trade? (DOI: 10.1257/000282804322970724)
-"ross2004"
+"rose2004"
 
 #' @title Separation Example Datasets
 #'

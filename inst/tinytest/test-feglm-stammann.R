@@ -22,11 +22,11 @@ local({
   # centering is unused without FEs, but control must be accepted ---
   ctrl <- list(centering = "stammann")
 
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+  rose2004_subset <- rose2004[rose2004$year == 1999, ]
+  rose2004_subset <- rose2004_subset[rose2004_subset$ltrade > quantile(rose2004_subset$ltrade, 0.75), ]
 
-  m1 <- feglm(ltrade ~ ldist, data = ross2004_subset, control = ctrl)
-  m2 <- glm(ltrade ~ ldist, data = ross2004_subset)
+  m1 <- feglm(ltrade ~ ldist, data = rose2004_subset, control = ctrl)
+  m2 <- glm(ltrade ~ ldist, data = rose2004_subset)
 
   expect_equal(coef(m1), coef(m2), tolerance = 1e-6)
 

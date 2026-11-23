@@ -143,10 +143,10 @@ local({
 
   ctrl <- list(dev_tol = 1e-10)
 
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+  rose2004_subset <- rose2004[rose2004$year == 1999, ]
+  rose2004_subset <- rose2004_subset[rose2004_subset$ltrade > quantile(rose2004_subset$ltrade, 0.75), ]
 
-  mod <- felm(ltrade ~ ldist | ctry1, ross2004_subset, control = ctrl)
+  mod <- felm(ltrade ~ ldist | ctry1, rose2004_subset, control = ctrl)
 
   expect_true(inherits(mod, "felm"))
 
@@ -154,11 +154,11 @@ local({
 
   # Tight tolerance
   ctrl_tight <- list(dev_tol = 1e-12, center_tol = 1e-12)
-  mod_tight <- felm(ltrade ~ ldist | ctry1, ross2004_subset, control = ctrl_tight)
+  mod_tight <- felm(ltrade ~ ldist | ctry1, rose2004_subset, control = ctrl_tight)
 
   # Loose tolerance
   ctrl_loose <- list(dev_tol = 1e-4, center_tol = 1e-4)
-  mod_loose <- felm(ltrade ~ ldist | ctry1, ross2004_subset, control = ctrl_loose)
+  mod_loose <- felm(ltrade ~ ldist | ctry1, rose2004_subset, control = ctrl_loose)
 
   # Both should converge
   expect_true(inherits(mod_tight, "felm"))
@@ -169,12 +169,12 @@ local({
 
   # init_theta parameter works for fenegbin ----
 
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+  rose2004_subset <- rose2004[rose2004$year == 1999, ]
+  rose2004_subset <- rose2004_subset[rose2004_subset$ltrade > quantile(rose2004_subset$ltrade, 0.75), ]
 
   ctrl <- list(init_theta = 0.5)
 
-  mod <- fenegbin(ltrade ~ ldist | ctry1, ross2004_subset, control = ctrl)
+  mod <- fenegbin(ltrade ~ ldist | ctry1, rose2004_subset, control = ctrl)
 
   expect_true(inherits(mod, "feglm"))
   expect_true(mod$theta > 0)

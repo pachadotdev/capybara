@@ -19,28 +19,28 @@ source(system.file("tinytest", "helper.R", package = "capybara"))
 local({
   # feglm works without fixed effects ----
 
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset <- ross2004_subset[ross2004_subset$ltrade > quantile(ross2004_subset$ltrade, 0.75), ]
+  rose2004_subset <- rose2004[rose2004$year == 1999, ]
+  rose2004_subset <- rose2004_subset[rose2004_subset$ltrade > quantile(rose2004_subset$ltrade, 0.75), ]
 
-  m1 <- feglm(ltrade ~ ldist, data = ross2004_subset)
-  m2 <- glm(ltrade ~ ldist, data = ross2004_subset)
+  m1 <- feglm(ltrade ~ ldist, data = rose2004_subset)
+  m2 <- glm(ltrade ~ ldist, data = rose2004_subset)
 
   expect_equal(coef(m1), coef(m2), tolerance = 1e-6)
 
   # out of sample predictions have larger margins of error ----
 
-  ross2004_subset2 <- ross2004_subset[
-    ross2004_subset$ltrade >= quantile(ross2004_subset$ltrade, 0.25) &
-      ross2004_subset$ltrade <= quantile(ross2004_subset$ltrade, 0.75),
+  rose2004_subset2 <- rose2004_subset[
+    rose2004_subset$ltrade >= quantile(rose2004_subset$ltrade, 0.25) &
+      rose2004_subset$ltrade <= quantile(rose2004_subset$ltrade, 0.75),
   ]
 
-  mod <- fepoisson(ltrade ~ ldist | ctry1, ross2004_subset2)
+  mod <- fepoisson(ltrade ~ ldist | ctry1, rose2004_subset2)
 
-  p1 <- predict(mod, newdata = ross2004_subset, type = "response")
-  p2 <- predict(mod, newdata = ross2004_subset2, type = "response")
+  p1 <- predict(mod, newdata = rose2004_subset, type = "response")
+  p2 <- predict(mod, newdata = rose2004_subset2, type = "response")
 
-  mape1 <- mape(ross2004_subset$ltrade, p1)
-  mape2 <- mape(ross2004_subset2$ltrade, p2)
+  mape1 <- mape(rose2004_subset$ltrade, p1)
+  mape2 <- mape(rose2004_subset2$ltrade, p2)
 
   expect_true(mape1 > mape2)
 
@@ -62,22 +62,22 @@ local({
 
   # feglm with weights works ----
 
-  ross2004_subset <- ross2004[ross2004$year == 1999, ]
-  ross2004_subset$trade_pair <- ave(ross2004_subset$ltrade, ross2004_subset$pair,
+  rose2004_subset <- rose2004[rose2004$year == 1999, ]
+  rose2004_subset$trade_pair <- ave(rose2004_subset$ltrade, rose2004_subset$pair,
     FUN = function(x) sum(x, na.rm = TRUE)
   )
 
-  m1 <- feglm(ltrade ~ ldist | ctry1, weights = ~trade_pair, data = ross2004_subset)
-  m2 <- feglm(ltrade ~ ldist | ctry1, weights = ross2004_subset$trade_pair, data = ross2004_subset)
+  m1 <- feglm(ltrade ~ ldist | ctry1, weights = ~trade_pair, data = rose2004_subset)
+  m2 <- feglm(ltrade ~ ldist | ctry1, weights = rose2004_subset$trade_pair, data = rose2004_subset)
 
-  w <- ross2004_subset$trade_pair
-  m3 <- feglm(ltrade ~ ldist | ctry1, weights = w, data = ross2004_subset)
+  w <- rose2004_subset$trade_pair
+  m3 <- feglm(ltrade ~ ldist | ctry1, weights = w, data = rose2004_subset)
 
   expect_equal(coef(m2), coef(m1))
   expect_equal(coef(m3), coef(m1))
 
   w <- NULL
-  m4 <- feglm(ltrade ~ ldist | ctry1, weights = w, data = ross2004_subset)
+  m4 <- feglm(ltrade ~ ldist | ctry1, weights = w, data = rose2004_subset)
 
   expect_true(coef(m1) != coef(m4))
 })

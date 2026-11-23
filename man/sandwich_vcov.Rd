@@ -61,23 +61,23 @@ the full dyadic correlation structure including cross-entity correlations.
 \examples{
 # Refitting models
 
-ross2004_s1 <- ross2004[ross2004$year == 1994, ]
-ross2004_s1 <- ross2004_s1[ross2004_s1$ltrade >
-  quantile(ross2004_s1$ltrade, 0.75), ]
+rose2004_s1 <- rose2004[rose2004$year == 1994, ]
+rose2004_s1 <- rose2004_s1[rose2004_s1$ltrade >
+  quantile(rose2004_s1$ltrade, 0.75), ]
 
-ross2004_s2 <- ross2004[ross2004$year == 1999, ]
-ross2004_s2 <- ross2004_s2[ross2004_s2$ltrade >
-  quantile(ross2004_s2$ltrade, 0.75), ]
+rose2004_s2 <- rose2004[rose2004$year == 1999, ]
+rose2004_s2 <- rose2004_s2[rose2004_s2$ltrade >
+  quantile(rose2004_s2$ltrade, 0.75), ]
 
-ross2004_subset <- rbind(ross2004_s1, ross2004_s2)
+rose2004_subset <- rbind(rose2004_s1, rose2004_s2)
 
 fepoisson(
-  ltrade ~ ldist | ctry1, ross2004_subset,
+  ltrade ~ ldist | ctry1, rose2004_subset,
   control = fit_control(vcov_type = "hetero")
 )
 
 fepoisson(
-  ltrade ~ ldist | ctry1, ross2004_subset,
+  ltrade ~ ldist | ctry1, rose2004_subset,
   control = fit_control(vcov_type = "m-estimator")
 )
 
@@ -85,7 +85,7 @@ fepoisson(
 
 # Store required components
 fit <- fepoisson(
-  ltrade ~ ldist | ctry1, ross2004_subset,
+  ltrade ~ ldist | ctry1, rose2004_subset,
   control = fit_control(keep_tx = TRUE, return_hessian = TRUE)
 )
 
@@ -93,6 +93,6 @@ fit <- fepoisson(
 sandwich_vcov(fit, type = "hetero")
 
 #' One-way cluster
-sandwich_vcov(fit, cluster1 = ross2004_subset$year, type = "clustered")
+sandwich_vcov(fit, cluster1 = rose2004_subset$year, type = "clustered")
 }
 

@@ -23,7 +23,7 @@ A very quick verification of Ross (2004) is to obtain the coefficients for the O
 ```r
 felm(ltrade ~ bothin + onein + gsp + ldist + lrgdp + lrgdppc + regional +
   custrict + comlang + border + landl + island + lareap + comcol +
-  curcol + colony + comctry | year, data = ross2004)
+  curcol + colony + comctry | year, data = rose2004)
 ```
 
 ```r
@@ -93,7 +93,7 @@ fml <- ltrade ~ bothin + onein + gsp + ldist + lrgdp + lrgdppc + regional +
 
 fit_iid <- felm(
   fml,
-  data = ross2004, vcov = "iid"
+  data = rose2004, vcov = "iid"
 )
 ```
 
@@ -102,7 +102,7 @@ fit_iid <- felm(
 ```r
 fit_hetero <- felm(
   fml,
-  data = ross2004, vcov = "hetero"
+  data = rose2004, vcov = "hetero"
 )
 ```
 
@@ -116,7 +116,7 @@ fml2 <- update(Formula::as.Formula(fml), . ~ . | . | pair)
 
 fit_pairs <- felm(
   fml2,
-  data = ross2004, vcov = "cluster"
+  data = rose2004, vcov = "cluster"
 )
 ```
 
@@ -125,7 +125,7 @@ fit_pairs <- felm(
 ```r
 fit_ctry1 <- felm(
   update(fml2, . ~ . | . | ctry1),
-  data = ross2004, vcov = "cluster"
+  data = rose2004, vcov = "cluster"
 )
 ```
 
@@ -134,7 +134,7 @@ fit_ctry1 <- felm(
 ```r
 fit_ctry2 <- felm(
   update(fml2, . ~ . | . | ctry2),
-  data = ross2004, vcov = "cluster"
+  data = rose2004, vcov = "cluster"
 )
 ```
 
@@ -143,7 +143,7 @@ fit_ctry2 <- felm(
 ```r
 fit_2way <- felm(
   update(fml2, . ~ . | . | ctry1 + ctry2),
-  data = ross2004, vcov = "cluster"
+  data = rose2004, vcov = "cluster"
 )
 ```
 
@@ -152,7 +152,7 @@ fit_2way <- felm(
 ```r
 fit_dyadic <- felm(
   update(fml2, . ~ . | . | ctry1 + ctry2),
-  data = ross2004, vcov = "dyadic"
+  data = rose2004, vcov = "dyadic"
 )
 ```
 

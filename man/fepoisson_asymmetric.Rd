@@ -90,13 +90,13 @@ upper conditional expectiles (more sensitive to large values).
 }
 
 \examples{
-ross2004_subset <- ross2004[ross2004$year == 1999, ]
-ross2004_subset <- ross2004_subset[ross2004_subset$ltrade >
-  quantile(ross2004_subset$ltrade, 0.75), ]
+rose2004_subset <- rose2004[rose2004$year == 1999, ]
+rose2004_subset <- rose2004_subset[rose2004_subset$ltrade >
+  quantile(rose2004_subset$ltrade, 0.75), ]
 
 # Lower expectile (10th) - more weight on negative residuals
 fit10 <- fepoisson_asymmetric(
-  ltrade ~ ldist | ctry1, ross2004_subset,
+  ltrade ~ ldist | ctry1, rose2004_subset,
   control = fit_control(expectile = 0.1)
 )
 

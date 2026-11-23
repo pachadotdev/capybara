@@ -10,8 +10,8 @@
 #'   dimension to extract (e.g. \code{"exp_year"}). If \code{NULL} (default),
 #'   the full named list of fixed-effect vectors is returned.
 #' @examples
-#' ross2004_subset <- ross2004[ross2004$year == 1999, ]
-#' fit <- felm(ltrade ~ ldist | ctry1, ross2004_subset)
+#' rose2004_subset <- rose2004[rose2004$year == 1999, ]
+#' fit <- felm(ltrade ~ ldist | ctry1, rose2004_subset)
 #'
 #' fixed_effects(fit, "ctry1")
 #' @return A named numeric vector (single dimension) or a named list of
