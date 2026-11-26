@@ -228,7 +228,7 @@ summary_nobs_ <- function(x) {
     # Show "Separated" instead of "Missing" for Poisson models with separation
     cat(
       "\nNumber of observations:",
-      paste0("Full ", nobs_vec[["nobs"]], ";"),
+      paste0("Full ", nobs_vec[["nobs"]] + nobs_vec[["nobs_separated"]], ";"),
       paste0("Separated ", nobs_vec[["nobs_separated"]], ";"),
       paste0("Perfect classification ", nobs_vec[["nobs_pc"]]),
       "\n"
