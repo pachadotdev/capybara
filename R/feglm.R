@@ -263,7 +263,7 @@ feglm <- function(
     nobs_na = nobs_na,
     nobs_separated = num_separated,
     nobs_pc = 0L,
-    nobs = fit[["nobs_used"]]
+    nobs = fit[["nobs_used"]] - num_separated
   )
 
   nms_fe <- fit[["nms_fe"]]
